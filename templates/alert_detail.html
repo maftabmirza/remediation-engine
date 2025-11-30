@@ -368,7 +368,7 @@
             btn.className = 'run-btn absolute top-2 right-2 bg-green-600 hover:bg-green-500 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity z-10';
             btn.innerHTML = '<i class="fas fa-play mr-1"></i>Run';
             btn.title = 'Run this command in terminal';
-            btn.onclick = () => runCommand(block.innerText);
+            btn.onclick = () => runCommand(block.innerText.trim());
             
             // Enhanced styling: dark background, rounded corners, and blue border on hover, plus text wrapping
             pre.className += ' relative group bg-gray-900 rounded-md p-3 my-2 border-2 border-transparent hover:border-blue-500 transition-all duration-200 whitespace-pre-wrap break-words overflow-x-auto';
@@ -471,7 +471,26 @@
         };
         
         terminalSocket.onmessage = (event) => {
-            term.write(event.data);
+            const data = event.data;
+            // Filter out control messages (ping, pong, resize confirmations, etc.)
+            if (data.startsWith('{"type":')) {
+                try {
+                    const msg = JSON.parse(data);
+                    // Handle control messages silently
+                    if (msg.type === 'ping' || msg.type === 'pong') {
+                        return; // Ignore ping/pong messages
+                    }
+                    if (msg.type === 'error') {
+                        term.write(`\r\n\x1b[31mError: ${msg.message}\x1b[0m\r\n`);
+                        return;
+                    }
+                    // Unknown control message, ignore
+                    return;
+                } catch (e) {
+                    // Not valid JSON, treat as terminal data
+                }
+            }
+            term.write(data);
         };
         
         terminalSocket.onclose = () => {
@@ -489,7 +508,7 @@
             return;
         }
         
-        // Send command + newline
+        // Send command with newline to auto-execute
         terminalSocket.send(cmd + '\r');
         term.focus();
         
