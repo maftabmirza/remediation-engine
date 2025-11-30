@@ -15,6 +15,7 @@ from app.models import TerminalSession
 from app.services.auth_service import get_current_user_ws
 from app.services.ssh_service import get_ssh_connection
 from app.config import get_settings
+from app.metrics import TERMINAL_SESSIONS, TERMINAL_CONNECTIONS
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Terminal"])
@@ -71,11 +72,13 @@ async def terminal_websocket(
     user = await get_current_user_ws(token, db)
     if not user:
         logger.warning(f"Terminal WebSocket auth failed for server {server_id}")
+        TERMINAL_CONNECTIONS.labels(status="auth_failed").inc()
         await websocket.close(code=WS_CLOSE_AUTH_FAILED)
         return
 
     await websocket.accept()
     logger.info(f"Terminal WebSocket connected: user={user.username}, server={server_id}")
+    TERMINAL_SESSIONS.inc()  # Increment active sessions
     
     ssh_client = None
     process = None
@@ -90,6 +93,7 @@ async def terminal_websocket(
             ssh_client = await get_ssh_connection(db, server_id)
         except ValueError as e:
             logger.error(f"Server credentials not found: {server_id}")
+            TERMINAL_CONNECTIONS.labels(status="server_not_found").inc()
             await safe_send(websocket, f"\r\nError: Server not found\r\n")
             await safe_close(websocket, WS_CLOSE_SERVER_NOT_FOUND)
             return
@@ -98,6 +102,7 @@ async def terminal_websocket(
             await ssh_client.connect()
         except Exception as e:
             logger.error(f"SSH connection failed to {server_id}: {e}")
+            TERMINAL_CONNECTIONS.labels(status="ssh_failed").inc()
             await safe_send(websocket, f"\r\nSSH Connection Error: {str(e)}\r\n")
             await safe_close(websocket, WS_CLOSE_SSH_FAILED)
             return
@@ -105,6 +110,7 @@ async def terminal_websocket(
         # 2. Start Shell
         try:
             process = await ssh_client.start_shell(term_size=(cols, rows))
+            TERMINAL_CONNECTIONS.labels(status="success").inc()
         except Exception as e:
             logger.error(f"Failed to start shell on {server_id}: {e}")
             await safe_send(websocket, f"\r\nFailed to start shell: {str(e)}\r\n")
@@ -244,6 +250,9 @@ async def terminal_websocket(
     finally:
         # Cleanup in order
         logger.debug(f"Cleaning up terminal session for server {server_id}")
+        
+        # Decrement active sessions
+        TERMINAL_SESSIONS.dec()
         
         # Signal recording task to stop and wait for it
         try:

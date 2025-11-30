@@ -1,7 +1,7 @@
 """
 Authentication API endpoints
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
 from sqlalchemy.orm import Session
 
@@ -13,6 +13,7 @@ from app.services.auth_service import (
     create_access_token,
     get_current_user
 )
+from app.metrics import AUTH_ATTEMPTS
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
@@ -35,6 +36,7 @@ async def login(
     user = authenticate_user(db, login_data.username, login_data.password)
     
     if not user:
+        AUTH_ATTEMPTS.labels(status="failed").inc()
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid username or password",
@@ -42,16 +44,20 @@ async def login(
         )
     
     if not user.is_active:
+        AUTH_ATTEMPTS.labels(status="disabled").inc()
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User account is disabled"
         )
     
+    # Record successful login
+    AUTH_ATTEMPTS.labels(status="success").inc()
+    
     # Create token
     access_token = create_access_token(data={"sub": str(user.id), "username": user.username})
     
     # Update last login
-    user.last_login = datetime.utcnow()
+    user.last_login = datetime.now(timezone.utc)
     db.commit()
     
     # Log the login

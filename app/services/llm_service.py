@@ -1,6 +1,7 @@
 """
 LLM Service - LiteLLM integration for multi-provider support
 """
+import time
 import logging
 from typing import Optional, List, Dict, Any, Tuple
 from datetime import datetime
@@ -10,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.models import LLMProvider, Alert
 from app.utils.crypto import decrypt_value
+from app.metrics import LLM_REQUESTS, LLM_DURATION, LLM_TOKENS
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -171,10 +173,53 @@ async def analyze_alert(
 
         # Call LiteLLM asynchronously (non-blocking)
         logger.info(f"Calling LLM provider: {provider.name} (model: {model_name})")
-        response = await acompletion(**kwargs)
+        start_time = time.time()
         
-        analysis = response.choices[0].message.content
-        logger.info(f"LLM response received from {provider.name}")
+        try:
+            response = await acompletion(**kwargs)
+            duration = time.time() - start_time
+            
+            # Record success metrics
+            LLM_REQUESTS.labels(
+                provider=provider.provider_type,
+                model=model_name,
+                status="success"
+            ).inc()
+            LLM_DURATION.labels(
+                provider=provider.provider_type,
+                model=model_name
+            ).observe(duration)
+            
+            # Record token usage if available
+            if hasattr(response, 'usage') and response.usage:
+                if response.usage.prompt_tokens:
+                    LLM_TOKENS.labels(
+                        provider=provider.provider_type,
+                        model=model_name,
+                        type="prompt"
+                    ).inc(response.usage.prompt_tokens)
+                if response.usage.completion_tokens:
+                    LLM_TOKENS.labels(
+                        provider=provider.provider_type,
+                        model=model_name,
+                        type="completion"
+                    ).inc(response.usage.completion_tokens)
+            
+            analysis = response.choices[0].message.content
+            logger.info(f"LLM response received from {provider.name} in {duration:.2f}s")
+            
+        except Exception as e:
+            duration = time.time() - start_time
+            LLM_REQUESTS.labels(
+                provider=provider.provider_type,
+                model=model_name,
+                status="error"
+            ).inc()
+            LLM_DURATION.labels(
+                provider=provider.provider_type,
+                model=model_name
+            ).observe(duration)
+            raise
         
     except Exception as e:
         raise RuntimeError(f"LLM API call failed: {str(e)}")
