@@ -26,124 +26,201 @@ async def terminal_websocket(
     websocket: WebSocket,
     server_id: UUID,
     token: str = Query(...),
-    cols: int = Query(80),
-    rows: int = Query(24),
+    cols: int = Query(80, ge=10, le=500),
+    rows: int = Query(24, ge=5, le=200),
     db: Session = Depends(get_db)
 ):
     """
     WebSocket endpoint for SSH terminal.
+    
+    Close codes:
+        - 4001: Authentication failed
+        - 4004: Server not found
+        - 4010: SSH connection failed
+        - 4500: Internal server error
     """
     # Authenticate
     user = await get_current_user_ws(token, db)
     if not user:
-        await websocket.close(code=4001)
+        logger.warning(f"Terminal WebSocket auth failed for server {server_id}")
+        await websocket.close(code=WS_CLOSE_AUTH_FAILED)
         return
 
     await websocket.accept()
+    logger.info(f"Terminal WebSocket connected: user={user.username}, server={server_id}")
     
     ssh_client = None
     process = None
     recording_file = None
+    session_record = None
+    tasks = []
     
     try:
         # 1. Get SSH Connection
-        ssh_client = await get_ssh_connection(db, server_id)
-        await ssh_client.connect()
+        try:
+            ssh_client = await get_ssh_connection(db, server_id)
+        except ValueError as e:
+            logger.error(f"Server credentials not found: {server_id}")
+            await safe_send(websocket, f"\r\nError: Server not found\r\n")
+            await safe_close(websocket, WS_CLOSE_SERVER_NOT_FOUND)
+            return
+        
+        try:
+            await ssh_client.connect()
+        except Exception as e:
+            logger.error(f"SSH connection failed to {server_id}: {e}")
+            await safe_send(websocket, f"\r\nSSH Connection Error: {str(e)}\r\n")
+            await safe_close(websocket, WS_CLOSE_SSH_FAILED)
+            return
         
         # 2. Start Shell
-        process = await ssh_client.start_shell(term_size=(cols, rows))
+        try:
+            process = await ssh_client.start_shell(term_size=(cols, rows))
+        except Exception as e:
+            logger.error(f"Failed to start shell on {server_id}: {e}")
+            await safe_send(websocket, f"\r\nFailed to start shell: {str(e)}\r\n")
+            await safe_close(websocket, WS_CLOSE_SSH_FAILED)
+            return
         
         # 3. Create Session Record & Recording File
-        timestamp = int(datetime.utcnow().timestamp())
+        timestamp = int(datetime.now(timezone.utc).timestamp())
         filename = f"{user.username}_{server_id}_{timestamp}.log"
         filepath = os.path.join(RECORDING_DIR, filename)
         
-        # Create the file immediately
-        recording_file = open(filepath, "w", encoding="utf-8")
+        try:
+            recording_file = open(filepath, "w", encoding="utf-8")
+        except IOError as e:
+            logger.warning(f"Failed to create recording file {filepath}: {e}")
+            # Continue without recording - not critical
+            recording_file = None
         
         session_record = TerminalSession(
             user_id=user.id,
             server_credential_id=server_id,
-            recording_path=filepath
+            recording_path=filepath if recording_file else None
         )
         db.add(session_record)
         db.commit()
         
         # 4. Pipe Data
         async def forward_output():
-            """Read from SSH stdout and send to WebSocket"""
+            """Read from SSH stdout and send to WebSocket."""
             try:
-                while not process.stdout.at_eof():
+                while process and not process.stdout.at_eof():
                     data = await process.stdout.read(1024)
                     if data:
                         # Record output
                         if recording_file:
-                            recording_file.write(data)
-                            recording_file.flush()
+                            try:
+                                recording_file.write(data)
+                                recording_file.flush()
+                            except IOError as e:
+                                logger.warning(f"Failed to write to recording: {e}")
                             
-                        # Send as text (xterm.js expects string)
-                        await websocket.send_text(data)
-            except Exception:
-                pass
+                        # Send to WebSocket
+                        if not await safe_send(websocket, data):
+                            break
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                logger.debug(f"Output forwarding ended: {e}")
 
         async def forward_input():
-            """Read from WebSocket and send to SSH stdin"""
+            """Read from WebSocket and send to SSH stdin."""
             try:
                 while True:
                     data = await websocket.receive_text()
                     
                     # Check for resize event (custom protocol)
-                    if data.startswith('{"type":"resize"'):
+                    if data.startswith('{"type":'):
                         try:
-                            resize_data = json.loads(data)
-                            process.set_terminal_size(
-                                resize_data["cols"], 
-                                resize_data["rows"]
-                            )
-                            continue
-                        except:
-                            pass
+                            msg = json.loads(data)
+                            if msg.get("type") == "resize":
+                                new_cols = msg.get("cols", cols)
+                                new_rows = msg.get("rows", rows)
+                                if process:
+                                    process.set_terminal_size(new_cols, new_rows)
+                                continue
+                        except json.JSONDecodeError:
+                            pass  # Not JSON, treat as regular input
                     
-                    # We could record input here too, but output usually contains the echoed input
-                    process.stdin.write(data)
+                    if process and process.stdin:
+                        process.stdin.write(data)
             except WebSocketDisconnect:
-                pass
-            except Exception:
-                pass
+                logger.debug(f"WebSocket disconnected for terminal {server_id}")
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                logger.debug(f"Input forwarding ended: {e}")
 
         async def heartbeat():
-            """Send periodic pings to keep connection alive"""
-            while True:
-                try:
+            """Send periodic pings to keep connection alive."""
+            try:
+                while True:
                     await asyncio.sleep(30)
-                    await websocket.send_text('{"type":"ping"}')
-                except:
-                    break
+                    if not await safe_send(websocket, '{"type":"ping"}'):
+                        break
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                pass
 
         # Run tasks
         output_task = asyncio.create_task(forward_output())
         input_task = asyncio.create_task(forward_input())
         heartbeat_task = asyncio.create_task(heartbeat())
+        tasks = [output_task, input_task, heartbeat_task]
         
-        # Wait for either to finish
+        # Wait for any task to finish
         done, pending = await asyncio.wait(
-            [output_task, input_task, heartbeat_task],
+            tasks,
             return_when=asyncio.FIRST_COMPLETED
         )
         
+        # Cancel remaining tasks
         for task in pending:
             task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
             
-        # Update session end time
-        session_record.ended_at = datetime.utcnow()
-        db.commit()
-            
+    except WebSocketDisconnect:
+        logger.info(f"Terminal WebSocket disconnected: user={user.username}, server={server_id}")
     except Exception as e:
-        await websocket.send_text(f"\r\nConnection Error: {str(e)}\r\n")
+        logger.error(f"Terminal WebSocket error: {e}", exc_info=True)
+        await safe_send(websocket, f"\r\nInternal Error: {str(e)}\r\n")
         
     finally:
+        # Cleanup in order
+        logger.debug(f"Cleaning up terminal session for server {server_id}")
+        
+        # Cancel any remaining tasks
+        for task in tasks:
+            if not task.done():
+                task.cancel()
+        
+        # Update session end time
+        if session_record:
+            try:
+                session_record.ended_at = datetime.now(timezone.utc)
+                db.commit()
+            except Exception as e:
+                logger.error(f"Failed to update session end time: {e}")
+        
+        # Close recording file
         if recording_file:
-            recording_file.close()
+            try:
+                recording_file.close()
+            except Exception as e:
+                logger.warning(f"Error closing recording file: {e}")
+        
+        # Close SSH connection
         if ssh_client:
-            await ssh_client.close()
-        await websocket.close()
+            try:
+                await ssh_client.close()
+            except Exception as e:
+                logger.warning(f"Error closing SSH connection: {e}")
+        
+        # Close WebSocket
+        await safe_close(websocket)
