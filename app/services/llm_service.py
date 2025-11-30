@@ -1,16 +1,17 @@
 """
 LLM Service - LiteLLM integration for multi-provider support
 """
-import json
+import logging
 from typing import Optional, List, Dict, Any, Tuple
 from datetime import datetime
-from litellm import completion
+from litellm import acompletion
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.models import LLMProvider, Alert
 from app.utils.crypto import decrypt_value
 
+logger = logging.getLogger(__name__)
 settings = get_settings()
 
 
@@ -168,10 +169,12 @@ async def analyze_alert(
         if provider.api_base_url:
             kwargs["api_base"] = provider.api_base_url
 
-        # Call LiteLLM
-        response = completion(**kwargs)
+        # Call LiteLLM asynchronously (non-blocking)
+        logger.info(f"Calling LLM provider: {provider.name} (model: {model_name})")
+        response = await acompletion(**kwargs)
         
         analysis = response.choices[0].message.content
+        logger.info(f"LLM response received from {provider.name}")
         
     except Exception as e:
         raise RuntimeError(f"LLM API call failed: {str(e)}")

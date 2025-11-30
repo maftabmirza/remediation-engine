@@ -8,6 +8,7 @@ from uuid import UUID
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Query
 from sqlalchemy.orm import Session
 from starlette.websockets import WebSocketState
+import aiofiles
 
 from app.database import get_db
 from app.models import TerminalSession
@@ -78,8 +79,9 @@ async def terminal_websocket(
     
     ssh_client = None
     process = None
-    recording_file = None
     session_record = None
+    recording_task = None
+    recording_queue = None
     tasks = []
     
     try:
@@ -114,35 +116,52 @@ async def terminal_websocket(
         filename = f"{user.username}_{server_id}_{timestamp}.log"
         filepath = os.path.join(RECORDING_DIR, filename)
         
-        try:
-            recording_file = open(filepath, "w", encoding="utf-8")
-        except IOError as e:
-            logger.warning(f"Failed to create recording file {filepath}: {e}")
-            # Continue without recording - not critical
-            recording_file = None
+        # Queue for async recording
+        recording_queue: asyncio.Queue = asyncio.Queue()
+        recording_enabled = True
         
         session_record = TerminalSession(
             user_id=user.id,
             server_credential_id=server_id,
-            recording_path=filepath if recording_file else None
+            recording_path=filepath
         )
         db.add(session_record)
         db.commit()
         
-        # 4. Pipe Data
+        # 4. Async recording writer task
+        async def record_output():
+            """Async task to write terminal output to file."""
+            nonlocal recording_enabled
+            try:
+                async with aiofiles.open(filepath, "w", encoding="utf-8") as f:
+                    while True:
+                        data = await recording_queue.get()
+                        if data is None:  # Shutdown signal
+                            break
+                        try:
+                            await f.write(data)
+                            await f.flush()
+                        except Exception as e:
+                            logger.warning(f"Failed to write to recording: {e}")
+                            recording_enabled = False
+                            break
+            except Exception as e:
+                logger.warning(f"Recording task error: {e}")
+                recording_enabled = False
+        
+        # 5. Pipe Data
         async def forward_output():
             """Read from SSH stdout and send to WebSocket."""
             try:
                 while process and not process.stdout.at_eof():
                     data = await process.stdout.read(1024)
                     if data:
-                        # Record output
-                        if recording_file:
+                        # Queue output for async recording (non-blocking)
+                        if recording_enabled:
                             try:
-                                recording_file.write(data)
-                                recording_file.flush()
-                            except IOError as e:
-                                logger.warning(f"Failed to write to recording: {e}")
+                                recording_queue.put_nowait(data)
+                            except asyncio.QueueFull:
+                                logger.warning("Recording queue full, dropping data")
                             
                         # Send to WebSocket
                         if not await safe_send(websocket, data):
@@ -193,6 +212,7 @@ async def terminal_websocket(
                 pass
 
         # Run tasks
+        recording_task = asyncio.create_task(record_output())
         output_task = asyncio.create_task(forward_output())
         input_task = asyncio.create_task(forward_input())
         heartbeat_task = asyncio.create_task(heartbeat())
@@ -203,6 +223,9 @@ async def terminal_websocket(
             tasks,
             return_when=asyncio.FIRST_COMPLETED
         )
+        
+        # Signal recording task to stop
+        await recording_queue.put(None)
         
         # Cancel remaining tasks
         for task in pending:
@@ -222,6 +245,15 @@ async def terminal_websocket(
         # Cleanup in order
         logger.debug(f"Cleaning up terminal session for server {server_id}")
         
+        # Signal recording task to stop and wait for it
+        try:
+            await recording_queue.put(None)
+            await asyncio.wait_for(recording_task, timeout=2.0)
+        except (asyncio.TimeoutError, NameError):
+            pass
+        except Exception as e:
+            logger.debug(f"Error stopping recording task: {e}")
+        
         # Cancel any remaining tasks
         for task in tasks:
             if not task.done():
@@ -234,13 +266,6 @@ async def terminal_websocket(
                 db.commit()
             except Exception as e:
                 logger.error(f"Failed to update session end time: {e}")
-        
-        # Close recording file
-        if recording_file:
-            try:
-                recording_file.close()
-            except Exception as e:
-                logger.warning(f"Error closing recording file: {e}")
         
         # Close SSH connection
         if ssh_client:
