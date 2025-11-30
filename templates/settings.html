@@ -1,0 +1,997 @@
+{% extends "layout.html" %}
+{% set active_page = 'settings' %}
+
+{% block title %}Settings - AIOps Platform{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div>
+        <h1 class="text-2xl font-bold">Settings</h1>
+        <p class="text-gray-400">Configure LLM providers and preferences</p>
+    </div>
+    
+    <!-- LLM Providers -->
+    <div class="card p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold">
+                <i class="fas fa-robot text-purple-400 mr-2"></i>
+                LLM Providers
+            </h2>
+            {% if user.role == 'admin' %}
+            <button onclick="showCreateProviderModal()" class="btn-primary px-4 py-2 rounded">
+                <i class="fas fa-plus mr-2"></i>Add Provider
+            </button>
+            {% endif %}
+        </div>
+        
+        <div id="providersList" class="space-y-4">
+            <div class="text-center py-8">
+                <div class="loading-spinner mx-auto"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Server Credentials -->
+    <div class="card p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold">
+                <i class="fas fa-server text-green-400 mr-2"></i>
+                Server Credentials
+            </h2>
+            {% if user.role == 'admin' %}
+            <button onclick="showCreateServerModal()" class="btn-primary px-4 py-2 rounded">
+                <i class="fas fa-plus mr-2"></i>Add Server
+            </button>
+            {% endif %}
+        </div>
+        
+        <div id="serversList" class="space-y-4">
+            <div class="text-center py-8">
+                <div class="loading-spinner mx-auto"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- User Info -->
+    <div class="card p-6">
+        <h2 class="text-lg font-semibold mb-4">
+            <i class="fas fa-user text-blue-400 mr-2"></i>
+            Account Information
+        </h2>
+        <div class="grid grid-cols-2 gap-4 text-sm">
+            <div>
+                <span class="text-gray-400">Username:</span>
+                <span class="ml-2">{{ user.username }}</span>
+            </div>
+            <div>
+                <span class="text-gray-400">Role:</span>
+                <span class="ml-2 capitalize">{{ user.role }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Management (Admin Only) -->
+    {% if user.role == 'admin' %}
+    <div class="card p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold">
+                <i class="fas fa-users text-yellow-400 mr-2"></i>
+                User Management
+            </h2>
+            <button onclick="showCreateUserModal()" class="btn-primary px-4 py-2 rounded">
+                <i class="fas fa-plus mr-2"></i>Add User
+            </button>
+        </div>
+        
+        <div id="usersList" class="space-y-4">
+            <div class="text-center py-8">
+                <div class="loading-spinner mx-auto"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Authentication Settings (Admin Only) -->
+    <div class="card p-6">
+        <h2 class="text-lg font-semibold mb-4">
+            <i class="fas fa-shield-alt text-red-400 mr-2"></i>
+            Authentication Settings
+        </h2>
+        <form id="authConfigForm" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium mb-1">Authentication Method</label>
+                <select id="authMethod" class="input-field w-full px-3 py-2 rounded" onchange="toggleAuthSections()">
+                    <option value="local">Local Database (Default)</option>
+                    <option value="ldap">LDAP / Active Directory</option>
+                    <option value="saml">SAML 2.0 (SSO)</option>
+                </select>
+            </div>
+
+            <!-- LDAP Config -->
+            <div id="ldapConfig" class="hidden space-y-4 border-l-2 border-blue-500 pl-4 ml-1">
+                <h3 class="text-sm font-semibold text-blue-400">LDAP Configuration</h3>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Server URL</label>
+                    <input type="text" id="ldapUrl" class="input-field w-full px-3 py-2 rounded" placeholder="ldap://domain.com:389">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Bind DN</label>
+                    <input type="text" id="ldapBindDn" class="input-field w-full px-3 py-2 rounded" placeholder="cn=admin,dc=domain,dc=com">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Base DN</label>
+                    <input type="text" id="ldapBaseDn" class="input-field w-full px-3 py-2 rounded" placeholder="dc=domain,dc=com">
+                </div>
+            </div>
+
+            <!-- SAML Config -->
+            <div id="samlConfig" class="hidden space-y-4 border-l-2 border-orange-500 pl-4 ml-1">
+                <h3 class="text-sm font-semibold text-orange-400">SAML Configuration</h3>
+                <div>
+                    <label class="block text-sm font-medium mb-1">IdP Metadata URL</label>
+                    <input type="text" id="samlMetadataUrl" class="input-field w-full px-3 py-2 rounded" placeholder="https://idp.example.com/metadata">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Entity ID</label>
+                    <input type="text" id="samlEntityId" class="input-field w-full px-3 py-2 rounded" placeholder="urn:aiops:platform">
+                </div>
+            </div>
+
+            <div class="flex justify-end pt-4">
+                <button type="submit" class="btn-primary px-4 py-2 rounded">Save Auth Settings</button>
+            </div>
+        </form>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Provider Modal -->
+<div id="providerModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="card p-6 w-full max-w-lg m-4">
+        <div class="flex items-center justify-between mb-4">
+            <h3 id="providerModalTitle" class="text-lg font-semibold">Add LLM Provider</h3>
+            <button onclick="closeProviderModal()" class="text-gray-400 hover:text-white">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <form id="providerForm" class="space-y-4">
+            <input type="hidden" id="providerId">
+            
+            <div>
+                <label class="block text-sm font-medium mb-1">Display Name *</label>
+                <input type="text" id="providerName" class="input-field w-full px-3 py-2 rounded" required placeholder="e.g., Claude Sonnet">
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1">Provider Type *</label>
+                    <select id="providerType" class="input-field w-full px-3 py-2 rounded" onchange="updateModelSuggestions()">
+                        <option value="anthropic">Anthropic (Claude)</option>
+                        <option value="openai">OpenAI (GPT)</option>
+                        <option value="google">Google (Gemini)</option>
+                        <option value="ollama">Ollama (Local)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Model ID *</label>
+                    <input type="text" id="providerModel" class="input-field w-full px-3 py-2 rounded" required placeholder="e.g., claude-sonnet-4-20250514">
+                </div>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium mb-1">API Key</label>
+                <input type="password" id="providerApiKey" class="input-field w-full px-3 py-2 rounded" placeholder="Leave empty to use environment variable">
+                <p class="text-xs text-gray-400 mt-1">If empty, will use API key from environment variables</p>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium mb-1">API Base URL (optional)</label>
+                <input type="text" id="providerBaseUrl" class="input-field w-full px-3 py-2 rounded" placeholder="For self-hosted or custom endpoints">
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1">Temperature</label>
+                    <input type="number" id="providerTemp" class="input-field w-full px-3 py-2 rounded" value="0.3" min="0" max="2" step="0.1">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Max Tokens</label>
+                    <input type="number" id="providerMaxTokens" class="input-field w-full px-3 py-2 rounded" value="2000">
+                </div>
+            </div>
+            
+            <div class="flex items-center space-x-4">
+                <label class="flex items-center">
+                    <input type="checkbox" id="providerEnabled" class="mr-2" checked>
+                    <span class="text-sm">Enabled</span>
+                </label>
+                <label class="flex items-center">
+                    <input type="checkbox" id="providerDefault" class="mr-2">
+                    <span class="text-sm">Set as default</span>
+                </label>
+            </div>
+            
+            <div class="flex justify-end space-x-2 pt-4 border-t border-gray-700">
+                <button type="button" onclick="closeProviderModal()" class="btn-secondary px-4 py-2 rounded">Cancel</button>
+                <button type="submit" class="btn-primary px-4 py-2 rounded">Save Provider</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- User Modal -->
+<div id="userModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="card p-6 w-full max-w-lg m-4">
+        <div class="flex items-center justify-between mb-4">
+            <h3 id="userModalTitle" class="text-lg font-semibold">Add User</h3>
+            <button onclick="closeUserModal()" class="text-gray-400 hover:text-white">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <form id="userForm" class="space-y-4">
+            <input type="hidden" id="userId">
+            
+            <div>
+                <label class="block text-sm font-medium mb-1">Username *</label>
+                <input type="text" id="userUsername" class="input-field w-full px-3 py-2 rounded" required>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium mb-1">Full Name</label>
+                <input type="text" id="userFullName" class="input-field w-full px-3 py-2 rounded" placeholder="John Doe">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium mb-1">Email</label>
+                <input type="email" id="userEmail" class="input-field w-full px-3 py-2 rounded" placeholder="john@example.com">
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium mb-1">Password <span id="userPasswordReq">*</span></label>
+                <input type="password" id="userPassword" class="input-field w-full px-3 py-2 rounded">
+                <p id="userPasswordHelp" class="text-xs text-gray-400 mt-1 hidden">Leave blank to keep current password</p>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium mb-1">Role</label>
+                <select id="userRole" class="input-field w-full px-3 py-2 rounded">
+                    <option value="user">User</option>
+                    <option value="admin">Admin</option>
+                </select>
+            </div>
+            
+            <div class="flex items-center">
+                <label class="flex items-center">
+                    <input type="checkbox" id="userActive" class="mr-2" checked>
+                    <span class="text-sm">Active</span>
+                </label>
+            </div>
+            
+            <div class="flex justify-end space-x-2 pt-4 border-t border-gray-700">
+                <button type="button" onclick="closeUserModal()" class="btn-secondary px-4 py-2 rounded">Cancel</button>
+                <button type="submit" class="btn-primary px-4 py-2 rounded">Save User</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Server Modal -->
+<div id="serverModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="card p-6 w-full max-w-lg m-4">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold">Add Server Credential</h3>
+            <button onclick="closeServerModal()" class="text-gray-400 hover:text-white">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <form id="serverForm" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium mb-1">Friendly Name *</label>
+                <input type="text" id="serverName" class="input-field w-full px-3 py-2 rounded" required placeholder="e.g., Production DB">
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1">Hostname/IP *</label>
+                    <input type="text" id="serverHost" class="input-field w-full px-3 py-2 rounded" required placeholder="192.168.1.10">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Port</label>
+                    <input type="number" id="serverPort" class="input-field w-full px-3 py-2 rounded" value="22">
+                </div>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium mb-1">Username *</label>
+                <input type="text" id="serverUser" class="input-field w-full px-3 py-2 rounded" required placeholder="root">
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium mb-1">Auth Type</label>
+                <select id="serverAuthType" class="input-field w-full px-3 py-2 rounded" onchange="toggleAuthFields()">
+                    <option value="key">SSH Key (PEM)</option>
+                    <option value="password">Password</option>
+                </select>
+            </div>
+            
+            <div id="authKeyField">
+                <label class="block text-sm font-medium mb-1">Private Key (PEM format)</label>
+                <textarea id="serverKey" class="input-field w-full px-3 py-2 rounded h-32 font-mono text-xs" placeholder="-----BEGIN RSA PRIVATE KEY-----..."></textarea>
+            </div>
+            
+            <div id="authPasswordField" class="hidden">
+                <label class="block text-sm font-medium mb-1">Password</label>
+                <input type="password" id="serverPassword" class="input-field w-full px-3 py-2 rounded">
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium mb-1">Environment</label>
+                <select id="serverEnv" class="input-field w-full px-3 py-2 rounded">
+                    <option value="production">Production</option>
+                    <option value="staging">Staging</option>
+                    <option value="development">Development</option>
+                </select>
+            </div>
+            
+            <div class="flex justify-end space-x-2 pt-4 border-t border-gray-700">
+                <button type="button" onclick="closeServerModal()" class="btn-secondary px-4 py-2 rounded">Cancel</button>
+                <button type="submit" class="btn-primary px-4 py-2 rounded">Save Server</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    const currentUserRole = "{{ user.role }}";
+    const modelSuggestions = {
+        anthropic: 'claude-sonnet-4-20250514',
+        openai: 'gpt-4-turbo-preview',
+        google: 'gemini-pro',
+        ollama: 'llama2'
+    };
+    
+    function updateModelSuggestions() {
+        const type = document.getElementById('providerType').value;
+        document.getElementById('providerModel').placeholder = modelSuggestions[type] || '';
+    }
+    
+    async function loadProviders() {
+        try {
+            const response = await apiCall('/api/settings/llm');
+            if (!response) return;
+            
+            const providers = await response.json();
+            renderProviders(providers);
+        } catch (error) {
+            console.error('Failed to load providers:', error);
+        }
+    }
+    
+    function renderProviders(providers) {
+        const container = document.getElementById('providersList');
+        
+        if (providers.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-8 text-gray-400">
+                    <i class="fas fa-robot text-4xl mb-3"></i>
+                    <p>No LLM providers configured</p>
+                </div>
+            `;
+            return;
+        }
+        
+        container.innerHTML = providers.map(provider => `
+            <div class="p-4 bg-gray-800 rounded-lg ${!provider.is_enabled ? 'opacity-50' : ''}">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-4">
+                        <div class="w-10 h-10 rounded-lg flex items-center justify-center ${
+                            provider.provider_type === 'anthropic' ? 'bg-orange-900' :
+                            provider.provider_type === 'openai' ? 'bg-green-900' :
+                            provider.provider_type === 'google' ? 'bg-blue-900' :
+                            'bg-gray-700'
+                        }">
+                            <i class="fas fa-${
+                                provider.provider_type === 'anthropic' ? 'robot' :
+                                provider.provider_type === 'openai' ? 'brain' :
+                                provider.provider_type === 'google' ? 'cloud' :
+                                'server'
+                            } text-lg"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center space-x-2">
+                                <span class="font-semibold">${provider.name}</span>
+                                ${provider.is_default ? '<span class="text-xs bg-blue-500 text-white px-2 py-0.5 rounded">Default</span>' : ''}
+                                ${!provider.is_enabled ? '<span class="text-xs text-yellow-400"><i class="fas fa-pause-circle mr-1"></i>Disabled</span>' : ''}
+                            </div>
+                            <div class="text-sm text-gray-400">
+                                ${provider.provider_type} / ${provider.model_id}
+                            </div>
+                            <div class="text-xs text-gray-500 mt-1">
+                                Temp: ${provider.config_json?.temperature || 0.3} | Max tokens: ${provider.config_json?.max_tokens || 2000}
+                                ${provider.has_api_key ? ' | <i class="fas fa-key text-green-400"></i> API key set' : ''}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex space-x-2">
+                        ${currentUserRole === 'admin' ? `
+                            ${!provider.is_default && provider.is_enabled ? `
+                                <button onclick="setDefaultProvider('${provider.id}')" class="btn-secondary px-3 py-1 rounded text-sm" title="Set as default">
+                                    <i class="fas fa-star"></i>
+                                </button>
+                            ` : ''}
+                            <button onclick="toggleProvider('${provider.id}')" class="btn-secondary px-3 py-1 rounded text-sm" title="${provider.is_enabled ? 'Disable' : 'Enable'}">
+                                <i class="fas fa-${provider.is_enabled ? 'pause' : 'play'}"></i>
+                            </button>
+                            <button onclick="editProvider('${provider.id}')" class="btn-secondary px-3 py-1 rounded text-sm">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button onclick="deleteProvider('${provider.id}')" class="btn-secondary px-3 py-1 rounded text-sm text-red-400">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+    
+    function showCreateProviderModal() {
+        document.getElementById('providerModalTitle').textContent = 'Add LLM Provider';
+        document.getElementById('providerForm').reset();
+        document.getElementById('providerId').value = '';
+        document.getElementById('providerTemp').value = '0.3';
+        document.getElementById('providerMaxTokens').value = '2000';
+        document.getElementById('providerEnabled').checked = true;
+        updateModelSuggestions();
+        
+        document.getElementById('providerModal').classList.remove('hidden');
+        document.getElementById('providerModal').classList.add('flex');
+    }
+    
+    async function editProvider(providerId) {
+        try {
+            const response = await apiCall(`/api/settings/llm/${providerId}`);
+            if (!response) return;
+            
+            const provider = await response.json();
+            
+            document.getElementById('providerModalTitle').textContent = 'Edit Provider';
+            document.getElementById('providerId').value = provider.id;
+            document.getElementById('providerName').value = provider.name;
+            document.getElementById('providerType').value = provider.provider_type;
+            document.getElementById('providerModel').value = provider.model_id;
+            document.getElementById('providerBaseUrl').value = provider.api_base_url || '';
+            document.getElementById('providerTemp').value = provider.config_json?.temperature || 0.3;
+            document.getElementById('providerMaxTokens').value = provider.config_json?.max_tokens || 2000;
+            document.getElementById('providerEnabled').checked = provider.is_enabled;
+            document.getElementById('providerDefault').checked = provider.is_default;
+            
+            document.getElementById('providerModal').classList.remove('hidden');
+            document.getElementById('providerModal').classList.add('flex');
+        } catch (error) {
+            showToast('Failed to load provider', 'error');
+        }
+    }
+    
+    function closeProviderModal() {
+        document.getElementById('providerModal').classList.add('hidden');
+        document.getElementById('providerModal').classList.remove('flex');
+    }
+    
+    document.getElementById('providerForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const providerId = document.getElementById('providerId').value;
+        const apiKey = document.getElementById('providerApiKey').value;
+        
+        const data = {
+            name: document.getElementById('providerName').value,
+            provider_type: document.getElementById('providerType').value,
+            model_id: document.getElementById('providerModel').value,
+            api_base_url: document.getElementById('providerBaseUrl').value || null,
+            is_default: document.getElementById('providerDefault').checked,
+            is_enabled: document.getElementById('providerEnabled').checked,
+            config_json: {
+                temperature: parseFloat(document.getElementById('providerTemp').value),
+                max_tokens: parseInt(document.getElementById('providerMaxTokens').value)
+            }
+        };
+        
+        if (apiKey) {
+            data.api_key = apiKey;
+        }
+        
+        try {
+            const url = providerId ? `/api/settings/llm/${providerId}` : '/api/settings/llm';
+            const method = providerId ? 'PUT' : 'POST';
+            
+            const response = await apiCall(url, {
+                method,
+                body: JSON.stringify(data)
+            });
+            
+            if (!response) return;
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Failed to save');
+            }
+            
+            showToast(providerId ? 'Provider updated' : 'Provider created', 'success');
+            closeProviderModal();
+            loadProviders();
+            
+        } catch (error) {
+            showToast(error.message, 'error');
+        }
+    });
+    
+    async function setDefaultProvider(providerId) {
+        try {
+            const response = await apiCall(`/api/settings/llm/${providerId}/set-default`, { method: 'POST' });
+            if (!response) return;
+            
+            showToast('Default provider updated', 'success');
+            loadProviders();
+        } catch (error) {
+            showToast('Failed to update default', 'error');
+        }
+    }
+    
+    async function toggleProvider(providerId) {
+        try {
+            const response = await apiCall(`/api/settings/llm/${providerId}/toggle`, { method: 'POST' });
+            if (!response) return;
+            
+            const result = await response.json();
+            showToast(result.message, 'success');
+            loadProviders();
+        } catch (error) {
+            showToast('Failed to toggle provider', 'error');
+        }
+    }
+    
+    async function deleteProvider(providerId) {
+        if (!confirm('Are you sure you want to delete this provider?')) return;
+        
+        try {
+            const response = await apiCall(`/api/settings/llm/${providerId}`, { method: 'DELETE' });
+            if (!response) return;
+            
+            showToast('Provider deleted', 'success');
+            loadProviders();
+        } catch (error) {
+            showToast('Failed to delete provider', 'error');
+        }
+    }
+    
+    // --- Server Management ---
+    function toggleAuthFields() {
+        const type = document.getElementById('serverAuthType').value;
+        if (type === 'key') {
+            document.getElementById('authKeyField').classList.remove('hidden');
+            document.getElementById('authPasswordField').classList.add('hidden');
+        } else {
+            document.getElementById('authKeyField').classList.add('hidden');
+            document.getElementById('authPasswordField').classList.remove('hidden');
+        }
+    }
+
+    async function loadServers() {
+        try {
+            const response = await apiCall('/api/servers');
+            if (!response) return;
+            
+            const servers = await response.json();
+            renderServers(servers);
+        } catch (error) {
+            console.error('Failed to load servers:', error);
+        }
+    }
+
+    function renderServers(servers) {
+        const container = document.getElementById('serversList');
+        
+        if (servers.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-8 text-gray-400">
+                    <i class="fas fa-server text-4xl mb-3"></i>
+                    <p>No servers configured</p>
+                </div>
+            `;
+            return;
+        }
+        
+        container.innerHTML = servers.map(server => `
+            <div class="p-4 bg-gray-800 rounded-lg">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-4">
+                        <div class="w-10 h-10 rounded-lg bg-gray-700 flex items-center justify-center">
+                            <i class="fas fa-terminal text-lg text-green-400"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center space-x-2">
+                                <span class="font-semibold">${server.name}</span>
+                                <span class="text-xs bg-gray-700 px-2 py-0.5 rounded uppercase">${server.environment}</span>
+                            </div>
+                            <div class="text-sm text-gray-400">
+                                ${server.username}@${server.hostname}:${server.port}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex space-x-2">
+                        ${currentUserRole === 'admin' ? `
+                        <!-- No edit for security reasons, just delete and recreate -->
+                        <button onclick="deleteServer('${server.id}')" class="btn-secondary px-3 py-1 rounded text-sm text-red-400">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function showCreateServerModal() {
+        document.getElementById('serverForm').reset();
+        toggleAuthFields();
+        document.getElementById('serverModal').classList.remove('hidden');
+        document.getElementById('serverModal').classList.add('flex');
+    }
+
+    function closeServerModal() {
+        document.getElementById('serverModal').classList.add('hidden');
+        document.getElementById('serverModal').classList.remove('flex');
+    }
+
+    document.getElementById('serverForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const data = {
+            name: document.getElementById('serverName').value,
+            hostname: document.getElementById('serverHost').value,
+            port: parseInt(document.getElementById('serverPort').value),
+            username: document.getElementById('serverUser').value,
+            auth_type: document.getElementById('serverAuthType').value,
+            environment: document.getElementById('serverEnv').value
+        };
+        
+        if (data.auth_type === 'key') {
+            data.ssh_key = document.getElementById('serverKey').value;
+        } else {
+            data.password = document.getElementById('serverPassword').value;
+        }
+        
+        try {
+            const response = await apiCall('/api/servers', {
+                method: 'POST',
+                body: JSON.stringify(data)
+            });
+            
+            if (!response) return;
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Failed to save server');
+            }
+            
+            showToast('Server added successfully', 'success');
+            closeServerModal();
+            loadServers();
+            
+        } catch (error) {
+            showToast(error.message, 'error');
+        }
+    });
+
+    async function deleteServer(serverId) {
+        if (!confirm('Are you sure you want to delete this server credential?')) return;
+        
+        try {
+            const response = await apiCall(`/api/servers/${serverId}`, { method: 'DELETE' });
+            if (!response) return;
+            
+            showToast('Server deleted', 'success');
+            loadServers();
+        } catch (error) {
+            showToast('Failed to delete server', 'error');
+        }
+    }
+
+    // Modal close handlers
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeProviderModal();
+    });
+    
+    document.getElementById('providerModal').addEventListener('click', (e) => {
+        if (e.target === e.currentTarget) closeProviderModal();
+    });
+    
+    // Initial load
+    loadProviders();
+    loadServers();
+    {% if user.role == 'admin' %}
+    loadUsers();
+    loadAuthConfig();
+    {% endif %}
+
+    // --- Auth Config ---
+    function toggleAuthSections() {
+        const method = document.getElementById('authMethod').value;
+        document.getElementById('ldapConfig').classList.add('hidden');
+        document.getElementById('samlConfig').classList.add('hidden');
+        
+        if (method === 'ldap') {
+            document.getElementById('ldapConfig').classList.remove('hidden');
+        } else if (method === 'saml') {
+            document.getElementById('samlConfig').classList.remove('hidden');
+        }
+    }
+
+    async function loadAuthConfig() {
+        try {
+            const response = await apiCall('/api/auth/config');
+            if (!response) return;
+            
+            if (!response.ok) {
+                console.warn('Failed to load auth config, using defaults');
+                return;
+            }
+            
+            const config = await response.json();
+            document.getElementById('authMethod').value = config.method;
+            
+            if (config.ldap_config) {
+                document.getElementById('ldapUrl').value = config.ldap_config.url || '';
+                document.getElementById('ldapBindDn').value = config.ldap_config.bind_dn || '';
+                document.getElementById('ldapBaseDn').value = config.ldap_config.base_dn || '';
+            }
+            
+            if (config.saml_config) {
+                document.getElementById('samlMetadataUrl').value = config.saml_config.metadata_url || '';
+                document.getElementById('samlEntityId').value = config.saml_config.entity_id || '';
+            }
+            
+            toggleAuthSections();
+        } catch (error) {
+            console.error('Failed to load auth config:', error);
+        }
+    }
+
+    document.getElementById('authConfigForm')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const method = document.getElementById('authMethod').value;
+        const data = {
+            method: method,
+            ldap_config: method === 'ldap' ? {
+                url: document.getElementById('ldapUrl').value,
+                bind_dn: document.getElementById('ldapBindDn').value,
+                base_dn: document.getElementById('ldapBaseDn').value
+            } : null,
+            saml_config: method === 'saml' ? {
+                metadata_url: document.getElementById('samlMetadataUrl').value,
+                entity_id: document.getElementById('samlEntityId').value
+            } : null
+        };
+        
+        try {
+            const response = await apiCall('/api/auth/config', {
+                method: 'POST',
+                body: JSON.stringify(data)
+            });
+            
+            if (!response) return;
+            
+            showToast('Authentication settings saved', 'success');
+            
+        } catch (error) {
+            showToast('Failed to save auth settings', 'error');
+        }
+    });
+
+    // --- User Management ---
+    async function loadUsers() {
+        const container = document.getElementById('usersList');
+        try {
+            const response = await apiCall('/api/users');
+            if (!response) return;
+            
+            if (!response.ok) {
+                if (response.status === 404) {
+                    container.innerHTML = `
+                        <div class="text-center py-8 text-gray-400">
+                            <i class="fas fa-exclamation-triangle text-4xl mb-3 text-yellow-500"></i>
+                            <p>User service not reachable</p>
+                            <button onclick="loadUsers()" class="mt-2 text-sm text-blue-400 hover:text-blue-300">
+                                <i class="fas fa-sync-alt mr-1"></i> Retry
+                            </button>
+                        </div>
+                    `;
+                    return;
+                }
+                const errorText = await response.text();
+                throw new Error(`${response.status} ${response.statusText}`);
+            }
+            
+            const users = await response.json();
+            renderUsers(users);
+        } catch (error) {
+            console.error('Failed to load users:', error);
+            container.innerHTML = `
+                <div class="text-center py-8 text-red-400">
+                    <i class="fas fa-exclamation-circle text-4xl mb-3"></i>
+                    <p>Unable to load users</p>
+                    <p class="text-xs mt-1">${error.message}</p>
+                </div>
+            `;
+        }
+    }
+
+    function renderUsers(users) {
+        const container = document.getElementById('usersList');
+        
+        if (!Array.isArray(users) || users.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-8 text-gray-400">
+                    <i class="fas fa-users text-4xl mb-3"></i>
+                    <p>No users found</p>
+                </div>
+            `;
+            return;
+        }
+        
+        container.innerHTML = users.map(u => `
+            <div class="p-4 bg-gray-800 rounded-lg ${!u.is_active ? 'opacity-50' : ''}">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-4">
+                        <div class="w-10 h-10 rounded-lg bg-gray-700 flex items-center justify-center">
+                            <i class="fas fa-user text-lg ${u.role === 'admin' ? 'text-yellow-400' : 'text-blue-400'}"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center space-x-2">
+                                <span class="font-semibold">${u.username}</span>
+                                <span class="text-xs bg-gray-700 px-2 py-0.5 rounded uppercase">${u.role}</span>
+                                ${!u.is_active ? '<span class="text-xs text-red-400">Inactive</span>' : ''}
+                            </div>
+                            <div class="text-sm text-gray-400">
+                                ${u.full_name || ''} ${u.email ? `<span class="text-gray-500">&lt;${u.email}&gt;</span>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex space-x-2">
+                        <button onclick="editUser('${u.id}')" class="btn-secondary px-3 py-1 rounded text-sm">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        ${u.username !== 'admin' && u.id !== '{{ user.id }}' ? `
+                        <button onclick="deleteUser('${u.id}')" class="btn-secondary px-3 py-1 rounded text-sm text-red-400">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function showCreateUserModal() {
+        document.getElementById('userModalTitle').textContent = 'Add User';
+        document.getElementById('userForm').reset();
+        document.getElementById('userId').value = '';
+        document.getElementById('userPassword').required = true;
+        document.getElementById('userPasswordHelp').classList.add('hidden');
+        document.getElementById('userModal').classList.remove('hidden');
+        document.getElementById('userModal').classList.add('flex');
+    }
+
+    async function editUser(userId) {
+        // Find user in current list (optimization) or fetch
+        // For simplicity, we'll just fetch or use what we have if we stored it globally, 
+        // but here we can just fetch the list again or assume we have it.
+        // Let's fetch specific user details if we had an endpoint, but we don't have get_user by id exposed to admin easily without list.
+        // We can just use the data from the list if we store it.
+        // Let's just reload the list and find the user.
+        
+        try {
+            // We need to get the user data. Since we don't have a get-single-user endpoint for admin in the UI code yet,
+            // let's just use the data from the list if we can access it. 
+            // Better: add a get user endpoint or just pass data.
+            // For now, let's just iterate the DOM or fetch list again.
+            // Actually, let's just add a get user endpoint or use the list data.
+            // I'll implement a simple find in the rendered list if I had the data object.
+            // Let's just fetch the list and find the user.
+            const response = await apiCall('/api/users');
+            const users = await response.json();
+            const user = users.find(u => u.id === userId);
+            
+            if (!user) return;
+
+            document.getElementById('userModalTitle').textContent = 'Edit User';
+            document.getElementById('userId').value = user.id;
+            document.getElementById('userUsername').value = user.username;
+            document.getElementById('userEmail').value = user.email || '';
+            document.getElementById('userFullName').value = user.full_name || '';
+            document.getElementById('userRole').value = user.role;
+            document.getElementById('userActive').checked = user.is_active;
+            
+            // Password is optional for edit
+            document.getElementById('userPassword').value = '';
+            document.getElementById('userPassword').required = false;
+            document.getElementById('userPasswordHelp').classList.remove('hidden');
+            
+            document.getElementById('userModal').classList.remove('hidden');
+            document.getElementById('userModal').classList.add('flex');
+        } catch (e) {
+            showToast('Error loading user details', 'error');
+        }
+    }
+
+    function closeUserModal() {
+        document.getElementById('userModal').classList.add('hidden');
+        document.getElementById('userModal').classList.remove('flex');
+    }
+
+    document.getElementById('userForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const userId = document.getElementById('userId').value;
+        const password = document.getElementById('userPassword').value;
+        
+        const data = {
+            username: document.getElementById('userUsername').value,
+            email: document.getElementById('userEmail').value || null,
+            full_name: document.getElementById('userFullName').value || null,
+            role: document.getElementById('userRole').value,
+            is_active: document.getElementById('userActive').checked
+        };
+        
+        if (password) {
+            data.password = password;
+        }
+        
+        try {
+            const url = userId ? `/api/users/${userId}` : '/api/users';
+            const method = userId ? 'PUT' : 'POST';
+            
+            const response = await apiCall(url, {
+                method,
+                body: JSON.stringify(data)
+            });
+            
+            if (!response) return;
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Failed to save user');
+            }
+            
+            showToast(userId ? 'User updated' : 'User created', 'success');
+            closeUserModal();
+            loadUsers();
+            
+        } catch (error) {
+            showToast(error.message, 'error');
+        }
+    });
+
+    async function deleteUser(userId) {
+        if (!confirm('Are you sure you want to delete this user?')) return;
+        
+        try {
+            const response = await apiCall(`/api/users/${userId}`, { method: 'DELETE' });
+            if (!response) return;
+            
+            showToast('User deleted', 'success');
+            loadUsers();
+        } catch (error) {
+            showToast('Failed to delete user', 'error');
+        }
+    }
+</script>
+{% endblock %}

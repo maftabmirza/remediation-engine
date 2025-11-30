@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: aiops-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-aiops}
+      POSTGRES_USER: ${POSTGRES_USER:-aiops}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-aiops_secure_password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-aiops} -d ${POSTGRES_DB:-aiops}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - aiops-network
+
+  remediation-engine:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: remediation-engine
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=${POSTGRES_DB:-aiops}
+      - POSTGRES_USER=${POSTGRES_USER:-aiops}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-aiops_secure_password}
+      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+      - JWT_EXPIRY_HOURS=${JWT_EXPIRY_HOURS:-24}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - DEBUG=${DEBUG:-false}
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./app:/app/app:ro
+      - ./static:/app/static:ro
+      - ./templates:/app/templates:ro
+      - ./storage:/app/storage
+    networks:
+      - aiops-network
+      - aiops_aiops-network
+
+volumes:
+  postgres_data:
+
+networks:
+  aiops-network:
+    driver: bridge
+  aiops_aiops-network:
+    external: true

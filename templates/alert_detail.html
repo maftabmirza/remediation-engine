@@ -1,0 +1,594 @@
+{% extends "layout.html" %}
+{% set active_page = 'alerts' %}
+
+{% block title %}Alert Details - AIOps Platform{% endblock %}
+
+{% block content %}
+<div id="alertContent" class="space-y-6 h-full flex flex-col">
+    <div class="text-center py-8">
+        <div class="loading-spinner mx-auto"></div>
+        <p class="text-gray-400 mt-2">Loading alert...</p>
+    </div>
+</div>
+
+<!-- Server Selection Modal -->
+<div id="serverModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="card p-6 w-96 max-w-full">
+        <h3 class="text-xl font-bold mb-4">Connect to Server</h3>
+        <div id="serverList" class="space-y-2 mb-4 max-h-60 overflow-y-auto">
+            <!-- Servers will be populated here -->
+            <p class="text-gray-400 text-sm">Loading servers...</p>
+        </div>
+        <div class="flex justify-end space-x-2">
+            <button onclick="closeServerModal()" class="btn-secondary px-4 py-2 rounded">Cancel</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    const alertId = '{{ alert_id }}';
+    let chatSocket = null;
+    let terminalSocket = null;
+    let currentSessionId = null;
+    let term = null;
+    let fitAddon = null;
+    
+    // --- Font Size Logic ---
+    let chatFontSize = 14; // default
+    function adjustChatFont(delta) {
+        chatFontSize = Math.max(10, Math.min(24, chatFontSize + delta));
+        document.getElementById('chatMessages').style.fontSize = `${chatFontSize}px`;
+    }
+
+    function adjustTermFont(delta) {
+        if (!term) return;
+        const newSize = Math.max(8, Math.min(24, term.options.fontSize + delta));
+        term.options.fontSize = newSize;
+        fitAddon.fit();
+    }
+
+    // --- Alert Management ---
+    
+    async function loadAlert() {
+        try {
+            const response = await apiCall(`/api/alerts/${alertId}`);
+            if (!response) return;
+            
+            if (!response.ok) throw new Error('Alert not found');
+            
+            const alert = await response.json();
+            renderAlert(alert);
+            
+            // Initialize Chat Session automatically
+            initChatSession(alert.id);
+            
+        } catch (error) {
+            document.getElementById('alertContent').innerHTML = `
+                <div class="text-center py-8">
+                    <i class="fas fa-exclamation-circle text-red-400 text-4xl mb-3"></i>
+                    <p class="text-gray-400">Alert not found</p>
+                    <a href="/alerts" class="btn-primary mt-4 px-4 py-2 rounded inline-block">Back to Alerts</a>
+                </div>
+            `;
+        }
+    }
+    
+    function renderAlert(alert) {
+        const container = document.getElementById('alertContent');
+        
+        // Format labels/annotations (same as before)
+        const labelsHtml = Object.entries(alert.labels_json || {})
+            .map(([k, v]) => `<span class="inline-block bg-gray-700 px-2 py-1 rounded text-sm mr-2 mb-2">${k}: ${v}</span>`)
+            .join('');
+            
+        const annotationsHtml = Object.entries(alert.annotations_json || {})
+            .map(([k, v]) => `<div class="mb-1"><span class="text-gray-400">${k}:</span> <span class="ml-2">${v}</span></div>`)
+            .join('');
+
+        container.innerHTML = `
+            <!-- Header -->
+            <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center space-x-3">
+                    <a href="/alerts" class="text-gray-400 hover:text-white" title="Back to Alerts"><i class="fas fa-arrow-left"></i></a>
+                    <div class="flex items-center space-x-3">
+                        <h1 class="text-lg font-bold" title="Alert Name">${alert.alert_name}</h1>
+                        <span class="badge-${alert.severity || 'info'} px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider" title="Severity">${alert.severity || 'info'}</span>
+                        <span class="status-${alert.status} text-xs flex items-center" title="Status"><i class="fas fa-circle text-[8px] mr-1"></i>${alert.status}</span>
+                    </div>
+                </div>
+                <div class="flex space-x-2">
+                    <button onclick="deleteAlert()" class="btn-secondary px-2 py-1 rounded text-red-400 hover:text-red-300 text-xs" title="Delete Alert"><i class="fas fa-trash"></i></button>
+                </div>
+            </div>
+            
+            <!-- Compact Details Bar -->
+            <div class="bg-gray-800 rounded-lg p-2 mb-2 flex items-center space-x-4 text-xs border border-gray-700">
+                <div class="flex items-center text-gray-400" title="Instance"><i class="fas fa-server mr-1"></i><span class="text-white">${alert.instance || 'N/A'}</span></div>
+                <div class="flex items-center text-gray-400" title="Job"><i class="fas fa-cube mr-1"></i><span class="text-white">${alert.job || 'N/A'}</span></div>
+                <div class="flex items-center text-gray-400" title="Time"><i class="fas fa-clock mr-1"></i><span class="text-white">${new Date(alert.timestamp).toLocaleTimeString()}</span></div>
+                <div class="flex-grow border-l border-gray-700 pl-4 text-gray-300 truncate" title="${alert.annotations_json.description || ''}">
+                    ${alert.annotations_json.summary || 'No summary'}
+                </div>
+                
+                <!-- Hover for more details -->
+                <div class="relative group">
+                    <button class="text-blue-400 hover:text-blue-300" title="View Full Details"><i class="fas fa-info-circle"></i> Details</button>
+                    <div class="absolute right-0 top-full mt-2 w-80 bg-gray-800 border border-gray-600 rounded-lg shadow-xl p-4 hidden group-hover:block z-50">
+                        <h3 class="font-bold mb-2 text-gray-300">Labels</h3>
+                        <div class="mb-3">${labelsHtml || '<span class="text-gray-500 text-sm">No labels</span>'}</div>
+                        <h3 class="font-bold mb-2 text-gray-300">Annotations</h3>
+                        <div>${annotationsHtml || '<span class="text-gray-500 text-sm">No annotations</span>'}</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 2-Pane Layout (Chat 40% | Terminal 60%) -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-grow overflow-hidden" style="height: calc(100vh - 140px);">
+                
+                <!-- Pane 1: Chat (5 cols ~ 41%) -->
+                <div class="lg:col-span-5 flex flex-col card h-full min-h-0 overflow-hidden">
+                    <div class="p-2 border-b border-gray-700 flex justify-between items-center flex-shrink-0">
+                        <div class="flex items-center">
+                            <h2 class="font-semibold text-sm mr-2"><i class="fas fa-robot text-purple-400 mr-1"></i>AI Assistant</h2>
+                            <span id="chatStatus" class="text-[10px] text-gray-500" title="Connection Status">Disconnected</span>
+                        </div>
+                        <div class="flex space-x-1">
+                            <button onclick="adjustChatFont(-1)" class="text-gray-400 hover:text-white px-1" title="Decrease Font Size"><i class="fas fa-minus text-xs"></i></button>
+                            <button onclick="adjustChatFont(1)" class="text-gray-400 hover:text-white px-1" title="Increase Font Size"><i class="fas fa-plus text-xs"></i></button>
+                        </div>
+                    </div>
+                    
+                    <div id="chatMessages" class="flex-grow overflow-y-auto p-4 space-y-4 min-h-0 text-sm">
+                        <!-- Messages go here -->
+                        <div class="text-center text-gray-500 mt-10">
+                            <p>Starting conversation...</p>
+                        </div>
+                    </div>
+                    
+                    <div class="p-3 border-t border-gray-700 flex-shrink-0 bg-gray-800 z-10">
+                        <form id="chatForm" onsubmit="sendMessage(event)" class="flex space-x-2">
+                            <textarea id="chatInput" class="input-field flex-grow px-3 py-2 rounded resize-none h-12" placeholder="Ask AI to troubleshoot..." autocomplete="off" title="Type your message here"></textarea>
+                            <button type="submit" class="btn-primary px-4 py-2 rounded h-12" title="Send Message"><i class="fas fa-paper-plane"></i></button>
+                        </form>
+                    </div>
+                </div>
+                
+                <!-- Pane 2: Terminal (7 cols ~ 58%) -->
+                <div class="lg:col-span-7 flex flex-col card h-full bg-black overflow-hidden">
+                    <div class="p-2 border-b border-gray-800 flex justify-between items-center bg-gray-900 flex-shrink-0">
+                        <div class="flex items-center">
+                            <h2 class="font-semibold text-sm mr-2"><i class="fas fa-terminal text-green-400 mr-1"></i>Terminal</h2>
+                            <div class="flex space-x-1 mr-2">
+                                <button onclick="adjustTermFont(-1)" class="text-gray-400 hover:text-white px-1" title="Decrease Font Size"><i class="fas fa-minus text-xs"></i></button>
+                                <button onclick="adjustTermFont(1)" class="text-gray-400 hover:text-white px-1" title="Increase Font Size"><i class="fas fa-plus text-xs"></i></button>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span id="termStatus" class="text-[10px] text-gray-500" title="Connection Status">Disconnected</span>
+                            <button onclick="openServerModal()" class="btn-secondary px-2 py-1 text-[10px] rounded" title="Connect to Server">
+                                <i class="fas fa-plug mr-1"></i>Connect
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex-grow relative overflow-hidden h-full w-full">
+                        <div id="terminal" class="absolute inset-0"></div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    // --- Chat Logic ---
+
+    async function initChatSession(alertId) {
+        try {
+            // Create session
+            const response = await apiCall('/api/chat/sessions', {
+                method: 'POST',
+                body: JSON.stringify({ alert_id: alertId })
+            });
+            
+            if (!response.ok) throw new Error('Failed to create chat session');
+            
+            const session = await response.json();
+            currentSessionId = session.id;
+            
+            // Connect WebSocket
+            connectChatWebSocket(session.id);
+            
+        } catch (error) {
+            console.error('Chat init failed:', error);
+            showToast('Failed to initialize chat', 'error');
+        }
+    }
+
+    function connectChatWebSocket(sessionId) {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        // We need a token for WS auth. For now, we'll assume the cookie is enough or pass a dummy if using cookie-based auth.
+        // But our backend expects a token query param. We need to get the JWT.
+        // Since we don't have a "get token" endpoint exposed to JS easily (it's HttpOnly cookie usually), 
+        // we might need to adjust the backend to accept cookie or expose a token endpoint.
+        // For this prototype, let's assume we stored the token in localStorage on login (common pattern).
+        // If not, we need to fix auth. Let's assume localStorage for now.
+        
+        const token = localStorage.getItem('token'); // You need to ensure login saves this!
+        if (!token) {
+            document.getElementById('chatMessages').innerHTML = '<div class="text-red-400 text-center">Authentication error. Please login again.</div>';
+            return;
+        }
+
+        chatSocket = new WebSocket(`${protocol}//${window.location.host}/ws/chat/${sessionId}?token=${token}`);
+        
+        chatSocket.onopen = () => {
+            document.getElementById('chatStatus').textContent = 'Connected';
+            document.getElementById('chatStatus').className = 'text-xs text-green-400';
+            document.getElementById('chatMessages').innerHTML = ''; // Clear "Starting..."
+            
+            // Send initial prompt
+            // chatSocket.send("Analyze this alert");
+        };
+        
+        chatSocket.onmessage = (event) => {
+            const msg = event.data;
+            if (msg === '[DONE]') return;
+            
+            // Append to last message or create new one
+            appendAIMessage(msg);
+        };
+        
+        chatSocket.onclose = () => {
+            document.getElementById('chatStatus').textContent = 'Disconnected';
+            document.getElementById('chatStatus').className = 'text-xs text-red-400';
+        };
+    }
+
+    let lastMessageRole = null;
+    let currentMessageDiv = null;
+
+    function appendAIMessage(text) {
+        const container = document.getElementById('chatMessages');
+        
+        if (lastMessageRole !== 'assistant') {
+            // Create new message bubble
+            const wrapper = document.createElement('div');
+            wrapper.className = 'flex justify-start w-full pr-2';
+            wrapper.innerHTML = `
+                <div class="bg-gray-700 rounded-lg p-4 w-full text-sm ai-message-content shadow-md"></div>
+            `;
+            container.appendChild(wrapper);
+            currentMessageDiv = wrapper.querySelector('.ai-message-content');
+            lastMessageRole = 'assistant';
+        }
+        
+        // Append text (we need to buffer and render markdown properly)
+        // For streaming, simple appending works, but markdown rendering needs full text.
+        // A simple hack: store full text in a data attribute and re-render marked.
+        const currentText = currentMessageDiv.getAttribute('data-full-text') || '';
+        const newText = currentText + text;
+        currentMessageDiv.setAttribute('data-full-text', newText);
+        currentMessageDiv.innerHTML = marked.parse(newText);
+        
+        // Add "Run" buttons to code blocks
+        addRunButtons(currentMessageDiv);
+        
+        container.scrollTop = container.scrollHeight;
+    }
+
+    function appendUserMessage(text) {
+        const container = document.getElementById('chatMessages');
+        const wrapper = document.createElement('div');
+        wrapper.className = 'flex justify-end';
+        wrapper.innerHTML = `
+            <div class="bg-blue-600 rounded-lg p-3 max-w-xs lg:max-w-md text-sm text-white">
+                ${text}
+            </div>
+        `;
+        container.appendChild(wrapper);
+        container.scrollTop = container.scrollHeight;
+        lastMessageRole = 'user';
+    }
+
+    function getTerminalContent() {
+        if (!term) return '';
+        
+        // Get all lines from the buffer
+        const buffer = term.buffer.active;
+        const lines = [];
+        // Limit to last 100 lines to avoid token limits
+        const start = Math.max(0, buffer.baseY + buffer.cursorY - 100);
+        const end = buffer.baseY + buffer.cursorY + 1;
+        
+        for (let i = start; i < end; i++) {
+            const line = buffer.getLine(i);
+            if (line) {
+                lines.push(line.translateToString(true));
+            }
+        }
+        
+        return lines.join('\n').trim();
+    }
+
+    function sendMessage(e) {
+        e.preventDefault();
+        
+        // Clear pending analysis button if user types manually
+        if (analysisButton) {
+            analysisButton.remove();
+            analysisButton = null;
+        }
+
+        const input = document.getElementById('chatInput');
+        const text = input.value.trim();
+        if (!text || !chatSocket) return;
+        
+        appendUserMessage(text);
+        
+        // Inject terminal context if available
+        const termContent = getTerminalContent();
+        let finalMessage = text;
+        
+        if (termContent) {
+            finalMessage += `\n\n[SYSTEM: The user has the following active terminal output. Use it if relevant to the query.]\n\`\`\`\n${termContent}\n\`\`\``;
+        }
+        
+        chatSocket.send(finalMessage);
+        input.value = '';
+    }
+
+    // Handle Enter key in textarea (Event Delegation)
+    document.addEventListener('keydown', function(e) {
+        if (e.target && e.target.id === 'chatInput') {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage(e);
+            }
+        }
+    });
+
+    function addRunButtons(element) {
+        // Find all pre code blocks that don't have a button yet
+        const blocks = element.querySelectorAll('pre code');
+        blocks.forEach(block => {
+            const pre = block.parentElement;
+            if (pre.querySelector('.run-btn')) return;
+            
+            const btn = document.createElement('button');
+            btn.className = 'run-btn absolute top-2 right-2 bg-green-600 hover:bg-green-500 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity z-10';
+            btn.innerHTML = '<i class="fas fa-play mr-1"></i>Run';
+            btn.title = 'Run this command in terminal';
+            btn.onclick = () => runCommand(block.innerText);
+            
+            // Enhanced styling: dark background, rounded corners, and blue border on hover, plus text wrapping
+            pre.className += ' relative group bg-gray-900 rounded-md p-3 my-2 border-2 border-transparent hover:border-blue-500 transition-all duration-200 whitespace-pre-wrap break-words overflow-x-auto';
+            pre.appendChild(btn);
+        });
+    }
+
+    // --- Terminal Logic ---
+
+    function initTerminal() {
+        if (term) return;
+        
+        term = new Terminal({
+            cursorBlink: true,
+            theme: {
+                background: '#000000',
+                foreground: '#ffffff'
+            },
+            fontSize: 12,
+            fontFamily: 'Menlo, Monaco, "Courier New", monospace'
+        });
+        
+        fitAddon = new FitAddon.FitAddon();
+        term.loadAddon(fitAddon);
+        
+        term.open(document.getElementById('terminal'));
+        fitAddon.fit();
+        
+        window.addEventListener('resize', () => fitAddon.fit());
+        
+        term.onData(data => {
+            if (terminalSocket && terminalSocket.readyState === WebSocket.OPEN) {
+                terminalSocket.send(data);
+            }
+        });
+    }
+
+    async function openServerModal() {
+        const modal = document.getElementById('serverModal');
+        const list = document.getElementById('serverList');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        
+        try {
+            const response = await apiCall('/api/servers');
+            if (!response.ok) throw new Error('Failed to load servers');
+            
+            const servers = await response.json();
+            
+            if (servers.length === 0) {
+                list.innerHTML = '<p class="text-gray-400 text-sm p-2">No servers configured.</p>';
+                return;
+            }
+            
+            list.innerHTML = servers.map(server => `
+                <div class="p-3 bg-gray-800 rounded cursor-pointer hover:bg-gray-700 transition-colors" onclick="connectTerminal('${server.id}')">
+                    <div class="flex justify-between items-center">
+                        <div class="font-bold text-blue-400">${server.name}</div>
+                        <span class="text-xs bg-gray-700 px-2 py-1 rounded">${server.environment}</span>
+                    </div>
+                    <div class="text-xs text-gray-400 mt-1">
+                        <i class="fas fa-server mr-1"></i>${server.username}@${server.hostname}:${server.port}
+                    </div>
+                </div>
+            `).join('');
+            
+        } catch (error) {
+            list.innerHTML = `<p class="text-red-400 text-sm p-2">Error: ${error.message}</p>`;
+        }
+    }
+
+    function closeServerModal() {
+        const modal = document.getElementById('serverModal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+
+    function connectTerminal(serverId) {
+        closeServerModal();
+        initTerminal();
+        
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const token = localStorage.getItem('token');
+        
+        if (terminalSocket) {
+            terminalSocket.close();
+        }
+        
+        terminalSocket = new WebSocket(`${protocol}//${window.location.host}/ws/terminal/${serverId}?token=${token}&cols=${term.cols}&rows=${term.rows}`);
+        
+        terminalSocket.onopen = () => {
+            document.getElementById('termStatus').textContent = 'Connected';
+            document.getElementById('termStatus').className = 'text-xs text-green-400';
+            term.reset();
+            term.write('\r\n\x1b[32mConnected to server...\x1b[0m\r\n');
+        };
+        
+        terminalSocket.onmessage = (event) => {
+            term.write(event.data);
+        };
+        
+        terminalSocket.onclose = () => {
+            document.getElementById('termStatus').textContent = 'Disconnected';
+            document.getElementById('termStatus').className = 'text-xs text-red-400';
+            term.write('\r\n\x1b[31mConnection closed.\x1b[0m\r\n');
+        };
+    }
+
+    let analysisButton = null;
+
+    function runCommand(cmd) {
+        if (!terminalSocket || terminalSocket.readyState !== WebSocket.OPEN) {
+            showToast('Terminal not connected. Connect to a server first.', 'error');
+            return;
+        }
+        
+        // Send command + newline
+        terminalSocket.send(cmd + '\r');
+        term.focus();
+        
+        // Show in chat
+        const container = document.getElementById('chatMessages');
+        const runMsg = document.createElement('div');
+        runMsg.className = 'flex justify-end my-2';
+        runMsg.innerHTML = `
+            <div class="bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-xs text-gray-300 font-mono whitespace-pre-wrap break-all max-w-full"><i class="fas fa-terminal text-green-400 mr-2"></i>${cmd}</div>`;
+        
+        // If button exists, remove it first so we can move it to bottom
+        if (analysisButton) {
+            analysisButton.remove();
+        }
+        
+        container.appendChild(runMsg);
+        
+        // Add "Analyze Now" button
+        analysisButton = document.createElement('div');
+        analysisButton.className = 'flex justify-center my-4 fade-in';
+        analysisButton.innerHTML = `
+            <button onclick="triggerAnalysis()" class="bg-blue-600 hover:bg-blue-500 text-white text-sm px-6 py-2 rounded-full shadow-lg flex items-center transition-all transform hover:scale-105" title="Analyze the output of executed commands">
+                <i class="fas fa-magic mr-2"></i>Analyze Output
+            </button>
+        `;
+        container.appendChild(analysisButton);
+        container.scrollTop = container.scrollHeight;
+        
+        // Reset last message role to force new bubble for next AI response
+        lastMessageRole = 'system';
+    }
+
+    function triggerAnalysis() {
+        if (analysisButton) {
+            analysisButton.remove();
+            analysisButton = null;
+        }
+
+        const container = document.getElementById('chatMessages');
+        const note = document.createElement('div');
+        note.className = 'text-center text-xs text-gray-500 my-2';
+        note.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Reading terminal & analyzing...';
+        container.appendChild(note);
+        container.scrollTop = container.scrollHeight;
+
+        // Small delay to ensure terminal buffer is updated
+        setTimeout(() => {
+            const termContent = getTerminalContent();
+            if (termContent && chatSocket) {
+                const analysisRequest = `[SYSTEM: The user has run one or more commands. Here is the current terminal output:\n\`\`\`\n${termContent}\n\`\`\`\nPlease analyze this output and suggest the next step.]`;
+                chatSocket.send(analysisRequest);
+                note.innerHTML = '<i class="fas fa-magic mr-1"></i>Analyzing terminal output...';
+            } else {
+                note.remove();
+            }
+        }, 500);
+    }
+
+    function getTerminalContent() {
+        if (!term) return '';
+        
+        // Get all lines from the buffer
+        const buffer = term.buffer.active;
+        const lines = [];
+        // Limit to last 100 lines to avoid token limits
+        const start = Math.max(0, buffer.baseY + buffer.cursorY - 100);
+        const end = buffer.baseY + buffer.cursorY + 1;
+        
+        for (let i = start; i < end; i++) {
+            const line = buffer.getLine(i);
+            if (line) {
+                lines.push(line.translateToString(true));
+            }
+        }
+        
+        return lines.join('\n').trim();
+    }
+
+    function sendMessage(e) {
+        e.preventDefault();
+        
+        // Clear pending analysis button if user types manually
+        if (analysisButton) {
+            analysisButton.remove();
+            analysisButton = null;
+        }
+
+        const input = document.getElementById('chatInput');
+        const text = input.value.trim();
+        if (!text || !chatSocket) return;
+        
+        appendUserMessage(text);
+        
+        // Inject terminal context if available
+        const termContent = getTerminalContent();
+        let finalMessage = text;
+        
+        if (termContent) {
+            finalMessage += `\n\n[SYSTEM: The user has the following active terminal output. Use it if relevant to the query.]\n\`\`\`\n${termContent}\n\`\`\``;
+        }
+        
+        chatSocket.send(finalMessage);
+        input.value = '';
+    }
+
+    // --- Init ---
+    loadAlert();
+    
+    // Handle window resize for terminal
+    window.addEventListener('resize', () => {
+        if (fitAddon) fitAddon.fit();
+    });
+
+</script>
+{% endblock %}

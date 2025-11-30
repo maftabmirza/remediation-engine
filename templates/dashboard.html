@@ -1,0 +1,200 @@
+{% extends "layout.html" %}
+{% set active_page = 'dashboard' %}
+
+{% block title %}Dashboard - AIOps Platform{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold">Dashboard</h1>
+            <p class="text-gray-400">Overview of your alert system</p>
+        </div>
+        <div class="text-sm text-gray-400">
+            <i class="fas fa-clock mr-1"></i>
+            Last updated: <span id="lastUpdated">-</span>
+        </div>
+    </div>
+    
+    <!-- Stats Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <!-- Total Alerts -->
+        <div class="card p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-400 text-sm">Total Alerts</p>
+                    <p class="text-3xl font-bold mt-1" id="statTotal">{{ stats.total_alerts }}</p>
+                </div>
+                <div class="w-12 h-12 rounded-lg bg-blue-500 bg-opacity-20 flex items-center justify-center">
+                    <i class="fas fa-bell text-blue-400 text-xl"></i>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Analyzed -->
+        <div class="card p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-400 text-sm">Analyzed</p>
+                    <p class="text-3xl font-bold mt-1" id="statAnalyzed">{{ stats.analyzed }}</p>
+                </div>
+                <div class="w-12 h-12 rounded-lg bg-green-500 bg-opacity-20 flex items-center justify-center">
+                    <i class="fas fa-check-circle text-green-400 text-xl"></i>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Pending -->
+        <div class="card p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-400 text-sm">Pending Analysis</p>
+                    <p class="text-3xl font-bold mt-1" id="statPending">{{ stats.pending }}</p>
+                </div>
+                <div class="w-12 h-12 rounded-lg bg-yellow-500 bg-opacity-20 flex items-center justify-center">
+                    <i class="fas fa-clock text-yellow-400 text-xl"></i>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Critical -->
+        <div class="card p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-400 text-sm">Critical Alerts</p>
+                    <p class="text-3xl font-bold mt-1" id="statCritical">{{ stats.critical }}</p>
+                </div>
+                <div class="w-12 h-12 rounded-lg bg-red-500 bg-opacity-20 flex items-center justify-center">
+                    <i class="fas fa-exclamation-triangle text-red-400 text-xl"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Quick Actions & Recent Alerts -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Quick Actions -->
+        <div class="card p-6">
+            <h2 class="text-lg font-semibold mb-4">Quick Actions</h2>
+            <div class="space-y-3">
+                <a href="/alerts?analyzed=false" class="flex items-center justify-between p-3 rounded-lg bg-gray-800 hover:bg-gray-700 transition">
+                    <div class="flex items-center space-x-3">
+                        <i class="fas fa-brain text-purple-400"></i>
+                        <span>View Pending Alerts</span>
+                    </div>
+                    <i class="fas fa-chevron-right text-gray-500"></i>
+                </a>
+                <a href="/rules" class="flex items-center justify-between p-3 rounded-lg bg-gray-800 hover:bg-gray-700 transition">
+                    <div class="flex items-center space-x-3">
+                        <i class="fas fa-cogs text-blue-400"></i>
+                        <span>Manage Rules</span>
+                    </div>
+                    <i class="fas fa-chevron-right text-gray-500"></i>
+                </a>
+                <a href="/settings" class="flex items-center justify-between p-3 rounded-lg bg-gray-800 hover:bg-gray-700 transition">
+                    <div class="flex items-center space-x-3">
+                        <i class="fas fa-robot text-green-400"></i>
+                        <span>Configure LLM Providers</span>
+                    </div>
+                    <i class="fas fa-chevron-right text-gray-500"></i>
+                </a>
+            </div>
+        </div>
+        
+        <!-- Recent Alerts -->
+        <div class="card p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-semibold">Recent Alerts</h2>
+                <a href="/alerts" class="text-blue-400 text-sm hover:underline">View all</a>
+            </div>
+            <div id="recentAlerts" class="space-y-3">
+                <div class="text-center text-gray-400 py-8">
+                    <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                    <p>Loading alerts...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    // Update last updated time
+    document.getElementById('lastUpdated').textContent = new Date().toLocaleTimeString();
+    
+    // Load recent alerts
+    async function loadRecentAlerts() {
+        try {
+            const response = await apiCall('/api/alerts?page_size=5');
+            if (!response) return;
+            
+            const data = await response.json();
+            const container = document.getElementById('recentAlerts');
+            
+            if (data.alerts.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center text-gray-400 py-8">
+                        <i class="fas fa-inbox text-2xl mb-2"></i>
+                        <p>No alerts yet</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = data.alerts.map(alert => `
+                <a href="/alerts/${alert.id}" class="block p-3 rounded-lg bg-gray-800 hover:bg-gray-700 transition">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <span class="badge-${alert.severity || 'info'} px-2 py-1 rounded text-xs font-medium">
+                                ${alert.severity || 'info'}
+                            </span>
+                            <span class="font-medium">${alert.alert_name}</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            ${alert.analyzed 
+                                ? '<i class="fas fa-check-circle text-green-400" title="Analyzed"></i>' 
+                                : '<i class="fas fa-clock text-yellow-400" title="Pending"></i>'
+                            }
+                        </div>
+                    </div>
+                    <div class="text-sm text-gray-400 mt-1">
+                        ${alert.instance || 'No instance'} • ${new Date(alert.timestamp).toLocaleString()}
+                    </div>
+                </a>
+            `).join('');
+            
+        } catch (error) {
+            console.error('Failed to load alerts:', error);
+        }
+    }
+    
+    // Load stats
+    async function loadStats() {
+        try {
+            const response = await apiCall('/api/alerts/stats');
+            if (!response) return;
+            
+            const data = await response.json();
+            document.getElementById('statTotal').textContent = data.total_alerts;
+            document.getElementById('statAnalyzed').textContent = data.analyzed_alerts;
+            document.getElementById('statPending').textContent = data.pending_alerts;
+            document.getElementById('statCritical').textContent = data.critical_alerts;
+        } catch (error) {
+            console.error('Failed to load stats:', error);
+        }
+    }
+    
+    // Initial load
+    loadRecentAlerts();
+    
+    // Refresh every 30 seconds
+    setInterval(() => {
+        loadRecentAlerts();
+        loadStats();
+        document.getElementById('lastUpdated').textContent = new Date().toLocaleTimeString();
+    }, 30000);
+</script>
+{% endblock %}

@@ -1,0 +1,53 @@
+Welcome to Ubuntu 24.04.3 LTS (GNU/Linux 6.8.0-71-generic x86_64)
+
+ * Documentation:  https://help.ubuntu.com
+ * Management:     https://landscape.canonical.com
+ * Support:        https://ubuntu.com/pro
+
+ System information as of Sun Nov 30 10:59:38 AM UTC 2025
+
+  System load:  0.11               Processes:             171
+  Usage of /:   12.6% of 78.16GB   Users logged in:       0
+  Memory usage: 53%                IPv4 address for eth0: 10.0.0.2
+  Swap usage:   5%
+
+
+Expanded Security Maintenance for Applications is not enabled.
+
+42 updates can be applied immediately.
+To see these additional updates run: apt list --upgradable
+
+Enable ESM Apps to receive additional future security updates.
+See https://ubuntu.com/esm or run: sudo pro status
+
+
+*** System restart required ***
+Last login: Sun Nov 30 05:21:53 2025 from 172.234.217.11
+$ top -bn1 | head -20
+
+top - 10:59:55 up 6 days, 22:39,  3 users,  load average: 0.09, 0.08, 0.07
+Tasks: 170 total,   1 running, 169 sleeping,   0 stopped,   0 zombie
+%Cpu(s):  0.0 us,  4.5 sy,  0.0 ni, 95.5 id,  0.0 wa,  0.0 hi,  0.0 si,  0.0 st 
+MiB Mem :   3916.0 total,    391.5 free,   1975.8 used,   1850.6 buff/cache     
+MiB Swap:    496.0 total,    469.0 free,     27.0 used.   1940.2 avail Mem 
+
+    PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND
+3071834 aftab     20   0  785248 277848  46464 S   9.1   6.9   0:05.90 uvicorn
+      1 root      20   0   22604  13696   9600 S   0.0   0.3  11:35.42 systemd
+      2 root      20   0       0      0      0 S   0.0   0.0   0:00.31 kthreadd
+      3 root      20   0       0      0      0 S   0.0   0.0   0:00.00 pool_wo+
+      4 root       0 -20       0      0      0 I   0.0   0.0   0:00.00 kworker+
+      5 root       0 -20       0      0      0 I   0.0   0.0   0:00.00 kworker+
+      6 root       0 -20       0      0      0 I   0.0   0.0   0:00.00 kworker+
+      7 root       0 -20       0      0      0 I   0.0   0.0   0:00.00 kworker+
+     10 root       0 -20       0      0      0 I   0.0   0.0   0:00.00 kworker+
+     12 root       0 -20       0      0      0 I   0.0   0.0   0:00.00 kworker+
+     13 root      20   0       0      0      0 I   0.0   0.0   0:00.00 rcu_tas+
+     14 root      20   0       0      0      0 I   0.0   0.0   0:00.00 rcu_tas+
+     15 root      20   0       0      0      0 I   0.0   0.0   0:00.00 rcu_tas+
+$ $ sudo -u postgres psql -c "SELECT pid, state, query_start, query FROM pg_stat_activity WHERE state != 'idle' ORDER BY query_start;"
+
+sudo: unknown user postgres
+sudo: error initializing audit plugin sudoers_audit
+$ $ 
+$ 

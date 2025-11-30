@@ -1,0 +1,529 @@
+{% extends "layout.html" %}
+{% set active_page = 'audit' %}
+
+{% block title %}Audit Logs - AIOps Platform{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div>
+        <h1 class="text-2xl font-bold">Audit Logs</h1>
+        <p class="text-gray-400">System activity and terminal session recordings</p>
+    </div>
+    
+    <!-- Tabs -->
+    <div class="flex space-x-4 border-b border-gray-700">
+        <button onclick="switchTab('logs')" id="tab-logs" class="px-4 py-2 border-b-2 border-blue-500 text-blue-400 font-medium">
+            System Logs
+        </button>
+        <button onclick="switchTab('sessions')" id="tab-sessions" class="px-4 py-2 border-b-2 border-transparent text-gray-400 hover:text-gray-300">
+            Terminal Sessions
+        </button>
+        <button onclick="switchTab('chats')" id="tab-chats" class="px-4 py-2 border-b-2 border-transparent text-gray-400 hover:text-gray-300">
+            Chat Sessions
+        </button>
+    </div>
+    
+    <!-- System Logs Tab -->
+    <div id="view-logs" class="space-y-4">
+        <div class="card overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-gray-800 text-gray-400 uppercase font-medium">
+                        <tr>
+                            <th class="px-6 py-3">Time</th>
+                            <th class="px-6 py-3">User</th>
+                            <th class="px-6 py-3">Action</th>
+                            <th class="px-6 py-3">Resource</th>
+                            <th class="px-6 py-3">Details</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logsTableBody" class="divide-y divide-gray-700">
+                        <tr>
+                            <td colspan="5" class="px-6 py-8 text-center">
+                                <div class="loading-spinner mx-auto"></div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Terminal Sessions Tab -->
+    <div id="view-sessions" class="hidden space-y-4">
+        <div class="card overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-gray-800 text-gray-400 uppercase font-medium">
+                        <tr>
+                            <th class="px-6 py-3">Started</th>
+                            <th class="px-6 py-3">User</th>
+                            <th class="px-6 py-3">Server</th>
+                            <th class="px-6 py-3">Duration</th>
+                            <th class="px-6 py-3">Recording</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sessionsTableBody" class="divide-y divide-gray-700">
+                        <tr>
+                            <td colspan="5" class="px-6 py-8 text-center">
+                                <div class="loading-spinner mx-auto"></div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chat Sessions Tab -->
+    <div id="view-chats" class="hidden space-y-4">
+        <div class="card overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-gray-800 text-gray-400 uppercase font-medium">
+                        <tr>
+                            <th class="px-6 py-3">Created</th>
+                            <th class="px-6 py-3">User</th>
+                            <th class="px-6 py-3">Title</th>
+                            <th class="px-6 py-3">Messages</th>
+                            <th class="px-6 py-3">Transcript</th>
+                        </tr>
+                    </thead>
+                    <tbody id="chatsTableBody" class="divide-y divide-gray-700">
+                        <tr>
+                            <td colspan="5" class="px-6 py-8 text-center">
+                                <div class="loading-spinner mx-auto"></div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <!-- Pagination Controls -->
+            <div id="chatPagination" class="px-6 py-4 border-t border-gray-700 flex items-center justify-between hidden">
+                <span class="text-sm text-gray-400" id="chatPaginationInfo">
+                    Showing 1 to 10 of 20 results
+                </span>
+                <div class="flex space-x-2">
+                    <button onclick="changeChatPage(-1)" id="btnPrevChat" class="px-3 py-1 rounded border border-gray-600 text-gray-300 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                        Previous
+                    </button>
+                    <button onclick="changeChatPage(1)" id="btnNextChat" class="px-3 py-1 rounded border border-gray-600 text-gray-300 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                        Next
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recording Modal -->
+<div id="recordingModal" class="fixed inset-0 z-[100] hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <!-- Backdrop -->
+    <div class="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity" aria-hidden="true" onclick="closeRecordingModal()"></div>
+  
+    <!-- Modal Panel -->
+    <div class="fixed inset-0 z-10 w-screen overflow-y-auto">
+      <div class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
+        <div class="relative transform overflow-hidden rounded-lg bg-[#1e1e2e] text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-5xl border border-gray-700 flex flex-col h-[80vh]">
+          
+          <!-- Header -->
+          <div class="bg-[#282a36] px-4 py-3 sm:px-6 flex justify-between items-center border-b border-gray-700 shrink-0">
+            <h3 class="text-lg font-semibold leading-6 text-white">Session Recording</h3>
+            <button type="button" class="rounded-md text-gray-400 hover:text-white focus:outline-none" onclick="closeRecordingModal()">
+              <span class="sr-only">Close</span>
+              <i class="fas fa-times text-xl"></i>
+            </button>
+          </div>
+          
+          <!-- Content -->
+          <div class="p-0 flex-1 bg-black overflow-hidden relative" style="min-height: 500px;">
+            <div id="terminal-container" class="h-full w-full"></div>
+          </div>
+          
+          <!-- Footer -->
+          <div class="bg-[#282a36] px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6 border-t border-gray-700 shrink-0">
+            <button type="button" class="mt-3 inline-flex w-full justify-center rounded-md bg-gray-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-500 sm:mt-0 sm:w-auto" onclick="closeRecordingModal()">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+</div>
+
+<!-- Transcript Modal -->
+<div id="transcriptModal" class="fixed inset-0 z-[100] hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <!-- Backdrop -->
+    <div class="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity" aria-hidden="true" onclick="closeTranscriptModal()"></div>
+  
+    <!-- Modal Panel -->
+    <div class="fixed inset-0 z-10 w-screen overflow-y-auto">
+      <div class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
+        <div class="relative transform overflow-hidden rounded-lg bg-[#1e1e2e] text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-4xl border border-gray-700 flex flex-col max-h-[85vh]">
+          
+          <!-- Header -->
+          <div class="bg-[#282a36] px-4 py-3 sm:px-6 flex justify-between items-center border-b border-gray-700 shrink-0">
+            <h3 class="text-lg font-semibold leading-6 text-white">Chat Transcript</h3>
+            <button type="button" class="rounded-md text-gray-400 hover:text-white focus:outline-none" onclick="closeTranscriptModal()">
+              <span class="sr-only">Close</span>
+              <i class="fas fa-times text-xl"></i>
+            </button>
+          </div>
+          
+          <!-- Content -->
+          <div class="px-4 py-4 sm:p-6 overflow-y-auto flex-1 bg-[#1e1e2e]">
+            <div id="transcript-container" class="space-y-4">
+                <!-- Messages injected here -->
+            </div>
+          </div>
+          
+          <!-- Footer -->
+          <div class="bg-[#282a36] px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6 border-t border-gray-700 shrink-0">
+            <button type="button" class="mt-3 inline-flex w-full justify-center rounded-md bg-gray-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-500 sm:mt-0 sm:w-auto" onclick="closeTranscriptModal()">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    let currentTab = 'logs';
+    let term = null;
+    
+    // Chat Pagination State
+    let chatPage = 1;
+    const chatLimit = 10;
+    let chatTotal = 0;
+
+    function switchTab(tab) {
+        currentTab = tab;
+        
+        // Update UI
+        document.getElementById('tab-logs').className = tab === 'logs' 
+            ? 'px-4 py-2 border-b-2 border-blue-500 text-blue-400 font-medium'
+            : 'px-4 py-2 border-b-2 border-transparent text-gray-400 hover:text-gray-300';
+            
+        document.getElementById('tab-sessions').className = tab === 'sessions'
+            ? 'px-4 py-2 border-b-2 border-blue-500 text-blue-400 font-medium'
+            : 'px-4 py-2 border-b-2 border-transparent text-gray-400 hover:text-gray-300';
+
+        document.getElementById('tab-chats').className = tab === 'chats'
+            ? 'px-4 py-2 border-b-2 border-blue-500 text-blue-400 font-medium'
+            : 'px-4 py-2 border-b-2 border-transparent text-gray-400 hover:text-gray-300';
+            
+        document.getElementById('view-logs').classList.toggle('hidden', tab !== 'logs');
+        document.getElementById('view-sessions').classList.toggle('hidden', tab !== 'sessions');
+        document.getElementById('view-chats').classList.toggle('hidden', tab !== 'chats');
+        
+        // Load data if needed
+        if (tab === 'logs') loadLogs();
+        else if (tab === 'sessions') loadSessions();
+        else if (tab === 'chats') loadChats();
+    }
+
+    async function loadLogs() {
+        try {
+            const response = await apiCall('/api/audit/logs');
+            if (!response) return;
+            
+            const logs = await response.json();
+            renderLogs(logs);
+        } catch (error) {
+            console.error('Failed to load logs:', error);
+        }
+    }
+
+    function renderLogs(logs) {
+        const tbody = document.getElementById('logsTableBody');
+        
+        if (logs.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="px-6 py-8 text-center text-gray-400">
+                        No audit logs found
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        tbody.innerHTML = logs.map(log => `
+            <tr class="hover:bg-gray-800 transition">
+                <td class="px-6 py-4 whitespace-nowrap text-gray-400">
+                    ${new Date(log.created_at).toLocaleString()}
+                </td>
+                <td class="px-6 py-4 font-medium text-white">
+                    ${log.username || 'System'}
+                </td>
+                <td class="px-6 py-4">
+                    <span class="px-2 py-1 rounded text-xs bg-gray-700 font-mono text-blue-300">
+                        ${log.action}
+                    </span>
+                </td>
+                <td class="px-6 py-4 text-gray-300">
+                    ${log.resource_type ? `${log.resource_type}` : '-'}
+                </td>
+                <td class="px-6 py-4 text-gray-400 text-xs font-mono max-w-xs truncate">
+                    ${log.details_json ? JSON.stringify(log.details_json) : '-'}
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    async function loadSessions() {
+        try {
+            const response = await apiCall('/api/audit/terminal-sessions');
+            if (!response) return;
+            
+            const sessions = await response.json();
+            renderSessions(sessions);
+        } catch (error) {
+            console.error('Failed to load sessions:', error);
+        }
+    }
+
+    function renderSessions(sessions) {
+        const tbody = document.getElementById('sessionsTableBody');
+        
+        if (sessions.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="px-6 py-8 text-center text-gray-400">
+                        No terminal sessions found
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        tbody.innerHTML = sessions.map(session => {
+            const start = new Date(session.started_at);
+            const end = session.ended_at ? new Date(session.ended_at) : null;
+            const duration = end ? Math.round((end - start) / 1000) + 's' : 'Active';
+            
+            return `
+            <tr class="hover:bg-gray-800 transition">
+                <td class="px-6 py-4 whitespace-nowrap text-gray-400">
+                    ${start.toLocaleString()}
+                </td>
+                <td class="px-6 py-4 font-medium text-white">
+                    ${session.username}
+                </td>
+                <td class="px-6 py-4 text-green-400">
+                    <i class="fas fa-server mr-2"></i>${session.server_name}
+                </td>
+                <td class="px-6 py-4 text-gray-300">
+                    ${duration}
+                </td>
+                <td class="px-6 py-4">
+                    ${session.has_recording ? `
+                        <button onclick="playRecording('${session.id}')" class="btn-secondary px-3 py-1 rounded text-xs flex items-center">
+                            <i class="fas fa-play mr-2"></i> Play
+                        </button>
+                    ` : '<span class="text-gray-500 text-xs">No recording</span>'}
+                </td>
+            </tr>
+            `;
+        }).join('');
+    }
+
+    async function playRecording(sessionId) {
+        try {
+            const response = await apiCall(`/api/audit/terminal-sessions/${sessionId}/recording`);
+            if (!response) return;
+            
+            if (!response.ok) {
+                const err = await response.json();
+                showToast(err.detail || 'Failed to load recording', 'error');
+                return;
+            }
+            
+            const data = await response.json();
+            
+            const modal = document.getElementById('recordingModal');
+            modal.classList.remove('hidden');
+            
+            const container = document.getElementById('terminal-container');
+            container.innerHTML = '';
+            
+            // Force layout
+            void modal.offsetWidth;
+            
+            // Wait for transition to complete
+            setTimeout(() => {
+                if (term) term.dispose();
+                
+                term = new Terminal({
+                    cursorBlink: false,
+                    disableStdin: true,
+                    fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+                    fontSize: 14,
+                    theme: {
+                        background: '#000000',
+                        foreground: '#ffffff'
+                    },
+                    rows: 40,
+                    cols: 120
+                });
+                
+                const fitAddon = new FitAddon.FitAddon();
+                term.loadAddon(fitAddon);
+                
+                term.open(container);
+                
+                // Write content
+                if (data.content) {
+                    const content = data.content.replace(/\r\n/g, '\n').replace(/\n/g, '\r\n');
+                    term.write(content);
+                } else {
+                    term.write('\r\nNo content in recording file.');
+                }
+                
+                // Try to fit after rendering
+                setTimeout(() => {
+                    try {
+                        fitAddon.fit();
+                        if (term.rows < 5) term.resize(120, 40);
+                    } catch (e) {
+                        console.warn('Fit failed', e);
+                    }
+                }, 50);
+                
+            }, 300);
+            
+        } catch (error) {
+            console.error(error);
+            showToast('Failed to load recording', 'error');
+        }
+    }
+
+    function closeRecordingModal() {
+        document.getElementById('recordingModal').classList.add('hidden');
+        if (term) {
+            term.dispose();
+            term = null;
+        }
+    }
+
+    async function viewTranscript(sessionId) {
+        try {
+            const response = await apiCall(`/api/audit/chat-sessions/${sessionId}/transcript`);
+            if (!response) return;
+            
+            const messages = await response.json();
+            
+            document.getElementById('transcriptModal').classList.remove('hidden');
+            
+            const container = document.getElementById('transcript-container');
+            container.innerHTML = messages.map(msg => `
+                <div class="flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}">
+                    <div class="max-w-[80%] rounded-lg p-3 ${msg.role === 'user' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-200'}">
+                        <div class="text-xs opacity-50 mb-1 uppercase">${msg.role}</div>
+                        <div class="whitespace-pre-wrap font-mono text-sm">${msg.content}</div>
+                    </div>
+                    <div class="text-xs text-gray-500 mt-1">${new Date(msg.created_at).toLocaleString()}</div>
+                </div>
+            `).join('');
+            
+        } catch (error) {
+            showToast('Failed to load transcript', 'error');
+        }
+    }
+
+    function closeTranscriptModal() {
+        document.getElementById('transcriptModal').classList.add('hidden');
+    }
+
+    async function loadChats() {
+        try {
+            const response = await apiCall(`/api/audit/chat-sessions?page=${chatPage}&limit=${chatLimit}`);
+            if (!response) return;
+            
+            const data = await response.json();
+            chatTotal = data.total;
+            renderChats(data.items);
+            updateChatPagination();
+        } catch (error) {
+            console.error('Failed to load chats:', error);
+            showToast('Error loading chats', 'error');
+        }
+    }
+
+    function renderChats(chats) {
+        const tbody = document.getElementById('chatsTableBody');
+        
+        if (chats.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="px-6 py-8 text-center text-gray-400">
+                        No chat sessions found
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        tbody.innerHTML = chats.map(chat => `
+            <tr class="hover:bg-gray-800 transition">
+                <td class="px-6 py-4 whitespace-nowrap text-gray-400">
+                    ${new Date(chat.created_at).toLocaleString()}
+                </td>
+                <td class="px-6 py-4 font-medium text-white">
+                    ${chat.username}
+                </td>
+                <td class="px-6 py-4 text-blue-400">
+                    ${chat.title || 'Untitled Session'}
+                </td>
+                <td class="px-6 py-4 text-gray-300">
+                    ${chat.message_count} msgs
+                </td>
+                <td class="px-6 py-4">
+                    <button onclick="viewTranscript('${chat.id}')" class="btn-secondary px-3 py-1 rounded text-xs flex items-center">
+                        <i class="fas fa-eye mr-2"></i> View
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    function updateChatPagination() {
+        const pagination = document.getElementById('chatPagination');
+        if (chatTotal === 0) {
+            pagination.classList.add('hidden');
+            return;
+        }
+        
+        pagination.classList.remove('hidden');
+        
+        const start = (chatPage - 1) * chatLimit + 1;
+        const end = Math.min(chatPage * chatLimit, chatTotal);
+        
+        document.getElementById('chatPaginationInfo').textContent = 
+            `Showing ${start} to ${end} of ${chatTotal} results`;
+            
+        document.getElementById('btnPrevChat').disabled = chatPage === 1;
+        document.getElementById('btnNextChat').disabled = end >= chatTotal;
+    }
+
+    function changeChatPage(delta) {
+        chatPage += delta;
+        loadChats();
+    }
+
+    // Initial load
+    loadLogs();
+
+    // Move modals to body to avoid z-index/overflow issues
+    document.addEventListener('DOMContentLoaded', () => {
+        const modals = ['transcriptModal', 'recordingModal'];
+        modals.forEach(id => {
+            const modal = document.getElementById(id);
+            if (modal && modal.parentElement !== document.body) {
+                document.body.appendChild(modal);
+            }
+        });
+    });
+</script>
+{% endblock %}

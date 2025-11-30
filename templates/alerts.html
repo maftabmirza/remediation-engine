@@ -1,0 +1,401 @@
+{% extends "layout.html" %}
+{% set active_page = 'alerts' %}
+
+{% block title %}Alerts - AIOps Platform{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold">Alerts</h1>
+            <p class="text-gray-400">View and analyze alerts from your infrastructure</p>
+        </div>
+        <button onclick="loadAlerts()" class="btn-secondary px-4 py-2 rounded-lg">
+            <i class="fas fa-sync-alt mr-2"></i> Refresh
+        </button>
+    </div>
+    
+    <!-- Filters -->
+    <div class="card p-4">
+        <div class="flex flex-wrap gap-4 items-center">
+            <div>
+                <label class="text-sm text-gray-400 block mb-1">Severity</label>
+                <select id="filterSeverity" class="input-field px-3 py-2 rounded" onchange="loadAlerts()">
+                    <option value="">All</option>
+                    <option value="critical">Critical</option>
+                    <option value="warning">Warning</option>
+                    <option value="info">Info</option>
+                </select>
+            </div>
+            <div>
+                <label class="text-sm text-gray-400 block mb-1">Status</label>
+                <select id="filterStatus" class="input-field px-3 py-2 rounded" onchange="loadAlerts()">
+                    <option value="">All</option>
+                    <option value="firing">Firing</option>
+                    <option value="resolved">Resolved</option>
+                </select>
+            </div>
+            <div>
+                <label class="text-sm text-gray-400 block mb-1">Analysis</label>
+                <select id="filterAnalyzed" class="input-field px-3 py-2 rounded" onchange="loadAlerts()">
+                    <option value="">All</option>
+                    <option value="true">Analyzed</option>
+                    <option value="false">Pending</option>
+                </select>
+            </div>
+            <div class="flex-1">
+                <label class="text-sm text-gray-400 block mb-1">Search</label>
+                <input 
+                    type="text" 
+                    id="filterSearch" 
+                    class="input-field px-3 py-2 rounded w-full"
+                    placeholder="Search alert name..."
+                    onkeyup="debounceSearch()"
+                >
+            </div>
+        </div>
+    </div>
+    
+    <!-- Alerts List -->
+    <div class="card">
+        <div id="alertsList" class="divide-y divide-gray-700">
+            <div class="p-8 text-center">
+                <div class="loading-spinner mx-auto mb-2"></div>
+                <p class="text-gray-400">Loading alerts...</p>
+            </div>
+        </div>
+        
+        <!-- Pagination -->
+        <div id="pagination" class="p-4 border-t border-gray-700 flex items-center justify-between hidden">
+            <div class="text-sm text-gray-400">
+                Showing <span id="showingFrom">0</span>-<span id="showingTo">0</span> of <span id="totalAlerts">0</span>
+            </div>
+            <div class="flex space-x-2">
+                <button id="prevBtn" class="btn-secondary px-3 py-1 rounded" onclick="prevPage()" disabled>
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <span id="pageInfo" class="px-3 py-1">Page 1</span>
+                <button id="nextBtn" class="btn-secondary px-3 py-1 rounded" onclick="nextPage()">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Analyze Modal -->
+<div id="analyzeModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="card p-6 w-full max-w-2xl max-h-screen overflow-y-auto m-4">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold">AI Analysis</h3>
+            <button onclick="closeModal()" class="text-gray-400 hover:text-white">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div id="modalContent">
+            <!-- Analysis content will be inserted here -->
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    let currentPage = 1;
+    let totalPages = 1;
+    let searchTimeout = null;
+    
+    function debounceSearch() {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => loadAlerts(), 300);
+    }
+    
+    async function loadAlerts() {
+        const severity = document.getElementById('filterSeverity').value;
+        const status = document.getElementById('filterStatus').value;
+        const analyzed = document.getElementById('filterAnalyzed').value;
+        const search = document.getElementById('filterSearch').value;
+        
+        let url = `/api/alerts?page=${currentPage}&page_size=15`;
+        if (severity) url += `&severity=${severity}`;
+        if (status) url += `&status=${status}`;
+        if (analyzed) url += `&analyzed=${analyzed}`;
+        if (search) url += `&alert_name=${encodeURIComponent(search)}`;
+        
+        try {
+            const response = await apiCall(url);
+            if (!response) return;
+            
+            const data = await response.json();
+            renderAlerts(data);
+        } catch (error) {
+            console.error('Failed to load alerts:', error);
+            document.getElementById('alertsList').innerHTML = `
+                <div class="p-8 text-center text-red-400">
+                    <i class="fas fa-exclamation-circle text-2xl mb-2"></i>
+                    <p>Failed to load alerts</p>
+                </div>
+            `;
+        }
+    }
+    
+    function renderAlerts(data) {
+        const container = document.getElementById('alertsList');
+        totalPages = data.total_pages;
+        
+        if (data.alerts.length === 0) {
+            container.innerHTML = `
+                <div class="p-8 text-center text-gray-400">
+                    <i class="fas fa-inbox text-4xl mb-3"></i>
+                    <p>No alerts found</p>
+                </div>
+            `;
+            document.getElementById('pagination').classList.add('hidden');
+            return;
+        }
+        
+        container.innerHTML = data.alerts.map(alert => `
+            <div class="p-4 hover:bg-gray-800 transition">
+                <div class="flex items-start justify-between">
+                    <div class="flex-1">
+                        <div class="flex items-center space-x-3 mb-2">
+                            <span class="badge-${alert.severity || 'info'} px-2 py-1 rounded text-xs font-semibold uppercase">
+                                ${alert.severity || 'info'}
+                            </span>
+                            <span class="status-${alert.status} text-sm">
+                                <i class="fas fa-circle text-xs mr-1"></i>${alert.status}
+                            </span>
+                            ${alert.analyzed 
+                                ? '<span class="text-green-400 text-sm"><i class="fas fa-check-circle mr-1"></i>Analyzed</span>' 
+                                : '<span class="text-yellow-400 text-sm"><i class="fas fa-clock mr-1"></i>Pending</span>'
+                            }
+                        </div>
+                        <h3 class="font-semibold text-lg">${alert.alert_name}</h3>
+                        <div class="text-sm text-gray-400 mt-1">
+                            <span><i class="fas fa-server mr-1"></i>${alert.instance || 'N/A'}</span>
+                            <span class="mx-2">•</span>
+                            <span><i class="fas fa-briefcase mr-1"></i>${alert.job || 'N/A'}</span>
+                            <span class="mx-2">•</span>
+                            <span><i class="fas fa-clock mr-1"></i>${new Date(alert.timestamp).toLocaleString()}</span>
+                        </div>
+                    </div>
+                    <div class="flex space-x-2 ml-4">
+                        ${alert.analyzed ? `
+                            <button onclick="viewAnalysis('${alert.id}')" class="btn-secondary px-3 py-1 rounded text-sm">
+                                <i class="fas fa-eye mr-1"></i> View
+                            </button>
+                            <button onclick="analyzeAlert('${alert.id}', true)" class="btn-secondary px-3 py-1 rounded text-sm">
+                                <i class="fas fa-redo mr-1"></i> Re-analyze
+                            </button>
+                        ` : `
+                            <button onclick="analyzeAlert('${alert.id}')" class="btn-primary px-3 py-1 rounded text-sm">
+                                <i class="fas fa-brain mr-1"></i> Analyze
+                            </button>
+                        `}
+                        <a href="/alerts/${alert.id}" class="btn-secondary px-3 py-1 rounded text-sm">
+                            <i class="fas fa-external-link-alt"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+        
+        // Update pagination
+        const pagination = document.getElementById('pagination');
+        pagination.classList.remove('hidden');
+        
+        const from = (currentPage - 1) * 15 + 1;
+        const to = Math.min(currentPage * 15, data.total);
+        document.getElementById('showingFrom').textContent = from;
+        document.getElementById('showingTo').textContent = to;
+        document.getElementById('totalAlerts').textContent = data.total;
+        document.getElementById('pageInfo').textContent = `Page ${currentPage} of ${totalPages}`;
+        
+        document.getElementById('prevBtn').disabled = currentPage <= 1;
+        document.getElementById('nextBtn').disabled = currentPage >= totalPages;
+    }
+    
+    function prevPage() {
+        if (currentPage > 1) {
+            currentPage--;
+            loadAlerts();
+        }
+    }
+    
+    function nextPage() {
+        if (currentPage < totalPages) {
+            currentPage++;
+            loadAlerts();
+        }
+    }
+    
+    async function analyzeAlert(alertId, force = false) {
+        const modal = document.getElementById('analyzeModal');
+        const modalContent = document.getElementById('modalContent');
+        
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        
+        modalContent.innerHTML = `
+            <div class="text-center py-8">
+                <div class="loading-spinner mx-auto mb-4"></div>
+                <p class="text-gray-400">Analyzing alert with AI...</p>
+                <p class="text-sm text-gray-500 mt-2">This may take a few seconds</p>
+            </div>
+        `;
+        
+        try {
+            const response = await apiCall(`/api/alerts/${alertId}/analyze`, {
+                method: 'POST',
+                body: JSON.stringify({ force })
+            });
+            
+            if (!response) return;
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Analysis failed');
+            }
+            
+            const data = await response.json();
+            showAnalysisResult(data);
+            loadAlerts(); // Refresh the list
+            
+        } catch (error) {
+            modalContent.innerHTML = `
+                <div class="text-center py-8 text-red-400">
+                    <i class="fas fa-exclamation-circle text-4xl mb-3"></i>
+                    <p>Analysis failed</p>
+                    <p class="text-sm mt-2">${error.message}</p>
+                    <button onclick="closeModal()" class="btn-secondary mt-4 px-4 py-2 rounded">Close</button>
+                </div>
+            `;
+        }
+    }
+    
+    async function viewAnalysis(alertId) {
+        const modal = document.getElementById('analyzeModal');
+        const modalContent = document.getElementById('modalContent');
+        
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        
+        modalContent.innerHTML = `
+            <div class="text-center py-8">
+                <div class="loading-spinner mx-auto"></div>
+            </div>
+        `;
+        
+        try {
+            const response = await apiCall(`/api/alerts/${alertId}`);
+            if (!response) return;
+            
+            const alert = await response.json();
+            
+            if (!alert.ai_analysis) {
+                modalContent.innerHTML = `
+                    <div class="text-center py-8">
+                        <p class="text-gray-400">No analysis available</p>
+                        <button onclick="analyzeAlert('${alertId}')" class="btn-primary mt-4 px-4 py-2 rounded">
+                            Analyze Now
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+            
+            showAnalysisResult({
+                alert_id: alert.id,
+                analysis: alert.ai_analysis,
+                recommendations: alert.recommendations_json || [],
+                analyzed_at: alert.analyzed_at,
+                analysis_count: alert.analysis_count
+            });
+            
+        } catch (error) {
+            modalContent.innerHTML = `
+                <div class="text-center py-8 text-red-400">
+                    <p>Failed to load analysis</p>
+                </div>
+            `;
+        }
+    }
+    
+    function showAnalysisResult(data) {
+        const modalContent = document.getElementById('modalContent');
+        
+        // Convert markdown-like formatting
+        let formattedAnalysis = data.analysis
+            .replace(/## (.*)/g, '<h3 class="text-lg font-semibold mt-4 mb-2 text-blue-400">$1</h3>')
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/`(.*?)`/g, '<code class="bg-gray-800 px-1 rounded">$1</code>')
+            .replace(/\n/g, '<br>');
+        
+        modalContent.innerHTML = `
+            <div class="space-y-4">
+                <div class="flex items-center justify-between text-sm text-gray-400">
+                    <span>
+                        <i class="fas fa-clock mr-1"></i>
+                        Analyzed: ${new Date(data.analyzed_at).toLocaleString()}
+                    </span>
+                    <span>
+                        Analysis count: ${data.analysis_count}
+                    </span>
+                </div>
+                
+                <div class="prose prose-invert max-w-none">
+                    ${formattedAnalysis}
+                </div>
+                
+                ${data.recommendations && data.recommendations.length > 0 ? `
+                    <div class="mt-4 p-4 bg-gray-800 rounded-lg">
+                        <h4 class="font-semibold mb-2">
+                            <i class="fas fa-lightbulb text-yellow-400 mr-2"></i>
+                            Quick Recommendations
+                        </h4>
+                        <ul class="list-disc list-inside space-y-1 text-sm">
+                            ${data.recommendations.map(r => `<li>${r}</li>`).join('')}
+                        </ul>
+                    </div>
+                ` : ''}
+                
+                <div class="flex justify-end space-x-2 mt-4 pt-4 border-t border-gray-700">
+                    <button onclick="analyzeAlert('${data.alert_id}', true)" class="btn-secondary px-4 py-2 rounded">
+                        <i class="fas fa-redo mr-1"></i> Re-analyze
+                    </button>
+                    <button onclick="closeModal()" class="btn-primary px-4 py-2 rounded">
+                        Close
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+    
+    function closeModal() {
+        const modal = document.getElementById('analyzeModal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+    
+    // Close modal on escape key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeModal();
+    });
+    
+    // Close modal on backdrop click
+    document.getElementById('analyzeModal').addEventListener('click', (e) => {
+        if (e.target === e.currentTarget) closeModal();
+    });
+    
+    // Initial load
+    loadAlerts();
+    
+    // Check URL params for filters
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('analyzed')) {
+        document.getElementById('filterAnalyzed').value = urlParams.get('analyzed');
+    }
+</script>
+{% endblock %}
