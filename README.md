@@ -1,248 +1,143 @@
-# AIOps Platform v2.0
+# AIOps Remediation Engine
 
-AI-powered Operations Platform with intelligent alert analysis using multiple LLM providers.
+An intelligent, AI-powered operations platform designed to streamline incident response. This platform integrates with your existing monitoring stack (Prometheus/Alertmanager) to provide automated root cause analysis, actionable remediation steps, and interactive tools for resolving issues.
 
-## Features
+## 🚀 Key Features
 
-- **On-demand AI Analysis**: Analyze alerts when you need them, not automatically
-- **Rules Engine**: Configure which alerts auto-analyze based on patterns
-- **Multi-LLM Support**: Use Claude, GPT-4, Gemini, or local Ollama models
-- **Modern Web UI**: Dark theme, responsive design
-- **REST API**: Full API with OpenAPI documentation
-- **PostgreSQL**: Production-ready database
-- **Authentication**: JWT-based auth with user management
+- **Intelligent Alert Analysis**: Automatically analyzes incoming alerts using state-of-the-art LLMs (Claude, GPT-4, Gemini, Llama).
+- **Flexible Rules Engine**: Define custom logic to determine which alerts require immediate AI attention, which can wait, and which should be ignored.
+- **Multi-LLM Support**: Vendor-agnostic design via LiteLLM allows you to switch between AI providers or use local models (Ollama) seamlessly.
+- **Interactive Remediation**:
+    - **Web Terminal**: Secure, browser-based SSH access to your infrastructure for immediate troubleshooting.
+    - **AI Chat Assistant**: Context-aware chat interface to discuss alerts and potential fixes with the AI.
+- **Secure Design**: Enterprise-grade security with JWT authentication and encrypted storage for sensitive credentials (API keys, SSH keys).
+- **Modern UI**: Clean, responsive dashboard for managing alerts, rules, and system settings.
 
-## Quick Start
+## 🏗️ System Architecture & Design
+
+The platform is built as a robust, modular application using modern Python standards.
+
+### Core Components
+
+1.  **API Layer (FastAPI)**: High-performance, async-ready REST API handling all client requests, webhooks, and WebSocket connections.
+2.  **Service Layer**:
+    -   **Rules Engine**: Evaluates alerts against user-defined patterns (Regex/Wildcard) to automate workflows.
+    -   **LLM Service**: Abstraction layer using `LiteLLM` to communicate with various AI providers.
+    -   **SSH Service**: Manages secure, asynchronous SSH connections for the web terminal using `AsyncSSH`.
+    -   **Auth Service**: Handles user management and JWT token generation/validation.
+3.  **Data Layer (PostgreSQL)**: Persistent storage for alerts, analysis results, user profiles, and encrypted credentials.
+4.  **Frontend (Jinja2)**: Server-side rendered templates providing a lightweight, fast, and responsive user interface without the complexity of a heavy SPA framework.
+
+### Technology Stack
+
+-   **Language**: Python 3.12+
+-   **Web Framework**: FastAPI, Uvicorn
+-   **Database**: PostgreSQL, SQLAlchemy (ORM), Alembic (Migrations)
+-   **AI/ML**: LiteLLM, LangChain, Anthropic SDK
+-   **Security**: Python-Jose (JWT), Passlib (Bcrypt), Cryptography (Fernet encryption)
+-   **Infrastructure**: Docker, Docker Compose
+-   **Ops Integration**: AsyncSSH, Prometheus Webhooks
+
+## 🔄 Workflow
+
+The platform follows a streamlined event-driven workflow:
+
+1.  **Ingestion**:
+    -   Prometheus/Alertmanager detects an issue and sends a JSON payload to the `/webhook/alerts` endpoint.
+2.  **Evaluation**:
+    -   The **Rules Engine** intercepts the alert.
+    -   It matches the alert's metadata (name, severity, instance, job) against configured **Auto-Analyze Rules**.
+    -   **Action Decision**:
+        -   `auto_analyze`: The alert is immediately sent to the LLM Service.
+        -   `manual`: The alert is saved to the DB for human review.
+        -   `ignore`: The alert is discarded (noise reduction).
+3.  **Analysis (AI Loop)**:
+    -   If triggered, the **LLM Service** constructs a context-rich prompt including the alert's summary, description, and labels.
+    -   It queries the configured Default LLM Provider (e.g., Claude 3.5 Sonnet).
+    -   The AI returns a structured analysis: **Root Cause**, **Impact**, **Immediate Actions**, and **Remediation Steps**.
+4.  **Remediation**:
+    -   **Review**: SREs view the alert and the AI's analysis on the dashboard.
+    -   **Interact**: SREs can launch a **Web Terminal** session directly to the affected server to execute the recommended commands.
+    -   **Refine**: SREs can use the **Chat** feature to ask follow-up questions to the AI about the specific alert context.
+
+## 📦 Modules & Structure
+
+```
+app/
+├── routers/            # API Endpoints & Controllers
+│   ├── alerts.py       # Alert management
+│   ├── rules.py        # Rule configuration
+│   ├── webhook.py      # Alertmanager ingestion
+│   ├── terminal_ws.py  # WebSocket for Web Terminal
+│   └── ...
+├── services/           # Business Logic
+│   ├── llm_service.py  # AI Provider integration
+│   ├── rules_engine.py # Pattern matching logic
+│   ├── ssh_service.py  # SSH connection management
+│   └── ...
+├── models.py           # SQLAlchemy Database Models
+├── schemas.py          # Pydantic Data Schemas
+└── main.py             # Application Entry Point
+```
+
+## 🚀 Quick Start
 
 ### Prerequisites
 
 - Docker & Docker Compose
-- Anthropic API key (or other LLM provider key)
+- An LLM API Key (Anthropic, OpenAI, or Google) OR a running Ollama instance.
 
 ### Deployment
 
-1. **Clone/Copy files to your server**
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/maftabmirza/remediation-engine.git
+   cd remediation-engine
+   ```
 
-```bash
-scp -r aiops-platform/ user@server:~/
-```
+2. **Configure Environment**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your database credentials and API keys
+   nano .env
+   ```
 
-2. **Configure environment**
+3. **Launch Services**
+   ```bash
+   chmod +x deploy.sh
+   ./deploy.sh
+   ```
 
-```bash
-cd ~/aiops-platform
-cp .env.example .env
-nano .env  # Edit with your values
-```
+4. **Access the Platform**
+   - **UI**: `http://localhost:8080`
+   - **API Docs**: `http://localhost:8080/docs`
+   - **Default Login**: `admin` / (password set in .env)
 
-Required settings:
-- `POSTGRES_PASSWORD`: Strong database password
-- `JWT_SECRET`: Random 32+ character string
-- `ADMIN_PASSWORD`: Initial admin password
-- `ANTHROPIC_API_KEY`: Your Claude API key
+## 🔌 Integrations
 
-3. **Deploy**
+### Alertmanager Configuration
 
-```bash
-chmod +x deploy.sh
-./deploy.sh
-```
-
-4. **Access the platform**
-
-- Web UI: `http://your-server:8080`
-- API Docs: `http://your-server:8080/docs`
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    AIOps Platform v2                             │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                   │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────────────┐  │
-│  │ Prometheus  │───►│ Alertmanager│───►│  Remediation Engine │  │
-│  └─────────────┘    └─────────────┘    │                     │  │
-│                                         │  ┌───────────────┐ │  │
-│                                         │  │ Rules Engine  │ │  │
-│                                         │  └───────────────┘ │  │
-│                                         │                     │  │
-│                                         │  ┌───────────────┐ │  │
-│                                         │  │ LLM Router    │ │  │
-│                                         │  │ (LiteLLM)     │ │  │
-│                                         │  └───────┬───────┘ │  │
-│                                         └──────────┼─────────┘  │
-│                                                    │             │
-│                           ┌────────────────────────┼───────┐    │
-│                           ▼            ▼           ▼       ▼    │
-│                       Claude        GPT-4      Gemini    Llama  │
-│                                                                   │
-│  ┌─────────────┐                                                 │
-│  │ PostgreSQL  │ ◄──── Alert Storage + Rules + Users            │
-│  └─────────────┘                                                 │
-│                                                                   │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-## Alert Flow
-
-1. **Prometheus** detects metric breach
-2. **Alertmanager** receives alert and routes to webhook
-3. **Rules Engine** evaluates alert against configured rules
-4. Based on rule action:
-   - `auto_analyze`: Queue for immediate AI analysis
-   - `manual`: Store and wait for user to click "Analyze"
-   - `ignore`: Don't store the alert
-5. User views alerts in Web UI and analyzes on-demand
-6. AI analysis is cached - no duplicate API calls
-
-## API Endpoints
-
-### Authentication
-- `POST /api/auth/login` - Login
-- `POST /api/auth/logout` - Logout
-- `GET /api/auth/me` - Get current user
-
-### Alerts
-- `GET /api/alerts` - List alerts (with filters)
-- `GET /api/alerts/{id}` - Get single alert
-- `POST /api/alerts/{id}/analyze` - Analyze alert with AI
-- `DELETE /api/alerts/{id}` - Delete alert
-- `GET /api/alerts/stats` - Get statistics
-
-### Rules
-- `GET /api/rules` - List rules
-- `POST /api/rules` - Create rule
-- `PUT /api/rules/{id}` - Update rule
-- `DELETE /api/rules/{id}` - Delete rule
-- `POST /api/rules/test` - Test rule matching
-- `POST /api/rules/{id}/toggle` - Enable/disable rule
-
-### Settings (LLM Providers)
-- `GET /api/settings/llm` - List providers
-- `POST /api/settings/llm` - Add provider
-- `PUT /api/settings/llm/{id}` - Update provider
-- `DELETE /api/settings/llm/{id}` - Delete provider
-- `POST /api/settings/llm/{id}/set-default` - Set as default
-- `POST /api/settings/llm/{id}/toggle` - Enable/disable
-
-### Webhook
-- `POST /webhook/alerts` - Alertmanager webhook (no auth)
-
-## Alertmanager Configuration
-
-Update your Alertmanager config to send alerts to the platform:
+Add this receiver to your `alertmanager.yml` to route alerts to the engine:
 
 ```yaml
 receivers:
-  - name: 'aiops-platform'
+  - name: 'remediation-engine'
     webhook_configs:
-      - url: 'http://remediation-engine:8080/webhook/alerts'
+      - url: 'http://<your-server-ip>:8080/webhook/alerts'
         send_resolved: true
 ```
 
-## Rules Configuration
+## 🛡️ Security Note
 
-Rules are evaluated in priority order (lower number = higher priority).
-
-### Example Rules
-
-1. **Auto-analyze all critical alerts**
-   - Priority: 10
-   - Severity Pattern: `critical`
-   - Action: `auto_analyze`
-
-2. **Auto-analyze production database alerts**
-   - Priority: 20
-   - Instance Pattern: `prod-db-*`
-   - Action: `auto_analyze`
-
-3. **Ignore test environment**
-   - Priority: 30
-   - Instance Pattern: `test-*`
-   - Action: `ignore`
-
-4. **Default: Manual analysis**
-   - Priority: 1000
-   - All patterns: `*`
-   - Action: `manual`
-
-## Adding LLM Providers
-
-### Claude (Default)
-- Provider Type: `anthropic`
-- Model ID: `claude-sonnet-4-20250514`
-
-### OpenAI GPT-4
-- Provider Type: `openai`
-- Model ID: `gpt-4-turbo-preview`
-
-### Google Gemini
-- Provider Type: `google`
-- Model ID: `gemini-pro`
-
-### Local Ollama
-- Provider Type: `ollama`
-- Model ID: `llama2`
-- API Base URL: `http://ollama:11434`
-
-## Management Commands
-
-```bash
-# View logs
-docker logs -f remediation-engine
-
-# Restart services
-docker compose restart
-
-# Stop services
-docker compose down
-
-# Database access
-docker exec -it aiops-postgres psql -U aiops -d aiops
-
-# Rebuild after code changes
-docker compose build --no-cache
-docker compose up -d
-```
-
-## Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| POSTGRES_HOST | Database host | postgres |
-| POSTGRES_PORT | Database port | 5432 |
-| POSTGRES_DB | Database name | aiops |
-| POSTGRES_USER | Database user | aiops |
-| POSTGRES_PASSWORD | Database password | (required) |
-| JWT_SECRET | JWT signing key | (required) |
-| JWT_EXPIRY_HOURS | Token expiry | 24 |
-| ADMIN_USERNAME | Initial admin user | admin |
-| ADMIN_PASSWORD | Initial admin password | (required) |
-| ANTHROPIC_API_KEY | Claude API key | (optional) |
-| OPENAI_API_KEY | OpenAI API key | (optional) |
-| GOOGLE_API_KEY | Gemini API key | (optional) |
-| DEBUG | Enable debug mode | false |
-
-## Troubleshooting
-
-### Application won't start
-```bash
-docker logs remediation-engine
-```
-
-### Database connection issues
-```bash
-docker logs aiops-postgres
-docker exec aiops-postgres pg_isready -U aiops
-```
-
-### Webhook not receiving alerts
-1. Check Alertmanager config uses correct URL
-2. Verify network connectivity: `docker network ls`
-3. Check webhook logs: `docker logs remediation-engine | grep webhook`
+This platform is designed with security in mind.
+-   **API Keys**: Stored encrypted in the database.
+-   **SSH Keys**: Stored encrypted; never exposed to the client.
+-   **Access Control**: Role-based access (Admin/User) protects sensitive settings.
 
 ## License
 
-MIT License
+**Proprietary / Non-Commercial Use Only**
+
+This software is licensed for personal, non-commercial use only. Commercial use is strictly prohibited without prior written permission from the copyright holder. See the [LICENSE](LICENSE) file for details.
+
 # remediation-engine
