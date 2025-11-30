@@ -80,6 +80,11 @@ app/
 └── main.py             # Application Entry Point
 ```
 
+## 📚 Documentation
+
+-   **[User Guide](USER_GUIDE.md)**: How to use the dashboard, manage alerts, and use the AI assistant.
+-   **[Developer Guide](DEVELOPER_GUIDE.md)**: Setup instructions, architecture overview, and contribution guidelines.
+
 ## 🚀 Quick Start
 
 ### Prerequisites
