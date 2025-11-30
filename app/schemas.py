@@ -57,6 +57,10 @@ class LLMProviderBase(BaseModel):
     is_enabled: bool = True
     config_json: Dict[str, Any] = {"temperature": 0.3, "max_tokens": 2000}
 
+    model_config = {
+        "protected_namespaces": ()
+    }
+
 
 class LLMProviderCreate(LLMProviderBase):
     api_key: Optional[str] = None  # Will be encrypted before storage
@@ -70,6 +74,10 @@ class LLMProviderUpdate(BaseModel):
     is_default: Optional[bool] = None
     is_enabled: Optional[bool] = None
     config_json: Optional[Dict[str, Any]] = None
+
+    model_config = {
+        "protected_namespaces": ()
+    }
 
 
 class LLMProviderResponse(LLMProviderBase):
