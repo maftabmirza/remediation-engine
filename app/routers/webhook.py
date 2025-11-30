@@ -17,15 +17,12 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/webhook", tags=["Webhook"])
 
 
-async def perform_auto_analysis(alert_id: str, db_url: str):
+async def perform_auto_analysis(alert_id: str):
     """
     Background task to perform auto-analysis on an alert.
     """
-    from sqlalchemy import create_engine
-    from sqlalchemy.orm import sessionmaker
+    from app.database import SessionLocal
     
-    engine = create_engine(db_url)
-    SessionLocal = sessionmaker(bind=engine)
     db = SessionLocal()
     
     try:
@@ -151,8 +148,7 @@ async def receive_alertmanager_webhook(
             if action == "auto_analyze":
                 background_tasks.add_task(
                     perform_auto_analysis,
-                    str(alert.id),
-                    settings.database_url
+                    str(alert.id)
                 )
                 processed.append({
                     "alert_name": alert_name,

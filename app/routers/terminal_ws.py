@@ -13,10 +13,12 @@ from app.database import get_db
 from app.models import TerminalSession
 from app.services.auth_service import get_current_user_ws
 from app.services.ssh_service import get_ssh_connection
+from app.config import get_settings
 
 router = APIRouter(tags=["Terminal"])
+settings = get_settings()
 
-RECORDING_DIR = "storage/recordings"
+RECORDING_DIR = settings.recording_dir
 os.makedirs(RECORDING_DIR, exist_ok=True)
 
 @router.websocket("/ws/terminal/{server_id}")
@@ -109,13 +111,23 @@ async def terminal_websocket(
             except Exception:
                 pass
 
-        # Run both tasks
+        async def heartbeat():
+            """Send periodic pings to keep connection alive"""
+            while True:
+                try:
+                    await asyncio.sleep(30)
+                    await websocket.send_text('{"type":"ping"}')
+                except:
+                    break
+
+        # Run tasks
         output_task = asyncio.create_task(forward_output())
         input_task = asyncio.create_task(forward_input())
+        heartbeat_task = asyncio.create_task(heartbeat())
         
         # Wait for either to finish
         done, pending = await asyncio.wait(
-            [output_task, input_task],
+            [output_task, input_task, heartbeat_task],
             return_when=asyncio.FIRST_COMPLETED
         )
         

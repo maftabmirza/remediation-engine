@@ -13,11 +13,15 @@ from app.services.auth_service import (
     create_access_token,
     get_current_user
 )
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
+limiter = Limiter(key_func=get_remote_address)
 
 
 @router.post("/login", response_model=LoginResponse)
+@limiter.limit("5/minute")
 async def login(
     request: Request,
     response: Response,

@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     # App
     debug: bool = False
     app_port: int = 8080
+    recording_dir: str = "storage/recordings"
 
     @property
     def database_url(self) -> str:

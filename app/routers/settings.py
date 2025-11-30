@@ -13,8 +13,47 @@ from app.schemas import (
 )
 from app.services.auth_service import get_current_user, require_admin
 from app.utils.crypto import encrypt_value
+from app.services.llm_service import get_api_key_for_provider
+from litellm import completion
 
 router = APIRouter(prefix="/api/settings", tags=["Settings"])
+
+
+@router.get("/llm/{provider_id}/test")
+async def test_llm_provider(
+    provider_id: UUID,
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """Test if an LLM provider is working"""
+    provider = db.query(LLMProvider).filter(LLMProvider.id == provider_id).first()
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+    
+    try:
+        api_key = get_api_key_for_provider(provider)
+        
+        # Prepare model name for LiteLLM
+        model_name = provider.model_id
+        if provider.provider_type == "ollama" and not model_name.startswith("ollama/"):
+            model_name = f"ollama/{model_name}"
+            
+        kwargs = {
+            "model": model_name,
+            "messages": [{"role": "user", "content": "Say OK"}],
+            "max_tokens": 10,
+        }
+        
+        if api_key:
+            kwargs["api_key"] = api_key
+            
+        if provider.api_base_url:
+            kwargs["api_base"] = provider.api_base_url
+            
+        response = completion(**kwargs)
+        return {"status": "success", "response": response.choices[0].message.content}
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
 
 
 @router.get("/llm", response_model=List[LLMProviderResponse])

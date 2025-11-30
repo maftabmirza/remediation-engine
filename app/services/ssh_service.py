@@ -14,25 +14,27 @@ from app.utils.crypto import decrypt_value
 logger = logging.getLogger(__name__)
 
 class SSHClient:
-    def __init__(self, host: str, port: int, username: str, client_keys: list = None, password: str = None):
+    def __init__(self, host: str, port: int, username: str, client_keys: list = None, password: str = None, verify_host: bool = False):
         self.host = host
         self.port = port
         self.username = username
         self.client_keys = client_keys
         self.password = password
+        self.verify_host = verify_host
         self.conn = None
         self.process = None
 
     async def connect(self):
         """Establish SSH connection"""
         try:
+            known_hosts = None if not self.verify_host else ()
             self.conn = await asyncssh.connect(
                 self.host,
                 port=self.port,
                 username=self.username,
                 client_keys=self.client_keys,
                 password=self.password,
-                known_hosts=None  # In production, you should verify hosts
+                known_hosts=known_hosts
             )
             return True
         except Exception as e:

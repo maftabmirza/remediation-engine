@@ -8,6 +8,7 @@ from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from langchain_community.chat_models import ChatLiteLLM
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.output_parsers import StrOutputParser
+from litellm import token_counter
 
 from app.models import LLMProvider, Alert, AuditLog
 from app.models_chat import ChatSession, ChatMessage
@@ -125,10 +126,17 @@ async def stream_chat_response(
             yield content
             
     # 5. Save assistant message
+    tokens = 0
+    try:
+        tokens = token_counter(model=provider.model_id, messages=lc_messages)
+    except:
+        pass
+
     ai_message = ChatMessage(
         session_id=session_id,
         role="assistant",
-        content=full_response
+        content=full_response,
+        tokens_used=tokens
     )
     db.add(ai_message)
     db.commit()
