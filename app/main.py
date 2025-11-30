@@ -30,8 +30,12 @@ from app.routers import (
     chat_ws,
     chat_api,
     terminal_ws,
-    audit
+    audit,
+    metrics
 )
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 # Configure logging
 logging.basicConfig(
@@ -41,6 +45,9 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 settings = get_settings()
+
+# Rate Limiter
+limiter = Limiter(key_func=get_remote_address)
 
 
 def init_db():
@@ -90,13 +97,29 @@ async def lifespan(app: FastAPI):
     logger.info("Shutting down AIOps Platform...")
 
 
+from fastapi.openapi.docs import get_redoc_html
+
 # Create FastAPI app
 app = FastAPI(
     title="AIOps Platform",
     description="AI-powered Operations Platform with intelligent alert analysis",
     version="2.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
+    redoc_url=None  # Disable default to override
 )
+
+@app.get("/redoc", include_in_schema=False)
+async def redoc_html():
+    return get_redoc_html(
+        openapi_url=app.openapi_url,
+        title=app.title + " - ReDoc",
+        redoc_js_url="/static/redoc.standalone.js",
+    )
+
+
+# Rate Limiter
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -117,6 +140,7 @@ app.include_router(chat_api.router)
 app.include_router(terminal_ws.router)
 app.include_router(servers.router)
 app.include_router(audit.router)
+app.include_router(metrics.router)
 
 
 # ============== Web UI Routes ==============
