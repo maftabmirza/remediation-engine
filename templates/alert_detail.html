@@ -242,6 +242,15 @@
         chatSocket.onclose = () => {
             document.getElementById('chatStatus').textContent = 'Disconnected';
             document.getElementById('chatStatus').className = 'text-xs text-red-400';
+            
+            // Auto-reconnect after 3 seconds
+            setTimeout(() => {
+                if (currentSessionId) {
+                    document.getElementById('chatStatus').textContent = 'Reconnecting...';
+                    document.getElementById('chatStatus').className = 'text-xs text-yellow-400';
+                    connectChatWebSocket(currentSessionId);
+                }
+            }, 3000);
         };
     }
 
@@ -450,6 +459,10 @@
         
         terminalSocket = new WebSocket(`${protocol}//${window.location.host}/ws/terminal/${serverId}?token=${token}&cols=${term.cols}&rows=${term.rows}`);
         
+        // Loading state
+        document.getElementById('termStatus').textContent = 'Connecting...';
+        document.getElementById('termStatus').className = 'text-xs text-yellow-400';
+
         terminalSocket.onopen = () => {
             document.getElementById('termStatus').textContent = 'Connected';
             document.getElementById('termStatus').className = 'text-xs text-green-400';
@@ -533,53 +546,6 @@
                 note.remove();
             }
         }, 500);
-    }
-
-    function getTerminalContent() {
-        if (!term) return '';
-        
-        // Get all lines from the buffer
-        const buffer = term.buffer.active;
-        const lines = [];
-        // Limit to last 100 lines to avoid token limits
-        const start = Math.max(0, buffer.baseY + buffer.cursorY - 100);
-        const end = buffer.baseY + buffer.cursorY + 1;
-        
-        for (let i = start; i < end; i++) {
-            const line = buffer.getLine(i);
-            if (line) {
-                lines.push(line.translateToString(true));
-            }
-        }
-        
-        return lines.join('\n').trim();
-    }
-
-    function sendMessage(e) {
-        e.preventDefault();
-        
-        // Clear pending analysis button if user types manually
-        if (analysisButton) {
-            analysisButton.remove();
-            analysisButton = null;
-        }
-
-        const input = document.getElementById('chatInput');
-        const text = input.value.trim();
-        if (!text || !chatSocket) return;
-        
-        appendUserMessage(text);
-        
-        // Inject terminal context if available
-        const termContent = getTerminalContent();
-        let finalMessage = text;
-        
-        if (termContent) {
-            finalMessage += `\n\n[SYSTEM: The user has the following active terminal output. Use it if relevant to the query.]\n\`\`\`\n${termContent}\n\`\`\``;
-        }
-        
-        chatSocket.send(finalMessage);
-        input.value = '';
     }
 
     // --- Init ---
