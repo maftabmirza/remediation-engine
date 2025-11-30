@@ -1,13 +1,13 @@
-"""
-WebSocket endpoints for Web Terminal
-"""
+"""WebSocket endpoints for Web Terminal."""
 import json
 import asyncio
+import logging
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Query
 from sqlalchemy.orm import Session
+from starlette.websockets import WebSocketState
 
 from app.database import get_db
 from app.models import TerminalSession
@@ -15,11 +15,38 @@ from app.services.auth_service import get_current_user_ws
 from app.services.ssh_service import get_ssh_connection
 from app.config import get_settings
 
+logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Terminal"])
 settings = get_settings()
 
 RECORDING_DIR = settings.recording_dir
 os.makedirs(RECORDING_DIR, exist_ok=True)
+
+# WebSocket close codes
+WS_CLOSE_AUTH_FAILED = 4001
+WS_CLOSE_SERVER_NOT_FOUND = 4004
+WS_CLOSE_SSH_FAILED = 4010
+WS_CLOSE_INTERNAL_ERROR = 4500
+
+
+async def safe_send(websocket: WebSocket, message: str) -> bool:
+    """Safely send a message to WebSocket, returning False if connection is closed."""
+    try:
+        if websocket.client_state == WebSocketState.CONNECTED:
+            await websocket.send_text(message)
+            return True
+    except Exception as e:
+        logger.debug(f"Failed to send WebSocket message: {e}")
+    return False
+
+
+async def safe_close(websocket: WebSocket, code: int = 1000) -> None:
+    """Safely close a WebSocket connection."""
+    try:
+        if websocket.client_state == WebSocketState.CONNECTED:
+            await websocket.close(code=code)
+    except Exception as e:
+        logger.debug(f"Error closing WebSocket: {e}")
 
 @router.websocket("/ws/terminal/{server_id}")
 async def terminal_websocket(
