@@ -18,24 +18,38 @@
         <!-- Navigation -->
         <nav class="flex-1 p-4 space-y-2 overflow-hidden">
             <a href="/" class="sidebar-item flex items-center space-x-3 px-4 py-3 rounded-lg {% if active_page == 'dashboard' %}active{% endif %}">
-                <i class="fas fa-tachometer-alt w-5 flex-shrink-0"></i>
+                <i class="fas fa-tachometer-alt w-5 flex-shrink-0 nav-icon text-blue-400"></i>
                 <span class="sidebar-text whitespace-nowrap hidden">Dashboard</span>
             </a>
             <a href="/alerts" class="sidebar-item flex items-center space-x-3 px-4 py-3 rounded-lg {% if active_page == 'alerts' %}active{% endif %}">
-                <i class="fas fa-bell w-5 flex-shrink-0"></i>
+                <i class="fas fa-bell w-5 flex-shrink-0 nav-icon text-yellow-400"></i>
                 <span class="sidebar-text whitespace-nowrap hidden">Alerts</span>
             </a>
             <a href="/rules" class="sidebar-item flex items-center space-x-3 px-4 py-3 rounded-lg {% if active_page == 'rules' %}active{% endif %}">
-                <i class="fas fa-cogs w-5 flex-shrink-0"></i>
+                <i class="fas fa-cogs w-5 flex-shrink-0 nav-icon text-purple-400"></i>
                 <span class="sidebar-text whitespace-nowrap hidden">Rules</span>
             </a>
+            
+            <!-- Auto-Remediation Section -->
+            <div class="mt-4 mb-2 px-4 sidebar-text hidden">
+                <span class="text-xs text-gray-500 uppercase tracking-wider">Remediation</span>
+            </div>
+            <a href="/runbooks" class="sidebar-item flex items-center space-x-3 px-4 py-3 rounded-lg {% if active_page == 'runbooks' %}active{% endif %}">
+                <i class="fas fa-book w-5 flex-shrink-0 nav-icon text-green-400"></i>
+                <span class="sidebar-text whitespace-nowrap hidden">Runbooks</span>
+            </a>
+            <a href="/executions" class="sidebar-item flex items-center space-x-3 px-4 py-3 rounded-lg {% if active_page == 'executions' %}active{% endif %}">
+                <i class="fas fa-play-circle w-5 flex-shrink-0 nav-icon text-red-400"></i>
+                <span class="sidebar-text whitespace-nowrap hidden">Executions</span>
+            </a>
+            
             <a href="/settings" class="sidebar-item flex items-center space-x-3 px-4 py-3 rounded-lg {% if active_page == 'settings' %}active{% endif %}">
-                <i class="fas fa-sliders-h w-5 flex-shrink-0"></i>
+                <i class="fas fa-sliders-h w-5 flex-shrink-0 nav-icon text-gray-400"></i>
                 <span class="sidebar-text whitespace-nowrap hidden">Settings</span>
             </a>
             {% if user.role == 'admin' %}
             <a href="/audit" class="sidebar-item flex items-center space-x-3 px-4 py-3 rounded-lg {% if active_page == 'audit' %}active{% endif %}">
-                <i class="fas fa-history w-5 flex-shrink-0"></i>
+                <i class="fas fa-history w-5 flex-shrink-0 nav-icon text-cyan-400"></i>
                 <span class="sidebar-text whitespace-nowrap hidden">Audit Logs</span>
             </a>
             {% endif %}
@@ -92,24 +106,36 @@
             <p class="text-sm text-gray-400">Choose your preferred color theme:</p>
             
             <div class="grid grid-cols-2 gap-3">
-                <button onclick="setTheme('default')" class="p-3 rounded-lg border border-gray-600 hover:border-blue-400 transition-all flex items-center space-x-3 group">
+                <button id="theme-btn-default" onclick="setTheme('default')" class="theme-btn p-3 rounded-lg border border-gray-600 hover:border-blue-400 transition-all flex items-center space-x-3 group">
                     <div class="w-6 h-6 rounded-full bg-[#1e1e2e] border border-gray-500"></div>
                     <span class="text-sm group-hover:text-blue-400">Default (Dark)</span>
+                    <i class="fas fa-check text-green-400 ml-auto theme-check hidden"></i>
                 </button>
                 
-                <button onclick="setTheme('light')" class="p-3 rounded-lg border border-gray-600 hover:border-blue-400 transition-all flex items-center space-x-3 group">
+                <button id="theme-btn-light" onclick="setTheme('light')" class="theme-btn p-3 rounded-lg border border-gray-600 hover:border-blue-400 transition-all flex items-center space-x-3 group">
                     <div class="w-6 h-6 rounded-full bg-[#f3f4f6] border border-gray-300"></div>
                     <span class="text-sm group-hover:text-blue-400">Light</span>
+                    <i class="fas fa-check text-green-400 ml-auto theme-check hidden"></i>
                 </button>
                 
-                <button onclick="setTheme('twilight')" class="p-3 rounded-lg border border-gray-600 hover:border-blue-400 transition-all flex items-center space-x-3 group">
+                <button id="theme-btn-aftab" onclick="setTheme('aftab')" class="theme-btn p-3 rounded-lg border border-gray-600 hover:border-blue-400 transition-all flex items-center space-x-3 group">
+                    <div class="w-6 h-6 rounded-full bg-[#111217] border border-gray-500 flex items-center justify-center">
+                        <span class="text-xs font-bold text-orange-500">A</span>
+                    </div>
+                    <span class="text-sm group-hover:text-blue-400">Aftab</span>
+                    <i class="fas fa-check text-green-400 ml-auto theme-check hidden"></i>
+                </button>
+                
+                <button id="theme-btn-twilight" onclick="setTheme('twilight')" class="theme-btn p-3 rounded-lg border border-gray-600 hover:border-blue-400 transition-all flex items-center space-x-3 group">
                     <div class="w-6 h-6 rounded-full bg-[#282a36] border border-gray-500"></div>
                     <span class="text-sm group-hover:text-blue-400">Twilight</span>
+                    <i class="fas fa-check text-green-400 ml-auto theme-check hidden"></i>
                 </button>
                 
-                <button onclick="setTheme('midnight')" class="p-3 rounded-lg border border-gray-600 hover:border-blue-400 transition-all flex items-center space-x-3 group">
+                <button id="theme-btn-midnight" onclick="setTheme('midnight')" class="theme-btn p-3 rounded-lg border border-gray-600 hover:border-blue-400 transition-all flex items-center space-x-3 group">
                     <div class="w-6 h-6 rounded-full bg-[#0f172a] border border-gray-500"></div>
                     <span class="text-sm group-hover:text-blue-400">Midnight</span>
+                    <i class="fas fa-check text-green-400 ml-auto theme-check hidden"></i>
                 </button>
             </div>
         </div>
@@ -126,6 +152,7 @@
     function showThemeModal() {
         document.getElementById('themeModal').classList.remove('hidden');
         document.getElementById('themeModal').classList.add('flex');
+        updateThemeButtons();
     }
     
     function closeThemeModal() {
@@ -133,13 +160,29 @@
         document.getElementById('themeModal').classList.remove('flex');
     }
     
-    function setTheme(themeName) {
-        if (themeName === 'default') {
-            document.documentElement.removeAttribute('data-theme');
-        } else {
-            document.documentElement.setAttribute('data-theme', themeName);
+    function updateThemeButtons() {
+        const currentTheme = localStorage.getItem('aiops-theme') || 'aftab';
+        // Remove active state from all buttons
+        document.querySelectorAll('.theme-btn').forEach(btn => {
+            btn.classList.remove('border-blue-400', 'bg-blue-500', 'bg-opacity-10');
+            btn.classList.add('border-gray-600');
+            const check = btn.querySelector('.theme-check');
+            if (check) check.classList.add('hidden');
+        });
+        // Add active state to current theme button
+        const activeBtn = document.getElementById(`theme-btn-${currentTheme}`);
+        if (activeBtn) {
+            activeBtn.classList.remove('border-gray-600');
+            activeBtn.classList.add('border-blue-400', 'bg-blue-500', 'bg-opacity-10');
+            const check = activeBtn.querySelector('.theme-check');
+            if (check) check.classList.remove('hidden');
         }
+    }
+    
+    function setTheme(themeName) {
+        document.documentElement.setAttribute('data-theme', themeName);
         localStorage.setItem('aiops-theme', themeName);
+        updateThemeButtons();
         showToast(`Theme set to ${themeName}`, 'success');
         closeThemeModal();
     }

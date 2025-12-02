@@ -126,6 +126,10 @@ class AuditLog(Base):
 
 
 class ServerCredential(Base):
+    """
+    Server connection credentials.
+    Supports both Linux (SSH) and Windows (WinRM) servers.
+    """
     __tablename__ = "server_credentials"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -133,10 +137,32 @@ class ServerCredential(Base):
     hostname = Column(String(255), nullable=False, index=True)
     port = Column(Integer, default=22)
     username = Column(String(100), nullable=False)
+    
+    # Platform Configuration
+    os_type = Column(String(20), default="linux", index=True)  # "linux", "windows"
+    protocol = Column(String(20), default="ssh")  # "ssh", "winrm"
+    
+    # SSH Authentication (Linux, or Windows via SSH)
     auth_type = Column(String(20), default="key")  # key, password
     ssh_key_encrypted = Column(Text, nullable=True)
     password_encrypted = Column(Text, nullable=True)
+    
+    # WinRM Configuration (Windows)
+    winrm_transport = Column(String(20), nullable=True)  # "kerberos", "ntlm", "certificate"
+    winrm_use_ssl = Column(Boolean, default=True)
+    winrm_cert_validation = Column(Boolean, default=True)
+    domain = Column(String(100), nullable=True)  # AD domain for Windows auth
+    
+    # Environment & Tags
     environment = Column(String(50), default="production", index=True)  # production, staging, dev
+    tags = Column(JSON, default=[])  # For filtering servers
+    
+    # Connection Testing
+    last_connection_test = Column(DateTime(timezone=True), nullable=True)
+    last_connection_status = Column(String(20), nullable=True)  # "success", "failed"
+    last_connection_error = Column(Text, nullable=True)
+    
+    # Audit
     created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), default=utc_now)
     updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)

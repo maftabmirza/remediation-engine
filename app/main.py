@@ -31,7 +31,8 @@ from app.routers import (
     chat_api,
     terminal_ws,
     audit,
-    metrics
+    metrics,
+    remediation
 )
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -141,6 +142,7 @@ app.include_router(terminal_ws.router)
 app.include_router(servers.router)
 app.include_router(audit.router)
 app.include_router(metrics.router)
+app.include_router(remediation.router)
 
 
 # ============== Web UI Routes ==============
@@ -276,6 +278,40 @@ async def audit_page(
         return RedirectResponse(url="/", status_code=302)
     
     return templates.TemplateResponse("audit.html", {
+        "request": request,
+        "user": current_user
+    })
+
+
+@app.get("/runbooks", response_class=HTMLResponse)
+async def runbooks_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    Auto-remediation runbooks management page
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+    
+    return templates.TemplateResponse("runbooks.html", {
+        "request": request,
+        "user": current_user
+    })
+
+
+@app.get("/executions", response_class=HTMLResponse)
+async def executions_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    Runbook executions monitoring page
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+    
+    return templates.TemplateResponse("executions.html", {
         "request": request,
         "user": current_user
     })

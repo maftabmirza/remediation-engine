@@ -170,6 +170,25 @@ def require_admin(user: User = Depends(get_current_user)) -> User:
     return user
 
 
+def require_role(allowed_roles: list):
+    """
+    Dependency factory that requires specific roles.
+    
+    Usage:
+        @router.get("/endpoint")
+        async def endpoint(user: User = Depends(require_role(["admin", "engineer"]))):
+            ...
+    """
+    def role_checker(user: User = Depends(get_current_user)) -> User:
+        if user.role not in allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Access denied. Required roles: {', '.join(allowed_roles)}"
+            )
+        return user
+    return role_checker
+
+
 async def get_current_user_ws(token: str, db: Session) -> Optional[User]:
     """
     Authenticate WebSocket connection using JWT token.

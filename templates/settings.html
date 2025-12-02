@@ -99,7 +99,13 @@
         </h2>
         <form id="authConfigForm" class="space-y-4">
             <div>
-                <label class="block text-sm font-medium mb-1">Authentication Method</label>
+                <label class="label-with-tooltip block text-sm font-medium mb-1">
+                    Authentication Method
+                    <span class="info-tooltip info-tooltip-align-left">
+                        <span class="info-tooltip-icon">?</span>
+                        <span class="info-tooltip-text"><strong>Local:</strong> Built-in database auth.<br><strong>LDAP:</strong> Active Directory/OpenLDAP.<br><strong>SAML:</strong> SSO (Okta, Azure AD, etc).</span>
+                    </span>
+                </label>
                 <select id="authMethod" class="input-field w-full px-3 py-2 rounded" onchange="toggleAuthSections()">
                     <option value="local">Local Database (Default)</option>
                     <option value="ldap">LDAP / Active Directory</option>
@@ -111,15 +117,33 @@
             <div id="ldapConfig" class="hidden space-y-4 border-l-2 border-blue-500 pl-4 ml-1">
                 <h3 class="text-sm font-semibold text-blue-400">LDAP Configuration</h3>
                 <div>
-                    <label class="block text-sm font-medium mb-1">Server URL</label>
+                    <label class="label-with-tooltip block text-sm font-medium mb-1">
+                        Server URL
+                        <span class="info-tooltip info-tooltip-align-left">
+                            <span class="info-tooltip-icon">?</span>
+                            <span class="info-tooltip-text">LDAP server address (e.g. ldap://domain.com:389 or ldaps://domain.com:636).</span>
+                        </span>
+                    </label>
                     <input type="text" id="ldapUrl" class="input-field w-full px-3 py-2 rounded" placeholder="ldap://domain.com:389">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium mb-1">Bind DN</label>
+                    <label class="label-with-tooltip block text-sm font-medium mb-1">
+                        Bind DN
+                        <span class="info-tooltip info-tooltip-align-left">
+                            <span class="info-tooltip-icon">?</span>
+                            <span class="info-tooltip-text">Distinguished Name for the service account used to search users.</span>
+                        </span>
+                    </label>
                     <input type="text" id="ldapBindDn" class="input-field w-full px-3 py-2 rounded" placeholder="cn=admin,dc=domain,dc=com">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium mb-1">Base DN</label>
+                    <label class="label-with-tooltip block text-sm font-medium mb-1">
+                        Base DN
+                        <span class="info-tooltip info-tooltip-align-left">
+                            <span class="info-tooltip-icon">?</span>
+                            <span class="info-tooltip-text">Root of the directory tree where users are located.</span>
+                        </span>
+                    </label>
                     <input type="text" id="ldapBaseDn" class="input-field w-full px-3 py-2 rounded" placeholder="dc=domain,dc=com">
                 </div>
             </div>
@@ -128,11 +152,23 @@
             <div id="samlConfig" class="hidden space-y-4 border-l-2 border-orange-500 pl-4 ml-1">
                 <h3 class="text-sm font-semibold text-orange-400">SAML Configuration</h3>
                 <div>
-                    <label class="block text-sm font-medium mb-1">IdP Metadata URL</label>
+                    <label class="label-with-tooltip block text-sm font-medium mb-1">
+                        IdP Metadata URL
+                        <span class="info-tooltip info-tooltip-align-left">
+                            <span class="info-tooltip-icon">?</span>
+                            <span class="info-tooltip-text">URL to your Identity Provider's XML metadata.</span>
+                        </span>
+                    </label>
                     <input type="text" id="samlMetadataUrl" class="input-field w-full px-3 py-2 rounded" placeholder="https://idp.example.com/metadata">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium mb-1">Entity ID</label>
+                    <label class="label-with-tooltip block text-sm font-medium mb-1">
+                        Entity ID
+                        <span class="info-tooltip info-tooltip-align-left">
+                            <span class="info-tooltip-icon">?</span>
+                            <span class="info-tooltip-text">Unique identifier for this application in your IdP.</span>
+                        </span>
+                    </label>
                     <input type="text" id="samlEntityId" class="input-field w-full px-3 py-2 rounded" placeholder="urn:aiops:platform">
                 </div>
             </div>
@@ -159,13 +195,25 @@
             <input type="hidden" id="providerId">
             
             <div>
-                <label class="block text-sm font-medium mb-1">Display Name *</label>
+                <label class="label-with-tooltip block text-sm font-medium mb-1">
+                    Display Name *
+                    <span class="info-tooltip info-tooltip-align-left">
+                        <span class="info-tooltip-icon">?</span>
+                        <span class="info-tooltip-text">A friendly name to identify this provider in the UI (e.g. "Claude Sonnet Production").</span>
+                    </span>
+                </label>
                 <input type="text" id="providerName" class="input-field w-full px-3 py-2 rounded" required placeholder="e.g., Claude Sonnet">
             </div>
             
             <div class="grid grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm font-medium mb-1">Provider Type *</label>
+                    <label class="label-with-tooltip block text-sm font-medium mb-1">
+                        Provider Type *
+                        <span class="info-tooltip info-tooltip-align-left">
+                            <span class="info-tooltip-icon">?</span>
+                            <span class="info-tooltip-text">The backend service to use. Choose "Ollama" for local models or others for cloud APIs.</span>
+                        </span>
+                    </label>
                     <select id="providerType" class="input-field w-full px-3 py-2 rounded" onchange="updateModelSuggestions()">
                         <option value="anthropic">Anthropic (Claude)</option>
                         <option value="openai">OpenAI (GPT)</option>
@@ -174,29 +222,59 @@
                     </select>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium mb-1">Model ID *</label>
+                    <label class="label-with-tooltip block text-sm font-medium mb-1">
+                        Model ID *
+                        <span class="info-tooltip info-tooltip-align-right">
+                            <span class="info-tooltip-icon">?</span>
+                            <span class="info-tooltip-text">The specific model identifier string (e.g. "gpt-4", "claude-3-opus", "llama2").</span>
+                        </span>
+                    </label>
                     <input type="text" id="providerModel" class="input-field w-full px-3 py-2 rounded" required placeholder="e.g., claude-sonnet-4-20250514">
                 </div>
             </div>
             
             <div>
-                <label class="block text-sm font-medium mb-1">API Key</label>
+                <label class="label-with-tooltip block text-sm font-medium mb-1">
+                    API Key
+                    <span class="info-tooltip info-tooltip-align-left">
+                        <span class="info-tooltip-icon">?</span>
+                        <span class="info-tooltip-text">The secret key for authentication. Leave blank if you configured it via environment variables.</span>
+                    </span>
+                </label>
                 <input type="password" id="providerApiKey" class="input-field w-full px-3 py-2 rounded" placeholder="Leave empty to use environment variable">
                 <p class="text-xs text-gray-400 mt-1">If empty, will use API key from environment variables</p>
             </div>
             
             <div>
-                <label class="block text-sm font-medium mb-1">API Base URL (optional)</label>
+                <label class="label-with-tooltip block text-sm font-medium mb-1">
+                    API Base URL (optional)
+                    <span class="info-tooltip info-tooltip-align-left">
+                        <span class="info-tooltip-icon">?</span>
+                        <span class="info-tooltip-text">Override the default API endpoint. Useful for proxies or self-hosted instances (like Ollama).</span>
+                    </span>
+                </label>
                 <input type="text" id="providerBaseUrl" class="input-field w-full px-3 py-2 rounded" placeholder="For self-hosted or custom endpoints">
             </div>
             
             <div class="grid grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm font-medium mb-1">Temperature</label>
+                    <label class="label-with-tooltip block text-sm font-medium mb-1">
+                        Temperature
+                        <span class="info-tooltip info-tooltip-align-left">
+                            <span class="info-tooltip-icon">?</span>
+                            <span class="info-tooltip-text">Controls randomness (0.0 to 1.0). Lower values are more deterministic, higher values are more creative.</span>
+                        </span>
+                    </label>
                     <input type="number" id="providerTemp" class="input-field w-full px-3 py-2 rounded" value="0.3" min="0" max="2" step="0.1">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium mb-1">Max Tokens</label>
+                    <label class="label-with-tooltip block text-sm font-medium mb-1">
+                        Max Tokens
+                        <span class="info-tooltip info-tooltip-align-right">
+                            <span class="info-tooltip-icon">?</span>
+                            <span class="info-tooltip-text">Maximum number of tokens to generate in the response.</span>
+                        </span>
+                    </label>
                     <input type="number" id="providerMaxTokens" class="input-field w-full px-3 py-2 rounded" value="2000">
                 </div>
             </div>
@@ -234,28 +312,58 @@
             <input type="hidden" id="userId">
             
             <div>
-                <label class="block text-sm font-medium mb-1">Username *</label>
+                <label class="label-with-tooltip block text-sm font-medium mb-1">
+                    Username *
+                    <span class="info-tooltip info-tooltip-align-left">
+                        <span class="info-tooltip-icon">?</span>
+                        <span class="info-tooltip-text">Unique login identifier for the user.</span>
+                    </span>
+                </label>
                 <input type="text" id="userUsername" class="input-field w-full px-3 py-2 rounded" required>
             </div>
 
             <div>
-                <label class="block text-sm font-medium mb-1">Full Name</label>
+                <label class="label-with-tooltip block text-sm font-medium mb-1">
+                    Full Name
+                    <span class="info-tooltip info-tooltip-align-left">
+                        <span class="info-tooltip-icon">?</span>
+                        <span class="info-tooltip-text">Display name shown in the UI.</span>
+                    </span>
+                </label>
                 <input type="text" id="userFullName" class="input-field w-full px-3 py-2 rounded" placeholder="John Doe">
             </div>
 
             <div>
-                <label class="block text-sm font-medium mb-1">Email</label>
+                <label class="label-with-tooltip block text-sm font-medium mb-1">
+                    Email
+                    <span class="info-tooltip info-tooltip-align-left">
+                        <span class="info-tooltip-icon">?</span>
+                        <span class="info-tooltip-text">Contact email address for notifications.</span>
+                    </span>
+                </label>
                 <input type="email" id="userEmail" class="input-field w-full px-3 py-2 rounded" placeholder="john@example.com">
             </div>
             
             <div>
-                <label class="block text-sm font-medium mb-1">Password <span id="userPasswordReq">*</span></label>
+                <label class="label-with-tooltip block text-sm font-medium mb-1">
+                    Password <span id="userPasswordReq">*</span>
+                    <span class="info-tooltip info-tooltip-align-left">
+                        <span class="info-tooltip-icon">?</span>
+                        <span class="info-tooltip-text">Login password. Required for new users. Leave blank when editing to keep existing password.</span>
+                    </span>
+                </label>
                 <input type="password" id="userPassword" class="input-field w-full px-3 py-2 rounded">
                 <p id="userPasswordHelp" class="text-xs text-gray-400 mt-1 hidden">Leave blank to keep current password</p>
             </div>
             
             <div>
-                <label class="block text-sm font-medium mb-1">Role</label>
+                <label class="label-with-tooltip block text-sm font-medium mb-1">
+                    Role
+                    <span class="info-tooltip info-tooltip-align-left">
+                        <span class="info-tooltip-icon">?</span>
+                        <span class="info-tooltip-text"><strong>User:</strong> Standard access.<br><strong>Admin:</strong> Full system configuration access.</span>
+                    </span>
+                </label>
                 <select id="userRole" class="input-field w-full px-3 py-2 rounded">
                     <option value="user">User</option>
                     <option value="admin">Admin</option>
@@ -289,28 +397,58 @@
         
         <form id="serverForm" class="space-y-4">
             <div>
-                <label class="block text-sm font-medium mb-1">Friendly Name *</label>
+                <label class="label-with-tooltip block text-sm font-medium mb-1">
+                    Friendly Name *
+                    <span class="info-tooltip info-tooltip-align-left">
+                        <span class="info-tooltip-icon">?</span>
+                        <span class="info-tooltip-text">A descriptive name for this server (e.g. "Production DB", "Web Server 01").</span>
+                    </span>
+                </label>
                 <input type="text" id="serverName" class="input-field w-full px-3 py-2 rounded" required placeholder="e.g., Production DB">
             </div>
             
             <div class="grid grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm font-medium mb-1">Hostname/IP *</label>
+                    <label class="label-with-tooltip block text-sm font-medium mb-1">
+                        Hostname/IP *
+                        <span class="info-tooltip info-tooltip-align-left">
+                            <span class="info-tooltip-icon">?</span>
+                            <span class="info-tooltip-text">The IP address or DNS hostname of the server.</span>
+                        </span>
+                    </label>
                     <input type="text" id="serverHost" class="input-field w-full px-3 py-2 rounded" required placeholder="192.168.1.10">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium mb-1">Port</label>
+                    <label class="label-with-tooltip block text-sm font-medium mb-1">
+                        Port
+                        <span class="info-tooltip info-tooltip-align-right">
+                            <span class="info-tooltip-icon">?</span>
+                            <span class="info-tooltip-text">SSH port number (default is 22).</span>
+                        </span>
+                    </label>
                     <input type="number" id="serverPort" class="input-field w-full px-3 py-2 rounded" value="22">
                 </div>
             </div>
             
             <div>
-                <label class="block text-sm font-medium mb-1">Username *</label>
+                <label class="label-with-tooltip block text-sm font-medium mb-1">
+                    Username *
+                    <span class="info-tooltip info-tooltip-align-left">
+                        <span class="info-tooltip-icon">?</span>
+                        <span class="info-tooltip-text">SSH username for connection (e.g. "root", "ubuntu", "ec2-user").</span>
+                    </span>
+                </label>
                 <input type="text" id="serverUser" class="input-field w-full px-3 py-2 rounded" required placeholder="root">
             </div>
             
             <div>
-                <label class="block text-sm font-medium mb-1">Auth Type</label>
+                <label class="label-with-tooltip block text-sm font-medium mb-1">
+                    Auth Type
+                    <span class="info-tooltip info-tooltip-align-left">
+                        <span class="info-tooltip-icon">?</span>
+                        <span class="info-tooltip-text">Choose between SSH Private Key (PEM) or Password authentication. Keys are recommended.</span>
+                    </span>
+                </label>
                 <select id="serverAuthType" class="input-field w-full px-3 py-2 rounded" onchange="toggleAuthFields()">
                     <option value="key">SSH Key (PEM)</option>
                     <option value="password">Password</option>
@@ -318,17 +456,35 @@
             </div>
             
             <div id="authKeyField">
-                <label class="block text-sm font-medium mb-1">Private Key (PEM format)</label>
+                <label class="label-with-tooltip block text-sm font-medium mb-1">
+                    Private Key (PEM format)
+                    <span class="info-tooltip info-tooltip-align-left">
+                        <span class="info-tooltip-icon">?</span>
+                        <span class="info-tooltip-text">Paste the full content of your private key, including BEGIN and END lines.</span>
+                    </span>
+                </label>
                 <textarea id="serverKey" class="input-field w-full px-3 py-2 rounded h-32 font-mono text-xs" placeholder="-----BEGIN RSA PRIVATE KEY-----..."></textarea>
             </div>
             
             <div id="authPasswordField" class="hidden">
-                <label class="block text-sm font-medium mb-1">Password</label>
+                <label class="label-with-tooltip block text-sm font-medium mb-1">
+                    Password
+                    <span class="info-tooltip info-tooltip-align-left">
+                        <span class="info-tooltip-icon">?</span>
+                        <span class="info-tooltip-text">SSH password.</span>
+                    </span>
+                </label>
                 <input type="password" id="serverPassword" class="input-field w-full px-3 py-2 rounded">
             </div>
             
             <div>
-                <label class="block text-sm font-medium mb-1">Environment</label>
+                <label class="label-with-tooltip block text-sm font-medium mb-1">
+                    Environment
+                    <span class="info-tooltip info-tooltip-align-left">
+                        <span class="info-tooltip-icon">?</span>
+                        <span class="info-tooltip-text">Tag this server to an environment for filtering and rule matching.</span>
+                    </span>
+                </label>
                 <select id="serverEnv" class="input-field w-full px-3 py-2 rounded">
                     <option value="production">Production</option>
                     <option value="staging">Staging</option>

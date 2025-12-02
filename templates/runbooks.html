@@ -1,0 +1,992 @@
+{% extends "layout.html" %}
+{% set active_page = 'runbooks' %}
+
+{% block title %}Runbooks - AIOps Platform{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Page Header -->
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-primary">Runbooks</h1>
+            <p class="text-secondary mt-1">Manage automated remediation runbooks</p>
+        </div>
+        <button onclick="openCreateModal()" class="btn-primary px-4 py-2 rounded-lg flex items-center gap-2">
+            <i class="fas fa-plus"></i>
+            <span>Create Runbook</span>
+        </button>
+    </div>
+
+    <!-- Filters -->
+    <div class="card p-4">
+        <div class="flex flex-wrap gap-4">
+            <div class="flex-1 min-w-[200px]">
+                <input type="text" id="searchInput" placeholder="Search runbooks..." 
+                    class="input-field w-full px-3 py-2 rounded" onkeyup="filterRunbooks()">
+            </div>
+            <div class="w-48">
+                <select id="statusFilter" class="input-field w-full px-3 py-2 rounded" onchange="filterRunbooks()">
+                    <option value="">All Status</option>
+                    <option value="active">Active</option>
+                    <option value="draft">Draft</option>
+                    <option value="disabled">Disabled</option>
+                </select>
+            </div>
+            <div class="w-48">
+                <select id="categoryFilter" class="input-field w-full px-3 py-2 rounded" onchange="filterRunbooks()">
+                    <option value="">All Categories</option>
+                    <option value="infrastructure">Infrastructure</option>
+                    <option value="application">Application</option>
+                    <option value="database">Database</option>
+                    <option value="network">Network</option>
+                    <option value="security">Security</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="card p-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-blue-500 bg-opacity-20 flex items-center justify-center">
+                    <i class="fas fa-book text-blue-400"></i>
+                </div>
+                <div>
+                    <p class="text-secondary text-sm">Total Runbooks</p>
+                    <p class="text-xl font-bold text-primary" id="totalCount">0</p>
+                </div>
+            </div>
+        </div>
+        <div class="card p-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-green-500 bg-opacity-20 flex items-center justify-center">
+                    <i class="fas fa-check-circle text-green-400"></i>
+                </div>
+                <div>
+                    <p class="text-secondary text-sm">Active</p>
+                    <p class="text-xl font-bold text-primary" id="activeCount">0</p>
+                </div>
+            </div>
+        </div>
+        <div class="card p-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-yellow-500 bg-opacity-20 flex items-center justify-center">
+                    <i class="fas fa-edit text-yellow-400"></i>
+                </div>
+                <div>
+                    <p class="text-secondary text-sm">Drafts</p>
+                    <p class="text-xl font-bold text-primary" id="draftCount">0</p>
+                </div>
+            </div>
+        </div>
+        <div class="card p-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-purple-500 bg-opacity-20 flex items-center justify-center">
+                    <i class="fas fa-play text-purple-400"></i>
+                </div>
+                <div>
+                    <p class="text-secondary text-sm">Executions Today</p>
+                    <p class="text-xl font-bold text-primary" id="executionCount">0</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Runbooks Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="runbooksGrid">
+        <!-- Runbooks will be loaded dynamically -->
+    </div>
+
+    <!-- Empty State -->
+    <div id="emptyState" class="card p-12 text-center hidden">
+        <i class="fas fa-book-open text-4xl text-secondary mb-4"></i>
+        <h3 class="text-lg font-medium text-primary mb-2">No Runbooks Found</h3>
+        <p class="text-secondary mb-4">Create your first runbook to start automating remediation tasks.</p>
+        <button onclick="openCreateModal()" class="btn-primary px-4 py-2 rounded-lg">
+            <i class="fas fa-plus mr-2"></i>Create Runbook
+        </button>
+    </div>
+</div>
+
+<!-- Create/Edit Runbook Modal -->
+<div id="runbookModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
+    <div class="card p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-xl font-bold text-primary" id="modalTitle">Create Runbook</h2>
+            <button onclick="closeModal()" class="text-secondary hover:text-primary">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        
+        <form id="runbookForm" onsubmit="saveRunbook(event)">
+            <input type="hidden" id="runbookId">
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="label-with-tooltip block text-secondary text-sm mb-1">
+                        Name *
+                        <span class="info-tooltip info-tooltip-bottom info-tooltip-align-left">
+                            <span class="info-tooltip-icon">?</span>
+                            <span class="info-tooltip-text">A unique, descriptive name for this runbook. Use clear naming like "Restart Nginx Service" or "Clear Redis Cache".</span>
+                        </span>
+                    </label>
+                    <input type="text" id="runbookName" required
+                        class="input-field w-full px-3 py-2 rounded" placeholder="e.g., Restart Service">
+                </div>
+                <div>
+                    <label class="label-with-tooltip block text-secondary text-sm mb-1">
+                        Category
+                        <span class="info-tooltip info-tooltip-bottom info-tooltip-align-right">
+                            <span class="info-tooltip-icon">?</span>
+                            <span class="info-tooltip-text">Group runbooks by type for easier organization. Categories help filter and find runbooks quickly.</span>
+                        </span>
+                    </label>
+                    <select id="runbookCategory" class="input-field w-full px-3 py-2 rounded">
+                        <option value="infrastructure">Infrastructure</option>
+                        <option value="application">Application</option>
+                        <option value="database">Database</option>
+                        <option value="network">Network</option>
+                        <option value="security">Security</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="mb-4">
+                <label class="label-with-tooltip block text-secondary text-sm mb-1">
+                    Description
+                    <span class="info-tooltip">
+                        <span class="info-tooltip-icon">?</span>
+                        <span class="info-tooltip-text">Provide a detailed explanation of what this runbook does, when to use it, and any prerequisites or considerations.</span>
+                    </span>
+                </label>
+                <textarea id="runbookDescription" rows="2"
+                    class="input-field w-full px-3 py-2 rounded" placeholder="Describe what this runbook does"></textarea>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div>
+                    <label class="label-with-tooltip block text-secondary text-sm mb-1">
+                        Status
+                        <span class="info-tooltip info-tooltip-align-left">
+                            <span class="info-tooltip-icon">?</span>
+                            <span class="info-tooltip-text"><strong>Draft:</strong> Testing mode, cannot be triggered automatically.<br><strong>Active:</strong> Production ready, can be executed manually or by triggers.<br><strong>Disabled:</strong> Temporarily turned off.</span>
+                        </span>
+                    </label>
+                    <select id="runbookStatus" class="input-field w-full px-3 py-2 rounded">
+                        <option value="draft">Draft</option>
+                        <option value="active">Active</option>
+                        <option value="disabled">Disabled</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="label-with-tooltip block text-secondary text-sm mb-1">
+                        Approval Required
+                        <span class="info-tooltip">
+                            <span class="info-tooltip-icon">?</span>
+                            <span class="info-tooltip-text"><strong>None:</strong> Execute immediately without approval.<br><strong>Manual:</strong> Requires user approval before execution.<br><strong>Auto:</strong> Auto-approves after a configurable delay.</span>
+                        </span>
+                    </label>
+                    <select id="runbookApproval" class="input-field w-full px-3 py-2 rounded">
+                        <option value="none">None</option>
+                        <option value="manual">Manual</option>
+                        <option value="auto">Auto</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="label-with-tooltip block text-secondary text-sm mb-1">
+                        Max Executions / Hour
+                        <span class="info-tooltip info-tooltip-align-right">
+                            <span class="info-tooltip-icon">?</span>
+                            <span class="info-tooltip-text">Limit how many times this runbook may execute within an hour to avoid runaway automation.</span>
+                        </span>
+                    </label>
+                    <input type="number" id="runbookMaxExecutions" value="5" min="1" max="100"
+                        class="input-field w-full px-3 py-2 rounded">
+                </div>
+            </div>
+            
+            <!-- Steps Section -->
+            <div class="mb-4">
+                <div class="flex items-center justify-between mb-2">
+                    <label class="label-with-tooltip block text-secondary text-sm">
+                        Steps
+                        <span class="info-tooltip">
+                            <span class="info-tooltip-icon">?</span>
+                            <span class="info-tooltip-text">Define the sequence of actions to perform. Steps execute in order. Each step can be a shell command, HTTP request, script, or automation tool action.</span>
+                        </span>
+                    </label>
+                    <button type="button" onclick="addStep()" class="btn-secondary px-3 py-1 rounded text-sm">
+                        <i class="fas fa-plus mr-1"></i>Add Step
+                    </button>
+                </div>
+                <div id="stepsContainer" class="space-y-3">
+                    <!-- Steps will be added dynamically -->
+                </div>
+            </div>
+            
+            <!-- Triggers Section -->
+            <div class="mb-6">
+                <div class="flex items-center justify-between mb-2">
+                    <label class="label-with-tooltip block text-secondary text-sm">
+                        Triggers
+                        <span class="info-tooltip">
+                            <span class="info-tooltip-icon">?</span>
+                            <span class="info-tooltip-text">Define conditions that automatically start this runbook. Triggers can match alert patterns, labels, or specific conditions.</span>
+                        </span>
+                    </label>
+                    <button type="button" onclick="addTrigger()" class="btn-secondary px-3 py-1 rounded text-sm">
+                        <i class="fas fa-plus mr-1"></i>Add Trigger
+                    </button>
+                </div>
+                <p class="text-xs text-secondary mb-3">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    Runbook executes if <strong>ANY</strong> of the configured triggers match (OR condition).
+                </p>
+                <div id="triggersContainer" class="space-y-3">
+                    <!-- Triggers will be added dynamically -->
+                </div>
+            </div>
+            
+            <div class="flex justify-end gap-3">
+                <button type="button" onclick="closeModal()" class="btn-secondary px-4 py-2 rounded-lg">
+                    Cancel
+                </button>
+                <button type="submit" class="btn-primary px-4 py-2 rounded-lg">
+                    <i class="fas fa-save mr-2"></i>Save Runbook
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- View Runbook Modal -->
+<div id="viewModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
+    <div class="card p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-xl font-bold text-primary" id="viewTitle">Runbook Details</h2>
+            <button onclick="closeViewModal()" class="text-secondary hover:text-primary">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <div id="viewContent">
+            <!-- Content will be loaded dynamically -->
+        </div>
+    </div>
+</div>
+
+<!-- Execute Runbook Modal -->
+<div id="executeModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
+    <div class="card p-6 w-full max-w-md">
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-xl font-bold text-primary">Execute Runbook</h2>
+            <button onclick="closeExecuteModal()" class="text-secondary hover:text-primary">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <form id="executeForm" onsubmit="executeRunbook(event)">
+            <input type="hidden" id="executeRunbookId">
+            <p class="text-secondary mb-4" id="executeMessage">Are you sure you want to execute this runbook?</p>
+
+            <div class="mb-4">
+                <label class="label-with-tooltip block text-secondary text-sm mb-1">
+                    Server Credential
+                    <span class="info-tooltip">
+                        <span class="info-tooltip-icon">?</span>
+                        <span class="info-tooltip-text">Choose a stored server credential for this execution. Leave blank to use the runbook default server or alert-derived target.</span>
+                    </span>
+                </label>
+                <select id="executeServerId" class="input-field w-full px-3 py-2 rounded">
+                    <option value="">Use runbook default / alert context</option>
+                </select>
+            </div>
+
+            <div class="mb-4 flex items-center gap-2">
+                <input type="checkbox" id="executeDryRun" class="h-4 w-4">
+                <label for="executeDryRun" class="text-sm text-secondary">Dry run (validate only, do not execute commands)</label>
+            </div>
+
+            <div class="mb-4">
+                <label class="label-with-tooltip block text-secondary text-sm mb-1">
+                    Parameters (JSON)
+                    <span class="info-tooltip">
+                        <span class="info-tooltip-icon">?</span>
+                        <span class="info-tooltip-text">Optional JSON object with runtime parameters to pass to the runbook. These can be used in steps with template syntax like {% raw %}{{param_name}}{% endraw %}.</span>
+                    </span>
+                </label>
+                <textarea id="executeParams" rows="3"
+                    class="input-field w-full px-3 py-2 rounded font-mono text-sm" placeholder='{"key": "value"}'></textarea>
+            </div>
+            
+            <div class="flex justify-end gap-3">
+                <button type="button" onclick="closeExecuteModal()" class="btn-secondary px-4 py-2 rounded-lg">
+                    Cancel
+                </button>
+                <button type="submit" class="btn-primary px-4 py-2 rounded-lg">
+                    <i class="fas fa-play mr-2"></i>Execute
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let runbooks = [];
+let servers = [];
+let stepCount = 0;
+let triggerCount = 0;
+
+// Load runbooks on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadRunbooks();
+    loadServers();
+});
+
+async function loadRunbooks() {
+    try {
+        const response = await fetch('/api/remediation/runbooks');
+        if (response.ok) {
+            runbooks = await response.json();
+            renderRunbooks();
+            updateStats();
+        } else {
+            showToast('Failed to load runbooks', 'error');
+        }
+    } catch (error) {
+        console.error('Error loading runbooks:', error);
+        showToast('Error loading runbooks', 'error');
+    }
+}
+
+async function loadServers() {
+    try {
+        const response = await fetch('/api/servers');
+        if (response.ok) {
+            servers = await response.json();
+        } else {
+            servers = [];
+        }
+        populateServerOptions();
+    } catch (error) {
+        console.error('Error loading servers:', error);
+        servers = [];
+    }
+}
+
+function renderRunbooks() {
+    const grid = document.getElementById('runbooksGrid');
+    const emptyState = document.getElementById('emptyState');
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    const statusFilter = document.getElementById('statusFilter').value;
+    const categoryFilter = document.getElementById('categoryFilter').value;
+    
+    let filtered = runbooks.filter(rb => {
+        const matchesSearch = rb.name.toLowerCase().includes(searchTerm) || 
+                             (rb.description && rb.description.toLowerCase().includes(searchTerm));
+        const runbookStatus = deriveStatus(rb);
+        const matchesStatus = !statusFilter || runbookStatus === statusFilter;
+        const matchesCategory = !categoryFilter || rb.category === categoryFilter;
+        return matchesSearch && matchesStatus && matchesCategory;
+    });
+    
+    if (filtered.length === 0) {
+        grid.innerHTML = '';
+        emptyState.classList.remove('hidden');
+        return;
+    }
+    
+    emptyState.classList.add('hidden');
+    grid.innerHTML = filtered.map(rb => {
+        const runbookStatus = deriveStatus(rb);
+        const runbookName = rb.name || 'Untitled Runbook';
+        return `
+        <div class="card p-4 hover:border-blue-500 transition-colors cursor-pointer" onclick='viewRunbook(${JSON.stringify(rb.id)})'>
+            <div class="flex items-start justify-between mb-3">
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-book text-blue-400"></i>
+                    <h3 class="font-medium text-primary">${escapeHtml(runbookName)}</h3>
+                </div>
+                <span class="px-2 py-1 rounded text-xs font-medium ${getStatusClass(runbookStatus)}">
+                    ${runbookStatus}
+                </span>
+            </div>
+            <p class="text-secondary text-sm mb-3 line-clamp-2">${escapeHtml(rb.description || 'No description')}</p>
+            <div class="flex items-center justify-between text-xs text-secondary">
+                <span><i class="fas fa-layer-group mr-1"></i>${rb.steps_count ?? 0} steps</span>
+                <span><i class="fas fa-bolt mr-1"></i>${rb.triggers_count ?? 0} triggers</span>
+            </div>
+            <div class="flex items-center gap-2 mt-3 pt-3 border-t border-gray-700">
+                <button onclick='event.stopPropagation(); editRunbook(${JSON.stringify(rb.id)})' 
+                    class="flex-1 btn-secondary px-2 py-1 rounded text-sm">
+                    <i class="fas fa-edit mr-1"></i>Edit
+                </button>
+                <button onclick='event.stopPropagation(); openExecuteModal(${JSON.stringify(rb.id)}, ${JSON.stringify(runbookName)})' 
+                    class="flex-1 btn-primary px-2 py-1 rounded text-sm" ${rb.enabled ? '' : 'disabled'}>
+                    <i class="fas fa-play mr-1"></i>Run
+                </button>
+                <button onclick='event.stopPropagation(); deleteRunbook(${JSON.stringify(rb.id)})' 
+                    class="btn-secondary px-2 py-1 rounded text-sm text-red-400 hover:text-red-300">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    `}).join('');
+}
+
+function updateStats() {
+    document.getElementById('totalCount').textContent = runbooks.length;
+    document.getElementById('activeCount').textContent = runbooks.filter(r => deriveStatus(r) === 'active').length;
+    document.getElementById('draftCount').textContent = runbooks.filter(r => deriveStatus(r) === 'draft').length;
+    const executionsTotal = runbooks.reduce((sum, rb) => sum + (rb.executions_count || 0), 0);
+    document.getElementById('executionCount').textContent = executionsTotal;
+}
+
+function getStatusClass(status) {
+    switch(status) {
+        case 'active': return 'bg-green-500 bg-opacity-20 text-green-400';
+        case 'draft': return 'bg-yellow-500 bg-opacity-20 text-yellow-400';
+        case 'disabled': return 'bg-gray-500 bg-opacity-20 text-gray-400';
+        default: return 'bg-gray-500 bg-opacity-20 text-gray-400';
+    }
+}
+
+function deriveStatus(runbook) {
+    if (!runbook.enabled) return 'disabled';
+    return runbook.auto_execute ? 'active' : 'draft';
+}
+
+function filterRunbooks() {
+    renderRunbooks();
+}
+
+function openCreateModal() {
+    document.getElementById('modalTitle').textContent = 'Create Runbook';
+    document.getElementById('runbookForm').reset();
+    document.getElementById('runbookId').value = '';
+    document.getElementById('stepsContainer').innerHTML = '';
+    document.getElementById('triggersContainer').innerHTML = '';
+    stepCount = 0;
+    triggerCount = 0;
+    addStep(); // Add one default step
+    document.getElementById('runbookModal').classList.remove('hidden');
+}
+
+function closeModal() {
+    document.getElementById('runbookModal').classList.add('hidden');
+}
+
+function addStep() {
+    stepCount++;
+    const container = document.getElementById('stepsContainer');
+    const stepHtml = `
+        <div class="card p-3 step-item" data-step="${stepCount}">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-sm font-medium text-primary">Step ${stepCount}</span>
+                <button type="button" onclick="removeStep(this)" class="text-red-400 hover:text-red-300">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                    <label class="label-with-tooltip block text-secondary text-xs mb-1">
+                        Step Name
+                        <span class="info-tooltip info-tooltip-align-left">
+                            <span class="info-tooltip-icon">?</span>
+                            <span class="info-tooltip-text">A descriptive name for this step. Helps identify the action in execution logs.</span>
+                        </span>
+                    </label>
+                    <input type="text" name="step_name_${stepCount}" required
+                        class="input-field w-full px-2 py-1 rounded text-sm" placeholder="Step name">
+                </div>
+                <div>
+                    <label class="label-with-tooltip block text-secondary text-xs mb-1">
+                        Type
+                        <span class="info-tooltip info-tooltip-align-right">
+                            <span class="info-tooltip-icon">?</span>
+                            <span class="info-tooltip-text"><strong>Shell:</strong> Execute shell commands<br><strong>HTTP:</strong> Make API calls<br><strong>Script:</strong> Run scripts<br><strong>Ansible:</strong> Run playbooks<br><strong>Kubernetes:</strong> K8s operations</span>
+                        </span>
+                    </label>
+                    <select name="step_type_${stepCount}" class="input-field w-full px-2 py-1 rounded text-sm">
+                        <option value="shell">Shell Command</option>
+                        <option value="http">HTTP Request</option>
+                        <option value="script">Script</option>
+                        <option value="ansible">Ansible</option>
+                        <option value="kubernetes">Kubernetes</option>
+                    </select>
+                </div>
+            </div>
+            <div class="mt-2">
+                <label class="label-with-tooltip block text-secondary text-xs mb-1">
+                    Command / Action
+                    <span class="info-tooltip info-tooltip-align-left">
+                        <span class="info-tooltip-icon">?</span>
+                        <span class="info-tooltip-text">The command or action to execute. Supports template variables like {% raw %}{{alert.host}}{% endraw %} from the triggering alert.</span>
+                    </span>
+                </label>
+                <textarea name="step_command_${stepCount}" rows="2" required
+                    class="input-field w-full px-2 py-1 rounded text-sm font-mono" placeholder="e.g., systemctl restart nginx"></textarea>
+            </div>
+            <div class="grid grid-cols-2 gap-3 mt-2">
+                <div>
+                    <label class="label-with-tooltip block text-secondary text-xs mb-1">
+                        Timeout (seconds)
+                        <span class="info-tooltip info-tooltip-align-left">
+                            <span class="info-tooltip-icon">?</span>
+                            <span class="info-tooltip-text">Maximum time to wait for step completion. Step fails if timeout is exceeded.</span>
+                        </span>
+                    </label>
+                    <input type="number" name="step_timeout_${stepCount}" value="60" min="1"
+                        class="input-field w-full px-2 py-1 rounded text-sm">
+                </div>
+                <div>
+                    <label class="label-with-tooltip block text-secondary text-xs mb-1">
+                        Continue on Error
+                        <span class="info-tooltip info-tooltip-align-right">
+                            <span class="info-tooltip-icon">?</span>
+                            <span class="info-tooltip-text"><strong>No:</strong> Stop execution if this step fails.<br><strong>Yes:</strong> Continue to next step even if this one fails.</span>
+                        </span>
+                    </label>
+                    <select name="step_continue_${stepCount}" class="input-field w-full px-2 py-1 rounded text-sm">
+                        <option value="false">No</option>
+                        <option value="true">Yes</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    `;
+    container.insertAdjacentHTML('beforeend', stepHtml);
+}
+
+function removeStep(btn) {
+    btn.closest('.step-item').remove();
+}
+
+function addTrigger() {
+    triggerCount++;
+    const container = document.getElementById('triggersContainer');
+    const triggerHtml = `
+        <div class="card p-3 trigger-item" data-trigger="${triggerCount}">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-sm font-medium text-primary">Trigger ${triggerCount}</span>
+                <button type="button" onclick="removeTrigger(this)" class="text-red-400 hover:text-red-300">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                    <label class="label-with-tooltip block text-secondary text-xs mb-1">
+                        Trigger Type
+                        <span class="info-tooltip info-tooltip-align-left">
+                            <span class="info-tooltip-icon">?</span>
+                            <span class="info-tooltip-text"><strong>Alert Pattern:</strong> Match alerts by name/labels<br><strong>Metric Threshold:</strong> Trigger on metric values<br><strong>Schedule:</strong> Run on cron schedule<br><strong>Manual:</strong> Only manual execution</span>
+                        </span>
+                    </label>
+                    <select name="trigger_type_${triggerCount}" class="input-field w-full px-2 py-1 rounded text-sm">
+                        <option value="alert_pattern">Alert Pattern</option>
+                        <option value="metric_threshold">Metric Threshold</option>
+                        <option value="schedule">Schedule (Cron)</option>
+                        <option value="manual">Manual Only</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="label-with-tooltip block text-secondary text-xs mb-1">
+                        Pattern / Value
+                        <span class="info-tooltip info-tooltip-align-right">
+                            <span class="info-tooltip-icon">?</span>
+                            <span class="info-tooltip-text">For Alert Pattern: regex like "CPU.*high"<br>For Metric: threshold value<br>For Schedule: cron expression like "0 */5 * * *"</span>
+                        </span>
+                    </label>
+                    <input type="text" name="trigger_pattern_${triggerCount}"
+                        class="input-field w-full px-2 py-1 rounded text-sm" placeholder="e.g., CPU.*high">
+                </div>
+            </div>
+        </div>
+    `;
+    container.insertAdjacentHTML('beforeend', triggerHtml);
+}
+
+function removeTrigger(btn) {
+    btn.closest('.trigger-item').remove();
+}
+
+async function saveRunbook(event) {
+    event.preventDefault();
+    
+    const id = document.getElementById('runbookId').value;
+    const steps = [];
+    const triggers = [];
+    
+    // Collect steps
+    document.querySelectorAll('.step-item').forEach((item, index) => {
+        const stepNum = item.dataset.step;
+        const commandValue = document.querySelector(`[name="step_command_${stepNum}"]`).value;
+        steps.push({
+            step_order: index + 1,
+            name: document.querySelector(`[name="step_name_${stepNum}"]`).value,
+            description: null,
+            command_linux: commandValue,
+            command_windows: null,
+            target_os: 'any',
+            timeout_seconds: parseInt(document.querySelector(`[name="step_timeout_${stepNum}"]`).value) || 60,
+            requires_elevation: false,
+            working_directory: null,
+            environment_json: null,
+            continue_on_fail: document.querySelector(`[name="step_continue_${stepNum}"]`).value === 'true',
+            retry_count: 0,
+            retry_delay_seconds: 5,
+            expected_exit_code: 0,
+            expected_output_pattern: null,
+            rollback_command_linux: null,
+            rollback_command_windows: null
+        });
+    });
+    
+    // Collect triggers
+    document.querySelectorAll('.trigger-item').forEach((item, index) => {
+        const trigNum = item.dataset.trigger;
+        const patternValue = document.querySelector(`[name="trigger_pattern_${trigNum}"]`).value || '*';
+        triggers.push({
+            alert_name_pattern: patternValue,
+            severity_pattern: '*',
+            instance_pattern: '*',
+            job_pattern: '*',
+            label_matchers_json: null,
+            annotation_matchers_json: null,
+            min_duration_seconds: 0,
+            min_occurrences: 1,
+            priority: index + 1,
+            enabled: true
+        });
+    });
+    
+    const statusValue = document.getElementById('runbookStatus').value;
+    const approvalValue = document.getElementById('runbookApproval').value;
+    const enabled = statusValue !== 'disabled';
+    const autoExecute = statusValue === 'active';
+    const approvalRequired = approvalValue !== 'none';
+
+    const data = {
+        name: document.getElementById('runbookName').value,
+        description: document.getElementById('runbookDescription').value,
+        category: document.getElementById('runbookCategory').value,
+        tags: [],
+        enabled: enabled,
+        auto_execute: autoExecute,
+        approval_required: approvalRequired,
+        approval_roles: ['operator', 'engineer', 'admin'],
+        approval_timeout_minutes: approvalValue === 'auto' ? 5 : 30,
+        max_executions_per_hour: parseInt(document.getElementById('runbookMaxExecutions').value) || 5,
+        cooldown_minutes: 10,
+        default_server_id: null,
+        target_os_filter: ['linux', 'windows'],
+        target_from_alert: true,
+        target_alert_label: 'instance',
+        notifications_json: null,
+        documentation_url: null,
+        steps: steps,
+        triggers: triggers
+    };
+    
+    try {
+        const url = id ? `/api/remediation/runbooks/${id}` : '/api/remediation/runbooks';
+        const method = id ? 'PUT' : 'POST';
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        
+        if (response.ok) {
+            showToast(id ? 'Runbook updated successfully' : 'Runbook created successfully', 'success');
+            closeModal();
+            loadRunbooks();
+        } else {
+            const error = await response.json();
+            showToast(error.detail || 'Failed to save runbook', 'error');
+        }
+    } catch (error) {
+        console.error('Error saving runbook:', error);
+        showToast('Error saving runbook', 'error');
+    }
+}
+
+async function editRunbook(id) {
+    try {
+        const response = await fetch(`/api/remediation/runbooks/${id}`);
+        if (response.ok) {
+            const rb = await response.json();
+            
+            document.getElementById('modalTitle').textContent = 'Edit Runbook';
+            document.getElementById('runbookId').value = rb.id;
+            document.getElementById('runbookName').value = rb.name;
+            document.getElementById('runbookDescription').value = rb.description || '';
+            document.getElementById('runbookCategory').value = rb.category || 'infrastructure';
+
+            let statusValue = 'draft';
+            if (!rb.enabled) {
+                statusValue = 'disabled';
+            } else if (rb.auto_execute) {
+                statusValue = 'active';
+            }
+            document.getElementById('runbookStatus').value = statusValue;
+
+            let approvalValue = 'manual';
+            if (!rb.approval_required) {
+                approvalValue = 'none';
+            } else if (rb.approval_timeout_minutes && rb.approval_timeout_minutes <= 5) {
+                approvalValue = 'auto';
+            }
+            document.getElementById('runbookApproval').value = approvalValue;
+            document.getElementById('runbookMaxExecutions').value = rb.max_executions_per_hour || 5;
+            
+            // Load steps
+            document.getElementById('stepsContainer').innerHTML = '';
+            stepCount = 0;
+            if (rb.steps && rb.steps.length > 0) {
+                rb.steps.forEach(step => {
+                    addStep();
+                    document.querySelector(`[name="step_name_${stepCount}"]`).value = step.name;
+                    document.querySelector(`[name="step_type_${stepCount}"]`).value = 'shell';
+                    document.querySelector(`[name="step_command_${stepCount}"]`).value = step.command_linux || step.command_windows || '';
+                    document.querySelector(`[name="step_timeout_${stepCount}"]`).value = step.timeout_seconds || 60;
+                    document.querySelector(`[name="step_continue_${stepCount}"]`).value = step.continue_on_fail ? 'true' : 'false';
+                });
+            }
+            
+            // Load triggers
+            document.getElementById('triggersContainer').innerHTML = '';
+            triggerCount = 0;
+            if (rb.triggers && rb.triggers.length > 0) {
+                rb.triggers.forEach(trigger => {
+                    addTrigger();
+                    document.querySelector(`[name="trigger_type_${triggerCount}"]`).value = 'alert_pattern';
+                    document.querySelector(`[name="trigger_pattern_${triggerCount}"]`).value = trigger.alert_name_pattern || '';
+                });
+            }
+            
+            document.getElementById('runbookModal').classList.remove('hidden');
+        }
+    } catch (error) {
+        console.error('Error loading runbook:', error);
+        showToast('Error loading runbook', 'error');
+    }
+}
+
+async function viewRunbook(id) {
+    try {
+        const response = await fetch(`/api/remediation/runbooks/${id}`);
+        if (response.ok) {
+            const rb = await response.json();
+            
+            const detailStatus = deriveStatus(rb);
+            document.getElementById('viewTitle').textContent = rb.name;
+            document.getElementById('viewContent').innerHTML = `
+                <div class="space-y-4">
+                    <div class="flex items-center gap-2">
+                        <span class="px-2 py-1 rounded text-xs font-medium ${getStatusClass(detailStatus)}">${detailStatus}</span>
+                        <span class="text-secondary text-sm">${rb.category || 'Uncategorized'}</span>
+                    </div>
+                    <p class="text-secondary">${escapeHtml(rb.description || 'No description')}</p>
+                    
+                    <div class="grid grid-cols-3 gap-4 text-sm">
+                        <div class="card p-3">
+                            <p class="text-secondary">Approval</p>
+                            <p class="text-primary font-medium">${rb.approval_required ? 'Required' : 'Not required'}</p>
+                        </div>
+                        <div class="card p-3">
+                            <p class="text-secondary">Cooldown</p>
+                            <p class="text-primary font-medium">${rb.cooldown_minutes || 0} min</p>
+                        </div>
+                        <div class="card p-3">
+                            <p class="text-secondary">Version</p>
+                            <p class="text-primary font-medium">${rb.version || 1}</p>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h4 class="font-medium text-primary mb-2">Steps (${rb.steps?.length || 0})</h4>
+                        <div class="space-y-2">
+                            ${(rb.steps || []).map((step, i) => `
+                                <div class="card p-3">
+                                    <div class="flex items-center gap-2 mb-1">
+                                        <span class="w-6 h-6 rounded-full bg-blue-500 bg-opacity-20 text-blue-400 text-xs flex items-center justify-center">${i + 1}</span>
+                                        <span class="font-medium text-primary">${escapeHtml(step.name)}</span>
+                                        <span class="text-xs px-2 py-0.5 rounded bg-gray-700 text-secondary">${escapeHtml(step.target_os || 'any')}</span>
+                                    </div>
+                                    <code class="text-xs text-green-400 bg-gray-800 px-2 py-1 rounded block mt-2">${escapeHtml(step.command_linux || step.command_windows || '')}</code>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h4 class="font-medium text-primary mb-2">Triggers (${rb.triggers?.length || 0})</h4>
+                        <div class="space-y-2">
+                            ${(rb.triggers || []).map(trigger => `
+                                <div class="card p-3 flex items-center gap-2">
+                                    <i class="fas fa-bolt text-yellow-400"></i>
+                                    <span class="text-primary">Alert Pattern</span>
+                                    <span class="text-secondary">: ${escapeHtml(trigger.alert_name_pattern || 'N/A')}</span>
+                                </div>
+                            `).join('') || '<p class="text-secondary text-sm">No triggers configured</p>'}
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('viewModal').classList.remove('hidden');
+        }
+    } catch (error) {
+        console.error('Error viewing runbook:', error);
+        showToast('Error loading runbook details', 'error');
+    }
+}
+
+function closeViewModal() {
+    document.getElementById('viewModal').classList.add('hidden');
+}
+
+function populateServerOptions(selectedId = '') {
+    const select = document.getElementById('executeServerId');
+    if (!select) return;
+    const options = [
+        '<option value="">Use runbook default / alert context</option>'
+    ];
+    servers.forEach(server => {
+        options.push(`<option value="${server.id}">${escapeHtml(server.name)} (${escapeHtml(server.hostname)})</option>`);
+    });
+    select.innerHTML = options.join('');
+    if (selectedId) {
+        select.value = selectedId;
+    }
+}
+
+function openExecuteModal(id, name) {
+    document.getElementById('executeRunbookId').value = id;
+    document.getElementById('executeMessage').textContent = `Execute runbook: ${name}`;
+    document.getElementById('executeServerId').value = '';
+    document.getElementById('executeDryRun').checked = false;
+    document.getElementById('executeParams').value = '';
+    populateServerOptions();
+    document.getElementById('executeModal').classList.remove('hidden');
+
+    // Fetch runbook details to detect default server selection (best effort)
+    fetch(`/api/remediation/runbooks/${id}`)
+        .then(resp => resp.ok ? resp.json() : null)
+        .then(rb => {
+            if (rb && rb.default_server_id) {
+                populateServerOptions(rb.default_server_id);
+            }
+        })
+        .catch(() => {
+            // Ignore—server dropdown stays on manual selection
+        });
+}
+
+function closeExecuteModal() {
+    document.getElementById('executeModal').classList.add('hidden');
+}
+
+async function executeRunbook(event) {
+    event.preventDefault();
+    
+    const id = document.getElementById('executeRunbookId').value;
+    const serverId = document.getElementById('executeServerId').value;
+    const dryRun = document.getElementById('executeDryRun').checked;
+    let params = {};
+    
+    try {
+        const paramsText = document.getElementById('executeParams').value;
+        if (paramsText.trim()) {
+            params = JSON.parse(paramsText);
+        }
+    } catch (e) {
+        showToast('Invalid JSON in parameters', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/remediation/executions?runbook_id=${id}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                server_id: serverId || null,
+                alert_id: null,
+                dry_run: dryRun,
+                variables: params,
+                bypass_cooldown: false,
+                bypass_blackout: false
+            })
+        });
+        
+        if (response.ok) {
+            await response.json();
+            showToast('Runbook execution started', 'success');
+            closeExecuteModal();
+            // Optionally redirect to executions page
+            // window.location.href = '/executions';
+        } else {
+            let errorDetail = 'Failed to execute runbook';
+            try {
+                const error = await response.json();
+                errorDetail = error.detail || error.message || errorDetail;
+            } catch (err) {
+                // ignore parse errors
+            }
+            showToast(errorDetail, 'error');
+        }
+    } catch (error) {
+        console.error('Error executing runbook:', error);
+        showToast('Error executing runbook', 'error');
+    }
+}
+
+async function deleteRunbook(id) {
+    if (!confirm('Are you sure you want to delete this runbook?')) return;
+    
+    try {
+        const response = await fetch(`/api/remediation/runbooks/${id}`, {
+            method: 'DELETE'
+        });
+        
+        if (response.ok) {
+            showToast('Runbook deleted successfully', 'success');
+            loadRunbooks();
+        } else {
+            showToast('Failed to delete runbook', 'error');
+        }
+    } catch (error) {
+        console.error('Error deleting runbook:', error);
+        showToast('Error deleting runbook', 'error');
+    }
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Only define showToast if not already defined by parent
+if (typeof showToast === 'undefined') {
+    window.showToast = function(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.className = `fixed bottom-4 right-4 px-4 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2 ${
+            type === 'success' ? 'bg-green-600' : 
+            type === 'error' ? 'bg-red-600' : 'bg-blue-600'
+        }`;
+        toast.innerHTML = `
+            <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
+            <span>${escapeHtml(message)}</span>
+        `;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    };
+}
+</script>
+{{ super() }}
+{% endblock %}

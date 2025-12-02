@@ -12,7 +12,8 @@ from app.services.auth_service import (
     create_user,
     get_current_user,
     get_current_user_optional,
-    require_admin
+    require_admin,
+    require_role
 )
 
 from app.services.rules_engine import (
@@ -27,4 +28,40 @@ from app.services.llm_service import (
     analyze_alert,
     get_available_providers,
     get_default_provider
+)
+
+# Auto-Remediation Services
+from app.services.executor_base import (
+    ExecutionResult,
+    BaseExecutor,
+    ErrorType,
+    ServerInfo
+)
+
+from app.services.executor_ssh import SSHExecutor
+
+from app.services.executor_factory import ExecutorFactory
+
+from app.services.runbook_executor import RunbookExecutor
+
+from app.services.command_validator import (
+    CommandValidator,
+    CommandValidation,
+    ValidationResult,
+    validate_command
+)
+
+from app.services.trigger_matcher import (
+    AlertTriggerMatcher,
+    ApprovalService,
+    TriggerMatch,
+    MatchResult
+)
+
+from app.services.safety_mechanisms import (
+    CircuitBreakerService,
+    RateLimitService,
+    BlackoutWindowService,
+    SafetyGate,
+    SafetyCheckResult
 )

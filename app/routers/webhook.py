@@ -1,13 +1,19 @@
 """
 Webhook endpoint for Alertmanager
+
+Handles incoming alerts from Alertmanager and triggers:
+1. Rule matching
+2. Auto-analysis via LLM
+3. Auto-remediation via runbooks
 """
 import time
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 import logging
 
-from app.database import get_db
+from app.database import get_db, get_async_db
 from app.models import Alert, LLMProvider
 from app.schemas import AlertmanagerWebhook
 from app.services.rules_engine import find_matching_rule
@@ -20,6 +26,58 @@ from app.metrics import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/webhook", tags=["Webhook"])
+
+
+async def perform_auto_remediation(alert_id: str):
+    """
+    Background task to check for matching runbook triggers
+    and initiate auto-remediation if configured.
+    """
+    from app.database import AsyncSessionLocal
+    from app.services.trigger_matcher import AlertTriggerMatcher
+    
+    async with AsyncSessionLocal() as db:
+        try:
+            from sqlalchemy import select
+            from app.models import Alert as AlertModel
+            
+            result = await db.execute(
+                select(AlertModel).where(AlertModel.id == alert_id)
+            )
+            alert = result.scalar_one_or_none()
+            
+            if not alert:
+                logger.error(f"Alert {alert_id} not found for auto-remediation check")
+                return
+            
+            logger.info(f"Checking auto-remediation triggers for alert: {alert.alert_name}")
+            
+            # Match alert against runbook triggers
+            trigger_matcher = AlertTriggerMatcher(db)
+            remediation_result = await trigger_matcher.process_alert_for_remediation(alert)
+            
+            if remediation_result.get("auto_executed"):
+                logger.info(
+                    f"Auto-remediation triggered for alert {alert.alert_name}: "
+                    f"{len(remediation_result['auto_executed'])} runbook(s)"
+                )
+            
+            if remediation_result.get("pending_approval"):
+                logger.info(
+                    f"Remediation pending approval for alert {alert.alert_name}: "
+                    f"{len(remediation_result['pending_approval'])} runbook(s)"
+                )
+            
+            if remediation_result.get("blocked"):
+                logger.warning(
+                    f"Remediation blocked for alert {alert.alert_name}: "
+                    f"{[b['reason'] for b in remediation_result['blocked']]}"
+                )
+                
+        except Exception as e:
+            logger.error(f"Auto-remediation check failed for alert {alert_id}: {str(e)}")
+        finally:
+            await db.close()
 
 
 async def perform_auto_analysis(alert_id: str):
@@ -179,6 +237,12 @@ async def receive_alertmanager_webhook(
                     "action": "stored_pending",
                     "id": str(alert.id)
                 })
+            
+            # Always check for auto-remediation triggers (runs in background)
+            background_tasks.add_task(
+                perform_auto_remediation,
+                str(alert.id)
+            )
                 
         except Exception as e:
             logger.error(f"Error processing alert: {str(e)}")

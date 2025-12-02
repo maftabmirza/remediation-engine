@@ -76,23 +76,47 @@
             <input type="hidden" id="ruleId">
             
             <div>
-                <label class="block text-sm font-medium mb-1">Name *</label>
+                <label class="label-with-tooltip block text-sm font-medium mb-1">
+                    Name *
+                    <span class="info-tooltip info-tooltip-align-left">
+                        <span class="info-tooltip-icon">?</span>
+                        <span class="info-tooltip-text">A unique name for this rule to identify it in logs and the dashboard.</span>
+                    </span>
+                </label>
                 <input type="text" id="ruleName" class="input-field w-full px-3 py-2 rounded" required>
             </div>
             
             <div>
-                <label class="block text-sm font-medium mb-1">Description</label>
+                <label class="label-with-tooltip block text-sm font-medium mb-1">
+                    Description
+                    <span class="info-tooltip info-tooltip-align-left">
+                        <span class="info-tooltip-icon">?</span>
+                        <span class="info-tooltip-text">Optional description to explain the purpose of this rule or what alerts it handles.</span>
+                    </span>
+                </label>
                 <input type="text" id="ruleDescription" class="input-field w-full px-3 py-2 rounded">
             </div>
             
             <div class="grid grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm font-medium mb-1">Priority</label>
+                    <label class="label-with-tooltip block text-sm font-medium mb-1">
+                        Priority
+                        <span class="info-tooltip info-tooltip-align-left">
+                            <span class="info-tooltip-icon">?</span>
+                            <span class="info-tooltip-text">Evaluation order. Lower numbers are checked first (e.g. 10 is checked before 100). The first matching rule wins.</span>
+                        </span>
+                    </label>
                     <input type="number" id="rulePriority" class="input-field w-full px-3 py-2 rounded" value="100">
                     <p class="text-xs text-gray-400 mt-1">Lower = higher priority</p>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium mb-1">Action *</label>
+                    <label class="label-with-tooltip block text-sm font-medium mb-1">
+                        Action *
+                        <span class="info-tooltip info-tooltip-align-right">
+                            <span class="info-tooltip-icon">?</span>
+                            <span class="info-tooltip-text"><strong>Manual:</strong> Store alert but do nothing.<br><strong>Auto-analyze:</strong> Trigger AI analysis immediately.<br><strong>Ignore:</strong> Discard alert completely.</span>
+                        </span>
+                    </label>
                     <select id="ruleAction" class="input-field w-full px-3 py-2 rounded">
                         <option value="manual">Manual (store only)</option>
                         <option value="auto_analyze">Auto-analyze</option>
@@ -106,19 +130,43 @@
                 
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm text-gray-400 mb-1">Alert Name</label>
+                        <label class="label-with-tooltip block text-sm text-gray-400 mb-1">
+                            Alert Name
+                            <span class="info-tooltip info-tooltip-align-left">
+                                <span class="info-tooltip-icon">?</span>
+                                <span class="info-tooltip-text">Regex pattern to match alert name. Use * for any name, or e.g. "CPU.*" to match all CPU alerts.</span>
+                            </span>
+                        </label>
                         <input type="text" id="ruleAlertPattern" class="input-field w-full px-3 py-2 rounded" value="*">
                     </div>
                     <div>
-                        <label class="block text-sm text-gray-400 mb-1">Severity</label>
+                        <label class="label-with-tooltip block text-sm text-gray-400 mb-1">
+                            Severity
+                            <span class="info-tooltip info-tooltip-align-right">
+                                <span class="info-tooltip-icon">?</span>
+                                <span class="info-tooltip-text">Regex pattern for severity. e.g. "critical|warning" to match either.</span>
+                            </span>
+                        </label>
                         <input type="text" id="ruleSeverityPattern" class="input-field w-full px-3 py-2 rounded" value="*">
                     </div>
                     <div>
-                        <label class="block text-sm text-gray-400 mb-1">Instance</label>
+                        <label class="label-with-tooltip block text-sm text-gray-400 mb-1">
+                            Instance
+                            <span class="info-tooltip info-tooltip-align-left">
+                                <span class="info-tooltip-icon">?</span>
+                                <span class="info-tooltip-text">Regex pattern for instance/host. e.g. "prod-.*" for production servers.</span>
+                            </span>
+                        </label>
                         <input type="text" id="ruleInstancePattern" class="input-field w-full px-3 py-2 rounded" value="*">
                     </div>
                     <div>
-                        <label class="block text-sm text-gray-400 mb-1">Job</label>
+                        <label class="label-with-tooltip block text-sm text-gray-400 mb-1">
+                            Job
+                            <span class="info-tooltip info-tooltip-align-right">
+                                <span class="info-tooltip-icon">?</span>
+                                <span class="info-tooltip-text">Regex pattern for job name. e.g. "node-exporter" or "postgres".</span>
+                            </span>
+                        </label>
                         <input type="text" id="ruleJobPattern" class="input-field w-full px-3 py-2 rounded" value="*">
                     </div>
                 </div>

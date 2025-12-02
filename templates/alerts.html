@@ -20,7 +20,13 @@
     <div class="card p-4">
         <div class="flex flex-wrap gap-4 items-center">
             <div>
-                <label class="text-sm text-gray-400 block mb-1">Severity</label>
+                <label class="label-with-tooltip text-sm text-gray-400 block mb-1">
+                    Severity
+                    <span class="info-tooltip info-tooltip-align-left">
+                        <span class="info-tooltip-icon">?</span>
+                        <span class="info-tooltip-text">Filter alerts by severity level (Critical, Warning, Info).</span>
+                    </span>
+                </label>
                 <select id="filterSeverity" class="input-field px-3 py-2 rounded" onchange="loadAlerts()">
                     <option value="">All</option>
                     <option value="critical">Critical</option>
@@ -29,7 +35,13 @@
                 </select>
             </div>
             <div>
-                <label class="text-sm text-gray-400 block mb-1">Status</label>
+                <label class="label-with-tooltip text-sm text-gray-400 block mb-1">
+                    Status
+                    <span class="info-tooltip info-tooltip-align-left">
+                        <span class="info-tooltip-icon">?</span>
+                        <span class="info-tooltip-text"><strong>Firing:</strong> Active alerts.<br><strong>Resolved:</strong> Alerts that have cleared.</span>
+                    </span>
+                </label>
                 <select id="filterStatus" class="input-field px-3 py-2 rounded" onchange="loadAlerts()">
                     <option value="">All</option>
                     <option value="firing">Firing</option>
@@ -37,15 +49,27 @@
                 </select>
             </div>
             <div>
-                <label class="text-sm text-gray-400 block mb-1">Analysis</label>
+                <label class="label-with-tooltip text-sm text-gray-400 block mb-1">
+                    Analysis
+                    <span class="info-tooltip info-tooltip-align-left">
+                        <span class="info-tooltip-icon">?</span>
+                        <span class="info-tooltip-text">Filter by whether the AI has analyzed the alert.</span>
+                    </span>
+                </label>
                 <select id="filterAnalyzed" class="input-field px-3 py-2 rounded" onchange="loadAlerts()">
                     <option value="">All</option>
                     <option value="true">Analyzed</option>
                     <option value="false">Pending</option>
                 </select>
             </div>
-            <div class="flex-1">
-                <label class="text-sm text-gray-400 block mb-1">Search</label>
+            <div class="flex-1 flex items-center gap-2">
+                <label class="label-with-tooltip text-sm text-gray-400 mb-0 whitespace-nowrap flex-shrink-0">
+                    Search
+                    <span class="info-tooltip info-tooltip-align-left">
+                        <span class="info-tooltip-icon">?</span>
+                        <span class="info-tooltip-text">Search by alert name, instance, or job.</span>
+                    </span>
+                </label>
                 <input 
                     type="text" 
                     id="filterSearch" 
