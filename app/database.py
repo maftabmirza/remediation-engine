@@ -41,6 +41,9 @@ AsyncSessionLocal = async_sessionmaker(
     autoflush=False
 )
 
+# Alias for background workers (context manager style)
+async_session_factory = AsyncSessionLocal
+
 Base = declarative_base()
 
 

@@ -64,10 +64,10 @@ class ExecutorFactory:
             ValueError: If protocol not supported.
         """
         settings = get_settings()
-        key = fernet_key or settings.fernet_key
+        key = fernet_key or settings.encryption_key
         
         if not key:
-            raise ValueError("Fernet key not configured")
+            raise ValueError("Encryption key not configured")
         
         fernet = Fernet(key.encode() if isinstance(key, str) else key)
         
@@ -109,8 +109,8 @@ class ExecutorFactory:
         if protocol == "ssh":
             return SSHExecutor(
                 hostname=server.hostname,
-                port=server.ssh_port or 22,
-                username=server.ssh_user or "root",
+                port=server.port or 22,
+                username=server.username or "root",
                 password=password,
                 private_key=private_key,
                 private_key_passphrase=None,  # Could add this field to model
@@ -140,7 +140,7 @@ class ExecutorFactory:
         Returns:
             Connected executor from pool.
         """
-        pool_key = f"{server.hostname}:{server.ssh_port or 22}"
+        pool_key = f"{server.hostname}:{server.port or 22}"
         
         if pool_key in cls._pool:
             executor = cls._pool[pool_key]

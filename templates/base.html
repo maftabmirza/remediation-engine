@@ -897,13 +897,58 @@
             display: flex;
             align-items: center;
         }
+
+        /* Zoom Preferences */
+        :root {
+            --zoom-level: 100;
+        }
+
+        /* Apply zoom level - base is 16px (1rem) */
+        html {
+            font-size: calc(16px * var(--zoom-level) / 100);
+        }
+
+        /* Zoom slider styling */
+        .zoom-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: var(--bg-tertiary);
+            outline: none;
+        }
+
+        .zoom-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--accent-primary);
+            cursor: pointer;
+            border: 2px solid var(--bg-primary);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .zoom-slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--accent-primary);
+            cursor: pointer;
+            border: 2px solid var(--bg-primary);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
     </style>
     {% block head %}{% endblock %}
     <script>
-        // Apply theme immediately to prevent flash (default is aftab)
+        // Apply theme and zoom immediately to prevent flash
         (function() {
             const savedTheme = localStorage.getItem('aiops-theme') || 'aftab';
+            const savedZoom = localStorage.getItem('aiops-zoom') || '100';
             document.documentElement.setAttribute('data-theme', savedTheme);
+            document.documentElement.style.setProperty('--zoom-level', savedZoom);
         })();
     </script>
 </head>

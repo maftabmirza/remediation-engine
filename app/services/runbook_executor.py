@@ -403,8 +403,8 @@ class RunbookExecutor:
                 "ip": server.hostname,  # Alias
                 "os_type": getattr(server, 'os_type', 'linux'),
                 "environment": server.environment,
-                "ssh_user": server.ssh_user,
-                "ssh_port": server.ssh_port,
+                "username": server.username,
+                "port": server.port,
             },
             # Runbook info
             "runbook": {

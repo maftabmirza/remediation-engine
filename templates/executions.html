@@ -46,7 +46,7 @@
     </div>
 
     <!-- Stats Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+    <div class="grid grid-cols-1 md:grid-cols-6 gap-4">
         <div class="card p-4">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-lg bg-blue-500 bg-opacity-20 flex items-center justify-center">
@@ -55,6 +55,17 @@
                 <div>
                     <p class="text-secondary text-sm">Total</p>
                     <p class="text-xl font-bold text-primary" id="totalCount">0</p>
+                </div>
+            </div>
+        </div>
+        <div class="card p-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-orange-500 bg-opacity-20 flex items-center justify-center">
+                    <i class="fas fa-clock text-orange-400"></i>
+                </div>
+                <div>
+                    <p class="text-secondary text-sm">Pending</p>
+                    <p class="text-xl font-bold text-orange-400" id="pendingCount">0</p>
                 </div>
             </div>
         </div>
@@ -179,6 +190,27 @@
             </button>
         </div>
         <pre id="outputContent" class="flex-1 overflow-auto bg-gray-900 p-4 rounded font-mono text-sm text-green-400"></pre>
+    </div>
+</div>
+
+<!-- Custom Confirmation Modal -->
+<div id="confirmModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
+    <div class="card p-6 w-full max-w-md">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-xl font-bold text-primary" id="confirmTitle">Confirm Action</h2>
+            <button onclick="closeConfirmModal()" class="text-secondary hover:text-primary">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <p class="text-secondary mb-6" id="confirmMessage">Are you sure?</p>
+        <div id="confirmInputContainer" class="mb-4 hidden">
+            <label class="block text-secondary text-sm mb-1" id="confirmInputLabel">Reason</label>
+            <input type="text" id="confirmInput" class="input-field w-full px-3 py-2 rounded" placeholder="Enter reason...">
+        </div>
+        <div class="flex justify-end gap-3">
+            <button onclick="closeConfirmModal()" class="btn-secondary px-4 py-2 rounded-lg">Cancel</button>
+            <button id="confirmBtn" class="btn-primary px-4 py-2 rounded-lg">Confirm</button>
+        </div>
     </div>
 </div>
 {% endblock %}
@@ -308,12 +340,20 @@ function renderExecutions() {
                     <button onclick="viewDetails('${ex.id}')" class="text-blue-400 hover:text-blue-300" title="View Details">
                         <i class="fas fa-eye"></i>
                     </button>
+                    ${ex.status === 'pending' ? `
+                        <button onclick="approveExecution('${ex.id}')" class="text-green-400 hover:text-green-300" title="Approve">
+                            <i class="fas fa-check"></i>
+                        </button>
+                        <button onclick="rejectExecution('${ex.id}')" class="text-red-400 hover:text-red-300" title="Reject">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    ` : ''}
                     ${ex.status === 'running' ? `
                         <button onclick="cancelExecution('${ex.id}')" class="text-red-400 hover:text-red-300" title="Cancel">
                             <i class="fas fa-stop"></i>
                         </button>
                     ` : ''}
-                    ${ex.status === 'failed' ? `
+                    ${ex.status === 'failed' || ex.status === 'timeout' ? `
                         <button onclick="retryExecution('${ex.id}')" class="text-yellow-400 hover:text-yellow-300" title="Retry">
                             <i class="fas fa-redo"></i>
                         </button>
@@ -326,12 +366,14 @@ function renderExecutions() {
 
 function updateStats() {
     const total = executions.length;
-    const running = executions.filter(e => e.status === 'running').length;
+    const pending = executions.filter(e => e.status === 'pending').length;
+    const running = executions.filter(e => e.status === 'running' || e.status === 'approved').length;
     const completed = executions.filter(e => e.status === 'success' || e.status === 'completed').length;
     const failed = executions.filter(e => ['failed', 'timeout', 'cancelled', 'rolled_back'].includes(e.status)).length;
     const successRate = total > 0 ? Math.round((completed / total) * 100) : 0;
     
     document.getElementById('totalCount').textContent = total;
+    document.getElementById('pendingCount').textContent = pending;
     document.getElementById('runningCount').textContent = running;
     document.getElementById('completedCount').textContent = completed;
     document.getElementById('failedCount').textContent = failed;
@@ -360,6 +402,8 @@ function getStatusClass(status) {
 
 function formatStatusLabel(status) {
     if (!status) return 'unknown';
+    if (status === 'pending') return 'Awaiting Approval';
+    if (status === 'approved') return 'Starting...';
     return status.replace(/_/g, ' ');
 }
 
@@ -560,44 +604,157 @@ function closeOutputModal() {
     document.getElementById('outputModal').classList.add('hidden');
 }
 
-async function cancelExecution(id) {
-    if (!confirm('Are you sure you want to cancel this execution?')) return;
-    
-    try {
-        const response = await fetch(`/api/remediation/executions/${id}/cancel`, {
-            method: 'POST'
-        });
-        
-        if (response.ok) {
-            showToast('Execution cancelled', 'success');
-            loadExecutions();
-        } else {
-            showToast('Failed to cancel execution', 'error');
+function cancelExecution(id) {
+    showConfirmModal(
+        'Cancel Execution',
+        'Are you sure you want to cancel this execution? This action cannot be undone.',
+        'Cancel Execution',
+        'bg-red-600 hover:bg-red-700 text-white',
+        false,
+        null,
+        async () => {
+            try {
+                const response = await fetch(`/api/remediation/executions/${id}/cancel`, {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    showToast('Execution cancelled', 'success');
+                    loadExecutions();
+                } else {
+                    showToast('Failed to cancel execution', 'error');
+                }
+            } catch (error) {
+                console.error('Error cancelling execution:', error);
+                showToast('Error cancelling execution', 'error');
+            }
         }
-    } catch (error) {
-        console.error('Error cancelling execution:', error);
-        showToast('Error cancelling execution', 'error');
-    }
+    );
 }
 
-async function retryExecution(id) {
-    if (!confirm('Are you sure you want to retry this execution?')) return;
-    
-    try {
-        const response = await fetch(`/api/remediation/executions/${id}/retry`, {
-            method: 'POST'
-        });
-        
-        if (response.ok) {
-            showToast('Execution retry started', 'success');
-            loadExecutions();
-        } else {
-            showToast('Failed to retry execution', 'error');
+function retryExecution(id) {
+    showConfirmModal(
+        'Retry Execution',
+        'Are you sure you want to retry this execution? A new execution will be created.',
+        'Retry',
+        'bg-yellow-600 hover:bg-yellow-700 text-white',
+        false,
+        null,
+        async () => {
+            try {
+                const response = await fetch(`/api/remediation/executions/${id}/retry`, {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    showToast('Execution retry started', 'success');
+                    loadExecutions();
+                } else {
+                    showToast('Failed to retry execution', 'error');
+                }
+            } catch (error) {
+                console.error('Error retrying execution:', error);
+                showToast('Error retrying execution', 'error');
+            }
         }
-    } catch (error) {
-        console.error('Error retrying execution:', error);
-        showToast('Error retrying execution', 'error');
+    );
+}
+
+// Custom confirmation modal functions
+let confirmCallback = null;
+
+function showConfirmModal(title, message, buttonText, buttonClass, showInput, inputLabel, callback) {
+    document.getElementById('confirmTitle').textContent = title;
+    document.getElementById('confirmMessage').textContent = message;
+    document.getElementById('confirmBtn').textContent = buttonText;
+    document.getElementById('confirmBtn').className = `px-4 py-2 rounded-lg ${buttonClass}`;
+    
+    const inputContainer = document.getElementById('confirmInputContainer');
+    if (showInput) {
+        inputContainer.classList.remove('hidden');
+        document.getElementById('confirmInputLabel').textContent = inputLabel || 'Input';
+        document.getElementById('confirmInput').value = '';
+    } else {
+        inputContainer.classList.add('hidden');
     }
+    
+    confirmCallback = callback;
+    document.getElementById('confirmModal').classList.remove('hidden');
+}
+
+function closeConfirmModal() {
+    document.getElementById('confirmModal').classList.add('hidden');
+    confirmCallback = null;
+}
+
+document.getElementById('confirmBtn').addEventListener('click', function() {
+    if (confirmCallback) {
+        const inputValue = document.getElementById('confirmInput').value;
+        confirmCallback(inputValue);
+    }
+    closeConfirmModal();
+});
+
+function approveExecution(id) {
+    showConfirmModal(
+        'Approve Execution',
+        'Are you sure you want to approve this execution? It will start running immediately.',
+        'Approve',
+        'bg-green-600 hover:bg-green-700 text-white',
+        false,
+        null,
+        async () => {
+            try {
+                const response = await fetch(`/api/remediation/executions/${id}/approve`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ approved: true })
+                });
+                
+                if (response.ok) {
+                    showToast('Execution approved - starting now', 'success');
+                    loadExecutions();
+                } else {
+                    const error = await response.json();
+                    showToast(error.detail || 'Failed to approve execution', 'error');
+                }
+            } catch (error) {
+                console.error('Error approving execution:', error);
+                showToast('Error approving execution', 'error');
+            }
+        }
+    );
+}
+
+function rejectExecution(id) {
+    showConfirmModal(
+        'Reject Execution',
+        'This will cancel the execution. You can optionally provide a reason.',
+        'Reject',
+        'bg-red-600 hover:bg-red-700 text-white',
+        true,
+        'Rejection Reason (optional)',
+        async (reason) => {
+            try {
+                const response = await fetch(`/api/remediation/executions/${id}/approve`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ approved: false, reason: reason || 'Rejected by user' })
+                });
+                
+                if (response.ok) {
+                    showToast('Execution rejected', 'success');
+                    loadExecutions();
+                } else {
+                    const error = await response.json();
+                    showToast(error.detail || 'Failed to reject execution', 'error');
+                }
+            } catch (error) {
+                console.error('Error rejecting execution:', error);
+                showToast('Error rejecting execution', 'error');
+            }
+        }
+    );
 }
 
 function escapeHtml(text) {

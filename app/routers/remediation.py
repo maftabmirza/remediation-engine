@@ -897,8 +897,8 @@ async def execute_runbook(
     )
     execution_with_steps = result.scalar_one()
     
-    # TODO: If status is "running", dispatch to executor service
-    # This will be implemented in Phase 2 (Executor Framework)
+    # The background ExecutionWorker will pick up and process executions
+    # with status "running" or "approved" automatically
     
     return execution_with_steps
 
@@ -978,7 +978,7 @@ async def approve_execution(
         execution.status = "approved"
         execution.approved_by = current_user.id
         execution.approved_at = utc_now()
-        # TODO: Dispatch to executor service
+        # The background ExecutionWorker will pick up and execute approved runbooks
     else:
         execution.status = "cancelled"
         execution.rejection_reason = approval.reason

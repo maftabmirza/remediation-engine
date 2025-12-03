@@ -34,6 +34,7 @@ from app.routers import (
     metrics,
     remediation
 )
+from app.services.execution_worker import start_execution_worker, stop_execution_worker
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -90,12 +91,23 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting AIOps Platform...")
     init_db()
+    
+    # Start background execution worker
+    logger.info("Starting execution worker...")
+    await start_execution_worker()
+    
     logger.info("AIOps Platform started successfully")
     
     yield
     
     # Shutdown
     logger.info("Shutting down AIOps Platform...")
+    
+    # Stop execution worker gracefully
+    logger.info("Stopping execution worker...")
+    await stop_execution_worker()
+    
+    logger.info("AIOps Platform shutdown complete")
 
 
 from fastapi.openapi.docs import get_redoc_html
