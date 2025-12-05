@@ -2,7 +2,7 @@
 Chat API endpoints (REST)
 """
 from uuid import UUID
-from typing import List
+from typing import List, Optional
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -17,12 +17,12 @@ router = APIRouter(prefix="/api/chat", tags=["Chat"])
 
 class ChatSessionCreate(BaseModel):
     alert_id: UUID
-    llm_provider_id: UUID = None
+    llm_provider_id: Optional[UUID] = None
 
 class ChatSessionResponse(BaseModel):
     id: UUID
-    title: str = None
-    llm_provider_id: UUID = None
+    title: Optional[str] = None
+    llm_provider_id: Optional[UUID] = None
     created_at: datetime
 
     class Config:
