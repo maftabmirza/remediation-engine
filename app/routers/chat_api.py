@@ -137,7 +137,7 @@ async def list_chat_providers(
 ):
     """List available LLM providers for chat (enabled only)"""
     providers = db.query(LLMProvider).filter(LLMProvider.is_enabled == True).all()
-    
+
     return [
         LLMProviderListResponse(
             id=p.id,
@@ -148,3 +148,21 @@ async def list_chat_providers(
         )
         for p in providers
     ]
+
+
+@router.get("/sessions/by-alert/{alert_id}", response_model=ChatSessionResponse)
+async def get_session_by_alert(
+    alert_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get the most recent chat session for an alert (to reuse existing session)"""
+    session = db.query(ChatSession).filter(
+        ChatSession.alert_id == alert_id,
+        ChatSession.user_id == current_user.id
+    ).order_by(ChatSession.created_at.desc()).first()
+
+    if not session:
+        raise HTTPException(status_code=404, detail="No session found for this alert")
+
+    return session

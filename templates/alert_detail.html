@@ -200,21 +200,32 @@
             // Load available providers first
             await loadAvailableProviders();
 
-            // Create or get session
-            const response = await apiCall('/api/chat/sessions', {
-                method: 'POST',
-                body: JSON.stringify({ alert_id: alertId })
-            });
+            // Try to find existing session for this alert
+            let existingResponse = await apiCall(`/api/chat/sessions/by-alert/${alertId}`);
 
-            if (!response.ok) throw new Error('Failed to create chat session');
+            if (existingResponse.ok) {
+                // Reuse existing session
+                currentSession = await existingResponse.json();
+                currentSessionId = currentSession.id;
+                console.log('Reusing existing chat session:', currentSessionId);
+            } else {
+                // Create new session only if none exists
+                const createResponse = await apiCall('/api/chat/sessions', {
+                    method: 'POST',
+                    body: JSON.stringify({ alert_id: alertId })
+                });
 
-            currentSession = await response.json();
-            currentSessionId = currentSession.id;
+                if (!createResponse.ok) throw new Error('Failed to create chat session');
+
+                currentSession = await createResponse.json();
+                currentSessionId = currentSession.id;
+                console.log('Created new chat session:', currentSessionId);
+            }
 
             // Update model selector to show current model
             updateModelSelector();
 
-            // Load message history
+            // Load message history (will have messages if reused session)
             await loadMessageHistory(currentSession.id);
 
             // Connect WebSocket
@@ -563,6 +574,39 @@
         }
     });
 
+    // Copy to clipboard with fallback for non-HTTPS
+    function copyToClipboard(text) {
+        // Try modern Clipboard API first (HTTPS/localhost only)
+        if (navigator.clipboard && window.isSecureContext) {
+            return navigator.clipboard.writeText(text);
+        } else {
+            // Fallback for HTTP: use execCommand
+            return new Promise((resolve, reject) => {
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                textarea.style.position = 'fixed';
+                textarea.style.top = '-9999px';
+                textarea.style.left = '-9999px';
+                document.body.appendChild(textarea);
+                textarea.focus();
+                textarea.select();
+
+                try {
+                    const successful = document.execCommand('copy');
+                    document.body.removeChild(textarea);
+                    if (successful) {
+                        resolve();
+                    } else {
+                        reject(new Error('Copy command failed'));
+                    }
+                } catch (err) {
+                    document.body.removeChild(textarea);
+                    reject(err);
+                }
+            });
+        }
+    }
+
     function addRunButtons(element) {
         // Find all pre code blocks that don't have buttons yet
         const blocks = element.querySelectorAll('pre code');
@@ -589,7 +633,7 @@
             copyBtn.innerHTML = '<i class="fas fa-copy"></i>';
             copyBtn.title = 'Copy code';
             copyBtn.onclick = () => {
-                navigator.clipboard.writeText(block.innerText.trim()).then(() => {
+                copyToClipboard(block.innerText.trim()).then(() => {
                     copyBtn.innerHTML = '<i class="fas fa-check text-green-400"></i>';
                     setTimeout(() => {
                         copyBtn.innerHTML = '<i class="fas fa-copy"></i>';
