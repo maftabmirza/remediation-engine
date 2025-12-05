@@ -13,6 +13,8 @@ from litellm import token_counter
 from app.models import LLMProvider, Alert, AuditLog
 from app.models_chat import ChatSession, ChatMessage
 from app.services.llm_service import get_api_key_for_provider
+from app.services.ollama_service import ollama_completion_stream
+from app.services.ollama_service import ollama_completion_stream
 
 async def get_chat_llm(provider: LLMProvider):
     """
@@ -104,31 +106,54 @@ async def stream_chat_response(
         ChatMessage.session_id == session_id
     ).order_by(ChatMessage.created_at.asc()).all()
     
-    # Convert to LangChain messages
-    lc_messages = []
-    lc_messages.append(SystemMessage(content=get_system_prompt(session.alert)))
+    # Convert to message format
+    messages = []
+    system_prompt = get_system_prompt(session.alert)
+    messages.append({"role": "system", "content": system_prompt})
     
     for msg in history_messages:
-        if msg.role == "user":
-            lc_messages.append(HumanMessage(content=msg.content))
-        elif msg.role == "assistant":
-            lc_messages.append(AIMessage(content=msg.content))
+        messages.append({"role": msg.role, "content": msg.content})
             
-    # 3. Get LLM
-    llm = await get_chat_llm(provider)
-    
-    # 4. Stream response
+    # Stream response
     full_response = ""
-    async for chunk in llm.astream(lc_messages):
-        content = chunk.content
-        if content:
-            full_response += content
-            yield content
+    
+    if provider.provider_type == "ollama":
+        # Use custom Ollama streaming
+        config = provider.config_json or {}
+        temperature = config.get("temperature", 0.3)
+        max_tokens = config.get("max_tokens", 2000)
+        
+        async for chunk in ollama_completion_stream(
+            provider=provider,
+            messages=messages,
+            temperature=temperature,
+            max_tokens=max_tokens
+        ):
+            full_response += chunk
+            yield chunk
+    else:
+        # Use LangChain with LiteLLM for other providers
+        lc_messages = []
+        lc_messages.append(SystemMessage(content=system_prompt))
+        
+        for msg in history_messages:
+            if msg.role == "user":
+                lc_messages.append(HumanMessage(content=msg.content))
+            elif msg.role == "assistant":
+                lc_messages.append(AIMessage(content=msg.content))
+                
+        llm = await get_chat_llm(provider)
+        
+        async for chunk in llm.astream(lc_messages):
+            content = chunk.content
+            if content:
+                full_response += content
+                yield content
             
-    # 5. Save assistant message
+    # Save assistant message
     tokens = 0
     try:
-        tokens = token_counter(model=provider.model_id, messages=lc_messages)
+        tokens = token_counter(model=provider.model_id, messages=messages)
     except:
         pass
 
@@ -140,3 +165,4 @@ async def stream_chat_response(
     )
     db.add(ai_message)
     db.commit()
+

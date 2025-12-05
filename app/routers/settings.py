@@ -44,8 +44,15 @@ async def test_llm_provider(
             "max_tokens": 10,
         }
         
-        if api_key:
-            kwargs["api_key"] = api_key
+        # Handle authentication based on provider type
+        if provider.provider_type == "ollama":
+            # Ollama with API key (Bearer token)
+            if api_key:
+                kwargs["api_key"] = api_key
+        else:
+            # Other providers
+            if api_key:
+                kwargs["api_key"] = api_key
             
         if provider.api_base_url:
             kwargs["api_base"] = provider.api_base_url

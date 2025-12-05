@@ -12,6 +12,7 @@ from app.config import get_settings
 from app.models import LLMProvider, Alert
 from app.utils.crypto import decrypt_value
 from app.metrics import LLM_REQUESTS, LLM_DURATION, LLM_TOKENS
+from app.services.ollama_service import ollama_completion
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -138,8 +139,8 @@ async def analyze_alert(
         raise ValueError("No LLM provider configured or enabled")
     
     api_key = get_api_key_for_provider(provider)
-    # Note: Ollama might not need an API key, so we allow empty key if provider is ollama
-    if not api_key and provider.provider_type != "ollama":
+    # Note: Ollama might not need an API key, but this instance requires one
+    if not api_key and provider.provider_type not in ["ollama"]:
         raise ValueError(f"No API key configured for provider: {provider.name}")
     
     prompt = build_analysis_prompt(alert)
@@ -149,37 +150,22 @@ async def analyze_alert(
     max_tokens = config.get("max_tokens", 2000)
     
     try:
-        # Prepare model name for LiteLLM
-        model_name = provider.model_id
-        if provider.provider_type == "anthropic" and not model_name.startswith("anthropic/"):
-            # LiteLLM usually handles this, but being explicit helps
-            pass 
-        elif provider.provider_type == "ollama" and not model_name.startswith("ollama/"):
-            model_name = f"ollama/{model_name}"
-            
-        # Prepare kwargs
-        kwargs = {
-            "model": model_name,
-            "messages": [{"role": "user", "content": prompt}],
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-        }
-        
-        if api_key:
-            kwargs["api_key"] = api_key
-            
-        if provider.api_base_url:
-            kwargs["api_base"] = provider.api_base_url
-
-        # Call LiteLLM asynchronously (non-blocking)
-        logger.info(f"Calling LLM provider: {provider.name} (model: {model_name})")
+        logger.info(f"Calling LLM provider: {provider.name} (type: {provider.provider_type})")
         start_time = time.time()
         
-        try:
-            response = await acompletion(**kwargs)
+        # Handle Ollama separately due to Bearer token requirement
+        if provider.provider_type == "ollama":
+            messages = [{"role": "user", "content": prompt}]
+            analysis = await ollama_completion(
+                provider=provider,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens
+            )
             duration = time.time() - start_time
+            model_name = provider.model_id
             
-            # Record success metrics
+            # Record metrics
             LLM_REQUESTS.labels(
                 provider=provider.provider_type,
                 model=model_name,
@@ -190,36 +176,71 @@ async def analyze_alert(
                 model=model_name
             ).observe(duration)
             
-            # Record token usage if available
-            if hasattr(response, 'usage') and response.usage:
-                if response.usage.prompt_tokens:
-                    LLM_TOKENS.labels(
-                        provider=provider.provider_type,
-                        model=model_name,
-                        type="prompt"
-                    ).inc(response.usage.prompt_tokens)
-                if response.usage.completion_tokens:
-                    LLM_TOKENS.labels(
-                        provider=provider.provider_type,
-                        model=model_name,
-                        type="completion"
-                    ).inc(response.usage.completion_tokens)
+            logger.info(f"Ollama response received from {provider.name} in {duration:.2f}s")
+        else:
+            # Use LiteLLM for other providers
+            model_name = provider.model_id
+            if provider.provider_type == "anthropic" and not model_name.startswith("anthropic/"):
+                pass 
             
-            analysis = response.choices[0].message.content
-            logger.info(f"LLM response received from {provider.name} in {duration:.2f}s")
+            kwargs = {
+                "model": model_name,
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+            }
             
-        except Exception as e:
-            duration = time.time() - start_time
-            LLM_REQUESTS.labels(
-                provider=provider.provider_type,
-                model=model_name,
-                status="error"
-            ).inc()
-            LLM_DURATION.labels(
-                provider=provider.provider_type,
-                model=model_name
-            ).observe(duration)
-            raise
+            if api_key:
+                kwargs["api_key"] = api_key
+                
+            if provider.api_base_url:
+                kwargs["api_base"] = provider.api_base_url
+
+            try:
+                response = await acompletion(**kwargs)
+                duration = time.time() - start_time
+                
+                # Record success metrics
+                LLM_REQUESTS.labels(
+                    provider=provider.provider_type,
+                    model=model_name,
+                    status="success"
+                ).inc()
+                LLM_DURATION.labels(
+                    provider=provider.provider_type,
+                    model=model_name
+                ).observe(duration)
+                
+                # Record token usage if available
+                if hasattr(response, 'usage') and response.usage:
+                    if response.usage.prompt_tokens:
+                        LLM_TOKENS.labels(
+                            provider=provider.provider_type,
+                            model=model_name,
+                            type="prompt"
+                        ).inc(response.usage.prompt_tokens)
+                    if response.usage.completion_tokens:
+                        LLM_TOKENS.labels(
+                            provider=provider.provider_type,
+                            model=model_name,
+                            type="completion"
+                        ).inc(response.usage.completion_tokens)
+                
+                analysis = response.choices[0].message.content
+                logger.info(f"LLM response received from {provider.name} in {duration:.2f}s")
+                
+            except Exception as e:
+                duration = time.time() - start_time
+                LLM_REQUESTS.labels(
+                    provider=provider.provider_type,
+                    model=model_name,
+                    status="error"
+                ).inc()
+                LLM_DURATION.labels(
+                    provider=provider.provider_type,
+                    model=model_name
+                ).observe(duration)
+                raise
         
     except Exception as e:
         raise RuntimeError(f"LLM API call failed: {str(e)}")
