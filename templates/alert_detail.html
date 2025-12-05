@@ -240,7 +240,7 @@
             }
 
             selector.innerHTML = availableProviders.map(p =>
-                `<option value="${p.id}">${p.provider_name} - ${p.model_name}</option>`
+                `<option value="${p.id}">${p.provider_name}${p.is_default ? ' ⭐' : ''}</option>`
             ).join('');
 
         } catch (error) {
