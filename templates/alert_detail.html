@@ -415,10 +415,7 @@
         chatSocket.onopen = () => {
             document.getElementById('chatStatus').textContent = 'Connected';
             document.getElementById('chatStatus').className = 'text-xs text-green-400';
-            document.getElementById('chatMessages').innerHTML = ''; // Clear "Starting..."
-            
-            // Send initial prompt
-            // chatSocket.send("Analyze this alert");
+            // Don't clear messages here - loadMessageHistory() already loaded them
         };
         
         chatSocket.onmessage = (event) => {
