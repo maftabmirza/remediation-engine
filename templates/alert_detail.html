@@ -898,7 +898,23 @@
     }
 
     // --- Init ---
-    loadAlert();
+    // Wait for all scripts (especially marked.js) to load before initializing
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', loadAlert);
+    } else {
+        // DOMContentLoaded already fired, check if marked is loaded
+        if (typeof marked !== 'undefined') {
+            loadAlert();
+        } else {
+            // Wait a bit for marked.js to load from CDN
+            const checkMarked = setInterval(() => {
+                if (typeof marked !== 'undefined') {
+                    clearInterval(checkMarked);
+                    loadAlert();
+                }
+            }, 100);
+        }
+    }
 
     // Handle window resize for terminal
     window.addEventListener('resize', () => {
