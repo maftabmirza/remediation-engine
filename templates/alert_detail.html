@@ -228,7 +228,7 @@
 
     async function loadAvailableProviders() {
         try {
-            const response = await apiCall('/api/llm-providers');
+            const response = await apiCall('/api/chat/providers');
             if (!response.ok) throw new Error('Failed to load providers');
 
             availableProviders = await response.json();

@@ -113,6 +113,38 @@ async def update_session_provider(
 
     return {
         "status": "success",
-        "provider_name": provider.provider_name,
-        "model_name": provider.model_name
+        "provider_name": provider.name,
+        "model_name": provider.model_id
     }
+
+
+# LLM Providers endpoint for the chat interface
+class LLMProviderListResponse(BaseModel):
+    id: UUID
+    provider_name: str
+    model_name: str
+    is_default: bool
+    is_enabled: bool
+
+    class Config:
+        from_attributes = True
+
+
+@router.get("/providers", response_model=List[LLMProviderListResponse])
+async def list_chat_providers(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """List available LLM providers for chat (enabled only)"""
+    providers = db.query(LLMProvider).filter(LLMProvider.is_enabled == True).all()
+    
+    return [
+        LLMProviderListResponse(
+            id=p.id,
+            provider_name=p.name,
+            model_name=p.model_id,
+            is_default=p.is_default,
+            is_enabled=p.is_enabled
+        )
+        for p in providers
+    ]
