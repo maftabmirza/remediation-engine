@@ -2,7 +2,7 @@
 Chat API endpoints (REST)
 """
 from uuid import UUID
-from typing import List
+from typing import List, Optional
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -17,11 +17,12 @@ router = APIRouter(prefix="/api/chat", tags=["Chat"])
 
 class ChatSessionCreate(BaseModel):
     alert_id: UUID
-    llm_provider_id: UUID = None
+    llm_provider_id: Optional[UUID] = None
 
 class ChatSessionResponse(BaseModel):
     id: UUID
-    title: str = None
+    title: Optional[str] = None
+    llm_provider_id: Optional[UUID] = None
     created_at: datetime
 
     class Config:
@@ -68,12 +69,100 @@ async def get_messages(
         ChatSession.id == session_id,
         ChatSession.user_id == current_user.id
     ).first()
-    
+
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-        
+
     messages = db.query(ChatMessage).filter(
         ChatMessage.session_id == session_id
     ).order_by(ChatMessage.created_at.asc()).all()
-    
+
     return messages
+
+class UpdateProviderRequest(BaseModel):
+    provider_id: UUID
+
+@router.patch("/sessions/{session_id}/provider")
+async def update_session_provider(
+    session_id: UUID,
+    data: UpdateProviderRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Update the LLM provider for a chat session"""
+    session = db.query(ChatSession).filter(
+        ChatSession.id == session_id,
+        ChatSession.user_id == current_user.id
+    ).first()
+
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    provider = db.query(LLMProvider).filter(
+        LLMProvider.id == data.provider_id,
+        LLMProvider.is_enabled == True
+    ).first()
+
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found or disabled")
+
+    session.llm_provider_id = data.provider_id
+    session.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(session)
+
+    return {
+        "status": "success",
+        "provider_name": provider.name,
+        "model_name": provider.model_id
+    }
+
+
+# LLM Providers endpoint for the chat interface
+class LLMProviderListResponse(BaseModel):
+    id: UUID
+    provider_name: str
+    model_name: str
+    is_default: bool
+    is_enabled: bool
+
+    class Config:
+        from_attributes = True
+
+
+@router.get("/providers", response_model=List[LLMProviderListResponse])
+async def list_chat_providers(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """List available LLM providers for chat (enabled only)"""
+    providers = db.query(LLMProvider).filter(LLMProvider.is_enabled == True).all()
+
+    return [
+        LLMProviderListResponse(
+            id=p.id,
+            provider_name=p.name,
+            model_name=p.model_id,
+            is_default=p.is_default,
+            is_enabled=p.is_enabled
+        )
+        for p in providers
+    ]
+
+
+@router.get("/sessions/by-alert/{alert_id}", response_model=ChatSessionResponse)
+async def get_session_by_alert(
+    alert_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get the most recent chat session for an alert (to reuse existing session)"""
+    session = db.query(ChatSession).filter(
+        ChatSession.alert_id == alert_id,
+        ChatSession.user_id == current_user.id
+    ).order_by(ChatSession.created_at.desc()).first()
+
+    if not session:
+        raise HTTPException(status_code=404, detail="No session found for this alert")
+
+    return session

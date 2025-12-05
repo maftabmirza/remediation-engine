@@ -364,12 +364,24 @@ function renderExecutions() {
     `).join('');
 }
 
-function updateStats() {
-    const total = executions.length;
-    const pending = executions.filter(e => e.status === 'pending').length;
-    const running = executions.filter(e => e.status === 'running' || e.status === 'approved').length;
-    const completed = executions.filter(e => e.status === 'success' || e.status === 'completed').length;
-    const failed = executions.filter(e => ['failed', 'timeout', 'cancelled', 'rolled_back'].includes(e.status)).length;
+function updateStats(filteredExecutions = null) {
+    // Use filtered executions if provided, otherwise apply current filters
+    const timeFilter = document.getElementById('timeFilter').value;
+    const statusFilter = document.getElementById('statusFilter').value;
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    
+    const dataToUse = filteredExecutions || executions.filter(ex => {
+        const matchesSearch = (ex.runbook_name || '').toLowerCase().includes(searchTerm);
+        const matchesStatus = !statusFilter || ex.status === statusFilter;
+        const matchesTime = filterByTime(ex.started_at || ex.queued_at, timeFilter);
+        return matchesSearch && matchesStatus && matchesTime;
+    });
+    
+    const total = dataToUse.length;
+    const pending = dataToUse.filter(e => e.status === 'pending').length;
+    const running = dataToUse.filter(e => e.status === 'running' || e.status === 'approved').length;
+    const completed = dataToUse.filter(e => e.status === 'success' || e.status === 'completed').length;
+    const failed = dataToUse.filter(e => ['failed', 'timeout', 'cancelled', 'rolled_back'].includes(e.status)).length;
     const successRate = total > 0 ? Math.round((completed / total) * 100) : 0;
     
     document.getElementById('totalCount').textContent = total;
@@ -424,6 +436,7 @@ function filterByTime(dateStr, filter) {
 function filterExecutions() {
     currentPage = 1;
     renderExecutions();
+    updateStats(); // Update stats based on filtered data
 }
 
 function prevPage() {
