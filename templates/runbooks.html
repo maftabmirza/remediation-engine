@@ -11,7 +11,7 @@
             <h1 class="text-2xl font-bold text-primary">Runbooks</h1>
             <p class="text-secondary mt-1">Manage automated remediation runbooks</p>
         </div>
-        <button onclick="openCreateModal()" class="btn-primary px-4 py-2 rounded-lg flex items-center gap-2">
+        <button onclick="navigateToRunbookCreate()" class="btn-primary px-4 py-2 rounded-lg flex items-center gap-2">
             <i class="fas fa-plus"></i>
             <span>Create Runbook</span>
         </button>
@@ -103,7 +103,7 @@
         <i class="fas fa-book-open text-4xl text-secondary mb-4"></i>
         <h3 class="text-lg font-medium text-primary mb-2">No Runbooks Found</h3>
         <p class="text-secondary mb-4">Create your first runbook to start automating remediation tasks.</p>
-        <button onclick="openCreateModal()" class="btn-primary px-4 py-2 rounded-lg">
+        <button onclick="navigateToRunbookCreate()" class="btn-primary px-4 py-2 rounded-lg">
             <i class="fas fa-plus mr-2"></i>Create Runbook
         </button>
     </div>
@@ -435,13 +435,17 @@ function renderRunbooks() {
                 <span><i class="fas fa-bolt mr-1"></i>${rb.triggers_count ?? 0} triggers</span>
             </div>
             <div class="flex items-center gap-2 mt-3 pt-3 border-t border-gray-700">
-                <button onclick='event.stopPropagation(); editRunbook(${JSON.stringify(rb.id)})' 
+                <button onclick='event.stopPropagation(); handleEditRunbook(${JSON.stringify(rb.id)}, ${rb.steps_count ?? 0})' 
                     class="flex-1 btn-secondary px-2 py-1 rounded text-sm">
                     <i class="fas fa-edit mr-1"></i>Edit
                 </button>
                 <button onclick='event.stopPropagation(); openExecuteModal(${JSON.stringify(rb.id)}, ${JSON.stringify(runbookName)})' 
                     class="flex-1 btn-primary px-2 py-1 rounded text-sm" ${rb.enabled ? '' : 'disabled'}>
                     <i class="fas fa-play mr-1"></i>Run
+                </button>
+                <button onclick='event.stopPropagation(); cloneRunbook(${JSON.stringify(rb.id)})'
+                    class="btn-secondary px-2 py-1 rounded text-sm">
+                    <i class="fas fa-clone mr-1"></i>Clone
                 </button>
                 <button onclick='event.stopPropagation(); deleteRunbook(${JSON.stringify(rb.id)})' 
                     class="btn-secondary px-2 py-1 rounded text-sm text-red-400 hover:text-red-300">
@@ -476,6 +480,36 @@ function deriveStatus(runbook) {
 
 function filterRunbooks() {
     renderRunbooks();
+}
+
+function navigateToRunbookCreate() {
+    window.location.href = '/runbooks/new';
+}
+
+function handleEditRunbook(id, stepsCount) {
+    if (stepsCount && stepsCount > 2) {
+        window.location.href = `/runbooks/${id}/edit`;
+        return;
+    }
+    editRunbook(id);
+}
+
+async function cloneRunbook(id) {
+    try {
+        const response = await fetch(`/api/remediation/runbooks/${id}/clone`, {
+            method: 'POST'
+        });
+        if (response.ok) {
+            showToast('Runbook cloned', 'success');
+            await loadRunbooks();
+        } else {
+            const error = await response.json();
+            showToast(error.detail || 'Failed to clone runbook', 'error');
+        }
+    } catch (error) {
+        console.error('Error cloning runbook:', error);
+        showToast('Error cloning runbook', 'error');
+    }
 }
 
 function openCreateModal() {

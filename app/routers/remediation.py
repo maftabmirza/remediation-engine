@@ -236,6 +236,111 @@ async def get_runbook(
     return runbook
 
 
+@router.post("/runbooks/{runbook_id}/clone", response_model=RunbookResponse, status_code=status.HTTP_201_CREATED)
+async def clone_runbook(
+    runbook_id: UUID,
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(require_role(["admin", "engineer"]))
+):
+    """Clone a runbook with its steps and triggers."""
+    result = await db.execute(
+        select(Runbook)
+        .options(selectinload(Runbook.steps), selectinload(Runbook.triggers))
+        .where(Runbook.id == runbook_id)
+    )
+    source = result.scalar_one_or_none()
+
+    if not source:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Runbook {runbook_id} not found"
+        )
+
+    # Generate new unique name
+    base_name = f"{source.name} (Copy)"
+    new_name = base_name
+    suffix = 2
+    while True:
+        existing = await db.execute(select(Runbook).where(Runbook.name == new_name))
+        if not existing.scalar_one_or_none():
+            break
+        new_name = f"{base_name} {suffix}"
+        suffix += 1
+
+    clone = Runbook(
+        name=new_name,
+        description=source.description,
+        category=source.category,
+        tags=source.tags,
+        enabled=False,  # keep cloned runbook safe by default
+        auto_execute=False,
+        approval_required=source.approval_required,
+        approval_roles=source.approval_roles,
+        approval_timeout_minutes=source.approval_timeout_minutes,
+        max_executions_per_hour=source.max_executions_per_hour,
+        cooldown_minutes=source.cooldown_minutes,
+        default_server_id=source.default_server_id,
+        target_os_filter=source.target_os_filter,
+        target_from_alert=source.target_from_alert,
+        target_alert_label=source.target_alert_label,
+        notifications_json=source.notifications_json,
+        documentation_url=source.documentation_url,
+        created_by=current_user.id,
+        source="ui"
+    )
+    db.add(clone)
+    await db.flush()
+
+    # Clone steps
+    for step in source.steps:
+        db.add(RunbookStep(
+            runbook_id=clone.id,
+            step_order=step.step_order,
+            name=step.name,
+            description=step.description,
+            command_linux=step.command_linux,
+            command_windows=step.command_windows,
+            target_os=step.target_os,
+            timeout_seconds=step.timeout_seconds,
+            requires_elevation=step.requires_elevation,
+            working_directory=step.working_directory,
+            environment_json=step.environment_json,
+            continue_on_fail=step.continue_on_fail,
+            retry_count=step.retry_count,
+            retry_delay_seconds=step.retry_delay_seconds,
+            expected_exit_code=step.expected_exit_code,
+            expected_output_pattern=step.expected_output_pattern,
+            rollback_command_linux=step.rollback_command_linux,
+            rollback_command_windows=step.rollback_command_windows
+        ))
+
+    # Clone triggers
+    for trig in source.triggers:
+        db.add(RunbookTrigger(
+            runbook_id=clone.id,
+            alert_name_pattern=trig.alert_name_pattern,
+            severity_pattern=trig.severity_pattern,
+            instance_pattern=trig.instance_pattern,
+            job_pattern=trig.job_pattern,
+            label_matchers_json=trig.label_matchers_json,
+            annotation_matchers_json=trig.annotation_matchers_json,
+            min_duration_seconds=trig.min_duration_seconds,
+            min_occurrences=trig.min_occurrences,
+            priority=trig.priority,
+            enabled=trig.enabled
+        ))
+
+    await db.commit()
+
+    # Reload new runbook with relationships
+    result = await db.execute(
+        select(Runbook)
+        .options(selectinload(Runbook.steps), selectinload(Runbook.triggers))
+        .where(Runbook.id == clone.id)
+    )
+    return result.scalar_one()
+
+
 @router.put("/runbooks/{runbook_id}", response_model=RunbookResponse)
 async def update_runbook(
     runbook_id: UUID,
@@ -270,18 +375,76 @@ async def update_runbook(
                 detail=f"Runbook with name '{runbook_data.name}' already exists"
             )
     
-    # Update fields
-    update_data = runbook_data.model_dump(exclude_unset=True)
+    # Update fields (excluding steps/triggers which are handled separately)
+    update_data = runbook_data.model_dump(exclude_unset=True, exclude={"steps", "triggers"})
     for field, value in update_data.items():
         setattr(runbook, field, value)
-    
+
+    # Replace steps if provided
+    if runbook_data.steps is not None:
+        # Delete existing
+        for step in list(runbook.steps):
+            await db.delete(step)
+        await db.flush()
+
+        # Add new steps
+        for step_data in runbook_data.steps:
+            step = RunbookStep(
+                runbook_id=runbook.id,
+                step_order=step_data.step_order,
+                name=step_data.name,
+                description=step_data.description,
+                command_linux=step_data.command_linux,
+                command_windows=step_data.command_windows,
+                target_os=step_data.target_os,
+                timeout_seconds=step_data.timeout_seconds,
+                requires_elevation=step_data.requires_elevation,
+                working_directory=step_data.working_directory,
+                environment_json=step_data.environment_json,
+                continue_on_fail=step_data.continue_on_fail,
+                retry_count=step_data.retry_count,
+                retry_delay_seconds=step_data.retry_delay_seconds,
+                expected_exit_code=step_data.expected_exit_code,
+                expected_output_pattern=step_data.expected_output_pattern,
+                rollback_command_linux=step_data.rollback_command_linux,
+                rollback_command_windows=step_data.rollback_command_windows
+            )
+            db.add(step)
+
+    # Replace triggers if provided
+    if runbook_data.triggers is not None:
+        for trig in list(runbook.triggers):
+            await db.delete(trig)
+        await db.flush()
+
+        for trigger_data in runbook_data.triggers:
+            trigger = RunbookTrigger(
+                runbook_id=runbook.id,
+                alert_name_pattern=trigger_data.alert_name_pattern,
+                severity_pattern=trigger_data.severity_pattern,
+                instance_pattern=trigger_data.instance_pattern,
+                job_pattern=trigger_data.job_pattern,
+                label_matchers_json=trigger_data.label_matchers_json,
+                annotation_matchers_json=trigger_data.annotation_matchers_json,
+                min_duration_seconds=trigger_data.min_duration_seconds,
+                min_occurrences=trigger_data.min_occurrences,
+                priority=trigger_data.priority,
+                enabled=trigger_data.enabled
+            )
+            db.add(trigger)
+
     # Increment version
     runbook.version += 1
-    
+
     await db.commit()
-    await db.refresh(runbook)
-    
-    return runbook
+
+    # Reload with relationships
+    result = await db.execute(
+        select(Runbook)
+        .options(selectinload(Runbook.steps), selectinload(Runbook.triggers))
+        .where(Runbook.id == runbook.id)
+    )
+    return result.scalar_one()
 
 
 @router.delete("/runbooks/{runbook_id}", status_code=status.HTTP_204_NO_CONTENT)

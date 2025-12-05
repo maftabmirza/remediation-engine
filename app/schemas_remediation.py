@@ -209,6 +209,9 @@ class RunbookUpdate(BaseModel):
     target_os_filter: Optional[List[str]] = None
     notifications_json: Optional[Dict[str, List[str]]] = None
     documentation_url: Optional[str] = None
+    # Steps and triggers for full update
+    steps: Optional[List[RunbookStepCreate]] = None
+    triggers: Optional[List[RunbookTriggerCreate]] = None
 
 
 class RunbookResponse(RunbookBase):
