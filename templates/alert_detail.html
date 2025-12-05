@@ -33,8 +33,10 @@
     let chatSocket = null;
     let terminalSocket = null;
     let currentSessionId = null;
+    let currentSession = null;
     let term = null;
     let fitAddon = null;
+    let availableProviders = [];
     
     // --- Font Size Logic ---
     let chatFontSize = 14; // default
@@ -131,11 +133,21 @@
                 <!-- Pane 1: Chat (5 cols ~ 41%) -->
                 <div class="lg:col-span-5 flex flex-col card h-full min-h-0 overflow-hidden">
                     <div class="p-2 border-b border-gray-700 flex justify-between items-center flex-shrink-0">
-                        <div class="flex items-center">
+                        <div class="flex items-center flex-grow">
                             <h2 class="font-semibold text-sm mr-2"><i class="fas fa-robot text-purple-400 mr-1"></i>AI Assistant</h2>
+
+                            <!-- MODEL SELECTOR -->
+                            <select id="modelSelector"
+                                    class="bg-gray-700 text-white text-xs px-2 py-1 rounded border border-gray-600 hover:border-blue-400 cursor-pointer mr-2"
+                                    onchange="switchModel(this.value)"
+                                    title="Select LLM Model">
+                                <option value="">Loading...</option>
+                            </select>
+
                             <span id="chatStatus" class="text-[10px] text-gray-500" title="Connection Status">Disconnected</span>
                         </div>
                         <div class="flex space-x-1">
+                            <button onclick="clearChat()" class="text-gray-400 hover:text-white px-1" title="Clear Chat (Ctrl+L)"><i class="fas fa-eraser text-xs"></i></button>
                             <button onclick="adjustChatFont(-1)" class="text-gray-400 hover:text-white px-1" title="Decrease Font Size"><i class="fas fa-minus text-xs"></i></button>
                             <button onclick="adjustChatFont(1)" class="text-gray-400 hover:text-white px-1" title="Increase Font Size"><i class="fas fa-plus text-xs"></i></button>
                         </div>
@@ -185,24 +197,191 @@
 
     async function initChatSession(alertId) {
         try {
-            // Create session
+            // Load available providers first
+            await loadAvailableProviders();
+
+            // Create or get session
             const response = await apiCall('/api/chat/sessions', {
                 method: 'POST',
                 body: JSON.stringify({ alert_id: alertId })
             });
-            
+
             if (!response.ok) throw new Error('Failed to create chat session');
-            
-            const session = await response.json();
-            currentSessionId = session.id;
-            
+
+            currentSession = await response.json();
+            currentSessionId = currentSession.id;
+
+            // Update model selector to show current model
+            updateModelSelector();
+
+            // Load message history
+            await loadMessageHistory(currentSession.id);
+
             // Connect WebSocket
-            connectChatWebSocket(session.id);
-            
+            connectChatWebSocket(currentSession.id);
+
         } catch (error) {
             console.error('Chat init failed:', error);
             showToast('Failed to initialize chat', 'error');
         }
+    }
+
+    async function loadAvailableProviders() {
+        try {
+            const response = await apiCall('/api/llm-providers');
+            if (!response.ok) throw new Error('Failed to load providers');
+
+            availableProviders = await response.json();
+
+            const selector = document.getElementById('modelSelector');
+            if (availableProviders.length === 0) {
+                selector.innerHTML = '<option value="">No providers configured</option>';
+                return;
+            }
+
+            selector.innerHTML = availableProviders.map(p =>
+                `<option value="${p.id}">${p.provider_name} - ${p.model_name}</option>`
+            ).join('');
+
+        } catch (error) {
+            console.error('Failed to load providers:', error);
+            const selector = document.getElementById('modelSelector');
+            selector.innerHTML = '<option value="">Error loading models</option>';
+        }
+    }
+
+    function updateModelSelector() {
+        const selector = document.getElementById('modelSelector');
+        if (currentSession && currentSession.llm_provider_id) {
+            selector.value = currentSession.llm_provider_id;
+        } else {
+            // Select default provider
+            const defaultProvider = availableProviders.find(p => p.is_default);
+            if (defaultProvider) {
+                selector.value = defaultProvider.id;
+            }
+        }
+    }
+
+    async function switchModel(providerId) {
+        if (!currentSessionId || !providerId) return;
+
+        try {
+            const response = await apiCall(`/api/chat/sessions/${currentSessionId}/provider`, {
+                method: 'PATCH',
+                body: JSON.stringify({ provider_id: providerId })
+            });
+
+            if (!response.ok) throw new Error('Failed to switch model');
+
+            const result = await response.json();
+            showToast(`Switched to ${result.provider_name} - ${result.model_name}`, 'success');
+
+            // Add system message to chat
+            const container = document.getElementById('chatMessages');
+            const msg = document.createElement('div');
+            msg.className = 'text-center text-xs text-gray-500 my-2 italic';
+            msg.innerHTML = `<i class="fas fa-sync-alt mr-1"></i>Now using: ${result.provider_name} - ${result.model_name}`;
+            container.appendChild(msg);
+            container.scrollTop = container.scrollHeight;
+
+            // Update current session
+            currentSession.llm_provider_id = providerId;
+
+        } catch (error) {
+            console.error('Failed to switch model:', error);
+            showToast('Failed to switch model', 'error');
+        }
+    }
+
+    async function loadMessageHistory(sessionId) {
+        try {
+            const response = await apiCall(`/api/chat/sessions/${sessionId}/messages`);
+            if (!response.ok) throw new Error('Failed to load history');
+
+            const messages = await response.json();
+            const container = document.getElementById('chatMessages');
+            container.innerHTML = ''; // Clear loading message
+
+            if (messages.length === 0) {
+                // Show welcome screen with suggestions
+                showWelcomeScreen();
+                return;
+            }
+
+            // Render existing messages
+            messages.forEach(msg => {
+                if (msg.role === 'user') {
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'flex justify-end';
+                    wrapper.innerHTML = `
+                        <div class="bg-blue-600 rounded-lg p-3 max-w-xs lg:max-w-md text-sm text-white">
+                            ${escapeHtml(msg.content)}
+                        </div>
+                    `;
+                    container.appendChild(wrapper);
+                    lastMessageRole = 'user';
+                } else if (msg.role === 'assistant') {
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'flex justify-start w-full pr-2';
+                    wrapper.innerHTML = `
+                        <div class="bg-gray-700 rounded-lg p-4 w-full text-sm ai-message-content">
+                            ${marked.parse(msg.content)}
+                        </div>
+                    `;
+                    container.appendChild(wrapper);
+                    addRunButtons(wrapper);
+                    lastMessageRole = 'assistant';
+                }
+            });
+
+            container.scrollTop = container.scrollHeight;
+
+        } catch (error) {
+            console.error('Failed to load chat history:', error);
+            showWelcomeScreen();
+        }
+    }
+
+    function showWelcomeScreen() {
+        const container = document.getElementById('chatMessages');
+        container.innerHTML = `
+            <div class="text-center text-gray-400 mt-10">
+                <i class="fas fa-robot text-4xl mb-3 text-purple-400"></i>
+                <p class="mb-2 text-lg">👋 Hi! I'm your AI assistant.</p>
+                <p class="text-sm text-gray-500 mb-4">Ask me to help troubleshoot this alert:</p>
+                <div class="mt-3 space-y-2 text-left max-w-sm mx-auto">
+                    <button onclick="sendSuggestion('Analyze this alert and tell me what might be wrong')"
+                            class="w-full text-left bg-gray-800 hover:bg-gray-700 px-3 py-2 rounded text-sm border border-gray-700 transition-colors">
+                        <i class="fas fa-chart-line text-blue-400 mr-2"></i>Analyze this alert
+                    </button>
+                    <button onclick="sendSuggestion('What commands should I run to troubleshoot this issue?')"
+                            class="w-full text-left bg-gray-800 hover:bg-gray-700 px-3 py-2 rounded text-sm border border-gray-700 transition-colors">
+                        <i class="fas fa-terminal text-green-400 mr-2"></i>Suggest troubleshooting commands
+                    </button>
+                    <button onclick="sendSuggestion('Show me where to find relevant logs for this alert')"
+                            class="w-full text-left bg-gray-800 hover:bg-gray-700 px-3 py-2 rounded text-sm border border-gray-700 transition-colors">
+                        <i class="fas fa-file-alt text-yellow-400 mr-2"></i>Help me check logs
+                    </button>
+                    <button onclick="sendSuggestion('Explain this error in simple terms')"
+                            class="w-full text-left bg-gray-800 hover:bg-gray-700 px-3 py-2 rounded text-sm border border-gray-700 transition-colors">
+                        <i class="fas fa-question-circle text-purple-400 mr-2"></i>Explain this error
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    function sendSuggestion(text) {
+        const input = document.getElementById('chatInput');
+        input.value = text;
+        sendMessage(new Event('submit'));
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 
     function connectChatWebSocket(sessionId) {
@@ -258,8 +437,10 @@
     let currentMessageDiv = null;
 
     function appendAIMessage(text) {
+        removeTypingIndicator(); // Remove typing indicator when AI starts responding
+
         const container = document.getElementById('chatMessages');
-        
+
         if (lastMessageRole !== 'assistant') {
             // Create new message bubble
             const wrapper = document.createElement('div');
@@ -271,7 +452,7 @@
             currentMessageDiv = wrapper.querySelector('.ai-message-content');
             lastMessageRole = 'assistant';
         }
-        
+
         // Append text (we need to buffer and render markdown properly)
         // For streaming, simple appending works, but markdown rendering needs full text.
         // A simple hack: store full text in a data attribute and re-render marked.
@@ -279,10 +460,10 @@
         const newText = currentText + text;
         currentMessageDiv.setAttribute('data-full-text', newText);
         currentMessageDiv.innerHTML = marked.parse(newText);
-        
-        // Add "Run" buttons to code blocks
+
+        // Add "Run" and "Copy" buttons to code blocks
         addRunButtons(currentMessageDiv);
-        
+
         container.scrollTop = container.scrollHeight;
     }
 
@@ -322,7 +503,7 @@
 
     function sendMessage(e) {
         e.preventDefault();
-        
+
         // Clear pending analysis button if user types manually
         if (analysisButton) {
             analysisButton.remove();
@@ -332,19 +513,44 @@
         const input = document.getElementById('chatInput');
         const text = input.value.trim();
         if (!text || !chatSocket) return;
-        
+
         appendUserMessage(text);
-        
+        showTypingIndicator(); // Show typing indicator
+
         // Inject terminal context if available
         const termContent = getTerminalContent();
         let finalMessage = text;
-        
+
         if (termContent) {
             finalMessage += `\n\n[SYSTEM: The user has the following active terminal output. Use it if relevant to the query.]\n\`\`\`\n${termContent}\n\`\`\``;
         }
-        
+
         chatSocket.send(finalMessage);
         input.value = '';
+    }
+
+    function showTypingIndicator() {
+        const container = document.getElementById('chatMessages');
+        const indicator = document.createElement('div');
+        indicator.id = 'typingIndicator';
+        indicator.className = 'flex justify-start my-2';
+        indicator.innerHTML = `
+            <div class="bg-gray-700 rounded-lg px-4 py-3 flex items-center space-x-2">
+                <div class="flex space-x-1">
+                    <div class="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style="animation-delay: 0ms"></div>
+                    <div class="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style="animation-delay: 150ms"></div>
+                    <div class="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style="animation-delay: 300ms"></div>
+                </div>
+                <span class="text-gray-400 text-xs">AI is thinking...</span>
+            </div>
+        `;
+        container.appendChild(indicator);
+        container.scrollTop = container.scrollHeight;
+    }
+
+    function removeTypingIndicator() {
+        const indicator = document.getElementById('typingIndicator');
+        if (indicator) indicator.remove();
     }
 
     // Handle Enter key in textarea (Event Delegation)
@@ -358,21 +564,56 @@
     });
 
     function addRunButtons(element) {
-        // Find all pre code blocks that don't have a button yet
+        // Find all pre code blocks that don't have buttons yet
         const blocks = element.querySelectorAll('pre code');
         blocks.forEach(block => {
             const pre = block.parentElement;
-            if (pre.querySelector('.run-btn')) return;
-            
-            const btn = document.createElement('button');
-            btn.className = 'run-btn absolute top-2 right-2 bg-green-600 hover:bg-green-500 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity z-10';
-            btn.innerHTML = '<i class="fas fa-play mr-1"></i>Run';
-            btn.title = 'Run this command in terminal';
-            btn.onclick = () => runCommand(block.innerText.trim());
-            
-            // Enhanced styling: dark background, rounded corners, and blue border on hover, plus text wrapping
+            if (pre.querySelector('.code-actions')) return; // Already has buttons
+
+            // Detect language from class
+            const lang = block.className.match(/language-(\w+)/)?.[1] || 'shell';
+
+            // Create button container
+            const btnContainer = document.createElement('div');
+            btnContainer.className = 'code-actions absolute top-2 right-2 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity z-10';
+
+            // Language badge
+            const langBadge = document.createElement('span');
+            langBadge.className = 'bg-gray-800 text-gray-400 text-xs px-2 py-1 rounded';
+            langBadge.textContent = lang;
+            btnContainer.appendChild(langBadge);
+
+            // Copy button
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'bg-gray-700 hover:bg-gray-600 text-white text-xs px-2 py-1 rounded transition-colors';
+            copyBtn.innerHTML = '<i class="fas fa-copy"></i>';
+            copyBtn.title = 'Copy code';
+            copyBtn.onclick = () => {
+                navigator.clipboard.writeText(block.innerText.trim()).then(() => {
+                    copyBtn.innerHTML = '<i class="fas fa-check text-green-400"></i>';
+                    setTimeout(() => {
+                        copyBtn.innerHTML = '<i class="fas fa-copy"></i>';
+                    }, 2000);
+                }).catch(err => {
+                    console.error('Failed to copy:', err);
+                    showToast('Failed to copy', 'error');
+                });
+            };
+            btnContainer.appendChild(copyBtn);
+
+            // Run button (only for shell/bash commands)
+            if (['shell', 'bash', 'sh', 'zsh', 'fish'].includes(lang)) {
+                const runBtn = document.createElement('button');
+                runBtn.className = 'bg-green-600 hover:bg-green-500 text-white text-xs px-2 py-1 rounded transition-colors';
+                runBtn.innerHTML = '<i class="fas fa-play"></i>';
+                runBtn.title = 'Run in terminal';
+                runBtn.onclick = () => runCommand(block.innerText.trim());
+                btnContainer.appendChild(runBtn);
+            }
+
+            // Enhanced styling: dark background, rounded corners, and blue border on hover
             pre.className += ' relative group bg-gray-900 rounded-md p-3 my-2 border-2 border-transparent hover:border-blue-500 transition-all duration-200 whitespace-pre-wrap break-words overflow-x-auto';
-            pre.appendChild(btn);
+            pre.appendChild(btnContainer);
         });
     }
 
@@ -567,9 +808,54 @@
         }, 500);
     }
 
+    // --- Keyboard Shortcuts ---
+    document.addEventListener('keydown', (e) => {
+        // Ctrl+L - Clear chat
+        if (e.ctrlKey && e.key === 'l') {
+            e.preventDefault();
+            clearChat();
+        }
+
+        // Ctrl+K - Focus chat input
+        if (e.ctrlKey && e.key === 'k') {
+            e.preventDefault();
+            const input = document.getElementById('chatInput');
+            if (input) input.focus();
+        }
+
+        // Ctrl+` - Focus terminal
+        if (e.ctrlKey && e.key === '`') {
+            e.preventDefault();
+            if (term) term.focus();
+        }
+
+        // Escape - Clear chat input
+        if (e.key === 'Escape') {
+            const input = document.getElementById('chatInput');
+            if (input && document.activeElement === input) {
+                input.value = '';
+                input.blur();
+            }
+        }
+    });
+
+    function clearChat() {
+        if (!confirm('Clear chat history? This will only clear the display, not the stored messages.')) {
+            return;
+        }
+
+        const container = document.getElementById('chatMessages');
+        container.innerHTML = '';
+        showWelcomeScreen();
+        lastMessageRole = null;
+        currentMessageDiv = null;
+
+        showToast('Chat cleared', 'success');
+    }
+
     // --- Init ---
     loadAlert();
-    
+
     // Handle window resize for terminal
     window.addEventListener('resize', () => {
         if (fitAddon) fitAddon.fit();

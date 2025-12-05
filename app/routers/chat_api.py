@@ -22,6 +22,7 @@ class ChatSessionCreate(BaseModel):
 class ChatSessionResponse(BaseModel):
     id: UUID
     title: str = None
+    llm_provider_id: UUID = None
     created_at: datetime
 
     class Config:
@@ -68,12 +69,50 @@ async def get_messages(
         ChatSession.id == session_id,
         ChatSession.user_id == current_user.id
     ).first()
-    
+
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-        
+
     messages = db.query(ChatMessage).filter(
         ChatMessage.session_id == session_id
     ).order_by(ChatMessage.created_at.asc()).all()
-    
+
     return messages
+
+class UpdateProviderRequest(BaseModel):
+    provider_id: UUID
+
+@router.patch("/sessions/{session_id}/provider")
+async def update_session_provider(
+    session_id: UUID,
+    data: UpdateProviderRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Update the LLM provider for a chat session"""
+    session = db.query(ChatSession).filter(
+        ChatSession.id == session_id,
+        ChatSession.user_id == current_user.id
+    ).first()
+
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    provider = db.query(LLMProvider).filter(
+        LLMProvider.id == data.provider_id,
+        LLMProvider.is_enabled == True
+    ).first()
+
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found or disabled")
+
+    session.llm_provider_id = data.provider_id
+    session.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(session)
+
+    return {
+        "status": "success",
+        "provider_name": provider.provider_name,
+        "model_name": provider.model_name
+    }
