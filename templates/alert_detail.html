@@ -307,21 +307,29 @@
 
     async function loadMessageHistory(sessionId) {
         try {
+            console.log('[DEBUG] loadMessageHistory called with sessionId:', sessionId);
             const response = await apiCall(`/api/chat/sessions/${sessionId}/messages`);
+            console.log('[DEBUG] API response status:', response.ok, response.status);
             if (!response.ok) throw new Error('Failed to load history');
 
             const messages = await response.json();
+            console.log('[DEBUG] Messages received:', messages.length, messages);
             const container = document.getElementById('chatMessages');
+            console.log('[DEBUG] Container element:', container, 'innerHTML length:', container.innerHTML.length);
             container.innerHTML = ''; // Clear loading message
+            console.log('[DEBUG] Container cleared, innerHTML length:', container.innerHTML.length);
 
             if (messages.length === 0) {
+                console.log('[DEBUG] No messages, showing welcome screen');
                 // Show welcome screen with suggestions
                 showWelcomeScreen();
                 return;
             }
 
+            console.log('[DEBUG] Starting to render', messages.length, 'messages...');
             // Render existing messages
-            messages.forEach(msg => {
+            messages.forEach((msg, index) => {
+                console.log(`[DEBUG] Rendering message ${index + 1}/${messages.length}, role: ${msg.role}, content length: ${msg.content?.length}`);
                 if (msg.role === 'user') {
                     const wrapper = document.createElement('div');
                     wrapper.className = 'flex justify-end';
@@ -330,26 +338,35 @@
                             ${escapeHtml(msg.content)}
                         </div>
                     `;
+                    console.log('[DEBUG] Appending user message wrapper to container');
                     container.appendChild(wrapper);
                     lastMessageRole = 'user';
                 } else if (msg.role === 'assistant') {
+                    console.log('[DEBUG] Parsing assistant message with marked.parse...');
+                    const parsedContent = marked.parse(msg.content);
+                    console.log('[DEBUG] Parsed content length:', parsedContent.length);
                     const wrapper = document.createElement('div');
                     wrapper.className = 'flex justify-start w-full pr-2';
                     wrapper.innerHTML = `
                         <div class="bg-gray-700 rounded-lg p-4 w-full text-sm ai-message-content">
-                            ${marked.parse(msg.content)}
+                            ${parsedContent}
                         </div>
                     `;
+                    console.log('[DEBUG] Appending assistant message wrapper to container');
                     container.appendChild(wrapper);
                     addRunButtons(wrapper);
                     lastMessageRole = 'assistant';
                 }
             });
 
+            console.log('[DEBUG] All messages rendered. Container children count:', container.children.length);
+            console.log('[DEBUG] Container innerHTML sample:', container.innerHTML.substring(0, 300));
             container.scrollTop = container.scrollHeight;
+            console.log('[DEBUG] loadMessageHistory completed successfully');
 
         } catch (error) {
-            console.error('Failed to load chat history:', error);
+            console.error('[DEBUG] ERROR in loadMessageHistory:', error);
+            console.error('[DEBUG] Error stack:', error.stack);
             showWelcomeScreen();
         }
     }
