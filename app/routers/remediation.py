@@ -733,11 +733,6 @@ async def list_executions(
     current_user: User = Depends(get_current_user)
 ):
     """List runbook executions with filtering."""
-    # Debug: count all executions first
-    count_result = await db.execute(select(func.count(RunbookExecution.id)))
-    total_count = count_result.scalar()
-    print(f"DEBUG: Total executions in DB: {total_count}", flush=True)
-    
     query = select(RunbookExecution).options(
         selectinload(RunbookExecution.runbook),
         selectinload(RunbookExecution.server)
@@ -757,8 +752,6 @@ async def list_executions(
     query = query.order_by(RunbookExecution.queued_at.desc()).offset(skip).limit(limit)
     result = await db.execute(query)
     executions = result.scalars().all()
-    
-    print(f"DEBUG: Query returned {len(executions)} executions (skip={skip}, limit={limit})", flush=True)
     
     # Build response
     response = []
