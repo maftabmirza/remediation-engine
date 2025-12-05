@@ -898,23 +898,17 @@
     }
 
     // --- Init ---
-    // Wait for all scripts (especially marked.js) to load before initializing
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', loadAlert);
-    } else {
-        // DOMContentLoaded already fired, check if marked is loaded
-        if (typeof marked !== 'undefined') {
-            loadAlert();
-        } else {
-            // Wait a bit for marked.js to load from CDN
-            const checkMarked = setInterval(() => {
-                if (typeof marked !== 'undefined') {
-                    clearInterval(checkMarked);
-                    loadAlert();
-                }
-            }, 100);
+    // Use window.load to wait for ALL resources (including marked.js from CDN)
+    window.addEventListener('load', function() {
+        // Double-check marked is loaded
+        if (typeof marked === 'undefined') {
+            console.error('marked.js failed to load from CDN');
+            showToast('Failed to load chat library', 'error');
+            return;
         }
-    }
+        console.log('All resources loaded, initializing chat...');
+        loadAlert();
+    });
 
     // Handle window resize for terminal
     window.addEventListener('resize', () => {
