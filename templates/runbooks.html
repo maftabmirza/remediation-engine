@@ -20,7 +20,7 @@
                 <i class="fas fa-file-import"></i>
                 <span>Import YAML</span>
             </button>
-            <button onclick="openCreateModal()" class="btn-primary px-4 py-2 rounded-lg flex items-center gap-2">
+            <button onclick="window.location.hash='#create'" class="btn-primary px-4 py-2 rounded-lg flex items-center gap-2">
                 <i class="fas fa-plus"></i>
                 <span>Create Runbook</span>
             </button>
@@ -523,7 +523,7 @@ function renderRunbooks() {
                 </div>
             </div>
             <div class="flex items-center gap-2 pt-3 border-t border-gray-700">
-                <button onclick='event.stopPropagation(); editRunbook(${JSON.stringify(rb.id)})'
+                <button onclick='event.stopPropagation(); window.location.hash="#edit/${rb.id}"'
                     class="flex-1 btn-secondary px-2 py-1 rounded text-sm">
                     <i class="fas fa-edit mr-1"></i>Edit
                 </button>
@@ -1345,6 +1345,34 @@ async function createFromTemplate(templateId) {
         console.error('Template creation error:', error);
         showToast('Error creating from template', 'error');
     }
+}
+
+// Handle hash-based navigation for create/edit
+window.addEventListener('hashchange', handleHashChange);
+window.addEventListener('load', handleHashChange);
+
+function handleHashChange() {
+    const hash = window.location.hash;
+
+    if (hash === '#create') {
+        openCreateModal();
+    } else if (hash.startsWith('#edit/')) {
+        const runbookId = hash.substring(6);
+        editRunbook(runbookId);
+    } else if (hash === '') {
+        closeModal();
+    }
+}
+
+// Update closeModal to clear hash
+const originalCloseModal = window.closeModal;
+if (typeof closeModal !== 'undefined') {
+    window.closeModal = function() {
+        if (window.location.hash) {
+            history.pushState('', document.title, window.location.pathname + window.location.search);
+        }
+        originalCloseModal();
+    };
 }
 
 // Only define showToast if not already defined by parent
