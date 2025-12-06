@@ -642,21 +642,107 @@ function addStep(stepData = null) {
             </div>
             
             <div class="p-4">
-                <!-- Command Tabs -->
-                <div class="cmd-tabs">
-                    <div class="cmd-tab active" onclick="switchCmdTab('${stepId}', 'linux')">
-                        <i class="fab fa-linux mr-1"></i> Linux
+                <!-- Step Type Selector -->
+                <div class="mb-4">
+                    <label class="block text-secondary text-xs mb-2">Step Type</label>
+                    <select class="step-type input-field w-full px-3 py-2 rounded" onchange="toggleStepType('${stepId}')">
+                        <option value="command" ${!stepData || stepData?.step_type === 'command' ? 'selected' : ''}>Command (SSH/WinRM)</option>
+                        <option value="api" ${stepData?.step_type === 'api' ? 'selected' : ''}>API / REST Call</option>
+                    </select>
+                </div>
+
+                <!-- Command Configuration (for command type) -->
+                <div class="step-command-config" id="${stepId}-command-config" style="${stepData?.step_type === 'api' ? 'display:none' : ''}">
+                    <div class="cmd-tabs">
+                        <div class="cmd-tab active" onclick="switchCmdTab('${stepId}', 'linux')">
+                            <i class="fab fa-linux mr-1"></i> Linux
+                        </div>
+                        <div class="cmd-tab" onclick="switchCmdTab('${stepId}', 'windows')">
+                            <i class="fab fa-windows mr-1"></i> Windows
+                        </div>
                     </div>
-                    <div class="cmd-tab" onclick="switchCmdTab('${stepId}', 'windows')">
-                        <i class="fab fa-windows mr-1"></i> Windows
+
+                    <div class="cmd-content active" id="${stepId}-linux-content">
+                        <textarea id="${stepId}-linux" class="step-cmd-linux w-full" placeholder="# Bash command...">${escapeHtml(stepData?.command_linux || '')}</textarea>
+                    </div>
+                    <div class="cmd-content" id="${stepId}-windows-content">
+                        <textarea id="${stepId}-windows" class="step-cmd-windows w-full" placeholder="# PowerShell command...">${escapeHtml(stepData?.command_windows || '')}</textarea>
                     </div>
                 </div>
-                
-                <div class="cmd-content active" id="${stepId}-linux-content">
-                    <textarea id="${stepId}-linux" class="step-cmd-linux w-full" placeholder="# Bash command...">${escapeHtml(stepData?.command_linux || '')}</textarea>
-                </div>
-                <div class="cmd-content" id="${stepId}-windows-content">
-                    <textarea id="${stepId}-windows" class="step-cmd-windows w-full" placeholder="# PowerShell command...">${escapeHtml(stepData?.command_windows || '')}</textarea>
+
+                <!-- API Configuration (for api type) -->
+                <div class="step-api-config" id="${stepId}-api-config" style="${stepData?.step_type === 'api' ? '' : 'display:none'}">
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-secondary text-xs mb-1">HTTP Method <span class="text-red-400">*</span></label>
+                            <select class="step-api-method input-field w-full px-3 py-2 rounded text-sm">
+                                <option value="GET" ${stepData?.api_method === 'GET' ? 'selected' : ''}>GET</option>
+                                <option value="POST" ${stepData?.api_method === 'POST' ? 'selected' : ''}>POST</option>
+                                <option value="PUT" ${stepData?.api_method === 'PUT' ? 'selected' : ''}>PUT</option>
+                                <option value="DELETE" ${stepData?.api_method === 'DELETE' ? 'selected' : ''}>DELETE</option>
+                                <option value="PATCH" ${stepData?.api_method === 'PATCH' ? 'selected' : ''}>PATCH</option>
+                                <option value="HEAD" ${stepData?.api_method === 'HEAD' ? 'selected' : ''}>HEAD</option>
+                                <option value="OPTIONS" ${stepData?.api_method === 'OPTIONS' ? 'selected' : ''}>OPTIONS</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-secondary text-xs mb-1">API Endpoint <span class="text-red-400">*</span></label>
+                            <input type="text" class="step-api-endpoint input-field w-full px-3 py-2 rounded text-sm"
+                                placeholder="/api/v1/resource or full URL" value="${escapeHtml(stepData?.api_endpoint || '')}">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-secondary text-xs mb-1">Body Type</label>
+                            <select class="step-api-body-type input-field w-full px-3 py-2 rounded text-sm">
+                                <option value="json" ${!stepData || stepData?.api_body_type === 'json' ? 'selected' : ''}>JSON</option>
+                                <option value="form" ${stepData?.api_body_type === 'form' ? 'selected' : ''}>Form Data</option>
+                                <option value="raw" ${stepData?.api_body_type === 'raw' ? 'selected' : ''}>Raw Text</option>
+                                <option value="template" ${stepData?.api_body_type === 'template' ? 'selected' : ''}>Jinja2 Template</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-secondary text-xs mb-1">Expected Status Codes</label>
+                            <input type="text" class="step-api-status-codes input-field w-full px-3 py-2 rounded text-sm"
+                                placeholder="200,201,202" value="${(stepData?.api_expected_status_codes || [200, 201, 202, 204]).join(',')}">
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-secondary text-xs mb-1">
+                            Request Body
+                            <span class="text-xs text-secondary ml-2">(Supports Jinja2: {{ '{{' }} server.hostname {{ '}}' }}, {{ '{{' }} alert.labels.instance {{ '}}' }})</span>
+                        </label>
+                        <textarea class="step-api-body input-field w-full px-3 py-2 rounded text-sm font-mono" rows="4"
+                            placeholder='{"key": "value"} or template with variables'>${escapeHtml(stepData?.api_body || '')}</textarea>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-secondary text-xs mb-1">
+                            Custom Headers (JSON)
+                            <span class="text-xs text-secondary ml-2">(Merged with server defaults)</span>
+                        </label>
+                        <textarea class="step-api-headers input-field w-full px-3 py-2 rounded text-sm font-mono" rows="3"
+                            placeholder='{"Content-Type": "application/json", "X-Custom-Header": "value"}'>${escapeHtml(stepData?.api_headers_json ? JSON.stringify(stepData.api_headers_json, null, 2) : '')}</textarea>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-secondary text-xs mb-1">
+                            Query Parameters (JSON)
+                        </label>
+                        <textarea class="step-api-query-params input-field w-full px-3 py-2 rounded text-sm font-mono" rows="2"
+                            placeholder='{"param1": "value1", "param2": "value2"}'>${escapeHtml(stepData?.api_query_params_json ? JSON.stringify(stepData.api_query_params_json, null, 2) : '')}</textarea>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-secondary text-xs mb-1">
+                            Response Value Extraction (JSON)
+                            <span class="text-xs text-secondary ml-2">(JSONPath: $.field.subfield or Regex: pattern)</span>
+                        </label>
+                        <textarea class="step-api-extract input-field w-full px-3 py-2 rounded text-sm font-mono" rows="3"
+                            placeholder='{"job_id": "$.id", "status": "$.status"}'>${escapeHtml(stepData?.api_response_extract_json ? JSON.stringify(stepData.api_response_extract_json, null, 2) : '')}</textarea>
+                    </div>
                 </div>
                 
                 <!-- Advanced Settings (collapsed by default) -->
@@ -754,6 +840,21 @@ function switchCmdTab(stepId, tab) {
     const editor = codeMirrorInstances[`${stepId}-${tab}`];
     if (editor) {
         setTimeout(() => editor.refresh(), 10);
+    }
+}
+
+function toggleStepType(stepId) {
+    const step = document.getElementById(stepId);
+    const stepType = step.querySelector('.step-type').value;
+    const commandConfig = document.getElementById(`${stepId}-command-config`);
+    const apiConfig = document.getElementById(`${stepId}-api-config`);
+
+    if (stepType === 'api') {
+        commandConfig.style.display = 'none';
+        apiConfig.style.display = 'block';
+    } else {
+        commandConfig.style.display = 'block';
+        apiConfig.style.display = 'none';
     }
 }
 
@@ -871,13 +972,14 @@ function collectFormData() {
     const steps = [];
     document.querySelectorAll('.step-card').forEach((stepEl, index) => {
         const stepId = stepEl.id;
-        steps.push({
+        const stepType = stepEl.querySelector('.step-type').value;
+
+        const stepData = {
             id: stepEl.dataset.stepId || null,
             step_order: index + 1,
+            step_type: stepType,
             name: stepEl.querySelector('.step-name').value || `Step ${index + 1}`,
             description: stepEl.querySelector('.step-description')?.value || null,
-            command_linux: codeMirrorInstances[`${stepId}-linux`]?.getValue() || null,
-            command_windows: codeMirrorInstances[`${stepId}-windows`]?.getValue() || null,
             target_os: stepEl.querySelector('.step-os').value,
             timeout_seconds: parseInt(stepEl.querySelector('.step-timeout')?.value) || 60,
             requires_elevation: stepEl.querySelector('.step-elevation')?.checked || false,
@@ -887,7 +989,52 @@ function collectFormData() {
             expected_exit_code: parseInt(stepEl.querySelector('.step-exit-code')?.value) || 0,
             rollback_command_linux: stepEl.querySelector('.step-rollback-linux')?.value || null,
             rollback_command_windows: stepEl.querySelector('.step-rollback-windows')?.value || null
-        });
+        };
+
+        // Add command-specific fields
+        if (stepType === 'command') {
+            stepData.command_linux = codeMirrorInstances[`${stepId}-linux`]?.getValue() || null;
+            stepData.command_windows = codeMirrorInstances[`${stepId}-windows`]?.getValue() || null;
+        }
+        // Add API-specific fields
+        else if (stepType === 'api') {
+            stepData.api_method = stepEl.querySelector('.step-api-method')?.value || 'GET';
+            stepData.api_endpoint = stepEl.querySelector('.step-api-endpoint')?.value || null;
+            stepData.api_body_type = stepEl.querySelector('.step-api-body-type')?.value || 'json';
+            stepData.api_body = stepEl.querySelector('.step-api-body')?.value || null;
+
+            // Parse JSON fields
+            try {
+                const headersText = stepEl.querySelector('.step-api-headers')?.value?.trim();
+                stepData.api_headers_json = headersText ? JSON.parse(headersText) : null;
+            } catch (e) {
+                stepData.api_headers_json = null;
+            }
+
+            try {
+                const queryParamsText = stepEl.querySelector('.step-api-query-params')?.value?.trim();
+                stepData.api_query_params_json = queryParamsText ? JSON.parse(queryParamsText) : null;
+            } catch (e) {
+                stepData.api_query_params_json = null;
+            }
+
+            try {
+                const extractText = stepEl.querySelector('.step-api-extract')?.value?.trim();
+                stepData.api_response_extract_json = extractText ? JSON.parse(extractText) : null;
+            } catch (e) {
+                stepData.api_response_extract_json = null;
+            }
+
+            // Parse expected status codes
+            const statusCodesText = stepEl.querySelector('.step-api-status-codes')?.value?.trim();
+            if (statusCodesText) {
+                stepData.api_expected_status_codes = statusCodesText.split(',').map(c => parseInt(c.trim())).filter(c => !isNaN(c));
+            } else {
+                stepData.api_expected_status_codes = [200, 201, 202, 204];
+            }
+        }
+
+        steps.push(stepData);
     });
     
     // Collect triggers
@@ -962,11 +1109,22 @@ async function saveRunbook() {
         return;
     }
     
-    // Check if steps have commands
+    // Check if steps have required fields based on type
     for (const step of data.steps) {
-        if (!step.command_linux && !step.command_windows) {
-            showToast(`Step "${step.name}" has no command defined`, 'error');
-            return;
+        if (step.step_type === 'api') {
+            if (!step.api_endpoint) {
+                showToast(`API step "${step.name}" is missing endpoint`, 'error');
+                return;
+            }
+            if (!step.api_method) {
+                showToast(`API step "${step.name}" is missing HTTP method`, 'error');
+                return;
+            }
+        } else if (step.step_type === 'command') {
+            if (!step.command_linux && !step.command_windows) {
+                showToast(`Command step "${step.name}" has no command defined`, 'error');
+                return;
+            }
         }
     }
     

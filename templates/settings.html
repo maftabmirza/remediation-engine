@@ -1000,20 +1000,149 @@ account: db-admin"></textarea>
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="label-with-tooltip block text-sm font-medium mb-1">
-                        Tags (comma separated)
+                        Protocol *
                         <span class="info-tooltip info-tooltip-align-left">
                             <span class="info-tooltip-icon">?</span>
-                            <span class="info-tooltip-text">Add labels like production, linux, db to filter and bulk manage servers.</span>
+                            <span class="info-tooltip-text">Choose connection method: SSH for Linux/Windows servers, API for REST endpoints, or WinRM for Windows.</span>
                         </span>
                     </label>
-                    <input type="text" id="serverTags" class="input-field w-full px-3 py-2 rounded" placeholder="production,linux,db">
+                    <select id="serverProtocol" class="input-field w-full px-3 py-2 rounded" onchange="toggleProtocolFields()">
+                        <option value="ssh">SSH (Linux/Windows)</option>
+                        <option value="api">API / REST</option>
+                        <option value="winrm">WinRM (Windows)</option>
+                    </select>
                 </div>
-                <div>
+                <div id="osTypeField">
                     <label class="label-with-tooltip block text-sm font-medium mb-1">OS Type</label>
                     <select id="serverOsType" class="input-field w-full px-3 py-2 rounded">
-                        <option value="linux">Linux (SSH)</option>
-                        <option value="windows">Windows (WinRM)</option>
+                        <option value="linux">Linux</option>
+                        <option value="windows">Windows</option>
                     </select>
+                </div>
+            </div>
+
+            <div>
+                <label class="label-with-tooltip block text-sm font-medium mb-1">
+                    Tags (comma separated)
+                    <span class="info-tooltip info-tooltip-align-left">
+                        <span class="info-tooltip-icon">?</span>
+                        <span class="info-tooltip-text">Add labels like production, linux, db to filter and bulk manage servers.</span>
+                    </span>
+                </label>
+                <input type="text" id="serverTags" class="input-field w-full px-3 py-2 rounded" placeholder="production,linux,db">
+            </div>
+
+            <!-- API Configuration Section -->
+            <div id="apiConfigSection" class="hidden space-y-4">
+                <div class="border-t border-gray-700 pt-4">
+                    <h4 class="text-md font-semibold mb-3 flex items-center gap-2">
+                        <i class="fas fa-globe text-blue-400"></i>
+                        API Configuration
+                    </h4>
+                </div>
+
+                <div>
+                    <label class="label-with-tooltip block text-sm font-medium mb-1">
+                        Base URL *
+                        <span class="info-tooltip info-tooltip-align-left">
+                            <span class="info-tooltip-icon">?</span>
+                            <span class="info-tooltip-text">Full base URL for the API (e.g., https://awx.example.com/api/v2 or https://jenkins.example.com)</span>
+                        </span>
+                    </label>
+                    <input type="text" id="apiBaseUrl" class="input-field w-full px-3 py-2 rounded" placeholder="https://api.example.com/v1">
+                    <p class="text-xs text-gray-400 mt-1">All API endpoints will be relative to this URL</p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="label-with-tooltip block text-sm font-medium mb-1">
+                            Authentication Type
+                            <span class="info-tooltip info-tooltip-align-left">
+                                <span class="info-tooltip-icon">?</span>
+                                <span class="info-tooltip-text">Select how to authenticate with this API</span>
+                            </span>
+                        </label>
+                        <select id="apiAuthType" class="input-field w-full px-3 py-2 rounded" onchange="toggleApiAuthFields()">
+                            <option value="none">None</option>
+                            <option value="api_key">API Key (Custom Header)</option>
+                            <option value="bearer">Bearer Token</option>
+                            <option value="basic">Basic Auth</option>
+                            <option value="oauth">OAuth 2.0</option>
+                            <option value="custom">Custom Header</option>
+                        </select>
+                    </div>
+                    <div id="apiAuthHeaderField" class="hidden">
+                        <label class="label-with-tooltip block text-sm font-medium mb-1">
+                            Auth Header Name
+                            <span class="info-tooltip info-tooltip-align-left">
+                                <span class="info-tooltip-icon">?</span>
+                                <span class="info-tooltip-text">Header name for authentication (e.g., "X-API-Key", "Authorization")</span>
+                            </span>
+                        </label>
+                        <input type="text" id="apiAuthHeader" class="input-field w-full px-3 py-2 rounded" placeholder="X-API-Key">
+                    </div>
+                </div>
+
+                <div id="apiTokenField" class="hidden">
+                    <div class="flex items-center justify-between">
+                        <label class="label-with-tooltip block text-sm font-medium mb-1">
+                            API Token / Key *
+                            <span class="info-tooltip info-tooltip-align-left">
+                                <span class="info-tooltip-icon">?</span>
+                                <span class="info-tooltip-text">API token, key, or password for authentication. Will be encrypted.</span>
+                            </span>
+                        </label>
+                        <button type="button" onclick="toggleSecretVisibility('apiToken', this)" class="text-xs text-blue-400 hover:text-blue-300">Show</button>
+                    </div>
+                    <input type="password" id="apiToken" class="input-field w-full px-3 py-2 rounded" autocomplete="off" placeholder="your-api-token-here">
+                    <p class="text-xs text-gray-400 mt-1">Stored encrypted in the database</p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="label-with-tooltip block text-sm font-medium mb-1">
+                            Timeout (seconds)
+                            <span class="info-tooltip info-tooltip-align-left">
+                                <span class="info-tooltip-icon">?</span>
+                                <span class="info-tooltip-text">Request timeout in seconds (5-300)</span>
+                            </span>
+                        </label>
+                        <input type="number" id="apiTimeout" class="input-field w-full px-3 py-2 rounded" value="30" min="5" max="300">
+                    </div>
+                    <div>
+                        <label class="flex items-center h-full pt-6">
+                            <input type="checkbox" id="apiVerifySSL" checked class="mr-2">
+                            <span class="text-sm">Verify SSL Certificates</span>
+                            <span class="info-tooltip info-tooltip-align-left ml-1">
+                                <span class="info-tooltip-icon">?</span>
+                                <span class="info-tooltip-text">Uncheck only for testing with self-signed certificates. Always verify in production!</span>
+                            </span>
+                        </label>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="label-with-tooltip block text-sm font-medium mb-1">
+                        Default Headers (JSON)
+                        <span class="info-tooltip info-tooltip-align-left">
+                            <span class="info-tooltip-icon">?</span>
+                            <span class="info-tooltip-text">Optional default headers to include in all API requests (JSON format)</span>
+                        </span>
+                    </label>
+                    <textarea id="apiHeaders" class="input-field w-full px-3 py-2 rounded h-20 font-mono text-xs" placeholder='{"User-Agent": "AIOps-Remediation/1.0", "Accept": "application/json"}'></textarea>
+                    <p class="text-xs text-gray-400 mt-1">These headers will be merged with per-request headers</p>
+                </div>
+
+                <div>
+                    <label class="label-with-tooltip block text-sm font-medium mb-1">
+                        API Metadata (JSON)
+                        <span class="info-tooltip info-tooltip-align-left">
+                            <span class="info-tooltip-icon">?</span>
+                            <span class="info-tooltip-text">Provider-specific metadata (e.g., AWX organization ID, Jenkins job name)</span>
+                        </span>
+                    </label>
+                    <textarea id="apiMetadata" class="input-field w-full px-3 py-2 rounded h-20 font-mono text-xs" placeholder='{"organization_id": 1, "inventory_id": 2}'></textarea>
+                    <p class="text-xs text-gray-400 mt-1">Store provider-specific configuration here</p>
                 </div>
             </div>
             
@@ -2374,6 +2503,64 @@ account: db-admin"></textarea>
         }
     }
 
+    function toggleProtocolFields() {
+        const protocol = document.getElementById('serverProtocol').value;
+        const apiSection = document.getElementById('apiConfigSection');
+        const osTypeField = document.getElementById('osTypeField');
+        const authTypeField = document.getElementById('serverAuthType');
+        const keyField = document.getElementById('authKeyField');
+        const passField = document.getElementById('authPasswordField');
+        const portField = document.getElementById('serverPort');
+        const credentialSourceField = document.getElementById('credentialSource').parentElement.parentElement;
+
+        if (protocol === 'api') {
+            // Show API fields, hide SSH/WinRM fields
+            apiSection.classList.remove('hidden');
+            osTypeField.classList.add('hidden');
+            keyField.classList.add('hidden');
+            passField.classList.add('hidden');
+            credentialSourceField.classList.add('hidden');
+            portField.value = '443';
+
+            // Show API auth fields based on auth type
+            toggleApiAuthFields();
+        } else {
+            // Show SSH/WinRM fields, hide API fields
+            apiSection.classList.add('hidden');
+            osTypeField.classList.remove('hidden');
+            credentialSourceField.classList.remove('hidden');
+
+            if (protocol === 'ssh') {
+                portField.value = '22';
+            } else if (protocol === 'winrm') {
+                portField.value = '5986';
+            }
+
+            // Show appropriate auth fields
+            toggleAuthFields();
+        }
+    }
+
+    function toggleApiAuthFields() {
+        const authType = document.getElementById('apiAuthType').value;
+        const headerField = document.getElementById('apiAuthHeaderField');
+        const tokenField = document.getElementById('apiTokenField');
+
+        // Show header name field for api_key and custom
+        if (authType === 'api_key' || authType === 'custom') {
+            headerField.classList.remove('hidden');
+        } else {
+            headerField.classList.add('hidden');
+        }
+
+        // Show token field for all except 'none'
+        if (authType !== 'none') {
+            tokenField.classList.remove('hidden');
+        } else {
+            tokenField.classList.add('hidden');
+        }
+    }
+
     function toggleCredentialSource() {
         const source = document.getElementById('credentialSource').value;
         const profilePicker = document.getElementById('credentialProfilePicker');
@@ -2487,16 +2674,21 @@ account: db-admin"></textarea>
           document.getElementById('serverForm').reset();
           document.getElementById('serverModal').querySelector('h3').textContent = 'Add Server Credential';
           document.getElementById('serverId').value = '';
+          document.getElementById('serverProtocol').value = 'ssh';
           document.getElementById('credentialSource').value = 'inline';
           document.getElementById('credentialProfileId').value = '';
-          toggleCredentialSource();
-          toggleAuthFields();
           document.getElementById('serverKey').dataset.masked = 'true';
           document.getElementById('serverKey').style.filter = 'blur(5px)';
           document.getElementById('serverGroupSelect').value = '';
           document.getElementById('serverOsType').value = 'linux';
           document.getElementById('serverTags').value = '';
           document.getElementById('serverCredentialMetadata').value = '';
+          document.getElementById('apiTimeout').value = '30';
+          document.getElementById('apiVerifySSL').checked = true;
+          document.getElementById('serverPort').value = '22';
+          toggleProtocolFields();
+          toggleCredentialSource();
+          toggleAuthFields();
           serverFormTestOk = false;
           editingServerId = null;
           document.getElementById('serverModal').classList.remove('hidden');
@@ -2513,6 +2705,7 @@ account: db-admin"></textarea>
         document.getElementById('serverHost').value = server.hostname;
         document.getElementById('serverPort').value = server.port;
         document.getElementById('serverUser').value = server.username;
+        document.getElementById('serverProtocol').value = server.protocol || 'ssh';
         document.getElementById('serverAuthType').value = server.auth_type;
         document.getElementById('serverEnv').value = server.environment;
         document.getElementById('serverGroupSelect').value = server.group_id || '';
@@ -2521,6 +2714,21 @@ account: db-admin"></textarea>
         document.getElementById('serverOsType').value = server.os_type || 'linux';
         document.getElementById('serverTags').value = (server.tags || []).join(', ');
         document.getElementById('serverCredentialMetadata').value = server.credential_metadata ? JSON.stringify(server.credential_metadata, null, 2) : '';
+
+        // Populate API fields if protocol is API
+        if (server.protocol === 'api') {
+            document.getElementById('apiBaseUrl').value = server.api_base_url || '';
+            document.getElementById('apiAuthType').value = server.api_auth_type || 'none';
+            document.getElementById('apiAuthHeader').value = server.api_auth_header || '';
+            document.getElementById('apiVerifySSL').checked = server.api_verify_ssl !== false;
+            document.getElementById('apiTimeout').value = server.api_timeout_seconds || 30;
+            document.getElementById('apiHeaders').value = server.api_headers_json ? JSON.stringify(server.api_headers_json, null, 2) : '';
+            document.getElementById('apiMetadata').value = server.api_metadata_json ? JSON.stringify(server.api_metadata_json, null, 2) : '';
+            // Don't populate API token (security)
+            document.getElementById('apiToken').placeholder = server.api_token_encrypted ? 'API token is set (leave blank to keep)' : 'Enter API token';
+        }
+
+        toggleProtocolFields();
         toggleCredentialSource();
         toggleAuthFields();
         document.getElementById('serverModal').classList.remove('hidden');
@@ -2535,11 +2743,14 @@ account: db-admin"></textarea>
     document.getElementById('serverForm').addEventListener('submit', async (e) => {
         e.preventDefault();
 
+      const protocol = document.getElementById('serverProtocol').value;
+
       const data = {
           name: document.getElementById('serverName').value,
           hostname: document.getElementById('serverHost').value,
           port: parseInt(document.getElementById('serverPort').value),
           username: document.getElementById('serverUser').value,
+          protocol: protocol,
           auth_type: document.getElementById('serverAuthType').value,
           environment: document.getElementById('serverEnv').value,
           group_id: document.getElementById('serverGroupSelect').value || null,
@@ -2550,26 +2761,55 @@ account: db-admin"></textarea>
           tags: (document.getElementById('serverTags').value || '').split(',').map(t => t.trim()).filter(Boolean)
       };
 
-        if (data.credential_source === 'inline') {
-            if (data.auth_type === 'key') {
-                data.ssh_key = document.getElementById('serverKey').value.trim();
-                if (!editingServerId && !data.ssh_key) {
-                    showToast('SSH key is required for key-based authentication', 'error');
-                    return;
-                }
-            } else {
-                data.password = document.getElementById('serverPassword').value.trim();
-                if (!editingServerId && !data.password) {
-                    showToast('Password is required for password authentication', 'error');
-                    return;
-                }
-            }
-        }
+      // Protocol-specific fields
+      if (protocol === 'api') {
+          // API configuration
+          data.api_base_url = document.getElementById('apiBaseUrl').value.trim();
+          data.api_auth_type = document.getElementById('apiAuthType').value;
+          data.api_auth_header = document.getElementById('apiAuthHeader').value.trim() || null;
+          data.api_verify_ssl = document.getElementById('apiVerifySSL').checked;
+          data.api_timeout_seconds = parseInt(document.getElementById('apiTimeout').value);
+          data.api_headers_json = parseYamlOrJson(document.getElementById('apiHeaders').value || '{}');
+          data.api_metadata_json = parseYamlOrJson(document.getElementById('apiMetadata').value || '{}');
 
-        if (!editingServerId && !serverFormTestOk && data.credential_source === 'inline') {
-            showToast('Run Test Connection before saving credentials', 'error');
-            return;
-        }
+          // API token
+          const apiToken = document.getElementById('apiToken').value.trim();
+          if (data.api_auth_type !== 'none' && apiToken) {
+              data.api_token = apiToken;
+          }
+
+          // Validation
+          if (!data.api_base_url) {
+              showToast('API Base URL is required for API protocol', 'error');
+              return;
+          }
+          if (data.api_auth_type !== 'none' && !apiToken && !editingServerId) {
+              showToast('API Token is required for authentication', 'error');
+              return;
+          }
+      } else {
+          // SSH/WinRM authentication
+          if (data.credential_source === 'inline') {
+              if (data.auth_type === 'key') {
+                  data.ssh_key = document.getElementById('serverKey').value.trim();
+                  if (!editingServerId && !data.ssh_key) {
+                      showToast('SSH key is required for key-based authentication', 'error');
+                      return;
+                  }
+              } else {
+                  data.password = document.getElementById('serverPassword').value.trim();
+                  if (!editingServerId && !data.password) {
+                      showToast('Password is required for password authentication', 'error');
+                      return;
+                  }
+              }
+          }
+
+          if (!editingServerId && !serverFormTestOk && data.credential_source === 'inline') {
+              showToast('Run Test Connection before saving credentials', 'error');
+              return;
+          }
+      }
 
         try {
             const url = editingServerId ? `/api/servers/${editingServerId}` : '/api/servers';
