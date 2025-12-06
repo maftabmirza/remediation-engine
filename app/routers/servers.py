@@ -218,6 +218,7 @@ class ServerGroupResponse(BaseModel):
 class CredentialProfileCreate(BaseModel):
     name: str
     description: Optional[str] = None
+    username: Optional[str] = None
     credential_type: str = "key"  # key, password, vault, cyberark
     backend: str = "inline"  # inline, vault, cyberark
     secret_value: Optional[str] = None
@@ -228,6 +229,7 @@ class CredentialProfileCreate(BaseModel):
 class CredentialProfileUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
+    username: Optional[str] = None
     credential_type: Optional[str] = None
     backend: Optional[str] = None
     secret_value: Optional[str] = None
@@ -239,6 +241,7 @@ class CredentialProfileResponse(BaseModel):
     id: UUID
     name: str
     description: Optional[str]
+    username: Optional[str]
     credential_type: str
     backend: str
     has_secret: bool = False
@@ -335,10 +338,15 @@ async def create_credential_profile(
     db: Session = Depends(get_db),
 ):
     """Create reusable credential profile, including vault or CyberArk references."""
+    if payload.credential_type == "password" and not payload.username:
+        raise HTTPException(status_code=400, detail="Password credentials require a username")
+    if payload.credential_type == "password" and payload.backend == "inline" and not payload.secret_value:
+        raise HTTPException(status_code=400, detail="Password credentials require a secret")
     secret_encrypted = encrypt_value(payload.secret_value) if payload.secret_value else None
     profile = CredentialProfile(
         name=payload.name,
         description=payload.description,
+        username=payload.username,
         credential_type=payload.credential_type,
         backend=payload.backend,
         secret_encrypted=secret_encrypted,
@@ -386,10 +394,17 @@ async def update_credential_profile(
         profile.secret_encrypted = encrypt_value(payload.secret_value)
         profile.last_rotated = datetime.utcnow()
 
-    for field in ["name", "description", "credential_type", "backend", "metadata_json", "group_id"]:
+    for field in ["name", "description", "username", "credential_type", "backend", "metadata_json", "group_id"]:
         value = getattr(payload, field, None)
         if value is not None:
             setattr(profile, field, value)
+
+    final_type = profile.credential_type
+    final_backend = profile.backend
+    if final_type == "password" and not profile.username:
+        raise HTTPException(status_code=400, detail="Password credentials require a username")
+    if final_type == "password" and final_backend == "inline" and not (profile.secret_encrypted or payload.secret_value):
+        raise HTTPException(status_code=400, detail="Password credentials require a secret")
 
     db.commit()
     db.refresh(profile)

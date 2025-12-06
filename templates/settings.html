@@ -1110,6 +1110,12 @@ account: db-admin"></textarea>
             </div>
 
             <div>
+                <label class="block text-sm font-medium mb-1">Login username <span class="text-gray-400 text-xs">(required for password)</span></label>
+                <input type="text" id="credentialProfileUsername" class="input-field w-full px-3 py-2 rounded" placeholder="svc_automation">
+                <p class="text-xs text-gray-400 mt-1">Store the account name alongside the secret for reuse across servers and groups.</p>
+            </div>
+
+            <div>
                 <label class="block text-sm font-medium mb-1">Secret / reference</label>
                 <textarea id="credentialProfileSecret" class="input-field w-full px-3 py-2 rounded h-20 font-mono text-xs" placeholder="Inline secret or vault path"></textarea>
                 <p class="text-xs text-gray-400 mt-1">Store inline for single-use secrets or provide a vault/CyberArk reference path.</p>
@@ -2208,6 +2214,7 @@ account: db-admin"></textarea>
                 </td>
                 <td class="px-4 py-3 text-sm">${p.backend}</td>
                 <td class="px-4 py-3 text-sm">${p.credential_type}</td>
+                <td class="px-4 py-3 text-sm">${p.username || '—'}</td>
                 <td class="px-4 py-3 text-sm">${scope}</td>
                 <td class="px-4 py-3 text-sm">${lastRotated}</td>
                 <td class="px-4 py-3 text-sm">${p.has_secret ? '<span class="text-green-400">Secret saved</span>' : '<span class="text-gray-400">Reference only</span>'}</td>
@@ -2224,6 +2231,7 @@ account: db-admin"></textarea>
                     <th class="px-4 py-2">Name</th>
                     <th class="px-4 py-2">Backend</th>
                     <th class="px-4 py-2">Type</th>
+                    <th class="px-4 py-2">Username</th>
                     <th class="px-4 py-2">Scope</th>
                     <th class="px-4 py-2">Last rotated</th>
                     <th class="px-4 py-2">Secret</th>
@@ -2250,6 +2258,7 @@ account: db-admin"></textarea>
                 document.getElementById('credentialProfileType').value = profile.credential_type || 'key';
                 document.getElementById('credentialProfileBackend').value = profile.backend || 'inline';
                 document.getElementById('credentialProfileDescription').value = profile.description || '';
+                document.getElementById('credentialProfileUsername').value = profile.username || '';
                 document.getElementById('credentialProfileMetadata').value = profile.metadata_json ? JSON.stringify(profile.metadata_json, null, 2) : '';
             }
         }
@@ -2271,6 +2280,7 @@ account: db-admin"></textarea>
         const payload = {
             name: document.getElementById('credentialProfileName').value.trim(),
             description: document.getElementById('credentialProfileDescription').value.trim() || null,
+            username: document.getElementById('credentialProfileUsername').value.trim() || null,
             credential_type: document.getElementById('credentialProfileType').value,
             backend: document.getElementById('credentialProfileBackend').value,
             secret_value: document.getElementById('credentialProfileSecret').value || null,
@@ -2280,6 +2290,16 @@ account: db-admin"></textarea>
 
         if (!payload.name) {
             showToast('Profile name is required', 'error');
+            return;
+        }
+
+        if (payload.credential_type === 'password' && !payload.username) {
+            showToast('Password credentials require a username', 'error');
+            return;
+        }
+
+        if (payload.credential_type === 'password' && payload.backend === 'inline' && !payload.secret_value) {
+            showToast('Password credentials require a secret', 'error');
             return;
         }
 

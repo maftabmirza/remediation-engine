@@ -201,6 +201,7 @@ class CredentialProfile(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String(120), nullable=False, unique=True, index=True)
     description = Column(Text, nullable=True)
+    username = Column(String(100), nullable=True, index=True)
     credential_type = Column(String(30), default="key", index=True)  # key, password, vault, cyberark
     backend = Column(String(30), default="inline", index=True)  # inline, vault, cyberark
     secret_encrypted = Column(Text, nullable=True)

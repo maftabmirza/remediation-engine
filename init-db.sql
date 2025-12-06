@@ -126,6 +126,7 @@ CREATE TABLE IF NOT EXISTS credential_profiles (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(120) UNIQUE NOT NULL,
     description TEXT,
+    username VARCHAR(100),
     credential_type VARCHAR(30) DEFAULT 'key',
     backend VARCHAR(30) DEFAULT 'inline',
     secret_encrypted TEXT,

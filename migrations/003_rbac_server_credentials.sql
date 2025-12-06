@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS credential_profiles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(120) UNIQUE NOT NULL,
     description TEXT,
+    username VARCHAR(100),
     credential_type VARCHAR(30) DEFAULT 'key',
     backend VARCHAR(30) DEFAULT 'inline',
     secret_encrypted TEXT,
@@ -74,6 +75,9 @@ ALTER TABLE IF EXISTS server_credentials
     ADD COLUMN IF NOT EXISTS last_connection_test TIMESTAMPTZ,
     ADD COLUMN IF NOT EXISTS last_connection_status VARCHAR(20),
     ADD COLUMN IF NOT EXISTS last_connection_error TEXT;
+
+ALTER TABLE IF EXISTS credential_profiles
+    ADD COLUMN IF NOT EXISTS username VARCHAR(100);
 
 CREATE INDEX IF NOT EXISTS idx_server_credentials_profile ON server_credentials(credential_profile_id);
 CREATE INDEX IF NOT EXISTS idx_server_credentials_os_type ON server_credentials(os_type);
