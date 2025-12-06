@@ -136,49 +136,35 @@ async def delete_user(
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
-    """Delete a user (Admin only)"""
+    """Soft delete a user (Admin only)"""
     try:
         user = db.query(User).filter(User.id == user_id).first()
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
-            
+
         if user.id == current_user.id:
             raise HTTPException(status_code=400, detail="Cannot delete yourself")
-        
-        # 1. Nullify references in tables where user_id is nullable
-        # Use synchronize_session=False for better performance and to avoid issues with expired objects
-        db.query(Alert).filter(Alert.analyzed_by == user_id).update({Alert.analyzed_by: None}, synchronize_session=False)
-        db.query(AutoAnalyzeRule).filter(AutoAnalyzeRule.created_by == user_id).update({AutoAnalyzeRule.created_by: None}, synchronize_session=False)
-        db.query(AuditLog).filter(AuditLog.user_id == user_id).update({AuditLog.user_id: None}, synchronize_session=False)
-        db.query(ServerCredential).filter(ServerCredential.created_by == user_id).update({ServerCredential.created_by: None}, synchronize_session=False)
-        db.query(SystemConfig).filter(SystemConfig.updated_by == user_id).update({SystemConfig.updated_by: None}, synchronize_session=False)
-        
-        # 2. Delete records where user_id is NOT nullable (Cascade)
-        # Explicitly delete chat messages first if cascade is not working
-        from app.models_chat import ChatMessage
-        subquery = db.query(ChatSession.id).filter(ChatSession.user_id == user_id)
-        db.query(ChatMessage).filter(ChatMessage.session_id.in_(subquery)).delete(synchronize_session=False)
-        
-        db.query(ChatSession).filter(ChatSession.user_id == user_id).delete(synchronize_session=False)
-        db.query(TerminalSession).filter(TerminalSession.user_id == user_id).delete(synchronize_session=False)
-        
-        # 3. Delete the user
-        db.delete(user)
+
+        # Soft delete by disabling the account and anonymizing optional fields
+        user.is_active = False
+        user.email = user.email or None
+        user.full_name = user.full_name or None
+
         db.commit()
-        
-        # Audit (Create a new log entry, but user_id will be current_user, which is fine)
+        db.refresh(user)
+
         audit = AuditLog(
             user_id=current_user.id,
-            action="delete_user",
+            action="soft_delete_user",
             resource_type="user",
             resource_id=user_id,
-            details_json={"username": user.username}
+            details_json={"username": user.username, "is_active": user.is_active}
         )
         db.add(audit)
         db.commit()
-        
-        return {"message": "User deleted successfully"}
-        
+
+        return {"message": "User deactivated (soft delete)", "deactivated": True}
+
     except Exception as e:
         db.rollback()
         import logging

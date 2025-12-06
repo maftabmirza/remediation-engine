@@ -3,6 +3,7 @@ Settings API endpoints - LLM Providers management
 """
 from typing import List
 from uuid import UUID
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 
@@ -71,7 +72,10 @@ async def list_llm_providers(
     """
     List all LLM providers.
     """
-    providers = db.query(LLMProvider).all()
+    providers = [
+        p for p in db.query(LLMProvider).all()
+        if not ((p.config_json or {}).get("deleted"))
+    ]
     
     # Convert to response model with has_api_key flag
     result = []
@@ -105,6 +109,11 @@ async def create_llm_provider(
     if provider_data.is_default:
         db.query(LLMProvider).update({LLMProvider.is_default: False})
     
+    config = provider_data.config_json or {}
+    config.setdefault("secret_storage", "database")
+    if provider_data.api_key:
+        config["last_rotated_at"] = datetime.utcnow().isoformat()
+
     provider = LLMProvider(
         name=provider_data.name,
         provider_type=provider_data.provider_type,
@@ -113,7 +122,7 @@ async def create_llm_provider(
         api_base_url=provider_data.api_base_url,
         is_default=provider_data.is_default,
         is_enabled=provider_data.is_enabled,
-        config_json=provider_data.config_json
+        config_json=config
     )
     
     db.add(provider)
@@ -187,6 +196,15 @@ async def update_llm_provider(
     # Handle API key separately (rename field)
     if "api_key" in update_data:
         update_data["api_key_encrypted"] = encrypt_value(update_data.pop("api_key"))
+        config = provider.config_json or {}
+        config["last_rotated_at"] = datetime.utcnow().isoformat()
+        update_data.setdefault("config_json", config)
+
+    # Ensure secret storage hint is preserved
+    if "config_json" in update_data:
+        config_json = update_data["config_json"] or {}
+        config_json.setdefault("secret_storage", provider.config_json.get("secret_storage", "database") if provider.config_json else "database")
+        update_data["config_json"] = config_json
     
     for field, value in update_data.items():
         setattr(provider, field, value)
@@ -240,10 +258,15 @@ async def delete_llm_provider(
     )
     db.add(audit)
     
-    db.delete(provider)
+    # Soft delete by disabling and flagging the provider for retention
+    provider.is_enabled = False
+    provider.is_default = False
+    config = provider.config_json or {}
+    config["deleted"] = True
+    provider.config_json = config
     db.commit()
-    
-    return {"message": "LLM provider deleted successfully"}
+
+    return {"message": "LLM provider retired (soft delete)", "retired": True}
 
 
 @router.post("/llm/{provider_id}/set-default")
