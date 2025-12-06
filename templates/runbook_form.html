@@ -689,7 +689,7 @@ function addStep(stepData = null) {
                         <!-- Populated via JavaScript from /api/credential-profiles -->
                     </select>
                     <p class="text-xs text-secondary mt-1">
-                        Base URL and authentication configured in the selected profile
+                        <i class="fas fa-info-circle mr-1"></i>Provides: Base URL + Authentication (endpoint path specified below)
                     </p>
                 </div>
 
@@ -728,9 +728,10 @@ function addStep(stepData = null) {
                             </select>
                         </div>
                         <div>
-                            <label class="block text-secondary text-xs mb-1">API Endpoint <span class="text-red-400">*</span></label>
+                            <label class="block text-secondary text-xs mb-1">API Endpoint Path <span class="text-red-400">*</span></label>
                             <input type="text" class="step-api-endpoint input-field w-full px-3 py-2 rounded text-sm"
-                                placeholder="/api/v1/resource or full URL" value="${escapeHtml(stepData?.api_endpoint || '')}">
+                                placeholder="/jobs/launch or /api/resource" value="${escapeHtml(stepData?.api_endpoint || '')}">
+                            <p class="text-xs text-secondary mt-1">Path appended to credential profile's base URL</p>
                         </div>
                     </div>
 
