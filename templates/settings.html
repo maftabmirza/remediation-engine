@@ -60,6 +60,10 @@
                     <span>Servers</span>
                 </button>
                 {% if 'manage_servers' in permissions %}
+                <button type="button" class="settings-nav-btn" onclick="window.location.href='/credential-profiles'">
+                    <i class="fas fa-globe"></i>
+                    <span>API Credentials</span>
+                </button>
                 <button type="button" class="settings-nav-btn" data-target="section-credentials">
                     <i class="fas fa-key"></i>
                     <span>Credential Profiles</span>
