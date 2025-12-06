@@ -499,7 +499,8 @@ async def update_server(
     server = db.query(ServerCredential).filter(ServerCredential.id == server_id).first()
     if not server:
         raise HTTPException(status_code=404, detail="Server not found")
-
+    
+ 
     if payload.group_id:
         group = db.query(ServerGroup).filter(ServerGroup.id == payload.group_id).first()
         if not group:
@@ -647,7 +648,8 @@ async def test_saved_server(
     server = db.query(ServerCredential).filter(ServerCredential.id == server_id).first()
     if not server:
         raise HTTPException(status_code=404, detail="Server not found")
-
+    
+ 
     probe = _probe_port(server.hostname, server.port)
     server.last_connection_test = datetime.utcnow()
     server.last_connection_status = probe.status
@@ -676,6 +678,28 @@ async def delete_server(
     if not server:
         raise HTTPException(status_code=404, detail="Server not found")
     
+    # Cleanup dependencies
+    # 1. Terminal Sessions
+    try:
+        from app.models import TerminalSession
+        db.query(TerminalSession).filter(TerminalSession.server_credential_id == server_id).delete(synchronize_session=False)
+    except Exception:
+        pass
+
+    # 2. Runbooks
+    try:
+        from app.models_remediation import Runbook
+        db.query(Runbook).filter(Runbook.default_server_id == server_id).update({Runbook.default_server_id: None}, synchronize_session=False)
+    except ImportError:
+        pass
+
+    # 3. Executions
+    try:
+        from app.models_remediation import RunbookExecution
+        db.query(RunbookExecution).filter(RunbookExecution.server_id == server_id).update({RunbookExecution.server_id: None}, synchronize_session=False)
+    except ImportError:
+        pass
+
     db.delete(server)
     db.commit()
     
