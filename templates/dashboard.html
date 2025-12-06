@@ -139,9 +139,13 @@
         <div class="card p-5">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-gray-400 text-sm">Service Reliability Index</p>
+                    <p class="text-gray-400 text-sm flex items-center gap-2">Service Reliability Index
+                        <span id="reliabilityInfo" class="text-gray-500" title="">
+                            <i class="fas fa-info-circle"></i>
+                        </span>
+                    </p>
                     <p class="text-3xl font-bold mt-1" id="statReliability">--</p>
-                    <p class="text-xs text-gray-500 mt-1">Transparent blend of critical impact, timeliness, remediation</p>
+                    <p class="text-xs text-gray-500 mt-1">Hover the info icon for the weighted breakdown</p>
                 </div>
                 <div class="w-12 h-12 rounded-lg bg-blue-500 bg-opacity-20 flex items-center justify-center">
                     <i class="fas fa-heartbeat text-blue-300 text-xl"></i>
@@ -150,7 +154,6 @@
             <div class="mt-3 w-full bg-gray-800 rounded-full h-2">
                 <div id="reliabilityBar" class="h-2 rounded-full bg-blue-400" style="width:0%"></div>
             </div>
-            <div class="mt-3 text-xs text-gray-400 space-y-1" id="reliabilityBreakdown"></div>
         </div>
     </div>
 
@@ -165,7 +168,9 @@
                 <span class="text-xs text-gray-500" id="trendRangeLabel"></span>
             </div>
             <div id="trendEmptyState" class="hidden text-center text-gray-500 text-sm py-8">No alert activity for this range.</div>
-            <canvas id="alertTrendChart" height="96" class="hidden"></canvas>
+            <div class="h-40">
+                <canvas id="alertTrendChart" class="hidden w-full h-full"></canvas>
+            </div>
         </div>
         <div class="card p-6">
             <div class="flex items-center justify-between mb-4">
@@ -174,7 +179,9 @@
                     <p class="text-gray-400 text-sm">Visual breakdown by severity</p>
                 </div>
             </div>
-            <canvas id="severityChart" height="160"></canvas>
+            <div class="h-40">
+                <canvas id="severityChart" class="w-full h-full"></canvas>
+            </div>
         </div>
     </div>
 
@@ -188,53 +195,6 @@
             </div>
             <div id="topSources" class="space-y-3 text-sm"></div>
         </div>
-        <div class="card p-6 lg:col-span-2">
-            <div class="flex items-center justify-between mb-4">
-                <h2 class="text-lg font-semibold">Active Incidents Timeline</h2>
-                <a href="/alerts" class="text-blue-400 text-sm hover:underline">View all alerts</a>
-            </div>
-            <div id="activeTimeline" class="relative">
-                <div class="absolute left-3 top-0 bottom-0 w-px bg-gray-700"></div>
-                <div id="timelineItems" class="space-y-4 relative"></div>
-            </div>
-        </div>
-    </div>
-
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div class="card p-6">
-            <h2 class="text-lg font-semibold mb-4">Quick Actions</h2>
-            <div class="space-y-3">
-                <a href="/alerts?analyzed=false" class="flex items-center justify-between p-3 rounded-lg bg-gray-800 hover:bg-gray-700 transition">
-                    <div class="flex items-center space-x-3">
-                        <i class="fas fa-brain text-purple-400"></i>
-                        <span>View Pending Alerts</span>
-                    </div>
-                    <i class="fas fa-chevron-right text-gray-500"></i>
-                </a>
-                <a href="/rules" class="flex items-center justify-between p-3 rounded-lg bg-gray-800 hover:bg-gray-700 transition">
-                    <div class="flex items-center space-x-3">
-                        <i class="fas fa-cogs text-blue-400"></i>
-                        <span>Manage Rules</span>
-                    </div>
-                    <i class="fas fa-chevron-right text-gray-500"></i>
-                </a>
-                <a href="/runbooks" class="flex items-center justify-between p-3 rounded-lg bg-gray-800 hover:bg-gray-700 transition">
-                    <div class="flex items-center space-x-3">
-                        <i class="fas fa-clipboard-check text-green-400"></i>
-                        <span>Review Runbooks</span>
-                    </div>
-                    <i class="fas fa-chevron-right text-gray-500"></i>
-                </a>
-                <a href="/settings" class="flex items-center justify-between p-3 rounded-lg bg-gray-800 hover:bg-gray-700 transition">
-                    <div class="flex items-center space-x-3">
-                        <i class="fas fa-robot text-green-400"></i>
-                        <span>Configure LLM Providers</span>
-                    </div>
-                    <i class="fas fa-chevron-right text-gray-500"></i>
-                </a>
-            </div>
-        </div>
-
         <div class="card p-6 lg:col-span-2">
             <div class="flex items-center justify-between mb-4">
                 <div>
@@ -267,6 +227,19 @@
             <div id="recentAlertsError" class="hidden text-sm text-red-200 bg-red-900 border border-red-800 rounded-lg p-3 mt-3 flex items-center justify-between">
                 <span>Unable to load alerts.</span>
                 <button id="retryAlerts" class="btn-secondary px-3 py-1 rounded text-xs">Retry</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="card p-6 lg:col-span-3">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-semibold">Active Incidents Timeline</h2>
+                <a href="/alerts" class="text-blue-400 text-sm hover:underline">View all alerts</a>
+            </div>
+            <div id="activeTimeline" class="relative">
+                <div class="absolute left-3 top-0 bottom-0 w-px bg-gray-700"></div>
+                <div id="timelineItems" class="space-y-4 relative"></div>
             </div>
         </div>
     </div>
@@ -334,12 +307,13 @@
         document.getElementById('remediationBar').style.width = `${Math.min(data.remediation_success_rate, 100)}%`;
         document.getElementById('reliabilityBar').style.width = `${Math.min(data.reliability_index, 100)}%`;
         const breakdown = data.reliability_breakdown || {};
-        document.getElementById('reliabilityBreakdown').innerHTML = `
-            <div class="flex items-center justify-between"><span>Critical impact</span><span class="text-gray-200 font-semibold">${(breakdown.critical_impact || 0).toFixed(1)}</span></div>
-            <div class="flex items-center justify-between"><span>Timeliness</span><span class="text-gray-200 font-semibold">${(breakdown.timeliness || 0).toFixed(1)}</span></div>
-            <div class="flex items-center justify-between"><span>Remediation</span><span class="text-gray-200 font-semibold">${(breakdown.remediation || 0).toFixed(1)}</span></div>
-            <div class="text-gray-500">(Component weights: 40/35/25)</div>
-        `;
+        const tooltipText = [
+            `Critical impact: ${(breakdown.critical_impact || 0).toFixed(1)} / 40`,
+            `Timeliness: ${(breakdown.timeliness || 0).toFixed(1)} / 35`,
+            `Remediation: ${(breakdown.remediation || 0).toFixed(1)} / 25`,
+            'Weights: 40% critical, 35% timeliness, 25% remediation'
+        ].join('\n');
+        document.getElementById('reliabilityInfo').setAttribute('title', tooltipText);
         trendRangeLabel.textContent = `Range: ${data.time_range}`;
         setConnection(data.connection_status === 'online' ? 'Online' : 'Degraded', data.last_sync_time ? new Date(data.last_sync_time).toLocaleString() : '-', data.connection_status);
     }
@@ -347,11 +321,7 @@
     function renderTrend(trendData) {
         const chartCanvas = document.getElementById('alertTrendChart');
         const emptyState = document.getElementById('trendEmptyState');
-        const labels = trendData.map(p => new Date(p.bucket).toLocaleString());
-        const values = trendData.map(p => p.count);
-        const hasData = values.some(v => v > 0);
-
-        if (!hasData) {
+        if (!trendData || !trendData.length) {
             emptyState.classList.remove('hidden');
             chartCanvas.classList.add('hidden');
             if (alertTrendChart) {
@@ -361,6 +331,8 @@
             return;
         }
 
+        const labels = trendData.map(p => new Date(p.bucket).toLocaleString());
+        const values = trendData.map(p => p.count || 0);
         emptyState.classList.add('hidden');
         chartCanvas.classList.remove('hidden');
         const ctx = chartCanvas.getContext('2d');
@@ -384,6 +356,7 @@
                 }]
             },
             options: {
+                maintainAspectRatio: false,
                 plugins: { legend: { display: false } },
                 scales: {
                     x: { ticks: { color: '#9ca3af', maxRotation: 45, minRotation: 0 } },
@@ -416,6 +389,7 @@
                 }]
             },
             options: {
+                maintainAspectRatio: false,
                 plugins: { legend: { position: 'bottom', labels: { color: '#e5e7eb' } } }
             }
         });
