@@ -1,0 +1,226 @@
+---
+# Generic REST API - Auto-Scale Application
+# This runbook calls a custom scaling API to increase/decrease application instances
+#
+# Prerequisites:
+# 1. Create an API server credential with:
+#    - Protocol: api
+#    - Base URL: https://your-app-api.com/api/v1
+#    - Auth Type: api_key
+#    - Auth Header: X-API-Key
+#    - API Token: Your API key
+#
+# Usage:
+#   Import this runbook to auto-scale applications based on load alerts
+
+apiVersion: aiops.io/v1
+kind: Runbook
+metadata:
+  name: auto-scale-application
+  description: Automatically scale application instances based on load
+  category: scaling
+  tags:
+    - autoscaling
+    - performance
+    - api
+  documentation_url: https://your-company.com/docs/scaling-api
+
+spec:
+  execution:
+    auto_execute: true  # Enable auto-execution for quick response
+    approval_required: false
+    approval_timeout_minutes: 30
+
+  safety:
+    max_executions_per_hour: 20  # Allow frequent scaling
+    cooldown_minutes: 3  # Short cooldown to handle rapid changes
+
+  target:
+    os_filter:
+      - linux
+      - windows
+    from_alert: true
+    alert_label: application
+
+  notifications:
+    on_start:
+      - slack
+    on_success:
+      - slack
+    on_failure:
+      - slack
+      - email
+
+triggers:
+  - alert_name_pattern: HighCPUUsage*
+    severity_pattern: warning|critical
+    enabled: true
+    priority: 100
+    min_duration_seconds: 300  # Alert must persist for 5 minutes
+
+  - alert_name_pattern: HighMemoryUsage*
+    severity_pattern: warning|critical
+    enabled: true
+    priority: 100
+    min_duration_seconds: 300
+
+steps:
+  - name: Get Current Application State
+    step_type: api
+    step_order: 1
+    description: Fetch current instance count and resource usage
+
+    api_method: GET
+    api_endpoint: /applications/{{ alert.labels.application }}/status
+
+    api_expected_status_codes:
+      - 200
+
+    # Extract current state
+    api_response_extract_json:
+      current_instances: $.instances.count
+      cpu_usage: $.resources.cpu_percent
+      memory_usage: $.resources.memory_percent
+      max_instances: $.scaling.max_instances
+
+    timeout_seconds: 30
+    retry_count: 2
+    retry_delay_seconds: 5
+    continue_on_fail: false
+
+  - name: Calculate Target Instance Count
+    step_type: api
+    step_order: 2
+    description: Call scaling decision API to determine target instances
+
+    api_method: POST
+    api_endpoint: /scaling/calculate
+    api_body_type: json
+    api_body: |
+      {
+        "application": "{{ alert.labels.application }}",
+        "current_instances": {{ extracted_values.current_instances }},
+        "cpu_usage": {{ extracted_values.cpu_usage }},
+        "memory_usage": {{ extracted_values.memory_usage }},
+        "alert_severity": "{{ alert.alert_severity }}",
+        "trigger": "auto_remediation"
+      }
+
+    api_headers_json:
+      Content-Type: application/json
+
+    api_expected_status_codes:
+      - 200
+
+    # Extract recommended instance count
+    api_response_extract_json:
+      target_instances: $.recommended_instances
+      scaling_action: $.action
+      reason: $.reason
+
+    timeout_seconds: 30
+    retry_count: 2
+    retry_delay_seconds: 5
+    continue_on_fail: false
+
+  - name: Apply Scaling Change
+    step_type: api
+    step_order: 3
+    description: Update application instance count
+
+    api_method: PATCH
+    api_endpoint: /applications/{{ alert.labels.application }}/scale
+    api_body_type: json
+    api_body: |
+      {
+        "instances": {{ extracted_values.target_instances }},
+        "reason": "{{ extracted_values.reason }}",
+        "triggered_by": "alert:{{ alert.alert_name }}",
+        "execution_id": "{{ execution.id }}"
+      }
+
+    api_headers_json:
+      Content-Type: application/json
+
+    api_expected_status_codes:
+      - 200
+      - 202  # Accepted - scaling in progress
+
+    # Extract scaling operation ID
+    api_response_extract_json:
+      operation_id: $.operation_id
+      estimated_duration: $.estimated_duration_seconds
+
+    timeout_seconds: 30
+    retry_count: 2
+    retry_delay_seconds: 5
+    continue_on_fail: false
+
+  - name: Wait for Scaling to Complete
+    step_type: api
+    step_order: 4
+    description: Monitor scaling operation status
+
+    api_method: GET
+    api_endpoint: /operations/{{ extracted_values.operation_id }}
+
+    api_expected_status_codes:
+      - 200
+
+    # Check if operation completed successfully
+    expected_output_pattern: '"status":\s*"completed"'
+
+    timeout_seconds: 300
+    retry_count: 30
+    retry_delay_seconds: 10
+    continue_on_fail: false
+
+  - name: Verify Application Health
+    step_type: api
+    step_order: 5
+    description: Check that application is healthy after scaling
+
+    api_method: GET
+    api_endpoint: /applications/{{ alert.labels.application }}/health
+
+    api_expected_status_codes:
+      - 200
+
+    # Verify health status is OK
+    expected_output_pattern: '"status":\s*"healthy"'
+
+    timeout_seconds: 60
+    retry_count: 6
+    retry_delay_seconds: 10
+    continue_on_fail: true  # Don't fail runbook if health check fails
+
+  - name: Update Monitoring Dashboard
+    step_type: api
+    step_order: 6
+    description: Post scaling event to monitoring system
+
+    api_method: POST
+    api_endpoint: /events
+    api_body_type: json
+    api_body: |
+      {
+        "event_type": "scaling_completed",
+        "application": "{{ alert.labels.application }}",
+        "previous_instances": {{ extracted_values.current_instances }},
+        "new_instances": {{ extracted_values.target_instances }},
+        "trigger": "{{ alert.alert_name }}",
+        "timestamp": "{{ now }}"
+      }
+
+    api_headers_json:
+      Content-Type: application/json
+
+    api_expected_status_codes:
+      - 200
+      - 201
+      - 204
+
+    timeout_seconds: 15
+    retry_count: 1
+    retry_delay_seconds: 3
+    continue_on_fail: true  # Don't fail if event posting fails

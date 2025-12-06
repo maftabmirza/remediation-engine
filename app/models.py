@@ -128,7 +128,7 @@ class AuditLog(Base):
 class ServerCredential(Base):
     """
     Server connection credentials.
-    Supports both Linux (SSH) and Windows (WinRM) servers.
+    Supports Linux (SSH), Windows (WinRM), and API endpoints (HTTP/REST).
     """
     __tablename__ = "server_credentials"
 
@@ -137,11 +137,11 @@ class ServerCredential(Base):
     hostname = Column(String(255), nullable=False, index=True)
     port = Column(Integer, default=22)
     username = Column(String(100), nullable=False)
-    
+
     # Platform Configuration
     os_type = Column(String(20), default="linux", index=True)  # "linux", "windows"
-    protocol = Column(String(20), default="ssh")  # "ssh", "winrm"
-    
+    protocol = Column(String(20), default="ssh", index=True)  # "ssh", "winrm", "api"
+
     # SSH Authentication (Linux, or Windows via SSH)
     auth_type = Column(String(20), default="key")  # key, password
     ssh_key_encrypted = Column(Text, nullable=True)
@@ -151,23 +151,33 @@ class ServerCredential(Base):
     credential_source = Column(String(30), default="inline", index=True)  # inline, shared_profile
     credential_profile_id = Column(UUID(as_uuid=True), ForeignKey("credential_profiles.id"), nullable=True, index=True)
     credential_metadata = Column(JSON, default={})
-    
+
     # WinRM Configuration (Windows)
     winrm_transport = Column(String(20), nullable=True)  # "kerberos", "ntlm", "certificate"
     winrm_use_ssl = Column(Boolean, default=True)
     winrm_cert_validation = Column(Boolean, default=True)
     domain = Column(String(100), nullable=True)  # AD domain for Windows auth
-    
+
+    # API Configuration (HTTP/REST)
+    api_base_url = Column(String(500), nullable=True)  # Base URL for API endpoints
+    api_auth_type = Column(String(30), default="none")  # none, api_key, bearer, basic, oauth, custom
+    api_auth_header = Column(String(100), nullable=True)  # e.g., "X-API-Key", "Authorization"
+    api_token_encrypted = Column(Text, nullable=True)  # encrypted API token/key
+    api_verify_ssl = Column(Boolean, default=True)
+    api_timeout_seconds = Column(Integer, default=30)
+    api_headers_json = Column(JSON, default={})  # default headers for all requests
+    api_metadata_json = Column(JSON, default={})  # provider-specific config (e.g., AWX job template ID)
+
     # Environment & Tags
     environment = Column(String(50), default="production", index=True)  # production, staging, dev
     tags = Column(JSON, default=[])  # For filtering servers
     group_id = Column(UUID(as_uuid=True), ForeignKey("server_groups.id"), nullable=True, index=True)
-    
+
     # Connection Testing
     last_connection_test = Column(DateTime(timezone=True), nullable=True)
     last_connection_status = Column(String(20), nullable=True)  # "success", "failed"
     last_connection_error = Column(Text, nullable=True)
-    
+
     # Audit
     created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), default=utc_now)

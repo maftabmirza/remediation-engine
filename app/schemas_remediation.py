@@ -33,27 +33,40 @@ class RunbookStepBase(BaseModel):
     """Base schema for runbook step."""
     name: str = Field(..., min_length=1, max_length=100)
     description: Optional[str] = None
-    
-    # Commands
+    step_type: str = Field(default="command")  # "command", "api"
+
+    # Commands (for step_type="command")
     command_linux: Optional[str] = None
     command_windows: Optional[str] = None
     target_os: TargetOS = "any"
-    
+
+    # API Configuration (for step_type="api")
+    api_method: Optional[str] = None  # GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS
+    api_endpoint: Optional[str] = None  # endpoint path or full URL (supports Jinja2)
+    api_headers_json: Optional[Dict[str, str]] = None  # custom headers
+    api_body: Optional[str] = None  # request body (JSON string or Jinja2 template)
+    api_body_type: str = "json"  # json, form, raw, template
+    api_query_params_json: Optional[Dict[str, str]] = None  # URL query parameters
+    api_expected_status_codes: List[int] = [200, 201, 202, 204]  # acceptable HTTP status codes
+    api_response_extract_json: Optional[Dict[str, str]] = None  # JSONPath or regex patterns
+    api_follow_redirects: bool = True
+    api_retry_on_status_codes: List[int] = [408, 429, 500, 502, 503, 504]  # retry on these codes
+
     # Execution Options
     timeout_seconds: int = Field(default=60, ge=1, le=3600)
     requires_elevation: bool = False
     working_directory: Optional[str] = None
     environment_json: Optional[Dict[str, str]] = None
-    
+
     # Error Handling
     continue_on_fail: bool = False
     retry_count: int = Field(default=0, ge=0, le=5)
     retry_delay_seconds: int = Field(default=5, ge=1, le=300)
-    
+
     # Validation
     expected_exit_code: int = 0
     expected_output_pattern: Optional[str] = None
-    
+
     # Rollback
     rollback_command_linux: Optional[str] = None
     rollback_command_windows: Optional[str] = None
@@ -66,6 +79,27 @@ class RunbookStepBase(BaseModel):
                 re.compile(v)
             except re.error as e:
                 raise ValueError(f"Invalid regex pattern: {e}")
+        return v
+
+    @field_validator('step_type')
+    @classmethod
+    def validate_step_type(cls, v):
+        if v not in ['command', 'api']:
+            raise ValueError('step_type must be either "command" or "api"')
+        return v
+
+    @field_validator('api_method')
+    @classmethod
+    def validate_api_method(cls, v):
+        if v and v not in ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS']:
+            raise ValueError('api_method must be one of: GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS')
+        return v
+
+    @field_validator('api_body_type')
+    @classmethod
+    def validate_api_body_type(cls, v):
+        if v not in ['json', 'form', 'raw', 'template']:
+            raise ValueError('api_body_type must be one of: json, form, raw, template')
         return v
 
 
@@ -279,9 +313,20 @@ class StepExecutionResponse(BaseModel):
     step_name: str
     status: StepStatus
     command_executed: Optional[str]
+
+    # Command execution output
     stdout: Optional[str]
     stderr: Optional[str]
     exit_code: Optional[int]
+
+    # API execution output
+    http_status_code: Optional[int]
+    http_response_headers_json: Optional[Dict[str, Any]]
+    http_response_body: Optional[str]
+    http_request_url: Optional[str]
+    http_request_method: Optional[str]
+    extracted_values_json: Optional[Dict[str, Any]]
+
     started_at: Optional[datetime]
     completed_at: Optional[datetime]
     duration_ms: Optional[int]

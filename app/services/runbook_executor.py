@@ -190,19 +190,19 @@ class RunbookExecutor:
                             on_step_complete(step.step_order, step.name, True)
                         continue
                     
-                    # Get appropriate command for OS
-                    command = self._get_command_for_os(step, server.os_type)
-                    
+                    # Get appropriate command/config based on step type
+                    command = self._get_command_for_step(step, server)
+
                     if not command:
                         step_exec.status = "skipped"
                         step_exec.completed_at = utc_now()
-                        step_exec.error_message = f"No command defined for {server.os_type}"
+                        step_exec.error_message = f"No command/config defined for {server.os_type}"
                         await self.db.commit()
-                        
+
                         if on_step_complete:
                             on_step_complete(step.step_order, step.name, True)
                         continue
-                    
+
                     # Render command template
                     try:
                         rendered_command = self._render_template(command, context)
@@ -212,13 +212,13 @@ class RunbookExecutor:
                         step_exec.error_message = f"Template rendering failed: {e}"
                         all_success = False
                         await self.db.commit()
-                        
+
                         if not step.continue_on_fail:
                             break
                         continue
-                    
+
                     step_exec.command_executed = rendered_command
-                    
+
                     # Execute with retries
                     result = await self._execute_with_retries(
                         executor=executor,
@@ -228,10 +228,29 @@ class RunbookExecutor:
                         execution=execution,
                         on_output=on_output
                     )
-                    
-                    step_exec.stdout = result.stdout[:10000] if result.stdout else ""  # Limit size
-                    step_exec.stderr = result.stderr[:10000] if result.stderr else ""
-                    step_exec.exit_code = result.exit_code
+
+                    # Update step execution based on step type
+                    if step.step_type == "api":
+                        # Store API response data
+                        step_exec.http_status_code = result.exit_code  # HTTP status code is stored as exit_code
+                        step_exec.http_response_body = result.stdout[:10000] if result.stdout else ""
+                        step_exec.http_request_method = getattr(step, 'api_method', None)
+                        step_exec.http_request_url = None  # Will be set from result if available
+                        # Try to extract from error message or result
+                        import json as json_module
+                        try:
+                            cmd_config = json_module.loads(rendered_command)
+                            endpoint = cmd_config.get('endpoint', '')
+                            base_url = getattr(server, 'api_base_url', '')
+                            step_exec.http_request_url = f"{base_url}{endpoint}" if not endpoint.startswith('http') else endpoint
+                        except:
+                            pass
+                    else:
+                        # Store command execution results
+                        step_exec.stdout = result.stdout[:10000] if result.stdout else ""
+                        step_exec.stderr = result.stderr[:10000] if result.stderr else ""
+                        step_exec.exit_code = result.exit_code
+
                     step_exec.completed_at = utc_now()
                     step_exec.duration_ms = result.duration_ms
                     
@@ -348,12 +367,12 @@ class RunbookExecutor:
                 result["steps"].append(step_info)
                 continue
             
-            # Get command for OS
-            command = self._get_command_for_os(step, server.os_type)
+            # Get command/config for step
+            command = self._get_command_for_step(step, server)
             step_info["command"] = command
-            
+
             if not command:
-                step_info["skip_reason"] = f"No command for {server.os_type}"
+                step_info["skip_reason"] = f"No command/config for {server.os_type if step.step_type != 'api' else 'API'}"
                 result["steps"].append(step_info)
                 continue
             
@@ -439,11 +458,11 @@ class RunbookExecutor:
                 step_execution.completed_at = utc_now()
                 return step_execution
 
-            # Get command for OS
-            command = step.command_linux if server.os_type == "linux" else step.command_windows
+            # Get command/config for step
+            command = self._get_command_for_step(step, server)
             if not command:
                 step_execution.status = "skipped"
-                step_execution.error_message = f"No command defined for {server.os_type}"
+                step_execution.error_message = f"No command/config defined for {server.os_type if step.step_type != 'api' else 'API'}"
                 step_execution.completed_at = utc_now()
                 return step_execution
 
@@ -570,18 +589,52 @@ class RunbookExecutor:
     
     def _should_run_step(self, step: RunbookStep, server: ServerCredential) -> bool:
         """Check if step should run on this server."""
+        # API steps don't have OS restrictions
+        if step.step_type == "api":
+            return True
+
         step_os = step.target_os or "any"
         server_os = getattr(server, 'os_type', 'linux') or 'linux'
-        
+
         if step_os == "any":
             return True
-        
+
         return step_os.lower() == server_os.lower()
-    
+
+    def _get_command_for_step(self, step: RunbookStep, server: ServerCredential) -> Optional[str]:
+        """
+        Get the appropriate command or config for the step.
+
+        For command steps: returns the command string for the OS
+        For API steps: returns JSON config for the API request
+        """
+        import json
+
+        step_type = getattr(step, 'step_type', 'command')
+
+        if step_type == "api":
+            # Build API request configuration as JSON
+            config = {
+                "method": step.api_method,
+                "endpoint": step.api_endpoint,
+                "headers": step.api_headers_json or {},
+                "query_params": step.api_query_params_json or {},
+                "body": step.api_body,
+                "body_type": step.api_body_type or "json",
+                "expected_status_codes": step.api_expected_status_codes or [200, 201, 202, 204],
+                "extract": step.api_response_extract_json or {},
+                "follow_redirects": step.api_follow_redirects if step.api_follow_redirects is not None else True
+            }
+            return json.dumps(config)
+
+        else:
+            # Command step - get command for OS
+            return self._get_command_for_os(step, getattr(server, 'os_type', 'linux'))
+
     def _get_command_for_os(self, step: RunbookStep, os_type: str) -> Optional[str]:
         """Get the appropriate command for the OS type."""
         os_type = os_type.lower() if os_type else "linux"
-        
+
         if os_type == "linux":
             return step.command_linux
         elif os_type == "windows":
@@ -650,21 +703,43 @@ class RunbookExecutor:
     
     def _check_step_success(self, result: ExecutionResult, step: RunbookStep) -> bool:
         """Check if step execution was successful."""
-        # Check exit code
-        expected_exit = step.expected_exit_code if step.expected_exit_code is not None else 0
-        if result.exit_code != expected_exit:
-            return False
-        
-        # Check output pattern if specified
-        if step.expected_output_pattern:
-            try:
-                pattern = re.compile(step.expected_output_pattern, re.IGNORECASE | re.MULTILINE)
-                if not pattern.search(result.stdout):
-                    return False
-            except re.error:
-                logger.warning(f"Invalid regex pattern: {step.expected_output_pattern}")
-        
-        return True
+        step_type = getattr(step, 'step_type', 'command')
+
+        if step_type == "api":
+            # For API steps, check if HTTP status code is in expected codes
+            expected_status_codes = getattr(step, 'api_expected_status_codes', None) or [200, 201, 202, 204]
+            http_status = result.exit_code  # HTTP status code is stored in exit_code for API requests
+
+            if http_status not in expected_status_codes:
+                return False
+
+            # Check output pattern if specified (applies to response body)
+            if step.expected_output_pattern:
+                try:
+                    pattern = re.compile(step.expected_output_pattern, re.IGNORECASE | re.MULTILINE)
+                    if not pattern.search(result.stdout):
+                        return False
+                except re.error:
+                    logger.warning(f"Invalid regex pattern: {step.expected_output_pattern}")
+
+            return True
+
+        else:
+            # For command steps, check exit code
+            expected_exit = step.expected_exit_code if step.expected_exit_code is not None else 0
+            if result.exit_code != expected_exit:
+                return False
+
+            # Check output pattern if specified
+            if step.expected_output_pattern:
+                try:
+                    pattern = re.compile(step.expected_output_pattern, re.IGNORECASE | re.MULTILINE)
+                    if not pattern.search(result.stdout):
+                        return False
+                except re.error:
+                    logger.warning(f"Invalid regex pattern: {step.expected_output_pattern}")
+
+            return True
     
     async def _execute_rollback(
         self,
