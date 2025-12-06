@@ -109,16 +109,29 @@
     
     <!-- LLM Providers - TABLE VIEW -->
     <div class="card">
-        <div class="flex items-center justify-between p-4 border-b border-gray-700">
+        <div class="flex items-center justify-between p-4 border-b border-gray-700 space-x-4">
             <h2 class="text-lg font-semibold">
                 <i class="fas fa-robot text-purple-400 mr-2"></i>
                 LLM Providers
             </h2>
-            {% if user.role == 'admin' %}
-            <button onclick="showCreateProviderModal()" class="btn-primary px-4 py-2 rounded">
-                <i class="fas fa-plus mr-2"></i>Add Provider
-            </button>
-            {% endif %}
+            <div class="flex items-center space-x-3">
+                <div class="hidden md:flex items-center space-x-2">
+                    <input id="providerSearch" type="text" class="input-field px-3 py-2 rounded text-sm" placeholder="Search name or model">
+                    <select id="providerTypeFilter" class="input-field px-3 py-2 rounded text-sm">
+                        <option value="">All Types</option>
+                        <option value="anthropic">Anthropic</option>
+                        <option value="openai">OpenAI</option>
+                        <option value="google">Google</option>
+                        <option value="ollama">Ollama</option>
+                        <option value="azure">Azure</option>
+                    </select>
+                </div>
+                {% if user.role == 'admin' %}
+                <button onclick="showCreateProviderModal()" class="btn-primary px-4 py-2 rounded">
+                    <i class="fas fa-plus mr-2"></i>Add Provider
+                </button>
+                {% endif %}
+            </div>
         </div>
         
         <div id="providersTableContainer" class="overflow-x-auto">
@@ -130,16 +143,27 @@
 
     <!-- Server Credentials - TABLE VIEW -->
     <div class="card">
-        <div class="flex items-center justify-between p-4 border-b border-gray-700">
+        <div class="flex items-center justify-between p-4 border-b border-gray-700 space-x-4">
             <h2 class="text-lg font-semibold">
                 <i class="fas fa-server text-green-400 mr-2"></i>
                 Server Credentials
             </h2>
-            {% if user.role == 'admin' %}
-            <button onclick="showCreateServerModal()" class="btn-primary px-4 py-2 rounded">
-                <i class="fas fa-plus mr-2"></i>Add Server
-            </button>
-            {% endif %}
+            <div class="flex items-center space-x-3">
+                <div class="hidden md:flex items-center space-x-2">
+                    <input id="serverSearch" type="text" class="input-field px-3 py-2 rounded text-sm" placeholder="Search server or host">
+                    <select id="serverEnvFilter" class="input-field px-3 py-2 rounded text-sm">
+                        <option value="">All Environments</option>
+                        <option value="production">Production</option>
+                        <option value="staging">Staging</option>
+                        <option value="development">Development</option>
+                    </select>
+                </div>
+                {% if user.role == 'admin' %}
+                <button onclick="showCreateServerModal()" class="btn-primary px-4 py-2 rounded">
+                    <i class="fas fa-plus mr-2"></i>Add Server
+                </button>
+                {% endif %}
+            </div>
         </div>
         
         <div id="serversTableContainer" class="overflow-x-auto">
@@ -247,9 +271,17 @@
             <div id="confirmIcon" class="w-10 h-10 rounded-full bg-red-900 bg-opacity-50 flex items-center justify-center">
                 <i class="fas fa-exclamation-triangle text-red-400"></i>
             </div>
-            <h3 id="confirmTitle" class="text-lg font-semibold">Confirm Action</h3>
+            <div>
+                <h3 id="confirmTitle" class="text-lg font-semibold">Confirm Action</h3>
+                <p class="text-xs text-gray-400">Destructive actions require an explicit confirmation phrase.</p>
+            </div>
         </div>
-        <p id="confirmMessage" class="text-gray-300 mb-6">Are you sure you want to proceed?</p>
+        <p id="confirmMessage" class="text-gray-300 mb-4">Are you sure you want to proceed?</p>
+        <div id="confirmInputContainer" class="hidden mb-4">
+            <label for="confirmInput" class="block text-sm font-medium mb-1">Type <span id="confirmInputHint" class="font-mono text-red-300"></span> to continue</label>
+            <input id="confirmInput" type="text" class="input-field w-full px-3 py-2 rounded" placeholder="Type the confirmation text" autocomplete="off">
+            <p id="confirmInputError" class="text-xs text-red-400 mt-1 hidden">Confirmation text does not match.</p>
+        </div>
         <div class="flex justify-end space-x-3">
             <button onclick="closeConfirmModal()" class="btn-secondary px-4 py-2 rounded">Cancel</button>
             <button id="confirmBtn" onclick="executeConfirmAction()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded transition-colors">Confirm</button>
@@ -295,6 +327,7 @@
                         <option value="openai">OpenAI (GPT)</option>
                         <option value="google">Google (Gemini)</option>
                         <option value="ollama">Ollama (Local)</option>
+                        <option value="azure">Azure OpenAI</option>
                     </select>
                 </div>
                 <div>
@@ -310,15 +343,18 @@
             </div>
             
             <div>
-                <label class="label-with-tooltip block text-sm font-medium mb-1">
-                    API Key
-                    <span class="info-tooltip info-tooltip-align-left">
-                        <span class="info-tooltip-icon">?</span>
-                        <span class="info-tooltip-text">The secret key for authentication. Leave blank if you configured it via environment variables.</span>
-                    </span>
-                </label>
-                <input type="password" id="providerApiKey" class="input-field w-full px-3 py-2 rounded" placeholder="Leave empty to use environment variable">
-                <p class="text-xs text-gray-400 mt-1">If empty, will use API key from environment variables</p>
+                <div class="flex items-center justify-between">
+                    <label class="label-with-tooltip block text-sm font-medium mb-1">
+                        API Key
+                        <span class="info-tooltip info-tooltip-align-left">
+                            <span class="info-tooltip-icon">?</span>
+                            <span class="info-tooltip-text">The secret key for authentication. Leave blank if you configured it via environment variables.</span>
+                        </span>
+                    </label>
+                    <button type="button" onclick="toggleSecretVisibility('providerApiKey', this)" class="text-xs text-blue-400 hover:text-blue-300">Show</button>
+                </div>
+                <input type="password" id="providerApiKey" class="input-field w-full px-3 py-2 rounded" placeholder="Leave empty to use environment variable" autocomplete="off">
+                <p class="text-xs text-gray-400 mt-1" id="providerSecretMeta">If empty, will use API key from environment variables</p>
             </div>
             
             <div>
@@ -532,25 +568,32 @@
             </div>
             
             <div id="authKeyField">
-                <label class="label-with-tooltip block text-sm font-medium mb-1">
-                    Private Key (PEM format)
-                    <span class="info-tooltip info-tooltip-align-left">
-                        <span class="info-tooltip-icon">?</span>
-                        <span class="info-tooltip-text">Paste the full content of your private key, including BEGIN and END lines.</span>
-                    </span>
-                </label>
-                <textarea id="serverKey" class="input-field w-full px-3 py-2 rounded h-32 font-mono text-xs" placeholder="-----BEGIN RSA PRIVATE KEY-----..."></textarea>
+                <div class="flex items-center justify-between">
+                    <label class="label-with-tooltip block text-sm font-medium mb-1">
+                        Private Key (PEM format)
+                        <span class="info-tooltip info-tooltip-align-left">
+                            <span class="info-tooltip-icon">?</span>
+                            <span class="info-tooltip-text">Paste the full content of your private key, including BEGIN and END lines.</span>
+                        </span>
+                    </label>
+                    <button type="button" onclick="toggleSecretVisibility('serverKey', this, true)" class="text-xs text-blue-400 hover:text-blue-300">Show</button>
+                </div>
+                <textarea id="serverKey" data-masked="true" style="filter: blur(5px);" class="input-field w-full px-3 py-2 rounded h-32 font-mono text-xs" placeholder="-----BEGIN RSA PRIVATE KEY-----..."></textarea>
+                <p class="text-xs text-gray-400 mt-1">Masked by default. Click Show to review while editing.</p>
             </div>
-            
+
             <div id="authPasswordField" class="hidden">
-                <label class="label-with-tooltip block text-sm font-medium mb-1">
-                    Password
-                    <span class="info-tooltip info-tooltip-align-left">
-                        <span class="info-tooltip-icon">?</span>
-                        <span class="info-tooltip-text">SSH password.</span>
-                    </span>
-                </label>
-                <input type="password" id="serverPassword" class="input-field w-full px-3 py-2 rounded">
+                <div class="flex items-center justify-between">
+                    <label class="label-with-tooltip block text-sm font-medium mb-1">
+                        Password
+                        <span class="info-tooltip info-tooltip-align-left">
+                            <span class="info-tooltip-icon">?</span>
+                            <span class="info-tooltip-text">SSH password.</span>
+                        </span>
+                    </label>
+                    <button type="button" onclick="toggleSecretVisibility('serverPassword', this)" class="text-xs text-blue-400 hover:text-blue-300">Show</button>
+                </div>
+                <input type="password" id="serverPassword" class="input-field w-full px-3 py-2 rounded" autocomplete="off">
             </div>
             
             <div>
@@ -583,30 +626,61 @@
     const currentUserRole = "{{ user.role }}";
     const currentUserId = "{{ user.id }}";
     let confirmCallback = null;
+    let confirmRequirement = null;
+    let providerCache = [];
+    let serverCache = [];
     
     const modelSuggestions = {
         anthropic: 'claude-sonnet-4-20250514',
         openai: 'gpt-4-turbo-preview',
         google: 'gemini-pro',
-        ollama: 'llama2'
+        ollama: 'llama2',
+        azure: 'gpt-4o'
     };
     
     // --- Custom Confirm Modal ---
-    function showConfirmModal(title, message, callback) {
+    function showConfirmModal(title, message, callback, options = {}) {
         document.getElementById('confirmTitle').textContent = title;
         document.getElementById('confirmMessage').textContent = message;
         confirmCallback = callback;
+        confirmRequirement = options.confirmationText || null;
+
+        const inputContainer = document.getElementById('confirmInputContainer');
+        const input = document.getElementById('confirmInput');
+        const inputHint = document.getElementById('confirmInputHint');
+        const inputError = document.getElementById('confirmInputError');
+
+        if (confirmRequirement) {
+            inputContainer.classList.remove('hidden');
+            inputHint.textContent = confirmRequirement;
+            input.value = '';
+            inputError.classList.add('hidden');
+        } else {
+            inputContainer.classList.add('hidden');
+        }
+
         document.getElementById('confirmModal').classList.remove('hidden');
         document.getElementById('confirmModal').classList.add('flex');
     }
-    
+
     function closeConfirmModal() {
         document.getElementById('confirmModal').classList.add('hidden');
         document.getElementById('confirmModal').classList.remove('flex');
         confirmCallback = null;
+        confirmRequirement = null;
+        document.getElementById('confirmInput').value = '';
+        document.getElementById('confirmInputError').classList.add('hidden');
     }
-    
+
     function executeConfirmAction() {
+        if (confirmRequirement) {
+            const value = document.getElementById('confirmInput').value.trim();
+            if (value !== confirmRequirement) {
+                document.getElementById('confirmInputError').classList.remove('hidden');
+                return;
+            }
+        }
+
         if (confirmCallback) {
             confirmCallback();
         }
@@ -640,30 +714,58 @@
         const type = document.getElementById('providerType').value;
         document.getElementById('providerModel').placeholder = modelSuggestions[type] || '';
     }
+
+    function toggleSecretVisibility(inputId, trigger, isMultiline = false) {
+        const field = document.getElementById(inputId);
+        if (!field) return;
+
+        if (isMultiline) {
+            const masked = field.dataset.masked === 'true';
+            field.dataset.masked = masked ? 'false' : 'true';
+            field.style.filter = masked ? 'none' : 'blur(5px)';
+            if (trigger) trigger.textContent = masked ? 'Hide' : 'Show';
+            return;
+        }
+
+        field.type = field.type === 'password' ? 'text' : 'password';
+        if (trigger) trigger.textContent = field.type === 'password' ? 'Show' : 'Hide';
+    }
     
     // --- LLM Providers ---
     async function loadProviders() {
         try {
             const response = await apiCall('/api/settings/llm');
             if (!response) return;
-            
+
             const providers = await response.json();
+            providerCache = providers;
             document.getElementById('statProviders').textContent = providers.length;
-            renderProvidersTable(providers);
+            renderProvidersTable(filterProviders());
         } catch (error) {
             console.error('Failed to load providers:', error);
         }
     }
-    
+
+    function filterProviders() {
+        const search = document.getElementById('providerSearch')?.value.toLowerCase() || '';
+        const typeFilter = document.getElementById('providerTypeFilter')?.value;
+
+        return providerCache.filter(provider => {
+            const matchesType = !typeFilter || provider.provider_type === typeFilter;
+            const matchesSearch = !search || `${provider.name} ${provider.model_id}`.toLowerCase().includes(search);
+            return matchesType && matchesSearch;
+        });
+    }
+
     function renderProvidersTable(providers) {
         const container = document.getElementById('providersTableContainer');
-        
+
         if (providers.length === 0) {
             container.innerHTML = `
                 <div class="text-center py-12 text-gray-400">
                     <i class="fas fa-robot text-4xl mb-3"></i>
-                    <p>No LLM providers configured</p>
-                    <p class="text-sm mt-2">Add a provider to enable AI analysis</p>
+                    <p>${providerCache.length ? 'No providers match your filters' : 'No LLM providers configured'}</p>
+                    <p class="text-sm mt-2">Add a provider to enable AI analysis or adjust filters</p>
                 </div>
             `;
             return;
@@ -701,6 +803,7 @@
                                     </div>
                                     <div>
                                         <div class="font-medium">${provider.name}</div>
+                                        <div class="text-xs text-gray-500">Updated ${formatDate(provider.updated_at)}</div>
                                         ${provider.is_default ? '<span class="text-xs text-blue-400"><i class="fas fa-star mr-1"></i>Default</span>' : ''}
                                     </div>
                                 </div>
@@ -710,6 +813,12 @@
                             </td>
                             <td class="p-4">
                                 <code class="text-xs bg-gray-800 px-2 py-1 rounded">${provider.model_id}</code>
+                                <div class="text-xs mt-2">
+                                    ${provider.has_api_key
+                                        ? '<span class="inline-flex items-center px-2 py-1 rounded-full text-green-400 bg-green-900 bg-opacity-40 text-[11px]"><i class="fas fa-key mr-1"></i>Secret stored</span>'
+                                        : '<span class="inline-flex items-center px-2 py-1 rounded-full text-yellow-400 bg-yellow-900 bg-opacity-40 text-[11px]"><i class="fas fa-exclamation-triangle mr-1"></i>Missing key</span>'
+                                    }
+                                </div>
                             </td>
                             <td class="p-4 text-sm text-gray-400">
                                 <div class="flex items-center space-x-3">
@@ -727,6 +836,9 @@
                             <td class="p-4 text-right">
                                 <div class="flex items-center justify-end space-x-2">
                                     ${currentUserRole === 'admin' ? `
+                                        <button data-test-btn="${provider.id}" onclick="testProvider('${provider.id}')" class="btn-secondary px-2 py-1 rounded text-xs" title="Test connection">
+                                            <i class="fas fa-heartbeat"></i>
+                                        </button>
                                         ${!provider.is_default && provider.is_enabled ? `
                                             <button onclick="setDefaultProvider('${provider.id}')" class="btn-secondary px-2 py-1 rounded text-xs" title="Set as default">
                                                 <i class="fas fa-star"></i>
@@ -752,7 +864,12 @@
     }
     
     function confirmDeleteProvider(id, name) {
-        showConfirmModal('Delete Provider', `Are you sure you want to delete "${name}"? This action cannot be undone.`, () => deleteProvider(id));
+        showConfirmModal(
+            'Delete Provider',
+            `Type the provider name to confirm deletion of "${name}". Deleting will disable any runbooks using this provider.`,
+            () => deleteProvider(id),
+            { confirmationText: name }
+        );
     }
     
     // --- Server Credentials ---
@@ -760,24 +877,36 @@
         try {
             const response = await apiCall('/api/servers');
             if (!response) return;
-            
+
             const servers = await response.json();
+            serverCache = servers;
             document.getElementById('statServers').textContent = servers.length;
-            renderServersTable(servers);
+            renderServersTable(filterServers());
         } catch (error) {
             console.error('Failed to load servers:', error);
         }
     }
 
+    function filterServers() {
+        const search = document.getElementById('serverSearch')?.value.toLowerCase() || '';
+        const env = document.getElementById('serverEnvFilter')?.value;
+
+        return serverCache.filter(server => {
+            const matchesEnv = !env || server.environment === env;
+            const matchesSearch = !search || `${server.name} ${server.hostname}`.toLowerCase().includes(search);
+            return matchesEnv && matchesSearch;
+        });
+    }
+
     function renderServersTable(servers) {
         const container = document.getElementById('serversTableContainer');
-        
+
         if (servers.length === 0) {
             container.innerHTML = `
                 <div class="text-center py-12 text-gray-400">
                     <i class="fas fa-server text-4xl mb-3"></i>
-                    <p>No servers configured</p>
-                    <p class="text-sm mt-2">Add server credentials to execute runbooks</p>
+                    <p>${serverCache.length ? 'No servers match your filters' : 'No servers configured'}</p>
+                    <p class="text-sm mt-2">Add server credentials to execute runbooks or adjust filters</p>
                 </div>
             `;
             return;
@@ -805,6 +934,7 @@
                                     <div>
                                         <div class="font-medium">${server.name}</div>
                                         <div class="text-xs text-gray-500">${server.hostname}</div>
+                                        <div class="text-[11px] text-gray-500">Added ${formatDate(server.created_at)}</div>
                                     </div>
                                 </div>
                             </td>
@@ -841,7 +971,12 @@
     }
     
     function confirmDeleteServer(id, name) {
-        showConfirmModal('Delete Server', `Are you sure you want to delete server "${name}"? This action cannot be undone.`, () => deleteServer(id));
+        showConfirmModal(
+            'Delete Server',
+            `Type the server name to confirm removal of "${name}". Workflows targeting this host will fail until reassigned.`,
+            () => deleteServer(id),
+            { confirmationText: name }
+        );
     }
 
     // --- User Management ---
@@ -971,7 +1106,12 @@
     }
     
     function confirmDeleteUser(id, username) {
-        showConfirmModal('Delete User', `Are you sure you want to delete user "${username}"? All their data will be removed. This action cannot be undone.`, () => deleteUser(id));
+        showConfirmModal(
+            'Delete User',
+            `Type the username to confirm deleting "${username}". Consider disabling instead to preserve audit trails.`,
+            () => deleteUser(id),
+            { confirmationText: username }
+        );
     }
     
     function showCreateProviderModal() {
@@ -981,8 +1121,10 @@
         document.getElementById('providerTemp').value = '0.3';
         document.getElementById('providerMaxTokens').value = '2000';
         document.getElementById('providerEnabled').checked = true;
+        document.getElementById('providerApiKey').dataset.hasKey = 'false';
+        document.getElementById('providerSecretMeta').textContent = 'API key will be stored securely. Required for hosted providers.';
         updateModelSuggestions();
-        
+
         document.getElementById('providerModal').classList.remove('hidden');
         document.getElementById('providerModal').classList.add('flex');
     }
@@ -993,7 +1135,7 @@
             if (!response) return;
             
             const provider = await response.json();
-            
+
             document.getElementById('providerModalTitle').textContent = 'Edit Provider';
             document.getElementById('providerId').value = provider.id;
             document.getElementById('providerName').value = provider.name;
@@ -1004,7 +1146,12 @@
             document.getElementById('providerMaxTokens').value = provider.config_json?.max_tokens || 2000;
             document.getElementById('providerEnabled').checked = provider.is_enabled;
             document.getElementById('providerDefault').checked = provider.is_default;
-            
+            document.getElementById('providerApiKey').value = '';
+            document.getElementById('providerApiKey').dataset.hasKey = provider.has_api_key ? 'true' : 'false';
+            document.getElementById('providerSecretMeta').textContent = provider.has_api_key
+                ? `Key stored securely. Last rotated ${formatDate(provider.updated_at)}. Enter a new key to rotate.`
+                : 'No API key stored yet. Add one to enable this provider.';
+
             document.getElementById('providerModal').classList.remove('hidden');
             document.getElementById('providerModal').classList.add('flex');
         } catch (error) {
@@ -1019,10 +1166,11 @@
     
     document.getElementById('providerForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-        
+
         const providerId = document.getElementById('providerId').value;
-        const apiKey = document.getElementById('providerApiKey').value;
-        
+        const apiKey = document.getElementById('providerApiKey').value.trim();
+        const hasStoredKey = document.getElementById('providerApiKey').dataset.hasKey === 'true';
+
         const data = {
             name: document.getElementById('providerName').value,
             provider_type: document.getElementById('providerType').value,
@@ -1035,7 +1183,13 @@
                 max_tokens: parseInt(document.getElementById('providerMaxTokens').value)
             }
         };
-        
+
+        const requiresSecret = data.provider_type !== 'ollama';
+        if (requiresSecret && !apiKey && !hasStoredKey) {
+            showToast('API key is required for hosted providers', 'error');
+            return;
+        }
+
         if (apiKey) {
             data.api_key = apiKey;
         }
@@ -1081,12 +1235,40 @@
         try {
             const response = await apiCall(`/api/settings/llm/${providerId}/toggle`, { method: 'POST' });
             if (!response) return;
-            
+
             const result = await response.json();
             showToast(result.message, 'success');
             loadProviders();
         } catch (error) {
             showToast('Failed to toggle provider', 'error');
+        }
+    }
+
+    async function testProvider(providerId) {
+        const button = document.querySelector(`[data-test-btn="${providerId}"]`);
+        const original = button?.innerHTML;
+        if (button) {
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        }
+
+        try {
+            const response = await apiCall(`/api/settings/llm/${providerId}/test`);
+            if (!response) return;
+
+            const result = await response.json();
+            if (result.status === 'success') {
+                showToast(`Connection healthy: ${result.response || 'OK'}`, 'success');
+            } else {
+                showToast(`Provider test failed: ${result.error || 'Unknown error'}`, 'error');
+            }
+        } catch (error) {
+            showToast(`Provider test failed: ${error.message}`, 'error');
+        } finally {
+            if (button) {
+                button.disabled = false;
+                button.innerHTML = original;
+            }
         }
     }
     
@@ -1117,6 +1299,8 @@
     function showCreateServerModal() {
         document.getElementById('serverForm').reset();
         toggleAuthFields();
+        document.getElementById('serverKey').dataset.masked = 'true';
+        document.getElementById('serverKey').style.filter = 'blur(5px)';
         document.getElementById('serverModal').classList.remove('hidden');
         document.getElementById('serverModal').classList.add('flex');
     }
@@ -1137,11 +1321,19 @@
             auth_type: document.getElementById('serverAuthType').value,
             environment: document.getElementById('serverEnv').value
         };
-        
+
         if (data.auth_type === 'key') {
-            data.ssh_key = document.getElementById('serverKey').value;
+            data.ssh_key = document.getElementById('serverKey').value.trim();
+            if (!data.ssh_key) {
+                showToast('SSH key is required for key-based authentication', 'error');
+                return;
+            }
         } else {
-            data.password = document.getElementById('serverPassword').value;
+            data.password = document.getElementById('serverPassword').value.trim();
+            if (!data.password) {
+                showToast('Password is required for password authentication', 'error');
+                return;
+            }
         }
         
         try {
@@ -1196,6 +1388,11 @@
         if (e.target === e.currentTarget) closeConfirmModal();
     });
     
+    document.getElementById('providerSearch')?.addEventListener('input', () => renderProvidersTable(filterProviders()));
+    document.getElementById('providerTypeFilter')?.addEventListener('change', () => renderProvidersTable(filterProviders()));
+    document.getElementById('serverSearch')?.addEventListener('input', () => renderServersTable(filterServers()));
+    document.getElementById('serverEnvFilter')?.addEventListener('change', () => renderServersTable(filterServers()));
+
     // Initial load
     loadProviders();
     loadServers();
