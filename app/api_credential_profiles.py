@@ -107,7 +107,7 @@ async def create_credential_profile(
         oauth_client_secret_encrypted=oauth_secret_encrypted,
         oauth_scope=profile_data.oauth_scope,
         tags=profile_data.tags,
-        metadata=profile_data.metadata,
+        profile_metadata=profile_data.profile_metadata,
         enabled=profile_data.enabled,
         created_by=current_user.id
     )

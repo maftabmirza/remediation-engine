@@ -264,7 +264,7 @@ class APICredentialProfileBase(BaseModel):
     timeout_seconds: int = Field(default=30, ge=1, le=300)
     default_headers: Dict[str, str] = Field(default_factory=dict)
     tags: List[str] = Field(default_factory=list)
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    profile_metadata: Dict[str, Any] = Field(default_factory=dict)
     enabled: bool = True
 
 
@@ -293,7 +293,7 @@ class APICredentialProfileUpdate(BaseModel):
     oauth_client_secret: Optional[str] = None  # Plain text secret, will be encrypted
     oauth_scope: Optional[str] = None
     tags: Optional[List[str]] = None
-    metadata: Optional[Dict[str, Any]] = None
+    profile_metadata: Optional[Dict[str, Any]] = None
     enabled: Optional[bool] = None
 
 

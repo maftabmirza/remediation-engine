@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS api_credential_profiles (
 
     -- Metadata and tags
     tags JSON DEFAULT '[]',
-    metadata JSON DEFAULT '{}',
+    profile_metadata JSON DEFAULT '{}',
 
     -- Status
     enabled BOOLEAN DEFAULT TRUE,
@@ -63,7 +63,7 @@ COMMENT ON COLUMN api_credential_profiles.base_url IS 'Base URL for the API endp
 COMMENT ON COLUMN api_credential_profiles.auth_type IS 'Authentication method: none, api_key, bearer, basic, oauth, custom';
 COMMENT ON COLUMN api_credential_profiles.token_encrypted IS 'Encrypted API token, password, or secret';
 COMMENT ON COLUMN api_credential_profiles.default_headers IS 'Default HTTP headers to include with every request';
-COMMENT ON COLUMN api_credential_profiles.metadata IS 'Additional metadata and custom configuration';
+COMMENT ON COLUMN api_credential_profiles.profile_metadata IS 'Additional metadata and custom configuration';
 
 COMMENT ON COLUMN runbook_steps.api_credential_profile_id IS 'Reference to API credential profile for API steps (NULL for command steps)';
 

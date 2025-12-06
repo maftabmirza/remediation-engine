@@ -260,7 +260,7 @@ class APICredentialProfile(Base):
 
     # Metadata and tags
     tags = Column(JSON, default=[])
-    metadata = Column(JSON, default={})
+    profile_metadata = Column(JSON, default={})
 
     # Status
     enabled = Column(Boolean, default=True, index=True)
