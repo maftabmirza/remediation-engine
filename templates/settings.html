@@ -1263,11 +1263,17 @@
     function toggleRowSelection(type, id) {
         if (type === 'provider') {
             selectedProviders.has(id) ? selectedProviders.delete(id) : selectedProviders.add(id);
-            document.getElementById('providerSelectAll')?.checked = selectedProviders.size === providerCache.length;
+            const toggle = document.getElementById('providerSelectAll');
+            if (toggle) {
+                toggle.checked = selectedProviders.size === providerCache.length;
+            }
         }
         if (type === 'server') {
             selectedServers.has(id) ? selectedServers.delete(id) : selectedServers.add(id);
-            document.getElementById('serverSelectAll')?.checked = selectedServers.size === serverCache.length;
+            const toggle = document.getElementById('serverSelectAll');
+            if (toggle) {
+                toggle.checked = selectedServers.size === serverCache.length;
+            }
         }
     }
 
