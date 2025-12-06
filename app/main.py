@@ -35,6 +35,7 @@ from app.routers import (
     metrics,
     remediation
 )
+from app import api_credential_profiles
 from app.services.execution_worker import start_execution_worker, stop_execution_worker
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -156,6 +157,7 @@ app.include_router(servers.router)
 app.include_router(audit.router)
 app.include_router(metrics.router)
 app.include_router(remediation.router)
+app.include_router(api_credential_profiles.router)
 
 
 # ============== Web UI Routes ==============
@@ -274,6 +276,23 @@ async def settings_page(
         "request": request,
         "user": current_user,
         "permissions": list(get_permissions_for_role(current_user.role)),
+    })
+
+
+@app.get("/credential-profiles", response_class=HTMLResponse)
+async def credential_profiles_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    API Credential Profiles management page
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    return templates.TemplateResponse("credential_profiles.html", {
+        "request": request,
+        "user": current_user
     })
 
 

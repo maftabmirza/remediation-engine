@@ -446,12 +446,14 @@ let stepCounter = 0;
 let triggerCounter = 0;
 let codeMirrorInstances = {};
 let servers = [];
+let apiProfiles = [];
 const mode = '{{ mode }}';
 const runbookId = '{{ runbook_id or "" }}';
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', async function() {
     await loadServers();
+    await loadApiProfiles();
     
     if (mode === 'edit' && runbookId) {
         await loadRunbook(runbookId);
@@ -476,6 +478,32 @@ async function loadServers() {
     } catch (error) {
         console.error('Error loading servers:', error);
     }
+}
+
+async function loadApiProfiles() {
+    try {
+        const response = await fetch('/api/credential-profiles?enabled_only=true');
+        if (response.ok) {
+            apiProfiles = await response.json();
+            updateApiProfileDropdowns();
+        }
+    } catch (error) {
+        console.error('Error loading API profiles:', error);
+    }
+}
+
+function updateApiProfileDropdowns() {
+    document.querySelectorAll('.step-api-profile').forEach(select => {
+        const currentValue = select.value;
+        select.innerHTML = '<option value="">-- Select API Credential Profile --</option>';
+        apiProfiles.forEach(profile => {
+            const option = document.createElement('option');
+            option.value = profile.id;
+            option.textContent = `${profile.name} (${profile.base_url})`;
+            if (profile.id === currentValue) option.selected = true;
+            select.appendChild(option);
+        });
+    });
 }
 
 function populateServerDropdown() {
@@ -651,6 +679,20 @@ function addStep(stepData = null) {
                     </select>
                 </div>
 
+                <!-- API Credential Profile Selector (for API steps) -->
+                <div class="mb-4" id="${stepId}-api-profile" style="${stepData?.step_type === 'api' ? '' : 'display:none'}">
+                    <label class="block text-secondary text-xs mb-1">
+                        API Credential Profile <span class="text-red-400">*</span>
+                    </label>
+                    <select class="step-api-profile input-field w-full px-3 py-2 rounded text-sm">
+                        <option value="">-- Select API Credential Profile --</option>
+                        <!-- Populated via JavaScript from /api/credential-profiles -->
+                    </select>
+                    <p class="text-xs text-secondary mt-1">
+                        Base URL and authentication configured in the selected profile
+                    </p>
+                </div>
+
                 <!-- Command Configuration (for command type) -->
                 <div class="step-command-config" id="${stepId}-command-config" style="${stepData?.step_type === 'api' ? 'display:none' : ''}">
                     <div class="cmd-tabs">
@@ -802,11 +844,22 @@ function addStep(stepData = null) {
     
     container.insertAdjacentHTML('beforeend', stepHtml);
     document.getElementById('noStepsMessage').style.display = 'none';
-    
+
     // Initialize CodeMirror for command textareas
     initCodeMirror(`${stepId}-linux`, 'shell');
     initCodeMirror(`${stepId}-windows`, 'powershell');
-    
+
+    // Populate API profile dropdown for this step
+    updateApiProfileDropdowns();
+
+    // Pre-select the profile if provided in stepData
+    if (stepData?.api_credential_profile_id) {
+        const profileSelect = document.querySelector(`#${stepId} .step-api-profile`);
+        if (profileSelect) {
+            profileSelect.value = stepData.api_credential_profile_id;
+        }
+    }
+
     updateCounts();
 }
 
@@ -848,13 +901,16 @@ function toggleStepType(stepId) {
     const stepType = step.querySelector('.step-type').value;
     const commandConfig = document.getElementById(`${stepId}-command-config`);
     const apiConfig = document.getElementById(`${stepId}-api-config`);
+    const apiProfileSelector = document.getElementById(`${stepId}-api-profile`);
 
     if (stepType === 'api') {
         commandConfig.style.display = 'none';
         apiConfig.style.display = 'block';
+        if (apiProfileSelector) apiProfileSelector.style.display = 'block';
     } else {
         commandConfig.style.display = 'block';
         apiConfig.style.display = 'none';
+        if (apiProfileSelector) apiProfileSelector.style.display = 'none';
     }
 }
 
@@ -998,6 +1054,7 @@ function collectFormData() {
         }
         // Add API-specific fields
         else if (stepType === 'api') {
+            stepData.api_credential_profile_id = stepEl.querySelector('.step-api-profile')?.value || null;
             stepData.api_method = stepEl.querySelector('.step-api-method')?.value || 'GET';
             stepData.api_endpoint = stepEl.querySelector('.step-api-endpoint')?.value || null;
             stepData.api_body_type = stepEl.querySelector('.step-api-body-type')?.value || 'json';
