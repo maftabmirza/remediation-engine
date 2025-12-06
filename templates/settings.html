@@ -2396,6 +2396,115 @@ account: db-admin"></textarea>
         }, { confirmationText: 'DELETE' });
     }
 
+    // API Credentials functions
+    async function loadApiCredentials() {
+        try {
+            const response = await apiCall('/api/credential-profiles');
+            if (!response) return;
+            apiCredentialProfiles = await response.json();
+            renderApiCredentials(filterApiCredentials());
+        } catch (error) {
+            console.error('Failed to load API credentials', error);
+        }
+    }
+
+    function filterApiCredentials() {
+        const search = (document.getElementById('apiCredentialSearch')?.value || '').toLowerCase();
+        const authType = document.getElementById('apiCredentialAuthTypeFilter')?.value || '';
+        const status = document.getElementById('apiCredentialStatusFilter')?.value || '';
+
+        let filtered = apiCredentialProfiles;
+        if (search) {
+            filtered = filtered.filter(p =>
+                p.name.toLowerCase().includes(search) ||
+                (p.base_url || '').toLowerCase().includes(search)
+            );
+        }
+        if (authType) {
+            filtered = filtered.filter(p => p.auth_type === authType);
+        }
+        if (status === 'enabled') {
+            filtered = filtered.filter(p => p.enabled === true);
+        } else if (status === 'disabled') {
+            filtered = filtered.filter(p => p.enabled === false);
+        }
+
+        return filtered.sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    function renderApiCredentials(profiles) {
+        const container = document.getElementById('apiCredentialTableContainer');
+        if (!container) return;
+
+        if (!profiles.length) {
+            container.innerHTML = '<div class="text-center py-8 text-gray-400">No API credentials yet. Use "New API Credential" to add credentials for Ansible AWX, Jenkins, Kubernetes, etc.</div>';
+            return;
+        }
+
+        const formatAuthType = (type) => {
+            const types = {
+                'none': 'No Auth',
+                'api_key': 'API Key',
+                'bearer': 'Bearer Token',
+                'basic': 'Basic Auth',
+                'oauth': 'OAuth 2.0'
+            };
+            return types[type] || type;
+        };
+
+        const rows = profiles.map(p => {
+            const statusBadge = p.enabled
+                ? '<span class="px-2 py-1 text-xs rounded bg-green-900 text-green-300">Enabled</span>'
+                : '<span class="px-2 py-1 text-xs rounded bg-gray-700 text-gray-400">Disabled</span>';
+
+            return `<tr class="border-b border-gray-800">
+                <td class="px-4 py-3">
+                    <div class="font-semibold">${p.name}</div>
+                    <div class="text-xs text-gray-400">${p.description || ''}</div>
+                </td>
+                <td class="px-4 py-3 text-sm font-mono text-xs">${p.base_url}</td>
+                <td class="px-4 py-3 text-sm">${formatAuthType(p.auth_type)}</td>
+                <td class="px-4 py-3 text-sm">${statusBadge}</td>
+                <td class="px-4 py-3 text-sm">${p.timeout_seconds}s</td>
+                <td class="px-4 py-3 text-right space-x-2">
+                    <a href="/credential-profiles" class="btn-secondary px-2 py-1 rounded text-xs" title="Manage in full editor">
+                        <i class="fas fa-external-link-alt"></i>
+                    </a>
+                </td>
+            </tr>`;
+        }).join('');
+
+        container.innerHTML = `<table class="min-w-full text-left">
+            <thead class="text-xs uppercase text-gray-400">
+                <tr>
+                    <th class="px-4 py-2">Name</th>
+                    <th class="px-4 py-2">Base URL</th>
+                    <th class="px-4 py-2">Auth Type</th>
+                    <th class="px-4 py-2">Status</th>
+                    <th class="px-4 py-2">Timeout</th>
+                    <th class="px-4 py-2 text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="text-sm text-gray-200">${rows}</tbody>
+        </table>
+        <div class="p-3 text-xs text-gray-400">Showing ${profiles.length} API credential profiles</div>`;
+    }
+
+    function showApiCredentialModal() {
+        window.location.href = '/credential-profiles';
+    }
+
+    // Add event listeners for API credential filters
+    document.getElementById('apiCredentialSearch')?.addEventListener('input', () => {
+        renderApiCredentials(filterApiCredentials());
+    });
+    document.getElementById('apiCredentialAuthTypeFilter')?.addEventListener('change', () => {
+        renderApiCredentials(filterApiCredentials());
+    });
+    document.getElementById('apiCredentialStatusFilter')?.addEventListener('change', () => {
+        renderApiCredentials(filterApiCredentials());
+    });
+
     async function submitServerGroup(event) {
         event.preventDefault();
         if (!canManageServerGroups) {
@@ -2740,6 +2849,7 @@ async function deleteServer(serverId) {
     loadProviders();
     loadServerGroups();
     loadCredentialProfiles();
+    loadApiCredentials();
     loadServers();
     if (canManageUsers) {
         loadUsers();
