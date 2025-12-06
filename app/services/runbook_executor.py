@@ -386,7 +386,126 @@ class RunbookExecutor:
             result["errors"].append(f"Server connection failed: {e}")
         
         return result
-    
+
+    async def execute_single_step(
+        self,
+        execution: RunbookExecution,
+        step: RunbookStep,
+        step_execution: StepExecution,
+        server: ServerCredential,
+        variables: Optional[Dict[str, str]] = None,
+        alert_context: Optional[Dict[str, Any]] = None
+    ) -> StepExecution:
+        """
+        Execute a single step for testing purposes.
+
+        Args:
+            execution: RunbookExecution record (can be temporary)
+            step: RunbookStep to execute
+            step_execution: StepExecution record to update
+            server: Target server
+            variables: Template variables
+            alert_context: Alert context for template rendering
+
+        Returns:
+            Updated StepExecution record
+        """
+        try:
+            # Load runbook
+            result = await self.db.execute(
+                select(Runbook).where(Runbook.id == step.runbook_id)
+            )
+            runbook = result.scalar_one_or_none()
+
+            if not runbook:
+                step_execution.status = "failed"
+                step_execution.error_message = "Runbook not found"
+                step_execution.completed_at = utc_now()
+                return step_execution
+
+            # Build context for template rendering
+            context = self._build_context(
+                runbook=runbook,
+                server=server,
+                alert_context=alert_context or {},
+                execution=execution,
+                extra_vars=variables
+            )
+
+            # Check if step should run on this OS
+            if not self._should_run_step(step, server):
+                step_execution.status = "skipped"
+                step_execution.error_message = f"OS mismatch: server is {server.os_type}, step requires {step.target_os}"
+                step_execution.completed_at = utc_now()
+                return step_execution
+
+            # Get command for OS
+            command = step.command_linux if server.os_type == "linux" else step.command_windows
+            if not command:
+                step_execution.status = "skipped"
+                step_execution.error_message = f"No command defined for {server.os_type}"
+                step_execution.completed_at = utc_now()
+                return step_execution
+
+            # Render command template
+            try:
+                rendered_command = self._render_template(command, context)
+                step_execution.command_executed = rendered_command
+            except Exception as e:
+                step_execution.status = "failed"
+                step_execution.error_message = f"Template rendering failed: {e}"
+                step_execution.completed_at = utc_now()
+                return step_execution
+
+            # Get executor
+            executor = ExecutorFactory.get_executor(server, self.fernet_key)
+
+            # Execute command
+            async with executor:
+                # Test connection first
+                conn_ok = await executor.test_connection()
+                if not conn_ok:
+                    step_execution.status = "failed"
+                    step_execution.error_message = "Connection test failed"
+                    step_execution.completed_at = utc_now()
+                    return step_execution
+
+                # Execute the command
+                step_execution.status = "running"
+                await self.db.commit()
+
+                exec_result = await executor.execute(
+                    command=rendered_command,
+                    timeout=step.timeout_seconds,
+                    working_dir=step.working_directory,
+                    environment=step.environment_json
+                )
+
+                # Update step execution with results
+                step_execution.stdout = exec_result.stdout[:10000] if exec_result.stdout else ""
+                step_execution.stderr = exec_result.stderr[:10000] if exec_result.stderr else ""
+                step_execution.exit_code = exec_result.exit_code
+                step_execution.duration_ms = exec_result.duration_ms
+                step_execution.completed_at = utc_now()
+
+                # Check success criteria
+                step_success = self._check_step_success(exec_result, step)
+
+                if step_success:
+                    step_execution.status = "success"
+                else:
+                    step_execution.status = "failed"
+                    step_execution.error_type = exec_result.error_type.value if exec_result.error_type else "command"
+                    step_execution.error_message = exec_result.error_message or exec_result.stderr
+
+        except Exception as e:
+            step_execution.status = "failed"
+            step_execution.error_message = f"Execution error: {str(e)}"
+            step_execution.completed_at = utc_now()
+            logger.exception(f"Single step execution failed: {e}")
+
+        return step_execution
+
     def _build_context(
         self,
         runbook: Runbook,

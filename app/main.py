@@ -305,10 +305,49 @@ async def runbooks_page(
     """
     if not current_user:
         return RedirectResponse(url="/login", status_code=302)
-    
+
     return templates.TemplateResponse("runbooks.html", {
         "request": request,
         "user": current_user
+    })
+
+
+@app.get("/runbooks/new", response_class=HTMLResponse)
+async def runbook_create_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    Create new runbook - full page form
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    return templates.TemplateResponse("runbook_form.html", {
+        "request": request,
+        "user": current_user,
+        "runbook_id": None,
+        "mode": "create"
+    })
+
+
+@app.get("/runbooks/{runbook_id}/edit", response_class=HTMLResponse)
+async def runbook_edit_page(
+    request: Request,
+    runbook_id: str,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    Edit runbook - full page form
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    return templates.TemplateResponse("runbook_form.html", {
+        "request": request,
+        "user": current_user,
+        "runbook_id": runbook_id,
+        "mode": "edit"
     })
 
 
