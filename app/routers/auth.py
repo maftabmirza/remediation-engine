@@ -11,7 +11,8 @@ from app.schemas import LoginRequest, LoginResponse, UserResponse
 from app.services.auth_service import (
     authenticate_user,
     create_access_token,
-    get_current_user
+    get_current_user,
+    get_permissions_for_role
 )
 from app.metrics import AUTH_ATTEMPTS
 from slowapi import Limiter
@@ -80,10 +81,13 @@ async def login(
         samesite="lax"
     )
     
+    user_payload = UserResponse.model_validate(user)
+    user_payload.permissions = list(get_permissions_for_role(user.role))
+
     return LoginResponse(
         access_token=access_token,
         token_type="bearer",
-        user=UserResponse.model_validate(user)
+        user=user_payload
     )
 
 
@@ -121,4 +125,6 @@ async def get_current_user_info(
     """
     Get current authenticated user info.
     """
-    return UserResponse.model_validate(current_user)
+    payload = UserResponse.model_validate(current_user)
+    payload.permissions = list(get_permissions_for_role(current_user.role))
+    return payload

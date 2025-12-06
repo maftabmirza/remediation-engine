@@ -8,8 +8,10 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     username VARCHAR(50) UNIQUE NOT NULL,
+    email VARCHAR(255),
+    full_name VARCHAR(100),
     password_hash VARCHAR(255) NOT NULL,
-    role VARCHAR(20) DEFAULT 'user' CHECK (role IN ('admin', 'user')),
+    role VARCHAR(20) DEFAULT 'operator' CHECK (role IN ('owner', 'admin', 'maintainer', 'operator', 'viewer', 'auditor', 'user')),
     default_llm_provider_id UUID,
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -109,6 +111,33 @@ CREATE TABLE IF NOT EXISTS chat_messages (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Server grouping table
+CREATE TABLE IF NOT EXISTS server_groups (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    parent_id UUID REFERENCES server_groups(id) ON DELETE SET NULL,
+    path VARCHAR(255),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Credential Profiles table (reusable credentials, vault/CyberArk references)
+CREATE TABLE IF NOT EXISTS credential_profiles (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(120) UNIQUE NOT NULL,
+    description TEXT,
+    username VARCHAR(100),
+    credential_type VARCHAR(30) DEFAULT 'key',
+    backend VARCHAR(30) DEFAULT 'inline',
+    secret_encrypted TEXT,
+    metadata_json JSONB DEFAULT '{}'::jsonb,
+    last_rotated TIMESTAMP WITH TIME ZONE,
+    group_id UUID REFERENCES server_groups(id),
+    created_by UUID REFERENCES users(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Server Credentials table
 CREATE TABLE IF NOT EXISTS server_credentials (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -119,7 +148,21 @@ CREATE TABLE IF NOT EXISTS server_credentials (
     auth_type VARCHAR(20) DEFAULT 'key' CHECK (auth_type IN ('key', 'password')),
     ssh_key_encrypted TEXT,
     password_encrypted TEXT,
+    credential_source VARCHAR(30) DEFAULT 'inline',
+    credential_profile_id UUID REFERENCES credential_profiles(id),
+    credential_metadata JSONB DEFAULT '{}'::jsonb,
+    os_type VARCHAR(20) DEFAULT 'linux',
+    protocol VARCHAR(20) DEFAULT 'ssh',
+    winrm_transport VARCHAR(20),
+    winrm_use_ssl BOOLEAN DEFAULT TRUE,
+    winrm_cert_validation BOOLEAN DEFAULT TRUE,
+    domain VARCHAR(100),
+    group_id UUID REFERENCES server_groups(id),
     environment VARCHAR(50) DEFAULT 'production',
+    tags JSONB DEFAULT '[]'::jsonb,
+    last_connection_test TIMESTAMP WITH TIME ZONE,
+    last_connection_status VARCHAR(20),
+    last_connection_error TEXT,
     created_by UUID REFERENCES users(id),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -160,6 +203,11 @@ CREATE INDEX IF NOT EXISTS idx_chat_sessions_alert ON chat_sessions(alert_id);
 CREATE INDEX IF NOT EXISTS idx_chat_messages_session ON chat_messages(session_id);
 CREATE INDEX IF NOT EXISTS idx_chat_messages_created ON chat_messages(created_at);
 CREATE INDEX IF NOT EXISTS idx_server_creds_env ON server_credentials(environment);
+CREATE INDEX IF NOT EXISTS idx_server_creds_group ON server_credentials(group_id);
+CREATE INDEX IF NOT EXISTS idx_server_groups_parent ON server_groups(parent_id);
+CREATE INDEX IF NOT EXISTS idx_server_creds_profile ON server_credentials(credential_profile_id);
+CREATE INDEX IF NOT EXISTS idx_credential_profiles_backend ON credential_profiles(backend);
+CREATE INDEX IF NOT EXISTS idx_credential_profiles_group ON credential_profiles(group_id);
 CREATE INDEX IF NOT EXISTS idx_terminal_sessions_user ON terminal_sessions(user_id);
 
 -- Insert default LLM provider (Claude)

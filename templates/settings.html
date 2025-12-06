@@ -4,7 +4,83 @@
 {% block title %}Settings - AIOps Platform{% endblock %}
 
 {% block content %}
-<div class="space-y-6">
+<style>
+    .settings-nav-btn {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.7rem 0.85rem;
+        border-radius: 0.5rem;
+        color: var(--text-secondary);
+        transition: all 0.15s ease-in-out;
+        border: 1px solid transparent;
+    }
+    .settings-nav-btn:hover {
+        color: var(--text-primary);
+        background: var(--bg-tertiary);
+    }
+    .settings-nav-btn.active {
+        color: var(--accent-primary);
+        background: var(--bg-tertiary);
+        border-color: var(--accent-primary);
+    }
+    .settings-section {
+        display: none;
+    }
+    .settings-section.active {
+        display: block;
+    }
+</style>
+
+<div class="flex flex-col lg:flex-row gap-6">
+    <div class="w-full lg:w-64 flex-shrink-0">
+        <div class="card p-4 sticky top-4 space-y-4">
+            <div>
+                <h2 class="text-lg font-semibold">Settings</h2>
+                <p class="text-sm text-gray-400">Pick a section to view in a full-width workspace.</p>
+            </div>
+            <div class="space-y-1">
+                <button type="button" class="settings-nav-btn" data-target="section-overview">
+                    <i class="fas fa-chart-pie"></i>
+                    <span>Overview</span>
+                </button>
+                {% if 'manage_users' in permissions %}
+                <button type="button" class="settings-nav-btn" data-target="section-users">
+                    <i class="fas fa-users"></i>
+                    <span>Users</span>
+                </button>
+                {% endif %}
+                <button type="button" class="settings-nav-btn" data-target="section-providers">
+                    <i class="fas fa-robot"></i>
+                    <span>LLM Providers</span>
+                </button>
+                <button type="button" class="settings-nav-btn" data-target="section-servers">
+                    <i class="fas fa-server"></i>
+                    <span>Servers</span>
+                </button>
+                {% if 'manage_servers' in permissions %}
+                <button type="button" class="settings-nav-btn" data-target="section-credentials">
+                    <i class="fas fa-key"></i>
+                    <span>Credential Profiles</span>
+                </button>
+                {% endif %}
+                {% if 'manage_providers' in permissions %}
+                <button type="button" class="settings-nav-btn" data-target="section-auth">
+                    <i class="fas fa-shield-alt"></i>
+                    <span>Authentication</span>
+                </button>
+                {% endif %}
+            </div>
+            <div class="bg-gray-800 bg-opacity-60 p-3 rounded" id="sectionActionPanel">
+                <p class="text-xs uppercase text-gray-400 tracking-wide">Section actions</p>
+                <p id="sectionActionBody" class="text-sm text-gray-300 mt-1">Select a section to see focused actions.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="flex-1 space-y-6">
+        <section id="section-overview" class="settings-section active space-y-6">
     <!-- Header -->
     <div class="flex items-center justify-between">
         <div>
@@ -37,7 +113,7 @@
                 </div>
             </div>
         </div>
-        {% if user.role == 'admin' %}
+        {% if 'manage_users' in permissions %}
         <div class="card p-4">
             <div class="flex items-center justify-between">
                 <div>
@@ -86,77 +162,316 @@
         {% endif %}
     </div>
 
-    <!-- User Management (Admin Only) - TABLE VIEW -->
-    {% if user.role == 'admin' %}
-    <div class="card">
-        <div class="flex items-center justify-between p-4 border-b border-gray-700">
-            <h2 class="text-lg font-semibold">
-                <i class="fas fa-users text-yellow-400 mr-2"></i>
-                User Management
-            </h2>
-            <button onclick="showCreateUserModal()" class="btn-primary px-4 py-2 rounded">
-                <i class="fas fa-plus mr-2"></i>Add User
-            </button>
+    <!-- Access & Governance Snapshot -->
+    <div class="card p-4">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h2 class="text-lg font-semibold">Access Control</h2>
+                <p class="text-sm text-gray-400">Page-level permissions and current enforcement mode</p>
+            </div>
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs bg-blue-900 bg-opacity-50 text-blue-300">
+                <i class="fas fa-user-shield mr-2"></i>{{ user.role | capitalize }}
+            </span>
         </div>
-        
-        <div id="usersTableContainer" class="overflow-x-auto">
-            <div class="text-center py-8">
-                <div class="loading-spinner mx-auto"></div>
+        <div class="grid md:grid-cols-3 gap-4 text-sm">
+            <div class="bg-gray-800 bg-opacity-60 p-3 rounded">
+                <div class="flex items-center justify-between">
+                    <span class="font-semibold">User Operations</span>
+                      <span class="text-xs px-2 py-1 rounded-full {{ 'bg-green-900 text-green-300' if 'manage_users' in permissions else 'bg-gray-700 text-gray-400' }}">{{ 'Manage' if 'manage_users' in permissions else 'Read-only' }}</span>
+                </div>
+                <p class="text-gray-400 mt-1">Create/deactivate users, update roles. Admin-only.</p>
+            </div>
+            <div class="bg-gray-800 bg-opacity-60 p-3 rounded">
+                <div class="flex items-center justify-between">
+                    <span class="font-semibold">Provider Controls</span>
+                      <span class="text-xs px-2 py-1 rounded-full {{ 'bg-green-900 text-green-300' if 'manage_providers' in permissions else 'bg-gray-700 text-gray-400' }}">{{ 'Manage' if 'manage_providers' in permissions else 'Read-only' }}</span>
+                </div>
+                <p class="text-gray-400 mt-1">Add/edit providers, rotate secrets, run health checks.</p>
+            </div>
+            <div class="bg-gray-800 bg-opacity-60 p-3 rounded">
+                <div class="flex items-center justify-between">
+                    <span class="font-semibold">Auth Settings</span>
+                      <span class="text-xs px-2 py-1 rounded-full {{ 'bg-green-900 text-green-300' if 'manage_providers' in permissions else 'bg-gray-700 text-gray-400' }}">{{ 'Manage' if 'manage_providers' in permissions else 'Read-only' }}</span>
+                </div>
+                <p class="text-gray-400 mt-1">Configure LDAP/SAML, review audit events, test login.</p>
             </div>
         </div>
     </div>
-    {% endif %}
-    
-    <!-- LLM Providers - TABLE VIEW -->
-    <div class="card">
-        <div class="flex items-center justify-between p-4 border-b border-gray-700">
-            <h2 class="text-lg font-semibold">
-                <i class="fas fa-robot text-purple-400 mr-2"></i>
-                LLM Providers
-            </h2>
-            {% if user.role == 'admin' %}
-            <button onclick="showCreateProviderModal()" class="btn-primary px-4 py-2 rounded">
-                <i class="fas fa-plus mr-2"></i>Add Provider
-            </button>
-            {% endif %}
-        </div>
-        
-        <div id="providersTableContainer" class="overflow-x-auto">
-            <div class="text-center py-8">
-                <div class="loading-spinner mx-auto"></div>
-            </div>
-        </div>
-    </div>
+        </section>
 
-    <!-- Server Credentials - TABLE VIEW -->
-    <div class="card">
-        <div class="flex items-center justify-between p-4 border-b border-gray-700">
-            <h2 class="text-lg font-semibold">
-                <i class="fas fa-server text-green-400 mr-2"></i>
-                Server Credentials
-            </h2>
-            {% if user.role == 'admin' %}
-            <button onclick="showCreateServerModal()" class="btn-primary px-4 py-2 rounded">
-                <i class="fas fa-plus mr-2"></i>Add Server
-            </button>
-            {% endif %}
-        </div>
-        
-        <div id="serversTableContainer" class="overflow-x-auto">
-            <div class="text-center py-8">
-                <div class="loading-spinner mx-auto"></div>
+        {% if 'manage_users' in permissions %}
+        <section id="section-users" class="settings-section space-y-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-xl font-semibold">User Management</h2>
+                        <p class="text-sm text-gray-400">Full-width view for large directories and role changes.</p>
+                    </div>
+                    {% if 'manage_users' in permissions %}
+                    <button onclick="showCreateUserModal()" class="btn-primary px-4 py-2 rounded">
+                        <i class="fas fa-plus mr-2"></i>Add User
+                    </button>
+                    {% endif %}
+                </div>
+            <div class="card">
+                <div class="flex flex-wrap items-center justify-between p-4 border-b border-gray-700 gap-3">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <div class="flex items-center gap-2">
+                            <input id="userSearch" type="text" class="input-field px-3 py-2 rounded text-sm" placeholder="Search username, name, or email">
+                              <select id="userRoleFilter" class="input-field px-3 py-2 rounded text-sm">
+                                  <option value="">All roles</option>
+                                  <option value="owner">Owners</option>
+                                  <option value="admin">Admins</option>
+                                  <option value="maintainer">Maintainers</option>
+                                  <option value="operator">Operators</option>
+                                  <option value="viewer">Viewers</option>
+                                  <option value="auditor">Auditors</option>
+                                  <option value="user">Legacy users</option>
+                              </select>
+                            <select id="userStatusFilter" class="input-field px-3 py-2 rounded text-sm">
+                                <option value="">Any status</option>
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                            </select>
+                            <select id="userSort" class="input-field px-3 py-2 rounded text-sm">
+                                <option value="recent">Newest first</option>
+                                <option value="name">Name A→Z</option>
+                                <option value="last_login">Recent login</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 text-sm text-gray-300">
+                        <label for="userPageSize" class="text-gray-400">Rows</label>
+                        <select id="userPageSize" class="input-field px-2 py-1 rounded text-sm w-24">
+                            <option value="10">10</option>
+                            <option value="25">25</option>
+                            <option value="50">50</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="usersTableContainer" class="overflow-x-auto">
+                    <div class="text-center py-8">
+                        <div class="loading-spinner mx-auto"></div>
+                    </div>
+                </div>
             </div>
-        </div>
-    </div>
+        </section>
+        {% endif %}
 
-    <!-- Authentication Settings (Admin Only) -->
-    {% if user.role == 'admin' %}
-    <div class="card p-6">
-        <h2 class="text-lg font-semibold mb-4">
-            <i class="fas fa-shield-alt text-red-400 mr-2"></i>
-            Authentication Settings
-        </h2>
-        <form id="authConfigForm" class="space-y-4">
+        <section id="section-providers" class="settings-section space-y-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-xl font-semibold">LLM Providers</h2>
+                    <p class="text-sm text-gray-400">Focus on provider inventory with filters and bulk actions.</p>
+                </div>
+                {% if 'manage_providers' in permissions %}
+                <button onclick="showCreateProviderModal()" class="btn-primary px-4 py-2 rounded">
+                    <i class="fas fa-plus mr-2"></i>Add Provider
+                </button>
+                {% endif %}
+            </div>
+            <div class="card">
+                <div class="flex flex-wrap items-center justify-between p-4 border-b border-gray-700 space-y-3 md:space-y-0 space-x-4">
+                    <div class="flex items-center space-x-3">
+                        <div class="hidden md:flex items-center space-x-2">
+                            <input id="providerSearch" type="text" class="input-field px-3 py-2 rounded text-sm" placeholder="Search name or model">
+                            <select id="providerTypeFilter" class="input-field px-3 py-2 rounded text-sm">
+                                <option value="">All Types</option>
+                                <option value="anthropic">Anthropic</option>
+                                <option value="openai">OpenAI</option>
+                                <option value="google">Google</option>
+                                <option value="ollama">Ollama</option>
+                                <option value="azure">Azure</option>
+                            </select>
+                            <select id="providerStatusFilter" class="input-field px-3 py-2 rounded text-sm">
+                                <option value="">Any Status</option>
+                                <option value="enabled">Enabled</option>
+                                <option value="disabled">Disabled</option>
+                            </select>
+                        </div>
+                    </div>
+                    {% if 'manage_providers' in permissions %}
+                    <div class="flex items-center space-x-2">
+                        <button class="btn-secondary px-3 py-1 rounded text-sm" onclick="bulkEnableProviders(true)"><i class="fas fa-check mr-1"></i>Enable</button>
+                        <button class="btn-secondary px-3 py-1 rounded text-sm" onclick="bulkEnableProviders(false)"><i class="fas fa-pause mr-1"></i>Disable</button>
+                    </div>
+                    {% endif %}
+                </div>
+
+                {% if 'manage_providers' in permissions %}
+                <div class="flex items-center space-x-2 px-4 py-3 text-sm text-gray-300 border-b border-gray-800">
+                    <input type="checkbox" id="providerSelectAll" class="mr-1" onchange="toggleSelectAll('provider')">
+                    <span>Select all</span>
+                </div>
+                {% endif %}
+
+                <div id="providersTableContainer" class="overflow-x-auto">
+                    <div class="text-center py-8">
+                        <div class="loading-spinner mx-auto"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="section-servers" class="settings-section space-y-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-xl font-semibold">Servers</h2>
+                        <p class="text-sm text-gray-400">Expanded credential list with filters and connection tests.</p>
+                    </div>
+                    {% if 'manage_servers' in permissions %}
+                    <button onclick="showCreateServerModal()" class="btn-primary px-4 py-2 rounded">
+                        <i class="fas fa-plus mr-2"></i>Add Server
+                    </button>
+                    {% endif %}
+                </div>
+                <div class="card">
+                    <div class="flex flex-wrap items-center justify-between p-4 border-b border-gray-700 space-y-3 md:space-y-0 space-x-4">
+                        <div class="flex items-center space-x-3">
+                            <div class="hidden md:flex items-center space-x-2">
+                                <input id="serverSearch" type="text" class="input-field px-3 py-2 rounded text-sm" placeholder="Search server or host">
+                            <select id="serverEnvFilter" class="input-field px-3 py-2 rounded text-sm">
+                                <option value="">All Environments</option>
+                                <option value="production">Production</option>
+                                <option value="staging">Staging</option>
+                                <option value="development">Development</option>
+                            </select>
+                                <select id="serverStatusFilter" class="input-field px-3 py-2 rounded text-sm">
+                                    <option value="">Any Auth</option>
+                                    <option value="key">SSH Key</option>
+                                    <option value="password">Password</option>
+                                </select>
+                            </div>
+                        </div>
+                        {% if 'manage_servers' in permissions %}
+                        <div class="flex items-center space-x-2">
+                            <button class="btn-secondary px-3 py-2 rounded text-sm" onclick="bulkTestServers()"><i class="fas fa-heartbeat mr-1"></i>Test Selected</button>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    {% if 'manage_server_groups' in permissions %}
+                    <div class="p-4 border-b border-gray-800 bg-gray-900 bg-opacity-50">
+                        <form id="serverGroupForm" class="grid md:grid-cols-3 gap-3 items-end">
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">New Group Name</label>
+                                <input id="serverGroupName" type="text" class="input-field px-3 py-2 rounded text-sm" placeholder="e.g., Production/Web" required>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Parent Group</label>
+                                <select id="serverGroupParent" class="input-field px-3 py-2 rounded text-sm">
+                                    <option value="">No parent</option>
+                                </select>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <button type="submit" class="btn-secondary px-3 py-2 rounded text-sm w-full md:w-auto"><i class="fas fa-layer-group mr-2"></i>Create Group</button>
+                                <span class="text-xs text-gray-500 hidden md:inline">Organize hosts with parent/child groupings.</span>
+                            </div>
+                        </form>
+                    </div>
+                    {% endif %}
+
+                    {% if 'manage_servers' in permissions %}
+                    <div class="flex items-center space-x-2 px-4 py-3 text-sm text-gray-300 border-b border-gray-800">
+                        <input type="checkbox" id="serverSelectAll" class="mr-1" onchange="toggleSelectAll('server')">
+                        <span>Select all</span>
+                    </div>
+                    {% endif %}
+
+                <div id="serversTableContainer" class="overflow-x-auto">
+                    <div class="text-center py-8">
+                        <div class="loading-spinner mx-auto"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-4">
+                <div class="p-4 border-b border-gray-700 flex items-center justify-between">
+                    <div>
+                        <h3 class="font-semibold">Bulk import servers</h3>
+                        <p class="text-sm text-gray-400">Paste YAML/JSON to create many hosts at once. We test reachability before saving.</p>
+                    </div>
+                    <div class="flex flex-wrap items-center space-x-2 text-sm">
+                        <select id="importFormat" class="input-field px-3 py-2 rounded">
+                            <option value="yaml">YAML</option>
+                            <option value="json">JSON</option>
+                        </select>
+                        <select id="importAuthType" class="input-field px-3 py-2 rounded">
+                            <option value="key">Default auth: key</option>
+                            <option value="password">Default auth: password</option>
+                        </select>
+                        <select id="importGroup" class="input-field px-3 py-2 rounded">
+                            <option value="">Group: none</option>
+                        </select>
+                        <button class="btn-secondary px-3 py-2 rounded" onclick="submitServerImport()">Import</button>
+                    </div>
+                </div>
+                <div class="p-4 space-y-2">
+                    <textarea id="serverImportPayload" class="input-field w-full px-3 py-2 rounded h-32 font-mono text-xs" placeholder="- name: prod-db-01
+  hostname: 10.0.0.5
+  username: ec2-user
+  auth_type: key
+  ssh_key: |-
+    -----BEGIN OPENSSH PRIVATE KEY-----
+    ...
+  group_id: <uuid>
+- name: vault-ref
+  hostname: jump.prod.local
+  credential_source: shared_profile
+  credential_profile_id: <profile uuid>"></textarea>
+                    <p class="text-xs text-gray-400">Tips: set <code>credential_source: shared_profile</code> to reuse vault or CyberArk secrets. You can also pre-set defaults for <code>auth_type</code> and <code>group</code> via the dropdowns.</p>
+                </div>
+            </div>
+        </section>
+
+        {% if 'manage_servers' in permissions %}
+        <section id="section-credentials" class="settings-section space-y-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-xl font-semibold">Credential Profiles</h2>
+                    <p class="text-sm text-gray-400">Create, rotate, and reuse secrets across server groups.</p>
+                </div>
+                <button onclick="showCredentialModal()" class="btn-primary px-4 py-2 rounded">
+                    <i class="fas fa-plus mr-2"></i>New Credential
+                </button>
+            </div>
+
+            <div class="card">
+                <div class="flex flex-wrap items-center justify-between p-4 border-b border-gray-700 space-y-3 md:space-y-0 space-x-4">
+                    <div class="flex items-center space-x-2">
+                        <input id="credentialSearch" type="text" class="input-field px-3 py-2 rounded text-sm" placeholder="Search credential or backend">
+                        <select id="credentialBackendFilter" class="input-field px-3 py-2 rounded text-sm">
+                            <option value="">Any backend</option>
+                            <option value="inline">Inline</option>
+                            <option value="vault">Vault</option>
+                            <option value="cyberark">CyberArk</option>
+                        </select>
+                        <select id="credentialGroupFilter" class="input-field px-3 py-2 rounded text-sm">
+                            <option value="">All groups</option>
+                        </select>
+                    </div>
+                    <div class="text-sm text-gray-300">
+                        Attach profiles to server groups or pick them per host; choose "Inline secret" inside a server form for one-off credentials.
+                    </div>
+                </div>
+                <div id="credentialTableContainer" class="overflow-x-auto">
+                    <div class="text-center py-8">
+                        <div class="loading-spinner mx-auto"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        {% endif %}
+
+        {% if 'manage_providers' in permissions %}
+        <section id="section-auth" class="settings-section space-y-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-xl font-semibold">Authentication</h2>
+                    <p class="text-sm text-gray-400">Configure LDAP/SAML with validation and test actions.</p>
+                </div>
+            </div>
+            <div class="card p-6">
+                <form id="authConfigForm" class="space-y-4">
             <div>
                 <label class="label-with-tooltip block text-sm font-medium mb-1">
                     Authentication Method
@@ -205,6 +520,22 @@
                     </label>
                     <input type="text" id="ldapBaseDn" class="input-field w-full px-3 py-2 rounded" placeholder="dc=domain,dc=com">
                 </div>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Service Account Password</label>
+                        <input type="password" id="ldapBindPassword" class="input-field w-full px-3 py-2 rounded" placeholder="Required when Bind DN is set">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Certificate / CA Bundle</label>
+                        <input type="file" id="ldapCaCert" class="input-field w-full px-3 py-2 rounded" accept=".pem,.crt">
+                        <p class="text-xs text-gray-400 mt-1">Optional for LDAPS trust.</p>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Attribute Mapping</label>
+                    <textarea id="ldapAttributeMap" class="input-field w-full px-3 py-2 rounded h-20" placeholder='{"username": "sAMAccountName", "email": "mail"}'></textarea>
+                </div>
+                <button type="button" class="btn-secondary px-4 py-2 rounded" onclick="testAuthLogin('ldap')"><i class="fas fa-heartbeat mr-2"></i>Test LDAP Login</button>
             </div>
 
             <!-- SAML Config -->
@@ -230,6 +561,31 @@
                     </label>
                     <input type="text" id="samlEntityId" class="input-field w-full px-3 py-2 rounded" placeholder="urn:aiops:platform">
                 </div>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">ACS URL</label>
+                        <input type="text" id="samlAcsUrl" class="input-field w-full px-3 py-2 rounded" placeholder="https://app.example.com/saml/callback">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">X.509 Certificate</label>
+                        <input type="file" id="samlCertificate" class="input-field w-full px-3 py-2 rounded" accept=".pem,.crt">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Attribute Mapping</label>
+                    <textarea id="samlAttributeMap" class="input-field w-full px-3 py-2 rounded h-20" placeholder='{"email": "mail", "name": "displayName"}'></textarea>
+                </div>
+                <button type="button" class="btn-secondary px-4 py-2 rounded" onclick="testAuthLogin('saml')"><i class="fas fa-heartbeat mr-2"></i>Test SSO Login</button>
+            </div>
+
+            <div class="bg-gray-800 bg-opacity-60 p-4 rounded">
+                <h3 class="text-sm font-semibold mb-2">Guided Setup</h3>
+                <ol class="list-decimal list-inside text-sm text-gray-300 space-y-1">
+                    <li>Choose auth method and fill required endpoints.</li>
+                    <li>Upload certificates/metadata and map user attributes.</li>
+                    <li>Run "Test" to validate connectivity with a test account.</li>
+                    <li>Save and communicate the new login path to admins.</li>
+                </ol>
             </div>
 
             <div class="flex justify-end pt-4">
@@ -237,7 +593,9 @@
             </div>
         </form>
     </div>
-    {% endif %}
+        </section>
+        {% endif %}
+    </div>
 </div>
 
 <!-- Custom Confirm Modal -->
@@ -247,9 +605,17 @@
             <div id="confirmIcon" class="w-10 h-10 rounded-full bg-red-900 bg-opacity-50 flex items-center justify-center">
                 <i class="fas fa-exclamation-triangle text-red-400"></i>
             </div>
-            <h3 id="confirmTitle" class="text-lg font-semibold">Confirm Action</h3>
+            <div>
+                <h3 id="confirmTitle" class="text-lg font-semibold">Confirm Action</h3>
+                <p class="text-xs text-gray-400">Destructive actions require an explicit confirmation phrase.</p>
+            </div>
         </div>
-        <p id="confirmMessage" class="text-gray-300 mb-6">Are you sure you want to proceed?</p>
+        <p id="confirmMessage" class="text-gray-300 mb-4">Are you sure you want to proceed?</p>
+        <div id="confirmInputContainer" class="hidden mb-4">
+            <label for="confirmInput" class="block text-sm font-medium mb-1">Type <span id="confirmInputHint" class="font-mono text-red-300"></span> to continue</label>
+            <input id="confirmInput" type="text" class="input-field w-full px-3 py-2 rounded" placeholder="Type the confirmation text" autocomplete="off">
+            <p id="confirmInputError" class="text-xs text-red-400 mt-1 hidden">Confirmation text does not match.</p>
+        </div>
         <div class="flex justify-end space-x-3">
             <button onclick="closeConfirmModal()" class="btn-secondary px-4 py-2 rounded">Cancel</button>
             <button id="confirmBtn" onclick="executeConfirmAction()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded transition-colors">Confirm</button>
@@ -295,6 +661,7 @@
                         <option value="openai">OpenAI (GPT)</option>
                         <option value="google">Google (Gemini)</option>
                         <option value="ollama">Ollama (Local)</option>
+                        <option value="azure">Azure OpenAI</option>
                     </select>
                 </div>
                 <div>
@@ -310,15 +677,37 @@
             </div>
             
             <div>
-                <label class="label-with-tooltip block text-sm font-medium mb-1">
-                    API Key
-                    <span class="info-tooltip info-tooltip-align-left">
-                        <span class="info-tooltip-icon">?</span>
-                        <span class="info-tooltip-text">The secret key for authentication. Leave blank if you configured it via environment variables.</span>
-                    </span>
-                </label>
-                <input type="password" id="providerApiKey" class="input-field w-full px-3 py-2 rounded" placeholder="Leave empty to use environment variable">
-                <p class="text-xs text-gray-400 mt-1">If empty, will use API key from environment variables</p>
+                <div class="flex items-center justify-between">
+                    <label class="label-with-tooltip block text-sm font-medium mb-1">
+                        API Key
+                        <span class="info-tooltip info-tooltip-align-left">
+                            <span class="info-tooltip-icon">?</span>
+                            <span class="info-tooltip-text">The secret key for authentication. Leave blank if you configured it via environment variables.</span>
+                        </span>
+                    </label>
+                    <button type="button" onclick="toggleSecretVisibility('providerApiKey', this)" class="text-xs text-blue-400 hover:text-blue-300">Show</button>
+                </div>
+                <input type="password" id="providerApiKey" class="input-field w-full px-3 py-2 rounded" placeholder="Leave empty to use environment variable" autocomplete="off">
+                <p class="text-xs text-gray-400 mt-1" id="providerSecretMeta">If empty, will use API key from environment variables</p>
+                <div class="grid md:grid-cols-2 gap-3 mt-3">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Secret storage</label>
+                        <select id="providerSecretStorage" class="input-field w-full px-3 py-2 rounded">
+                            <option value="vault">Vault / KMS (recommended)</option>
+                            <option value="database">Encrypted database</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Last rotated</label>
+                        <div id="providerLastRotated" class="text-xs text-gray-300">Not set</div>
+                    </div>
+                </div>
+                <div class="mt-2 p-2 rounded bg-gray-800 text-xs text-gray-300" id="providerAuditTrail">
+                    <div class="font-semibold text-gray-200 mb-1">Audit trail</div>
+                    <div class="space-y-1" id="providerAuditEntries">
+                        <div class="text-gray-400">No secret changes yet.</div>
+                    </div>
+                </div>
             </div>
             
             <div>
@@ -433,18 +822,23 @@
             </div>
             
             <div>
-                <label class="label-with-tooltip block text-sm font-medium mb-1">
-                    Role
-                    <span class="info-tooltip info-tooltip-align-left">
-                        <span class="info-tooltip-icon">?</span>
-                        <span class="info-tooltip-text"><strong>User:</strong> Standard access.<br><strong>Admin:</strong> Full system configuration access.</span>
-                    </span>
-                </label>
-                <select id="userRole" class="input-field w-full px-3 py-2 rounded">
-                    <option value="user">User</option>
-                    <option value="admin">Admin</option>
-                </select>
-            </div>
+                  <label class="label-with-tooltip block text-sm font-medium mb-1">
+                      Role
+                      <span class="info-tooltip info-tooltip-align-left">
+                          <span class="info-tooltip-icon">?</span>
+                          <span class="info-tooltip-text"><strong>Owner/Admin:</strong> Full platform control.<br><strong>Maintainer:</strong> Manage servers/providers.<br><strong>Operator:</strong> Execute and read.<br><strong>Viewer/Auditor:</strong> Read-only.</span>
+                      </span>
+                  </label>
+                  <select id="userRole" class="input-field w-full px-3 py-2 rounded">
+                      <option value="owner">Owner</option>
+                      <option value="admin">Admin</option>
+                      <option value="maintainer">Maintainer</option>
+                      <option value="operator">Operator</option>
+                      <option value="viewer">Viewer</option>
+                      <option value="auditor">Auditor</option>
+                      <option value="user">Legacy User</option>
+                  </select>
+              </div>
             
             <div class="flex items-center">
                 <label class="flex items-center">
@@ -472,6 +866,7 @@
         </div>
         
         <form id="serverForm" class="space-y-4">
+            <input type="hidden" id="serverId">
             <div>
                 <label class="label-with-tooltip block text-sm font-medium mb-1">
                     Friendly Name *
@@ -517,6 +912,35 @@
                 <input type="text" id="serverUser" class="input-field w-full px-3 py-2 rounded" required placeholder="root">
             </div>
             
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="label-with-tooltip block text-sm font-medium mb-1">
+                        Credential Source
+                        <span class="info-tooltip info-tooltip-align-left">
+                            <span class="info-tooltip-icon">?</span>
+                            <span class="info-tooltip-text">Use an inline secret or reference a shared vault/CyberArk credential profile.</span>
+                        </span>
+                    </label>
+                    <select id="credentialSource" class="input-field w-full px-3 py-2 rounded" onchange="toggleCredentialSource()">
+                        <option value="inline">Inline secret</option>
+                        <option value="shared_profile">Shared credential profile</option>
+                    </select>
+                </div>
+                <div id="credentialProfilePicker" class="hidden">
+                    <label class="label-with-tooltip block text-sm font-medium mb-1">
+                        Credential Profile
+                        <span class="info-tooltip info-tooltip-align-left">
+                            <span class="info-tooltip-icon">?</span>
+                            <span class="info-tooltip-text">Select a reusable credential stored in Vault, CyberArk, or inline.</span>
+                        </span>
+                    </label>
+                    <select id="credentialProfileId" class="input-field w-full px-3 py-2 rounded">
+                        <option value="">Select profile</option>
+                    </select>
+                    <p class="text-xs text-gray-400 mt-1">Profiles keep secrets centralized; create below if needed.</p>
+                </div>
+            </div>
+
             <div>
                 <label class="label-with-tooltip block text-sm font-medium mb-1">
                     Auth Type
@@ -532,81 +956,344 @@
             </div>
             
             <div id="authKeyField">
-                <label class="label-with-tooltip block text-sm font-medium mb-1">
-                    Private Key (PEM format)
-                    <span class="info-tooltip info-tooltip-align-left">
-                        <span class="info-tooltip-icon">?</span>
-                        <span class="info-tooltip-text">Paste the full content of your private key, including BEGIN and END lines.</span>
-                    </span>
-                </label>
-                <textarea id="serverKey" class="input-field w-full px-3 py-2 rounded h-32 font-mono text-xs" placeholder="-----BEGIN RSA PRIVATE KEY-----..."></textarea>
+                <div class="flex items-center justify-between">
+                    <label class="label-with-tooltip block text-sm font-medium mb-1">
+                        Private Key (PEM format)
+                        <span class="info-tooltip info-tooltip-align-left">
+                            <span class="info-tooltip-icon">?</span>
+                            <span class="info-tooltip-text">Paste the full content of your private key, including BEGIN and END lines.</span>
+                        </span>
+                    </label>
+                    <button type="button" onclick="toggleSecretVisibility('serverKey', this, true)" class="text-xs text-blue-400 hover:text-blue-300">Show</button>
+                </div>
+                <textarea id="serverKey" data-masked="true" style="filter: blur(5px);" class="input-field w-full px-3 py-2 rounded h-32 font-mono text-xs" placeholder="-----BEGIN RSA PRIVATE KEY-----..."></textarea>
+                <p class="text-xs text-gray-400 mt-1">Masked by default. Click Show to review while editing.</p>
             </div>
-            
+
             <div id="authPasswordField" class="hidden">
+                <div class="flex items-center justify-between">
+                    <label class="label-with-tooltip block text-sm font-medium mb-1">
+                        Password
+                        <span class="info-tooltip info-tooltip-align-left">
+                            <span class="info-tooltip-icon">?</span>
+                            <span class="info-tooltip-text">SSH password.</span>
+                        </span>
+                    </label>
+                    <button type="button" onclick="toggleSecretVisibility('serverPassword', this)" class="text-xs text-blue-400 hover:text-blue-300">Show</button>
+                </div>
+                <input type="password" id="serverPassword" class="input-field w-full px-3 py-2 rounded" autocomplete="off">
+            </div>
+
+            <div id="credentialMetadata" class="hidden">
                 <label class="label-with-tooltip block text-sm font-medium mb-1">
-                    Password
+                    Credential Metadata (Vault path, CyberArk safe, etc.)
                     <span class="info-tooltip info-tooltip-align-left">
                         <span class="info-tooltip-icon">?</span>
-                        <span class="info-tooltip-text">SSH password.</span>
+                        <span class="info-tooltip-text">YAML/JSON describing external secret identifiers such as Vault path, CyberArk safe/account, or API token alias.</span>
                     </span>
                 </label>
-                <input type="password" id="serverPassword" class="input-field w-full px-3 py-2 rounded">
+                <textarea id="serverCredentialMetadata" class="input-field w-full px-3 py-2 rounded h-20 font-mono text-xs" placeholder="vault_path: secret/data/ssh/prod-db
+safe: PLATFORM
+account: db-admin"></textarea>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="label-with-tooltip block text-sm font-medium mb-1">
+                        Tags (comma separated)
+                        <span class="info-tooltip info-tooltip-align-left">
+                            <span class="info-tooltip-icon">?</span>
+                            <span class="info-tooltip-text">Add labels like production, linux, db to filter and bulk manage servers.</span>
+                        </span>
+                    </label>
+                    <input type="text" id="serverTags" class="input-field w-full px-3 py-2 rounded" placeholder="production,linux,db">
+                </div>
+                <div>
+                    <label class="label-with-tooltip block text-sm font-medium mb-1">OS Type</label>
+                    <select id="serverOsType" class="input-field w-full px-3 py-2 rounded">
+                        <option value="linux">Linux (SSH)</option>
+                        <option value="windows">Windows (WinRM)</option>
+                    </select>
+                </div>
             </div>
             
-            <div>
-                <label class="label-with-tooltip block text-sm font-medium mb-1">
-                    Environment
-                    <span class="info-tooltip info-tooltip-align-left">
-                        <span class="info-tooltip-icon">?</span>
-                        <span class="info-tooltip-text">Tag this server to an environment for filtering and rule matching.</span>
-                    </span>
-                </label>
-                <select id="serverEnv" class="input-field w-full px-3 py-2 rounded">
-                    <option value="production">Production</option>
-                    <option value="staging">Staging</option>
-                    <option value="development">Development</option>
-                </select>
-            </div>
+              <div>
+                  <label class="label-with-tooltip block text-sm font-medium mb-1">
+                      Environment
+                      <span class="info-tooltip info-tooltip-align-left">
+                          <span class="info-tooltip-icon">?</span>
+                          <span class="info-tooltip-text">Tag this server to an environment for filtering and rule matching.</span>
+                      </span>
+                  </label>
+                  <select id="serverEnv" class="input-field w-full px-3 py-2 rounded">
+                      <option value="production">Production</option>
+                      <option value="staging">Staging</option>
+                      <option value="development">Development</option>
+                  </select>
+              </div>
+
+              <div>
+                  <label class="label-with-tooltip block text-sm font-medium mb-1">
+                      Server Group
+                      <span class="info-tooltip info-tooltip-align-left">
+                          <span class="info-tooltip-icon">?</span>
+                          <span class="info-tooltip-text">Assign the host to a group or nested group to control access and organization.</span>
+                      </span>
+                  </label>
+                  <select id="serverGroupSelect" class="input-field w-full px-3 py-2 rounded">
+                      <option value="">No group</option>
+                  </select>
+              </div>
+
+              <div class="border border-gray-700 rounded p-3 bg-gray-800/40 flex items-center justify-between text-sm text-gray-300">
+                  <div>
+                      <p class="font-semibold">Need a reusable secret?</p>
+                      <p class="text-gray-400">Open the Credential Profiles workspace to add Vault, CyberArk, or shared keys without leaving this form.</p>
+                  </div>
+                  <button type="button" class="btn-secondary px-3 py-2 rounded" onclick="setActiveSection('section-credentials'); closeServerModal();">
+                      Manage credentials
+                  </button>
+              </div>
             
             <div class="flex justify-end space-x-2 pt-4 border-t border-gray-700">
                 <button type="button" onclick="closeServerModal()" class="btn-secondary px-4 py-2 rounded">Cancel</button>
+                <button type="button" onclick="testServerFromForm()" class="btn-secondary px-4 py-2 rounded"><i class="fas fa-heartbeat mr-1"></i>Test Connection</button>
                 <button type="submit" class="btn-primary px-4 py-2 rounded">Save Server</button>
             </div>
         </form>
     </div>
 </div>
+
+<!-- Credential Profile Modal -->
+<div id="credentialModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="card p-6 w-full max-w-xl m-4">
+        <div class="flex items-center justify-between mb-4">
+            <h3 id="credentialModalTitle" class="text-lg font-semibold">New Credential Profile</h3>
+            <button onclick="closeCredentialModal()" class="text-gray-400 hover:text-white">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <form id="credentialForm" class="space-y-4">
+            <input type="hidden" id="credentialProfileEditingId">
+            <div class="grid md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1">Profile name *</label>
+                    <input type="text" id="credentialProfileName" class="input-field w-full px-3 py-2 rounded" required placeholder="Shared automation key">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Scope</label>
+                    <select id="credentialProfileGroup" class="input-field w-full px-3 py-2 rounded">
+                        <option value="">All groups</option>
+                    </select>
+                    <p class="text-xs text-gray-400 mt-1">Tie a credential to a server group or leave global.</p>
+                </div>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1">Credential type</label>
+                    <select id="credentialProfileType" class="input-field w-full px-3 py-2 rounded">
+                        <option value="key">SSH Key</option>
+                        <option value="password">Password</option>
+                        <option value="vault">Vault</option>
+                        <option value="cyberark">CyberArk</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Backend</label>
+                    <select id="credentialProfileBackend" class="input-field w-full px-3 py-2 rounded">
+                        <option value="inline">Inline (encrypted)</option>
+                        <option value="vault">HashiCorp Vault</option>
+                        <option value="cyberark">CyberArk</option>
+                    </select>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium mb-1">Login username <span class="text-gray-400 text-xs">(required for password)</span></label>
+                <input type="text" id="credentialProfileUsername" class="input-field w-full px-3 py-2 rounded" placeholder="svc_automation">
+                <p class="text-xs text-gray-400 mt-1">Store the account name alongside the secret for reuse across servers and groups.</p>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium mb-1">Secret / reference</label>
+                <textarea id="credentialProfileSecret" class="input-field w-full px-3 py-2 rounded h-20 font-mono text-xs" placeholder="Inline secret or vault path"></textarea>
+                <p class="text-xs text-gray-400 mt-1">Store inline for single-use secrets or provide a vault/CyberArk reference path.</p>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium mb-1">Metadata (YAML/JSON)</label>
+                <textarea id="credentialProfileMetadata" class="input-field w-full px-3 py-2 rounded h-24 font-mono text-xs" placeholder="vault_path: secret/data/ssh/prod"></textarea>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium mb-1">Description</label>
+                <textarea id="credentialProfileDescription" class="input-field w-full px-3 py-2 rounded h-16" placeholder="Usage notes, rotation owner, etc."></textarea>
+            </div>
+
+            <div class="flex justify-end space-x-2 pt-4 border-t border-gray-700">
+                <button type="button" onclick="closeCredentialModal()" class="btn-secondary px-4 py-2 rounded">Cancel</button>
+                <button type="submit" class="btn-primary px-4 py-2 rounded">Save Credential</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
 <script>
     const currentUserRole = "{{ user.role }}";
+    const currentUserPermissions = {{ permissions | tojson }};
     const currentUserId = "{{ user.id }}";
+    const canManageUsers = currentUserPermissions.includes('manage_users');
+    const canManageProviders = currentUserPermissions.includes('manage_providers');
+    const canManageServers = currentUserPermissions.includes('manage_servers');
+    const canManageServerGroups = currentUserPermissions.includes('manage_server_groups');
+    const canRead = currentUserPermissions.includes('read');
     let confirmCallback = null;
+    let confirmRequirement = null;
+    let userCache = [];
+    let userFilteredTotal = 0;
+    let userPage = 1;
+    let userPageSize = 10;
+    let userSort = 'recent';
+    let providerCache = [];
+    let serverCache = [];
+    let serverGroups = [];
+    let credentialProfiles = [];
+    let credentialFilteredTotal = 0;
+    let credentialPage = 1;
+    let credentialPageSize = 10;
+    let editingServerId = null;
+    let editingCredentialId = null;
+    let providerPage = 1;
+    let providerPageSize = 10;
+    let providerSort = { key: 'name', direction: 'asc' };
+    let providerFilteredTotal = 0;
+    let serverPage = 1;
+    let serverPageSize = 10;
+    let serverSort = { key: 'name', direction: 'asc' };
+    let serverFilteredTotal = 0;
+    let selectedProviders = new Set();
+    let selectedServers = new Set();
+    let providerLastTest = {};
+    let serverLastTest = {};
+    let serverFormTestOk = false;
+
+    function parseYamlOrJson(input) {
+        if (!input) return {};
+        try {
+            return JSON.parse(input);
+        } catch (jsonError) {
+            const lines = input.split(/\n+/).filter(Boolean);
+            const obj = {};
+            lines.forEach(line => {
+                const [key, ...rest] = line.split(':');
+                if (key && rest.length) {
+                    obj[key.trim()] = rest.join(':').trim();
+                }
+            });
+            return obj;
+        }
+    }
     
     const modelSuggestions = {
         anthropic: 'claude-sonnet-4-20250514',
         openai: 'gpt-4-turbo-preview',
         google: 'gemini-pro',
-        ollama: 'llama2'
+        ollama: 'llama2',
+        azure: 'gpt-4o'
     };
+
+    const sectionActions = {
+        'section-overview': 'Review usage stats and access posture at a glance.',
+        'section-users': 'Invite admins, deactivate accounts, and adjust roles.',
+        'section-providers': 'Test connections, rotate keys, and manage defaults.',
+        'section-servers': 'Validate SSH credentials and environments before saving.',
+        'section-credentials': 'Centralize credentials for reuse across server groups.',
+        'section-auth': 'Upload LDAP/SAML metadata and run readiness checks.'
+    };
+
+    function setActiveSection(targetId) {
+        const sections = document.querySelectorAll('.settings-section');
+        const buttons = document.querySelectorAll('.settings-nav-btn');
+        sections.forEach(section => {
+            if (section.id === targetId) {
+                section.classList.add('active');
+            } else {
+                section.classList.remove('active');
+            }
+        });
+        buttons.forEach(btn => {
+            if (btn.dataset.target === targetId) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+
+        const actionPanel = document.getElementById('sectionActionBody');
+        if (actionPanel) {
+            actionPanel.textContent = sectionActions[targetId] || 'Select a section to see focused actions.';
+        }
+    }
+
+    function initSectionNavigation() {
+        const buttons = document.querySelectorAll('.settings-nav-btn');
+        if (!buttons.length) return;
+
+        buttons.forEach(btn => btn.addEventListener('click', () => setActiveSection(btn.dataset.target)));
+
+        const initialHash = window.location.hash?.replace('#', '');
+        const initialTarget = initialHash && document.getElementById(initialHash) ? initialHash : buttons[0].dataset.target;
+        setActiveSection(initialTarget);
+    }
     
     // --- Custom Confirm Modal ---
-    function showConfirmModal(title, message, callback) {
+    function showConfirmModal(title, message, callback, options = {}) {
         document.getElementById('confirmTitle').textContent = title;
         document.getElementById('confirmMessage').textContent = message;
         confirmCallback = callback;
+        confirmRequirement = options.confirmationText || null;
+
+        const inputContainer = document.getElementById('confirmInputContainer');
+        const input = document.getElementById('confirmInput');
+        const inputHint = document.getElementById('confirmInputHint');
+        const inputError = document.getElementById('confirmInputError');
+
+        if (confirmRequirement) {
+            inputContainer.classList.remove('hidden');
+            inputHint.textContent = confirmRequirement;
+            input.value = '';
+            inputError.classList.add('hidden');
+        } else {
+            inputContainer.classList.add('hidden');
+        }
+
         document.getElementById('confirmModal').classList.remove('hidden');
         document.getElementById('confirmModal').classList.add('flex');
     }
-    
+
     function closeConfirmModal() {
         document.getElementById('confirmModal').classList.add('hidden');
         document.getElementById('confirmModal').classList.remove('flex');
         confirmCallback = null;
+        confirmRequirement = null;
+        document.getElementById('confirmInput').value = '';
+        document.getElementById('confirmInputError').classList.add('hidden');
     }
-    
+
     function executeConfirmAction() {
+        if (confirmRequirement) {
+            const value = document.getElementById('confirmInput').value.trim();
+            if (value !== confirmRequirement) {
+                document.getElementById('confirmInputError').classList.remove('hidden');
+                return;
+            }
+        }
+
         if (confirmCallback) {
             confirmCallback();
         }
@@ -640,30 +1327,87 @@
         const type = document.getElementById('providerType').value;
         document.getElementById('providerModel').placeholder = modelSuggestions[type] || '';
     }
+
+    function toggleSecretVisibility(inputId, trigger, isMultiline = false) {
+        const field = document.getElementById(inputId);
+        if (!field) return;
+
+        if (isMultiline) {
+            const masked = field.dataset.masked === 'true';
+            field.dataset.masked = masked ? 'false' : 'true';
+            field.style.filter = masked ? 'none' : 'blur(5px)';
+            if (trigger) trigger.textContent = masked ? 'Hide' : 'Show';
+            return;
+        }
+
+        field.type = field.type === 'password' ? 'text' : 'password';
+        if (trigger) trigger.textContent = field.type === 'password' ? 'Show' : 'Hide';
+    }
+
+    function renderPagination(total, page, size, type) {
+        if (total <= size) return '';
+        const totalPages = Math.ceil(total / size);
+        return `
+            <div class="flex items-center justify-between px-4 py-3 text-xs text-gray-300 border-t border-gray-800">
+                <div>Page ${page} of ${totalPages}</div>
+                <div class="space-x-2">
+                    <button class="btn-secondary px-2 py-1 rounded" ${page === 1 ? 'disabled' : ''} onclick="changePage('${type}', ${page - 1})">Prev</button>
+                    <button class="btn-secondary px-2 py-1 rounded" ${page >= totalPages ? 'disabled' : ''} onclick="changePage('${type}', ${page + 1})">Next</button>
+                </div>
+            </div>
+        `;
+    }
     
     // --- LLM Providers ---
     async function loadProviders() {
         try {
             const response = await apiCall('/api/settings/llm');
             if (!response) return;
-            
+
             const providers = await response.json();
+            providerCache = providers;
             document.getElementById('statProviders').textContent = providers.length;
-            renderProvidersTable(providers);
+            renderProvidersTable(filterProviders());
         } catch (error) {
             console.error('Failed to load providers:', error);
         }
     }
-    
+
+    function filterProviders() {
+        const search = document.getElementById('providerSearch')?.value.toLowerCase() || '';
+        const typeFilter = document.getElementById('providerTypeFilter')?.value;
+        const statusFilter = document.getElementById('providerStatusFilter')?.value;
+
+        let filtered = providerCache.filter(provider => {
+            const matchesType = !typeFilter || provider.provider_type === typeFilter;
+            const matchesStatus = !statusFilter || (statusFilter === 'enabled' ? provider.is_enabled : !provider.is_enabled);
+            const matchesSearch = !search || `${provider.name} ${provider.model_id}`.toLowerCase().includes(search);
+            return matchesType && matchesStatus && matchesSearch;
+        });
+
+        providerFilteredTotal = filtered.length;
+
+        filtered = filtered.sort((a, b) => {
+            const dir = providerSort.direction === 'asc' ? 1 : -1;
+            const key = providerSort.key;
+            if (a[key] > b[key]) return dir;
+            if (a[key] < b[key]) return -dir;
+            return 0;
+        });
+
+        const start = (providerPage - 1) * providerPageSize;
+        return filtered.slice(start, start + providerPageSize);
+    }
+
     function renderProvidersTable(providers) {
         const container = document.getElementById('providersTableContainer');
-        
+
         if (providers.length === 0) {
             container.innerHTML = `
                 <div class="text-center py-12 text-gray-400">
                     <i class="fas fa-robot text-4xl mb-3"></i>
-                    <p>No LLM providers configured</p>
-                    <p class="text-sm mt-2">Add a provider to enable AI analysis</p>
+                    <p>${providerCache.length ? 'No providers match your filters' : 'No LLM providers configured'}</p>
+                    <p class="text-sm mt-2">Add a provider to enable AI analysis or adjust filters</p>
                 </div>
             `;
             return;
@@ -673,7 +1417,8 @@
             <table class="w-full">
                 <thead>
                     <tr class="text-left text-xs text-gray-400 uppercase border-b border-gray-700">
-                        <th class="p-4">Provider</th>
+                        <th class="p-4">${canManageProviders ? '<input type="checkbox" id="providerTableSelectAll" onclick="toggleSelectAll(\'provider\')">' : ''}</th>
+                        <th class="p-4 cursor-pointer" onclick="setProviderSort('name')">Provider</th>
                         <th class="p-4">Type</th>
                         <th class="p-4">Model</th>
                         <th class="p-4">Configuration</th>
@@ -684,6 +1429,7 @@
                 <tbody class="divide-y divide-gray-800">
                     ${providers.map(provider => `
                         <tr class="hover:bg-gray-800 transition-colors ${!provider.is_enabled ? 'opacity-50' : ''}">
+                            <td class="p-4 align-top">${canManageProviders ? `<input type="checkbox" ${selectedProviders.has(provider.id) ? 'checked' : ''} onchange="toggleRowSelection('provider','${provider.id}')">` : ''}</td>
                             <td class="p-4">
                                 <div class="flex items-center space-x-3">
                                     <div class="w-9 h-9 rounded-lg flex items-center justify-center ${
@@ -701,7 +1447,9 @@
                                     </div>
                                     <div>
                                         <div class="font-medium">${provider.name}</div>
+                                        <div class="text-xs text-gray-500">Updated ${formatDate(provider.updated_at)}</div>
                                         ${provider.is_default ? '<span class="text-xs text-blue-400"><i class="fas fa-star mr-1"></i>Default</span>' : ''}
+                                        ${provider.has_api_key ? `<div class="text-[11px] text-green-400">Last rotated ${formatDate(provider.updated_at)}</div>` : '<div class="text-[11px] text-yellow-400">Key required</div>'}
                                     </div>
                                 </div>
                             </td>
@@ -710,6 +1458,12 @@
                             </td>
                             <td class="p-4">
                                 <code class="text-xs bg-gray-800 px-2 py-1 rounded">${provider.model_id}</code>
+                                <div class="text-xs mt-2">
+                                    ${provider.has_api_key
+                                        ? '<span class="inline-flex items-center px-2 py-1 rounded-full text-green-400 bg-green-900 bg-opacity-40 text-[11px]"><i class="fas fa-key mr-1"></i>Secret stored</span>'
+                                        : '<span class="inline-flex items-center px-2 py-1 rounded-full text-yellow-400 bg-yellow-900 bg-opacity-40 text-[11px]"><i class="fas fa-exclamation-triangle mr-1"></i>Missing key</span>'
+                                    }
+                                </div>
                             </td>
                             <td class="p-4 text-sm text-gray-400">
                                 <div class="flex items-center space-x-3">
@@ -719,40 +1473,52 @@
                                 </div>
                             </td>
                             <td class="p-4">
-                                ${provider.is_enabled 
-                                    ? '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-900 bg-opacity-50 text-green-400"><i class="fas fa-circle text-xs mr-1"></i>Active</span>'
-                                    : '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-700 text-gray-400"><i class="fas fa-pause mr-1"></i>Disabled</span>'
-                                }
+                                <div class="space-y-2">
+                                    ${provider.is_enabled
+                                        ? '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-900 bg-opacity-50 text-green-400"><i class="fas fa-circle text-xs mr-1"></i>Active</span>'
+                                        : '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-700 text-gray-400"><i class="fas fa-pause mr-1"></i>Disabled</span>'
+                                    }
+                                    ${providerLastTest[provider.id] ? `<div class="text-[11px] ${providerLastTest[provider.id].ok ? 'text-green-400' : 'text-red-400'}"><i class="fas fa-stopwatch mr-1"></i>${providerLastTest[provider.id].latency}ms · ${providerLastTest[provider.id].ok ? 'Healthy' : 'Failed'}</div>` : ''}
+                                </div>
                             </td>
                             <td class="p-4 text-right">
-                                <div class="flex items-center justify-end space-x-2">
-                                    ${currentUserRole === 'admin' ? `
-                                        ${!provider.is_default && provider.is_enabled ? `
-                                            <button onclick="setDefaultProvider('${provider.id}')" class="btn-secondary px-2 py-1 rounded text-xs" title="Set as default">
-                                                <i class="fas fa-star"></i>
-                                            </button>
-                                        ` : ''}
-                                        <button onclick="toggleProvider('${provider.id}')" class="btn-secondary px-2 py-1 rounded text-xs" title="${provider.is_enabled ? 'Disable' : 'Enable'}">
-                                            <i class="fas fa-${provider.is_enabled ? 'pause' : 'play'}"></i>
-                                        </button>
-                                        <button onclick="editProvider('${provider.id}')" class="btn-secondary px-2 py-1 rounded text-xs" title="Edit">
-                                            <i class="fas fa-edit"></i>
-                                        </button>
-                                        <button onclick="confirmDeleteProvider('${provider.id}', '${provider.name}')" class="btn-secondary px-2 py-1 rounded text-xs text-red-400" title="Delete">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    ` : ''}
-                                </div>
+                                  <div class="flex items-center justify-end space-x-2">
+                                      ${canManageProviders ? `
+                                          <button data-test-btn="${provider.id}" onclick="testProvider('${provider.id}')" class="btn-secondary px-2 py-1 rounded text-xs" title="Test connection">
+                                              <i class="fas fa-heartbeat"></i>
+                                          </button>
+                                          ${!provider.is_default && provider.is_enabled ? `
+                                              <button onclick="setDefaultProvider('${provider.id}')" class="btn-secondary px-2 py-1 rounded text-xs" title="Set as default">
+                                                  <i class="fas fa-star"></i>
+                                              </button>
+                                          ` : ''}
+                                          <button onclick="toggleProvider('${provider.id}')" class="btn-secondary px-2 py-1 rounded text-xs" title="${provider.is_enabled ? 'Disable' : 'Enable'}">
+                                              <i class="fas fa-${provider.is_enabled ? 'pause' : 'play'}"></i>
+                                          </button>
+                                          <button onclick="editProvider('${provider.id}')" class="btn-secondary px-2 py-1 rounded text-xs" title="Edit">
+                                              <i class="fas fa-edit"></i>
+                                          </button>
+                                          <button onclick="confirmDeleteProvider('${provider.id}', '${provider.name}')" class="btn-secondary px-2 py-1 rounded text-xs text-red-400" title="Delete">
+                                              <i class="fas fa-trash"></i>
+                                          </button>
+                                      ` : '<span class="text-xs text-gray-500">View only</span>'}
+                                  </div>
                             </td>
                         </tr>
                     `).join('')}
                 </tbody>
             </table>
+            ${renderPagination(providerFilteredTotal, providerPage, providerPageSize, 'provider')}
         `;
     }
     
     function confirmDeleteProvider(id, name) {
-        showConfirmModal('Delete Provider', `Are you sure you want to delete "${name}"? This action cannot be undone.`, () => deleteProvider(id));
+        showConfirmModal(
+            'Delete Provider',
+            `Type the provider name to confirm deletion of "${name}". Deleting will disable any runbooks using this provider.`,
+            () => deleteProvider(id),
+            { confirmationText: name }
+        );
     }
     
     // --- Server Credentials ---
@@ -760,24 +1526,59 @@
         try {
             const response = await apiCall('/api/servers');
             if (!response) return;
-            
+
             const servers = await response.json();
+            serverCache = servers;
+            servers.forEach(s => {
+                if (s.last_connection_status) {
+                    serverLastTest[s.id] = {
+                        ok: s.last_connection_status === 'success',
+                        message: s.last_connection_error || s.last_connection_status
+                    };
+                }
+            });
             document.getElementById('statServers').textContent = servers.length;
-            renderServersTable(servers);
+            renderServersTable(filterServers());
         } catch (error) {
             console.error('Failed to load servers:', error);
         }
     }
 
+    function filterServers() {
+        const search = document.getElementById('serverSearch')?.value.toLowerCase() || '';
+        const env = document.getElementById('serverEnvFilter')?.value;
+        const authType = document.getElementById('serverStatusFilter')?.value;
+
+        let filtered = serverCache.filter(server => {
+            const matchesEnv = !env || server.environment === env;
+            const matchesAuth = !authType || server.auth_type === authType;
+            const matchesSearch = !search || `${server.name} ${server.hostname} ${server.group_path || ''}`.toLowerCase().includes(search);
+            return matchesEnv && matchesAuth && matchesSearch;
+        });
+
+        serverFilteredTotal = filtered.length;
+
+        filtered = filtered.sort((a, b) => {
+            const dir = serverSort.direction === 'asc' ? 1 : -1;
+            const key = serverSort.key;
+            if (a[key] > b[key]) return dir;
+            if (a[key] < b[key]) return -dir;
+            return 0;
+        });
+
+        const start = (serverPage - 1) * serverPageSize;
+        return filtered.slice(start, start + serverPageSize);
+    }
+
     function renderServersTable(servers) {
         const container = document.getElementById('serversTableContainer');
-        
+
         if (servers.length === 0) {
             container.innerHTML = `
                 <div class="text-center py-12 text-gray-400">
                     <i class="fas fa-server text-4xl mb-3"></i>
-                    <p>No servers configured</p>
-                    <p class="text-sm mt-2">Add server credentials to execute runbooks</p>
+                    <p>${serverCache.length ? 'No servers match your filters' : 'No servers configured'}</p>
+                    <p class="text-sm mt-2">Add server credentials to execute runbooks or adjust filters</p>
                 </div>
             `;
             return;
@@ -786,36 +1587,45 @@
         container.innerHTML = `
             <table class="w-full">
                 <thead>
-                    <tr class="text-left text-xs text-gray-400 uppercase border-b border-gray-700">
-                        <th class="p-4">Server</th>
-                        <th class="p-4">Connection</th>
-                        <th class="p-4">Auth Type</th>
-                        <th class="p-4">Environment</th>
-                        <th class="p-4 text-right">Actions</th>
+                      <tr class="text-left text-xs text-gray-400 uppercase border-b border-gray-700">
+                          <th class="p-4">${canManageServers ? '<input type="checkbox" id="serverTableSelectAll" onclick="toggleSelectAll(\'server\')">' : ''}</th>
+                          <th class="p-4">Server</th>
+                          <th class="p-4">Connection</th>
+                          <th class="p-4">Credential</th>
+                          <th class="p-4">Environment</th>
+                          <th class="p-4 text-right">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-800">
                     ${servers.map(server => `
-                        <tr class="hover:bg-gray-800 transition-colors">
-                            <td class="p-4">
-                                <div class="flex items-center space-x-3">
-                                    <div class="w-9 h-9 rounded-lg bg-gray-700 flex items-center justify-center">
-                                        <i class="fas fa-terminal text-green-400"></i>
-                                    </div>
-                                    <div>
-                                        <div class="font-medium">${server.name}</div>
-                                        <div class="text-xs text-gray-500">${server.hostname}</div>
-                                    </div>
-                                </div>
-                            </td>
+                          <tr class="hover:bg-gray-800 transition-colors">
+                              <td class="p-4 align-top">${canManageServers ? `<input type="checkbox" ${selectedServers.has(server.id) ? 'checked' : ''} onchange="toggleRowSelection('server','${server.id}')">` : ''}</td>
+                              <td class="p-4">
+                                  <div class="flex items-center space-x-3">
+                                      <div class="w-9 h-9 rounded-lg bg-gray-700 flex items-center justify-center">
+                                          <i class="fas fa-terminal text-green-400"></i>
+                                      </div>
+                                      <div>
+                                          <div class="font-medium">${server.name}</div>
+                                          <div class="text-xs text-gray-500">${server.hostname}</div>
+                                          <div class="text-[11px] text-gray-500">Added ${formatDate(server.created_at)}</div>
+                                          <div class="text-[11px] ${server.group_path ? 'text-blue-300' : 'text-gray-500'}">${server.group_path ? `Group: ${server.group_path}` : 'Ungrouped'}</div>
+                                      </div>
+                                  </div>
+                              </td>
                             <td class="p-4">
                                 <code class="text-sm">${server.username}@${server.hostname}:${server.port}</code>
+                                ${serverLastTest[server.id] ? `<div class="text-[11px] ${serverLastTest[server.id].ok ? 'text-green-400' : 'text-red-400'} mt-1"><i class="fas fa-plug mr-1"></i>${serverLastTest[server.id].message}</div>` : ''}
                             </td>
                             <td class="p-4">
-                                <span class="inline-flex items-center px-2 py-1 rounded text-xs ${server.auth_type === 'key' ? 'bg-blue-900 bg-opacity-50 text-blue-400' : 'bg-yellow-900 bg-opacity-50 text-yellow-400'}">
-                                    <i class="fas fa-${server.auth_type === 'key' ? 'key' : 'lock'} mr-1"></i>
-                                    ${server.auth_type === 'key' ? 'SSH Key' : 'Password'}
-                                </span>
+                                <div class="space-y-1">
+                                    <span class="inline-flex items-center px-2 py-1 rounded text-xs ${server.auth_type === 'key' ? 'bg-blue-900 bg-opacity-50 text-blue-400' : 'bg-yellow-900 bg-opacity-50 text-yellow-400'}">
+                                        <i class="fas fa-${server.auth_type === 'key' ? 'key' : 'lock'} mr-1"></i>
+                                        ${server.auth_type === 'key' ? 'SSH Key' : 'Password'}
+                                    </span>
+                                    <div class="text-[11px] text-gray-400">${server.credential_source === 'shared_profile' ? `Profile: ${server.credential_profile_name || 'unknown'}` : 'Inline credential'}</div>
+                                    ${server.tags?.length ? `<div class="flex flex-wrap gap-1">${server.tags.map(tag => `<span class='text-[11px] px-2 py-1 bg-gray-800 rounded-full text-gray-300'>${tag}</span>`).join('')}</div>` : ''}
+                                </div>
                             </td>
                             <td class="p-4">
                                 <span class="inline-flex items-center px-2 py-1 rounded-full text-xs uppercase ${
@@ -826,22 +1636,105 @@
                                     ${server.environment}
                                 </span>
                             </td>
-                            <td class="p-4 text-right">
-                                ${currentUserRole === 'admin' ? `
-                                    <button onclick="confirmDeleteServer('${server.id}', '${server.name}')" class="btn-secondary px-2 py-1 rounded text-xs text-red-400" title="Delete">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                ` : ''}
-                            </td>
+                              <td class="p-4 text-right">
+                                  ${canManageServers ? `
+                                      <div class="flex items-center justify-end space-x-2">
+                                          <button onclick="showEditServerModal('${server.id}')" class="btn-secondary px-2 py-1 rounded text-xs" title="Edit server"><i class="fas fa-edit"></i></button>
+                                          <button onclick="testServerInline('${server.id}')" class="btn-secondary px-2 py-1 rounded text-xs" title="Test connection"><i class="fas fa-heartbeat"></i></button>
+                                          <button onclick="confirmDeleteServer('${server.id}', '${server.name}')" class="btn-secondary px-2 py-1 rounded text-xs text-red-400" title="Delete">
+                                              <i class="fas fa-trash"></i>
+                                          </button>
+                                      </div>
+                                  ` : '<span class="text-xs text-gray-500">View only</span>'}
+                              </td>
                         </tr>
                     `).join('')}
                 </tbody>
             </table>
+            ${renderPagination(serverCache.length ? serverFilteredTotal : 0, serverPage, serverPageSize, 'server')}
         `;
     }
     
     function confirmDeleteServer(id, name) {
-        showConfirmModal('Delete Server', `Are you sure you want to delete server "${name}"? This action cannot be undone.`, () => deleteServer(id));
+        showConfirmModal(
+            'Delete Server',
+            `Type the server name to confirm removal of "${name}". Workflows targeting this host will fail until reassigned.`,
+            () => deleteServer(id),
+            { confirmationText: name }
+        );
+    }
+
+    function toggleSelectAll(type) {
+        if (type === 'provider') {
+            const allChecked = document.getElementById('providerTableSelectAll')?.checked || document.getElementById('providerSelectAll')?.checked;
+            selectedProviders = allChecked ? new Set(providerCache.map(p => p.id)) : new Set();
+            renderProvidersTable(filterProviders());
+        }
+        if (type === 'server') {
+            const allChecked = document.getElementById('serverTableSelectAll')?.checked || document.getElementById('serverSelectAll')?.checked;
+            selectedServers = allChecked ? new Set(serverCache.map(s => s.id)) : new Set();
+            renderServersTable(filterServers());
+        }
+    }
+
+    function toggleRowSelection(type, id) {
+        if (type === 'provider') {
+            selectedProviders.has(id) ? selectedProviders.delete(id) : selectedProviders.add(id);
+            const toggle = document.getElementById('providerSelectAll');
+            if (toggle) {
+                toggle.checked = selectedProviders.size === providerCache.length;
+            }
+        }
+        if (type === 'server') {
+            selectedServers.has(id) ? selectedServers.delete(id) : selectedServers.add(id);
+            const toggle = document.getElementById('serverSelectAll');
+            if (toggle) {
+                toggle.checked = selectedServers.size === serverCache.length;
+            }
+        }
+    }
+
+    function setProviderSort(key) {
+        if (providerSort.key === key) {
+            providerSort.direction = providerSort.direction === 'asc' ? 'desc' : 'asc';
+        } else {
+            providerSort.key = key;
+            providerSort.direction = 'asc';
+        }
+        renderProvidersTable(filterProviders());
+    }
+
+    function changePage(type, newPage) {
+        if (type === 'provider') {
+            providerPage = Math.max(1, newPage);
+            renderProvidersTable(filterProviders());
+        }
+        if (type === 'server') {
+            serverPage = Math.max(1, newPage);
+            renderServersTable(filterServers());
+        }
+        if (type === 'user') {
+            const totalPages = Math.ceil(Math.max(userFilteredTotal, 1) / userPageSize);
+            userPage = Math.min(Math.max(1, newPage), Math.max(1, totalPages));
+            renderUsersTable();
+        }
+    }
+
+    function bulkEnableProviders(enable) {
+        if (!selectedProviders.size) {
+            showToast('Select at least one provider', 'error');
+            return;
+        }
+        selectedProviders.forEach(id => toggleProvider(id, enable));
+        selectedProviders.clear();
+    }
+
+    function bulkTestServers() {
+        if (!selectedServers.size) {
+            showToast('Select servers to test', 'error');
+            return;
+        }
+        selectedServers.forEach(id => testServerInline(id));
     }
 
     // --- User Management ---
@@ -866,12 +1759,15 @@
                 }
                 throw new Error(`${response.status} ${response.statusText}`);
             }
-            
+
             const users = await response.json();
+            userCache = users;
+            userPage = 1;
+            userFilteredTotal = users.length;
             const activeUsers = users.filter(u => u.is_active).length;
             document.getElementById('statUsers').textContent = users.length;
             document.getElementById('statActiveUsers').textContent = activeUsers;
-            renderUsersTable(users);
+            renderUsersTable();
         } catch (error) {
             console.error('Failed to load users:', error);
             container.innerHTML = `
@@ -884,10 +1780,48 @@
         }
     }
 
-    function renderUsersTable(users) {
+    function applyUserFilters() {
+        const search = document.getElementById('userSearch')?.value.toLowerCase() || '';
+        const role = document.getElementById('userRoleFilter')?.value;
+        const status = document.getElementById('userStatusFilter')?.value;
+
+        let filtered = userCache.filter(u => {
+            const matchesSearch = !search || `${u.username} ${u.full_name || ''} ${u.email || ''}`.toLowerCase().includes(search);
+            const matchesRole = !role || u.role === role;
+            const matchesStatus = !status || (status === 'active' ? u.is_active : !u.is_active);
+            return matchesSearch && matchesRole && matchesStatus;
+        });
+
+        const sortValue = userSort;
+        filtered = filtered.sort((a, b) => {
+            if (sortValue === 'name') {
+                return (a.username || '').localeCompare(b.username || '');
+            }
+            if (sortValue === 'last_login') {
+                const aLogin = a.last_login ? new Date(a.last_login) : null;
+                const bLogin = b.last_login ? new Date(b.last_login) : null;
+                if (aLogin && bLogin) return bLogin - aLogin;
+                if (aLogin) return -1;
+                if (bLogin) return 1;
+                return 0;
+            }
+            const aCreated = new Date(a.created_at);
+            const bCreated = new Date(b.created_at);
+            return bCreated - aCreated;
+        });
+
+        userFilteredTotal = filtered.length;
+        const totalPages = Math.max(1, Math.ceil(userFilteredTotal / userPageSize));
+        userPage = Math.min(userPage, totalPages);
+        const start = (userPage - 1) * userPageSize;
+        return filtered.slice(start, start + userPageSize);
+    }
+
+    function renderUsersTable() {
         const container = document.getElementById('usersTableContainer');
-        
-        if (!Array.isArray(users) || users.length === 0) {
+        const filteredUsers = applyUserFilters();
+
+        if (!userCache.length) {
             container.innerHTML = `
                 <div class="text-center py-12 text-gray-400">
                     <i class="fas fa-users text-4xl mb-3"></i>
@@ -896,8 +1830,26 @@
             `;
             return;
         }
-        
+
+        if (!filteredUsers.length) {
+            container.innerHTML = `
+                <div class="text-center py-12 text-gray-400">
+                    <i class="fas fa-filter text-4xl mb-3"></i>
+                    <p>No users match your filters</p>
+                    <p class="text-sm mt-1">Try adjusting role, status, or search criteria</p>
+                </div>
+            `;
+            return;
+        }
+
+        const start = (userPage - 1) * userPageSize + 1;
+        const end = Math.min(start + filteredUsers.length - 1, userFilteredTotal);
+
         container.innerHTML = `
+            <div class="flex items-center justify-between px-4 py-3 text-xs text-gray-300 border-b border-gray-800">
+                <div class="text-sm">Showing ${start}-${end} of ${userFilteredTotal} users</div>
+                <div class="hidden md:block text-xs text-gray-400">Search, filter, and paginate large directories without leaving this view.</div>
+            </div>
             <table class="w-full">
                 <thead>
                     <tr class="text-left text-xs text-gray-400 uppercase border-b border-gray-700">
@@ -911,7 +1863,7 @@
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-800">
-                    ${users.map(u => `
+                    ${filteredUsers.map(u => `
                         <tr class="hover:bg-gray-800 transition-colors ${!u.is_active ? 'opacity-50' : ''}">
                             <td class="p-4">
                                 <div class="flex items-center space-x-3">
@@ -938,7 +1890,7 @@
                                 </span>
                             </td>
                             <td class="p-4">
-                                ${u.is_active 
+                                ${u.is_active
                                     ? '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-900 bg-opacity-50 text-green-400"><i class="fas fa-check-circle mr-1"></i>Active</span>'
                                     : '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-red-900 bg-opacity-50 text-red-400"><i class="fas fa-ban mr-1"></i>Inactive</span>'
                                 }
@@ -947,31 +1899,39 @@
                                 ${formatDate(u.created_at)}
                             </td>
                             <td class="p-4 text-sm">
-                                ${u.last_login 
-                                    ? `<span class="text-green-400">${formatDate(u.last_login)}</span>` 
+                                ${u.last_login
+                                    ? `<span class="text-green-400">${formatDate(u.last_login)}</span>`
                                     : '<span class="text-gray-500">Never</span>'}
                             </td>
-                            <td class="p-4 text-right">
-                                <div class="flex items-center justify-end space-x-2">
-                                    <button onclick="editUser('${u.id}')" class="btn-secondary px-2 py-1 rounded text-xs" title="Edit">
-                                        <i class="fas fa-edit"></i>
-                                    </button>
-                                    ${u.username !== 'admin' && u.id !== currentUserId ? `
-                                        <button onclick="confirmDeleteUser('${u.id}', '${u.username}')" class="btn-secondary px-2 py-1 rounded text-xs text-red-400" title="Delete">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    ` : ''}
-                                </div>
-                            </td>
+                              <td class="p-4 text-right">
+                                  ${canManageUsers ? `
+                                      <div class="flex items-center justify-end space-x-2">
+                                          <button onclick="editUser('${u.id}')" class="btn-secondary px-2 py-1 rounded text-xs" title="Edit">
+                                              <i class="fas fa-edit"></i>
+                                          </button>
+                                          ${u.username !== 'admin' && u.id !== currentUserId ? `
+                                              <button onclick="confirmDeleteUser('${u.id}', '${u.username}')" class="btn-secondary px-2 py-1 rounded text-xs text-red-400" title="Delete">
+                                                  <i class="fas fa-trash"></i>
+                                              </button>
+                                          ` : ''}
+                                      </div>
+                                  ` : '<span class="text-xs text-gray-500">View only</span>'}
+                              </td>
                         </tr>
                     `).join('')}
                 </tbody>
             </table>
+            ${renderPagination(userFilteredTotal, userPage, userPageSize, 'user')}
         `;
     }
     
     function confirmDeleteUser(id, username) {
-        showConfirmModal('Delete User', `Are you sure you want to delete user "${username}"? All their data will be removed. This action cannot be undone.`, () => deleteUser(id));
+        showConfirmModal(
+            'Delete User',
+            `Type the username to confirm deleting "${username}". Consider disabling instead to preserve audit trails.`,
+            () => deleteUser(id),
+            { confirmationText: username }
+        );
     }
     
     function showCreateProviderModal() {
@@ -981,8 +1941,13 @@
         document.getElementById('providerTemp').value = '0.3';
         document.getElementById('providerMaxTokens').value = '2000';
         document.getElementById('providerEnabled').checked = true;
+        document.getElementById('providerApiKey').dataset.hasKey = 'false';
+        document.getElementById('providerSecretMeta').textContent = 'API key will be stored securely. Required for hosted providers.';
+        document.getElementById('providerSecretStorage').value = 'vault';
+        document.getElementById('providerLastRotated').textContent = 'Not set';
+        document.getElementById('providerAuditEntries').innerHTML = '<div class="text-gray-400">No secret changes yet.</div>';
         updateModelSuggestions();
-        
+
         document.getElementById('providerModal').classList.remove('hidden');
         document.getElementById('providerModal').classList.add('flex');
     }
@@ -993,7 +1958,7 @@
             if (!response) return;
             
             const provider = await response.json();
-            
+
             document.getElementById('providerModalTitle').textContent = 'Edit Provider';
             document.getElementById('providerId').value = provider.id;
             document.getElementById('providerName').value = provider.name;
@@ -1004,7 +1969,16 @@
             document.getElementById('providerMaxTokens').value = provider.config_json?.max_tokens || 2000;
             document.getElementById('providerEnabled').checked = provider.is_enabled;
             document.getElementById('providerDefault').checked = provider.is_default;
-            
+            document.getElementById('providerApiKey').value = '';
+            document.getElementById('providerApiKey').dataset.hasKey = provider.has_api_key ? 'true' : 'false';
+            const rotatedAt = provider.secret_last_rotated || provider.updated_at;
+            document.getElementById('providerSecretMeta').textContent = provider.has_api_key
+                ? `Key stored securely. Last rotated ${rotatedAt ? formatDate(rotatedAt) : 'unknown'}. Enter a new key to rotate.`
+                : 'No API key stored yet. Add one to enable this provider.';
+            document.getElementById('providerSecretStorage').value = provider.config_json?.secret_storage || 'vault';
+            document.getElementById('providerLastRotated').textContent = rotatedAt ? formatDate(rotatedAt) : 'Not set';
+            document.getElementById('providerAuditEntries').innerHTML = `<div class="text-gray-300">Last updated by system on ${formatDate(provider.updated_at)}</div>`;
+
             document.getElementById('providerModal').classList.remove('hidden');
             document.getElementById('providerModal').classList.add('flex');
         } catch (error) {
@@ -1019,10 +1993,11 @@
     
     document.getElementById('providerForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-        
+
         const providerId = document.getElementById('providerId').value;
-        const apiKey = document.getElementById('providerApiKey').value;
-        
+        const apiKey = document.getElementById('providerApiKey').value.trim();
+        const hasStoredKey = document.getElementById('providerApiKey').dataset.hasKey === 'true';
+
         const data = {
             name: document.getElementById('providerName').value,
             provider_type: document.getElementById('providerType').value,
@@ -1032,10 +2007,17 @@
             is_enabled: document.getElementById('providerEnabled').checked,
             config_json: {
                 temperature: parseFloat(document.getElementById('providerTemp').value),
-                max_tokens: parseInt(document.getElementById('providerMaxTokens').value)
+                max_tokens: parseInt(document.getElementById('providerMaxTokens').value),
+                secret_storage: document.getElementById('providerSecretStorage').value
             }
         };
-        
+
+        const requiresSecret = data.provider_type !== 'ollama';
+        if (requiresSecret && !apiKey && !hasStoredKey) {
+            showToast('API key is required for hosted providers', 'error');
+            return;
+        }
+
         if (apiKey) {
             data.api_key = apiKey;
         }
@@ -1077,16 +2059,48 @@
         }
     }
     
-    async function toggleProvider(providerId) {
+    async function toggleProvider(providerId, forceState = null) {
         try {
-            const response = await apiCall(`/api/settings/llm/${providerId}/toggle`, { method: 'POST' });
+            const response = await apiCall(`/api/settings/llm/${providerId}/toggle${forceState !== null ? `?enabled=${forceState}` : ''}` , { method: 'POST' });
             if (!response) return;
-            
+
             const result = await response.json();
             showToast(result.message, 'success');
             loadProviders();
         } catch (error) {
             showToast('Failed to toggle provider', 'error');
+        }
+    }
+
+    async function testProvider(providerId) {
+        const button = document.querySelector(`[data-test-btn="${providerId}"]`);
+        const original = button?.innerHTML;
+        if (button) {
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        }
+
+        try {
+            const start = performance.now();
+            const response = await apiCall(`/api/settings/llm/${providerId}/test`);
+            if (!response) return;
+
+            const result = await response.json();
+            const latency = Math.round(performance.now() - start);
+            providerLastTest[providerId] = { ok: result.status === 'success', latency };
+            if (result.status === 'success') {
+                showToast(`Connection healthy (${latency}ms): ${result.response || 'OK'}`, 'success');
+            } else {
+                showToast(`Provider test failed: ${result.error || 'Unknown error'}`, 'error');
+            }
+            renderProvidersTable(filterProviders());
+        } catch (error) {
+            showToast(`Provider test failed: ${error.message}`, 'error');
+        } finally {
+            if (button) {
+                button.disabled = false;
+                button.innerHTML = original;
+            }
         }
     }
     
@@ -1103,6 +2117,252 @@
     }
     
     // --- Server Management ---
+    async function loadServerGroups() {
+        try {
+            const response = await apiCall('/api/servers/groups');
+            if (!response) return;
+            serverGroups = await response.json();
+            populateServerGroupOptions();
+            renderCredentialProfiles(filterCredentialProfiles());
+        } catch (error) {
+            console.error('Failed to load server groups:', error);
+        }
+    }
+
+    function populateServerGroupOptions() {
+        const groupSelect = document.getElementById('serverGroupSelect');
+        const parentSelect = document.getElementById('serverGroupParent');
+        const importGroupSelect = document.getElementById('importGroup');
+        const credentialGroupSelect = document.getElementById('credentialProfileGroup');
+        const credentialFilter = document.getElementById('credentialGroupFilter');
+
+        if (groupSelect) {
+            groupSelect.innerHTML = '<option value="">No group</option>' + serverGroups.map(g => `<option value="${g.id}">${g.path || g.name}</option>`).join('');
+        }
+
+        if (parentSelect) {
+            parentSelect.innerHTML = '<option value="">No parent</option>' + serverGroups.map(g => `<option value="${g.id}">${g.path || g.name}</option>`).join('');
+        }
+
+        if (importGroupSelect) {
+            importGroupSelect.innerHTML = '<option value="">Group: none</option>' + serverGroups.map(g => `<option value="${g.id}">Group: ${g.path || g.name}</option>`).join('');
+        }
+
+        if (credentialGroupSelect) {
+            credentialGroupSelect.innerHTML = '<option value="">All groups</option>' + serverGroups.map(g => `<option value="${g.id}">${g.path || g.name}</option>`).join('');
+        }
+
+        if (credentialFilter) {
+            credentialFilter.innerHTML = '<option value="">All groups</option>' + serverGroups.map(g => `<option value="${g.id}">${g.path || g.name}</option>`).join('');
+        }
+    }
+
+    async function loadCredentialProfiles() {
+        try {
+            const response = await apiCall('/api/servers/credentials');
+            if (!response) return;
+            credentialProfiles = await response.json();
+            const select = document.getElementById('credentialProfileId');
+            if (select) {
+                select.innerHTML = '<option value="">Select profile</option>' + credentialProfiles.map(p => `<option value="${p.id}">${p.name} (${p.backend})</option>`).join('');
+            }
+            renderCredentialProfiles(filterCredentialProfiles());
+        } catch (error) {
+            console.error('Failed to load credential profiles', error);
+        }
+    }
+
+    function getGroupLabel(groupId) {
+        if (!groupId) return 'All groups';
+        const match = serverGroups.find(g => g.id === groupId);
+        return match ? (match.path || match.name) : 'Unknown group';
+    }
+
+    function filterCredentialProfiles() {
+        const search = (document.getElementById('credentialSearch')?.value || '').toLowerCase();
+        const backend = document.getElementById('credentialBackendFilter')?.value || '';
+        const groupFilter = document.getElementById('credentialGroupFilter')?.value || '';
+        let filtered = credentialProfiles;
+        if (search) {
+            filtered = filtered.filter(p => p.name.toLowerCase().includes(search) || (p.backend || '').toLowerCase().includes(search));
+        }
+        if (backend) {
+            filtered = filtered.filter(p => p.backend === backend);
+        }
+        if (groupFilter) {
+            filtered = filtered.filter(p => p.group_id === groupFilter);
+        }
+        credentialFilteredTotal = filtered.length;
+        return filtered.sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    function renderCredentialProfiles(profiles) {
+        const container = document.getElementById('credentialTableContainer');
+        if (!container) return;
+        if (!profiles.length) {
+            container.innerHTML = '<div class="text-center py-8 text-gray-400">No credential profiles yet. Use "New Credential" to add inline, Vault, or CyberArk secrets.</div>';
+            return;
+        }
+
+        const rows = profiles.map(p => {
+            const scope = getGroupLabel(p.group_id);
+            const lastRotated = p.last_rotated ? new Date(p.last_rotated).toLocaleString() : 'Not set';
+            return `<tr class="border-b border-gray-800">
+                <td class="px-4 py-3">
+                    <div class="font-semibold">${p.name}</div>
+                    <div class="text-xs text-gray-400">${p.description || ''}</div>
+                </td>
+                <td class="px-4 py-3 text-sm">${p.backend}</td>
+                <td class="px-4 py-3 text-sm">${p.credential_type}</td>
+                <td class="px-4 py-3 text-sm">${p.username || '—'}</td>
+                <td class="px-4 py-3 text-sm">${scope}</td>
+                <td class="px-4 py-3 text-sm">${lastRotated}</td>
+                <td class="px-4 py-3 text-sm">${p.has_secret ? '<span class="text-green-400">Secret saved</span>' : '<span class="text-gray-400">Reference only</span>'}</td>
+                <td class="px-4 py-3 text-right space-x-2">
+                    <button class="btn-secondary px-2 py-1 rounded text-xs" onclick="showCredentialModal('${p.id}')"><i class="fas fa-edit"></i></button>
+                    <button class="btn-secondary px-2 py-1 rounded text-xs" onclick="deleteCredentialProfile('${p.id}', '${p.name.replace(/'/g, "&apos;")}')"><i class="fas fa-trash"></i></button>
+                </td>
+            </tr>`;
+        }).join('');
+
+        container.innerHTML = `<table class="min-w-full text-left">
+            <thead class="text-xs uppercase text-gray-400">
+                <tr>
+                    <th class="px-4 py-2">Name</th>
+                    <th class="px-4 py-2">Backend</th>
+                    <th class="px-4 py-2">Type</th>
+                    <th class="px-4 py-2">Username</th>
+                    <th class="px-4 py-2">Scope</th>
+                    <th class="px-4 py-2">Last rotated</th>
+                    <th class="px-4 py-2">Secret</th>
+                    <th class="px-4 py-2 text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="text-sm text-gray-200">${rows}</tbody>
+        </table>
+        <div class="p-3 text-xs text-gray-400">Showing ${profiles.length} of ${credentialFilteredTotal} credential profiles</div>`;
+    }
+
+    function showCredentialModal(profileId = null) {
+        editingCredentialId = profileId;
+        const form = document.getElementById('credentialForm');
+        form.reset();
+        document.getElementById('credentialProfileEditingId').value = profileId || '';
+        document.getElementById('credentialModalTitle').textContent = profileId ? 'Edit Credential Profile' : 'New Credential Profile';
+
+        if (profileId) {
+            const profile = credentialProfiles.find(p => p.id === profileId);
+            if (profile) {
+                document.getElementById('credentialProfileName').value = profile.name;
+                document.getElementById('credentialProfileGroup').value = profile.group_id || '';
+                document.getElementById('credentialProfileType').value = profile.credential_type || 'key';
+                document.getElementById('credentialProfileBackend').value = profile.backend || 'inline';
+                document.getElementById('credentialProfileDescription').value = profile.description || '';
+                document.getElementById('credentialProfileUsername').value = profile.username || '';
+                document.getElementById('credentialProfileMetadata').value = profile.metadata_json ? JSON.stringify(profile.metadata_json, null, 2) : '';
+            }
+        }
+
+        const modal = document.getElementById('credentialModal');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+
+    function closeCredentialModal() {
+        const modal = document.getElementById('credentialModal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        editingCredentialId = null;
+    }
+
+    async function saveCredentialProfile(event) {
+        event.preventDefault();
+        const payload = {
+            name: document.getElementById('credentialProfileName').value.trim(),
+            description: document.getElementById('credentialProfileDescription').value.trim() || null,
+            username: document.getElementById('credentialProfileUsername').value.trim() || null,
+            credential_type: document.getElementById('credentialProfileType').value,
+            backend: document.getElementById('credentialProfileBackend').value,
+            secret_value: document.getElementById('credentialProfileSecret').value || null,
+            metadata_json: parseYamlOrJson(document.getElementById('credentialProfileMetadata').value || '{}'),
+            group_id: document.getElementById('credentialProfileGroup').value || null,
+        };
+
+        if (!payload.name) {
+            showToast('Profile name is required', 'error');
+            return;
+        }
+
+        if (payload.credential_type === 'password' && !payload.username) {
+            showToast('Password credentials require a username', 'error');
+            return;
+        }
+
+        if (payload.credential_type === 'password' && payload.backend === 'inline' && !payload.secret_value) {
+            showToast('Password credentials require a secret', 'error');
+            return;
+        }
+
+        const url = editingCredentialId ? `/api/servers/credentials/${editingCredentialId}` : '/api/servers/credentials';
+        const method = editingCredentialId ? 'PUT' : 'POST';
+        const response = await apiCall(url, { method, body: JSON.stringify(payload) });
+        if (!response) return;
+        if (!response.ok) {
+            const error = await response.json();
+            showToast(error.detail || 'Failed to save profile', 'error');
+            return;
+        }
+
+        showToast(editingCredentialId ? 'Credential profile updated' : 'Credential profile created', 'success');
+        closeCredentialModal();
+        document.getElementById('credentialProfileSecret').value = '';
+        await loadCredentialProfiles();
+    }
+
+    async function deleteCredentialProfile(profileId, profileName) {
+        showConfirmModal('Delete credential profile', `Type DELETE to remove ${profileName}. This profile must not be attached to servers.`, async (confirmed) => {
+            if (!confirmed) return;
+            const response = await apiCall(`/api/servers/credentials/${profileId}`, { method: 'DELETE' });
+            if (!response) return;
+            if (!response.ok) {
+                const error = await response.json();
+                showToast(error.detail || 'Failed to delete credential', 'error');
+                return;
+            }
+            showToast('Credential profile deleted', 'success');
+            await loadCredentialProfiles();
+        }, { confirmationText: 'DELETE' });
+    }
+
+    async function submitServerGroup(event) {
+        event.preventDefault();
+        if (!canManageServerGroups) {
+            showToast('You do not have permission to create groups', 'error');
+            return;
+        }
+        const name = document.getElementById('serverGroupName').value.trim();
+        const parentId = document.getElementById('serverGroupParent')?.value || null;
+        if (!name) {
+            showToast('Group name is required', 'error');
+            return;
+        }
+
+        const payload = { name, parent_id: parentId || null };
+        const response = await apiCall('/api/servers/groups', {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
+        if (!response) return;
+        if (!response.ok) {
+            const error = await response.json();
+            showToast(error.detail || 'Failed to create group', 'error');
+            return;
+        }
+        document.getElementById('serverGroupForm')?.reset();
+        showToast('Server group created', 'success');
+        await loadServerGroups();
+    }
+
     function toggleAuthFields() {
         const type = document.getElementById('serverAuthType').value;
         if (type === 'key') {
@@ -1114,8 +2374,154 @@
         }
     }
 
-    function showCreateServerModal() {
-        document.getElementById('serverForm').reset();
+    function toggleCredentialSource() {
+        const source = document.getElementById('credentialSource').value;
+        const profilePicker = document.getElementById('credentialProfilePicker');
+        const metadataField = document.getElementById('credentialMetadata');
+        const keyField = document.getElementById('authKeyField');
+        const passField = document.getElementById('authPasswordField');
+        if (source === 'shared_profile') {
+            profilePicker.classList.remove('hidden');
+            keyField.classList.add('hidden');
+            passField.classList.add('hidden');
+            metadataField.classList.remove('hidden');
+        } else {
+            profilePicker.classList.add('hidden');
+            metadataField.classList.add('hidden');
+            toggleAuthFields();
+        }
+    }
+
+    async function testServerFromForm() {
+        const hostname = document.getElementById('serverHost').value.trim();
+        const user = document.getElementById('serverUser').value.trim();
+        const authType = document.getElementById('serverAuthType').value;
+        const credentialSource = document.getElementById('credentialSource').value;
+        const secret = authType === 'key' ? document.getElementById('serverKey').value.trim() : document.getElementById('serverPassword').value.trim();
+        if (!hostname || !user) {
+            showToast('Host and user are required before testing', 'error');
+            return;
+        }
+        if (credentialSource === 'inline' && !secret) {
+            showToast('Provide credentials or select a profile before testing', 'error');
+            return;
+        }
+
+        const payload = {
+            hostname,
+            port: parseInt(document.getElementById('serverPort').value),
+            protocol: authType === 'key' ? 'ssh' : 'tcp'
+        };
+
+        try {
+            const response = await apiCall('/api/servers/test', {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            });
+            if (!response) return;
+            const result = await response.json();
+            if (result.status === 'success') {
+                serverFormTestOk = true;
+                showToast(`Connectivity check passed in ${result.latency_ms || 'unknown'}ms`, 'success');
+            } else {
+                serverFormTestOk = false;
+                showToast(`Connection test failed: ${result.message}`, 'error');
+            }
+        } catch (error) {
+            serverFormTestOk = false;
+            showToast(`Connection test failed: ${error.message}`, 'error');
+        }
+    }
+
+    async function submitServerImport() {
+        const payload = {
+            format: document.getElementById('importFormat').value,
+            content: document.getElementById('serverImportPayload').value,
+            default_group_id: document.getElementById('importGroup').value || null,
+            default_auth_type: document.getElementById('importAuthType').value
+        };
+
+        if (!payload.content.trim()) {
+            showToast('Paste YAML or JSON payload first', 'error');
+            return;
+        }
+
+        const response = await apiCall('/api/servers/import', {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
+        if (!response) return;
+        const result = await response.json();
+        if (!response.ok) {
+            showToast(result.detail || 'Import failed', 'error');
+            return;
+        }
+        if (result.errors?.length) {
+            showToast(`Imported ${result.created} servers. Errors: ${result.errors.join('; ')}`, 'warning');
+        } else {
+            showToast(`Imported ${result.created} servers successfully`, 'success');
+        }
+        loadServers();
+    }
+
+    async function testServerInline(serverId) {
+        const server = serverCache.find(s => s.id === serverId);
+        if (!server) return;
+        try {
+            const response = await apiCall(`/api/servers/${serverId}/test`, { method: 'POST' });
+            if (!response) return;
+            const result = await response.json();
+            serverLastTest[serverId] = { ok: result.status === 'success', message: result.message };
+            renderServersTable(filterServers());
+            if (result.status === 'success') {
+                showToast(`Server responded: ${result.latency_ms ? result.latency_ms + 'ms' : result.message}` , 'success');
+            } else {
+                showToast(`Server test failed: ${result.message}`, 'error');
+            }
+        } catch (error) {
+            showToast(`Server test failed: ${error.message}`, 'error');
+        }
+    }
+
+            function showCreateServerModal() {
+          document.getElementById('serverForm').reset();
+          document.getElementById('serverModal').querySelector('h3').textContent = 'Add Server Credential';
+          document.getElementById('serverId').value = '';
+          document.getElementById('credentialSource').value = 'inline';
+          document.getElementById('credentialProfileId').value = '';
+          toggleCredentialSource();
+          toggleAuthFields();
+          document.getElementById('serverKey').dataset.masked = 'true';
+          document.getElementById('serverKey').style.filter = 'blur(5px)';
+          document.getElementById('serverGroupSelect').value = '';
+          document.getElementById('serverOsType').value = 'linux';
+          document.getElementById('serverTags').value = '';
+          document.getElementById('serverCredentialMetadata').value = '';
+          serverFormTestOk = false;
+          editingServerId = null;
+          document.getElementById('serverModal').classList.remove('hidden');
+          document.getElementById('serverModal').classList.add('flex');
+      }
+
+    function showEditServerModal(serverId) {
+        const server = serverCache.find(s => s.id === serverId);
+        if (!server) return;
+        editingServerId = serverId;
+        document.getElementById('serverModal').querySelector('h3').textContent = 'Edit Server Credential';
+        document.getElementById('serverId').value = serverId;
+        document.getElementById('serverName').value = server.name;
+        document.getElementById('serverHost').value = server.hostname;
+        document.getElementById('serverPort').value = server.port;
+        document.getElementById('serverUser').value = server.username;
+        document.getElementById('serverAuthType').value = server.auth_type;
+        document.getElementById('serverEnv').value = server.environment;
+        document.getElementById('serverGroupSelect').value = server.group_id || '';
+        document.getElementById('credentialSource').value = server.credential_source || 'inline';
+        document.getElementById('credentialProfileId').value = server.credential_profile_id || '';
+        document.getElementById('serverOsType').value = server.os_type || 'linux';
+        document.getElementById('serverTags').value = (server.tags || []).join(', ');
+        document.getElementById('serverCredentialMetadata').value = server.credential_metadata ? JSON.stringify(server.credential_metadata, null, 2) : '';
+        toggleCredentialSource();
         toggleAuthFields();
         document.getElementById('serverModal').classList.remove('hidden');
         document.getElementById('serverModal').classList.add('flex');
@@ -1128,45 +2534,68 @@
 
     document.getElementById('serverForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-        
-        const data = {
-            name: document.getElementById('serverName').value,
-            hostname: document.getElementById('serverHost').value,
-            port: parseInt(document.getElementById('serverPort').value),
-            username: document.getElementById('serverUser').value,
-            auth_type: document.getElementById('serverAuthType').value,
-            environment: document.getElementById('serverEnv').value
-        };
-        
-        if (data.auth_type === 'key') {
-            data.ssh_key = document.getElementById('serverKey').value;
-        } else {
-            data.password = document.getElementById('serverPassword').value;
+
+      const data = {
+          name: document.getElementById('serverName').value,
+          hostname: document.getElementById('serverHost').value,
+          port: parseInt(document.getElementById('serverPort').value),
+          username: document.getElementById('serverUser').value,
+          auth_type: document.getElementById('serverAuthType').value,
+          environment: document.getElementById('serverEnv').value,
+          group_id: document.getElementById('serverGroupSelect').value || null,
+          credential_source: document.getElementById('credentialSource').value,
+          credential_profile_id: document.getElementById('credentialProfileId').value || null,
+          credential_metadata: parseYamlOrJson(document.getElementById('serverCredentialMetadata').value || '{}'),
+          os_type: document.getElementById('serverOsType').value,
+          tags: (document.getElementById('serverTags').value || '').split(',').map(t => t.trim()).filter(Boolean)
+      };
+
+        if (data.credential_source === 'inline') {
+            if (data.auth_type === 'key') {
+                data.ssh_key = document.getElementById('serverKey').value.trim();
+                if (!editingServerId && !data.ssh_key) {
+                    showToast('SSH key is required for key-based authentication', 'error');
+                    return;
+                }
+            } else {
+                data.password = document.getElementById('serverPassword').value.trim();
+                if (!editingServerId && !data.password) {
+                    showToast('Password is required for password authentication', 'error');
+                    return;
+                }
+            }
         }
-        
+
+        if (!editingServerId && !serverFormTestOk && data.credential_source === 'inline') {
+            showToast('Run Test Connection before saving credentials', 'error');
+            return;
+        }
+
         try {
-            const response = await apiCall('/api/servers', {
-                method: 'POST',
+            const url = editingServerId ? `/api/servers/${editingServerId}` : '/api/servers';
+            const method = editingServerId ? 'PUT' : 'POST';
+            const response = await apiCall(url, {
+                method,
                 body: JSON.stringify(data)
             });
-            
+
             if (!response) return;
-            
+
             if (!response.ok) {
                 const error = await response.json();
                 throw new Error(error.detail || 'Failed to save server');
             }
-            
-            showToast('Server added successfully', 'success');
+
+            showToast(editingServerId ? 'Server updated' : 'Server added successfully', 'success');
             closeServerModal();
             loadServers();
-            
+
         } catch (error) {
             showToast(error.message, 'error');
         }
     });
 
-    async function deleteServer(serverId) {
+async function deleteServer(serverId) {
         try {
             const response = await apiCall(`/api/servers/${serverId}`, { method: 'DELETE' });
             if (!response) return;
@@ -1184,6 +2613,7 @@
             closeProviderModal();
             closeConfirmModal();
             closeServerModal();
+            closeCredentialModal();
             closeUserModal();
         }
     });
@@ -1191,18 +2621,45 @@
     document.getElementById('providerModal').addEventListener('click', (e) => {
         if (e.target === e.currentTarget) closeProviderModal();
     });
-    
+
     document.getElementById('confirmModal').addEventListener('click', (e) => {
         if (e.target === e.currentTarget) closeConfirmModal();
     });
-    
+
+    document.getElementById('credentialModal').addEventListener('click', (e) => {
+        if (e.target === e.currentTarget) closeCredentialModal();
+    });
+
+    document.getElementById('providerSearch')?.addEventListener('input', () => renderProvidersTable(filterProviders()));
+    document.getElementById('providerTypeFilter')?.addEventListener('change', () => renderProvidersTable(filterProviders()));
+    document.getElementById('providerStatusFilter')?.addEventListener('change', () => renderProvidersTable(filterProviders()));
+    document.getElementById('serverSearch')?.addEventListener('input', () => renderServersTable(filterServers()));
+    document.getElementById('serverEnvFilter')?.addEventListener('change', () => renderServersTable(filterServers()));
+    document.getElementById('serverStatusFilter')?.addEventListener('change', () => renderServersTable(filterServers()));
+    document.getElementById('serverGroupForm')?.addEventListener('submit', submitServerGroup);
+    document.getElementById('credentialSearch')?.addEventListener('input', () => renderCredentialProfiles(filterCredentialProfiles()));
+    document.getElementById('credentialBackendFilter')?.addEventListener('change', () => renderCredentialProfiles(filterCredentialProfiles()));
+    document.getElementById('credentialGroupFilter')?.addEventListener('change', () => renderCredentialProfiles(filterCredentialProfiles()));
+    document.getElementById('credentialForm')?.addEventListener('submit', saveCredentialProfile);
+    document.getElementById('userSearch')?.addEventListener('input', () => { userPage = 1; renderUsersTable(); });
+    document.getElementById('userRoleFilter')?.addEventListener('change', () => { userPage = 1; renderUsersTable(); });
+    document.getElementById('userStatusFilter')?.addEventListener('change', () => { userPage = 1; renderUsersTable(); });
+    document.getElementById('userSort')?.addEventListener('change', (e) => { userSort = e.target.value; userPage = 1; renderUsersTable(); });
+    document.getElementById('userPageSize')?.addEventListener('change', (e) => { userPageSize = parseInt(e.target.value, 10) || 10; userPage = 1; renderUsersTable(); });
+
+    initSectionNavigation();
+
     // Initial load
     loadProviders();
+    loadServerGroups();
+    loadCredentialProfiles();
     loadServers();
-    {% if user.role == 'admin' %}
-    loadUsers();
-    loadAuthConfig();
-    {% endif %}
+    if (canManageUsers) {
+        loadUsers();
+    }
+    if (canManageProviders) {
+        loadAuthConfig();
+    }
 
     // --- Auth Config ---
     function toggleAuthSections() {
@@ -1214,6 +2671,33 @@
             document.getElementById('ldapConfig').classList.remove('hidden');
         } else if (method === 'saml') {
             document.getElementById('samlConfig').classList.remove('hidden');
+        }
+    }
+
+    async function testAuthLogin(type) {
+        const payload = {
+            method: type,
+            ldap_config: type === 'ldap' ? {
+                url: document.getElementById('ldapUrl').value,
+                bind_dn: document.getElementById('ldapBindDn').value,
+                base_dn: document.getElementById('ldapBaseDn').value
+            } : null,
+            saml_config: type === 'saml' ? {
+                metadata_url: document.getElementById('samlMetadataUrl').value,
+                entity_id: document.getElementById('samlEntityId').value
+            } : null
+        };
+
+        try {
+            const response = await apiCall('/api/auth/config/test', {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            });
+            if (!response) return;
+            const result = await response.json();
+            showToast(result.message || 'Test request sent', 'success');
+        } catch (error) {
+            showToast(`Test failed: ${error.message}`, 'error');
         }
     }
 

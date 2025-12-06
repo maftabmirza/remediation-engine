@@ -27,7 +27,7 @@ class User(Base):
     email = Column(String(255), unique=True, nullable=True)
     full_name = Column(String(100), nullable=True)
     password_hash = Column(String(255), nullable=False)
-    role = Column(String(20), default="user")
+    role = Column(String(20), default="operator")
     default_llm_provider_id = Column(UUID(as_uuid=True), ForeignKey("llm_providers.id"), nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), default=utc_now)
@@ -146,6 +146,11 @@ class ServerCredential(Base):
     auth_type = Column(String(20), default="key")  # key, password
     ssh_key_encrypted = Column(Text, nullable=True)
     password_encrypted = Column(Text, nullable=True)
+
+    # External credential stores
+    credential_source = Column(String(30), default="inline", index=True)  # inline, shared_profile
+    credential_profile_id = Column(UUID(as_uuid=True), ForeignKey("credential_profiles.id"), nullable=True, index=True)
+    credential_metadata = Column(JSON, default={})
     
     # WinRM Configuration (Windows)
     winrm_transport = Column(String(20), nullable=True)  # "kerberos", "ntlm", "certificate"
@@ -156,6 +161,7 @@ class ServerCredential(Base):
     # Environment & Tags
     environment = Column(String(50), default="production", index=True)  # production, staging, dev
     tags = Column(JSON, default=[])  # For filtering servers
+    group_id = Column(UUID(as_uuid=True), ForeignKey("server_groups.id"), nullable=True, index=True)
     
     # Connection Testing
     last_connection_test = Column(DateTime(timezone=True), nullable=True)
@@ -169,6 +175,45 @@ class ServerCredential(Base):
 
     # Relationships
     created_by_user = relationship("User")
+    group = relationship("ServerGroup", back_populates="servers")
+    credential_profile = relationship("CredentialProfile", back_populates="servers")
+
+
+class ServerGroup(Base):
+    __tablename__ = "server_groups"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String(100), nullable=False, index=True)
+    description = Column(Text, nullable=True)
+    parent_id = Column(UUID(as_uuid=True), ForeignKey("server_groups.id"), nullable=True, index=True)
+    path = Column(String(255), nullable=True, index=True)
+    created_at = Column(DateTime(timezone=True), default=utc_now)
+
+    parent = relationship("ServerGroup", remote_side=[id])
+    servers = relationship("ServerCredential", back_populates="group")
+
+
+class CredentialProfile(Base):
+    """Reusable credential profiles (inline secret or external vault provider)."""
+
+    __tablename__ = "credential_profiles"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String(120), nullable=False, unique=True, index=True)
+    description = Column(Text, nullable=True)
+    username = Column(String(100), nullable=True, index=True)
+    credential_type = Column(String(30), default="key", index=True)  # key, password, vault, cyberark
+    backend = Column(String(30), default="inline", index=True)  # inline, vault, cyberark
+    secret_encrypted = Column(Text, nullable=True)
+    metadata_json = Column(JSON, default={})
+    last_rotated = Column(DateTime(timezone=True), nullable=True)
+    group_id = Column(UUID(as_uuid=True), ForeignKey("server_groups.id"), nullable=True)
+    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=utc_now)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+
+    group = relationship("ServerGroup")
+    servers = relationship("ServerCredential", back_populates="credential_profile")
 
 
 class TerminalSession(Base):
