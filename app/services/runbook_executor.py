@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from ..models import ServerCredential, Alert
+from ..models import ServerCredential, Alert, APICredentialProfile
 from ..models_remediation import (
     Runbook, RunbookStep, RunbookExecution, StepExecution,
     CircuitBreaker
@@ -476,8 +476,8 @@ class RunbookExecutor:
                 step_execution.completed_at = utc_now()
                 return step_execution
 
-            # Get executor
-            executor = ExecutorFactory.get_executor(server, self.fernet_key)
+            # Get executor (API profile or server-based)
+            executor = await self._get_executor_for_step(step, server)
 
             # Execute command
             async with executor:
@@ -586,7 +586,41 @@ class RunbookExecutor:
             raise ValueError(f"Undefined variable in template: {e}")
         except Exception as e:
             raise ValueError(f"Template rendering error: {e}")
-    
+
+    async def _get_executor_for_step(self, step: RunbookStep, server: ServerCredential):
+        """
+        Get the appropriate executor for the step type.
+
+        For API steps with credential profiles: uses APIExecutor from profile.
+        For command steps or legacy API steps: uses standard server executor.
+        """
+        # For API steps with credential profile
+        if step.step_type == "api" and step.api_credential_profile_id:
+            # Load the API credential profile from database
+            result = await self.db.execute(
+                select(APICredentialProfile).where(
+                    APICredentialProfile.id == step.api_credential_profile_id
+                )
+            )
+            profile = result.scalar_one_or_none()
+
+            if not profile:
+                raise ValueError(
+                    f"API credential profile {step.api_credential_profile_id} not found"
+                )
+
+            if not profile.enabled:
+                raise ValueError(
+                    f"API credential profile '{profile.name}' is disabled"
+                )
+
+            # Create executor from profile
+            return ExecutorFactory.get_api_executor_from_profile(profile, self.fernet_key)
+
+        # For command steps or legacy API steps (using server credentials)
+        else:
+            return ExecutorFactory.get_executor(server, self.fernet_key)
+
     def _should_run_step(self, step: RunbookStep, server: ServerCredential) -> bool:
         """Check if step should run on this server."""
         # API steps don't have OS restrictions
