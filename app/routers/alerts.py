@@ -1,7 +1,7 @@
 """
 Alerts API endpoints
 """
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
@@ -76,8 +76,14 @@ async def get_stats(
     Get alert statistics and dashboard metrics.
     """
     window_map = {"24h": timedelta(hours=24), "7d": timedelta(days=7), "30d": timedelta(days=30)}
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     start_time = now - window_map.get(time_range, timedelta(hours=24))
+
+    def to_utc(dt: Optional[datetime]) -> Optional[datetime]:
+        """Normalize datetimes (naive or aware) to UTC-aware values."""
+        if dt is None:
+            return None
+        return dt.astimezone(timezone.utc) if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
 
     alerts_query = db.query(Alert).filter(Alert.timestamp >= start_time)
     alerts = alerts_query.all()
@@ -100,7 +106,7 @@ async def get_stats(
 
     # MTTA: time from alert creation to analysis
     mtta_values = [
-        (alert.analyzed_at - alert.timestamp).total_seconds() / 60
+        (to_utc(alert.analyzed_at) - to_utc(alert.timestamp)).total_seconds() / 60
         for alert in alerts
         if alert.analyzed_at and alert.timestamp
     ]
@@ -129,10 +135,11 @@ async def get_stats(
     bucket_size = timedelta(hours=1) if time_range == "24h" else timedelta(days=1)
     trend_buckets = {}
     for alert in alerts:
+        alert_ts = to_utc(alert.timestamp)
         if bucket_size >= timedelta(days=1):
-            bucket_time = alert.timestamp.replace(hour=0, minute=0, second=0, microsecond=0)
+            bucket_time = alert_ts.replace(hour=0, minute=0, second=0, microsecond=0)
         else:
-            bucket_time = alert.timestamp.replace(minute=0, second=0, microsecond=0)
+            bucket_time = alert_ts.replace(minute=0, second=0, microsecond=0)
         bucket_key = bucket_time.isoformat()
         trend_buckets[bucket_key] = trend_buckets.get(bucket_key, 0) + 1
 
@@ -161,7 +168,7 @@ async def get_stats(
             "id": alert.id,
             "alert_name": alert.alert_name,
             "severity": alert.severity,
-            "timestamp": alert.timestamp,
+            "timestamp": to_utc(alert.timestamp),
             "status": alert.status,
         }
         for alert in alerts
@@ -169,7 +176,7 @@ async def get_stats(
     ]
     active_incidents = sorted(active_incidents, key=lambda item: item["timestamp"], reverse=True)[:10]
 
-    last_sync_time = max([alert.timestamp for alert in alerts], default=None)
+    last_sync_time = max([to_utc(alert.timestamp) for alert in alerts], default=None)
     connection_status = "degraded" if total == 0 else "online"
 
     # Service Reliability Index: transparent, weighted view
@@ -307,7 +314,7 @@ async def analyze_alert_endpoint(
     
     # Update alert
     alert.analyzed = True
-    alert.analyzed_at = datetime.utcnow()
+    alert.analyzed_at = datetime.now(timezone.utc)
     alert.analyzed_by = current_user.id
     alert.llm_provider_id = used_provider.id
     alert.ai_analysis = analysis
