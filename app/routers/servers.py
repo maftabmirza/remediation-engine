@@ -1,6 +1,7 @@
 """
 Server Management API endpoints
 """
+import json
 import socket
 import time
 from typing import List, Optional
@@ -9,42 +10,74 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
+import yaml
 
 from app.database import get_db
-from app.models import ServerCredential, User, AuditLog, ServerGroup
+from app.models import ServerCredential, User, AuditLog, ServerGroup, CredentialProfile
 from app.services.auth_service import require_permission
 from app.utils.crypto import encrypt_value
 
 router = APIRouter(prefix="/api/servers", tags=["Servers"])
 
-class ServerCreate(BaseModel):
+class ServerBase(BaseModel):
     name: str
     hostname: str
     port: int = 22
     username: str
     auth_type: str = "key"
-    ssh_key: str = None
-    password: str = None
     environment: str = "production"
     group_id: Optional[UUID] = None
-
-class ServerResponse(BaseModel):
-    id: UUID
-    name: str
-    hostname: str
-    port: int
-    username: str
-    auth_type: str
-    environment: str
-    group_id: Optional[UUID] = None
-    group_path: Optional[str] = None
-    last_connection_test: Optional[datetime]
-    last_connection_status: Optional[str]
-    last_connection_error: Optional[str]
-    created_at: datetime
+    credential_source: str = "inline"
+    credential_profile_id: Optional[UUID] = None
+    credential_metadata: dict = {}
+    os_type: str = "linux"
+    protocol: str = "ssh"
+    winrm_transport: Optional[str] = None
+    winrm_use_ssl: bool = True
+    winrm_cert_validation: bool = True
+    domain: Optional[str] = None
+    tags: List[str] = []
 
     class Config:
-        from_attributes = True
+        json_schema_extra = {
+            "examples": [
+                {
+                    "name": "prod-db-01",
+                    "hostname": "10.0.0.5",
+                    "port": 22,
+                    "username": "ec2-user",
+                    "auth_type": "key",
+                    "credential_source": "inline",
+                    "tags": ["production", "database"],
+                }
+            ]
+        }
+
+
+class ServerCreate(ServerBase):
+    ssh_key: Optional[str] = None
+    password: Optional[str] = None
+
+class ServerUpdate(BaseModel):
+    name: Optional[str] = None
+    hostname: Optional[str] = None
+    port: Optional[int] = None
+    username: Optional[str] = None
+    auth_type: Optional[str] = None
+    ssh_key: Optional[str] = None
+    password: Optional[str] = None
+    environment: Optional[str] = None
+    group_id: Optional[UUID] = None
+    credential_source: Optional[str] = None
+    credential_profile_id: Optional[UUID] = None
+    credential_metadata: Optional[dict] = None
+    os_type: Optional[str] = None
+    protocol: Optional[str] = None
+    winrm_transport: Optional[str] = None
+    winrm_use_ssl: Optional[bool] = None
+    winrm_cert_validation: Optional[bool] = None
+    domain: Optional[str] = None
+    tags: Optional[List[str]] = None
 
 
 class ServerTestRequest(BaseModel):
@@ -59,11 +92,103 @@ class ServerTestResponse(BaseModel):
     latency_ms: Optional[int] = None
 
 
+class ServerBulkImportRequest(BaseModel):
+    format: str = "yaml"  # yaml or json
+    content: str
+    default_group_id: Optional[UUID] = None
+    default_auth_type: str = "key"
+
+
+class ServerBulkImportResponse(BaseModel):
+    created: int
+    errors: List[str] = []
+
+
+class ServerResponse(BaseModel):
+    id: UUID
+    name: str
+    hostname: str
+    port: int
+    username: str
+    auth_type: str
+    environment: str
+    group_id: Optional[UUID] = None
+    group_path: Optional[str] = None
+    credential_source: Optional[str] = None
+    credential_profile_id: Optional[UUID] = None
+    credential_profile_name: Optional[str] = None
+    credential_metadata: dict = {}
+    os_type: Optional[str] = None
+    protocol: Optional[str] = None
+    tags: List[str] = []
+    last_connection_test: Optional[datetime]
+    last_connection_status: Optional[str]
+    last_connection_error: Optional[str]
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 def serialize_server(server: ServerCredential) -> ServerResponse:
     payload = ServerResponse.model_validate(server)
     payload.group_id = server.group_id
     payload.group_path = server.group.path if server.group else None
+    payload.credential_profile_id = server.credential_profile_id
+    payload.credential_profile_name = server.credential_profile.name if server.credential_profile else None
+    payload.credential_metadata = server.credential_metadata or {}
     return payload
+
+
+def _build_server_entity(data: ServerCreate, current_user: User, db: Session) -> ServerCredential:
+    if data.group_id:
+        group = db.query(ServerGroup).filter(ServerGroup.id == data.group_id).first()
+        if not group:
+            raise HTTPException(status_code=404, detail="Server group not found")
+
+    if data.credential_profile_id:
+        profile = db.query(CredentialProfile).filter(CredentialProfile.id == data.credential_profile_id).first()
+        if not profile:
+            raise HTTPException(status_code=404, detail="Credential profile not found")
+
+    # Encrypt secrets
+    ssh_key_enc = encrypt_value(data.ssh_key) if data.ssh_key else None
+    password_enc = encrypt_value(data.password) if data.password else None
+
+    if data.credential_source == "inline" and not (ssh_key_enc or password_enc) and not data.credential_profile_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inline credentials require a password or SSH key")
+
+    probe = _probe_port(data.hostname, data.port)
+    tested_at = datetime.utcnow()
+    if probe.status != "success":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Connection test failed: {probe.message}")
+
+    server = ServerCredential(
+        name=data.name,
+        hostname=data.hostname,
+        port=data.port,
+        username=data.username,
+        auth_type=data.auth_type,
+        os_type=data.os_type,
+        protocol=data.protocol,
+        winrm_transport=data.winrm_transport,
+        winrm_use_ssl=data.winrm_use_ssl,
+        winrm_cert_validation=data.winrm_cert_validation,
+        domain=data.domain,
+        ssh_key_encrypted=ssh_key_enc,
+        password_encrypted=password_enc,
+        credential_source=data.credential_source,
+        credential_profile_id=data.credential_profile_id,
+        credential_metadata=data.credential_metadata,
+        environment=data.environment,
+        tags=data.tags,
+        group_id=data.group_id,
+        created_by=current_user.id,
+        last_connection_test=tested_at,
+        last_connection_status=probe.status,
+        last_connection_error=None if probe.status == "success" else probe.message,
+    )
+    return server
 
 
 class ServerGroupCreate(BaseModel):
@@ -78,6 +203,32 @@ class ServerGroupResponse(BaseModel):
     description: Optional[str]
     parent_id: Optional[UUID]
     path: Optional[str]
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class CredentialProfileCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    credential_type: str = "key"  # key, password, vault, cyberark
+    backend: str = "inline"  # inline, vault, cyberark
+    secret_value: Optional[str] = None
+    metadata_json: dict = {}
+    group_id: Optional[UUID] = None
+
+
+class CredentialProfileResponse(BaseModel):
+    id: UUID
+    name: str
+    description: Optional[str]
+    credential_type: str
+    backend: str
+    has_secret: bool = False
+    metadata_json: dict = {}
+    last_rotated: Optional[datetime]
+    group_id: Optional[UUID]
     created_at: datetime
 
     class Config:
@@ -142,6 +293,58 @@ async def create_server_group(
 
     return group
 
+
+@router.get("/credentials", response_model=List[CredentialProfileResponse])
+async def list_credential_profiles(
+    current_user: User = Depends(require_permission(["read"])),
+    db: Session = Depends(get_db)
+):
+    profiles = db.query(CredentialProfile).all()
+    enriched = []
+    for profile in profiles:
+        data = CredentialProfileResponse.model_validate(profile)
+        data.has_secret = profile.secret_encrypted is not None
+        enriched.append(data)
+    return enriched
+
+
+@router.post("/credentials", response_model=CredentialProfileResponse, status_code=status.HTTP_201_CREATED)
+async def create_credential_profile(
+    payload: CredentialProfileCreate,
+    current_user: User = Depends(require_permission(["manage_servers"])),
+    db: Session = Depends(get_db),
+):
+    """Create reusable credential profile, including vault or CyberArk references."""
+    secret_encrypted = encrypt_value(payload.secret_value) if payload.secret_value else None
+    profile = CredentialProfile(
+        name=payload.name,
+        description=payload.description,
+        credential_type=payload.credential_type,
+        backend=payload.backend,
+        secret_encrypted=secret_encrypted,
+        metadata_json=payload.metadata_json,
+        last_rotated=datetime.utcnow() if payload.secret_value else None,
+        group_id=payload.group_id,
+        created_by=current_user.id,
+    )
+    db.add(profile)
+    db.commit()
+    db.refresh(profile)
+
+    audit = AuditLog(
+        user_id=current_user.id,
+        action="create_credential_profile",
+        resource_type="credential_profile",
+        resource_id=profile.id,
+        details_json={"name": profile.name, "backend": profile.backend},
+    )
+    db.add(audit)
+    db.commit()
+
+    response = CredentialProfileResponse.model_validate(profile)
+    response.has_secret = profile.secret_encrypted is not None
+    return response
+
 @router.get("", response_model=List[ServerResponse])
 async def list_servers(
     current_user: User = Depends(require_permission(["read"])),
@@ -158,37 +361,8 @@ async def create_server(
     db: Session = Depends(get_db)
 ):
     """Create a new server credential. Admin only."""
+    server = _build_server_entity(data, current_user, db)
 
-    if data.group_id:
-        group = db.query(ServerGroup).filter(ServerGroup.id == data.group_id).first()
-        if not group:
-            raise HTTPException(status_code=404, detail="Server group not found")
-
-    # Encrypt secrets
-    ssh_key_enc = encrypt_value(data.ssh_key) if data.ssh_key else None
-    password_enc = encrypt_value(data.password) if data.password else None
-
-    probe = _probe_port(data.hostname, data.port)
-    tested_at = datetime.utcnow()
-    if probe.status != "success":
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Connection test failed: {probe.message}")
-
-    server = ServerCredential(
-        name=data.name,
-        hostname=data.hostname,
-        port=data.port,
-        username=data.username,
-        auth_type=data.auth_type,
-        ssh_key_encrypted=ssh_key_enc,
-        password_encrypted=password_enc,
-        environment=data.environment,
-        group_id=data.group_id,
-        created_by=current_user.id,
-        last_connection_test=tested_at,
-        last_connection_status=probe.status,
-        last_connection_error=None if probe.status == "success" else probe.message
-    )
-    
     db.add(server)
     db.commit()
     db.refresh(server)
@@ -207,6 +381,87 @@ async def create_server(
     return serialize_server(server)
 
 
+@router.put("/{server_id}", response_model=ServerResponse)
+async def update_server(
+    server_id: UUID,
+    payload: ServerUpdate,
+    current_user: User = Depends(require_permission(["manage_servers"])),
+    db: Session = Depends(get_db),
+):
+    server = db.query(ServerCredential).filter(ServerCredential.id == server_id).first()
+    if not server:
+        raise HTTPException(status_code=404, detail="Server not found")
+
+    if payload.group_id:
+        group = db.query(ServerGroup).filter(ServerGroup.id == payload.group_id).first()
+        if not group:
+            raise HTTPException(status_code=404, detail="Server group not found")
+
+    if payload.credential_profile_id:
+        profile = db.query(CredentialProfile).filter(CredentialProfile.id == payload.credential_profile_id).first()
+        if not profile:
+            raise HTTPException(status_code=404, detail="Credential profile not found")
+
+    if payload.ssh_key:
+        server.ssh_key_encrypted = encrypt_value(payload.ssh_key)
+        server.credential_source = "inline"
+    if payload.password:
+        server.password_encrypted = encrypt_value(payload.password)
+        server.credential_source = "inline"
+    if payload.credential_source:
+        server.credential_source = payload.credential_source
+    if payload.credential_profile_id:
+        server.credential_profile_id = payload.credential_profile_id
+    if payload.credential_metadata is not None:
+        server.credential_metadata = payload.credential_metadata
+
+    for field in [
+        "name",
+        "hostname",
+        "port",
+        "username",
+        "auth_type",
+        "environment",
+        "group_id",
+        "os_type",
+        "protocol",
+        "winrm_transport",
+        "winrm_use_ssl",
+        "winrm_cert_validation",
+        "domain",
+    ]:
+        value = getattr(payload, field, None)
+        if value is not None:
+            setattr(server, field, value)
+
+    if payload.tags is not None:
+        server.tags = payload.tags
+
+    if payload.hostname or payload.port:
+        probe = _probe_port(server.hostname, server.port)
+        server.last_connection_test = datetime.utcnow()
+        server.last_connection_status = probe.status
+        server.last_connection_error = None if probe.status == "success" else probe.message
+        if probe.status != "success":
+            db.commit()
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Connection test failed: {probe.message}")
+
+    db.commit()
+    db.refresh(server)
+
+    audit = AuditLog(
+        user_id=current_user.id,
+        action="update_server",
+        resource_type="server",
+        resource_id=server.id,
+        details_json={"name": server.name},
+    )
+    db.add(audit)
+    db.commit()
+
+    return serialize_server(server)
+
+
 @router.post("/test", response_model=ServerTestResponse)
 async def test_server_on_demand(
     payload: ServerTestRequest,
@@ -216,11 +471,54 @@ async def test_server_on_demand(
     return _probe_port(payload.hostname, payload.port)
 
 
+@router.post("/import", response_model=ServerBulkImportResponse)
+async def bulk_import_servers(
+    payload: ServerBulkImportRequest,
+    current_user: User = Depends(require_permission(["manage_servers"])),
+    db: Session = Depends(get_db),
+):
+    """Bulk import servers from YAML or JSON payloads."""
+    try:
+        if payload.format.lower() == "yaml":
+            parsed = yaml.safe_load(payload.content) or []
+        else:
+            parsed = json.loads(payload.content)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Invalid {payload.format} payload: {exc}")
+
+    if not isinstance(parsed, list):
+        raise HTTPException(status_code=400, detail="Import content must be a list of servers")
+
+    created = 0
+    errors: List[str] = []
+
+    for idx, entry in enumerate(parsed):
+        try:
+            base = {
+                "group_id": payload.default_group_id,
+                "auth_type": payload.default_auth_type,
+                **(entry or {}),
+            }
+            server_data = ServerCreate(**base)
+            server_entity = _build_server_entity(server_data, current_user, db)
+            db.add(server_entity)
+            db.commit()
+            created += 1
+        except HTTPException as http_exc:
+            db.rollback()
+            errors.append(f"Row {idx + 1}: {http_exc.detail}")
+        except Exception as exc:
+            db.rollback()
+            errors.append(f"Row {idx + 1}: {exc}")
+
+    return ServerBulkImportResponse(created=created, errors=errors)
+
+
 @router.post("/{server_id}/test", response_model=ServerTestResponse)
 async def test_saved_server(
     server_id: UUID,
     current_user: User = Depends(require_permission(["manage_servers"])),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """Run a connection test for an existing server and persist the result."""
     server = db.query(ServerCredential).filter(ServerCredential.id == server_id).first()
@@ -244,8 +542,6 @@ async def test_saved_server(
     db.commit()
 
     return probe
-
-
 @router.delete("/{server_id}")
 async def delete_server(
     server_id: UUID,
@@ -270,5 +566,5 @@ async def delete_server(
     )
     db.add(audit)
     db.commit()
-    
+
     return {"message": "Server deleted successfully"}
