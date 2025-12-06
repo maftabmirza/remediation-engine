@@ -15,7 +15,7 @@ from app.schemas import (
     APICredentialProfileUpdate,
     APICredentialProfileResponse
 )
-from app.security import encrypt_secret, decrypt_secret
+from app.utils.crypto import encrypt_value, decrypt_value
 from app.auth import get_current_user
 
 router = APIRouter(
@@ -86,8 +86,8 @@ async def create_credential_profile(
     Create a new API credential profile.
     """
     # Encrypt sensitive fields
-    token_encrypted = encrypt_secret(profile_data.token) if profile_data.token else None
-    oauth_secret_encrypted = encrypt_secret(profile_data.oauth_client_secret) if profile_data.oauth_client_secret else None
+    token_encrypted = encrypt_value(profile_data.token) if profile_data.token else None
+    oauth_secret_encrypted = encrypt_value(profile_data.oauth_client_secret) if profile_data.oauth_client_secret else None
 
     # Create profile
     profile = APICredentialProfile(
@@ -160,10 +160,10 @@ async def update_credential_profile(
 
     # Handle encrypted fields
     if 'token' in update_data and update_data['token'] is not None:
-        profile.token_encrypted = encrypt_secret(update_data.pop('token'))
+        profile.token_encrypted = encrypt_value(update_data.pop('token'))
 
     if 'oauth_client_secret' in update_data and update_data['oauth_client_secret'] is not None:
-        profile.oauth_client_secret_encrypted = encrypt_secret(update_data.pop('oauth_client_secret'))
+        profile.oauth_client_secret_encrypted = encrypt_value(update_data.pop('oauth_client_secret'))
 
     # Normalize base URL
     if 'base_url' in update_data:
@@ -257,7 +257,7 @@ async def test_credential_profile(
 
     # Add authentication
     if profile.auth_type != "none" and profile.token_encrypted:
-        token = decrypt_secret(profile.token_encrypted)
+        token = decrypt_value(profile.token_encrypted)
 
         if profile.auth_type == "bearer":
             headers["Authorization"] = f"Bearer {token}"
