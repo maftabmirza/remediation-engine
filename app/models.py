@@ -226,6 +226,55 @@ class CredentialProfile(Base):
     servers = relationship("ServerCredential", back_populates="credential_profile")
 
 
+class APICredentialProfile(Base):
+    """
+    External API service credentials (e.g., Ansible AWX, Jenkins, Kubernetes API).
+    Separate from server inventory - these are external services, not managed hosts.
+    """
+    __tablename__ = "api_credential_profiles"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String(255), nullable=False, unique=True, index=True)
+    description = Column(Text, nullable=True)
+
+    # Credential type
+    credential_type = Column(String(50), default="api", index=True)  # api, oauth, custom
+
+    # API Configuration
+    base_url = Column(String(500), nullable=False)
+    auth_type = Column(String(30), default="none", index=True)  # none, api_key, bearer, basic, oauth, custom
+    auth_header = Column(String(100), nullable=True)  # e.g., 'Authorization', 'X-API-Key'
+    token_encrypted = Column(Text, nullable=True)  # Encrypted API token/password
+    username = Column(String(255), nullable=True)  # For basic auth or OAuth
+
+    # HTTP Configuration
+    verify_ssl = Column(Boolean, default=True)
+    timeout_seconds = Column(Integer, default=30)
+    default_headers = Column(JSON, default={})
+
+    # OAuth specific (for future expansion)
+    oauth_token_url = Column(String(500), nullable=True)
+    oauth_client_id = Column(String(255), nullable=True)
+    oauth_client_secret_encrypted = Column(Text, nullable=True)
+    oauth_scope = Column(Text, nullable=True)
+
+    # Metadata and tags
+    tags = Column(JSON, default=[])
+    metadata = Column(JSON, default={})
+
+    # Status
+    enabled = Column(Boolean, default=True, index=True)
+
+    # Audit fields
+    created_at = Column(DateTime(timezone=True), default=utc_now)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    last_used_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    created_by_user = relationship("User")
+
+
 class TerminalSession(Base):
     __tablename__ = "terminal_sessions"
 

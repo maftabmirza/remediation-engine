@@ -250,5 +250,69 @@ class StatsResponse(BaseModel):
     enabled_rules: int
 
 
+# ============== API Credential Profile Schemas ==============
+
+class APICredentialProfileBase(BaseModel):
+    name: str = Field(..., min_length=1, max_length=255)
+    description: Optional[str] = None
+    credential_type: str = Field(default="api", pattern="^(api|oauth|custom)$")
+    base_url: str = Field(..., min_length=1, max_length=500)
+    auth_type: str = Field(default="none", pattern="^(none|api_key|bearer|basic|oauth|custom)$")
+    auth_header: Optional[str] = Field(None, max_length=100)
+    username: Optional[str] = Field(None, max_length=255)
+    verify_ssl: bool = True
+    timeout_seconds: int = Field(default=30, ge=1, le=300)
+    default_headers: Dict[str, str] = Field(default_factory=dict)
+    tags: List[str] = Field(default_factory=list)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+    enabled: bool = True
+
+
+class APICredentialProfileCreate(APICredentialProfileBase):
+    token: Optional[str] = None  # Plain text token, will be encrypted
+    oauth_client_secret: Optional[str] = None  # Plain text secret, will be encrypted
+    oauth_token_url: Optional[str] = Field(None, max_length=500)
+    oauth_client_id: Optional[str] = Field(None, max_length=255)
+    oauth_scope: Optional[str] = None
+
+
+class APICredentialProfileUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=255)
+    description: Optional[str] = None
+    credential_type: Optional[str] = Field(None, pattern="^(api|oauth|custom)$")
+    base_url: Optional[str] = Field(None, min_length=1, max_length=500)
+    auth_type: Optional[str] = Field(None, pattern="^(none|api_key|bearer|basic|oauth|custom)$")
+    auth_header: Optional[str] = Field(None, max_length=100)
+    username: Optional[str] = Field(None, max_length=255)
+    token: Optional[str] = None  # Plain text token, will be encrypted
+    verify_ssl: Optional[bool] = None
+    timeout_seconds: Optional[int] = Field(None, ge=1, le=300)
+    default_headers: Optional[Dict[str, str]] = None
+    oauth_token_url: Optional[str] = Field(None, max_length=500)
+    oauth_client_id: Optional[str] = Field(None, max_length=255)
+    oauth_client_secret: Optional[str] = None  # Plain text secret, will be encrypted
+    oauth_scope: Optional[str] = None
+    tags: Optional[List[str]] = None
+    metadata: Optional[Dict[str, Any]] = None
+    enabled: Optional[bool] = None
+
+
+class APICredentialProfileResponse(APICredentialProfileBase):
+    id: UUID
+    created_at: datetime
+    updated_at: datetime
+    created_by: Optional[UUID] = None
+    last_used_at: Optional[datetime] = None
+    # Security: Never return encrypted tokens
+    has_token: bool = False  # Indicates if token is set
+    oauth_token_url: Optional[str] = None
+    oauth_client_id: Optional[str] = None
+    has_oauth_secret: bool = False  # Indicates if OAuth secret is set
+    oauth_scope: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
 # Update forward references
 LoginResponse.model_rebuild()
