@@ -146,6 +146,10 @@ async def get_stats(
         normalized_trend.append({"bucket": bucket_key, "count": trend_buckets.get(bucket_key, 0)})
         cursor += bucket_size
 
+    # If no buckets carry data, return an empty list so the frontend shows an empty state
+    if all(point["count"] == 0 for point in normalized_trend):
+        normalized_trend = []
+
     # Top sources by instance
     source_counts = {}
     for alert in alerts:
