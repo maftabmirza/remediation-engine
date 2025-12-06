@@ -205,6 +205,36 @@
                 </button>
             </div>
             <div class="card">
+                <div class="flex flex-wrap items-center justify-between p-4 border-b border-gray-700 gap-3">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <div class="flex items-center gap-2">
+                            <input id="userSearch" type="text" class="input-field px-3 py-2 rounded text-sm" placeholder="Search username, name, or email">
+                            <select id="userRoleFilter" class="input-field px-3 py-2 rounded text-sm">
+                                <option value="">All roles</option>
+                                <option value="admin">Admins</option>
+                                <option value="user">Standard users</option>
+                            </select>
+                            <select id="userStatusFilter" class="input-field px-3 py-2 rounded text-sm">
+                                <option value="">Any status</option>
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                            </select>
+                            <select id="userSort" class="input-field px-3 py-2 rounded text-sm">
+                                <option value="recent">Newest first</option>
+                                <option value="name">Name A→Z</option>
+                                <option value="last_login">Recent login</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 text-sm text-gray-300">
+                        <label for="userPageSize" class="text-gray-400">Rows</label>
+                        <select id="userPageSize" class="input-field px-2 py-1 rounded text-sm w-24">
+                            <option value="10">10</option>
+                            <option value="25">25</option>
+                            <option value="50">50</option>
+                        </select>
+                    </div>
+                </div>
                 <div id="usersTableContainer" class="overflow-x-auto">
                     <div class="text-center py-8">
                         <div class="loading-spinner mx-auto"></div>
@@ -840,6 +870,11 @@
     const currentUserId = "{{ user.id }}";
     let confirmCallback = null;
     let confirmRequirement = null;
+    let userCache = [];
+    let userFilteredTotal = 0;
+    let userPage = 1;
+    let userPageSize = 10;
+    let userSort = 'recent';
     let providerCache = [];
     let serverCache = [];
     let providerPage = 1;
@@ -1363,6 +1398,11 @@
             serverPage = Math.max(1, newPage);
             renderServersTable(filterServers());
         }
+        if (type === 'user') {
+            const totalPages = Math.ceil(Math.max(userFilteredTotal, 1) / userPageSize);
+            userPage = Math.min(Math.max(1, newPage), Math.max(1, totalPages));
+            renderUsersTable();
+        }
     }
 
     function bulkEnableProviders(enable) {
@@ -1404,12 +1444,15 @@
                 }
                 throw new Error(`${response.status} ${response.statusText}`);
             }
-            
+
             const users = await response.json();
+            userCache = users;
+            userPage = 1;
+            userFilteredTotal = users.length;
             const activeUsers = users.filter(u => u.is_active).length;
             document.getElementById('statUsers').textContent = users.length;
             document.getElementById('statActiveUsers').textContent = activeUsers;
-            renderUsersTable(users);
+            renderUsersTable();
         } catch (error) {
             console.error('Failed to load users:', error);
             container.innerHTML = `
@@ -1422,10 +1465,48 @@
         }
     }
 
-    function renderUsersTable(users) {
+    function applyUserFilters() {
+        const search = document.getElementById('userSearch')?.value.toLowerCase() || '';
+        const role = document.getElementById('userRoleFilter')?.value;
+        const status = document.getElementById('userStatusFilter')?.value;
+
+        let filtered = userCache.filter(u => {
+            const matchesSearch = !search || `${u.username} ${u.full_name || ''} ${u.email || ''}`.toLowerCase().includes(search);
+            const matchesRole = !role || u.role === role;
+            const matchesStatus = !status || (status === 'active' ? u.is_active : !u.is_active);
+            return matchesSearch && matchesRole && matchesStatus;
+        });
+
+        const sortValue = userSort;
+        filtered = filtered.sort((a, b) => {
+            if (sortValue === 'name') {
+                return (a.username || '').localeCompare(b.username || '');
+            }
+            if (sortValue === 'last_login') {
+                const aLogin = a.last_login ? new Date(a.last_login) : null;
+                const bLogin = b.last_login ? new Date(b.last_login) : null;
+                if (aLogin && bLogin) return bLogin - aLogin;
+                if (aLogin) return -1;
+                if (bLogin) return 1;
+                return 0;
+            }
+            const aCreated = new Date(a.created_at);
+            const bCreated = new Date(b.created_at);
+            return bCreated - aCreated;
+        });
+
+        userFilteredTotal = filtered.length;
+        const totalPages = Math.max(1, Math.ceil(userFilteredTotal / userPageSize));
+        userPage = Math.min(userPage, totalPages);
+        const start = (userPage - 1) * userPageSize;
+        return filtered.slice(start, start + userPageSize);
+    }
+
+    function renderUsersTable() {
         const container = document.getElementById('usersTableContainer');
-        
-        if (!Array.isArray(users) || users.length === 0) {
+        const filteredUsers = applyUserFilters();
+
+        if (!userCache.length) {
             container.innerHTML = `
                 <div class="text-center py-12 text-gray-400">
                     <i class="fas fa-users text-4xl mb-3"></i>
@@ -1434,8 +1515,26 @@
             `;
             return;
         }
-        
+
+        if (!filteredUsers.length) {
+            container.innerHTML = `
+                <div class="text-center py-12 text-gray-400">
+                    <i class="fas fa-filter text-4xl mb-3"></i>
+                    <p>No users match your filters</p>
+                    <p class="text-sm mt-1">Try adjusting role, status, or search criteria</p>
+                </div>
+            `;
+            return;
+        }
+
+        const start = (userPage - 1) * userPageSize + 1;
+        const end = Math.min(start + filteredUsers.length - 1, userFilteredTotal);
+
         container.innerHTML = `
+            <div class="flex items-center justify-between px-4 py-3 text-xs text-gray-300 border-b border-gray-800">
+                <div class="text-sm">Showing ${start}-${end} of ${userFilteredTotal} users</div>
+                <div class="hidden md:block text-xs text-gray-400">Search, filter, and paginate large directories without leaving this view.</div>
+            </div>
             <table class="w-full">
                 <thead>
                     <tr class="text-left text-xs text-gray-400 uppercase border-b border-gray-700">
@@ -1449,7 +1548,7 @@
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-800">
-                    ${users.map(u => `
+                    ${filteredUsers.map(u => `
                         <tr class="hover:bg-gray-800 transition-colors ${!u.is_active ? 'opacity-50' : ''}">
                             <td class="p-4">
                                 <div class="flex items-center space-x-3">
@@ -1476,7 +1575,7 @@
                                 </span>
                             </td>
                             <td class="p-4">
-                                ${u.is_active 
+                                ${u.is_active
                                     ? '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-900 bg-opacity-50 text-green-400"><i class="fas fa-check-circle mr-1"></i>Active</span>'
                                     : '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-red-900 bg-opacity-50 text-red-400"><i class="fas fa-ban mr-1"></i>Inactive</span>'
                                 }
@@ -1485,8 +1584,8 @@
                                 ${formatDate(u.created_at)}
                             </td>
                             <td class="p-4 text-sm">
-                                ${u.last_login 
-                                    ? `<span class="text-green-400">${formatDate(u.last_login)}</span>` 
+                                ${u.last_login
+                                    ? `<span class="text-green-400">${formatDate(u.last_login)}</span>`
                                     : '<span class="text-gray-500">Never</span>'}
                             </td>
                             <td class="p-4 text-right">
@@ -1505,6 +1604,7 @@
                     `).join('')}
                 </tbody>
             </table>
+            ${renderPagination(userFilteredTotal, userPage, userPageSize, 'user')}
         `;
     }
     
@@ -1870,6 +1970,11 @@
     document.getElementById('serverSearch')?.addEventListener('input', () => renderServersTable(filterServers()));
     document.getElementById('serverEnvFilter')?.addEventListener('change', () => renderServersTable(filterServers()));
     document.getElementById('serverStatusFilter')?.addEventListener('change', () => renderServersTable(filterServers()));
+    document.getElementById('userSearch')?.addEventListener('input', () => { userPage = 1; renderUsersTable(); });
+    document.getElementById('userRoleFilter')?.addEventListener('change', () => { userPage = 1; renderUsersTable(); });
+    document.getElementById('userStatusFilter')?.addEventListener('change', () => { userPage = 1; renderUsersTable(); });
+    document.getElementById('userSort')?.addEventListener('change', (e) => { userSort = e.target.value; userPage = 1; renderUsersTable(); });
+    document.getElementById('userPageSize')?.addEventListener('change', (e) => { userPageSize = parseInt(e.target.value, 10) || 10; userPage = 1; renderUsersTable(); });
 
     initSectionNavigation();
 
