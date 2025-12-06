@@ -146,7 +146,13 @@ def _build_server_entity(data: ServerCreate, current_user: User, db: Session) ->
         if not group:
             raise HTTPException(status_code=404, detail="Server group not found")
 
-    if data.credential_profile_id:
+    if data.credential_source == "shared_profile":
+        if not data.credential_profile_id:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Shared credentials require a profile selection")
+        profile = db.query(CredentialProfile).filter(CredentialProfile.id == data.credential_profile_id).first()
+        if not profile:
+            raise HTTPException(status_code=404, detail="Credential profile not found")
+    elif data.credential_profile_id:
         profile = db.query(CredentialProfile).filter(CredentialProfile.id == data.credential_profile_id).first()
         if not profile:
             raise HTTPException(status_code=404, detail="Credential profile not found")
@@ -216,6 +222,16 @@ class CredentialProfileCreate(BaseModel):
     backend: str = "inline"  # inline, vault, cyberark
     secret_value: Optional[str] = None
     metadata_json: dict = {}
+    group_id: Optional[UUID] = None
+
+
+class CredentialProfileUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    credential_type: Optional[str] = None
+    backend: Optional[str] = None
+    secret_value: Optional[str] = None
+    metadata_json: Optional[dict] = None
     group_id: Optional[UUID] = None
 
 
@@ -296,10 +312,14 @@ async def create_server_group(
 
 @router.get("/credentials", response_model=List[CredentialProfileResponse])
 async def list_credential_profiles(
+    group_id: Optional[UUID] = None,
     current_user: User = Depends(require_permission(["read"])),
     db: Session = Depends(get_db)
 ):
-    profiles = db.query(CredentialProfile).all()
+    query = db.query(CredentialProfile)
+    if group_id:
+        query = query.filter(CredentialProfile.group_id == group_id)
+    profiles = query.all()
     enriched = []
     for profile in profiles:
         data = CredentialProfileResponse.model_validate(profile)
@@ -344,6 +364,79 @@ async def create_credential_profile(
     response = CredentialProfileResponse.model_validate(profile)
     response.has_secret = profile.secret_encrypted is not None
     return response
+
+
+@router.put("/credentials/{profile_id}", response_model=CredentialProfileResponse)
+async def update_credential_profile(
+    profile_id: UUID,
+    payload: CredentialProfileUpdate,
+    current_user: User = Depends(require_permission(["manage_servers"])),
+    db: Session = Depends(get_db),
+):
+    profile = db.query(CredentialProfile).filter(CredentialProfile.id == profile_id).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Credential profile not found")
+
+    if payload.group_id:
+        group = db.query(ServerGroup).filter(ServerGroup.id == payload.group_id).first()
+        if not group:
+            raise HTTPException(status_code=404, detail="Server group not found")
+
+    if payload.secret_value:
+        profile.secret_encrypted = encrypt_value(payload.secret_value)
+        profile.last_rotated = datetime.utcnow()
+
+    for field in ["name", "description", "credential_type", "backend", "metadata_json", "group_id"]:
+        value = getattr(payload, field, None)
+        if value is not None:
+            setattr(profile, field, value)
+
+    db.commit()
+    db.refresh(profile)
+
+    audit = AuditLog(
+        user_id=current_user.id,
+        action="update_credential_profile",
+        resource_type="credential_profile",
+        resource_id=profile.id,
+        details_json={"name": profile.name, "backend": profile.backend},
+    )
+    db.add(audit)
+    db.commit()
+
+    response = CredentialProfileResponse.model_validate(profile)
+    response.has_secret = profile.secret_encrypted is not None
+    return response
+
+
+@router.delete("/credentials/{profile_id}")
+async def delete_credential_profile(
+    profile_id: UUID,
+    current_user: User = Depends(require_permission(["manage_servers"])),
+    db: Session = Depends(get_db),
+):
+    profile = db.query(CredentialProfile).filter(CredentialProfile.id == profile_id).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Credential profile not found")
+
+    in_use = db.query(ServerCredential).filter(ServerCredential.credential_profile_id == profile_id).count()
+    if in_use:
+        raise HTTPException(status_code=400, detail="Profile is attached to one or more servers")
+
+    db.delete(profile)
+    db.commit()
+
+    audit = AuditLog(
+        user_id=current_user.id,
+        action="delete_credential_profile",
+        resource_type="credential_profile",
+        resource_id=profile_id,
+        details_json={"name": profile.name},
+    )
+    db.add(audit)
+    db.commit()
+
+    return {"message": "Credential profile deleted"}
 
 @router.get("", response_model=List[ServerResponse])
 async def list_servers(
@@ -397,10 +490,21 @@ async def update_server(
         if not group:
             raise HTTPException(status_code=404, detail="Server group not found")
 
-    if payload.credential_profile_id:
-        profile = db.query(CredentialProfile).filter(CredentialProfile.id == payload.credential_profile_id).first()
+    if payload.credential_source == "shared_profile" or payload.credential_profile_id:
+        profile_id = payload.credential_profile_id or server.credential_profile_id
+        if not profile_id:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Shared credentials require a profile selection")
+        profile = db.query(CredentialProfile).filter(CredentialProfile.id == profile_id).first()
         if not profile:
             raise HTTPException(status_code=404, detail="Credential profile not found")
+
+    if payload.credential_source == "shared_profile":
+        server.ssh_key_encrypted = None
+        server.password_encrypted = None
+        if payload.credential_profile_id:
+            server.credential_profile_id = payload.credential_profile_id
+    elif payload.credential_source == "inline":
+        server.credential_profile_id = None
 
     if payload.ssh_key:
         server.ssh_key_encrypted = encrypt_value(payload.ssh_key)
@@ -414,6 +518,10 @@ async def update_server(
         server.credential_profile_id = payload.credential_profile_id
     if payload.credential_metadata is not None:
         server.credential_metadata = payload.credential_metadata
+
+    if payload.credential_source == "inline":
+        if not (payload.ssh_key or payload.password or server.ssh_key_encrypted or server.password_encrypted):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inline credentials require an SSH key or password")
 
     for field in [
         "name",

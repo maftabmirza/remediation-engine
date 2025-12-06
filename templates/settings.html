@@ -59,6 +59,12 @@
                     <i class="fas fa-server"></i>
                     <span>Servers</span>
                 </button>
+                {% if 'manage_servers' in permissions %}
+                <button type="button" class="settings-nav-btn" data-target="section-credentials">
+                    <i class="fas fa-key"></i>
+                    <span>Credential Profiles</span>
+                </button>
+                {% endif %}
                 {% if 'manage_providers' in permissions %}
                 <button type="button" class="settings-nav-btn" data-target="section-auth">
                     <i class="fas fa-shield-alt"></i>
@@ -416,6 +422,45 @@
                 </div>
             </div>
         </section>
+
+        {% if 'manage_servers' in permissions %}
+        <section id="section-credentials" class="settings-section space-y-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-xl font-semibold">Credential Profiles</h2>
+                    <p class="text-sm text-gray-400">Create, rotate, and reuse secrets across server groups.</p>
+                </div>
+                <button onclick="showCredentialModal()" class="btn-primary px-4 py-2 rounded">
+                    <i class="fas fa-plus mr-2"></i>New Credential
+                </button>
+            </div>
+
+            <div class="card">
+                <div class="flex flex-wrap items-center justify-between p-4 border-b border-gray-700 space-y-3 md:space-y-0 space-x-4">
+                    <div class="flex items-center space-x-2">
+                        <input id="credentialSearch" type="text" class="input-field px-3 py-2 rounded text-sm" placeholder="Search credential or backend">
+                        <select id="credentialBackendFilter" class="input-field px-3 py-2 rounded text-sm">
+                            <option value="">Any backend</option>
+                            <option value="inline">Inline</option>
+                            <option value="vault">Vault</option>
+                            <option value="cyberark">CyberArk</option>
+                        </select>
+                        <select id="credentialGroupFilter" class="input-field px-3 py-2 rounded text-sm">
+                            <option value="">All groups</option>
+                        </select>
+                    </div>
+                    <div class="text-sm text-gray-300">
+                        Attach profiles to server groups or pick them per host; choose "Inline secret" inside a server form for one-off credentials.
+                    </div>
+                </div>
+                <div id="credentialTableContainer" class="overflow-x-auto">
+                    <div class="text-center py-8">
+                        <div class="loading-spinner mx-auto"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        {% endif %}
 
         {% if 'manage_providers' in permissions %}
         <section id="section-auth" class="settings-section space-y-4">
@@ -1000,53 +1045,14 @@ account: db-admin"></textarea>
                   </select>
               </div>
 
-              <div class="border border-gray-700 rounded p-3 bg-gray-800/40">
-                  <p class="text-sm font-semibold mb-2">Create Credential Profile</p>
-                  <div class="grid grid-cols-2 gap-3 mb-2">
-                      <div>
-                          <label class="text-xs text-gray-300 block mb-1">Name</label>
-                          <input type="text" id="profileName" class="input-field w-full px-3 py-2 rounded" placeholder="Vault SSH Prod">
-                      </div>
-                      <div>
-                          <label class="text-xs text-gray-300 block mb-1">Type</label>
-                          <select id="profileType" class="input-field w-full px-3 py-2 rounded">
-                              <option value="key">SSH Key</option>
-                              <option value="password">Password</option>
-                              <option value="vault">HashiCorp Vault</option>
-                              <option value="cyberark">CyberArk</option>
-                          </select>
-                      </div>
+              <div class="border border-gray-700 rounded p-3 bg-gray-800/40 flex items-center justify-between text-sm text-gray-300">
+                  <div>
+                      <p class="font-semibold">Need a reusable secret?</p>
+                      <p class="text-gray-400">Open the Credential Profiles workspace to add Vault, CyberArk, or shared keys without leaving this form.</p>
                   </div>
-                  <div class="grid grid-cols-2 gap-3 mb-2">
-                      <div>
-                          <label class="text-xs text-gray-300 block mb-1">Backend</label>
-                          <select id="profileBackend" class="input-field w-full px-3 py-2 rounded">
-                              <option value="inline">Inline Secret</option>
-                              <option value="vault">Vault</option>
-                              <option value="cyberark">CyberArk</option>
-                          </select>
-                      </div>
-                      <div>
-                          <label class="text-xs text-gray-300 block mb-1">Group scope</label>
-                          <select id="profileGroupId" class="input-field w-full px-3 py-2 rounded">
-                              <option value="">All groups</option>
-                          </select>
-                      </div>
-                  </div>
-                  <div class="grid grid-cols-2 gap-3 mb-2">
-                      <div>
-                          <label class="text-xs text-gray-300 block mb-1">Secret / Token</label>
-                          <textarea id="profileSecret" class="input-field w-full px-3 py-2 rounded h-16 font-mono text-xs" placeholder="Optional when using Vault/CyberArk"></textarea>
-                      </div>
-                      <div>
-                          <label class="text-xs text-gray-300 block mb-1">Metadata (path/safe)</label>
-                          <textarea id="profileMetadata" class="input-field w-full px-3 py-2 rounded h-16 font-mono text-xs" placeholder="vault_path: secret/data/ssh/prod"></textarea>
-                      </div>
-                  </div>
-                  <div class="flex justify-between items-center text-xs text-gray-400">
-                      <span>Create shared credentials for automation/break-glass accounts.</span>
-                      <button type="button" onclick="createCredentialProfile()" class="btn-secondary px-3 py-1 rounded text-sm">Save Profile</button>
-                  </div>
+                  <button type="button" class="btn-secondary px-3 py-2 rounded" onclick="setActiveSection('section-credentials'); closeServerModal();">
+                      Manage credentials
+                  </button>
               </div>
             
             <div class="flex justify-end space-x-2 pt-4 border-t border-gray-700">
@@ -1057,6 +1063,76 @@ account: db-admin"></textarea>
         </form>
     </div>
 </div>
+
+<!-- Credential Profile Modal -->
+<div id="credentialModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="card p-6 w-full max-w-xl m-4">
+        <div class="flex items-center justify-between mb-4">
+            <h3 id="credentialModalTitle" class="text-lg font-semibold">New Credential Profile</h3>
+            <button onclick="closeCredentialModal()" class="text-gray-400 hover:text-white">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <form id="credentialForm" class="space-y-4">
+            <input type="hidden" id="credentialProfileEditingId">
+            <div class="grid md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1">Profile name *</label>
+                    <input type="text" id="credentialProfileName" class="input-field w-full px-3 py-2 rounded" required placeholder="Shared automation key">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Scope</label>
+                    <select id="credentialProfileGroup" class="input-field w-full px-3 py-2 rounded">
+                        <option value="">All groups</option>
+                    </select>
+                    <p class="text-xs text-gray-400 mt-1">Tie a credential to a server group or leave global.</p>
+                </div>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1">Credential type</label>
+                    <select id="credentialProfileType" class="input-field w-full px-3 py-2 rounded">
+                        <option value="key">SSH Key</option>
+                        <option value="password">Password</option>
+                        <option value="vault">Vault</option>
+                        <option value="cyberark">CyberArk</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Backend</label>
+                    <select id="credentialProfileBackend" class="input-field w-full px-3 py-2 rounded">
+                        <option value="inline">Inline (encrypted)</option>
+                        <option value="vault">HashiCorp Vault</option>
+                        <option value="cyberark">CyberArk</option>
+                    </select>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium mb-1">Secret / reference</label>
+                <textarea id="credentialProfileSecret" class="input-field w-full px-3 py-2 rounded h-20 font-mono text-xs" placeholder="Inline secret or vault path"></textarea>
+                <p class="text-xs text-gray-400 mt-1">Store inline for single-use secrets or provide a vault/CyberArk reference path.</p>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium mb-1">Metadata (YAML/JSON)</label>
+                <textarea id="credentialProfileMetadata" class="input-field w-full px-3 py-2 rounded h-24 font-mono text-xs" placeholder="vault_path: secret/data/ssh/prod"></textarea>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium mb-1">Description</label>
+                <textarea id="credentialProfileDescription" class="input-field w-full px-3 py-2 rounded h-16" placeholder="Usage notes, rotation owner, etc."></textarea>
+            </div>
+
+            <div class="flex justify-end space-x-2 pt-4 border-t border-gray-700">
+                <button type="button" onclick="closeCredentialModal()" class="btn-secondary px-4 py-2 rounded">Cancel</button>
+                <button type="submit" class="btn-primary px-4 py-2 rounded">Save Credential</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
@@ -1081,7 +1157,11 @@ account: db-admin"></textarea>
     let serverCache = [];
     let serverGroups = [];
     let credentialProfiles = [];
+    let credentialFilteredTotal = 0;
+    let credentialPage = 1;
+    let credentialPageSize = 10;
     let editingServerId = null;
+    let editingCredentialId = null;
     let providerPage = 1;
     let providerPageSize = 10;
     let providerSort = { key: 'name', direction: 'asc' };
@@ -1126,6 +1206,7 @@ account: db-admin"></textarea>
         'section-users': 'Invite admins, deactivate accounts, and adjust roles.',
         'section-providers': 'Test connections, rotate keys, and manage defaults.',
         'section-servers': 'Validate SSH credentials and environments before saving.',
+        'section-credentials': 'Centralize credentials for reuse across server groups.',
         'section-auth': 'Upload LDAP/SAML metadata and run readiness checks.'
     };
 
@@ -2036,6 +2117,7 @@ account: db-admin"></textarea>
             if (!response) return;
             serverGroups = await response.json();
             populateServerGroupOptions();
+            renderCredentialProfiles(filterCredentialProfiles());
         } catch (error) {
             console.error('Failed to load server groups:', error);
         }
@@ -2044,8 +2126,9 @@ account: db-admin"></textarea>
     function populateServerGroupOptions() {
         const groupSelect = document.getElementById('serverGroupSelect');
         const parentSelect = document.getElementById('serverGroupParent');
-        const profileGroupSelect = document.getElementById('profileGroupId');
         const importGroupSelect = document.getElementById('importGroup');
+        const credentialGroupSelect = document.getElementById('credentialProfileGroup');
+        const credentialFilter = document.getElementById('credentialGroupFilter');
 
         if (groupSelect) {
             groupSelect.innerHTML = '<option value="">No group</option>' + serverGroups.map(g => `<option value="${g.id}">${g.path || g.name}</option>`).join('');
@@ -2055,12 +2138,16 @@ account: db-admin"></textarea>
             parentSelect.innerHTML = '<option value="">No parent</option>' + serverGroups.map(g => `<option value="${g.id}">${g.path || g.name}</option>`).join('');
         }
 
-        if (profileGroupSelect) {
-            profileGroupSelect.innerHTML = '<option value="">All groups</option>' + serverGroups.map(g => `<option value="${g.id}">${g.path || g.name}</option>`).join('');
-        }
-
         if (importGroupSelect) {
             importGroupSelect.innerHTML = '<option value="">Group: none</option>' + serverGroups.map(g => `<option value="${g.id}">Group: ${g.path || g.name}</option>`).join('');
+        }
+
+        if (credentialGroupSelect) {
+            credentialGroupSelect.innerHTML = '<option value="">All groups</option>' + serverGroups.map(g => `<option value="${g.id}">${g.path || g.name}</option>`).join('');
+        }
+
+        if (credentialFilter) {
+            credentialFilter.innerHTML = '<option value="">All groups</option>' + serverGroups.map(g => `<option value="${g.id}">${g.path || g.name}</option>`).join('');
         }
     }
 
@@ -2073,9 +2160,158 @@ account: db-admin"></textarea>
             if (select) {
                 select.innerHTML = '<option value="">Select profile</option>' + credentialProfiles.map(p => `<option value="${p.id}">${p.name} (${p.backend})</option>`).join('');
             }
+            renderCredentialProfiles(filterCredentialProfiles());
         } catch (error) {
             console.error('Failed to load credential profiles', error);
         }
+    }
+
+    function getGroupLabel(groupId) {
+        if (!groupId) return 'All groups';
+        const match = serverGroups.find(g => g.id === groupId);
+        return match ? (match.path || match.name) : 'Unknown group';
+    }
+
+    function filterCredentialProfiles() {
+        const search = (document.getElementById('credentialSearch')?.value || '').toLowerCase();
+        const backend = document.getElementById('credentialBackendFilter')?.value || '';
+        const groupFilter = document.getElementById('credentialGroupFilter')?.value || '';
+        let filtered = credentialProfiles;
+        if (search) {
+            filtered = filtered.filter(p => p.name.toLowerCase().includes(search) || (p.backend || '').toLowerCase().includes(search));
+        }
+        if (backend) {
+            filtered = filtered.filter(p => p.backend === backend);
+        }
+        if (groupFilter) {
+            filtered = filtered.filter(p => p.group_id === groupFilter);
+        }
+        credentialFilteredTotal = filtered.length;
+        return filtered.sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    function renderCredentialProfiles(profiles) {
+        const container = document.getElementById('credentialTableContainer');
+        if (!container) return;
+        if (!profiles.length) {
+            container.innerHTML = '<div class="text-center py-8 text-gray-400">No credential profiles yet. Use "New Credential" to add inline, Vault, or CyberArk secrets.</div>';
+            return;
+        }
+
+        const rows = profiles.map(p => {
+            const scope = getGroupLabel(p.group_id);
+            const lastRotated = p.last_rotated ? new Date(p.last_rotated).toLocaleString() : 'Not set';
+            return `<tr class="border-b border-gray-800">
+                <td class="px-4 py-3">
+                    <div class="font-semibold">${p.name}</div>
+                    <div class="text-xs text-gray-400">${p.description || ''}</div>
+                </td>
+                <td class="px-4 py-3 text-sm">${p.backend}</td>
+                <td class="px-4 py-3 text-sm">${p.credential_type}</td>
+                <td class="px-4 py-3 text-sm">${scope}</td>
+                <td class="px-4 py-3 text-sm">${lastRotated}</td>
+                <td class="px-4 py-3 text-sm">${p.has_secret ? '<span class="text-green-400">Secret saved</span>' : '<span class="text-gray-400">Reference only</span>'}</td>
+                <td class="px-4 py-3 text-right space-x-2">
+                    <button class="btn-secondary px-2 py-1 rounded text-xs" onclick="showCredentialModal('${p.id}')"><i class="fas fa-edit"></i></button>
+                    <button class="btn-secondary px-2 py-1 rounded text-xs" onclick="deleteCredentialProfile('${p.id}', '${p.name.replace(/'/g, "&apos;")}')"><i class="fas fa-trash"></i></button>
+                </td>
+            </tr>`;
+        }).join('');
+
+        container.innerHTML = `<table class="min-w-full text-left">
+            <thead class="text-xs uppercase text-gray-400">
+                <tr>
+                    <th class="px-4 py-2">Name</th>
+                    <th class="px-4 py-2">Backend</th>
+                    <th class="px-4 py-2">Type</th>
+                    <th class="px-4 py-2">Scope</th>
+                    <th class="px-4 py-2">Last rotated</th>
+                    <th class="px-4 py-2">Secret</th>
+                    <th class="px-4 py-2 text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="text-sm text-gray-200">${rows}</tbody>
+        </table>
+        <div class="p-3 text-xs text-gray-400">Showing ${profiles.length} of ${credentialFilteredTotal} credential profiles</div>`;
+    }
+
+    function showCredentialModal(profileId = null) {
+        editingCredentialId = profileId;
+        const form = document.getElementById('credentialForm');
+        form.reset();
+        document.getElementById('credentialProfileEditingId').value = profileId || '';
+        document.getElementById('credentialModalTitle').textContent = profileId ? 'Edit Credential Profile' : 'New Credential Profile';
+
+        if (profileId) {
+            const profile = credentialProfiles.find(p => p.id === profileId);
+            if (profile) {
+                document.getElementById('credentialProfileName').value = profile.name;
+                document.getElementById('credentialProfileGroup').value = profile.group_id || '';
+                document.getElementById('credentialProfileType').value = profile.credential_type || 'key';
+                document.getElementById('credentialProfileBackend').value = profile.backend || 'inline';
+                document.getElementById('credentialProfileDescription').value = profile.description || '';
+                document.getElementById('credentialProfileMetadata').value = profile.metadata_json ? JSON.stringify(profile.metadata_json, null, 2) : '';
+            }
+        }
+
+        const modal = document.getElementById('credentialModal');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+
+    function closeCredentialModal() {
+        const modal = document.getElementById('credentialModal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        editingCredentialId = null;
+    }
+
+    async function saveCredentialProfile(event) {
+        event.preventDefault();
+        const payload = {
+            name: document.getElementById('credentialProfileName').value.trim(),
+            description: document.getElementById('credentialProfileDescription').value.trim() || null,
+            credential_type: document.getElementById('credentialProfileType').value,
+            backend: document.getElementById('credentialProfileBackend').value,
+            secret_value: document.getElementById('credentialProfileSecret').value || null,
+            metadata_json: parseYamlOrJson(document.getElementById('credentialProfileMetadata').value || '{}'),
+            group_id: document.getElementById('credentialProfileGroup').value || null,
+        };
+
+        if (!payload.name) {
+            showToast('Profile name is required', 'error');
+            return;
+        }
+
+        const url = editingCredentialId ? `/api/servers/credentials/${editingCredentialId}` : '/api/servers/credentials';
+        const method = editingCredentialId ? 'PUT' : 'POST';
+        const response = await apiCall(url, { method, body: JSON.stringify(payload) });
+        if (!response) return;
+        if (!response.ok) {
+            const error = await response.json();
+            showToast(error.detail || 'Failed to save profile', 'error');
+            return;
+        }
+
+        showToast(editingCredentialId ? 'Credential profile updated' : 'Credential profile created', 'success');
+        closeCredentialModal();
+        document.getElementById('credentialProfileSecret').value = '';
+        await loadCredentialProfiles();
+    }
+
+    async function deleteCredentialProfile(profileId, profileName) {
+        showConfirmModal('Delete credential profile', `Type DELETE to remove ${profileName}. This profile must not be attached to servers.`, async (confirmed) => {
+            if (!confirmed) return;
+            const response = await apiCall(`/api/servers/credentials/${profileId}`, { method: 'DELETE' });
+            if (!response) return;
+            if (!response.ok) {
+                const error = await response.json();
+                showToast(error.detail || 'Failed to delete credential', 'error');
+                return;
+            }
+            showToast('Credential profile deleted', 'success');
+            await loadCredentialProfiles();
+        }, { confirmationText: 'DELETE' });
     }
 
     async function submitServerGroup(event) {
@@ -2134,37 +2370,6 @@ account: db-admin"></textarea>
             metadataField.classList.add('hidden');
             toggleAuthFields();
         }
-    }
-
-    async function createCredentialProfile() {
-        const payload = {
-            name: document.getElementById('profileName').value.trim(),
-            credential_type: document.getElementById('profileType').value,
-            backend: document.getElementById('profileBackend').value,
-            secret_value: document.getElementById('profileSecret').value || null,
-            metadata_json: parseYamlOrJson(document.getElementById('profileMetadata').value || '{}'),
-            group_id: document.getElementById('profileGroupId').value || null,
-        };
-
-        if (!payload.name) {
-            showToast('Profile name is required', 'error');
-            return;
-        }
-
-        const response = await apiCall('/api/servers/credentials', {
-            method: 'POST',
-            body: JSON.stringify(payload)
-        });
-        if (!response) return;
-        if (!response.ok) {
-            const error = await response.json();
-            showToast(error.detail || 'Failed to save profile', 'error');
-            return;
-        }
-        showToast('Credential profile saved', 'success');
-        document.getElementById('profileSecret').value = '';
-        document.getElementById('profileMetadata').value = '';
-        loadCredentialProfiles();
     }
 
     async function testServerFromForm() {
@@ -2388,6 +2593,7 @@ async function deleteServer(serverId) {
             closeProviderModal();
             closeConfirmModal();
             closeServerModal();
+            closeCredentialModal();
             closeUserModal();
         }
     });
@@ -2400,6 +2606,10 @@ async function deleteServer(serverId) {
         if (e.target === e.currentTarget) closeConfirmModal();
     });
 
+    document.getElementById('credentialModal').addEventListener('click', (e) => {
+        if (e.target === e.currentTarget) closeCredentialModal();
+    });
+
     document.getElementById('providerSearch')?.addEventListener('input', () => renderProvidersTable(filterProviders()));
     document.getElementById('providerTypeFilter')?.addEventListener('change', () => renderProvidersTable(filterProviders()));
     document.getElementById('providerStatusFilter')?.addEventListener('change', () => renderProvidersTable(filterProviders()));
@@ -2407,6 +2617,10 @@ async function deleteServer(serverId) {
     document.getElementById('serverEnvFilter')?.addEventListener('change', () => renderServersTable(filterServers()));
     document.getElementById('serverStatusFilter')?.addEventListener('change', () => renderServersTable(filterServers()));
     document.getElementById('serverGroupForm')?.addEventListener('submit', submitServerGroup);
+    document.getElementById('credentialSearch')?.addEventListener('input', () => renderCredentialProfiles(filterCredentialProfiles()));
+    document.getElementById('credentialBackendFilter')?.addEventListener('change', () => renderCredentialProfiles(filterCredentialProfiles()));
+    document.getElementById('credentialGroupFilter')?.addEventListener('change', () => renderCredentialProfiles(filterCredentialProfiles()));
+    document.getElementById('credentialForm')?.addEventListener('submit', saveCredentialProfile);
     document.getElementById('userSearch')?.addEventListener('input', () => { userPage = 1; renderUsersTable(); });
     document.getElementById('userRoleFilter')?.addEventListener('change', () => { userPage = 1; renderUsersTable(); });
     document.getElementById('userStatusFilter')?.addEventListener('change', () => { userPage = 1; renderUsersTable(); });
