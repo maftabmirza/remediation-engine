@@ -4,7 +4,77 @@
 {% block title %}Settings - AIOps Platform{% endblock %}
 
 {% block content %}
-<div class="space-y-6">
+<style>
+    .settings-nav-btn {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.7rem 0.85rem;
+        border-radius: 0.5rem;
+        color: var(--text-secondary);
+        transition: all 0.15s ease-in-out;
+        border: 1px solid transparent;
+    }
+    .settings-nav-btn:hover {
+        color: var(--text-primary);
+        background: var(--bg-tertiary);
+    }
+    .settings-nav-btn.active {
+        color: var(--accent-primary);
+        background: var(--bg-tertiary);
+        border-color: var(--accent-primary);
+    }
+    .settings-section {
+        display: none;
+    }
+    .settings-section.active {
+        display: block;
+    }
+</style>
+
+<div class="flex flex-col lg:flex-row gap-6">
+    <div class="w-full lg:w-64 flex-shrink-0">
+        <div class="card p-4 sticky top-4 space-y-4">
+            <div>
+                <h2 class="text-lg font-semibold">Settings</h2>
+                <p class="text-sm text-gray-400">Pick a section to view in a full-width workspace.</p>
+            </div>
+            <div class="space-y-1">
+                <button type="button" class="settings-nav-btn" data-target="section-overview">
+                    <i class="fas fa-chart-pie"></i>
+                    <span>Overview</span>
+                </button>
+                {% if user.role == 'admin' %}
+                <button type="button" class="settings-nav-btn" data-target="section-users">
+                    <i class="fas fa-users"></i>
+                    <span>Users</span>
+                </button>
+                {% endif %}
+                <button type="button" class="settings-nav-btn" data-target="section-providers">
+                    <i class="fas fa-robot"></i>
+                    <span>LLM Providers</span>
+                </button>
+                <button type="button" class="settings-nav-btn" data-target="section-servers">
+                    <i class="fas fa-server"></i>
+                    <span>Servers</span>
+                </button>
+                {% if user.role == 'admin' %}
+                <button type="button" class="settings-nav-btn" data-target="section-auth">
+                    <i class="fas fa-shield-alt"></i>
+                    <span>Authentication</span>
+                </button>
+                {% endif %}
+            </div>
+            <div class="bg-gray-800 bg-opacity-60 p-3 rounded" id="sectionActionPanel">
+                <p class="text-xs uppercase text-gray-400 tracking-wide">Section actions</p>
+                <p id="sectionActionBody" class="text-sm text-gray-300 mt-1">Select a section to see focused actions.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="flex-1 space-y-6">
+        <section id="section-overview" class="settings-section active space-y-6">
     <!-- Header -->
     <div class="flex items-center justify-between">
         <div>
@@ -121,51 +191,34 @@
             </div>
         </div>
     </div>
+        </section>
 
-    <!-- User Management (Admin Only) - TABLE VIEW -->
-    {% if user.role == 'admin' %}
-    <div class="card">
-        <div class="flex items-center justify-between p-4 border-b border-gray-700">
-            <h2 class="text-lg font-semibold">
-                <i class="fas fa-users text-yellow-400 mr-2"></i>
-                User Management
-            </h2>
-            <button onclick="showCreateUserModal()" class="btn-primary px-4 py-2 rounded">
-                <i class="fas fa-plus mr-2"></i>Add User
-            </button>
-        </div>
-        
-        <div id="usersTableContainer" class="overflow-x-auto">
-            <div class="text-center py-8">
-                <div class="loading-spinner mx-auto"></div>
+        {% if user.role == 'admin' %}
+        <section id="section-users" class="settings-section space-y-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-xl font-semibold">User Management</h2>
+                    <p class="text-sm text-gray-400">Full-width view for large directories and role changes.</p>
+                </div>
+                <button onclick="showCreateUserModal()" class="btn-primary px-4 py-2 rounded">
+                    <i class="fas fa-plus mr-2"></i>Add User
+                </button>
             </div>
-        </div>
-    </div>
-    {% endif %}
-    
-    <!-- LLM Providers - TABLE VIEW -->
-    <div class="card">
-        <div class="flex flex-wrap items-center justify-between p-4 border-b border-gray-700 space-y-3 md:space-y-0 space-x-4">
-            <h2 class="text-lg font-semibold">
-                <i class="fas fa-robot text-purple-400 mr-2"></i>
-                LLM Providers
-            </h2>
-            <div class="flex items-center space-x-3">
-                <div class="hidden md:flex items-center space-x-2">
-                    <input id="providerSearch" type="text" class="input-field px-3 py-2 rounded text-sm" placeholder="Search name or model">
-                    <select id="providerTypeFilter" class="input-field px-3 py-2 rounded text-sm">
-                        <option value="">All Types</option>
-                        <option value="anthropic">Anthropic</option>
-                        <option value="openai">OpenAI</option>
-                        <option value="google">Google</option>
-                        <option value="ollama">Ollama</option>
-                        <option value="azure">Azure</option>
-                    </select>
-                    <select id="providerStatusFilter" class="input-field px-3 py-2 rounded text-sm">
-                        <option value="">Any Status</option>
-                        <option value="enabled">Enabled</option>
-                        <option value="disabled">Disabled</option>
-                    </select>
+            <div class="card">
+                <div id="usersTableContainer" class="overflow-x-auto">
+                    <div class="text-center py-8">
+                        <div class="loading-spinner mx-auto"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        {% endif %}
+
+        <section id="section-providers" class="settings-section space-y-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-xl font-semibold">LLM Providers</h2>
+                    <p class="text-sm text-gray-400">Focus on provider inventory with filters and bulk actions.</p>
                 </div>
                 {% if user.role == 'admin' %}
                 <button onclick="showCreateProviderModal()" class="btn-primary px-4 py-2 rounded">
@@ -173,49 +226,54 @@
                 </button>
                 {% endif %}
             </div>
-        </div>
+            <div class="card">
+                <div class="flex flex-wrap items-center justify-between p-4 border-b border-gray-700 space-y-3 md:space-y-0 space-x-4">
+                    <div class="flex items-center space-x-3">
+                        <div class="hidden md:flex items-center space-x-2">
+                            <input id="providerSearch" type="text" class="input-field px-3 py-2 rounded text-sm" placeholder="Search name or model">
+                            <select id="providerTypeFilter" class="input-field px-3 py-2 rounded text-sm">
+                                <option value="">All Types</option>
+                                <option value="anthropic">Anthropic</option>
+                                <option value="openai">OpenAI</option>
+                                <option value="google">Google</option>
+                                <option value="ollama">Ollama</option>
+                                <option value="azure">Azure</option>
+                            </select>
+                            <select id="providerStatusFilter" class="input-field px-3 py-2 rounded text-sm">
+                                <option value="">Any Status</option>
+                                <option value="enabled">Enabled</option>
+                                <option value="disabled">Disabled</option>
+                            </select>
+                        </div>
+                    </div>
+                    {% if user.role == 'admin' %}
+                    <div class="flex items-center space-x-2">
+                        <button class="btn-secondary px-3 py-1 rounded text-sm" onclick="bulkEnableProviders(true)"><i class="fas fa-check mr-1"></i>Enable</button>
+                        <button class="btn-secondary px-3 py-1 rounded text-sm" onclick="bulkEnableProviders(false)"><i class="fas fa-pause mr-1"></i>Disable</button>
+                    </div>
+                    {% endif %}
+                </div>
 
-        {% if user.role == 'admin' %}
-        <div class="flex flex-wrap items-center justify-between px-4 py-3 text-sm text-gray-300 border-b border-gray-800">
-            <div class="flex items-center space-x-2">
-                <input type="checkbox" id="providerSelectAll" class="mr-1" onchange="toggleSelectAll('provider')">
-                <span>Select all</span>
-            </div>
-            <div class="flex items-center space-x-2">
-                <button class="btn-secondary px-3 py-1 rounded text-xs" onclick="bulkEnableProviders(true)"><i class="fas fa-check mr-1"></i>Enable</button>
-                <button class="btn-secondary px-3 py-1 rounded text-xs" onclick="bulkEnableProviders(false)"><i class="fas fa-pause mr-1"></i>Disable</button>
-            </div>
-        </div>
-        {% endif %}
-        
-        <div id="providersTableContainer" class="overflow-x-auto">
-            <div class="text-center py-8">
-                <div class="loading-spinner mx-auto"></div>
-            </div>
-        </div>
-    </div>
+                {% if user.role == 'admin' %}
+                <div class="flex items-center space-x-2 px-4 py-3 text-sm text-gray-300 border-b border-gray-800">
+                    <input type="checkbox" id="providerSelectAll" class="mr-1" onchange="toggleSelectAll('provider')">
+                    <span>Select all</span>
+                </div>
+                {% endif %}
 
-    <!-- Server Credentials - TABLE VIEW -->
-    <div class="card">
-        <div class="flex flex-wrap items-center justify-between p-4 border-b border-gray-700 space-y-3 md:space-y-0 space-x-4">
-            <h2 class="text-lg font-semibold">
-                <i class="fas fa-server text-green-400 mr-2"></i>
-                Server Credentials
-            </h2>
-            <div class="flex items-center space-x-3">
-                <div class="hidden md:flex items-center space-x-2">
-                    <input id="serverSearch" type="text" class="input-field px-3 py-2 rounded text-sm" placeholder="Search server or host">
-                    <select id="serverEnvFilter" class="input-field px-3 py-2 rounded text-sm">
-                        <option value="">All Environments</option>
-                        <option value="production">Production</option>
-                        <option value="staging">Staging</option>
-                        <option value="development">Development</option>
-                    </select>
-                    <select id="serverStatusFilter" class="input-field px-3 py-2 rounded text-sm">
-                        <option value="">Any Auth</option>
-                        <option value="key">SSH Key</option>
-                        <option value="password">Password</option>
-                    </select>
+                <div id="providersTableContainer" class="overflow-x-auto">
+                    <div class="text-center py-8">
+                        <div class="loading-spinner mx-auto"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="section-servers" class="settings-section space-y-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-xl font-semibold">Servers</h2>
+                    <p class="text-sm text-gray-400">Expanded credential list with filters and connection tests.</p>
                 </div>
                 {% if user.role == 'admin' %}
                 <button onclick="showCreateServerModal()" class="btn-primary px-4 py-2 rounded">
@@ -223,35 +281,56 @@
                 </button>
                 {% endif %}
             </div>
-        </div>
+            <div class="card">
+                <div class="flex flex-wrap items-center justify-between p-4 border-b border-gray-700 space-y-3 md:space-y-0 space-x-4">
+                    <div class="flex items-center space-x-3">
+                        <div class="hidden md:flex items-center space-x-2">
+                            <input id="serverSearch" type="text" class="input-field px-3 py-2 rounded text-sm" placeholder="Search server or host">
+                            <select id="serverEnvFilter" class="input-field px-3 py-2 rounded text-sm">
+                                <option value="">All Environments</option>
+                                <option value="production">Production</option>
+                                <option value="staging">Staging</option>
+                                <option value="development">Development</option>
+                            </select>
+                            <select id="serverStatusFilter" class="input-field px-3 py-2 rounded text-sm">
+                                <option value="">Any Auth</option>
+                                <option value="key">SSH Key</option>
+                                <option value="password">Password</option>
+                            </select>
+                        </div>
+                    </div>
+                    {% if user.role == 'admin' %}
+                    <div class="flex items-center space-x-2">
+                        <button class="btn-secondary px-3 py-2 rounded text-sm" onclick="bulkTestServers()"><i class="fas fa-heartbeat mr-1"></i>Test Selected</button>
+                    </div>
+                    {% endif %}
+                </div>
+
+                {% if user.role == 'admin' %}
+                <div class="flex items-center space-x-2 px-4 py-3 text-sm text-gray-300 border-b border-gray-800">
+                    <input type="checkbox" id="serverSelectAll" class="mr-1" onchange="toggleSelectAll('server')">
+                    <span>Select all</span>
+                </div>
+                {% endif %}
+
+                <div id="serversTableContainer" class="overflow-x-auto">
+                    <div class="text-center py-8">
+                        <div class="loading-spinner mx-auto"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
 
         {% if user.role == 'admin' %}
-        <div class="flex flex-wrap items-center justify-between px-4 py-3 text-sm text-gray-300 border-b border-gray-800">
-            <div class="flex items-center space-x-2">
-                <input type="checkbox" id="serverSelectAll" class="mr-1" onchange="toggleSelectAll('server')">
-                <span>Select all</span>
+        <section id="section-auth" class="settings-section space-y-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-xl font-semibold">Authentication</h2>
+                    <p class="text-sm text-gray-400">Configure LDAP/SAML with validation and test actions.</p>
+                </div>
             </div>
-            <div class="flex items-center space-x-2">
-                <button class="btn-secondary px-3 py-1 rounded text-xs" onclick="bulkTestServers()"><i class="fas fa-heartbeat mr-1"></i>Test Selected</button>
-            </div>
-        </div>
-        {% endif %}
-        
-        <div id="serversTableContainer" class="overflow-x-auto">
-            <div class="text-center py-8">
-                <div class="loading-spinner mx-auto"></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Authentication Settings (Admin Only) -->
-    {% if user.role == 'admin' %}
-    <div class="card p-6">
-        <h2 class="text-lg font-semibold mb-4">
-            <i class="fas fa-shield-alt text-red-400 mr-2"></i>
-            Authentication Settings
-        </h2>
-        <form id="authConfigForm" class="space-y-4">
+            <div class="card p-6">
+                <form id="authConfigForm" class="space-y-4">
             <div>
                 <label class="label-with-tooltip block text-sm font-medium mb-1">
                     Authentication Method
@@ -373,23 +452,9 @@
             </div>
         </form>
     </div>
-    {% endif %}
-
-    {% if user.role == 'admin' %}
-    <!-- Audit Activity Log -->
-    <div class="card">
-        <div class="flex items-center justify-between p-4 border-b border-gray-700">
-            <div>
-                <h2 class="text-lg font-semibold">Recent Activity</h2>
-                <p class="text-sm text-gray-400">Last edits across providers and auth settings</p>
-            </div>
-            <button class="btn-secondary px-3 py-1 rounded text-xs" onclick="loadAuditLogs()"><i class="fas fa-sync mr-1"></i>Refresh</button>
-        </div>
-        <div id="auditLogContainer" class="overflow-x-auto">
-            <div class="text-center py-6 text-gray-400">Loading audit trail…</div>
-        </div>
+        </section>
+        {% endif %}
     </div>
-    {% endif %}
 </div>
 
 <!-- Custom Confirm Modal -->
@@ -777,7 +842,6 @@
     let confirmRequirement = null;
     let providerCache = [];
     let serverCache = [];
-    let auditCache = [];
     let providerPage = 1;
     let providerPageSize = 10;
     let providerSort = { key: 'name', direction: 'asc' };
@@ -799,6 +863,49 @@
         ollama: 'llama2',
         azure: 'gpt-4o'
     };
+
+    const sectionActions = {
+        'section-overview': 'Review usage stats and access posture at a glance.',
+        'section-users': 'Invite admins, deactivate accounts, and adjust roles.',
+        'section-providers': 'Test connections, rotate keys, and manage defaults.',
+        'section-servers': 'Validate SSH credentials and environments before saving.',
+        'section-auth': 'Upload LDAP/SAML metadata and run readiness checks.'
+    };
+
+    function setActiveSection(targetId) {
+        const sections = document.querySelectorAll('.settings-section');
+        const buttons = document.querySelectorAll('.settings-nav-btn');
+        sections.forEach(section => {
+            if (section.id === targetId) {
+                section.classList.add('active');
+            } else {
+                section.classList.remove('active');
+            }
+        });
+        buttons.forEach(btn => {
+            if (btn.dataset.target === targetId) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+
+        const actionPanel = document.getElementById('sectionActionBody');
+        if (actionPanel) {
+            actionPanel.textContent = sectionActions[targetId] || 'Select a section to see focused actions.';
+        }
+    }
+
+    function initSectionNavigation() {
+        const buttons = document.querySelectorAll('.settings-nav-btn');
+        if (!buttons.length) return;
+
+        buttons.forEach(btn => btn.addEventListener('click', () => setActiveSection(btn.dataset.target)));
+
+        const initialHash = window.location.hash?.replace('#', '');
+        const initialTarget = initialHash && document.getElementById(initialHash) ? initialHash : buttons[0].dataset.target;
+        setActiveSection(initialTarget);
+    }
     
     // --- Custom Confirm Modal ---
     function showConfirmModal(title, message, callback, options = {}) {
@@ -1090,46 +1197,6 @@
             renderServersTable(filterServers());
         } catch (error) {
             console.error('Failed to load servers:', error);
-        }
-    }
-
-    async function loadAuditLogs() {
-        const container = document.getElementById('auditLogContainer');
-        if (!container) return;
-        container.innerHTML = '<div class="text-center py-6 text-gray-400">Loading audit trail…</div>';
-        try {
-            const response = await apiCall('/api/audit/logs?limit=20');
-            if (!response) return;
-            const logs = await response.json();
-            auditCache = logs;
-            if (!logs.length) {
-                container.innerHTML = '<div class="text-center py-6 text-gray-400">No recent changes</div>';
-                return;
-            }
-            container.innerHTML = `
-                <table class="w-full">
-                    <thead>
-                        <tr class="text-left text-xs text-gray-400 uppercase border-b border-gray-700">
-                            <th class="p-3">Actor</th>
-                            <th class="p-3">Action</th>
-                            <th class="p-3">Resource</th>
-                            <th class="p-3">When</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-800 text-sm">
-                        ${logs.map(log => `
-                            <tr>
-                                <td class="p-3">${log.username || 'System'}</td>
-                                <td class="p-3">${log.action}</td>
-                                <td class="p-3">${log.resource_type || 'n/a'}</td>
-                                <td class="p-3 text-gray-400">${formatDate(log.created_at)}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            `;
-        } catch (error) {
-            container.innerHTML = '<div class="text-center py-6 text-red-400">Failed to load audit logs</div>';
         }
     }
 
@@ -1804,13 +1871,14 @@
     document.getElementById('serverEnvFilter')?.addEventListener('change', () => renderServersTable(filterServers()));
     document.getElementById('serverStatusFilter')?.addEventListener('change', () => renderServersTable(filterServers()));
 
+    initSectionNavigation();
+
     // Initial load
     loadProviders();
     loadServers();
     {% if user.role == 'admin' %}
     loadUsers();
     loadAuthConfig();
-    loadAuditLogs();
     {% endif %}
 
     // --- Auth Config ---
