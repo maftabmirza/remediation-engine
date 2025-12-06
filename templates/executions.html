@@ -221,6 +221,7 @@ let executions = [];
 let currentPage = 1;
 const pageSize = 20;
 let autoRefreshInterval = null;
+let currentExecutionDetails = null; // Store current execution details for step output
 
 // Load executions on page load
 document.addEventListener('DOMContentLoaded', function() {
@@ -483,6 +484,7 @@ async function viewDetails(id) {
         const response = await fetch(`/api/remediation/executions/${id}`);
         if (response.ok) {
             const ex = await response.json();
+            currentExecutionDetails = ex; // Store for step output access
             
             document.getElementById('detailsContent').innerHTML = `
                 <div class="space-y-6">
@@ -532,14 +534,39 @@ async function viewDetails(id) {
                                         </div>
                                         <div class="flex items-center gap-2">
                                             <span class="px-2 py-1 rounded text-xs font-medium ${getStatusClass(step.status)}">${formatStatusLabel(step.status)}</span>
-                                            ${step.output ? `
-                                                <button onclick="showOutput('${encodeForInlineJs(step.output)}')" 
+                                            ${step.http_status_code ? `
+                                                <span class="px-2 py-1 rounded text-xs font-medium ${getHttpStatusClass(step.http_status_code)}">
+                                                    HTTP ${step.http_status_code}
+                                                </span>
+                                            ` : ''}
+                                            ${step.output || step.http_response_body ? `
+                                                <button onclick="showStepOutput(${i})"
                                                     class="text-blue-400 hover:text-blue-300 text-sm">
-                                                    <i class="fas fa-terminal"></i> Output
+                                                    <i class="fas fa-terminal"></i> ${step.http_response_body ? 'Response' : 'Output'}
                                                 </button>
                                             ` : ''}
                                         </div>
                                     </div>
+
+                                    ${step.http_request_method && step.http_request_url ? `
+                                        <div class="mt-2 p-2 bg-blue-900 bg-opacity-20 rounded text-sm">
+                                            <p class="text-blue-300 font-mono">
+                                                <span class="font-bold">${step.http_request_method}</span> ${escapeHtml(step.http_request_url)}
+                                            </p>
+                                        </div>
+                                    ` : ''}
+
+                                    ${step.extracted_values_json && Object.keys(step.extracted_values_json).length > 0 ? `
+                                        <div class="mt-2 p-2 bg-green-900 bg-opacity-20 rounded text-sm">
+                                            <p class="text-green-300 mb-1"><i class="fas fa-filter mr-1"></i>Extracted Values:</p>
+                                            <div class="font-mono text-xs space-y-1">
+                                                ${Object.entries(step.extracted_values_json).map(([key, val]) => `
+                                                    <div><span class="text-green-400">${escapeHtml(key)}:</span> <span class="text-primary">${escapeHtml(String(val))}</span></div>
+                                                `).join('')}
+                                            </div>
+                                        </div>
+                                    ` : ''}
+
                                     ${step.error_message ? `
                                         <div class="mt-2 p-2 bg-red-900 bg-opacity-20 rounded text-red-400 text-sm">
                                             <i class="fas fa-exclamation-triangle mr-1"></i>${escapeHtml(step.error_message)}
@@ -603,6 +630,84 @@ function getStepStatusIcon(status) {
 
 function closeDetailsModal() {
     document.getElementById('detailsModal').classList.add('hidden');
+    currentExecutionDetails = null;
+}
+
+function getHttpStatusClass(statusCode) {
+    if (statusCode >= 200 && statusCode < 300) {
+        return 'bg-green-500 bg-opacity-20 text-green-400';
+    } else if (statusCode >= 300 && statusCode < 400) {
+        return 'bg-blue-500 bg-opacity-20 text-blue-400';
+    } else if (statusCode >= 400 && statusCode < 500) {
+        return 'bg-yellow-500 bg-opacity-20 text-yellow-400';
+    } else if (statusCode >= 500) {
+        return 'bg-red-500 bg-opacity-20 text-red-400';
+    }
+    return 'bg-gray-500 bg-opacity-20 text-gray-400';
+}
+
+function showStepOutput(stepIndex) {
+    if (!currentExecutionDetails || !currentExecutionDetails.step_executions) {
+        showToast('Step details not available', 'error');
+        return;
+    }
+
+    const step = currentExecutionDetails.step_executions[stepIndex];
+    if (!step) {
+        showToast('Step not found', 'error');
+        return;
+    }
+
+    let output = '';
+
+    // API response
+    if (step.http_response_body) {
+        output += '=== API RESPONSE ===\n\n';
+
+        if (step.http_request_method && step.http_request_url) {
+            output += `Request: ${step.http_request_method} ${step.http_request_url}\n`;
+        }
+        if (step.http_status_code) {
+            output += `Status: ${step.http_status_code}\n\n`;
+        }
+
+        // Try to format as JSON
+        try {
+            const parsed = JSON.parse(step.http_response_body);
+            output += 'Response Body (formatted):\n';
+            output += JSON.stringify(parsed, null, 2);
+        } catch (e) {
+            output += 'Response Body:\n';
+            output += step.http_response_body;
+        }
+
+        // Show response headers if available
+        if (step.http_response_headers_json && Object.keys(step.http_response_headers_json).length > 0) {
+            output += '\n\n=== RESPONSE HEADERS ===\n';
+            for (const [key, value] of Object.entries(step.http_response_headers_json)) {
+                output += `${key}: ${value}\n`;
+            }
+        }
+
+        // Show extracted values if available
+        if (step.extracted_values_json && Object.keys(step.extracted_values_json).length > 0) {
+            output += '\n\n=== EXTRACTED VALUES ===\n';
+            for (const [key, value] of Object.entries(step.extracted_values_json)) {
+                output += `${key} = ${value}\n`;
+            }
+        }
+    }
+    // Command output
+    else if (step.output) {
+        output = step.output.replace(/\\r/g, '\r').replace(/\\n/g, '\n');
+    }
+    // Fallback
+    else {
+        output = 'No output available';
+    }
+
+    document.getElementById('outputContent').textContent = output;
+    document.getElementById('outputModal').classList.remove('hidden');
 }
 
 function showOutput(output) {

@@ -12,9 +12,10 @@ from uuid import UUID
 from cryptography.fernet import Fernet
 
 from ..config import get_settings
-from ..models import ServerCredential
+from ..models import ServerCredential, APICredentialProfile
 from .executor_base import BaseExecutor, ExecutionResult, ErrorType
 from .executor_ssh import SSHExecutor
+from .executor_api import APIExecutor
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +33,7 @@ class ExecutorFactory:
     # Registry of executor classes
     _executors: Dict[str, Type[BaseExecutor]] = {
         "ssh": SSHExecutor,
+        "api": APIExecutor,
         # "winrm": WinRMExecutor,  # Added in Phase 7
     }
     
@@ -84,19 +86,28 @@ class ExecutorFactory:
         password = None
         private_key = None
         sudo_password = None
-        
+        api_token = None
+
         if server.password_encrypted:
             try:
                 password = fernet.decrypt(server.password_encrypted.encode()).decode()
             except Exception as e:
                 logger.error(f"Failed to decrypt password for {server.hostname}: {e}")
-        
+
         if server.ssh_key_encrypted:
             try:
                 private_key = fernet.decrypt(server.ssh_key_encrypted.encode()).decode()
             except Exception as e:
                 logger.error(f"Failed to decrypt SSH key for {server.hostname}: {e}")
-        
+
+        # Decrypt API token (if field exists)
+        api_token_encrypted = getattr(server, 'api_token_encrypted', None)
+        if api_token_encrypted:
+            try:
+                api_token = fernet.decrypt(api_token_encrypted.encode()).decode()
+            except Exception as e:
+                logger.error(f"Failed to decrypt API token for {server.hostname}: {e}")
+
         # Check for sudo password (if field exists)
         sudo_password_encrypted = getattr(server, 'sudo_password_encrypted', None)
         if sudo_password_encrypted:
@@ -104,7 +115,7 @@ class ExecutorFactory:
                 sudo_password = fernet.decrypt(sudo_password_encrypted.encode()).decode()
             except Exception:
                 pass
-        
+
         # Create executor based on protocol
         if protocol == "ssh":
             return SSHExecutor(
@@ -118,12 +129,79 @@ class ExecutorFactory:
                 timeout=60,
                 host_key_checking=False
             )
+
+        elif protocol == "api":
+            return APIExecutor(
+                hostname=server.hostname,
+                port=server.port or 443,
+                username=server.username or "",
+                base_url=getattr(server, 'api_base_url', None),
+                auth_type=getattr(server, 'api_auth_type', 'none'),
+                auth_header=getattr(server, 'api_auth_header', None),
+                auth_token=api_token,
+                verify_ssl=getattr(server, 'api_verify_ssl', True),
+                timeout=getattr(server, 'api_timeout_seconds', 30),
+                default_headers=getattr(server, 'api_headers_json', {}) or {},
+                metadata=getattr(server, 'api_metadata_json', {}) or {}
+            )
+
         elif protocol == "winrm":
             # WinRM executor (Phase 7)
             raise NotImplementedError("WinRM executor not yet implemented")
+
         else:
             raise ValueError(f"Unknown protocol: {protocol}")
-    
+
+    @classmethod
+    def get_api_executor_from_profile(
+        cls,
+        profile: APICredentialProfile,
+        fernet_key: Optional[str] = None
+    ) -> APIExecutor:
+        """
+        Create an API executor from an API credential profile.
+
+        Args:
+            profile: APICredentialProfile with API connection details.
+            fernet_key: Encryption key for credentials.
+
+        Returns:
+            APIExecutor instance.
+
+        Raises:
+            ValueError: If encryption key not configured.
+        """
+        settings = get_settings()
+        key = fernet_key or settings.encryption_key
+
+        if not key:
+            raise ValueError("Encryption key not configured")
+
+        fernet = Fernet(key.encode() if isinstance(key, str) else key)
+
+        # Decrypt token if present
+        auth_token = None
+        if profile.token_encrypted:
+            try:
+                auth_token = fernet.decrypt(profile.token_encrypted.encode()).decode()
+            except Exception as e:
+                logger.error(f"Failed to decrypt token for profile {profile.name}: {e}")
+
+        # Create API executor
+        return APIExecutor(
+            hostname="",  # Not used for pure API profiles
+            port=443,  # Default HTTPS port
+            username=profile.username or "",
+            base_url=profile.base_url,
+            auth_type=profile.auth_type,
+            auth_header=profile.auth_header,
+            auth_token=auth_token,
+            verify_ssl=profile.verify_ssl,
+            timeout=profile.timeout_seconds,
+            default_headers=profile.default_headers or {},
+            metadata=profile.profile_metadata or {}
+        )
+
     @classmethod
     async def get_pooled_executor(
         cls,
@@ -175,31 +253,63 @@ class ExecutorFactory:
     ) -> ExecutionResult:
         """
         Test connection to a server.
-        
+
         Args:
             server: ServerCredential to test.
             fernet_key: Encryption key.
-        
+
         Returns:
             ExecutionResult with test results.
         """
         try:
             executor = cls.get_executor(server, fernet_key)
+            protocol = getattr(server, 'protocol', 'ssh') or 'ssh'
+
             async with executor:
-                result = await executor.execute("echo 'Connection test successful'", timeout=30)
-                
-                if result.success:
-                    # Get server info
-                    info = await executor.get_server_info()
-                    result.stdout = (
-                        f"Connection successful\n"
-                        f"OS: {info.os_version or info.os_type}\n"
-                        f"Kernel: {info.kernel_version or 'N/A'}\n"
-                        f"Arch: {info.architecture or 'N/A'}"
-                    )
-                
-                return result
-                
+                # Different test commands for different protocols
+                if protocol == "api":
+                    # For API, just test connectivity
+                    is_connected = await executor.test_connection()
+                    if is_connected:
+                        info = await executor.get_server_info()
+                        return ExecutionResult(
+                            success=True,
+                            exit_code=0,
+                            stdout=f"API connection successful\nBase URL: {executor.base_url}\nAuth Type: {executor.auth_type}",
+                            stderr="",
+                            duration_ms=0,
+                            command="connection_test",
+                            server_hostname=server.hostname
+                        )
+                    else:
+                        return ExecutionResult(
+                            success=False,
+                            exit_code=-1,
+                            stdout="",
+                            stderr="API connection test failed",
+                            duration_ms=0,
+                            command="connection_test",
+                            server_hostname=server.hostname,
+                            error_type=ErrorType.CONNECTION,
+                            error_message="Unable to connect to API",
+                            retryable=True
+                        )
+                else:
+                    # For command executors (SSH, WinRM)
+                    result = await executor.execute("echo 'Connection test successful'", timeout=30)
+
+                    if result.success:
+                        # Get server info
+                        info = await executor.get_server_info()
+                        result.stdout = (
+                            f"Connection successful\n"
+                            f"OS: {info.os_version or info.os_type}\n"
+                            f"Kernel: {info.kernel_version or 'N/A'}\n"
+                            f"Arch: {info.architecture or 'N/A'}"
+                        )
+
+                    return result
+
         except ConnectionError as e:
             return ExecutionResult(
                 success=False,

@@ -60,6 +60,10 @@
                     <span>Servers</span>
                 </button>
                 {% if 'manage_servers' in permissions %}
+                <button type="button" class="settings-nav-btn" data-target="section-api-credentials">
+                    <i class="fas fa-globe"></i>
+                    <span>API Credentials</span>
+                </button>
                 <button type="button" class="settings-nav-btn" data-target="section-credentials">
                     <i class="fas fa-key"></i>
                     <span>Credential Profiles</span>
@@ -424,6 +428,47 @@
         </section>
 
         {% if 'manage_servers' in permissions %}
+        <section id="section-api-credentials" class="settings-section space-y-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-xl font-semibold">API Credentials</h2>
+                    <p class="text-sm text-gray-400">Manage credentials for external APIs (Ansible AWX, Jenkins, Kubernetes, etc.)</p>
+                </div>
+                <button onclick="showApiCredentialModal()" class="btn-primary px-4 py-2 rounded">
+                    <i class="fas fa-plus mr-2"></i>New API Credential
+                </button>
+            </div>
+
+            <div class="card">
+                <div class="flex flex-wrap items-center justify-between p-4 border-b border-gray-700 space-y-3 md:space-y-0 space-x-4">
+                    <div class="flex items-center space-x-2">
+                        <input id="apiCredentialSearch" type="text" class="input-field px-3 py-2 rounded text-sm" placeholder="Search by name or base URL...">
+                        <select id="apiCredentialAuthTypeFilter" class="input-field px-3 py-2 rounded text-sm">
+                            <option value="">All Auth Types</option>
+                            <option value="none">No Auth</option>
+                            <option value="api_key">API Key</option>
+                            <option value="bearer">Bearer Token</option>
+                            <option value="basic">Basic Auth</option>
+                            <option value="oauth">OAuth 2.0</option>
+                        </select>
+                        <select id="apiCredentialStatusFilter" class="input-field px-3 py-2 rounded text-sm">
+                            <option value="">All Statuses</option>
+                            <option value="enabled">Enabled</option>
+                            <option value="disabled">Disabled</option>
+                        </select>
+                    </div>
+                    <div class="text-sm text-gray-300">
+                        Reusable credentials for API calls in runbooks (AWX, Jenkins, K8s, etc.)
+                    </div>
+                </div>
+                <div id="apiCredentialTableContainer" class="overflow-x-auto">
+                    <div class="text-center py-8">
+                        <div class="loading-spinner mx-auto"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <section id="section-credentials" class="settings-section space-y-4">
             <div class="flex items-center justify-between">
                 <div>
@@ -1000,23 +1045,37 @@ account: db-admin"></textarea>
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="label-with-tooltip block text-sm font-medium mb-1">
-                        Tags (comma separated)
+                        Protocol *
                         <span class="info-tooltip info-tooltip-align-left">
                             <span class="info-tooltip-icon">?</span>
-                            <span class="info-tooltip-text">Add labels like production, linux, db to filter and bulk manage servers.</span>
+                            <span class="info-tooltip-text">Choose connection method: SSH for Linux/Windows servers, or WinRM for Windows. API credentials are now managed separately in API Credential Profiles.</span>
                         </span>
                     </label>
-                    <input type="text" id="serverTags" class="input-field w-full px-3 py-2 rounded" placeholder="production,linux,db">
+                    <select id="serverProtocol" class="input-field w-full px-3 py-2 rounded" onchange="toggleProtocolFields()">
+                        <option value="ssh">SSH (Linux/Windows)</option>
+                        <option value="winrm">WinRM (Windows)</option>
+                    </select>
                 </div>
-                <div>
+                <div id="osTypeField">
                     <label class="label-with-tooltip block text-sm font-medium mb-1">OS Type</label>
                     <select id="serverOsType" class="input-field w-full px-3 py-2 rounded">
-                        <option value="linux">Linux (SSH)</option>
-                        <option value="windows">Windows (WinRM)</option>
+                        <option value="linux">Linux</option>
+                        <option value="windows">Windows</option>
                     </select>
                 </div>
             </div>
-            
+
+            <div>
+                <label class="label-with-tooltip block text-sm font-medium mb-1">
+                    Tags (comma separated)
+                    <span class="info-tooltip info-tooltip-align-left">
+                        <span class="info-tooltip-icon">?</span>
+                        <span class="info-tooltip-text">Add labels like production, linux, db to filter and bulk manage servers.</span>
+                    </span>
+                </label>
+                <input type="text" id="serverTags" class="input-field w-full px-3 py-2 rounded" placeholder="production,linux,db">
+            </div>
+
               <div>
                   <label class="label-with-tooltip block text-sm font-medium mb-1">
                       Environment
@@ -1163,6 +1222,8 @@ account: db-admin"></textarea>
     let serverCache = [];
     let serverGroups = [];
     let credentialProfiles = [];
+    let apiCredentialProfiles = [];
+    let editingApiCredentialId = null;
     let credentialFilteredTotal = 0;
     let credentialPage = 1;
     let credentialPageSize = 10;
@@ -1212,6 +1273,7 @@ account: db-admin"></textarea>
         'section-users': 'Invite admins, deactivate accounts, and adjust roles.',
         'section-providers': 'Test connections, rotate keys, and manage defaults.',
         'section-servers': 'Validate SSH credentials and environments before saving.',
+        'section-api-credentials': 'Manage reusable API credentials for runbook automation.',
         'section-credentials': 'Centralize credentials for reuse across server groups.',
         'section-auth': 'Upload LDAP/SAML metadata and run readiness checks.'
     };
@@ -2334,6 +2396,115 @@ account: db-admin"></textarea>
         }, { confirmationText: 'DELETE' });
     }
 
+    // API Credentials functions
+    async function loadApiCredentials() {
+        try {
+            const response = await apiCall('/api/credential-profiles');
+            if (!response) return;
+            apiCredentialProfiles = await response.json();
+            renderApiCredentials(filterApiCredentials());
+        } catch (error) {
+            console.error('Failed to load API credentials', error);
+        }
+    }
+
+    function filterApiCredentials() {
+        const search = (document.getElementById('apiCredentialSearch')?.value || '').toLowerCase();
+        const authType = document.getElementById('apiCredentialAuthTypeFilter')?.value || '';
+        const status = document.getElementById('apiCredentialStatusFilter')?.value || '';
+
+        let filtered = apiCredentialProfiles;
+        if (search) {
+            filtered = filtered.filter(p =>
+                p.name.toLowerCase().includes(search) ||
+                (p.base_url || '').toLowerCase().includes(search)
+            );
+        }
+        if (authType) {
+            filtered = filtered.filter(p => p.auth_type === authType);
+        }
+        if (status === 'enabled') {
+            filtered = filtered.filter(p => p.enabled === true);
+        } else if (status === 'disabled') {
+            filtered = filtered.filter(p => p.enabled === false);
+        }
+
+        return filtered.sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    function renderApiCredentials(profiles) {
+        const container = document.getElementById('apiCredentialTableContainer');
+        if (!container) return;
+
+        if (!profiles.length) {
+            container.innerHTML = '<div class="text-center py-8 text-gray-400">No API credentials yet. Use "New API Credential" to add credentials for Ansible AWX, Jenkins, Kubernetes, etc.</div>';
+            return;
+        }
+
+        const formatAuthType = (type) => {
+            const types = {
+                'none': 'No Auth',
+                'api_key': 'API Key',
+                'bearer': 'Bearer Token',
+                'basic': 'Basic Auth',
+                'oauth': 'OAuth 2.0'
+            };
+            return types[type] || type;
+        };
+
+        const rows = profiles.map(p => {
+            const statusBadge = p.enabled
+                ? '<span class="px-2 py-1 text-xs rounded bg-green-900 text-green-300">Enabled</span>'
+                : '<span class="px-2 py-1 text-xs rounded bg-gray-700 text-gray-400">Disabled</span>';
+
+            return `<tr class="border-b border-gray-800">
+                <td class="px-4 py-3">
+                    <div class="font-semibold">${p.name}</div>
+                    <div class="text-xs text-gray-400">${p.description || ''}</div>
+                </td>
+                <td class="px-4 py-3 text-sm font-mono text-xs">${p.base_url}</td>
+                <td class="px-4 py-3 text-sm">${formatAuthType(p.auth_type)}</td>
+                <td class="px-4 py-3 text-sm">${statusBadge}</td>
+                <td class="px-4 py-3 text-sm">${p.timeout_seconds}s</td>
+                <td class="px-4 py-3 text-right space-x-2">
+                    <a href="/credential-profiles" class="btn-secondary px-2 py-1 rounded text-xs" title="Manage in full editor">
+                        <i class="fas fa-external-link-alt"></i>
+                    </a>
+                </td>
+            </tr>`;
+        }).join('');
+
+        container.innerHTML = `<table class="min-w-full text-left">
+            <thead class="text-xs uppercase text-gray-400">
+                <tr>
+                    <th class="px-4 py-2">Name</th>
+                    <th class="px-4 py-2">Base URL</th>
+                    <th class="px-4 py-2">Auth Type</th>
+                    <th class="px-4 py-2">Status</th>
+                    <th class="px-4 py-2">Timeout</th>
+                    <th class="px-4 py-2 text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="text-sm text-gray-200">${rows}</tbody>
+        </table>
+        <div class="p-3 text-xs text-gray-400">Showing ${profiles.length} API credential profiles</div>`;
+    }
+
+    function showApiCredentialModal() {
+        window.location.href = '/credential-profiles';
+    }
+
+    // Add event listeners for API credential filters
+    document.getElementById('apiCredentialSearch')?.addEventListener('input', () => {
+        renderApiCredentials(filterApiCredentials());
+    });
+    document.getElementById('apiCredentialAuthTypeFilter')?.addEventListener('change', () => {
+        renderApiCredentials(filterApiCredentials());
+    });
+    document.getElementById('apiCredentialStatusFilter')?.addEventListener('change', () => {
+        renderApiCredentials(filterApiCredentials());
+    });
+
     async function submitServerGroup(event) {
         event.preventDefault();
         if (!canManageServerGroups) {
@@ -2372,6 +2543,21 @@ account: db-admin"></textarea>
             document.getElementById('authKeyField').classList.add('hidden');
             document.getElementById('authPasswordField').classList.remove('hidden');
         }
+    }
+
+    function toggleProtocolFields() {
+        const protocol = document.getElementById('serverProtocol').value;
+        const portField = document.getElementById('serverPort');
+
+        // Set default ports based on protocol
+        if (protocol === 'ssh') {
+            portField.value = '22';
+        } else if (protocol === 'winrm') {
+            portField.value = '5986';
+        }
+
+        // Show appropriate auth fields
+        toggleAuthFields();
     }
 
     function toggleCredentialSource() {
@@ -2487,16 +2673,19 @@ account: db-admin"></textarea>
           document.getElementById('serverForm').reset();
           document.getElementById('serverModal').querySelector('h3').textContent = 'Add Server Credential';
           document.getElementById('serverId').value = '';
+          document.getElementById('serverProtocol').value = 'ssh';
           document.getElementById('credentialSource').value = 'inline';
           document.getElementById('credentialProfileId').value = '';
-          toggleCredentialSource();
-          toggleAuthFields();
           document.getElementById('serverKey').dataset.masked = 'true';
           document.getElementById('serverKey').style.filter = 'blur(5px)';
           document.getElementById('serverGroupSelect').value = '';
           document.getElementById('serverOsType').value = 'linux';
           document.getElementById('serverTags').value = '';
           document.getElementById('serverCredentialMetadata').value = '';
+          document.getElementById('serverPort').value = '22';
+          toggleProtocolFields();
+          toggleCredentialSource();
+          toggleAuthFields();
           serverFormTestOk = false;
           editingServerId = null;
           document.getElementById('serverModal').classList.remove('hidden');
@@ -2513,6 +2702,7 @@ account: db-admin"></textarea>
         document.getElementById('serverHost').value = server.hostname;
         document.getElementById('serverPort').value = server.port;
         document.getElementById('serverUser').value = server.username;
+        document.getElementById('serverProtocol').value = server.protocol || 'ssh';
         document.getElementById('serverAuthType').value = server.auth_type;
         document.getElementById('serverEnv').value = server.environment;
         document.getElementById('serverGroupSelect').value = server.group_id || '';
@@ -2521,6 +2711,8 @@ account: db-admin"></textarea>
         document.getElementById('serverOsType').value = server.os_type || 'linux';
         document.getElementById('serverTags').value = (server.tags || []).join(', ');
         document.getElementById('serverCredentialMetadata').value = server.credential_metadata ? JSON.stringify(server.credential_metadata, null, 2) : '';
+
+        toggleProtocolFields();
         toggleCredentialSource();
         toggleAuthFields();
         document.getElementById('serverModal').classList.remove('hidden');
@@ -2535,11 +2727,14 @@ account: db-admin"></textarea>
     document.getElementById('serverForm').addEventListener('submit', async (e) => {
         e.preventDefault();
 
+      const protocol = document.getElementById('serverProtocol').value;
+
       const data = {
           name: document.getElementById('serverName').value,
           hostname: document.getElementById('serverHost').value,
           port: parseInt(document.getElementById('serverPort').value),
           username: document.getElementById('serverUser').value,
+          protocol: protocol,
           auth_type: document.getElementById('serverAuthType').value,
           environment: document.getElementById('serverEnv').value,
           group_id: document.getElementById('serverGroupSelect').value || null,
@@ -2550,26 +2745,27 @@ account: db-admin"></textarea>
           tags: (document.getElementById('serverTags').value || '').split(',').map(t => t.trim()).filter(Boolean)
       };
 
-        if (data.credential_source === 'inline') {
-            if (data.auth_type === 'key') {
-                data.ssh_key = document.getElementById('serverKey').value.trim();
-                if (!editingServerId && !data.ssh_key) {
-                    showToast('SSH key is required for key-based authentication', 'error');
-                    return;
-                }
-            } else {
-                data.password = document.getElementById('serverPassword').value.trim();
-                if (!editingServerId && !data.password) {
-                    showToast('Password is required for password authentication', 'error');
-                    return;
-                }
-            }
-        }
+      // SSH/WinRM authentication
+      if (data.credential_source === 'inline') {
+          if (data.auth_type === 'key') {
+              data.ssh_key = document.getElementById('serverKey').value.trim();
+              if (!editingServerId && !data.ssh_key) {
+                  showToast('SSH key is required for key-based authentication', 'error');
+                  return;
+              }
+          } else {
+              data.password = document.getElementById('serverPassword').value.trim();
+              if (!editingServerId && !data.password) {
+                  showToast('Password is required for password authentication', 'error');
+                  return;
+              }
+          }
+      }
 
-        if (!editingServerId && !serverFormTestOk && data.credential_source === 'inline') {
-            showToast('Run Test Connection before saving credentials', 'error');
-            return;
-        }
+      if (!editingServerId && !serverFormTestOk && data.credential_source === 'inline') {
+          showToast('Run Test Connection before saving credentials', 'error');
+          return;
+      }
 
         try {
             const url = editingServerId ? `/api/servers/${editingServerId}` : '/api/servers';
@@ -2653,6 +2849,7 @@ async function deleteServer(serverId) {
     loadProviders();
     loadServerGroups();
     loadCredentialProfiles();
+    loadApiCredentials();
     loadServers();
     if (canManageUsers) {
         loadUsers();

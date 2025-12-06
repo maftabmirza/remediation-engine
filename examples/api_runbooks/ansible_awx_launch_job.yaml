@@ -1,0 +1,136 @@
+---
+# Ansible AWX Job Launch Runbook
+# This runbook triggers an Ansible AWX job template via API
+#
+# Prerequisites:
+# 1. Create an API server credential with:
+#    - Protocol: api
+#    - Base URL: https://your-awx-server.com/api/v2
+#    - Auth Type: bearer
+#    - API Token: Your AWX API token
+#
+# Usage:
+#   Import this runbook and configure the AWX job template ID
+
+apiVersion: aiops.io/v1
+kind: Runbook
+metadata:
+  name: awx-restart-service
+  description: Launch Ansible AWX job to restart a service
+  category: automation
+  tags:
+    - ansible
+    - awx
+    - service-restart
+  documentation_url: https://docs.ansible.com/automation-controller/latest/html/controllerapi/api_ref.html
+
+spec:
+  execution:
+    auto_execute: false
+    approval_required: true
+    approval_roles:
+      - operator
+      - engineer
+      - admin
+    approval_timeout_minutes: 30
+
+  safety:
+    max_executions_per_hour: 10
+    cooldown_minutes: 5
+
+  target:
+    # API endpoints don't need OS filters
+    os_filter:
+      - linux
+      - windows
+    from_alert: true
+    alert_label: instance
+
+  notifications:
+    on_start:
+      - slack
+    on_success:
+      - slack
+    on_failure:
+      - slack
+      - email
+
+triggers:
+  - alert_name_pattern: ServiceDown*
+    severity_pattern: critical
+    enabled: true
+    priority: 100
+    min_duration_seconds: 60
+
+steps:
+  - name: Launch AWX Job Template
+    step_type: api
+    step_order: 1
+    description: Trigger Ansible job template to restart service
+
+    # API Configuration
+    api_method: POST
+    api_endpoint: /job_templates/{{ vars.awx_job_template_id | default('123') }}/launch/
+    api_body_type: json
+    api_body: |
+      {
+        "extra_vars": {
+          "target_host": "{{ alert.labels.instance }}",
+          "service_name": "{{ vars.service_name | default('nginx') }}",
+          "alert_severity": "{{ alert.alert_severity }}"
+        }
+      }
+
+    # Headers (will be merged with server default headers)
+    api_headers_json:
+      Content-Type: application/json
+
+    # Expected status codes
+    api_expected_status_codes:
+      - 200
+      - 201
+
+    # Extract job ID from response for monitoring
+    api_response_extract_json:
+      job_id: $.id
+      job_url: $.url
+
+    timeout_seconds: 30
+    retry_count: 2
+    retry_delay_seconds: 5
+    continue_on_fail: false
+
+  - name: Wait for Job Completion
+    step_type: api
+    step_order: 2
+    description: Poll AWX job status until completion
+
+    api_method: GET
+    api_endpoint: /jobs/{{ extracted_values.job_id }}/
+    api_expected_status_codes:
+      - 200
+
+    # Check if job succeeded
+    expected_output_pattern: '"status":\s*"successful"'
+
+    timeout_seconds: 300
+    retry_count: 30
+    retry_delay_seconds: 10
+    continue_on_fail: false
+
+  - name: Verify Service Status
+    step_type: api
+    step_order: 3
+    description: Verify the service is now running via monitoring API
+
+    api_method: GET
+    api_endpoint: /api/v1/query?query=up{job="{{ vars.service_name }}",instance="{{ alert.labels.instance }}"}
+    api_expected_status_codes:
+      - 200
+
+    expected_output_pattern: '"value":\s*\[\d+,\s*"1"\]'  # Service is up (value=1)
+
+    timeout_seconds: 30
+    retry_count: 3
+    retry_delay_seconds: 10
+    continue_on_fail: true  # Don't fail runbook if verification fails

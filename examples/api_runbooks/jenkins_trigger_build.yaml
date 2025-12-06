@@ -1,0 +1,146 @@
+---
+# Jenkins Build Trigger Runbook
+# This runbook triggers a Jenkins job/pipeline via API
+#
+# Prerequisites:
+# 1. Create an API server credential with:
+#    - Protocol: api
+#    - Base URL: https://your-jenkins-server.com
+#    - Auth Type: basic
+#    - Username: jenkins-user
+#    - API Token: Jenkins API token
+#
+# Usage:
+#   Import this runbook and configure the Jenkins job name
+
+apiVersion: aiops.io/v1
+kind: Runbook
+metadata:
+  name: jenkins-deploy-rollback
+  description: Trigger Jenkins job to rollback a failed deployment
+  category: cicd
+  tags:
+    - jenkins
+    - deployment
+    - rollback
+  documentation_url: https://www.jenkins.io/doc/book/using/remote-access-api/
+
+spec:
+  execution:
+    auto_execute: false
+    approval_required: true
+    approval_roles:
+      - engineer
+      - admin
+    approval_timeout_minutes: 15
+
+  safety:
+    max_executions_per_hour: 5
+    cooldown_minutes: 10
+
+  target:
+    os_filter:
+      - linux
+      - windows
+    from_alert: true
+    alert_label: environment
+
+  notifications:
+    on_start:
+      - slack
+    on_success:
+      - slack
+      - email
+    on_failure:
+      - slack
+      - email
+
+triggers:
+  - alert_name_pattern: DeploymentFailed*
+    severity_pattern: critical
+    enabled: true
+    priority: 100
+
+steps:
+  - name: Trigger Rollback Job
+    step_type: api
+    step_order: 1
+    description: Start Jenkins rollback job with parameters
+
+    api_method: POST
+    api_endpoint: /job/{{ vars.jenkins_job_name | default('app-rollback') }}/buildWithParameters
+    api_body_type: form
+    api_body: |
+      environment={{ alert.labels.environment | default('production') }}&version={{ vars.rollback_version | default('previous') }}&reason=Auto-rollback from alert {{ alert.alert_name }}
+
+    api_query_params_json:
+      token: "{{ vars.jenkins_build_token | default('') }}"
+
+    api_expected_status_codes:
+      - 200
+      - 201
+
+    # Jenkins returns queue item location in header
+    api_response_extract_json:
+      queue_id: $.queueId
+
+    timeout_seconds: 30
+    retry_count: 2
+    retry_delay_seconds: 5
+    continue_on_fail: false
+
+  - name: Get Build Number from Queue
+    step_type: api
+    step_order: 2
+    description: Poll queue to get the actual build number
+
+    api_method: GET
+    api_endpoint: /queue/item/{{ extracted_values.queue_id }}/api/json
+
+    api_expected_status_codes:
+      - 200
+
+    # Extract build number when available
+    api_response_extract_json:
+      build_number: $.executable.number
+      build_url: $.executable.url
+
+    timeout_seconds: 60
+    retry_count: 12
+    retry_delay_seconds: 5
+    continue_on_fail: false
+
+  - name: Monitor Build Progress
+    step_type: api
+    step_order: 3
+    description: Wait for build to complete
+
+    api_method: GET
+    api_endpoint: /job/{{ vars.jenkins_job_name | default('app-rollback') }}/{{ extracted_values.build_number }}/api/json
+
+    api_expected_status_codes:
+      - 200
+
+    # Check if build is complete and successful
+    expected_output_pattern: '"result":\s*"SUCCESS"'
+
+    timeout_seconds: 600
+    retry_count: 60
+    retry_delay_seconds: 10
+    continue_on_fail: false
+
+  - name: Get Build Console Output
+    step_type: api
+    step_order: 4
+    description: Fetch build logs for verification
+
+    api_method: GET
+    api_endpoint: /job/{{ vars.jenkins_job_name | default('app-rollback') }}/{{ extracted_values.build_number }}/consoleText
+
+    api_expected_status_codes:
+      - 200
+
+    timeout_seconds: 30
+    retry_count: 1
+    retry_delay_seconds: 5
+    continue_on_fail: true  # Don't fail if we can't get logs

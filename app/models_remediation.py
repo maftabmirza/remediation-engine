@@ -115,48 +115,64 @@ class Runbook(Base):
 class RunbookStep(Base):
     """
     Individual step within a runbook.
-    Steps are executed in order and can have different commands for Linux/Windows.
+    Steps can execute commands (Linux/Windows) or API calls.
     """
     __tablename__ = "runbook_steps"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     runbook_id = Column(UUID(as_uuid=True), ForeignKey("runbooks.id", ondelete="CASCADE"), nullable=False)
-    
+
     # Step Definition
     step_order = Column(Integer, nullable=False)
     name = Column(String(100), nullable=False)
     description = Column(Text, nullable=True)
-    
-    # Commands (platform-specific)
+    step_type = Column(String(20), default="command")  # "command", "api"
+
+    # Commands (platform-specific) - for step_type="command"
     command_linux = Column(Text, nullable=True)  # Bash command
     command_windows = Column(Text, nullable=True)  # PowerShell command
     target_os = Column(String(10), default="any")  # "any", "linux", "windows"
-    
+
+    # API Configuration - for step_type="api"
+    api_credential_profile_id = Column(UUID(as_uuid=True), ForeignKey("api_credential_profiles.id", ondelete="SET NULL"), nullable=True)  # Reference to API credentials
+    api_method = Column(String(10), nullable=True)  # GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS
+    api_endpoint = Column(Text, nullable=True)  # endpoint path or full URL (supports Jinja2)
+    api_headers_json = Column(JSON, nullable=True)  # custom headers for this request
+    api_body = Column(Text, nullable=True)  # request body (JSON string or Jinja2 template)
+    api_body_type = Column(String(30), default="json")  # json, form, raw, template
+    api_query_params_json = Column(JSON, nullable=True)  # URL query parameters
+    api_expected_status_codes = Column(ARRAY(Integer), default=[200, 201, 202, 204])  # acceptable HTTP status codes
+    api_response_extract_json = Column(JSON, nullable=True)  # JSONPath or regex patterns to extract from response
+    api_follow_redirects = Column(Boolean, default=True)
+    api_retry_on_status_codes = Column(ARRAY(Integer), default=[408, 429, 500, 502, 503, 504])  # retry on these codes
+
     # Execution Options
     timeout_seconds = Column(Integer, default=60)
     requires_elevation = Column(Boolean, default=False)  # sudo for Linux, admin for Windows
     working_directory = Column(String(255), nullable=True)
     environment_json = Column(JSON, nullable=True)  # Extra env vars
-    
+
     # Error Handling
     continue_on_fail = Column(Boolean, default=False)
     retry_count = Column(Integer, default=0)
     retry_delay_seconds = Column(Integer, default=5)
-    
+
     # Validation
     expected_exit_code = Column(Integer, default=0)
     expected_output_pattern = Column(String(500), nullable=True)  # Regex to match in output
-    
+
     # Rollback (optional)
     rollback_command_linux = Column(Text, nullable=True)
     rollback_command_windows = Column(Text, nullable=True)
-    
+
     # Relationships
     runbook = relationship("Runbook", back_populates="steps")
-    
+    api_credential_profile = relationship("APICredentialProfile")
+
     __table_args__ = (
         UniqueConstraint("runbook_id", "step_order", name="uq_runbook_step_order"),
         Index("idx_runbook_steps_runbook_id", "runbook_id"),
+        Index("idx_runbook_steps_type", "step_type"),
     )
 
 
@@ -281,42 +297,51 @@ class RunbookExecution(Base):
 class StepExecution(Base):
     """
     Record of individual step execution within a runbook execution.
+    Supports both command execution and API calls.
     """
     __tablename__ = "step_executions"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     execution_id = Column(UUID(as_uuid=True), ForeignKey("runbook_executions.id", ondelete="CASCADE"), nullable=False)
     step_id = Column(UUID(as_uuid=True), ForeignKey("runbook_steps.id"), nullable=True)  # May be null if step was deleted
-    
+
     # Step Info (snapshot)
     step_order = Column(Integer, nullable=False)
     step_name = Column(String(100), nullable=False)
-    
+
     # Execution Details
     status = Column(String(20), default="pending")  # pending, running, success, failed, skipped, timeout
     command_executed = Column(Text, nullable=True)  # Actual command that was run
-    
-    # Output
+
+    # Output (for command execution)
     stdout = Column(Text, nullable=True)
     stderr = Column(Text, nullable=True)
     exit_code = Column(Integer, nullable=True)
-    
+
+    # API Response (for API execution)
+    http_status_code = Column(Integer, nullable=True)  # HTTP response status code
+    http_response_headers_json = Column(JSON, nullable=True)  # response headers
+    http_response_body = Column(Text, nullable=True)  # raw response body
+    http_request_url = Column(Text, nullable=True)  # actual URL that was called
+    http_request_method = Column(String(10), nullable=True)  # HTTP method used
+    extracted_values_json = Column(JSON, nullable=True)  # values extracted from response
+
     # Timing
     started_at = Column(DateTime(timezone=True), nullable=True)
     completed_at = Column(DateTime(timezone=True), nullable=True)
     duration_ms = Column(Integer, nullable=True)
-    
+
     # Retry Tracking
     retry_attempt = Column(Integer, default=0)
-    
+
     # Error Info
-    error_type = Column(String(50), nullable=True)  # timeout, connection, auth, command
+    error_type = Column(String(50), nullable=True)  # timeout, connection, auth, command, http_error
     error_message = Column(Text, nullable=True)
-    
+
     # Relationships
     execution = relationship("RunbookExecution", back_populates="step_executions")
     step = relationship("RunbookStep")
-    
+
     __table_args__ = (
         Index("idx_step_executions_execution_id", "execution_id"),
         Index("idx_step_executions_status", "status"),
