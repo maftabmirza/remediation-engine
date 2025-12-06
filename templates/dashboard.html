@@ -321,7 +321,8 @@
     function renderTrend(trendData) {
         const chartCanvas = document.getElementById('alertTrendChart');
         const emptyState = document.getElementById('trendEmptyState');
-        if (!trendData || !trendData.length) {
+        const hasPoints = Array.isArray(trendData) && trendData.length > 0;
+        if (!hasPoints) {
             emptyState.classList.remove('hidden');
             chartCanvas.classList.add('hidden');
             if (alertTrendChart) {
