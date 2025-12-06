@@ -3,67 +3,90 @@
 
 {% block title %}Dashboard - AIOps Platform{% endblock %}
 
+{% block head %}
+{{ super() }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+{% endblock %}
+
 {% block content %}
 <div class="space-y-6">
     <!-- Header -->
-    <div class="flex items-center justify-between">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-            <h1 class="text-2xl font-bold">Dashboard</h1>
-            <p class="text-gray-400">Overview of your alert system</p>
+            <h1 class="text-2xl font-bold">Operations Dashboard</h1>
+            <p class="text-gray-400">Live view of alerts, remediation, and platform readiness</p>
         </div>
-        <div class="text-sm text-gray-400">
-            <i class="fas fa-clock mr-1"></i>
-            Last updated: <span id="lastUpdated">-</span>
+        <div class="flex flex-wrap items-center gap-4">
+            <div class="flex items-center space-x-3 px-3 py-2 rounded-lg bg-gray-800 border border-gray-700">
+                <span id="connectionDot" class="w-2.5 h-2.5 rounded-full bg-gray-500"></span>
+                <div class="text-sm leading-tight">
+                    <div class="font-semibold text-gray-200" id="connectionStatus">Checking...</div>
+                    <div class="text-xs text-gray-400">Last sync <span id="lastSync">-</span></div>
+                </div>
+            </div>
+            <div class="flex items-center space-x-2">
+                <label for="timeRange" class="text-sm text-gray-400">Range</label>
+                <select id="timeRange" class="input-field bg-gray-900 border border-gray-700 rounded-lg text-sm py-2 px-3">
+                    <option value="24h">Last 24h</option>
+                    <option value="7d">Last 7d</option>
+                    <option value="30d">Last 30d</option>
+                </select>
+            </div>
         </div>
     </div>
-    
-    <!-- Stats Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <!-- Total Alerts -->
-        <div class="card p-6">
+
+    <div id="dashboardError" class="hidden bg-red-900 border border-red-700 text-red-100 p-4 rounded-lg flex items-start justify-between">
+        <div>
+            <p class="font-semibold">Unable to refresh dashboard</p>
+            <p class="text-sm text-red-200" id="dashboardErrorMessage"></p>
+        </div>
+        <button id="retryDashboard" class="btn-secondary px-3 py-1 rounded text-sm">Retry</button>
+    </div>
+
+    <!-- Core Stats -->
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+        <div class="card p-5">
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-gray-400 text-sm">Total Alerts</p>
                     <p class="text-3xl font-bold mt-1" id="statTotal">{{ stats.total_alerts }}</p>
+                    <p class="text-xs text-gray-500 mt-1">Includes all severities in range</p>
                 </div>
                 <div class="w-12 h-12 rounded-lg bg-blue-500 bg-opacity-20 flex items-center justify-center">
                     <i class="fas fa-bell text-blue-400 text-xl"></i>
                 </div>
             </div>
         </div>
-        
-        <!-- Analyzed -->
-        <div class="card p-6">
+        <div class="card p-5">
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-gray-400 text-sm">Analyzed</p>
                     <p class="text-3xl font-bold mt-1" id="statAnalyzed">{{ stats.analyzed }}</p>
+                    <p class="text-xs text-gray-500 mt-1">LLM-reviewed or manual</p>
                 </div>
                 <div class="w-12 h-12 rounded-lg bg-green-500 bg-opacity-20 flex items-center justify-center">
                     <i class="fas fa-check-circle text-green-400 text-xl"></i>
                 </div>
             </div>
         </div>
-        
-        <!-- Pending -->
-        <div class="card p-6">
+        <div class="card p-5">
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-gray-400 text-sm">Pending Analysis</p>
                     <p class="text-3xl font-bold mt-1" id="statPending">{{ stats.pending }}</p>
+                    <p class="text-xs text-gray-500 mt-1">Awaiting triage</p>
                 </div>
                 <div class="w-12 h-12 rounded-lg bg-yellow-500 bg-opacity-20 flex items-center justify-center">
                     <i class="fas fa-clock text-yellow-400 text-xl"></i>
                 </div>
             </div>
         </div>
-        
-        <!-- Critical -->
-        <div class="card p-6">
+        <div class="card p-5">
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-gray-400 text-sm">Critical Alerts</p>
                     <p class="text-3xl font-bold mt-1" id="statCritical">{{ stats.critical }}</p>
+                    <p class="text-xs text-gray-500 mt-1">Unresolved critical items</p>
                 </div>
                 <div class="w-12 h-12 rounded-lg bg-red-500 bg-opacity-20 flex items-center justify-center">
                     <i class="fas fa-exclamation-triangle text-red-400 text-xl"></i>
@@ -71,10 +94,111 @@
             </div>
         </div>
     </div>
-    
-    <!-- Quick Actions & Recent Alerts -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- Quick Actions -->
+
+    <!-- Reliability Metrics -->
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+        <div class="card p-5">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-400 text-sm">MTTA</p>
+                    <p class="text-3xl font-bold mt-1" id="statMtta">--</p>
+                    <p class="text-xs text-gray-500 mt-1">Avg time to acknowledge</p>
+                </div>
+                <div class="w-12 h-12 rounded-lg bg-purple-500 bg-opacity-20 flex items-center justify-center">
+                    <i class="fas fa-hand-paper text-purple-300 text-xl"></i>
+                </div>
+            </div>
+        </div>
+        <div class="card p-5">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-400 text-sm">MTTR</p>
+                    <p class="text-3xl font-bold mt-1" id="statMttr">--</p>
+                    <p class="text-xs text-gray-500 mt-1">Avg time to resolve</p>
+                </div>
+                <div class="w-12 h-12 rounded-lg bg-indigo-500 bg-opacity-20 flex items-center justify-center">
+                    <i class="fas fa-stopwatch text-indigo-300 text-xl"></i>
+                </div>
+            </div>
+        </div>
+        <div class="card p-5">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-400 text-sm">Remediation Success</p>
+                    <p class="text-3xl font-bold mt-1" id="statRemediation">--</p>
+                    <p class="text-xs text-gray-500 mt-1">Automated runbook success rate</p>
+                </div>
+                <div class="w-12 h-12 rounded-lg bg-green-500 bg-opacity-20 flex items-center justify-center">
+                    <i class="fas fa-robot text-green-300 text-xl"></i>
+                </div>
+            </div>
+            <div class="mt-3 w-full bg-gray-800 rounded-full h-2">
+                <div id="remediationBar" class="h-2 rounded-full bg-green-400" style="width:0%"></div>
+            </div>
+        </div>
+        <div class="card p-5">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-400 text-sm">Health Score</p>
+                    <p class="text-3xl font-bold mt-1" id="statHealth">--</p>
+                    <p class="text-xs text-gray-500 mt-1">SLA indicator</p>
+                </div>
+                <div class="w-12 h-12 rounded-lg bg-blue-500 bg-opacity-20 flex items-center justify-center">
+                    <i class="fas fa-heartbeat text-blue-300 text-xl"></i>
+                </div>
+            </div>
+            <div class="mt-3 w-full bg-gray-800 rounded-full h-2">
+                <div id="healthBar" class="h-2 rounded-full bg-blue-400" style="width:0%"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Trends & Distribution -->
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <div class="card p-6 xl:col-span-2">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h2 class="text-lg font-semibold">Alert Trend</h2>
+                    <p class="text-gray-400 text-sm">Volume over selected range</p>
+                </div>
+                <span class="text-xs text-gray-500" id="trendRangeLabel"></span>
+            </div>
+            <canvas id="alertTrendChart" height="120"></canvas>
+        </div>
+        <div class="card p-6">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h2 class="text-lg font-semibold">Severity Distribution</h2>
+                    <p class="text-gray-400 text-sm">Visual breakdown by severity</p>
+                </div>
+            </div>
+            <canvas id="severityChart" height="200"></canvas>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="card p-6">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h2 class="text-lg font-semibold">Top Alert Sources</h2>
+                    <p class="text-gray-400 text-sm">Hosts and services generating most noise</p>
+                </div>
+            </div>
+            <div id="topSources" class="space-y-3 text-sm"></div>
+        </div>
+        <div class="card p-6 lg:col-span-2">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-semibold">Active Incidents Timeline</h2>
+                <a href="/alerts" class="text-blue-400 text-sm hover:underline">View all alerts</a>
+            </div>
+            <div id="activeTimeline" class="relative">
+                <div class="absolute left-3 top-0 bottom-0 w-px bg-gray-700"></div>
+                <div id="timelineItems" class="space-y-4 relative"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div class="card p-6">
             <h2 class="text-lg font-semibold mb-4">Quick Actions</h2>
             <div class="space-y-3">
@@ -92,6 +216,13 @@
                     </div>
                     <i class="fas fa-chevron-right text-gray-500"></i>
                 </a>
+                <a href="/runbooks" class="flex items-center justify-between p-3 rounded-lg bg-gray-800 hover:bg-gray-700 transition">
+                    <div class="flex items-center space-x-3">
+                        <i class="fas fa-clipboard-check text-green-400"></i>
+                        <span>Review Runbooks</span>
+                    </div>
+                    <i class="fas fa-chevron-right text-gray-500"></i>
+                </a>
                 <a href="/settings" class="flex items-center justify-between p-3 rounded-lg bg-gray-800 hover:bg-gray-700 transition">
                     <div class="flex items-center space-x-3">
                         <i class="fas fa-robot text-green-400"></i>
@@ -101,18 +232,39 @@
                 </a>
             </div>
         </div>
-        
-        <!-- Recent Alerts -->
-        <div class="card p-6">
+
+        <div class="card p-6 lg:col-span-2">
             <div class="flex items-center justify-between mb-4">
-                <h2 class="text-lg font-semibold">Recent Alerts</h2>
-                <a href="/alerts" class="text-blue-400 text-sm hover:underline">View all</a>
+                <div>
+                    <h2 class="text-lg font-semibold">Recent Alerts</h2>
+                    <p class="text-gray-400 text-sm">Latest alerts for quick triage</p>
+                </div>
+                <div class="flex items-center space-x-3 text-sm text-gray-400">
+                    <span class="flex items-center space-x-1"><i class="fas fa-sync-alt"></i><span id="lastUpdated">-</span></span>
+                    <a href="/alerts" class="text-blue-400 hover:underline">View all</a>
+                </div>
             </div>
             <div id="recentAlerts" class="space-y-3">
-                <div class="text-center text-gray-400 py-8">
-                    <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
-                    <p>Loading alerts...</p>
+                <div id="recentAlertsSkeleton" class="space-y-3 animate-pulse">
+                    <div class="p-3 rounded-lg bg-gray-800">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-16 h-3 bg-gray-700 rounded"></div>
+                            <div class="w-32 h-3 bg-gray-700 rounded"></div>
+                        </div>
+                        <div class="w-40 h-3 bg-gray-700 rounded mt-3"></div>
+                    </div>
+                    <div class="p-3 rounded-lg bg-gray-800">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-16 h-3 bg-gray-700 rounded"></div>
+                            <div class="w-32 h-3 bg-gray-700 rounded"></div>
+                        </div>
+                        <div class="w-40 h-3 bg-gray-700 rounded mt-3"></div>
+                    </div>
                 </div>
+            </div>
+            <div id="recentAlertsError" class="hidden text-sm text-red-200 bg-red-900 border border-red-800 rounded-lg p-3 mt-3 flex items-center justify-between">
+                <span>Unable to load alerts.</span>
+                <button id="retryAlerts" class="btn-secondary px-3 py-1 rounded text-xs">Retry</button>
             </div>
         </div>
     </div>
@@ -122,19 +274,205 @@
 {% block scripts %}
 {{ super() }}
 <script>
-    // Update last updated time
-    document.getElementById('lastUpdated').textContent = new Date().toLocaleTimeString();
-    
-    // Load recent alerts
+    let alertTrendChart = null;
+    let severityChart = null;
+    let currentRange = '24h';
+
+    const timeRangeSelect = document.getElementById('timeRange');
+    const dashboardError = document.getElementById('dashboardError');
+    const dashboardErrorMessage = document.getElementById('dashboardErrorMessage');
+    const connectionDot = document.getElementById('connectionDot');
+    const connectionStatus = document.getElementById('connectionStatus');
+    const lastSync = document.getElementById('lastSync');
+    const trendRangeLabel = document.getElementById('trendRangeLabel');
+
+    timeRangeSelect.addEventListener('change', () => {
+        currentRange = timeRangeSelect.value;
+        refreshDashboard();
+    });
+
+    document.getElementById('retryDashboard').addEventListener('click', refreshDashboard);
+    document.getElementById('retryAlerts').addEventListener('click', loadRecentAlerts);
+
+    function setConnection(statusText, lastSyncTime, statusState = 'online') {
+        connectionStatus.textContent = statusText;
+        lastSync.textContent = lastSyncTime || '-';
+        connectionDot.classList.remove('bg-green-500', 'bg-yellow-500', 'bg-red-500');
+        const colorClass = statusState === 'online' ? 'bg-green-500' : statusState === 'degraded' ? 'bg-yellow-500' : 'bg-red-500';
+        connectionDot.classList.add(colorClass);
+    }
+
+    function showDashboardError(message) {
+        dashboardErrorMessage.textContent = message || 'Unexpected error occurred.';
+        dashboardError.classList.remove('hidden');
+    }
+
+    function hideDashboardError() {
+        dashboardError.classList.add('hidden');
+    }
+
+    function formatMinutes(value) {
+        if (!value || Number.isNaN(value)) return '—';
+        if (value >= 60) {
+            const hours = (value / 60).toFixed(1);
+            return `${hours}h`;
+        }
+        return `${value.toFixed(1)}m`;
+    }
+
+    function updateStats(data) {
+        document.getElementById('statTotal').textContent = data.total_alerts;
+        document.getElementById('statAnalyzed').textContent = data.analyzed_alerts;
+        document.getElementById('statPending').textContent = data.pending_alerts;
+        document.getElementById('statCritical').textContent = data.critical_alerts;
+        document.getElementById('statMtta').textContent = formatMinutes(data.mtta_minutes);
+        document.getElementById('statMttr').textContent = formatMinutes(data.mttr_minutes);
+        document.getElementById('statRemediation').textContent = `${data.remediation_success_rate.toFixed(1)}%`;
+        document.getElementById('statHealth').textContent = `${data.health_score}%`;
+        document.getElementById('remediationBar').style.width = `${Math.min(data.remediation_success_rate, 100)}%`;
+        document.getElementById('healthBar').style.width = `${Math.min(data.health_score, 100)}%`;
+        trendRangeLabel.textContent = `Range: ${data.time_range}`;
+        setConnection(data.connection_status === 'online' ? 'Online' : 'Degraded', data.last_sync_time ? new Date(data.last_sync_time).toLocaleString() : '-', data.connection_status);
+    }
+
+    function renderTrend(trendData) {
+        const ctx = document.getElementById('alertTrendChart').getContext('2d');
+        const labels = trendData.map(p => new Date(p.bucket).toLocaleString());
+        const values = trendData.map(p => p.count);
+        if (alertTrendChart) {
+            alertTrendChart.data.labels = labels;
+            alertTrendChart.data.datasets[0].data = values;
+            alertTrendChart.update();
+            return;
+        }
+        alertTrendChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [{
+                    label: 'Alerts',
+                    data: values,
+                    borderColor: '#60a5fa',
+                    backgroundColor: 'rgba(96, 165, 250, 0.15)',
+                    tension: 0.3,
+                    fill: true,
+                }]
+            },
+            options: {
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { ticks: { color: '#9ca3af', maxRotation: 45, minRotation: 0 } },
+                    y: { ticks: { color: '#9ca3af' }, beginAtZero: true }
+                }
+            }
+        });
+    }
+
+    function renderSeverity(distribution) {
+        const ctx = document.getElementById('severityChart').getContext('2d');
+        const labels = Object.keys(distribution);
+        const values = Object.values(distribution);
+        const colors = ['#f43f5e', '#f59e0b', '#60a5fa', '#34d399', '#a855f7'];
+        if (severityChart) {
+            severityChart.data.labels = labels;
+            severityChart.data.datasets[0].data = values;
+            severityChart.update();
+            return;
+        }
+        severityChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels,
+                datasets: [{
+                    data: values,
+                    backgroundColor: colors,
+                    borderColor: '#111827',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                plugins: { legend: { position: 'bottom', labels: { color: '#e5e7eb' } } }
+            }
+        });
+    }
+
+    function renderTopSources(sources) {
+        const container = document.getElementById('topSources');
+        if (!sources.length) {
+            container.innerHTML = '<p class="text-gray-400">No sources in selected range.</p>';
+            return;
+        }
+        container.innerHTML = sources.map(item => `
+            <div class="flex items-center justify-between p-3 rounded-lg bg-gray-800">
+                <div class="flex items-center space-x-3">
+                    <span class="w-2 h-2 rounded-full bg-blue-400"></span>
+                    <span class="font-medium">${item.source}</span>
+                </div>
+                <span class="text-gray-300 font-semibold">${item.count}</span>
+            </div>
+        `).join('');
+    }
+
+    function renderTimeline(incidents) {
+        const container = document.getElementById('timelineItems');
+        if (!incidents.length) {
+            container.innerHTML = '<p class="text-gray-400">No active incidents right now.</p>';
+            return;
+        }
+        container.innerHTML = incidents.map(incident => `
+            <div class="relative pl-8">
+                <div class="absolute left-0 top-1 w-4 h-4 rounded-full ${incident.severity === 'critical' ? 'bg-red-500' : incident.severity === 'warning' ? 'bg-yellow-400' : 'bg-blue-400'} border-2 border-gray-900"></div>
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="font-semibold">${incident.alert_name}</p>
+                        <p class="text-xs text-gray-400">${incident.severity || 'info'} • ${new Date(incident.timestamp).toLocaleString()}</p>
+                    </div>
+                    <span class="text-xs px-2 py-1 rounded bg-gray-800 border border-gray-700">${incident.status}</span>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    async function refreshDashboard() {
+        hideDashboardError();
+        try {
+            const response = await apiCall(`/api/alerts/stats?time_range=${currentRange}`);
+            if (!response) return;
+            if (!response.ok) {
+                const text = await response.text();
+                throw new Error(text || 'Request failed');
+            }
+            const data = await response.json();
+            updateStats(data);
+            renderTrend(data.alert_trend);
+            renderSeverity(data.severity_distribution);
+            renderTopSources(data.top_sources);
+            renderTimeline(data.active_incidents);
+        } catch (error) {
+            console.error('Failed to load dashboard', error);
+            showDashboardError(error.message);
+            setConnection('Offline', null, 'offline');
+        }
+    }
+
+    // Recent alerts handling
     async function loadRecentAlerts() {
+        const skeleton = document.getElementById('recentAlertsSkeleton');
+        const errorBox = document.getElementById('recentAlertsError');
+        const container = document.getElementById('recentAlerts');
+        if (skeleton) skeleton.classList.remove('hidden');
+        errorBox.classList.add('hidden');
         try {
             const response = await apiCall('/api/alerts?page_size=5');
             if (!response) return;
-            
+            if (!response.ok) {
+                throw new Error('Failed to fetch alerts');
+            }
             const data = await response.json();
-            const container = document.getElementById('recentAlerts');
-            
-            if (data.alerts.length === 0) {
+            const alerts = data.alerts || [];
+            if (skeleton) skeleton.classList.add('hidden');
+
+            if (alerts.length === 0) {
                 container.innerHTML = `
                     <div class="text-center text-gray-400 py-8">
                         <i class="fas fa-inbox text-2xl mb-2"></i>
@@ -143,8 +481,8 @@
                 `;
                 return;
             }
-            
-            container.innerHTML = data.alerts.map(alert => `
+
+            container.innerHTML = alerts.map(alert => `
                 <a href="/alerts/${alert.id}" class="block p-3 rounded-lg bg-gray-800 hover:bg-gray-700 transition">
                     <div class="flex items-center justify-between">
                         <div class="flex items-center space-x-3">
@@ -154,8 +492,8 @@
                             <span class="font-medium">${alert.alert_name}</span>
                         </div>
                         <div class="flex items-center space-x-2">
-                            ${alert.analyzed 
-                                ? '<i class="fas fa-check-circle text-green-400" title="Analyzed"></i>' 
+                            ${alert.analyzed
+                                ? '<i class="fas fa-check-circle text-green-400" title="Analyzed"></i>'
                                 : '<i class="fas fa-clock text-yellow-400" title="Pending"></i>'
                             }
                         </div>
@@ -165,35 +503,22 @@
                     </div>
                 </a>
             `).join('');
-            
+            document.getElementById('lastUpdated').textContent = new Date().toLocaleTimeString();
         } catch (error) {
             console.error('Failed to load alerts:', error);
+            if (skeleton) skeleton.classList.add('hidden');
+            errorBox.classList.remove('hidden');
         }
     }
-    
-    // Load stats
-    async function loadStats() {
-        try {
-            const response = await apiCall('/api/alerts/stats');
-            if (!response) return;
-            
-            const data = await response.json();
-            document.getElementById('statTotal').textContent = data.total_alerts;
-            document.getElementById('statAnalyzed').textContent = data.analyzed_alerts;
-            document.getElementById('statPending').textContent = data.pending_alerts;
-            document.getElementById('statCritical').textContent = data.critical_alerts;
-        } catch (error) {
-            console.error('Failed to load stats:', error);
-        }
-    }
-    
+
     // Initial load
+    refreshDashboard();
     loadRecentAlerts();
-    
+
     // Refresh every 30 seconds
     setInterval(() => {
+        refreshDashboard();
         loadRecentAlerts();
-        loadStats();
         document.getElementById('lastUpdated').textContent = new Date().toLocaleTimeString();
     }, 30000);
 </script>
