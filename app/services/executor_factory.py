@@ -100,6 +100,24 @@ class ExecutorFactory:
             except Exception as e:
                 logger.error(f"Failed to decrypt SSH key for {server.hostname}: {e}")
 
+        # Handle shared credential profile
+        if getattr(server, 'credential_source', 'inline') == 'shared_profile':
+            profile = getattr(server, 'credential_profile', None)
+            if profile and profile.secret_encrypted:
+                try:
+                    secret = fernet.decrypt(profile.secret_encrypted.encode()).decode()
+                    if profile.credential_type == 'key':
+                        private_key = secret
+                    elif profile.credential_type == 'password':
+                        password = secret
+                        # Use profile username if not overridden
+                        if not server.username:
+                            server.username = profile.username
+                except Exception as e:
+                    logger.error(f"Failed to decrypt shared secret for {server.hostname}: {e}")
+            elif profile and not profile.secret_encrypted:
+                 logger.warning(f"Shared profile {profile.name} has no secret")
+
         # Decrypt API token (if field exists)
         api_token_encrypted = getattr(server, 'api_token_encrypted', None)
         if api_token_encrypted:

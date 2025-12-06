@@ -369,29 +369,81 @@
 
     function renderSeverity(distribution) {
         const ctx = document.getElementById('severityChart').getContext('2d');
-        const labels = Object.keys(distribution);
-        const values = Object.values(distribution);
-        const colors = ['#f43f5e', '#f59e0b', '#60a5fa', '#34d399', '#a855f7'];
+        
+        // Define mapping for severity to position and color
+        const severityConfig = {
+            'critical': { x: 1, color: '#ef4444', label: 'Critical' },
+            'error': { x: 2, color: '#f97316', label: 'Error' },
+            'warning': { x: 3, color: '#eab308', label: 'Warning' },
+            'info': { x: 4, color: '#3b82f6', label: 'Info' },
+            'other': { x: 5, color: '#9ca3af', label: 'Other' }
+        };
+
+        const data = Object.entries(distribution).map(([sev, count]) => {
+            const lowSev = sev.toLowerCase();
+            const config = severityConfig[lowSev] || severityConfig['other'];
+            // Scale radius: min 10, max 40, logarithmic scaling could be better but linear is simple for now
+            const radius = Math.max(10, Math.min(50, 5 + (count * 2)));
+            return {
+                x: config.x,
+                y: 50, // Center vertically
+                r: radius,
+                count: count, // Store for tooltip
+                severity: config.label,
+                backgroundColor: config.color
+            };
+        });
+
         if (severityChart) {
-            severityChart.data.labels = labels;
-            severityChart.data.datasets[0].data = values;
-            severityChart.update();
-            return;
+            severityChart.destroy();
         }
+
         severityChart = new Chart(ctx, {
-            type: 'doughnut',
+            type: 'bubble',
             data: {
-                labels,
                 datasets: [{
-                    data: values,
-                    backgroundColor: colors,
-                    borderColor: '#111827',
-                    borderWidth: 2
+                    label: 'Severity Distribution',
+                    data: data,
+                    backgroundColor: data.map(d => d.backgroundColor),
+                    borderColor: '#1f2937', // dark border
+                    borderWidth: 1
                 }]
             },
             options: {
                 maintainAspectRatio: false,
-                plugins: { legend: { position: 'bottom', labels: { color: '#e5e7eb' } } }
+                responsive: true,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const item = context.raw;
+                                return `${item.severity}: ${item.count}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        type: 'linear',
+                        min: 0,
+                        max: 6,
+                        grid: { display: false },
+                        ticks: {
+                            callback: function(value, index, values) {
+                                // Map back from x value to label
+                                const config = Object.values(severityConfig).find(c => c.x === value);
+                                return config ? config.label : '';
+                            },
+                            color: '#9ca3af'
+                        }
+                    },
+                    y: {
+                        display: false, // Hide Y axis completely
+                        min: 0,
+                        max: 100
+                    }
+                }
             }
         });
     }
