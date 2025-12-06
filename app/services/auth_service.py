@@ -2,7 +2,7 @@
 Authentication service - JWT tokens, password hashing
 """
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, Set, List
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status, Request, WebSocket
@@ -14,6 +14,57 @@ from app.database import get_db
 from app.models import User
 
 settings = get_settings()
+
+# ---- Role & Permission model ----
+
+# Normalize legacy roles to the richer RBAC set
+ROLE_ALIASES = {"user": "operator"}
+
+ROLE_PERMISSIONS = {
+    "owner": {
+        "manage_users",
+        "manage_servers",
+        "manage_server_groups",
+        "manage_providers",
+        "execute",
+        "update",
+        "read",
+        "view_audit",
+    },
+    "admin": {
+        "manage_users",
+        "manage_servers",
+        "manage_server_groups",
+        "manage_providers",
+        "execute",
+        "update",
+        "read",
+        "view_audit",
+    },
+    "maintainer": {
+        "manage_servers",
+        "manage_server_groups",
+        "manage_providers",
+        "update",
+        "execute",
+        "read",
+    },
+    "operator": {
+        "execute",
+        "read",
+    },
+    "viewer": {
+        "read",
+    },
+    "auditor": {
+        "read",
+        "view_audit",
+    },
+}
+
+DEFAULT_ROLE = "operator"
+ADMIN_ROLES = {"owner", "admin"}
+VALID_ROLES = set(ROLE_PERMISSIONS.keys())
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -74,13 +125,32 @@ def authenticate_user(db: Session, username: str, password: str) -> Optional[Use
     return user
 
 
-def create_user(db: Session, username: str, password: str, role: str = "user") -> User:
+def normalize_role(role: str) -> str:
+    """Map legacy or alias roles to the canonical role name."""
+    return ROLE_ALIASES.get(role, role)
+
+
+def get_permissions_for_role(role: str) -> Set[str]:
+    """Return the permission set for a given role string."""
+    normalized = normalize_role(role)
+    return ROLE_PERMISSIONS.get(normalized, set())
+
+
+def has_permission(user: User, permission: str) -> bool:
+    """Check if a user has a specific permission."""
+    return permission in get_permissions_for_role(user.role)
+
+
+def create_user(db: Session, username: str, password: str, role: str = DEFAULT_ROLE) -> User:
     """Create a new user"""
+    normalized_role = normalize_role(role)
+    if normalized_role not in VALID_ROLES:
+        raise ValueError(f"Invalid role: {role}")
     hashed_password = get_password_hash(password)
     user = User(
         username=username,
         password_hash=hashed_password,
-        role=role
+        role=normalized_role
     )
     db.add(user)
     db.commit()
@@ -161,8 +231,9 @@ async def get_current_user_optional(
 
 
 def require_admin(user: User = Depends(get_current_user)) -> User:
-    """Dependency that requires admin role"""
-    if user.role != "admin":
+    """Dependency that requires an administrative role."""
+    role = normalize_role(user.role)
+    if role not in ADMIN_ROLES:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required"
@@ -180,13 +251,30 @@ def require_role(allowed_roles: list):
             ...
     """
     def role_checker(user: User = Depends(get_current_user)) -> User:
-        if user.role not in allowed_roles:
+        normalized = normalize_role(user.role)
+        normalized_allowed = {normalize_role(r) for r in allowed_roles}
+        if normalized not in normalized_allowed:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Access denied. Required roles: {', '.join(allowed_roles)}"
+                detail=f"Access denied. Required roles: {', '.join(normalized_allowed)}"
             )
         return user
     return role_checker
+
+
+def require_permission(required: List[str]):
+    """Dependency factory that enforces the presence of permissions."""
+
+    def permission_checker(user: User = Depends(get_current_user)) -> User:
+        user_perms = get_permissions_for_role(user.role)
+        if not set(required).issubset(user_perms):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied. Missing required permissions"
+            )
+        return user
+
+    return permission_checker
 
 
 async def get_current_user_ws(token: str, db: Session) -> Optional[User]:

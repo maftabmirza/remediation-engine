@@ -14,9 +14,10 @@ from app.config import get_settings
 from app.database import get_db, engine, Base
 from app.models import User, LLMProvider
 from app.services.auth_service import (
-    get_current_user_optional, 
+    get_current_user_optional,
     create_user,
-    get_user_by_username
+    get_user_by_username,
+    get_permissions_for_role
 )
 from app.routers import (
     auth,
@@ -268,10 +269,11 @@ async def settings_page(
     """
     if not current_user:
         return RedirectResponse(url="/login", status_code=302)
-    
+
     return templates.TemplateResponse("settings.html", {
         "request": request,
-        "user": current_user
+        "user": current_user,
+        "permissions": list(get_permissions_for_role(current_user.role)),
     })
 
 

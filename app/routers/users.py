@@ -1,77 +1,61 @@
 """
 User Management API endpoints
 """
-from typing import List, Optional
+from typing import List
 from uuid import UUID
-from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
 
 from app.database import get_db
 from app.models import User, AuditLog, Alert, AutoAnalyzeRule, ServerCredential, SystemConfig, TerminalSession
 from app.models_chat import ChatSession
+from app.schemas import UserCreate, UserUpdate, UserResponse
 from app.services.auth_service import (
-    get_current_user, 
-    require_admin, 
+    require_permission,
     get_password_hash,
-    get_user_by_username
+    get_user_by_username,
+    get_permissions_for_role,
+    VALID_ROLES,
+    normalize_role,
 )
 
 router = APIRouter(prefix="/api/users", tags=["Users"])
 
-class UserCreate(BaseModel):
-    username: str
-    email: Optional[str] = None
-    full_name: Optional[str] = None
-    password: str
-    role: str = "user"
-    is_active: bool = True
 
-class UserUpdate(BaseModel):
-    email: Optional[str] = None
-    full_name: Optional[str] = None
-    password: Optional[str] = None
-    role: Optional[str] = None
-    is_active: Optional[bool] = None
-
-class UserResponse(BaseModel):
-    id: UUID
-    username: str
-    email: Optional[str]
-    full_name: Optional[str]
-    role: str
-    is_active: bool
-    last_login: Optional[datetime]
-    created_at: datetime
-
-    class Config:
-        from_attributes = True
+def serialize_user(user: User) -> UserResponse:
+    payload = UserResponse.model_validate(user)
+    payload.permissions = list(get_permissions_for_role(user.role))
+    return payload
 
 @router.get("", response_model=List[UserResponse])
 async def list_users(
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_permission(["manage_users"])),
     db: Session = Depends(get_db)
 ):
     """List all users (Admin only)"""
-    return db.query(User).all()
+    users = db.query(User).all()
+    return [serialize_user(u) for u in users]
 
 @router.post("", response_model=UserResponse)
 async def create_user(
     data: UserCreate,
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_permission(["manage_users"])),
     db: Session = Depends(get_db)
 ):
     """Create a new user (Admin only)"""
     if get_user_by_username(db, data.username):
         raise HTTPException(status_code=400, detail="Username already exists")
-    
+
+    normalized_role = normalize_role(data.role)
+    if normalized_role not in VALID_ROLES:
+        raise HTTPException(status_code=400, detail="Invalid role selection")
+
     user = User(
         username=data.username,
         email=data.email,
         full_name=data.full_name,
         password_hash=get_password_hash(data.password),
-        role=data.role,
+        role=normalized_role,
         is_active=data.is_active
     )
     db.add(user)
@@ -89,13 +73,13 @@ async def create_user(
     db.add(audit)
     db.commit()
     
-    return user
+    return serialize_user(user)
 
 @router.put("/{user_id}", response_model=UserResponse)
 async def update_user(
     user_id: UUID,
     data: UserUpdate,
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_permission(["manage_users"])),
     db: Session = Depends(get_db)
 ):
     """Update a user (Admin only)"""
@@ -106,7 +90,10 @@ async def update_user(
     if data.password:
         user.password_hash = get_password_hash(data.password)
     if data.role:
-        user.role = data.role
+        normalized_role = normalize_role(data.role)
+        if normalized_role not in VALID_ROLES:
+            raise HTTPException(status_code=400, detail="Invalid role selection")
+        user.role = normalized_role
     if data.email is not None:
         user.email = data.email
     if data.full_name is not None:
@@ -128,12 +115,12 @@ async def update_user(
     db.add(audit)
     db.commit()
     
-    return user
+    return serialize_user(user)
 
 @router.delete("/{user_id}")
 async def delete_user(
     user_id: UUID,
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_permission(["manage_users"])),
     db: Session = Depends(get_db)
 ):
     """Delete a user (Admin only)"""
