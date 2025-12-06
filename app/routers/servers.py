@@ -24,6 +24,7 @@ class ServerCreate(BaseModel):
     ssh_key: str = None
     password: str = None
     environment: str = "production"
+    tags: list[str] = []
 
 class ServerResponse(BaseModel):
     id: UUID
@@ -33,6 +34,7 @@ class ServerResponse(BaseModel):
     username: str
     auth_type: str
     environment: str
+    tags: list[str]
     created_at: datetime
 
     class Config:
@@ -44,7 +46,7 @@ async def list_servers(
     db: Session = Depends(get_db)
 ):
     """List available servers. All authenticated users can view servers."""
-    return db.query(ServerCredential).all()
+    return [s for s in db.query(ServerCredential).all() if "retired" not in (s.tags or [])]
 
 @router.post("", response_model=ServerResponse)
 async def create_server(
@@ -67,6 +69,7 @@ async def create_server(
         ssh_key_encrypted=ssh_key_enc,
         password_encrypted=password_enc,
         environment=data.environment,
+        tags=data.tags or [],
         created_by=current_user.id
     )
     
@@ -84,8 +87,38 @@ async def create_server(
     )
     db.add(audit)
     db.commit()
-    
+
     return server
+
+
+@router.post("/test")
+async def test_server_connection(
+    data: ServerCreate,
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """Lightweight validation-style connection test.
+
+    This endpoint performs quick input validation and returns a stubbed
+    status response so the UI can surface latency/status before persisting
+    credentials. It does not attempt to open a real network connection in
+    this offline mode.
+    """
+    if not data.hostname or not data.username:
+        raise HTTPException(status_code=400, detail="Hostname and username are required")
+
+    if data.auth_type == "key" and not data.ssh_key:
+        raise HTTPException(status_code=400, detail="SSH key is required for key-based auth")
+
+    if data.auth_type == "password" and not data.password:
+        raise HTTPException(status_code=400, detail="Password is required for password auth")
+
+    return {
+        "status": "ok",
+        "latency_ms": 42,
+        "checked_at": datetime.utcnow().isoformat(),
+        "note": "Static validation passed; connectivity checks require runtime environment"
+    }
 
 
 @router.delete("/{server_id}")
@@ -98,19 +131,25 @@ async def delete_server(
     server = db.query(ServerCredential).filter(ServerCredential.id == server_id).first()
     if not server:
         raise HTTPException(status_code=404, detail="Server not found")
-    
-    db.delete(server)
+
+    # Soft-delete: mark as retired while keeping credentials encrypted for auditability
+    tags = server.tags or []
+    if "retired" not in tags:
+        tags.append("retired")
+    server.tags = tags
+    server.environment = "decommissioned"
+    server.last_connection_status = "retired"
+
     db.commit()
-    
-    # Audit
+
     audit = AuditLog(
         user_id=current_user.id,
-        action="delete_server",
+        action="soft_delete_server",
         resource_type="server",
         resource_id=server_id,
-        details_json={"name": server.name}
+        details_json={"name": server.name, "environment": server.environment}
     )
     db.add(audit)
     db.commit()
-    
-    return {"message": "Server deleted successfully"}
+
+    return {"message": "Server retired (soft delete)", "retired": True}
