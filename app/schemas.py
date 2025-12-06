@@ -254,6 +254,12 @@ class ActiveIncident(BaseModel):
     status: str
 
 
+class ReliabilityBreakdown(BaseModel):
+    critical_impact: float
+    timeliness: float
+    remediation: float
+
+
 class StatsResponse(BaseModel):
     total_alerts: int
     analyzed_alerts: int
@@ -274,7 +280,8 @@ class StatsResponse(BaseModel):
     alert_trend: List[AlertTrendPoint]
     top_sources: List[AlertSourceBreakdown]
     active_incidents: List[ActiveIncident]
-    health_score: int
+    reliability_index: int
+    reliability_breakdown: ReliabilityBreakdown
     last_sync_time: Optional[datetime]
     connection_status: str = "online"
     time_range: str

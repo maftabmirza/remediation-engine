@@ -139,17 +139,18 @@
         <div class="card p-5">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-gray-400 text-sm">Health Score</p>
-                    <p class="text-3xl font-bold mt-1" id="statHealth">--</p>
-                    <p class="text-xs text-gray-500 mt-1">SLA indicator</p>
+                    <p class="text-gray-400 text-sm">Service Reliability Index</p>
+                    <p class="text-3xl font-bold mt-1" id="statReliability">--</p>
+                    <p class="text-xs text-gray-500 mt-1">Transparent blend of critical impact, timeliness, remediation</p>
                 </div>
                 <div class="w-12 h-12 rounded-lg bg-blue-500 bg-opacity-20 flex items-center justify-center">
                     <i class="fas fa-heartbeat text-blue-300 text-xl"></i>
                 </div>
             </div>
             <div class="mt-3 w-full bg-gray-800 rounded-full h-2">
-                <div id="healthBar" class="h-2 rounded-full bg-blue-400" style="width:0%"></div>
+                <div id="reliabilityBar" class="h-2 rounded-full bg-blue-400" style="width:0%"></div>
             </div>
+            <div class="mt-3 text-xs text-gray-400 space-y-1" id="reliabilityBreakdown"></div>
         </div>
     </div>
 
@@ -163,7 +164,8 @@
                 </div>
                 <span class="text-xs text-gray-500" id="trendRangeLabel"></span>
             </div>
-            <canvas id="alertTrendChart" height="120"></canvas>
+            <div id="trendEmptyState" class="hidden text-center text-gray-500 text-sm py-8">No alert activity for this range.</div>
+            <canvas id="alertTrendChart" height="96" class="hidden"></canvas>
         </div>
         <div class="card p-6">
             <div class="flex items-center justify-between mb-4">
@@ -172,7 +174,7 @@
                     <p class="text-gray-400 text-sm">Visual breakdown by severity</p>
                 </div>
             </div>
-            <canvas id="severityChart" height="200"></canvas>
+            <canvas id="severityChart" height="160"></canvas>
         </div>
     </div>
 
@@ -328,17 +330,40 @@
         document.getElementById('statMtta').textContent = formatMinutes(data.mtta_minutes);
         document.getElementById('statMttr').textContent = formatMinutes(data.mttr_minutes);
         document.getElementById('statRemediation').textContent = `${data.remediation_success_rate.toFixed(1)}%`;
-        document.getElementById('statHealth').textContent = `${data.health_score}%`;
+        document.getElementById('statReliability').textContent = `${data.reliability_index}%`;
         document.getElementById('remediationBar').style.width = `${Math.min(data.remediation_success_rate, 100)}%`;
-        document.getElementById('healthBar').style.width = `${Math.min(data.health_score, 100)}%`;
+        document.getElementById('reliabilityBar').style.width = `${Math.min(data.reliability_index, 100)}%`;
+        const breakdown = data.reliability_breakdown || {};
+        document.getElementById('reliabilityBreakdown').innerHTML = `
+            <div class="flex items-center justify-between"><span>Critical impact</span><span class="text-gray-200 font-semibold">${(breakdown.critical_impact || 0).toFixed(1)}</span></div>
+            <div class="flex items-center justify-between"><span>Timeliness</span><span class="text-gray-200 font-semibold">${(breakdown.timeliness || 0).toFixed(1)}</span></div>
+            <div class="flex items-center justify-between"><span>Remediation</span><span class="text-gray-200 font-semibold">${(breakdown.remediation || 0).toFixed(1)}</span></div>
+            <div class="text-gray-500">(Component weights: 40/35/25)</div>
+        `;
         trendRangeLabel.textContent = `Range: ${data.time_range}`;
         setConnection(data.connection_status === 'online' ? 'Online' : 'Degraded', data.last_sync_time ? new Date(data.last_sync_time).toLocaleString() : '-', data.connection_status);
     }
 
     function renderTrend(trendData) {
-        const ctx = document.getElementById('alertTrendChart').getContext('2d');
+        const chartCanvas = document.getElementById('alertTrendChart');
+        const emptyState = document.getElementById('trendEmptyState');
         const labels = trendData.map(p => new Date(p.bucket).toLocaleString());
         const values = trendData.map(p => p.count);
+        const hasData = values.some(v => v > 0);
+
+        if (!hasData) {
+            emptyState.classList.remove('hidden');
+            chartCanvas.classList.add('hidden');
+            if (alertTrendChart) {
+                alertTrendChart.destroy();
+                alertTrendChart = null;
+            }
+            return;
+        }
+
+        emptyState.classList.add('hidden');
+        chartCanvas.classList.remove('hidden');
+        const ctx = chartCanvas.getContext('2d');
         if (alertTrendChart) {
             alertTrendChart.data.labels = labels;
             alertTrendChart.data.datasets[0].data = values;

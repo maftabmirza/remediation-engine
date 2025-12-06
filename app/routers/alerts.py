@@ -172,14 +172,29 @@ async def get_stats(
     last_sync_time = max([alert.timestamp for alert in alerts], default=None)
     connection_status = "degraded" if total == 0 else "online"
 
-    health_score = 100
+    # Service Reliability Index: transparent, weighted view
+    # Weights: 40% critical impact, 35% timeliness, 25% remediation success.
+    critical_component = 0.0
+    timeliness_component = 0.0
+    remediation_component = (remediation_success_rate / 100) * 25  # percent to 0-25 range
+
     if total:
         critical_ratio = critical / total
-        pending_ratio = pending / total
-        health_score -= min(40, critical_ratio * 60)
-        health_score -= min(25, pending_ratio * 40)
-        health_score += min(20, remediation_success_rate / 5)
-    health_score = max(0, min(100, round(health_score)))
+        critical_component = max(0.0, 1 - critical_ratio) * 40
+
+    # Timeliness scoring uses simple targets: 15m MTTA, 120m MTTR.
+    target_mtta = 15
+    target_mttr = 120
+    mtta_score = max(0.0, min(1.0, 1 - (mtta_minutes / target_mtta if target_mtta else 0))) if mtta_minutes else 1.0
+    mttr_score = max(0.0, min(1.0, 1 - (mttr_minutes / target_mttr if target_mttr else 0))) if mttr_minutes else 1.0
+    timeliness_component = ((mtta_score + mttr_score) / 2) * 35
+
+    reliability_index = round(min(100, max(0, critical_component + timeliness_component + remediation_component)))
+    reliability_breakdown = {
+        "critical_impact": round(critical_component, 2),
+        "timeliness": round(timeliness_component, 2),
+        "remediation": round(remediation_component, 2),
+    }
 
     return StatsResponse(
         total_alerts=total,
@@ -201,7 +216,8 @@ async def get_stats(
         alert_trend=normalized_trend,
         top_sources=top_sources,
         active_incidents=active_incidents,
-        health_score=health_score,
+        reliability_index=reliability_index,
+        reliability_breakdown=reliability_breakdown,
         last_sync_time=last_sync_time,
         connection_status=connection_status,
         time_range=time_range,
