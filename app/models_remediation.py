@@ -134,6 +134,7 @@ class RunbookStep(Base):
     target_os = Column(String(10), default="any")  # "any", "linux", "windows"
 
     # API Configuration - for step_type="api"
+    api_credential_profile_id = Column(UUID(as_uuid=True), ForeignKey("api_credential_profiles.id", ondelete="SET NULL"), nullable=True)  # Reference to API credentials
     api_method = Column(String(10), nullable=True)  # GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS
     api_endpoint = Column(Text, nullable=True)  # endpoint path or full URL (supports Jinja2)
     api_headers_json = Column(JSON, nullable=True)  # custom headers for this request
@@ -166,6 +167,7 @@ class RunbookStep(Base):
 
     # Relationships
     runbook = relationship("Runbook", back_populates="steps")
+    api_credential_profile = relationship("APICredentialProfile")
 
     __table_args__ = (
         UniqueConstraint("runbook_id", "step_order", name="uq_runbook_step_order"),

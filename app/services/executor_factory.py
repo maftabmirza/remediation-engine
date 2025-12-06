@@ -12,7 +12,7 @@ from uuid import UUID
 from cryptography.fernet import Fernet
 
 from ..config import get_settings
-from ..models import ServerCredential
+from ..models import ServerCredential, APICredentialProfile
 from .executor_base import BaseExecutor, ExecutionResult, ErrorType
 from .executor_ssh import SSHExecutor
 from .executor_api import APIExecutor
@@ -151,7 +151,57 @@ class ExecutorFactory:
 
         else:
             raise ValueError(f"Unknown protocol: {protocol}")
-    
+
+    @classmethod
+    def get_api_executor_from_profile(
+        cls,
+        profile: APICredentialProfile,
+        fernet_key: Optional[str] = None
+    ) -> APIExecutor:
+        """
+        Create an API executor from an API credential profile.
+
+        Args:
+            profile: APICredentialProfile with API connection details.
+            fernet_key: Encryption key for credentials.
+
+        Returns:
+            APIExecutor instance.
+
+        Raises:
+            ValueError: If encryption key not configured.
+        """
+        settings = get_settings()
+        key = fernet_key or settings.encryption_key
+
+        if not key:
+            raise ValueError("Encryption key not configured")
+
+        fernet = Fernet(key.encode() if isinstance(key, str) else key)
+
+        # Decrypt token if present
+        auth_token = None
+        if profile.token_encrypted:
+            try:
+                auth_token = fernet.decrypt(profile.token_encrypted.encode()).decode()
+            except Exception as e:
+                logger.error(f"Failed to decrypt token for profile {profile.name}: {e}")
+
+        # Create API executor
+        return APIExecutor(
+            hostname="",  # Not used for pure API profiles
+            port=443,  # Default HTTPS port
+            username=profile.username or "",
+            base_url=profile.base_url,
+            auth_type=profile.auth_type,
+            auth_header=profile.auth_header,
+            auth_token=auth_token,
+            verify_ssl=profile.verify_ssl,
+            timeout=profile.timeout_seconds,
+            default_headers=profile.default_headers or {},
+            metadata=profile.profile_metadata or {}
+        )
+
     @classmethod
     async def get_pooled_executor(
         cls,

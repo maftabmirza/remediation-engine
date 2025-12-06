@@ -41,6 +41,7 @@ class RunbookStepBase(BaseModel):
     target_os: TargetOS = "any"
 
     # API Configuration (for step_type="api")
+    api_credential_profile_id: Optional[UUID] = None  # Reference to API credential profile
     api_method: Optional[str] = None  # GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS
     api_endpoint: Optional[str] = None  # endpoint path or full URL (supports Jinja2)
     api_headers_json: Optional[Dict[str, str]] = None  # custom headers
@@ -113,9 +114,19 @@ class RunbookStepUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=100)
     description: Optional[str] = None
     step_order: Optional[int] = Field(None, ge=1)
+    step_type: Optional[str] = None
     command_linux: Optional[str] = None
     command_windows: Optional[str] = None
     target_os: Optional[TargetOS] = None
+    api_credential_profile_id: Optional[UUID] = None
+    api_method: Optional[str] = None
+    api_endpoint: Optional[str] = None
+    api_headers_json: Optional[Dict[str, str]] = None
+    api_body: Optional[str] = None
+    api_body_type: Optional[str] = None
+    api_query_params_json: Optional[Dict[str, str]] = None
+    api_expected_status_codes: Optional[List[int]] = None
+    api_response_extract_json: Optional[Dict[str, str]] = None
     timeout_seconds: Optional[int] = Field(None, ge=1, le=3600)
     requires_elevation: Optional[bool] = None
     continue_on_fail: Optional[bool] = None
