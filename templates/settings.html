@@ -45,7 +45,7 @@
                     <i class="fas fa-chart-pie"></i>
                     <span>Overview</span>
                 </button>
-                {% if user.role == 'admin' %}
+                {% if 'manage_users' in permissions %}
                 <button type="button" class="settings-nav-btn" data-target="section-users">
                     <i class="fas fa-users"></i>
                     <span>Users</span>
@@ -59,7 +59,7 @@
                     <i class="fas fa-server"></i>
                     <span>Servers</span>
                 </button>
-                {% if user.role == 'admin' %}
+                {% if 'manage_providers' in permissions %}
                 <button type="button" class="settings-nav-btn" data-target="section-auth">
                     <i class="fas fa-shield-alt"></i>
                     <span>Authentication</span>
@@ -107,7 +107,7 @@
                 </div>
             </div>
         </div>
-        {% if user.role == 'admin' %}
+        {% if 'manage_users' in permissions %}
         <div class="card p-4">
             <div class="flex items-center justify-between">
                 <div>
@@ -171,21 +171,21 @@
             <div class="bg-gray-800 bg-opacity-60 p-3 rounded">
                 <div class="flex items-center justify-between">
                     <span class="font-semibold">User Operations</span>
-                    <span class="text-xs px-2 py-1 rounded-full {{ 'bg-green-900 text-green-300' if user.role == 'admin' else 'bg-gray-700 text-gray-400' }}">{{ 'Manage' if user.role == 'admin' else 'Read-only' }}</span>
+                      <span class="text-xs px-2 py-1 rounded-full {{ 'bg-green-900 text-green-300' if 'manage_users' in permissions else 'bg-gray-700 text-gray-400' }}">{{ 'Manage' if 'manage_users' in permissions else 'Read-only' }}</span>
                 </div>
                 <p class="text-gray-400 mt-1">Create/deactivate users, update roles. Admin-only.</p>
             </div>
             <div class="bg-gray-800 bg-opacity-60 p-3 rounded">
                 <div class="flex items-center justify-between">
                     <span class="font-semibold">Provider Controls</span>
-                    <span class="text-xs px-2 py-1 rounded-full {{ 'bg-green-900 text-green-300' if user.role == 'admin' else 'bg-gray-700 text-gray-400' }}">{{ 'Manage' if user.role == 'admin' else 'Read-only' }}</span>
+                      <span class="text-xs px-2 py-1 rounded-full {{ 'bg-green-900 text-green-300' if 'manage_providers' in permissions else 'bg-gray-700 text-gray-400' }}">{{ 'Manage' if 'manage_providers' in permissions else 'Read-only' }}</span>
                 </div>
                 <p class="text-gray-400 mt-1">Add/edit providers, rotate secrets, run health checks.</p>
             </div>
             <div class="bg-gray-800 bg-opacity-60 p-3 rounded">
                 <div class="flex items-center justify-between">
                     <span class="font-semibold">Auth Settings</span>
-                    <span class="text-xs px-2 py-1 rounded-full {{ 'bg-green-900 text-green-300' if user.role == 'admin' else 'bg-gray-700 text-gray-400' }}">{{ 'Manage' if user.role == 'admin' else 'Read-only' }}</span>
+                      <span class="text-xs px-2 py-1 rounded-full {{ 'bg-green-900 text-green-300' if 'manage_providers' in permissions else 'bg-gray-700 text-gray-400' }}">{{ 'Manage' if 'manage_providers' in permissions else 'Read-only' }}</span>
                 </div>
                 <p class="text-gray-400 mt-1">Configure LDAP/SAML, review audit events, test login.</p>
             </div>
@@ -193,27 +193,34 @@
     </div>
         </section>
 
-        {% if user.role == 'admin' %}
+        {% if 'manage_users' in permissions %}
         <section id="section-users" class="settings-section space-y-4">
-            <div class="flex items-center justify-between">
-                <div>
-                    <h2 class="text-xl font-semibold">User Management</h2>
-                    <p class="text-sm text-gray-400">Full-width view for large directories and role changes.</p>
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-xl font-semibold">User Management</h2>
+                        <p class="text-sm text-gray-400">Full-width view for large directories and role changes.</p>
+                    </div>
+                    {% if 'manage_users' in permissions %}
+                    <button onclick="showCreateUserModal()" class="btn-primary px-4 py-2 rounded">
+                        <i class="fas fa-plus mr-2"></i>Add User
+                    </button>
+                    {% endif %}
                 </div>
-                <button onclick="showCreateUserModal()" class="btn-primary px-4 py-2 rounded">
-                    <i class="fas fa-plus mr-2"></i>Add User
-                </button>
-            </div>
             <div class="card">
                 <div class="flex flex-wrap items-center justify-between p-4 border-b border-gray-700 gap-3">
                     <div class="flex flex-wrap items-center gap-2">
                         <div class="flex items-center gap-2">
                             <input id="userSearch" type="text" class="input-field px-3 py-2 rounded text-sm" placeholder="Search username, name, or email">
-                            <select id="userRoleFilter" class="input-field px-3 py-2 rounded text-sm">
-                                <option value="">All roles</option>
-                                <option value="admin">Admins</option>
-                                <option value="user">Standard users</option>
-                            </select>
+                              <select id="userRoleFilter" class="input-field px-3 py-2 rounded text-sm">
+                                  <option value="">All roles</option>
+                                  <option value="owner">Owners</option>
+                                  <option value="admin">Admins</option>
+                                  <option value="maintainer">Maintainers</option>
+                                  <option value="operator">Operators</option>
+                                  <option value="viewer">Viewers</option>
+                                  <option value="auditor">Auditors</option>
+                                  <option value="user">Legacy users</option>
+                              </select>
                             <select id="userStatusFilter" class="input-field px-3 py-2 rounded text-sm">
                                 <option value="">Any status</option>
                                 <option value="active">Active</option>
@@ -250,7 +257,7 @@
                     <h2 class="text-xl font-semibold">LLM Providers</h2>
                     <p class="text-sm text-gray-400">Focus on provider inventory with filters and bulk actions.</p>
                 </div>
-                {% if user.role == 'admin' %}
+                {% if 'manage_providers' in permissions %}
                 <button onclick="showCreateProviderModal()" class="btn-primary px-4 py-2 rounded">
                     <i class="fas fa-plus mr-2"></i>Add Provider
                 </button>
@@ -276,7 +283,7 @@
                             </select>
                         </div>
                     </div>
-                    {% if user.role == 'admin' %}
+                    {% if 'manage_providers' in permissions %}
                     <div class="flex items-center space-x-2">
                         <button class="btn-secondary px-3 py-1 rounded text-sm" onclick="bulkEnableProviders(true)"><i class="fas fa-check mr-1"></i>Enable</button>
                         <button class="btn-secondary px-3 py-1 rounded text-sm" onclick="bulkEnableProviders(false)"><i class="fas fa-pause mr-1"></i>Disable</button>
@@ -284,7 +291,7 @@
                     {% endif %}
                 </div>
 
-                {% if user.role == 'admin' %}
+                {% if 'manage_providers' in permissions %}
                 <div class="flex items-center space-x-2 px-4 py-3 text-sm text-gray-300 border-b border-gray-800">
                     <input type="checkbox" id="providerSelectAll" class="mr-1" onchange="toggleSelectAll('provider')">
                     <span>Select all</span>
@@ -300,48 +307,69 @@
         </section>
 
         <section id="section-servers" class="settings-section space-y-4">
-            <div class="flex items-center justify-between">
-                <div>
-                    <h2 class="text-xl font-semibold">Servers</h2>
-                    <p class="text-sm text-gray-400">Expanded credential list with filters and connection tests.</p>
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-xl font-semibold">Servers</h2>
+                        <p class="text-sm text-gray-400">Expanded credential list with filters and connection tests.</p>
+                    </div>
+                    {% if 'manage_servers' in permissions %}
+                    <button onclick="showCreateServerModal()" class="btn-primary px-4 py-2 rounded">
+                        <i class="fas fa-plus mr-2"></i>Add Server
+                    </button>
+                    {% endif %}
                 </div>
-                {% if user.role == 'admin' %}
-                <button onclick="showCreateServerModal()" class="btn-primary px-4 py-2 rounded">
-                    <i class="fas fa-plus mr-2"></i>Add Server
-                </button>
-                {% endif %}
-            </div>
-            <div class="card">
-                <div class="flex flex-wrap items-center justify-between p-4 border-b border-gray-700 space-y-3 md:space-y-0 space-x-4">
-                    <div class="flex items-center space-x-3">
-                        <div class="hidden md:flex items-center space-x-2">
-                            <input id="serverSearch" type="text" class="input-field px-3 py-2 rounded text-sm" placeholder="Search server or host">
+                <div class="card">
+                    <div class="flex flex-wrap items-center justify-between p-4 border-b border-gray-700 space-y-3 md:space-y-0 space-x-4">
+                        <div class="flex items-center space-x-3">
+                            <div class="hidden md:flex items-center space-x-2">
+                                <input id="serverSearch" type="text" class="input-field px-3 py-2 rounded text-sm" placeholder="Search server or host">
                             <select id="serverEnvFilter" class="input-field px-3 py-2 rounded text-sm">
                                 <option value="">All Environments</option>
                                 <option value="production">Production</option>
                                 <option value="staging">Staging</option>
                                 <option value="development">Development</option>
                             </select>
-                            <select id="serverStatusFilter" class="input-field px-3 py-2 rounded text-sm">
-                                <option value="">Any Auth</option>
-                                <option value="key">SSH Key</option>
-                                <option value="password">Password</option>
-                            </select>
+                                <select id="serverStatusFilter" class="input-field px-3 py-2 rounded text-sm">
+                                    <option value="">Any Auth</option>
+                                    <option value="key">SSH Key</option>
+                                    <option value="password">Password</option>
+                                </select>
+                            </div>
                         </div>
+                        {% if 'manage_servers' in permissions %}
+                        <div class="flex items-center space-x-2">
+                            <button class="btn-secondary px-3 py-2 rounded text-sm" onclick="bulkTestServers()"><i class="fas fa-heartbeat mr-1"></i>Test Selected</button>
+                        </div>
+                        {% endif %}
                     </div>
-                    {% if user.role == 'admin' %}
-                    <div class="flex items-center space-x-2">
-                        <button class="btn-secondary px-3 py-2 rounded text-sm" onclick="bulkTestServers()"><i class="fas fa-heartbeat mr-1"></i>Test Selected</button>
+
+                    {% if 'manage_server_groups' in permissions %}
+                    <div class="p-4 border-b border-gray-800 bg-gray-900 bg-opacity-50">
+                        <form id="serverGroupForm" class="grid md:grid-cols-3 gap-3 items-end">
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">New Group Name</label>
+                                <input id="serverGroupName" type="text" class="input-field px-3 py-2 rounded text-sm" placeholder="e.g., Production/Web" required>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Parent Group</label>
+                                <select id="serverGroupParent" class="input-field px-3 py-2 rounded text-sm">
+                                    <option value="">No parent</option>
+                                </select>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <button type="submit" class="btn-secondary px-3 py-2 rounded text-sm w-full md:w-auto"><i class="fas fa-layer-group mr-2"></i>Create Group</button>
+                                <span class="text-xs text-gray-500 hidden md:inline">Organize hosts with parent/child groupings.</span>
+                            </div>
+                        </form>
                     </div>
                     {% endif %}
-                </div>
 
-                {% if user.role == 'admin' %}
-                <div class="flex items-center space-x-2 px-4 py-3 text-sm text-gray-300 border-b border-gray-800">
-                    <input type="checkbox" id="serverSelectAll" class="mr-1" onchange="toggleSelectAll('server')">
-                    <span>Select all</span>
-                </div>
-                {% endif %}
+                    {% if 'manage_servers' in permissions %}
+                    <div class="flex items-center space-x-2 px-4 py-3 text-sm text-gray-300 border-b border-gray-800">
+                        <input type="checkbox" id="serverSelectAll" class="mr-1" onchange="toggleSelectAll('server')">
+                        <span>Select all</span>
+                    </div>
+                    {% endif %}
 
                 <div id="serversTableContainer" class="overflow-x-auto">
                     <div class="text-center py-8">
@@ -351,7 +379,7 @@
             </div>
         </section>
 
-        {% if user.role == 'admin' %}
+        {% if 'manage_providers' in permissions %}
         <section id="section-auth" class="settings-section space-y-4">
             <div class="flex items-center justify-between">
                 <div>
@@ -711,18 +739,23 @@
             </div>
             
             <div>
-                <label class="label-with-tooltip block text-sm font-medium mb-1">
-                    Role
-                    <span class="info-tooltip info-tooltip-align-left">
-                        <span class="info-tooltip-icon">?</span>
-                        <span class="info-tooltip-text"><strong>User:</strong> Standard access.<br><strong>Admin:</strong> Full system configuration access.</span>
-                    </span>
-                </label>
-                <select id="userRole" class="input-field w-full px-3 py-2 rounded">
-                    <option value="user">User</option>
-                    <option value="admin">Admin</option>
-                </select>
-            </div>
+                  <label class="label-with-tooltip block text-sm font-medium mb-1">
+                      Role
+                      <span class="info-tooltip info-tooltip-align-left">
+                          <span class="info-tooltip-icon">?</span>
+                          <span class="info-tooltip-text"><strong>Owner/Admin:</strong> Full platform control.<br><strong>Maintainer:</strong> Manage servers/providers.<br><strong>Operator:</strong> Execute and read.<br><strong>Viewer/Auditor:</strong> Read-only.</span>
+                      </span>
+                  </label>
+                  <select id="userRole" class="input-field w-full px-3 py-2 rounded">
+                      <option value="owner">Owner</option>
+                      <option value="admin">Admin</option>
+                      <option value="maintainer">Maintainer</option>
+                      <option value="operator">Operator</option>
+                      <option value="viewer">Viewer</option>
+                      <option value="auditor">Auditor</option>
+                      <option value="user">Legacy User</option>
+                  </select>
+              </div>
             
             <div class="flex items-center">
                 <label class="flex items-center">
@@ -838,20 +871,33 @@
                 <input type="password" id="serverPassword" class="input-field w-full px-3 py-2 rounded" autocomplete="off">
             </div>
             
-            <div>
-                <label class="label-with-tooltip block text-sm font-medium mb-1">
-                    Environment
-                    <span class="info-tooltip info-tooltip-align-left">
-                        <span class="info-tooltip-icon">?</span>
-                        <span class="info-tooltip-text">Tag this server to an environment for filtering and rule matching.</span>
-                    </span>
-                </label>
-                <select id="serverEnv" class="input-field w-full px-3 py-2 rounded">
-                    <option value="production">Production</option>
-                    <option value="staging">Staging</option>
-                    <option value="development">Development</option>
-                </select>
-            </div>
+              <div>
+                  <label class="label-with-tooltip block text-sm font-medium mb-1">
+                      Environment
+                      <span class="info-tooltip info-tooltip-align-left">
+                          <span class="info-tooltip-icon">?</span>
+                          <span class="info-tooltip-text">Tag this server to an environment for filtering and rule matching.</span>
+                      </span>
+                  </label>
+                  <select id="serverEnv" class="input-field w-full px-3 py-2 rounded">
+                      <option value="production">Production</option>
+                      <option value="staging">Staging</option>
+                      <option value="development">Development</option>
+                  </select>
+              </div>
+
+              <div>
+                  <label class="label-with-tooltip block text-sm font-medium mb-1">
+                      Server Group
+                      <span class="info-tooltip info-tooltip-align-left">
+                          <span class="info-tooltip-icon">?</span>
+                          <span class="info-tooltip-text">Assign the host to a group or nested group to control access and organization.</span>
+                      </span>
+                  </label>
+                  <select id="serverGroupSelect" class="input-field w-full px-3 py-2 rounded">
+                      <option value="">No group</option>
+                  </select>
+              </div>
             
             <div class="flex justify-end space-x-2 pt-4 border-t border-gray-700">
                 <button type="button" onclick="closeServerModal()" class="btn-secondary px-4 py-2 rounded">Cancel</button>
@@ -867,7 +913,13 @@
 {{ super() }}
 <script>
     const currentUserRole = "{{ user.role }}";
+    const currentUserPermissions = {{ permissions | tojson }};
     const currentUserId = "{{ user.id }}";
+    const canManageUsers = currentUserPermissions.includes('manage_users');
+    const canManageProviders = currentUserPermissions.includes('manage_providers');
+    const canManageServers = currentUserPermissions.includes('manage_servers');
+    const canManageServerGroups = currentUserPermissions.includes('manage_server_groups');
+    const canRead = currentUserPermissions.includes('read');
     let confirmCallback = null;
     let confirmRequirement = null;
     let userCache = [];
@@ -877,6 +929,7 @@
     let userSort = 'recent';
     let providerCache = [];
     let serverCache = [];
+    let serverGroups = [];
     let providerPage = 1;
     let providerPageSize = 10;
     let providerSort = { key: 'name', direction: 'asc' };
@@ -1108,7 +1161,7 @@
             <table class="w-full">
                 <thead>
                     <tr class="text-left text-xs text-gray-400 uppercase border-b border-gray-700">
-                        <th class="p-4">${currentUserRole === 'admin' ? '<input type="checkbox" id="providerTableSelectAll" onclick="toggleSelectAll(\'provider\')">' : ''}</th>
+                        <th class="p-4">${canManageProviders ? '<input type="checkbox" id="providerTableSelectAll" onclick="toggleSelectAll(\'provider\')">' : ''}</th>
                         <th class="p-4 cursor-pointer" onclick="setProviderSort('name')">Provider</th>
                         <th class="p-4">Type</th>
                         <th class="p-4">Model</th>
@@ -1120,7 +1173,7 @@
                 <tbody class="divide-y divide-gray-800">
                     ${providers.map(provider => `
                         <tr class="hover:bg-gray-800 transition-colors ${!provider.is_enabled ? 'opacity-50' : ''}">
-                            <td class="p-4 align-top">${currentUserRole === 'admin' ? `<input type="checkbox" ${selectedProviders.has(provider.id) ? 'checked' : ''} onchange="toggleRowSelection('provider','${provider.id}')">` : ''}</td>
+                            <td class="p-4 align-top">${canManageProviders ? `<input type="checkbox" ${selectedProviders.has(provider.id) ? 'checked' : ''} onchange="toggleRowSelection('provider','${provider.id}')">` : ''}</td>
                             <td class="p-4">
                                 <div class="flex items-center space-x-3">
                                     <div class="w-9 h-9 rounded-lg flex items-center justify-center ${
@@ -1173,27 +1226,27 @@
                                 </div>
                             </td>
                             <td class="p-4 text-right">
-                                <div class="flex items-center justify-end space-x-2">
-                                    ${currentUserRole === 'admin' ? `
-                                        <button data-test-btn="${provider.id}" onclick="testProvider('${provider.id}')" class="btn-secondary px-2 py-1 rounded text-xs" title="Test connection">
-                                            <i class="fas fa-heartbeat"></i>
-                                        </button>
-                                        ${!provider.is_default && provider.is_enabled ? `
-                                            <button onclick="setDefaultProvider('${provider.id}')" class="btn-secondary px-2 py-1 rounded text-xs" title="Set as default">
-                                                <i class="fas fa-star"></i>
-                                            </button>
-                                        ` : ''}
-                                        <button onclick="toggleProvider('${provider.id}')" class="btn-secondary px-2 py-1 rounded text-xs" title="${provider.is_enabled ? 'Disable' : 'Enable'}">
-                                            <i class="fas fa-${provider.is_enabled ? 'pause' : 'play'}"></i>
-                                        </button>
-                                        <button onclick="editProvider('${provider.id}')" class="btn-secondary px-2 py-1 rounded text-xs" title="Edit">
-                                            <i class="fas fa-edit"></i>
-                                        </button>
-                                        <button onclick="confirmDeleteProvider('${provider.id}', '${provider.name}')" class="btn-secondary px-2 py-1 rounded text-xs text-red-400" title="Delete">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    ` : ''}
-                                </div>
+                                  <div class="flex items-center justify-end space-x-2">
+                                      ${canManageProviders ? `
+                                          <button data-test-btn="${provider.id}" onclick="testProvider('${provider.id}')" class="btn-secondary px-2 py-1 rounded text-xs" title="Test connection">
+                                              <i class="fas fa-heartbeat"></i>
+                                          </button>
+                                          ${!provider.is_default && provider.is_enabled ? `
+                                              <button onclick="setDefaultProvider('${provider.id}')" class="btn-secondary px-2 py-1 rounded text-xs" title="Set as default">
+                                                  <i class="fas fa-star"></i>
+                                              </button>
+                                          ` : ''}
+                                          <button onclick="toggleProvider('${provider.id}')" class="btn-secondary px-2 py-1 rounded text-xs" title="${provider.is_enabled ? 'Disable' : 'Enable'}">
+                                              <i class="fas fa-${provider.is_enabled ? 'pause' : 'play'}"></i>
+                                          </button>
+                                          <button onclick="editProvider('${provider.id}')" class="btn-secondary px-2 py-1 rounded text-xs" title="Edit">
+                                              <i class="fas fa-edit"></i>
+                                          </button>
+                                          <button onclick="confirmDeleteProvider('${provider.id}', '${provider.name}')" class="btn-secondary px-2 py-1 rounded text-xs text-red-400" title="Delete">
+                                              <i class="fas fa-trash"></i>
+                                          </button>
+                                      ` : '<span class="text-xs text-gray-500">View only</span>'}
+                                  </div>
                             </td>
                         </tr>
                     `).join('')}
@@ -1243,7 +1296,7 @@
         let filtered = serverCache.filter(server => {
             const matchesEnv = !env || server.environment === env;
             const matchesAuth = !authType || server.auth_type === authType;
-            const matchesSearch = !search || `${server.name} ${server.hostname}`.toLowerCase().includes(search);
+            const matchesSearch = !search || `${server.name} ${server.hostname} ${server.group_path || ''}`.toLowerCase().includes(search);
             return matchesEnv && matchesAuth && matchesSearch;
         });
 
@@ -1278,31 +1331,32 @@
         container.innerHTML = `
             <table class="w-full">
                 <thead>
-                    <tr class="text-left text-xs text-gray-400 uppercase border-b border-gray-700">
-                        <th class="p-4">${currentUserRole === 'admin' ? '<input type="checkbox" id="serverTableSelectAll" onclick="toggleSelectAll(\'server\')">' : ''}</th>
-                        <th class="p-4">Server</th>
-                        <th class="p-4">Connection</th>
-                        <th class="p-4">Auth Type</th>
-                        <th class="p-4">Environment</th>
-                        <th class="p-4 text-right">Actions</th>
+                      <tr class="text-left text-xs text-gray-400 uppercase border-b border-gray-700">
+                          <th class="p-4">${canManageServers ? '<input type="checkbox" id="serverTableSelectAll" onclick="toggleSelectAll(\'server\')">' : ''}</th>
+                          <th class="p-4">Server</th>
+                          <th class="p-4">Connection</th>
+                          <th class="p-4">Auth Type</th>
+                          <th class="p-4">Environment</th>
+                          <th class="p-4 text-right">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-800">
                     ${servers.map(server => `
-                        <tr class="hover:bg-gray-800 transition-colors">
-                            <td class="p-4 align-top">${currentUserRole === 'admin' ? `<input type="checkbox" ${selectedServers.has(server.id) ? 'checked' : ''} onchange="toggleRowSelection('server','${server.id}')">` : ''}</td>
-                            <td class="p-4">
-                                <div class="flex items-center space-x-3">
-                                    <div class="w-9 h-9 rounded-lg bg-gray-700 flex items-center justify-center">
-                                        <i class="fas fa-terminal text-green-400"></i>
-                                    </div>
-                                    <div>
-                                        <div class="font-medium">${server.name}</div>
-                                        <div class="text-xs text-gray-500">${server.hostname}</div>
-                                        <div class="text-[11px] text-gray-500">Added ${formatDate(server.created_at)}</div>
-                                    </div>
-                                </div>
-                            </td>
+                          <tr class="hover:bg-gray-800 transition-colors">
+                              <td class="p-4 align-top">${canManageServers ? `<input type="checkbox" ${selectedServers.has(server.id) ? 'checked' : ''} onchange="toggleRowSelection('server','${server.id}')">` : ''}</td>
+                              <td class="p-4">
+                                  <div class="flex items-center space-x-3">
+                                      <div class="w-9 h-9 rounded-lg bg-gray-700 flex items-center justify-center">
+                                          <i class="fas fa-terminal text-green-400"></i>
+                                      </div>
+                                      <div>
+                                          <div class="font-medium">${server.name}</div>
+                                          <div class="text-xs text-gray-500">${server.hostname}</div>
+                                          <div class="text-[11px] text-gray-500">Added ${formatDate(server.created_at)}</div>
+                                          <div class="text-[11px] ${server.group_path ? 'text-blue-300' : 'text-gray-500'}">${server.group_path ? `Group: ${server.group_path}` : 'Ungrouped'}</div>
+                                      </div>
+                                  </div>
+                              </td>
                             <td class="p-4">
                                 <code class="text-sm">${server.username}@${server.hostname}:${server.port}</code>
                                 ${serverLastTest[server.id] ? `<div class="text-[11px] ${serverLastTest[server.id].ok ? 'text-green-400' : 'text-red-400'} mt-1"><i class="fas fa-plug mr-1"></i>${serverLastTest[server.id].message}</div>` : ''}
@@ -1322,16 +1376,16 @@
                                     ${server.environment}
                                 </span>
                             </td>
-                            <td class="p-4 text-right">
-                                ${currentUserRole === 'admin' ? `
-                                    <div class="flex items-center justify-end space-x-2">
-                                        <button onclick="testServerInline('${server.id}')" class="btn-secondary px-2 py-1 rounded text-xs" title="Test connection"><i class="fas fa-heartbeat"></i></button>
-                                        <button onclick="confirmDeleteServer('${server.id}', '${server.name}')" class="btn-secondary px-2 py-1 rounded text-xs text-red-400" title="Delete">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    </div>
-                                ` : ''}
-                            </td>
+                              <td class="p-4 text-right">
+                                  ${canManageServers ? `
+                                      <div class="flex items-center justify-end space-x-2">
+                                          <button onclick="testServerInline('${server.id}')" class="btn-secondary px-2 py-1 rounded text-xs" title="Test connection"><i class="fas fa-heartbeat"></i></button>
+                                          <button onclick="confirmDeleteServer('${server.id}', '${server.name}')" class="btn-secondary px-2 py-1 rounded text-xs text-red-400" title="Delete">
+                                              <i class="fas fa-trash"></i>
+                                          </button>
+                                      </div>
+                                  ` : '<span class="text-xs text-gray-500">View only</span>'}
+                              </td>
                         </tr>
                     `).join('')}
                 </tbody>
@@ -1588,18 +1642,20 @@
                                     ? `<span class="text-green-400">${formatDate(u.last_login)}</span>`
                                     : '<span class="text-gray-500">Never</span>'}
                             </td>
-                            <td class="p-4 text-right">
-                                <div class="flex items-center justify-end space-x-2">
-                                    <button onclick="editUser('${u.id}')" class="btn-secondary px-2 py-1 rounded text-xs" title="Edit">
-                                        <i class="fas fa-edit"></i>
-                                    </button>
-                                    ${u.username !== 'admin' && u.id !== currentUserId ? `
-                                        <button onclick="confirmDeleteUser('${u.id}', '${u.username}')" class="btn-secondary px-2 py-1 rounded text-xs text-red-400" title="Delete">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    ` : ''}
-                                </div>
-                            </td>
+                              <td class="p-4 text-right">
+                                  ${canManageUsers ? `
+                                      <div class="flex items-center justify-end space-x-2">
+                                          <button onclick="editUser('${u.id}')" class="btn-secondary px-2 py-1 rounded text-xs" title="Edit">
+                                              <i class="fas fa-edit"></i>
+                                          </button>
+                                          ${u.username !== 'admin' && u.id !== currentUserId ? `
+                                              <button onclick="confirmDeleteUser('${u.id}', '${u.username}')" class="btn-secondary px-2 py-1 rounded text-xs text-red-400" title="Delete">
+                                                  <i class="fas fa-trash"></i>
+                                              </button>
+                                          ` : ''}
+                                      </div>
+                                  ` : '<span class="text-xs text-gray-500">View only</span>'}
+                              </td>
                         </tr>
                     `).join('')}
                 </tbody>
@@ -1800,6 +1856,59 @@
     }
     
     // --- Server Management ---
+    async function loadServerGroups() {
+        try {
+            const response = await apiCall('/api/servers/groups');
+            if (!response) return;
+            serverGroups = await response.json();
+            populateServerGroupOptions();
+        } catch (error) {
+            console.error('Failed to load server groups:', error);
+        }
+    }
+
+    function populateServerGroupOptions() {
+        const groupSelect = document.getElementById('serverGroupSelect');
+        const parentSelect = document.getElementById('serverGroupParent');
+
+        if (groupSelect) {
+            groupSelect.innerHTML = '<option value="">No group</option>' + serverGroups.map(g => `<option value="${g.id}">${g.path || g.name}</option>`).join('');
+        }
+
+        if (parentSelect) {
+            parentSelect.innerHTML = '<option value="">No parent</option>' + serverGroups.map(g => `<option value="${g.id}">${g.path || g.name}</option>`).join('');
+        }
+    }
+
+    async function submitServerGroup(event) {
+        event.preventDefault();
+        if (!canManageServerGroups) {
+            showToast('You do not have permission to create groups', 'error');
+            return;
+        }
+        const name = document.getElementById('serverGroupName').value.trim();
+        const parentId = document.getElementById('serverGroupParent')?.value || null;
+        if (!name) {
+            showToast('Group name is required', 'error');
+            return;
+        }
+
+        const payload = { name, parent_id: parentId || null };
+        const response = await apiCall('/api/servers/groups', {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
+        if (!response) return;
+        if (!response.ok) {
+            const error = await response.json();
+            showToast(error.detail || 'Failed to create group', 'error');
+            return;
+        }
+        document.getElementById('serverGroupForm')?.reset();
+        showToast('Server group created', 'success');
+        await loadServerGroups();
+    }
+
     function toggleAuthFields() {
         const type = document.getElementById('serverAuthType').value;
         if (type === 'key') {
@@ -1866,15 +1975,16 @@
         }
     }
 
-    function showCreateServerModal() {
-        document.getElementById('serverForm').reset();
-        toggleAuthFields();
-        document.getElementById('serverKey').dataset.masked = 'true';
-        document.getElementById('serverKey').style.filter = 'blur(5px)';
-        serverFormTestOk = false;
-        document.getElementById('serverModal').classList.remove('hidden');
-        document.getElementById('serverModal').classList.add('flex');
-    }
+      function showCreateServerModal() {
+          document.getElementById('serverForm').reset();
+          toggleAuthFields();
+          document.getElementById('serverKey').dataset.masked = 'true';
+          document.getElementById('serverKey').style.filter = 'blur(5px)';
+          document.getElementById('serverGroupSelect').value = '';
+          serverFormTestOk = false;
+          document.getElementById('serverModal').classList.remove('hidden');
+          document.getElementById('serverModal').classList.add('flex');
+      }
 
     function closeServerModal() {
         document.getElementById('serverModal').classList.add('hidden');
@@ -1884,14 +1994,15 @@
     document.getElementById('serverForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         
-        const data = {
-            name: document.getElementById('serverName').value,
-            hostname: document.getElementById('serverHost').value,
-            port: parseInt(document.getElementById('serverPort').value),
-            username: document.getElementById('serverUser').value,
-            auth_type: document.getElementById('serverAuthType').value,
-            environment: document.getElementById('serverEnv').value
-        };
+      const data = {
+          name: document.getElementById('serverName').value,
+          hostname: document.getElementById('serverHost').value,
+          port: parseInt(document.getElementById('serverPort').value),
+          username: document.getElementById('serverUser').value,
+          auth_type: document.getElementById('serverAuthType').value,
+          environment: document.getElementById('serverEnv').value,
+          group_id: document.getElementById('serverGroupSelect').value || null
+      };
 
         if (data.auth_type === 'key') {
             data.ssh_key = document.getElementById('serverKey').value.trim();
@@ -1970,6 +2081,7 @@
     document.getElementById('serverSearch')?.addEventListener('input', () => renderServersTable(filterServers()));
     document.getElementById('serverEnvFilter')?.addEventListener('change', () => renderServersTable(filterServers()));
     document.getElementById('serverStatusFilter')?.addEventListener('change', () => renderServersTable(filterServers()));
+    document.getElementById('serverGroupForm')?.addEventListener('submit', submitServerGroup);
     document.getElementById('userSearch')?.addEventListener('input', () => { userPage = 1; renderUsersTable(); });
     document.getElementById('userRoleFilter')?.addEventListener('change', () => { userPage = 1; renderUsersTable(); });
     document.getElementById('userStatusFilter')?.addEventListener('change', () => { userPage = 1; renderUsersTable(); });
@@ -1980,11 +2092,14 @@
 
     // Initial load
     loadProviders();
+    loadServerGroups();
     loadServers();
-    {% if user.role == 'admin' %}
-    loadUsers();
-    loadAuthConfig();
-    {% endif %}
+    if (canManageUsers) {
+        loadUsers();
+    }
+    if (canManageProviders) {
+        loadAuthConfig();
+    }
 
     // --- Auth Config ---
     function toggleAuthSections() {

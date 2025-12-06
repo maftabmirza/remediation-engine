@@ -27,7 +27,7 @@ class User(Base):
     email = Column(String(255), unique=True, nullable=True)
     full_name = Column(String(100), nullable=True)
     password_hash = Column(String(255), nullable=False)
-    role = Column(String(20), default="user")
+    role = Column(String(20), default="operator")
     default_llm_provider_id = Column(UUID(as_uuid=True), ForeignKey("llm_providers.id"), nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), default=utc_now)
@@ -156,6 +156,7 @@ class ServerCredential(Base):
     # Environment & Tags
     environment = Column(String(50), default="production", index=True)  # production, staging, dev
     tags = Column(JSON, default=[])  # For filtering servers
+    group_id = Column(UUID(as_uuid=True), ForeignKey("server_groups.id"), nullable=True, index=True)
     
     # Connection Testing
     last_connection_test = Column(DateTime(timezone=True), nullable=True)
@@ -169,6 +170,21 @@ class ServerCredential(Base):
 
     # Relationships
     created_by_user = relationship("User")
+    group = relationship("ServerGroup", back_populates="servers")
+
+
+class ServerGroup(Base):
+    __tablename__ = "server_groups"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String(100), nullable=False, index=True)
+    description = Column(Text, nullable=True)
+    parent_id = Column(UUID(as_uuid=True), ForeignKey("server_groups.id"), nullable=True, index=True)
+    path = Column(String(255), nullable=True, index=True)
+    created_at = Column(DateTime(timezone=True), default=utc_now)
+
+    parent = relationship("ServerGroup", remote_side=[id])
+    servers = relationship("ServerCredential", back_populates="group")
 
 
 class TerminalSession(Base):

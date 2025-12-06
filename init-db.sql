@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     username VARCHAR(50) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
-    role VARCHAR(20) DEFAULT 'user' CHECK (role IN ('admin', 'user')),
+    role VARCHAR(20) DEFAULT 'operator' CHECK (role IN ('owner', 'admin', 'maintainer', 'operator', 'viewer', 'auditor', 'user')),
     default_llm_provider_id UUID,
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -109,6 +109,16 @@ CREATE TABLE IF NOT EXISTS chat_messages (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Server grouping table
+CREATE TABLE IF NOT EXISTS server_groups (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    parent_id UUID REFERENCES server_groups(id) ON DELETE SET NULL,
+    path VARCHAR(255),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Server Credentials table
 CREATE TABLE IF NOT EXISTS server_credentials (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -119,6 +129,7 @@ CREATE TABLE IF NOT EXISTS server_credentials (
     auth_type VARCHAR(20) DEFAULT 'key' CHECK (auth_type IN ('key', 'password')),
     ssh_key_encrypted TEXT,
     password_encrypted TEXT,
+    group_id UUID REFERENCES server_groups(id),
     environment VARCHAR(50) DEFAULT 'production',
     created_by UUID REFERENCES users(id),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -160,6 +171,8 @@ CREATE INDEX IF NOT EXISTS idx_chat_sessions_alert ON chat_sessions(alert_id);
 CREATE INDEX IF NOT EXISTS idx_chat_messages_session ON chat_messages(session_id);
 CREATE INDEX IF NOT EXISTS idx_chat_messages_created ON chat_messages(created_at);
 CREATE INDEX IF NOT EXISTS idx_server_creds_env ON server_credentials(environment);
+CREATE INDEX IF NOT EXISTS idx_server_creds_group ON server_credentials(group_id);
+CREATE INDEX IF NOT EXISTS idx_server_groups_parent ON server_groups(parent_id);
 CREATE INDEX IF NOT EXISTS idx_terminal_sessions_user ON terminal_sessions(user_id);
 
 -- Insert default LLM provider (Claude)

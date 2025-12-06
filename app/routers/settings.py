@@ -12,7 +12,7 @@ from app.models import LLMProvider, User, AuditLog
 from app.schemas import (
     LLMProviderCreate, LLMProviderUpdate, LLMProviderResponse
 )
-from app.services.auth_service import get_current_user, require_admin
+from app.services.auth_service import get_current_user, require_permission
 from app.utils.crypto import encrypt_value
 from app.services.llm_service import get_api_key_for_provider
 from litellm import completion
@@ -23,7 +23,7 @@ router = APIRouter(prefix="/api/settings", tags=["Settings"])
 @router.get("/llm/{provider_id}/test")
 async def test_llm_provider(
     provider_id: UUID,
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_permission(["manage_providers"])),
     db: Session = Depends(get_db)
 ):
     """Test if an LLM provider is working"""
@@ -90,7 +90,7 @@ async def list_llm_providers(
 async def create_llm_provider(
     request: Request,
     provider_data: LLMProviderCreate,
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_permission(["manage_providers"])),
     db: Session = Depends(get_db)
 ):
     """
@@ -192,7 +192,7 @@ async def update_llm_provider(
     provider_id: UUID,
     request: Request,
     provider_data: LLMProviderUpdate,
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_permission(["manage_providers"])),
     db: Session = Depends(get_db)
 ):
     """
@@ -261,7 +261,7 @@ async def update_llm_provider(
 async def delete_llm_provider(
     provider_id: UUID,
     request: Request,
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_permission(["manage_providers"])),
     db: Session = Depends(get_db)
 ):
     """
@@ -296,7 +296,7 @@ async def delete_llm_provider(
 async def set_default_provider(
     provider_id: UUID,
     request: Request,
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_permission(["manage_providers"])),
     db: Session = Depends(get_db)
 ):
     """
@@ -343,7 +343,7 @@ async def toggle_provider(
     provider_id: UUID,
     request: Request,
     enabled: Optional[bool] = Query(default=None, description="Force enabled state if provided"),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_permission(["manage_providers"])),
     db: Session = Depends(get_db)
 ):
     """

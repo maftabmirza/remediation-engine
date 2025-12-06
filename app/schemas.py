@@ -29,11 +29,22 @@ class TokenData(BaseModel):
 
 class UserBase(BaseModel):
     username: str
-    role: str = "user"
+    email: Optional[str] = None
+    full_name: Optional[str] = None
+    role: str = "operator"
 
 
 class UserCreate(UserBase):
     password: str
+    is_active: bool = True
+
+
+class UserUpdate(BaseModel):
+    email: Optional[str] = None
+    full_name: Optional[str] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    is_active: Optional[bool] = None
 
 
 class UserResponse(UserBase):
@@ -41,6 +52,7 @@ class UserResponse(UserBase):
     is_active: bool
     created_at: datetime
     last_login: Optional[datetime] = None
+    permissions: List[str] = []
 
     class Config:
         from_attributes = True
