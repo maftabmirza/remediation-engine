@@ -60,7 +60,7 @@
                     <span>Servers</span>
                 </button>
                 {% if 'manage_servers' in permissions %}
-                <button type="button" class="settings-nav-btn" onclick="window.location.href='/credential-profiles'">
+                <button type="button" class="settings-nav-btn" data-target="section-api-credentials">
                     <i class="fas fa-globe"></i>
                     <span>API Credentials</span>
                 </button>
@@ -428,6 +428,47 @@
         </section>
 
         {% if 'manage_servers' in permissions %}
+        <section id="section-api-credentials" class="settings-section space-y-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-xl font-semibold">API Credentials</h2>
+                    <p class="text-sm text-gray-400">Manage credentials for external APIs (Ansible AWX, Jenkins, Kubernetes, etc.)</p>
+                </div>
+                <button onclick="showApiCredentialModal()" class="btn-primary px-4 py-2 rounded">
+                    <i class="fas fa-plus mr-2"></i>New API Credential
+                </button>
+            </div>
+
+            <div class="card">
+                <div class="flex flex-wrap items-center justify-between p-4 border-b border-gray-700 space-y-3 md:space-y-0 space-x-4">
+                    <div class="flex items-center space-x-2">
+                        <input id="apiCredentialSearch" type="text" class="input-field px-3 py-2 rounded text-sm" placeholder="Search by name or base URL...">
+                        <select id="apiCredentialAuthTypeFilter" class="input-field px-3 py-2 rounded text-sm">
+                            <option value="">All Auth Types</option>
+                            <option value="none">No Auth</option>
+                            <option value="api_key">API Key</option>
+                            <option value="bearer">Bearer Token</option>
+                            <option value="basic">Basic Auth</option>
+                            <option value="oauth">OAuth 2.0</option>
+                        </select>
+                        <select id="apiCredentialStatusFilter" class="input-field px-3 py-2 rounded text-sm">
+                            <option value="">All Statuses</option>
+                            <option value="enabled">Enabled</option>
+                            <option value="disabled">Disabled</option>
+                        </select>
+                    </div>
+                    <div class="text-sm text-gray-300">
+                        Reusable credentials for API calls in runbooks (AWX, Jenkins, K8s, etc.)
+                    </div>
+                </div>
+                <div id="apiCredentialTableContainer" class="overflow-x-auto">
+                    <div class="text-center py-8">
+                        <div class="loading-spinner mx-auto"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <section id="section-credentials" class="settings-section space-y-4">
             <div class="flex items-center justify-between">
                 <div>
@@ -1181,6 +1222,8 @@ account: db-admin"></textarea>
     let serverCache = [];
     let serverGroups = [];
     let credentialProfiles = [];
+    let apiCredentialProfiles = [];
+    let editingApiCredentialId = null;
     let credentialFilteredTotal = 0;
     let credentialPage = 1;
     let credentialPageSize = 10;
@@ -1230,6 +1273,7 @@ account: db-admin"></textarea>
         'section-users': 'Invite admins, deactivate accounts, and adjust roles.',
         'section-providers': 'Test connections, rotate keys, and manage defaults.',
         'section-servers': 'Validate SSH credentials and environments before saving.',
+        'section-api-credentials': 'Manage reusable API credentials for runbook automation.',
         'section-credentials': 'Centralize credentials for reuse across server groups.',
         'section-auth': 'Upload LDAP/SAML metadata and run readiness checks.'
     };
@@ -2529,8 +2573,6 @@ account: db-admin"></textarea>
           document.getElementById('serverOsType').value = 'linux';
           document.getElementById('serverTags').value = '';
           document.getElementById('serverCredentialMetadata').value = '';
-          document.getElementById('apiTimeout').value = '30';
-          document.getElementById('apiVerifySSL').checked = true;
           document.getElementById('serverPort').value = '22';
           toggleProtocolFields();
           toggleCredentialSource();
