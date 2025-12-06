@@ -4,335 +4,462 @@
 {% block title %}Settings - AIOps Platform{% endblock %}
 
 {% block content %}
-<div class="space-y-6">
-    <!-- Header -->
-    <div class="flex items-center justify-between">
+<style>
+    .settings-nav {
+        position: sticky;
+        top: 1rem;
+    }
+    .settings-nav a {
+        display: flex;
+        align-items: center;
+        padding: 0.75rem 0.9rem;
+        border-radius: 0.5rem;
+        color: var(--text-secondary);
+        border-left: 3px solid transparent;
+        transition: all 0.2s ease;
+    }
+    .settings-nav a i {
+        width: 1.25rem;
+        margin-right: 0.75rem;
+    }
+    .settings-nav a:hover {
+        background: var(--bg-tertiary);
+        color: var(--text-primary);
+    }
+    .settings-nav a.active {
+        background: var(--bg-tertiary);
+        color: var(--accent-primary);
+        border-left-color: var(--accent-primary);
+    }
+    .settings-section {
+        scroll-margin-top: 2rem;
+    }
+    .section-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+    .section-header .meta {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+    }
+    .section-pill {
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-color);
+        color: var(--text-secondary);
+        padding: 0.35rem 0.7rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+    }
+    .quick-card {
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-color);
+        border-radius: 0.75rem;
+    }
+    .hover-card {
+        transition: border-color 0.2s, transform 0.2s;
+    }
+    .hover-card:hover {
+        border-color: var(--accent-primary);
+        transform: translateY(-2px);
+    }
+</style>
+<div class="h-full flex flex-col space-y-6">
+    <div class="flex items-center justify-between flex-wrap gap-4">
         <div>
-            <h1 class="text-2xl font-bold">Settings</h1>
-            <p class="text-gray-400">System configuration and user management</p>
+            <p class="text-sm text-gray-400 uppercase tracking-wide">Platform Configuration</p>
+            <h1 class="text-2xl font-bold text-primary">Settings Control Center</h1>
+            <p class="text-gray-400">Manage providers, credentials, access control, and authentication hardening</p>
+        </div>
+        <div class="flex items-center gap-2">
+            <button onclick="refreshSettingsData()" class="btn-secondary px-4 py-2 rounded-lg flex items-center gap-2">
+                <i class="fas fa-sync-alt"></i>
+                <span>Refresh</span>
+            </button>
+            <a href="/runbooks/new" class="btn-secondary px-4 py-2 rounded-lg hidden md:inline-flex items-center gap-2" title="Mirror layout inspiration">
+                <i class="fas fa-eye"></i>
+                <span>View Runbook UI</span>
+            </a>
         </div>
     </div>
 
-    <!-- Stats Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div class="card p-4">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm text-gray-400">LLM Providers</p>
-                    <p id="statProviders" class="text-2xl font-bold">-</p>
-                </div>
-                <div class="w-10 h-10 rounded-lg bg-purple-900 bg-opacity-50 flex items-center justify-center">
-                    <i class="fas fa-robot text-purple-400"></i>
-                </div>
-            </div>
-        </div>
-        <div class="card p-4">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm text-gray-400">Servers</p>
-                    <p id="statServers" class="text-2xl font-bold">-</p>
-                </div>
-                <div class="w-10 h-10 rounded-lg bg-green-900 bg-opacity-50 flex items-center justify-center">
-                    <i class="fas fa-server text-green-400"></i>
-                </div>
-            </div>
-        </div>
-        {% if user.role == 'admin' %}
-        <div class="card p-4">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm text-gray-400">Users</p>
-                    <p id="statUsers" class="text-2xl font-bold">-</p>
-                </div>
-                <div class="w-10 h-10 rounded-lg bg-blue-900 bg-opacity-50 flex items-center justify-center">
-                    <i class="fas fa-users text-blue-400"></i>
-                </div>
-            </div>
-        </div>
-        <div class="card p-4">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm text-gray-400">Active Users</p>
-                    <p id="statActiveUsers" class="text-2xl font-bold">-</p>
-                </div>
-                <div class="w-10 h-10 rounded-lg bg-yellow-900 bg-opacity-50 flex items-center justify-center">
-                    <i class="fas fa-user-check text-yellow-400"></i>
-                </div>
-            </div>
-        </div>
-        {% else %}
-        <div class="card p-4">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm text-gray-400">Your Role</p>
-                    <p class="text-2xl font-bold capitalize">{{ user.role }}</p>
-                </div>
-                <div class="w-10 h-10 rounded-lg bg-blue-900 bg-opacity-50 flex items-center justify-center">
-                    <i class="fas fa-user text-blue-400"></i>
-                </div>
-            </div>
-        </div>
-        <div class="card p-4">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm text-gray-400">Account</p>
-                    <p class="text-lg font-bold">{{ user.username }}</p>
-                </div>
-                <div class="w-10 h-10 rounded-lg bg-yellow-900 bg-opacity-50 flex items-center justify-center">
-                    <i class="fas fa-id-badge text-yellow-400"></i>
-                </div>
-            </div>
-        </div>
-        {% endif %}
-    </div>
-
-    <!-- User Management (Admin Only) - TABLE VIEW -->
-    {% if user.role == 'admin' %}
-    <div class="card">
-        <div class="flex items-center justify-between p-4 border-b border-gray-700">
-            <h2 class="text-lg font-semibold">
-                <i class="fas fa-users text-yellow-400 mr-2"></i>
-                User Management
-            </h2>
-            <div class="flex items-center space-x-2">
-                <div class="hidden md:flex space-x-2">
-                    <input id="userSearch" type="text" placeholder="Search users" class="input-field px-3 py-2 rounded w-48" oninput="renderUsersTable()">
-                    <select id="userRoleFilter" class="input-field px-3 py-2 rounded" onchange="renderUsersTable()">
-                        <option value="">All roles</option>
-                        <option value="admin">Admin</option>
-                        <option value="user">User</option>
-                    </select>
-                    <select id="userStatusFilter" class="input-field px-3 py-2 rounded" onchange="renderUsersTable()">
-                        <option value="">Any status</option>
-                        <option value="active">Active</option>
-                        <option value="inactive">Inactive</option>
-                    </select>
-                </div>
-                <button onclick="bulkDeactivateUsers()" class="btn-secondary px-3 py-2 rounded hidden md:inline-flex">
-                    <i class="fas fa-user-slash mr-1"></i>Deactivate
-                </button>
-                <button onclick="showCreateUserModal()" class="btn-primary px-4 py-2 rounded">
-                    <i class="fas fa-plus mr-2"></i>Add User
-                </button>
-            </div>
-        </div>
-        
-        <div id="usersTableContainer" class="overflow-x-auto">
-            <div class="text-center py-8">
-                <div class="loading-spinner mx-auto"></div>
-            </div>
-        </div>
-    </div>
-    {% endif %}
-    
-    <!-- LLM Providers - TABLE VIEW -->
-    <div class="card">
-        <div class="flex items-center justify-between p-4 border-b border-gray-700">
-            <h2 class="text-lg font-semibold">
-                <i class="fas fa-robot text-purple-400 mr-2"></i>
-                LLM Providers
-            </h2>
-            <div class="flex items-center space-x-2">
-                <div class="hidden md:flex space-x-2">
-                    <input id="providerSearch" type="text" placeholder="Search providers" class="input-field px-3 py-2 rounded w-48" oninput="renderProvidersTable()">
-                    <select id="providerTypeFilter" class="input-field px-3 py-2 rounded" onchange="renderProvidersTable()">
-                        <option value="">All types</option>
-                        <option value="anthropic">Anthropic</option>
-                        <option value="openai">OpenAI</option>
-                        <option value="google">Google</option>
-                        <option value="ollama">Ollama</option>
-                    </select>
-                    <select id="providerStatusFilter" class="input-field px-3 py-2 rounded" onchange="renderProvidersTable()">
-                        <option value="">All statuses</option>
-                        <option value="active">Active</option>
-                        <option value="disabled">Disabled</option>
-                    </select>
-                </div>
+    <div class="flex gap-6 min-h-0">
+        <div class="w-60 flex-shrink-0">
+            <nav class="form-sidebar settings-nav space-y-1">
+                <a href="#section-overview" class="active" onclick="scrollToSettingsSection(event, 'section-overview')"><i class="fas fa-compass"></i><span>Overview</span></a>
+                <a href="#section-providers" onclick="scrollToSettingsSection(event, 'section-providers')"><i class="fas fa-robot"></i><span>LLM Providers</span></a>
+                <a href="#section-servers" onclick="scrollToSettingsSection(event, 'section-servers')"><i class="fas fa-server"></i><span>Server Credentials</span></a>
                 {% if user.role == 'admin' %}
-                <button onclick="bulkEnableProviders(true)" class="btn-secondary px-3 py-2 rounded hidden md:inline-flex">
-                    <i class="fas fa-toggle-on mr-1"></i>Enable
-                </button>
-                <button onclick="bulkEnableProviders(false)" class="btn-secondary px-3 py-2 rounded hidden md:inline-flex">
-                    <i class="fas fa-toggle-off mr-1"></i>Disable
-                </button>
-                <button onclick="showCreateProviderModal()" class="btn-primary px-4 py-2 rounded">
-                    <i class="fas fa-plus mr-2"></i>Add Provider
-                </button>
+                <a href="#section-users" onclick="scrollToSettingsSection(event, 'section-users')"><i class="fas fa-users"></i><span>User Management</span></a>
+                <a href="#section-auth" onclick="scrollToSettingsSection(event, 'section-auth')"><i class="fas fa-shield-alt"></i><span>Authentication</span></a>
                 {% endif %}
-            </div>
-        </div>
-        
-        <div id="providersTableContainer" class="overflow-x-auto">
-            <div class="text-center py-8">
-                <div class="loading-spinner mx-auto"></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Server Credentials - TABLE VIEW -->
-    <div class="card">
-        <div class="flex items-center justify-between p-4 border-b border-gray-700">
-            <h2 class="text-lg font-semibold">
-                <i class="fas fa-server text-green-400 mr-2"></i>
-                Server Credentials
-            </h2>
-            <div class="flex items-center space-x-2">
-                <div class="hidden md:flex space-x-2">
-                    <input id="serverSearch" type="text" placeholder="Search servers" class="input-field px-3 py-2 rounded w-48" oninput="renderServersTable()">
-                    <select id="serverEnvFilter" class="input-field px-3 py-2 rounded" onchange="renderServersTable()">
-                        <option value="">All envs</option>
-                        <option value="production">Production</option>
-                        <option value="staging">Staging</option>
-                        <option value="dev">Dev</option>
-                        <option value="decommissioned">Decommissioned</option>
-                    </select>
-                </div>
-                {% if user.role == 'admin' %}
-                <button onclick="showCreateServerModal()" class="btn-primary px-4 py-2 rounded">
-                    <i class="fas fa-plus mr-2"></i>Add Server
-                </button>
-                {% endif %}
-            </div>
-        </div>
-
-        <div id="serversTableContainer" class="overflow-x-auto">
-            <div class="text-center py-8">
-                <div class="loading-spinner mx-auto"></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Activity Log -->
-    <div class="card">
-        <div class="flex items-center justify-between p-4 border-b border-gray-700">
-            <h2 class="text-lg font-semibold">
-                <i class="fas fa-clipboard-list text-blue-400 mr-2"></i>
-                Recent Activity (Providers & Auth)
-            </h2>
-        </div>
-        <div id="activityLog" class="divide-y divide-gray-800"></div>
-    </div>
-
-    <!-- Authentication Settings (Admin Only) -->
-    {% if user.role == 'admin' %}
-    <div class="card p-6">
-        <h2 class="text-lg font-semibold mb-4">
-            <i class="fas fa-shield-alt text-red-400 mr-2"></i>
-            Authentication Settings
-            <span id="authStatusBadge" class="ml-2 text-xs px-2 py-1 rounded-full bg-gray-800 text-gray-300">Loading...</span>
-        </h2>
-        <form id="authConfigForm" class="space-y-4">
-            <div>
-                <label class="label-with-tooltip block text-sm font-medium mb-1">
-                    Authentication Method
-                    <span class="info-tooltip info-tooltip-align-left">
-                        <span class="info-tooltip-icon">?</span>
-                        <span class="info-tooltip-text"><strong>Local:</strong> Built-in database auth.<br><strong>LDAP:</strong> Active Directory/OpenLDAP.<br><strong>SAML:</strong> SSO (Okta, Azure AD, etc).</span>
-                    </span>
-                </label>
-                <select id="authMethod" class="input-field w-full px-3 py-2 rounded" onchange="toggleAuthSections()">
-                    <option value="local">Local Database (Default)</option>
-                    <option value="ldap">LDAP / Active Directory</option>
-                    <option value="saml">SAML 2.0 (SSO)</option>
-                </select>
-            </div>
-
-            <!-- LDAP Config -->
-            <div id="ldapConfig" class="hidden space-y-4 border-l-2 border-blue-500 pl-4 ml-1">
-                <h3 class="text-sm font-semibold text-blue-400">LDAP Configuration</h3>
-                <div>
-                    <label class="label-with-tooltip block text-sm font-medium mb-1">
-                        Server URL
-                        <span class="info-tooltip info-tooltip-align-left">
-                            <span class="info-tooltip-icon">?</span>
-                            <span class="info-tooltip-text">LDAP server address (e.g. ldap://domain.com:389 or ldaps://domain.com:636).</span>
-                        </span>
-                    </label>
-                    <input type="text" id="ldapUrl" class="input-field w-full px-3 py-2 rounded" placeholder="ldap://domain.com:389">
-                </div>
-                <div>
-                    <label class="label-with-tooltip block text-sm font-medium mb-1">
-                        Bind DN
-                        <span class="info-tooltip info-tooltip-align-left">
-                            <span class="info-tooltip-icon">?</span>
-                            <span class="info-tooltip-text">Distinguished Name for the service account used to search users.</span>
-                        </span>
-                    </label>
-                    <input type="text" id="ldapBindDn" class="input-field w-full px-3 py-2 rounded" placeholder="cn=admin,dc=domain,dc=com">
-                </div>
-                <div>
-                    <label class="label-with-tooltip block text-sm font-medium mb-1">Bind Password</label>
-                    <div class="flex items-center space-x-2">
-                        <input type="password" id="ldapBindPassword" class="input-field w-full px-3 py-2 rounded" placeholder="Service account password">
-                        <button type="button" onclick="toggleSecretVisibility('ldapBindPassword')" class="btn-secondary px-3 py-2 rounded text-xs"><i class="fas fa-eye"></i></button>
+                <a href="#section-activity" onclick="scrollToSettingsSection(event, 'section-activity')"><i class="fas fa-clipboard-list"></i><span>Recent Activity</span></a>
+            </nav>
+            <div class="mt-6 space-y-4">
+                <div class="quick-card p-4 space-y-3">
+                    <p class="text-xs text-secondary uppercase tracking-wider">Quick Actions</p>
+                    <div class="space-y-2">
+                        {% if user.role == 'admin' %}
+                        <button onclick="showCreateProviderModal()" class="w-full btn-primary justify-center flex items-center gap-2 py-2 rounded"><i class="fas fa-plus"></i><span>New Provider</span></button>
+                        <button onclick="showCreateServerModal()" class="w-full btn-secondary justify-center flex items-center gap-2 py-2 rounded"><i class="fas fa-hdd"></i><span>Add Server</span></button>
+                        <button onclick="showCreateUserModal()" class="w-full btn-secondary justify-center flex items-center gap-2 py-2 rounded"><i class="fas fa-user-plus"></i><span>Add User</span></button>
+                        {% endif %}
+                        <button onclick="loadActivityLog()" class="w-full btn-secondary justify-center flex items-center gap-2 py-2 rounded"><i class="fas fa-stream"></i><span>Refresh Activity</span></button>
                     </div>
                 </div>
-                <div>
-                    <label class="label-with-tooltip block text-sm font-medium mb-1">
-                        Base DN
-                        <span class="info-tooltip info-tooltip-align-left">
-                            <span class="info-tooltip-icon">?</span>
-                            <span class="info-tooltip-text">Root of the directory tree where users are located.</span>
-                        </span>
-                    </label>
-                    <input type="text" id="ldapBaseDn" class="input-field w-full px-3 py-2 rounded" placeholder="dc=domain,dc=com">
+                {% if user.role == 'admin' %}
+                <div class="quick-card p-4 space-y-2">
+                    <p class="text-xs text-secondary uppercase tracking-wider">Handoff Checklist</p>
+                    <ul class="list-disc ml-4 space-y-1 text-sm text-gray-300">
+                        <li>Validate auth with test login before rollout.</li>
+                        <li>Run live provider and server connection tests.</li>
+                        <li>Ensure secrets are rotated or sourced from Vault/KMS.</li>
+                        <li>Capture audit-ready notes for every destructive action.</li>
+                    </ul>
                 </div>
-                <div>
-                    <label class="label-with-tooltip block text-sm font-medium mb-1">Attribute Mapping</label>
-                    <textarea id="ldapAttrMap" class="input-field w-full px-3 py-2 rounded" placeholder='{"email":"mail","name":"cn"}'></textarea>
-                </div>
+                {% endif %}
             </div>
+        </div>
 
-            <!-- SAML Config -->
-            <div id="samlConfig" class="hidden space-y-4 border-l-2 border-orange-500 pl-4 ml-1">
-                <h3 class="text-sm font-semibold text-orange-400">SAML Configuration</h3>
-                <div>
-                    <label class="label-with-tooltip block text-sm font-medium mb-1">
-                        IdP Metadata URL
-                        <span class="info-tooltip info-tooltip-align-left">
-                            <span class="info-tooltip-icon">?</span>
-                            <span class="info-tooltip-text">URL to your Identity Provider's XML metadata.</span>
-                        </span>
-                    </label>
-                    <input type="text" id="samlMetadataUrl" class="input-field w-full px-3 py-2 rounded" placeholder="https://idp.example.com/metadata">
+        <div class="flex-1 overflow-y-auto pr-1 space-y-6" id="settingsContent">
+            <section id="section-overview" class="settings-section" data-settings-section>
+                <div class="section-header">
+                    <div>
+                        <h2 class="text-lg font-semibold">Operational Snapshot</h2>
+                        <p class="meta">Inventory of configured integrations and access footprint</p>
+                    </div>
+                    <span class="section-pill">Auto-sync from live data</span>
                 </div>
-                <div>
-                    <label class="label-with-tooltip block text-sm font-medium mb-1">
-                        Entity ID
-                        <span class="info-tooltip info-tooltip-align-left">
-                            <span class="info-tooltip-icon">?</span>
-                            <span class="info-tooltip-text">Unique identifier for this application in your IdP.</span>
-                        </span>
-                    </label>
-                    <input type="text" id="samlEntityId" class="input-field w-full px-3 py-2 rounded" placeholder="urn:aiops:platform">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div class="card p-4 hover-card">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-400">LLM Providers</p>
+                                <p id="statProviders" class="text-2xl font-bold">-</p>
+                            </div>
+                            <div class="w-10 h-10 rounded-lg bg-purple-900 bg-opacity-50 flex items-center justify-center">
+                                <i class="fas fa-robot text-purple-400"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card p-4 hover-card">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-400">Servers</p>
+                                <p id="statServers" class="text-2xl font-bold">-</p>
+                            </div>
+                            <div class="w-10 h-10 rounded-lg bg-green-900 bg-opacity-50 flex items-center justify-center">
+                                <i class="fas fa-server text-green-400"></i>
+                            </div>
+                        </div>
+                    </div>
+                    {% if user.role == 'admin' %}
+                    <div class="card p-4 hover-card">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-400">Users</p>
+                                <p id="statUsers" class="text-2xl font-bold">-</p>
+                            </div>
+                            <div class="w-10 h-10 rounded-lg bg-blue-900 bg-opacity-50 flex items-center justify-center">
+                                <i class="fas fa-users text-blue-400"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card p-4 hover-card">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-400">Active Users</p>
+                                <p id="statActiveUsers" class="text-2xl font-bold">-</p>
+                            </div>
+                            <div class="w-10 h-10 rounded-lg bg-yellow-900 bg-opacity-50 flex items-center justify-center">
+                                <i class="fas fa-user-check text-yellow-400"></i>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="card p-4 hover-card">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-400">Your Role</p>
+                                <p class="text-2xl font-bold capitalize">{{ user.role }}</p>
+                            </div>
+                            <div class="w-10 h-10 rounded-lg bg-blue-900 bg-opacity-50 flex items-center justify-center">
+                                <i class="fas fa-user text-blue-400"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card p-4 hover-card">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-400">Account</p>
+                                <p class="text-lg font-bold">{{ user.username }}</p>
+                            </div>
+                            <div class="w-10 h-10 rounded-lg bg-yellow-900 bg-opacity-50 flex items-center justify-center">
+                                <i class="fas fa-id-badge text-yellow-400"></i>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
                 </div>
-                <div>
-                    <label class="label-with-tooltip block text-sm font-medium mb-1">Metadata XML</label>
-                    <textarea id="samlMetadataXml" class="input-field w-full px-3 py-2 rounded h-24" placeholder="Paste IdP metadata XML"></textarea>
-                </div>
-                <div>
-                    <label class="label-with-tooltip block text-sm font-medium mb-1">Signing Certificate</label>
-                    <textarea id="samlCert" class="input-field w-full px-3 py-2 rounded h-24" placeholder="-----BEGIN CERTIFICATE-----"></textarea>
-                </div>
-            </div>
+            </section>
 
-            <div class="flex justify-end pt-4">
-                <button type="submit" class="btn-primary px-4 py-2 rounded">Save Auth Settings</button>
-            </div>
-        </form>
-        <div class="mt-4 p-3 bg-gray-800 rounded text-sm text-gray-200">
-            <p class="font-semibold mb-2">Auth hardening checklist</p>
-            <ul class="list-disc ml-5 space-y-1 text-gray-300">
-                <li>Validate metadata/certificates before enabling SAML or LDAP binds.</li>
-                <li>Map attributes for username, email, and groups explicitly.</li>
-                <li>Use the Test Login flow after saving to confirm end-to-end auth.</li>
-                <li>Document fallback admin credentials in a secure vault.</li>
-            </ul>
+            {% if user.role == 'admin' %}
+            <section id="section-users" class="settings-section" data-settings-section>
+                <div class="section-header">
+                    <div>
+                        <h2 class="text-lg font-semibold">User Management</h2>
+                        <p class="meta">RBAC guardrails, bulk actions, and safer lifecycle workflows</p>
+                    </div>
+                    <span class="section-pill">Admins only</span>
+                </div>
+                <div class="card">
+                    <div class="flex items-center justify-between p-4 border-b border-gray-700">
+                        <h3 class="text-lg font-semibold flex items-center"><i class="fas fa-users text-yellow-400 mr-2"></i>User Management</h3>
+                        <div class="flex items-center space-x-2">
+                            <div class="hidden md:flex space-x-2">
+                                <input id="userSearch" type="text" placeholder="Search users" class="input-field px-3 py-2 rounded w-48" oninput="renderUsersTable()">
+                                <select id="userRoleFilter" class="input-field px-3 py-2 rounded" onchange="renderUsersTable()">
+                                    <option value="">All roles</option>
+                                    <option value="admin">Admin</option>
+                                    <option value="user">User</option>
+                                </select>
+                                <select id="userStatusFilter" class="input-field px-3 py-2 rounded" onchange="renderUsersTable()">
+                                    <option value="">Any status</option>
+                                    <option value="active">Active</option>
+                                    <option value="inactive">Inactive</option>
+                                </select>
+                            </div>
+                            <button onclick="bulkDeactivateUsers()" class="btn-secondary px-3 py-2 rounded hidden md:inline-flex"><i class="fas fa-user-slash mr-1"></i>Deactivate</button>
+                            <button onclick="showCreateUserModal()" class="btn-primary px-4 py-2 rounded"><i class="fas fa-plus mr-2"></i>Add User</button>
+                        </div>
+                    </div>
+                    <div id="usersTableContainer" class="overflow-x-auto">
+                        <div class="text-center py-8"><div class="loading-spinner mx-auto"></div></div>
+                    </div>
+                </div>
+            </section>
+            {% endif %}
+
+            <section id="section-providers" class="settings-section" data-settings-section>
+                <div class="section-header">
+                    <div>
+                        <h2 class="text-lg font-semibold">LLM Providers</h2>
+                        <p class="meta">Vault-aware secrets, live health checks, and bulk enablement</p>
+                    </div>
+                    <span class="section-pill">Latency tests & rotation metadata</span>
+                </div>
+                <div class="card">
+                    <div class="flex items-center justify-between p-4 border-b border-gray-700">
+                        <h3 class="text-lg font-semibold flex items-center"><i class="fas fa-robot text-purple-400 mr-2"></i>LLM Providers</h3>
+                        <div class="flex items-center space-x-2">
+                            <div class="hidden md:flex space-x-2">
+                                <input id="providerSearch" type="text" placeholder="Search providers" class="input-field px-3 py-2 rounded w-48" oninput="renderProvidersTable()">
+                                <select id="providerTypeFilter" class="input-field px-3 py-2 rounded" onchange="renderProvidersTable()">
+                                    <option value="">All types</option>
+                                    <option value="anthropic">Anthropic</option>
+                                    <option value="openai">OpenAI</option>
+                                    <option value="google">Google</option>
+                                    <option value="ollama">Ollama</option>
+                                </select>
+                                <select id="providerStatusFilter" class="input-field px-3 py-2 rounded" onchange="renderProvidersTable()">
+                                    <option value="">All statuses</option>
+                                    <option value="active">Active</option>
+                                    <option value="disabled">Disabled</option>
+                                </select>
+                            </div>
+                            {% if user.role == 'admin' %}
+                            <button onclick="bulkEnableProviders(true)" class="btn-secondary px-3 py-2 rounded hidden md:inline-flex"><i class="fas fa-toggle-on mr-1"></i>Enable</button>
+                            <button onclick="bulkEnableProviders(false)" class="btn-secondary px-3 py-2 rounded hidden md:inline-flex"><i class="fas fa-toggle-off mr-1"></i>Disable</button>
+                            <button onclick="showCreateProviderModal()" class="btn-primary px-4 py-2 rounded"><i class="fas fa-plus mr-2"></i>Add Provider</button>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div id="providersTableContainer" class="overflow-x-auto">
+                        <div class="text-center py-8"><div class="loading-spinner mx-auto"></div></div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="section-servers" class="settings-section" data-settings-section>
+                <div class="section-header">
+                    <div>
+                        <h2 class="text-lg font-semibold">Server Credentials</h2>
+                        <p class="meta">Connection tests and safer retirement for operational hosts</p>
+                    </div>
+                    <span class="section-pill">Live connectivity validation</span>
+                </div>
+                <div class="card">
+                    <div class="flex items-center justify-between p-4 border-b border-gray-700">
+                        <h3 class="text-lg font-semibold flex items-center"><i class="fas fa-server text-green-400 mr-2"></i>Server Credentials</h3>
+                        <div class="flex items-center space-x-2">
+                            <div class="hidden md:flex space-x-2">
+                                <input id="serverSearch" type="text" placeholder="Search servers" class="input-field px-3 py-2 rounded w-48" oninput="renderServersTable()">
+                                <select id="serverEnvFilter" class="input-field px-3 py-2 rounded" onchange="renderServersTable()">
+                                    <option value="">All envs</option>
+                                    <option value="production">Production</option>
+                                    <option value="staging">Staging</option>
+                                    <option value="dev">Dev</option>
+                                    <option value="decommissioned">Decommissioned</option>
+                                </select>
+                            </div>
+                            {% if user.role == 'admin' %}
+                            <button onclick="showCreateServerModal()" class="btn-primary px-4 py-2 rounded"><i class="fas fa-plus mr-2"></i>Add Server</button>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div id="serversTableContainer" class="overflow-x-auto">
+                        <div class="text-center py-8"><div class="loading-spinner mx-auto"></div></div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="section-activity" class="settings-section" data-settings-section>
+                <div class="section-header">
+                    <div>
+                        <h2 class="text-lg font-semibold">Recent Activity</h2>
+                        <p class="meta">Latest edits for providers, authentication, and servers</p>
+                    </div>
+                    <span class="section-pill">Audit surfaced</span>
+                </div>
+                <div class="card">
+                    <div class="flex items-center justify-between p-4 border-b border-gray-700">
+                        <h3 class="text-lg font-semibold flex items-center"><i class="fas fa-clipboard-list text-blue-400 mr-2"></i>Recent Activity (Providers & Auth)</h3>
+                    </div>
+                    <div id="activityLog" class="divide-y divide-gray-800"></div>
+                </div>
+            </section>
+
+            {% if user.role == 'admin' %}
+            <section id="section-auth" class="settings-section" data-settings-section>
+                <div class="section-header">
+                    <div>
+                        <h2 class="text-lg font-semibold">Authentication Settings</h2>
+                        <p class="meta">LDAP/SAML capture, attribute mapping, and guided validation</p>
+                    </div>
+                    <span class="section-pill">Test login recommended</span>
+                </div>
+                <div class="card p-6">
+                    <h3 class="text-lg font-semibold mb-4">
+                        <i class="fas fa-shield-alt text-red-400 mr-2"></i>
+                        Authentication Settings
+                        <span id="authStatusBadge" class="ml-2 text-xs px-2 py-1 rounded-full bg-gray-800 text-gray-300">Loading...</span>
+                    </h3>
+                    <form id="authConfigForm" class="space-y-4">
+                        <div>
+                            <label class="label-with-tooltip block text-sm font-medium mb-1">
+                                Authentication Method
+                                <span class="info-tooltip info-tooltip-align-left">
+                                    <span class="info-tooltip-icon">?</span>
+                                    <span class="info-tooltip-text"><strong>Local:</strong> Built-in database auth.<br><strong>LDAP:</strong> Active Directory/OpenLDAP.<br><strong>SAML:</strong> SSO (Okta, Azure AD, etc).</span>
+                                </span>
+                            </label>
+                            <select id="authMethod" class="input-field w-full px-3 py-2 rounded" onchange="toggleAuthSections()">
+                                <option value="local">Local Database (Default)</option>
+                                <option value="ldap">LDAP / Active Directory</option>
+                                <option value="saml">SAML 2.0 (SSO)</option>
+                            </select>
+                        </div>
+
+                        <!-- LDAP Config -->
+                        <div id="ldapConfig" class="hidden space-y-4 border-l-2 border-blue-500 pl-4 ml-1">
+                            <h4 class="text-sm font-semibold text-blue-400">LDAP Configuration</h4>
+                            <div>
+                                <label class="label-with-tooltip block text-sm font-medium mb-1">
+                                    Server URL
+                                    <span class="info-tooltip info-tooltip-align-left">
+                                        <span class="info-tooltip-icon">?</span>
+                                        <span class="info-tooltip-text">LDAP server address (e.g. ldap://domain.com:389 or ldaps://domain.com:636).</span>
+                                    </span>
+                                </label>
+                                <input type="text" id="ldapUrl" class="input-field w-full px-3 py-2 rounded" placeholder="ldap://domain.com:389">
+                            </div>
+                            <div>
+                                <label class="label-with-tooltip block text-sm font-medium mb-1">
+                                    Bind DN
+                                    <span class="info-tooltip info-tooltip-align-left">
+                                        <span class="info-tooltip-icon">?</span>
+                                        <span class="info-tooltip-text">Distinguished Name for the service account used to search users.</span>
+                                    </span>
+                                </label>
+                                <input type="text" id="ldapBindDn" class="input-field w-full px-3 py-2 rounded" placeholder="cn=admin,dc=domain,dc=com">
+                            </div>
+                            <div>
+                                <label class="label-with-tooltip block text-sm font-medium mb-1">Bind Password</label>
+                                <div class="flex items-center space-x-2">
+                                    <input type="password" id="ldapBindPassword" class="input-field w-full px-3 py-2 rounded" placeholder="Service account password">
+                                    <button type="button" onclick="toggleSecretVisibility('ldapBindPassword')" class="btn-secondary px-3 py-2 rounded text-xs"><i class="fas fa-eye"></i></button>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="label-with-tooltip block text-sm font-medium mb-1">
+                                    Base DN
+                                    <span class="info-tooltip info-tooltip-align-left">
+                                        <span class="info-tooltip-icon">?</span>
+                                        <span class="info-tooltip-text">Root of the directory tree where users are located.</span>
+                                    </span>
+                                </label>
+                                <input type="text" id="ldapBaseDn" class="input-field w-full px-3 py-2 rounded" placeholder="dc=domain,dc=com">
+                            </div>
+                            <div>
+                                <label class="label-with-tooltip block text-sm font-medium mb-1">Attribute Mapping</label>
+                                <textarea id="ldapAttrMap" class="input-field w-full px-3 py-2 rounded" placeholder='{"email":"mail","name":"cn"}'></textarea>
+                            </div>
+                        </div>
+
+                        <!-- SAML Config -->
+                        <div id="samlConfig" class="hidden space-y-4 border-l-2 border-orange-500 pl-4 ml-1">
+                            <h4 class="text-sm font-semibold text-orange-400">SAML Configuration</h4>
+                            <div>
+                                <label class="label-with-tooltip block text-sm font-medium mb-1">
+                                    IdP Metadata URL
+                                    <span class="info-tooltip info-tooltip-align-left">
+                                        <span class="info-tooltip-icon">?</span>
+                                        <span class="info-tooltip-text">URL to your Identity Provider's XML metadata.</span>
+                                    </span>
+                                </label>
+                                <input type="text" id="samlMetadataUrl" class="input-field w-full px-3 py-2 rounded" placeholder="https://idp.example.com/metadata">
+                            </div>
+                            <div>
+                                <label class="label-with-tooltip block text-sm font-medium mb-1">
+                                    Entity ID
+                                    <span class="info-tooltip info-tooltip-align-left">
+                                        <span class="info-tooltip-icon">?</span>
+                                        <span class="info-tooltip-text">Unique identifier for this application in your IdP.</span>
+                                    </span>
+                                </label>
+                                <input type="text" id="samlEntityId" class="input-field w-full px-3 py-2 rounded" placeholder="urn:aiops:platform">
+                            </div>
+                            <div>
+                                <label class="label-with-tooltip block text-sm font-medium mb-1">Metadata XML</label>
+                                <textarea id="samlMetadataXml" class="input-field w-full px-3 py-2 rounded h-24" placeholder="Paste IdP metadata XML"></textarea>
+                            </div>
+                            <div>
+                                <label class="label-with-tooltip block text-sm font-medium mb-1">Signing Certificate</label>
+                                <textarea id="samlCert" class="input-field w-full px-3 py-2 rounded h-24" placeholder="-----BEGIN CERTIFICATE-----"></textarea>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-end pt-4">
+                            <button type="submit" class="btn-primary px-4 py-2 rounded">Save Auth Settings</button>
+                        </div>
+                    </form>
+                    <div class="mt-4 p-3 bg-gray-800 rounded text-sm text-gray-200">
+                        <p class="font-semibold mb-2">Auth hardening checklist</p>
+                        <ul class="list-disc ml-5 space-y-1 text-gray-300">
+                            <li>Validate metadata/certificates before enabling SAML or LDAP binds.</li>
+                            <li>Map attributes for username, email, and groups explicitly.</li>
+                            <li>Use the Test Login flow after saving to confirm end-to-end auth.</li>
+                            <li>Document fallback admin credentials in a secure vault.</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+            {% endif %}
         </div>
     </div>
-    {% endif %}
 </div>
-
 <!-- Custom Confirm Modal -->
 <div id="confirmModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
     <div class="card p-6 w-full max-w-md m-4">
@@ -704,6 +831,8 @@
     let serversData = [];
     let usersData = [];
     const pageState = { providers: 1, users: 1, servers: 1, pageSize: 5 };
+    const settingsNavLinks = Array.from(document.querySelectorAll('.settings-nav a'));
+    const settingsSections = Array.from(document.querySelectorAll('[data-settings-section]'));
     
     const modelSuggestions = {
         anthropic: 'claude-sonnet-4-20250514',
@@ -738,6 +867,49 @@
         const input = document.getElementById(inputId);
         if (!input) return;
         input.type = input.type === 'password' ? 'text' : 'password';
+    }
+
+    function scrollToSettingsSection(event, id) {
+        if (event) event.preventDefault();
+        const target = document.getElementById(id);
+        if (target) {
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            setActiveSettingsNav(id);
+        }
+    }
+
+    function setActiveSettingsNav(id) {
+        settingsNavLinks.forEach(link => {
+            const href = link.getAttribute('href') || '';
+            const target = href.replace('#', '');
+            link.classList.toggle('active', target === id);
+        });
+    }
+
+    function updateActiveSettingsSection() {
+        let current = settingsSections[0]?.id;
+        const viewportOffset = 140;
+
+        settingsSections.forEach(section => {
+            const rect = section.getBoundingClientRect();
+            if (rect.top <= viewportOffset) {
+                current = section.id;
+            }
+        });
+
+        if (current) {
+            setActiveSettingsNav(current);
+        }
+    }
+
+    function refreshSettingsData() {
+        loadProviders();
+        loadServers();
+        {% if user.role == 'admin' %}
+        loadUsers();
+        loadAuthConfig();
+        {% endif %}
+        loadActivityLog();
     }
     
     // --- Helper Functions ---
@@ -1486,8 +1658,10 @@
     {% if user.role == 'admin' %}
     loadUsers();
     loadAuthConfig();
-    loadActivityLog();
     {% endif %}
+    loadActivityLog();
+    updateActiveSettingsSection();
+    window.addEventListener('scroll', updateActiveSettingsSection);
 
     // --- Auth Config ---
     function toggleAuthSections() {
