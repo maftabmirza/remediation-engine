@@ -239,24 +239,24 @@ async def get_runbook(
 @router.put("/runbooks/{runbook_id}", response_model=RunbookResponse)
 async def update_runbook(
     runbook_id: UUID,
-    runbook_data: RunbookUpdate,
+    runbook_data: RunbookCreate,  # Changed to RunbookCreate to allow steps/triggers update
     db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(require_role(["admin", "engineer"]))
 ):
-    """Update a runbook. Increments version number."""
+    """Update a runbook with steps and triggers. Increments version number."""
     result = await db.execute(
         select(Runbook)
         .options(selectinload(Runbook.steps), selectinload(Runbook.triggers))
         .where(Runbook.id == runbook_id)
     )
     runbook = result.scalar_one_or_none()
-    
+
     if not runbook:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Runbook {runbook_id} not found"
         )
-    
+
     # Check name uniqueness if changing
     if runbook_data.name and runbook_data.name != runbook.name:
         existing = await db.execute(
@@ -269,19 +269,87 @@ async def update_runbook(
                 status_code=status.HTTP_409_CONFLICT,
                 detail=f"Runbook with name '{runbook_data.name}' already exists"
             )
-    
-    # Update fields
-    update_data = runbook_data.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(runbook, field, value)
-    
+
+    # Update runbook fields
+    runbook.name = runbook_data.name
+    runbook.description = runbook_data.description
+    runbook.category = runbook_data.category
+    runbook.tags = runbook_data.tags
+    runbook.enabled = runbook_data.enabled
+    runbook.auto_execute = runbook_data.auto_execute
+    runbook.approval_required = runbook_data.approval_required
+    runbook.approval_roles = runbook_data.approval_roles
+    runbook.approval_timeout_minutes = runbook_data.approval_timeout_minutes
+    runbook.max_executions_per_hour = runbook_data.max_executions_per_hour
+    runbook.cooldown_minutes = runbook_data.cooldown_minutes
+    runbook.default_server_id = runbook_data.default_server_id
+    runbook.target_os_filter = runbook_data.target_os_filter
+    runbook.target_from_alert = runbook_data.target_from_alert
+    runbook.target_alert_label = runbook_data.target_alert_label
+    runbook.notifications_json = runbook_data.notifications_json
+    runbook.documentation_url = runbook_data.documentation_url
+
+    # Delete existing steps and triggers
+    for step in list(runbook.steps):
+        await db.delete(step)
+    for trigger in list(runbook.triggers):
+        await db.delete(trigger)
+
+    await db.flush()
+
+    # Create new steps
+    for step_data in runbook_data.steps:
+        step = RunbookStep(
+            runbook_id=runbook.id,
+            step_order=step_data.step_order,
+            name=step_data.name,
+            description=step_data.description,
+            command_linux=step_data.command_linux,
+            command_windows=step_data.command_windows,
+            target_os=step_data.target_os,
+            timeout_seconds=step_data.timeout_seconds,
+            requires_elevation=step_data.requires_elevation,
+            working_directory=step_data.working_directory,
+            environment_json=step_data.environment_json,
+            continue_on_fail=step_data.continue_on_fail,
+            retry_count=step_data.retry_count,
+            retry_delay_seconds=step_data.retry_delay_seconds,
+            expected_exit_code=step_data.expected_exit_code,
+            expected_output_pattern=step_data.expected_output_pattern,
+            rollback_command_linux=step_data.rollback_command_linux,
+            rollback_command_windows=step_data.rollback_command_windows
+        )
+        db.add(step)
+
+    # Create new triggers
+    for trigger_data in runbook_data.triggers:
+        trigger = RunbookTrigger(
+            runbook_id=runbook.id,
+            alert_name_pattern=trigger_data.alert_name_pattern,
+            severity_pattern=trigger_data.severity_pattern,
+            instance_pattern=trigger_data.instance_pattern,
+            job_pattern=trigger_data.job_pattern,
+            label_matchers_json=trigger_data.label_matchers_json,
+            annotation_matchers_json=trigger_data.annotation_matchers_json,
+            min_duration_seconds=trigger_data.min_duration_seconds,
+            min_occurrences=trigger_data.min_occurrences,
+            priority=trigger_data.priority,
+            enabled=trigger_data.enabled
+        )
+        db.add(trigger)
+
     # Increment version
     runbook.version += 1
-    
+
     await db.commit()
-    await db.refresh(runbook)
-    
-    return runbook
+
+    # Reload with relationships
+    result = await db.execute(
+        select(Runbook)
+        .options(selectinload(Runbook.steps), selectinload(Runbook.triggers))
+        .where(Runbook.id == runbook_id)
+    )
+    return result.scalar_one()
 
 
 @router.delete("/runbooks/{runbook_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -295,15 +363,251 @@ async def delete_runbook(
         select(Runbook).where(Runbook.id == runbook_id)
     )
     runbook = result.scalar_one_or_none()
-    
+
     if not runbook:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Runbook {runbook_id} not found"
         )
-    
+
     await db.delete(runbook)
     await db.commit()
+
+
+@router.post("/runbooks/{runbook_id}/clone", response_model=RunbookResponse, status_code=status.HTTP_201_CREATED)
+async def clone_runbook(
+    runbook_id: UUID,
+    new_name: Optional[str] = None,
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(require_role(["admin", "engineer"]))
+):
+    """Clone/duplicate an existing runbook with all its steps and triggers."""
+    # Load original runbook
+    result = await db.execute(
+        select(Runbook)
+        .options(selectinload(Runbook.steps), selectinload(Runbook.triggers))
+        .where(Runbook.id == runbook_id)
+    )
+    original = result.scalar_one_or_none()
+
+    if not original:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Runbook {runbook_id} not found"
+        )
+
+    # Generate unique name
+    clone_name = new_name if new_name else f"{original.name} (Copy)"
+    counter = 1
+    while True:
+        existing = await db.execute(
+            select(Runbook).where(Runbook.name == clone_name)
+        )
+        if not existing.scalar_one_or_none():
+            break
+        clone_name = f"{original.name} (Copy {counter})"
+        counter += 1
+
+    # Create cloned runbook
+    cloned_runbook = Runbook(
+        name=clone_name,
+        description=original.description,
+        category=original.category,
+        tags=original.tags,
+        enabled=False,  # Start as disabled for safety
+        auto_execute=False,  # Disable auto-execute for clones
+        approval_required=original.approval_required,
+        approval_roles=original.approval_roles,
+        approval_timeout_minutes=original.approval_timeout_minutes,
+        max_executions_per_hour=original.max_executions_per_hour,
+        cooldown_minutes=original.cooldown_minutes,
+        default_server_id=original.default_server_id,
+        target_os_filter=original.target_os_filter,
+        target_from_alert=original.target_from_alert,
+        target_alert_label=original.target_alert_label,
+        notifications_json=original.notifications_json,
+        documentation_url=original.documentation_url,
+        created_by=current_user.id,
+        source="ui"
+    )
+    db.add(cloned_runbook)
+    await db.flush()
+
+    # Clone steps
+    for step in original.steps:
+        cloned_step = RunbookStep(
+            runbook_id=cloned_runbook.id,
+            step_order=step.step_order,
+            name=step.name,
+            description=step.description,
+            command_linux=step.command_linux,
+            command_windows=step.command_windows,
+            target_os=step.target_os,
+            timeout_seconds=step.timeout_seconds,
+            requires_elevation=step.requires_elevation,
+            working_directory=step.working_directory,
+            environment_json=step.environment_json,
+            continue_on_fail=step.continue_on_fail,
+            retry_count=step.retry_count,
+            retry_delay_seconds=step.retry_delay_seconds,
+            expected_exit_code=step.expected_exit_code,
+            expected_output_pattern=step.expected_output_pattern,
+            rollback_command_linux=step.rollback_command_linux,
+            rollback_command_windows=step.rollback_command_windows
+        )
+        db.add(cloned_step)
+
+    # Clone triggers
+    for trigger in original.triggers:
+        cloned_trigger = RunbookTrigger(
+            runbook_id=cloned_runbook.id,
+            alert_name_pattern=trigger.alert_name_pattern,
+            severity_pattern=trigger.severity_pattern,
+            instance_pattern=trigger.instance_pattern,
+            job_pattern=trigger.job_pattern,
+            label_matchers_json=trigger.label_matchers_json,
+            annotation_matchers_json=trigger.annotation_matchers_json,
+            min_duration_seconds=trigger.min_duration_seconds,
+            min_occurrences=trigger.min_occurrences,
+            priority=trigger.priority,
+            enabled=trigger.enabled
+        )
+        db.add(cloned_trigger)
+
+    # Create circuit breaker
+    circuit_breaker = CircuitBreaker(
+        scope="runbook",
+        scope_id=cloned_runbook.id,
+        state="closed"
+    )
+    db.add(circuit_breaker)
+
+    await db.commit()
+
+    # Reload with relationships
+    result = await db.execute(
+        select(Runbook)
+        .options(selectinload(Runbook.steps), selectinload(Runbook.triggers))
+        .where(Runbook.id == cloned_runbook.id)
+    )
+    return result.scalar_one()
+
+
+@router.get("/runbooks/{runbook_id}/executions", response_model=List[ExecutionListResponse])
+async def get_runbook_executions(
+    runbook_id: UUID,
+    limit: int = Query(10, ge=1, le=100),
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get recent execution history for a specific runbook."""
+    # Verify runbook exists
+    result = await db.execute(
+        select(Runbook).where(Runbook.id == runbook_id)
+    )
+    runbook = result.scalar_one_or_none()
+
+    if not runbook:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Runbook {runbook_id} not found"
+        )
+
+    # Get executions
+    query = select(RunbookExecution).options(
+        selectinload(RunbookExecution.runbook),
+        selectinload(RunbookExecution.server)
+    ).where(
+        RunbookExecution.runbook_id == runbook_id
+    ).order_by(
+        RunbookExecution.queued_at.desc()
+    ).limit(limit)
+
+    result = await db.execute(query)
+    executions = result.scalars().all()
+
+    # Build response
+    response = []
+    for ex in executions:
+        response.append(ExecutionListResponse(
+            id=ex.id,
+            runbook_id=ex.runbook_id,
+            runbook_name=ex.runbook.name if ex.runbook else "Unknown",
+            alert_id=ex.alert_id,
+            server_hostname=ex.server.hostname if ex.server else None,
+            execution_mode=ex.execution_mode,
+            status=ex.status,
+            dry_run=ex.dry_run,
+            queued_at=ex.queued_at,
+            started_at=ex.started_at,
+            completed_at=ex.completed_at,
+            steps_total=ex.steps_total,
+            steps_completed=ex.steps_completed,
+            steps_failed=ex.steps_failed
+        ))
+
+    return response
+
+
+@router.post("/runbooks/bulk-action")
+async def bulk_runbook_action(
+    runbook_ids: List[UUID],
+    action: str = Query(..., regex="^(enable|disable|delete)$"),
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(require_role(["admin", "engineer"]))
+):
+    """
+    Perform bulk actions on multiple runbooks.
+    Actions: enable, disable, delete
+    """
+    if not runbook_ids:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No runbook IDs provided"
+        )
+
+    # Fetch runbooks
+    result = await db.execute(
+        select(Runbook).where(Runbook.id.in_(runbook_ids))
+    )
+    runbooks = result.scalars().all()
+
+    if len(runbooks) != len(runbook_ids):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="One or more runbooks not found"
+        )
+
+    # Perform action
+    affected_count = 0
+    if action == "enable":
+        for runbook in runbooks:
+            runbook.enabled = True
+            affected_count += 1
+    elif action == "disable":
+        for runbook in runbooks:
+            runbook.enabled = False
+            runbook.auto_execute = False  # Also disable auto-execute for safety
+            affected_count += 1
+    elif action == "delete":
+        # Only admins can delete
+        if current_user.role != "admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only admins can delete runbooks"
+            )
+        for runbook in runbooks:
+            await db.delete(runbook)
+            affected_count += 1
+
+    await db.commit()
+
+    return {
+        "success": True,
+        "action": action,
+        "affected_count": affected_count,
+        "message": f"Successfully {action}d {affected_count} runbook(s)"
+    }
 
 
 # ============================================================================
@@ -1038,13 +1342,13 @@ async def retry_execution(
         .where(RunbookExecution.id == execution_id)
     )
     original_execution = result.scalar_one_or_none()
-    
+
     if not original_execution:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Execution {execution_id} not found"
         )
-        
+
     runbook = original_execution.runbook
     if not runbook:
          raise HTTPException(
@@ -1087,10 +1391,10 @@ async def retry_execution(
         steps_total=len(runbook.steps),
         variables_json=original_execution.variables_json
     )
-    
+
     db.add(new_execution)
     await db.commit()
-    
+
     # Reload with steps for response
     result = await db.execute(
         select(RunbookExecution)
@@ -1098,8 +1402,118 @@ async def retry_execution(
         .where(RunbookExecution.id == new_execution.id)
     )
     execution_with_steps = result.scalar_one()
-    
+
     return execution_with_steps
+
+
+@router.post("/runbooks/{runbook_id}/steps/{step_id}/test", response_model=StepExecutionResponse)
+async def test_single_step(
+    runbook_id: UUID,
+    step_id: UUID,
+    exec_request: ExecuteRunbookRequest,
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(require_role(["admin", "engineer"]))
+):
+    """
+    Test a single step from a runbook without executing the entire runbook.
+    Always runs in dry_run mode unless explicitly disabled.
+    """
+    # Validate runbook and step
+    result = await db.execute(
+        select(RunbookStep)
+        .join(Runbook)
+        .where(
+            and_(
+                RunbookStep.id == step_id,
+                RunbookStep.runbook_id == runbook_id,
+                Runbook.id == runbook_id
+            )
+        )
+        .options(selectinload(RunbookStep.runbook))
+    )
+    step = result.scalar_one_or_none()
+
+    if not step:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Step {step_id} not found in runbook {runbook_id}"
+        )
+
+    runbook = step.runbook
+    if not runbook:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Runbook not found"
+        )
+
+    # Determine target server
+    server_id = exec_request.server_id or runbook.default_server_id
+    if not server_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Server ID is required for step testing"
+        )
+
+    result = await db.execute(
+        select(ServerCredential).where(ServerCredential.id == server_id)
+    )
+    server = result.scalar_one_or_none()
+
+    if not server:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Server {server_id} not found"
+        )
+
+    # Create a temporary execution for this step test
+    execution = RunbookExecution(
+        runbook_id=runbook.id,
+        runbook_version=runbook.version,
+        server_id=server_id,
+        status="running",
+        execution_mode="manual",
+        dry_run=True,  # Always dry run for testing
+        triggered_by=current_user.id,
+        triggered_by_system=False,
+        approval_required=False,
+        queued_at=utc_now(),
+        started_at=utc_now(),
+        steps_total=1,
+        variables_json=exec_request.variables
+    )
+    db.add(execution)
+    await db.flush()
+
+    # Create step execution record
+    from ..services.runbook_executor import RunbookExecutor
+
+    step_execution = StepExecution(
+        execution_id=execution.id,
+        step_id=step.id,
+        step_order=step.step_order,
+        step_name=step.name,
+        command_executed=step.command_linux or step.command_windows,
+        status="pending",
+        retry_attempt=0,
+        started_at=utc_now()
+    )
+    db.add(step_execution)
+    await db.flush()
+
+    # Execute the step using RunbookExecutor
+    executor = RunbookExecutor(db)
+    await executor.execute_single_step(
+        execution=execution,
+        step=step,
+        step_execution=step_execution,
+        server=server,
+        variables=exec_request.variables or {}
+    )
+
+    await db.commit()
+    await db.refresh(step_execution)
+
+    return step_execution
 
 
 # ============================================================================
@@ -1441,3 +1855,358 @@ async def get_remediation_stats(
             "active_blackout_windows": active_blackouts
         }
     }
+
+
+# ============================================================================
+# RUNBOOK TEMPLATES
+# ============================================================================
+
+@router.get("/templates")
+async def get_runbook_templates(
+    category: Optional[str] = None,
+    current_user: User = Depends(get_current_user)
+):
+    """Get pre-built runbook templates for quick creation."""
+    templates = [
+        {
+            "id": "restart-service",
+            "name": "Restart Service",
+            "category": "infrastructure",
+            "description": "Restart a Linux systemd service",
+            "steps": [
+                {
+                    "step_order": 1,
+                    "name": "Check service status",
+                    "command_linux": "systemctl status {{service_name}}",
+                    "target_os": "linux",
+                    "timeout_seconds": 30,
+                    "continue_on_fail": True
+                },
+                {
+                    "step_order": 2,
+                    "name": "Restart service",
+                    "command_linux": "systemctl restart {{service_name}}",
+                    "target_os": "linux",
+                    "timeout_seconds": 60,
+                    "requires_elevation": True
+                },
+                {
+                    "step_order": 3,
+                    "name": "Verify service is running",
+                    "command_linux": "systemctl is-active {{service_name}}",
+                    "target_os": "linux",
+                    "timeout_seconds": 30
+                }
+            ],
+            "triggers": [
+                {
+                    "alert_name_pattern": ".*ServiceDown.*",
+                    "severity_pattern": "critical|warning"
+                }
+            ]
+        },
+        {
+            "id": "clear-disk-space",
+            "name": "Clear Disk Space",
+            "category": "infrastructure",
+            "description": "Clean up temporary files and logs to free disk space",
+            "steps": [
+                {
+                    "step_order": 1,
+                    "name": "Check disk usage",
+                    "command_linux": "df -h",
+                    "target_os": "linux",
+                    "timeout_seconds": 30
+                },
+                {
+                    "step_order": 2,
+                    "name": "Clear temp files",
+                    "command_linux": "rm -rf /tmp/*",
+                    "target_os": "linux",
+                    "timeout_seconds": 60,
+                    "requires_elevation": True
+                },
+                {
+                    "step_order": 3,
+                    "name": "Clear old logs",
+                    "command_linux": "find /var/log -name '*.gz' -mtime +7 -delete",
+                    "target_os": "linux",
+                    "timeout_seconds": 120,
+                    "requires_elevation": True
+                },
+                {
+                    "step_order": 4,
+                    "name": "Verify disk space freed",
+                    "command_linux": "df -h",
+                    "target_os": "linux",
+                    "timeout_seconds": 30
+                }
+            ],
+            "triggers": [
+                {
+                    "alert_name_pattern": ".*DiskFull.*|.*DiskSpace.*",
+                    "severity_pattern": "warning|critical"
+                }
+            ]
+        },
+        {
+            "id": "restart-nginx",
+            "name": "Restart Nginx Web Server",
+            "category": "application",
+            "description": "Gracefully restart Nginx web server",
+            "steps": [
+                {
+                    "step_order": 1,
+                    "name": "Test Nginx configuration",
+                    "command_linux": "nginx -t",
+                    "target_os": "linux",
+                    "timeout_seconds": 30,
+                    "requires_elevation": True
+                },
+                {
+                    "step_order": 2,
+                    "name": "Reload Nginx",
+                    "command_linux": "systemctl reload nginx",
+                    "target_os": "linux",
+                    "timeout_seconds": 60,
+                    "requires_elevation": True
+                },
+                {
+                    "step_order": 3,
+                    "name": "Check Nginx status",
+                    "command_linux": "systemctl status nginx",
+                    "target_os": "linux",
+                    "timeout_seconds": 30
+                }
+            ],
+            "triggers": [
+                {
+                    "alert_name_pattern": ".*Nginx.*Down.*",
+                    "severity_pattern": "critical"
+                }
+            ]
+        },
+        {
+            "id": "clear-redis-cache",
+            "name": "Clear Redis Cache",
+            "category": "database",
+            "description": "Flush all keys from Redis cache",
+            "steps": [
+                {
+                    "step_order": 1,
+                    "name": "Check Redis connection",
+                    "command_linux": "redis-cli ping",
+                    "target_os": "linux",
+                    "timeout_seconds": 30
+                },
+                {
+                    "step_order": 2,
+                    "name": "Flush all keys",
+                    "command_linux": "redis-cli FLUSHALL",
+                    "target_os": "linux",
+                    "timeout_seconds": 60
+                },
+                {
+                    "step_order": 3,
+                    "name": "Verify cache cleared",
+                    "command_linux": "redis-cli DBSIZE",
+                    "target_os": "linux",
+                    "timeout_seconds": 30
+                }
+            ],
+            "triggers": [
+                {
+                    "alert_name_pattern": ".*Redis.*Memory.*",
+                    "severity_pattern": "warning"
+                }
+            ]
+        },
+        {
+            "id": "kill-high-cpu-process",
+            "name": "Kill High CPU Process",
+            "category": "infrastructure",
+            "description": "Identify and terminate processes consuming excessive CPU",
+            "steps": [
+                {
+                    "step_order": 1,
+                    "name": "Identify high CPU processes",
+                    "command_linux": "ps aux --sort=-%cpu | head -10",
+                    "target_os": "linux",
+                    "timeout_seconds": 30
+                },
+                {
+                    "step_order": 2,
+                    "name": "Kill process by PID",
+                    "command_linux": "kill -9 {{pid}}",
+                    "target_os": "linux",
+                    "timeout_seconds": 30,
+                    "requires_elevation": True
+                },
+                {
+                    "step_order": 3,
+                    "name": "Verify CPU usage normalized",
+                    "command_linux": "top -bn1 | grep 'Cpu(s)'",
+                    "target_os": "linux",
+                    "timeout_seconds": 30
+                }
+            ],
+            "triggers": [
+                {
+                    "alert_name_pattern": ".*HighCPU.*",
+                    "severity_pattern": "critical"
+                }
+            ]
+        },
+        {
+            "id": "restart-windows-service",
+            "name": "Restart Windows Service",
+            "category": "infrastructure",
+            "description": "Restart a Windows service",
+            "steps": [
+                {
+                    "step_order": 1,
+                    "name": "Check service status",
+                    "command_windows": "Get-Service -Name {{service_name}} | Select-Object Status",
+                    "target_os": "windows",
+                    "timeout_seconds": 30
+                },
+                {
+                    "step_order": 2,
+                    "name": "Restart service",
+                    "command_windows": "Restart-Service -Name {{service_name}} -Force",
+                    "target_os": "windows",
+                    "timeout_seconds": 60,
+                    "requires_elevation": True
+                },
+                {
+                    "step_order": 3,
+                    "name": "Verify service is running",
+                    "command_windows": "Get-Service -Name {{service_name}} | Where-Object {$_.Status -eq 'Running'}",
+                    "target_os": "windows",
+                    "timeout_seconds": 30
+                }
+            ],
+            "triggers": [
+                {
+                    "alert_name_pattern": ".*WindowsService.*",
+                    "severity_pattern": "critical"
+                }
+            ]
+        }
+    ]
+
+    # Filter by category if specified
+    if category:
+        templates = [t for t in templates if t["category"] == category]
+
+    return {
+        "templates": templates,
+        "count": len(templates)
+    }
+
+
+@router.post("/templates/{template_id}/create", response_model=RunbookResponse, status_code=status.HTTP_201_CREATED)
+async def create_runbook_from_template(
+    template_id: str,
+    customizations: Optional[Dict[str, Any]] = None,
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(require_role(["admin", "engineer"]))
+):
+    """Create a new runbook from a template with optional customizations."""
+    # Get template
+    templates_response = await get_runbook_templates(current_user=current_user)
+    templates = templates_response["templates"]
+
+    template = next((t for t in templates if t["id"] == template_id), None)
+    if not template:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Template '{template_id}' not found"
+        )
+
+    # Apply customizations
+    if customizations:
+        template.update(customizations)
+
+    # Check for duplicate name
+    existing = await db.execute(
+        select(Runbook).where(Runbook.name == template["name"])
+    )
+    if existing.scalar_one_or_none():
+        # Append timestamp to make unique
+        from datetime import datetime
+        template["name"] = f"{template['name']} - {datetime.now().strftime('%Y%m%d%H%M%S')}"
+
+    # Create runbook from template
+    runbook = Runbook(
+        name=template["name"],
+        description=template.get("description", ""),
+        category=template.get("category", "infrastructure"),
+        tags=template.get("tags", []),
+        enabled=False,  # Start disabled
+        auto_execute=False,
+        approval_required=True,
+        approval_roles=["operator", "engineer", "admin"],
+        approval_timeout_minutes=30,
+        max_executions_per_hour=5,
+        cooldown_minutes=10,
+        target_os_filter=["linux", "windows"],
+        target_from_alert=True,
+        target_alert_label="instance",
+        created_by=current_user.id,
+        source="template"
+    )
+    db.add(runbook)
+    await db.flush()
+
+    # Create steps from template
+    for step_data in template.get("steps", []):
+        step = RunbookStep(
+            runbook_id=runbook.id,
+            step_order=step_data.get("step_order", 1),
+            name=step_data.get("name", "Step"),
+            description=step_data.get("description"),
+            command_linux=step_data.get("command_linux"),
+            command_windows=step_data.get("command_windows"),
+            target_os=step_data.get("target_os", "any"),
+            timeout_seconds=step_data.get("timeout_seconds", 60),
+            requires_elevation=step_data.get("requires_elevation", False),
+            continue_on_fail=step_data.get("continue_on_fail", False),
+            retry_count=step_data.get("retry_count", 0),
+            retry_delay_seconds=step_data.get("retry_delay_seconds", 5),
+            expected_exit_code=step_data.get("expected_exit_code", 0)
+        )
+        db.add(step)
+
+    # Create triggers from template
+    for trigger_data in template.get("triggers", []):
+        trigger = RunbookTrigger(
+            runbook_id=runbook.id,
+            alert_name_pattern=trigger_data.get("alert_name_pattern", "*"),
+            severity_pattern=trigger_data.get("severity_pattern", "*"),
+            instance_pattern=trigger_data.get("instance_pattern", "*"),
+            job_pattern=trigger_data.get("job_pattern", "*"),
+            min_duration_seconds=trigger_data.get("min_duration_seconds", 0),
+            min_occurrences=trigger_data.get("min_occurrences", 1),
+            priority=trigger_data.get("priority", 100),
+            enabled=trigger_data.get("enabled", True)
+        )
+        db.add(trigger)
+
+    # Create circuit breaker
+    circuit_breaker = CircuitBreaker(
+        scope="runbook",
+        scope_id=runbook.id,
+        state="closed"
+    )
+    db.add(circuit_breaker)
+
+    await db.commit()
+
+    # Reload with relationships
+    result = await db.execute(
+        select(Runbook)
+        .options(selectinload(Runbook.steps), selectinload(Runbook.triggers))
+        .where(Runbook.id == runbook.id)
+    )
+    return result.scalar_one()
