@@ -16,7 +16,7 @@ from app.schemas import (
     APICredentialProfileResponse
 )
 from app.utils.crypto import encrypt_value, decrypt_value
-from app.auth import get_current_user
+from app.services.auth_service import get_current_user
 
 router = APIRouter(
     prefix="/api/credential-profiles",
