@@ -83,6 +83,7 @@ class LLMProviderUpdate(BaseModel):
 class LLMProviderResponse(LLMProviderBase):
     id: UUID
     has_api_key: bool = False  # Don't expose actual key
+    secret_last_rotated: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
 
