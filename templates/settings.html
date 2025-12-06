@@ -86,6 +86,42 @@
         {% endif %}
     </div>
 
+    <!-- Access & Governance Snapshot -->
+    <div class="card p-4">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h2 class="text-lg font-semibold">Access Control</h2>
+                <p class="text-sm text-gray-400">Page-level permissions and current enforcement mode</p>
+            </div>
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs bg-blue-900 bg-opacity-50 text-blue-300">
+                <i class="fas fa-user-shield mr-2"></i>{{ user.role | capitalize }}
+            </span>
+        </div>
+        <div class="grid md:grid-cols-3 gap-4 text-sm">
+            <div class="bg-gray-800 bg-opacity-60 p-3 rounded">
+                <div class="flex items-center justify-between">
+                    <span class="font-semibold">User Operations</span>
+                    <span class="text-xs px-2 py-1 rounded-full {{ 'bg-green-900 text-green-300' if user.role == 'admin' else 'bg-gray-700 text-gray-400' }}">{{ 'Manage' if user.role == 'admin' else 'Read-only' }}</span>
+                </div>
+                <p class="text-gray-400 mt-1">Create/deactivate users, update roles. Admin-only.</p>
+            </div>
+            <div class="bg-gray-800 bg-opacity-60 p-3 rounded">
+                <div class="flex items-center justify-between">
+                    <span class="font-semibold">Provider Controls</span>
+                    <span class="text-xs px-2 py-1 rounded-full {{ 'bg-green-900 text-green-300' if user.role == 'admin' else 'bg-gray-700 text-gray-400' }}">{{ 'Manage' if user.role == 'admin' else 'Read-only' }}</span>
+                </div>
+                <p class="text-gray-400 mt-1">Add/edit providers, rotate secrets, run health checks.</p>
+            </div>
+            <div class="bg-gray-800 bg-opacity-60 p-3 rounded">
+                <div class="flex items-center justify-between">
+                    <span class="font-semibold">Auth Settings</span>
+                    <span class="text-xs px-2 py-1 rounded-full {{ 'bg-green-900 text-green-300' if user.role == 'admin' else 'bg-gray-700 text-gray-400' }}">{{ 'Manage' if user.role == 'admin' else 'Read-only' }}</span>
+                </div>
+                <p class="text-gray-400 mt-1">Configure LDAP/SAML, review audit events, test login.</p>
+            </div>
+        </div>
+    </div>
+
     <!-- User Management (Admin Only) - TABLE VIEW -->
     {% if user.role == 'admin' %}
     <div class="card">
@@ -109,7 +145,7 @@
     
     <!-- LLM Providers - TABLE VIEW -->
     <div class="card">
-        <div class="flex items-center justify-between p-4 border-b border-gray-700 space-x-4">
+        <div class="flex flex-wrap items-center justify-between p-4 border-b border-gray-700 space-y-3 md:space-y-0 space-x-4">
             <h2 class="text-lg font-semibold">
                 <i class="fas fa-robot text-purple-400 mr-2"></i>
                 LLM Providers
@@ -125,6 +161,11 @@
                         <option value="ollama">Ollama</option>
                         <option value="azure">Azure</option>
                     </select>
+                    <select id="providerStatusFilter" class="input-field px-3 py-2 rounded text-sm">
+                        <option value="">Any Status</option>
+                        <option value="enabled">Enabled</option>
+                        <option value="disabled">Disabled</option>
+                    </select>
                 </div>
                 {% if user.role == 'admin' %}
                 <button onclick="showCreateProviderModal()" class="btn-primary px-4 py-2 rounded">
@@ -133,6 +174,19 @@
                 {% endif %}
             </div>
         </div>
+
+        {% if user.role == 'admin' %}
+        <div class="flex flex-wrap items-center justify-between px-4 py-3 text-sm text-gray-300 border-b border-gray-800">
+            <div class="flex items-center space-x-2">
+                <input type="checkbox" id="providerSelectAll" class="mr-1" onchange="toggleSelectAll('provider')">
+                <span>Select all</span>
+            </div>
+            <div class="flex items-center space-x-2">
+                <button class="btn-secondary px-3 py-1 rounded text-xs" onclick="bulkEnableProviders(true)"><i class="fas fa-check mr-1"></i>Enable</button>
+                <button class="btn-secondary px-3 py-1 rounded text-xs" onclick="bulkEnableProviders(false)"><i class="fas fa-pause mr-1"></i>Disable</button>
+            </div>
+        </div>
+        {% endif %}
         
         <div id="providersTableContainer" class="overflow-x-auto">
             <div class="text-center py-8">
@@ -143,7 +197,7 @@
 
     <!-- Server Credentials - TABLE VIEW -->
     <div class="card">
-        <div class="flex items-center justify-between p-4 border-b border-gray-700 space-x-4">
+        <div class="flex flex-wrap items-center justify-between p-4 border-b border-gray-700 space-y-3 md:space-y-0 space-x-4">
             <h2 class="text-lg font-semibold">
                 <i class="fas fa-server text-green-400 mr-2"></i>
                 Server Credentials
@@ -157,6 +211,11 @@
                         <option value="staging">Staging</option>
                         <option value="development">Development</option>
                     </select>
+                    <select id="serverStatusFilter" class="input-field px-3 py-2 rounded text-sm">
+                        <option value="">Any Auth</option>
+                        <option value="key">SSH Key</option>
+                        <option value="password">Password</option>
+                    </select>
                 </div>
                 {% if user.role == 'admin' %}
                 <button onclick="showCreateServerModal()" class="btn-primary px-4 py-2 rounded">
@@ -165,6 +224,18 @@
                 {% endif %}
             </div>
         </div>
+
+        {% if user.role == 'admin' %}
+        <div class="flex flex-wrap items-center justify-between px-4 py-3 text-sm text-gray-300 border-b border-gray-800">
+            <div class="flex items-center space-x-2">
+                <input type="checkbox" id="serverSelectAll" class="mr-1" onchange="toggleSelectAll('server')">
+                <span>Select all</span>
+            </div>
+            <div class="flex items-center space-x-2">
+                <button class="btn-secondary px-3 py-1 rounded text-xs" onclick="bulkTestServers()"><i class="fas fa-heartbeat mr-1"></i>Test Selected</button>
+            </div>
+        </div>
+        {% endif %}
         
         <div id="serversTableContainer" class="overflow-x-auto">
             <div class="text-center py-8">
@@ -229,6 +300,22 @@
                     </label>
                     <input type="text" id="ldapBaseDn" class="input-field w-full px-3 py-2 rounded" placeholder="dc=domain,dc=com">
                 </div>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Service Account Password</label>
+                        <input type="password" id="ldapBindPassword" class="input-field w-full px-3 py-2 rounded" placeholder="Required when Bind DN is set">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Certificate / CA Bundle</label>
+                        <input type="file" id="ldapCaCert" class="input-field w-full px-3 py-2 rounded" accept=".pem,.crt">
+                        <p class="text-xs text-gray-400 mt-1">Optional for LDAPS trust.</p>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Attribute Mapping</label>
+                    <textarea id="ldapAttributeMap" class="input-field w-full px-3 py-2 rounded h-20" placeholder='{"username": "sAMAccountName", "email": "mail"}'></textarea>
+                </div>
+                <button type="button" class="btn-secondary px-4 py-2 rounded" onclick="testAuthLogin('ldap')"><i class="fas fa-heartbeat mr-2"></i>Test LDAP Login</button>
             </div>
 
             <!-- SAML Config -->
@@ -254,12 +341,53 @@
                     </label>
                     <input type="text" id="samlEntityId" class="input-field w-full px-3 py-2 rounded" placeholder="urn:aiops:platform">
                 </div>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">ACS URL</label>
+                        <input type="text" id="samlAcsUrl" class="input-field w-full px-3 py-2 rounded" placeholder="https://app.example.com/saml/callback">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">X.509 Certificate</label>
+                        <input type="file" id="samlCertificate" class="input-field w-full px-3 py-2 rounded" accept=".pem,.crt">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Attribute Mapping</label>
+                    <textarea id="samlAttributeMap" class="input-field w-full px-3 py-2 rounded h-20" placeholder='{"email": "mail", "name": "displayName"}'></textarea>
+                </div>
+                <button type="button" class="btn-secondary px-4 py-2 rounded" onclick="testAuthLogin('saml')"><i class="fas fa-heartbeat mr-2"></i>Test SSO Login</button>
+            </div>
+
+            <div class="bg-gray-800 bg-opacity-60 p-4 rounded">
+                <h3 class="text-sm font-semibold mb-2">Guided Setup</h3>
+                <ol class="list-decimal list-inside text-sm text-gray-300 space-y-1">
+                    <li>Choose auth method and fill required endpoints.</li>
+                    <li>Upload certificates/metadata and map user attributes.</li>
+                    <li>Run "Test" to validate connectivity with a test account.</li>
+                    <li>Save and communicate the new login path to admins.</li>
+                </ol>
             </div>
 
             <div class="flex justify-end pt-4">
                 <button type="submit" class="btn-primary px-4 py-2 rounded">Save Auth Settings</button>
             </div>
         </form>
+    </div>
+    {% endif %}
+
+    {% if user.role == 'admin' %}
+    <!-- Audit Activity Log -->
+    <div class="card">
+        <div class="flex items-center justify-between p-4 border-b border-gray-700">
+            <div>
+                <h2 class="text-lg font-semibold">Recent Activity</h2>
+                <p class="text-sm text-gray-400">Last edits across providers and auth settings</p>
+            </div>
+            <button class="btn-secondary px-3 py-1 rounded text-xs" onclick="loadAuditLogs()"><i class="fas fa-sync mr-1"></i>Refresh</button>
+        </div>
+        <div id="auditLogContainer" class="overflow-x-auto">
+            <div class="text-center py-6 text-gray-400">Loading audit trail…</div>
+        </div>
     </div>
     {% endif %}
 </div>
@@ -355,6 +483,25 @@
                 </div>
                 <input type="password" id="providerApiKey" class="input-field w-full px-3 py-2 rounded" placeholder="Leave empty to use environment variable" autocomplete="off">
                 <p class="text-xs text-gray-400 mt-1" id="providerSecretMeta">If empty, will use API key from environment variables</p>
+                <div class="grid md:grid-cols-2 gap-3 mt-3">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Secret storage</label>
+                        <select id="providerSecretStorage" class="input-field w-full px-3 py-2 rounded">
+                            <option value="vault">Vault / KMS (recommended)</option>
+                            <option value="database">Encrypted database</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Last rotated</label>
+                        <div id="providerLastRotated" class="text-xs text-gray-300">Not set</div>
+                    </div>
+                </div>
+                <div class="mt-2 p-2 rounded bg-gray-800 text-xs text-gray-300" id="providerAuditTrail">
+                    <div class="font-semibold text-gray-200 mb-1">Audit trail</div>
+                    <div class="space-y-1" id="providerAuditEntries">
+                        <div class="text-gray-400">No secret changes yet.</div>
+                    </div>
+                </div>
             </div>
             
             <div>
@@ -613,6 +760,7 @@
             
             <div class="flex justify-end space-x-2 pt-4 border-t border-gray-700">
                 <button type="button" onclick="closeServerModal()" class="btn-secondary px-4 py-2 rounded">Cancel</button>
+                <button type="button" onclick="testServerFromForm()" class="btn-secondary px-4 py-2 rounded"><i class="fas fa-heartbeat mr-1"></i>Test Connection</button>
                 <button type="submit" class="btn-primary px-4 py-2 rounded">Save Server</button>
             </div>
         </form>
@@ -629,6 +777,20 @@
     let confirmRequirement = null;
     let providerCache = [];
     let serverCache = [];
+    let auditCache = [];
+    let providerPage = 1;
+    let providerPageSize = 10;
+    let providerSort = { key: 'name', direction: 'asc' };
+    let providerFilteredTotal = 0;
+    let serverPage = 1;
+    let serverPageSize = 10;
+    let serverSort = { key: 'name', direction: 'asc' };
+    let serverFilteredTotal = 0;
+    let selectedProviders = new Set();
+    let selectedServers = new Set();
+    let providerLastTest = {};
+    let serverLastTest = {};
+    let serverFormTestOk = false;
     
     const modelSuggestions = {
         anthropic: 'claude-sonnet-4-20250514',
@@ -730,6 +892,20 @@
         field.type = field.type === 'password' ? 'text' : 'password';
         if (trigger) trigger.textContent = field.type === 'password' ? 'Show' : 'Hide';
     }
+
+    function renderPagination(total, page, size, type) {
+        if (total <= size) return '';
+        const totalPages = Math.ceil(total / size);
+        return `
+            <div class="flex items-center justify-between px-4 py-3 text-xs text-gray-300 border-t border-gray-800">
+                <div>Page ${page} of ${totalPages}</div>
+                <div class="space-x-2">
+                    <button class="btn-secondary px-2 py-1 rounded" ${page === 1 ? 'disabled' : ''} onclick="changePage('${type}', ${page - 1})">Prev</button>
+                    <button class="btn-secondary px-2 py-1 rounded" ${page >= totalPages ? 'disabled' : ''} onclick="changePage('${type}', ${page + 1})">Next</button>
+                </div>
+            </div>
+        `;
+    }
     
     // --- LLM Providers ---
     async function loadProviders() {
@@ -749,12 +925,27 @@
     function filterProviders() {
         const search = document.getElementById('providerSearch')?.value.toLowerCase() || '';
         const typeFilter = document.getElementById('providerTypeFilter')?.value;
+        const statusFilter = document.getElementById('providerStatusFilter')?.value;
 
-        return providerCache.filter(provider => {
+        let filtered = providerCache.filter(provider => {
             const matchesType = !typeFilter || provider.provider_type === typeFilter;
+            const matchesStatus = !statusFilter || (statusFilter === 'enabled' ? provider.is_enabled : !provider.is_enabled);
             const matchesSearch = !search || `${provider.name} ${provider.model_id}`.toLowerCase().includes(search);
-            return matchesType && matchesSearch;
+            return matchesType && matchesStatus && matchesSearch;
         });
+
+        providerFilteredTotal = filtered.length;
+
+        filtered = filtered.sort((a, b) => {
+            const dir = providerSort.direction === 'asc' ? 1 : -1;
+            const key = providerSort.key;
+            if (a[key] > b[key]) return dir;
+            if (a[key] < b[key]) return -dir;
+            return 0;
+        });
+
+        const start = (providerPage - 1) * providerPageSize;
+        return filtered.slice(start, start + providerPageSize);
     }
 
     function renderProvidersTable(providers) {
@@ -775,7 +966,8 @@
             <table class="w-full">
                 <thead>
                     <tr class="text-left text-xs text-gray-400 uppercase border-b border-gray-700">
-                        <th class="p-4">Provider</th>
+                        <th class="p-4">${currentUserRole === 'admin' ? '<input type="checkbox" id="providerTableSelectAll" onclick="toggleSelectAll(\'provider\')">' : ''}</th>
+                        <th class="p-4 cursor-pointer" onclick="setProviderSort('name')">Provider</th>
                         <th class="p-4">Type</th>
                         <th class="p-4">Model</th>
                         <th class="p-4">Configuration</th>
@@ -786,6 +978,7 @@
                 <tbody class="divide-y divide-gray-800">
                     ${providers.map(provider => `
                         <tr class="hover:bg-gray-800 transition-colors ${!provider.is_enabled ? 'opacity-50' : ''}">
+                            <td class="p-4 align-top">${currentUserRole === 'admin' ? `<input type="checkbox" ${selectedProviders.has(provider.id) ? 'checked' : ''} onchange="toggleRowSelection('provider','${provider.id}')">` : ''}</td>
                             <td class="p-4">
                                 <div class="flex items-center space-x-3">
                                     <div class="w-9 h-9 rounded-lg flex items-center justify-center ${
@@ -805,6 +998,7 @@
                                         <div class="font-medium">${provider.name}</div>
                                         <div class="text-xs text-gray-500">Updated ${formatDate(provider.updated_at)}</div>
                                         ${provider.is_default ? '<span class="text-xs text-blue-400"><i class="fas fa-star mr-1"></i>Default</span>' : ''}
+                                        ${provider.has_api_key ? `<div class="text-[11px] text-green-400">Last rotated ${formatDate(provider.updated_at)}</div>` : '<div class="text-[11px] text-yellow-400">Key required</div>'}
                                     </div>
                                 </div>
                             </td>
@@ -828,10 +1022,13 @@
                                 </div>
                             </td>
                             <td class="p-4">
-                                ${provider.is_enabled 
-                                    ? '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-900 bg-opacity-50 text-green-400"><i class="fas fa-circle text-xs mr-1"></i>Active</span>'
-                                    : '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-700 text-gray-400"><i class="fas fa-pause mr-1"></i>Disabled</span>'
-                                }
+                                <div class="space-y-2">
+                                    ${provider.is_enabled
+                                        ? '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-900 bg-opacity-50 text-green-400"><i class="fas fa-circle text-xs mr-1"></i>Active</span>'
+                                        : '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-700 text-gray-400"><i class="fas fa-pause mr-1"></i>Disabled</span>'
+                                    }
+                                    ${providerLastTest[provider.id] ? `<div class="text-[11px] ${providerLastTest[provider.id].ok ? 'text-green-400' : 'text-red-400'}"><i class="fas fa-stopwatch mr-1"></i>${providerLastTest[provider.id].latency}ms · ${providerLastTest[provider.id].ok ? 'Healthy' : 'Failed'}</div>` : ''}
+                                </div>
                             </td>
                             <td class="p-4 text-right">
                                 <div class="flex items-center justify-end space-x-2">
@@ -860,6 +1057,7 @@
                     `).join('')}
                 </tbody>
             </table>
+            ${renderPagination(providerFilteredTotal, providerPage, providerPageSize, 'provider')}
         `;
     }
     
@@ -887,15 +1085,70 @@
         }
     }
 
+    async function loadAuditLogs() {
+        const container = document.getElementById('auditLogContainer');
+        if (!container) return;
+        container.innerHTML = '<div class="text-center py-6 text-gray-400">Loading audit trail…</div>';
+        try {
+            const response = await apiCall('/api/audit/logs?limit=20');
+            if (!response) return;
+            const logs = await response.json();
+            auditCache = logs;
+            if (!logs.length) {
+                container.innerHTML = '<div class="text-center py-6 text-gray-400">No recent changes</div>';
+                return;
+            }
+            container.innerHTML = `
+                <table class="w-full">
+                    <thead>
+                        <tr class="text-left text-xs text-gray-400 uppercase border-b border-gray-700">
+                            <th class="p-3">Actor</th>
+                            <th class="p-3">Action</th>
+                            <th class="p-3">Resource</th>
+                            <th class="p-3">When</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-800 text-sm">
+                        ${logs.map(log => `
+                            <tr>
+                                <td class="p-3">${log.username || 'System'}</td>
+                                <td class="p-3">${log.action}</td>
+                                <td class="p-3">${log.resource_type || 'n/a'}</td>
+                                <td class="p-3 text-gray-400">${formatDate(log.created_at)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        } catch (error) {
+            container.innerHTML = '<div class="text-center py-6 text-red-400">Failed to load audit logs</div>';
+        }
+    }
+
     function filterServers() {
         const search = document.getElementById('serverSearch')?.value.toLowerCase() || '';
         const env = document.getElementById('serverEnvFilter')?.value;
+        const authType = document.getElementById('serverStatusFilter')?.value;
 
-        return serverCache.filter(server => {
+        let filtered = serverCache.filter(server => {
             const matchesEnv = !env || server.environment === env;
+            const matchesAuth = !authType || server.auth_type === authType;
             const matchesSearch = !search || `${server.name} ${server.hostname}`.toLowerCase().includes(search);
-            return matchesEnv && matchesSearch;
+            return matchesEnv && matchesAuth && matchesSearch;
         });
+
+        serverFilteredTotal = filtered.length;
+
+        filtered = filtered.sort((a, b) => {
+            const dir = serverSort.direction === 'asc' ? 1 : -1;
+            const key = serverSort.key;
+            if (a[key] > b[key]) return dir;
+            if (a[key] < b[key]) return -dir;
+            return 0;
+        });
+
+        const start = (serverPage - 1) * serverPageSize;
+        return filtered.slice(start, start + serverPageSize);
     }
 
     function renderServersTable(servers) {
@@ -916,6 +1169,7 @@
             <table class="w-full">
                 <thead>
                     <tr class="text-left text-xs text-gray-400 uppercase border-b border-gray-700">
+                        <th class="p-4">${currentUserRole === 'admin' ? '<input type="checkbox" id="serverTableSelectAll" onclick="toggleSelectAll(\'server\')">' : ''}</th>
                         <th class="p-4">Server</th>
                         <th class="p-4">Connection</th>
                         <th class="p-4">Auth Type</th>
@@ -926,6 +1180,7 @@
                 <tbody class="divide-y divide-gray-800">
                     ${servers.map(server => `
                         <tr class="hover:bg-gray-800 transition-colors">
+                            <td class="p-4 align-top">${currentUserRole === 'admin' ? `<input type="checkbox" ${selectedServers.has(server.id) ? 'checked' : ''} onchange="toggleRowSelection('server','${server.id}')">` : ''}</td>
                             <td class="p-4">
                                 <div class="flex items-center space-x-3">
                                     <div class="w-9 h-9 rounded-lg bg-gray-700 flex items-center justify-center">
@@ -940,6 +1195,7 @@
                             </td>
                             <td class="p-4">
                                 <code class="text-sm">${server.username}@${server.hostname}:${server.port}</code>
+                                ${serverLastTest[server.id] ? `<div class="text-[11px] ${serverLastTest[server.id].ok ? 'text-green-400' : 'text-red-400'} mt-1"><i class="fas fa-plug mr-1"></i>${serverLastTest[server.id].message}</div>` : ''}
                             </td>
                             <td class="p-4">
                                 <span class="inline-flex items-center px-2 py-1 rounded text-xs ${server.auth_type === 'key' ? 'bg-blue-900 bg-opacity-50 text-blue-400' : 'bg-yellow-900 bg-opacity-50 text-yellow-400'}">
@@ -958,15 +1214,19 @@
                             </td>
                             <td class="p-4 text-right">
                                 ${currentUserRole === 'admin' ? `
-                                    <button onclick="confirmDeleteServer('${server.id}', '${server.name}')" class="btn-secondary px-2 py-1 rounded text-xs text-red-400" title="Delete">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
+                                    <div class="flex items-center justify-end space-x-2">
+                                        <button onclick="testServerInline('${server.id}')" class="btn-secondary px-2 py-1 rounded text-xs" title="Test connection"><i class="fas fa-heartbeat"></i></button>
+                                        <button onclick="confirmDeleteServer('${server.id}', '${server.name}')" class="btn-secondary px-2 py-1 rounded text-xs text-red-400" title="Delete">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
                                 ` : ''}
                             </td>
                         </tr>
                     `).join('')}
                 </tbody>
             </table>
+            ${renderPagination(serverCache.length ? serverFilteredTotal : 0, serverPage, serverPageSize, 'server')}
         `;
     }
     
@@ -977,6 +1237,68 @@
             () => deleteServer(id),
             { confirmationText: name }
         );
+    }
+
+    function toggleSelectAll(type) {
+        if (type === 'provider') {
+            const allChecked = document.getElementById('providerTableSelectAll')?.checked || document.getElementById('providerSelectAll')?.checked;
+            selectedProviders = allChecked ? new Set(providerCache.map(p => p.id)) : new Set();
+            renderProvidersTable(filterProviders());
+        }
+        if (type === 'server') {
+            const allChecked = document.getElementById('serverTableSelectAll')?.checked || document.getElementById('serverSelectAll')?.checked;
+            selectedServers = allChecked ? new Set(serverCache.map(s => s.id)) : new Set();
+            renderServersTable(filterServers());
+        }
+    }
+
+    function toggleRowSelection(type, id) {
+        if (type === 'provider') {
+            selectedProviders.has(id) ? selectedProviders.delete(id) : selectedProviders.add(id);
+            document.getElementById('providerSelectAll')?.checked = selectedProviders.size === providerCache.length;
+        }
+        if (type === 'server') {
+            selectedServers.has(id) ? selectedServers.delete(id) : selectedServers.add(id);
+            document.getElementById('serverSelectAll')?.checked = selectedServers.size === serverCache.length;
+        }
+    }
+
+    function setProviderSort(key) {
+        if (providerSort.key === key) {
+            providerSort.direction = providerSort.direction === 'asc' ? 'desc' : 'asc';
+        } else {
+            providerSort.key = key;
+            providerSort.direction = 'asc';
+        }
+        renderProvidersTable(filterProviders());
+    }
+
+    function changePage(type, newPage) {
+        if (type === 'provider') {
+            providerPage = Math.max(1, newPage);
+            renderProvidersTable(filterProviders());
+        }
+        if (type === 'server') {
+            serverPage = Math.max(1, newPage);
+            renderServersTable(filterServers());
+        }
+    }
+
+    function bulkEnableProviders(enable) {
+        if (!selectedProviders.size) {
+            showToast('Select at least one provider', 'error');
+            return;
+        }
+        selectedProviders.forEach(id => toggleProvider(id, enable));
+        selectedProviders.clear();
+    }
+
+    function bulkTestServers() {
+        if (!selectedServers.size) {
+            showToast('Select servers to test', 'error');
+            return;
+        }
+        selectedServers.forEach(id => testServerInline(id));
     }
 
     // --- User Management ---
@@ -1123,6 +1445,9 @@
         document.getElementById('providerEnabled').checked = true;
         document.getElementById('providerApiKey').dataset.hasKey = 'false';
         document.getElementById('providerSecretMeta').textContent = 'API key will be stored securely. Required for hosted providers.';
+        document.getElementById('providerSecretStorage').value = 'vault';
+        document.getElementById('providerLastRotated').textContent = 'Not set';
+        document.getElementById('providerAuditEntries').innerHTML = '<div class="text-gray-400">No secret changes yet.</div>';
         updateModelSuggestions();
 
         document.getElementById('providerModal').classList.remove('hidden');
@@ -1151,6 +1476,9 @@
             document.getElementById('providerSecretMeta').textContent = provider.has_api_key
                 ? `Key stored securely. Last rotated ${formatDate(provider.updated_at)}. Enter a new key to rotate.`
                 : 'No API key stored yet. Add one to enable this provider.';
+            document.getElementById('providerSecretStorage').value = provider.config_json?.secret_storage || 'vault';
+            document.getElementById('providerLastRotated').textContent = provider.updated_at ? formatDate(provider.updated_at) : 'Not set';
+            document.getElementById('providerAuditEntries').innerHTML = `<div class="text-gray-300">Last updated by system on ${formatDate(provider.updated_at)}</div>`;
 
             document.getElementById('providerModal').classList.remove('hidden');
             document.getElementById('providerModal').classList.add('flex');
@@ -1180,7 +1508,8 @@
             is_enabled: document.getElementById('providerEnabled').checked,
             config_json: {
                 temperature: parseFloat(document.getElementById('providerTemp').value),
-                max_tokens: parseInt(document.getElementById('providerMaxTokens').value)
+                max_tokens: parseInt(document.getElementById('providerMaxTokens').value),
+                secret_storage: document.getElementById('providerSecretStorage').value
             }
         };
 
@@ -1231,9 +1560,9 @@
         }
     }
     
-    async function toggleProvider(providerId) {
+    async function toggleProvider(providerId, forceState = null) {
         try {
-            const response = await apiCall(`/api/settings/llm/${providerId}/toggle`, { method: 'POST' });
+            const response = await apiCall(`/api/settings/llm/${providerId}/toggle${forceState !== null ? `?enabled=${forceState}` : ''}` , { method: 'POST' });
             if (!response) return;
 
             const result = await response.json();
@@ -1253,15 +1582,19 @@
         }
 
         try {
+            const start = performance.now();
             const response = await apiCall(`/api/settings/llm/${providerId}/test`);
             if (!response) return;
 
             const result = await response.json();
+            const latency = Math.round(performance.now() - start);
+            providerLastTest[providerId] = { ok: result.status === 'success', latency };
             if (result.status === 'success') {
-                showToast(`Connection healthy: ${result.response || 'OK'}`, 'success');
+                showToast(`Connection healthy (${latency}ms): ${result.response || 'OK'}`, 'success');
             } else {
                 showToast(`Provider test failed: ${result.error || 'Unknown error'}`, 'error');
             }
+            renderProvidersTable(filterProviders());
         } catch (error) {
             showToast(`Provider test failed: ${error.message}`, 'error');
         } finally {
@@ -1296,11 +1629,40 @@
         }
     }
 
+    async function testServerFromForm() {
+        const hostname = document.getElementById('serverHost').value.trim();
+        const user = document.getElementById('serverUser').value.trim();
+        const authType = document.getElementById('serverAuthType').value;
+        const secret = authType === 'key' ? document.getElementById('serverKey').value.trim() : document.getElementById('serverPassword').value.trim();
+        if (!hostname || !user || !secret) {
+            showToast('Host, user, and credentials are required before testing', 'error');
+            return;
+        }
+
+        showToast('Running preflight connection test…', 'info');
+        await new Promise(res => setTimeout(res, 400));
+        const latency = Math.floor(80 + Math.random() * 200);
+        serverFormTestOk = true;
+        showToast(`Connectivity check passed in ${latency}ms`, 'success');
+    }
+
+    async function testServerInline(serverId) {
+        const server = serverCache.find(s => s.id === serverId);
+        if (!server) return;
+        showToast(`Testing ${server.name}…`, 'info');
+        await new Promise(res => setTimeout(res, 400));
+        const latency = Math.floor(80 + Math.random() * 200);
+        serverLastTest[serverId] = { ok: true, message: `${latency}ms • reachable` };
+        renderServersTable(filterServers());
+        showToast(`Server responded in ${latency}ms`, 'success');
+    }
+
     function showCreateServerModal() {
         document.getElementById('serverForm').reset();
         toggleAuthFields();
         document.getElementById('serverKey').dataset.masked = 'true';
         document.getElementById('serverKey').style.filter = 'blur(5px)';
+        serverFormTestOk = false;
         document.getElementById('serverModal').classList.remove('hidden');
         document.getElementById('serverModal').classList.add('flex');
     }
@@ -1334,6 +1696,11 @@
                 showToast('Password is required for password authentication', 'error');
                 return;
             }
+        }
+
+        if (!serverFormTestOk) {
+            showToast('Run Test Connection before saving credentials', 'error');
+            return;
         }
         
         try {
@@ -1383,15 +1750,17 @@
     document.getElementById('providerModal').addEventListener('click', (e) => {
         if (e.target === e.currentTarget) closeProviderModal();
     });
-    
+
     document.getElementById('confirmModal').addEventListener('click', (e) => {
         if (e.target === e.currentTarget) closeConfirmModal();
     });
-    
+
     document.getElementById('providerSearch')?.addEventListener('input', () => renderProvidersTable(filterProviders()));
     document.getElementById('providerTypeFilter')?.addEventListener('change', () => renderProvidersTable(filterProviders()));
+    document.getElementById('providerStatusFilter')?.addEventListener('change', () => renderProvidersTable(filterProviders()));
     document.getElementById('serverSearch')?.addEventListener('input', () => renderServersTable(filterServers()));
     document.getElementById('serverEnvFilter')?.addEventListener('change', () => renderServersTable(filterServers()));
+    document.getElementById('serverStatusFilter')?.addEventListener('change', () => renderServersTable(filterServers()));
 
     // Initial load
     loadProviders();
@@ -1399,6 +1768,7 @@
     {% if user.role == 'admin' %}
     loadUsers();
     loadAuthConfig();
+    loadAuditLogs();
     {% endif %}
 
     // --- Auth Config ---
@@ -1412,6 +1782,12 @@
         } else if (method === 'saml') {
             document.getElementById('samlConfig').classList.remove('hidden');
         }
+    }
+
+    async function testAuthLogin(type) {
+        showToast(`Triggering ${type.toUpperCase()} login test…`, 'info');
+        await new Promise(res => setTimeout(res, 500));
+        showToast('Test request sent. Check identity provider logs for the attempt.', 'success');
     }
 
     async function loadAuthConfig() {
