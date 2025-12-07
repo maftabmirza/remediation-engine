@@ -266,7 +266,8 @@ async def rules_page(
 @app.get("/settings", response_class=HTMLResponse)
 async def settings_page(
     request: Request,
-    current_user: User = Depends(get_current_user_optional)
+    current_user: User = Depends(get_current_user_optional),
+    db: Session = Depends(get_db)
 ):
     """
     Settings page (LLM providers)
