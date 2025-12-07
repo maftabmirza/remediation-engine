@@ -148,11 +148,19 @@ def run_migrations():
                     try:
                         connection.execute(text(statement))
                     except Exception as e:
-                        # Postgres raises "can't execute an empty query" if the statement is just comments.
+                        # Handle specific errors that are safe to ignore for idempotency
                         str_e = str(e).lower()
+                        
+                        # Postgres raises "can't execute an empty query" if the statement is just comments.
                         if "can't execute an empty query" in str_e or "empty query" in str_e:
                             print(f"Skipping empty/comment-only statement.")
                             continue
+                            
+                        # Handle "already exists" errors for tables, columns, constraints, etc.
+                        if "already exists" in str_e or "duplicate object" in str_e:
+                             print(f"Skipping already existing object: {e}")
+                             continue
+
                         raise e
                 connection.commit()
                 print(f"Successfully applied {filename}")
