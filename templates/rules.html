@@ -79,15 +79,15 @@
 
 <!-- Create/Edit Modal -->
 <div id="ruleModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-    <div class="card p-6 w-full max-w-lg m-4">
-        <div class="flex items-center justify-between mb-4">
+    <div class="card p-6 w-3/4 max-w-5xl m-4 max-h-[90vh] flex flex-col">
+        <div class="flex items-center justify-between mb-4 flex-shrink-0">
             <h3 id="modalTitle" class="text-lg font-semibold">New Rule</h3>
             <button onclick="closeModal()" class="text-gray-400 hover:text-white">
                 <i class="fas fa-times"></i>
             </button>
         </div>
         
-        <form id="ruleForm" class="space-y-4">
+        <form id="ruleForm" class="space-y-4 overflow-y-auto pr-2 custom-scrollbar">
             <input type="hidden" id="ruleId">
             
             <div>

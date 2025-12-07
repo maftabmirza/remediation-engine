@@ -449,7 +449,8 @@
   credential_profile_id: <profile uuid>"></textarea>
                     <p class="text-xs text-gray-400">Tips: set <code>credential_source: shared_profile</code> to reuse
                         vault or CyberArk secrets. You can also pre-set defaults for <code>auth_type</code> and
-                        <code>group</code> via the dropdowns.</p>
+                        <code>group</code> via the dropdowns.
+                    </p>
                 </div>
             </div>
         </section>
@@ -728,15 +729,15 @@
 
 <!-- Provider Modal -->
 <div id="providerModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-    <div class="card p-6 w-full max-w-lg m-4">
-        <div class="flex items-center justify-between mb-4">
+    <div class="card p-6 w-3/4 max-w-5xl m-4 max-h-[90vh] flex flex-col">
+        <div class="flex items-center justify-between mb-4 flex-shrink-0">
             <h3 id="providerModalTitle" class="text-lg font-semibold">Add LLM Provider</h3>
             <button onclick="closeProviderModal()" class="text-gray-400 hover:text-white">
                 <i class="fas fa-times"></i>
             </button>
         </div>
 
-        <form id="providerForm" class="space-y-4">
+        <form id="providerForm" class="space-y-4 overflow-y-auto pr-2 custom-scrollbar">
             <input type="hidden" id="providerId">
 
             <div>
@@ -884,15 +885,15 @@
 
 <!-- User Modal -->
 <div id="userModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-    <div class="card p-6 w-full max-w-lg m-4">
-        <div class="flex items-center justify-between mb-4">
+    <div class="card p-6 w-3/4 max-w-5xl m-4 max-h-[90vh] flex flex-col">
+        <div class="flex items-center justify-between mb-4 flex-shrink-0">
             <h3 id="userModalTitle" class="text-lg font-semibold">Add User</h3>
             <button onclick="closeUserModal()" class="text-gray-400 hover:text-white">
                 <i class="fas fa-times"></i>
             </button>
         </div>
 
-        <form id="userForm" class="space-y-4">
+        <form id="userForm" class="space-y-4 overflow-y-auto pr-2 custom-scrollbar">
             <input type="hidden" id="userId">
 
             <div>
@@ -983,15 +984,15 @@
 
 <!-- Server Modal -->
 <div id="serverModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-    <div class="card p-6 w-full max-w-lg m-4">
-        <div class="flex items-center justify-between mb-4">
+    <div class="card p-6 w-3/4 max-w-5xl m-4 max-h-[90vh] flex flex-col">
+        <div class="flex items-center justify-between mb-4 flex-shrink-0">
             <h3 class="text-lg font-semibold">Add Server Credential</h3>
             <button onclick="closeServerModal()" class="text-gray-400 hover:text-white">
                 <i class="fas fa-times"></i>
             </button>
         </div>
 
-        <form id="serverForm" class="space-y-4">
+        <form id="serverForm" class="space-y-4 overflow-y-auto pr-2 custom-scrollbar">
             <input type="hidden" id="serverId">
             <div>
                 <label class="label-with-tooltip block text-sm font-medium mb-1">
@@ -1235,14 +1236,14 @@ account: db-admin"></textarea>
 
 <!-- Credential Profile Modal -->
 <div id="credentialModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-    <div class="card p-6 w-full max-w-xl m-4">
-        <div class="flex items-center justify-between mb-4">
+    <div class="card p-6 w-3/4 max-w-5xl m-4 max-h-[90vh] flex flex-col">
+        <div class="flex items-center justify-between mb-4 flex-shrink-0">
             <h3 id="credentialModalTitle" class="text-lg font-semibold">New Credential Profile</h3>
             <button onclick="closeCredentialModal()" class="text-gray-400 hover:text-white">
                 <i class="fas fa-times"></i>
             </button>
         </div>
-        <form id="credentialForm" class="space-y-4">
+        <form id="credentialForm" class="space-y-4 overflow-y-auto pr-2 custom-scrollbar">
             <input type="hidden" id="credentialProfileEditingId">
             <div class="grid md:grid-cols-2 gap-4">
                 <div>
