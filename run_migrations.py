@@ -14,12 +14,32 @@ def split_sql_statements(sql_content):
     quote_char = None
     in_dollar_quote = False
     dollar_quote_tag = None
+    in_block_comment = False
     
     i = 0
     length = len(sql_content)
     while i < length:
         char = sql_content[i]
         
+        # Handle Block Comments /* ... */
+        if not in_quote and not in_dollar_quote:
+            if in_block_comment:
+                current_statement.append(char)
+                if char == '*' and i + 1 < length and sql_content[i+1] == '/':
+                    current_statement.append('/')
+                    i += 2
+                    in_block_comment = False
+                    continue
+                i += 1
+                continue
+            else:
+                if char == '/' and i + 1 < length and sql_content[i+1] == '*':
+                    in_block_comment = True
+                    current_statement.append(char)
+                    current_statement.append('*')
+                    i += 2
+                    continue
+                    
         # Handle Dollar Quotes (e.g., $$ or $tag$)
         if not in_quote and not in_dollar_quote:
             if char == '$':
