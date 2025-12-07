@@ -146,7 +146,8 @@ def run_migrations():
                     # or better, do not send if it looks like just comments.
                     
                     try:
-                        connection.execute(text(statement))
+                        with connection.begin_nested():
+                            connection.execute(text(statement))
                     except Exception as e:
                         # Handle specific errors that are safe to ignore for idempotency
                         str_e = str(e).lower()
@@ -154,6 +155,7 @@ def run_migrations():
                         # Postgres raises "can't execute an empty query" if the statement is just comments.
                         if "can't execute an empty query" in str_e or "empty query" in str_e:
                             print(f"Skipping empty/comment-only statement.")
+                            # No need to continue outer loop, begin_nested context handles rollback
                             continue
                             
                         # Handle "already exists" errors for tables, columns, constraints, etc.
