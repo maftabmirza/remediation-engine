@@ -136,8 +136,24 @@ def run_migrations():
             try:
                 statements = split_sql_statements(sql_content)
                 for statement in statements:
-                    if statement.strip():
+                    stmt_stripped = statement.strip()
+                    # Skip empty statements or pure comments (naive check)
+                    if not stmt_stripped:
+                         continue
+                    # Further filter: if it starts with -- and has no newlines, it's a single line comment.
+                    # But our splitter preserves newlines.
+                    # Let's rely on try/except for the specific "empty query" error if it happens,
+                    # or better, do not send if it looks like just comments.
+                    
+                    try:
                         connection.execute(text(statement))
+                    except Exception as e:
+                        # Postgres raises "can't execute an empty query" if the statement is just comments.
+                        str_e = str(e).lower()
+                        if "can't execute an empty query" in str_e or "empty query" in str_e:
+                            print(f"Skipping empty/comment-only statement.")
+                            continue
+                        raise e
                 connection.commit()
                 print(f"Successfully applied {filename}")
             except Exception as e:
