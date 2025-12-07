@@ -33,7 +33,8 @@ from app.routers import (
     terminal_ws,
     audit,
     metrics,
-    remediation
+    remediation,
+    roles
 )
 from app import api_credential_profiles
 from app.services.execution_worker import start_execution_worker, stop_execution_worker
@@ -158,6 +159,7 @@ app.include_router(audit.router)
 app.include_router(metrics.router)
 app.include_router(remediation.router)
 app.include_router(api_credential_profiles.router)
+app.include_router(roles.router)
 
 
 # ============== Web UI Routes ==============
@@ -275,7 +277,7 @@ async def settings_page(
     return templates.TemplateResponse("settings.html", {
         "request": request,
         "user": current_user,
-        "permissions": list(get_permissions_for_role(current_user.role)),
+        "permissions": list(get_permissions_for_role(db, current_user.role)),
     })
 
 

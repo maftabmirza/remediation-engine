@@ -55,6 +55,12 @@
                     <span>Users</span>
                 </button>
                 {% endif %}
+                {% if 'manage_users' in permissions %}
+                <button type="button" class="settings-nav-btn" data-target="section-roles">
+                    <i class="fas fa-id-card"></i>
+                    <span>Roles (RBAC)</span>
+                </button>
+                {% endif %}
                 <button type="button" class="settings-nav-btn" data-target="section-providers">
                     <i class="fas fa-robot"></i>
                     <span>LLM Providers</span>
@@ -269,6 +275,41 @@
                     <div class="text-center py-8">
                         <div class="loading-spinner mx-auto"></div>
                     </div>
+                </div>
+            </div>
+        </section>
+        {% endif %}
+
+        {% if 'manage_users' in permissions %}
+        <section id="section-roles" class="settings-section space-y-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-xl font-semibold">Roles & Permissions</h2>
+                    <p class="text-sm text-gray-400">Manage system roles and granular access capabilities.</p>
+                </div>
+                <button onclick="showCreateRoleModal()" class="btn-primary px-4 py-2 rounded">
+                    <i class="fas fa-plus mr-2"></i>Create Role
+                </button>
+            </div>
+
+            <!-- Roles Table -->
+            <div class="card overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-gray-800 text-gray-400 text-xs uppercase cursor-pointer">
+                                <th class="p-4 border-b border-gray-700">Name</th>
+                                <th class="p-4 border-b border-gray-700">Description</th>
+                                <th class="p-4 border-b border-gray-700">Type</th>
+                                <th class="p-4 border-b border-gray-700 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rolesTableBody" class="text-sm divide-y divide-gray-700">
+                            <tr>
+                                <td colspan="4" class="p-4 text-center text-gray-500">Loading roles...</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </section>
@@ -1320,6 +1361,47 @@ account: db-admin"></textarea>
     </div>
 </div>
 
+<!-- Role Modal -->
+<div id="roleModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="card p-6 w-3/4 max-w-5xl m-4 max-h-[90vh] flex flex-col">
+        <div class="flex items-center justify-between mb-4 flex-shrink-0">
+            <h3 id="roleModalTitle" class="text-lg font-semibold">New Role</h3>
+            <button onclick="closeRoleModal()" class="text-gray-400 hover:text-white">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <form id="roleForm" class="space-y-4 overflow-y-auto pr-2 custom-scrollbar">
+            <input type="hidden" id="roleEditingId"> <!-- Using roleEditingId to store UUID if editing -->
+            <input type="hidden" id="roleOriginalName">
+
+            <div>
+                <label class="block text-sm font-medium mb-1">Name *</label>
+                <input type="text" id="roleName" class="input-field w-full px-3 py-2 rounded" required
+                    placeholder="e.g. Compliance Officer">
+                <p class="text-xs text-gray-400 mt-1">Unique identifier for the role.</p>
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-1">Description</label>
+                <textarea id="roleDescription" class="input-field w-full px-3 py-2 rounded h-20"
+                    placeholder="Role responsibilities..."></textarea>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium mb-3">Permissions</label>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="permissionsContainer">
+                    <!-- Loading... -->
+                </div>
+            </div>
+
+            <div class="flex justify-end space-x-2 pt-4 border-t border-gray-700 mt-4">
+                <button type="button" onclick="closeRoleModal()" class="btn-secondary px-4 py-2 rounded">Cancel</button>
+                <button type="submit" class="btn-primary px-4 py-2 rounded">Save Role</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
@@ -1335,6 +1417,7 @@ account: db-admin"></textarea>
     const canRead = currentUserPermissions.includes('read');
     let confirmCallback = null;
     let confirmRequirement = null;
+    let rolesCache = [];
     let userCache = [];
     let userFilteredTotal = 0;
     let userPage = 1;
@@ -1397,7 +1480,8 @@ account: db-admin"></textarea>
         'section-servers': 'Validate SSH credentials and environments before saving.',
         'section-api-credentials': 'Manage reusable API credentials for runbook automation.',
         'section-credentials': 'Centralize credentials for reuse across server groups.',
-        'section-auth': 'Upload LDAP/SAML metadata and run readiness checks.'
+        'section-auth': 'Upload LDAP/SAML metadata and run readiness checks.',
+        'section-roles': 'Define granular access control policies and custom roles.'
     };
 
     function setActiveSection(targetId) {
@@ -3215,5 +3299,202 @@ account: db-admin"></textarea>
             showToast('Failed to delete user', 'error');
         }
     }
+
+    // === Role Management ===
+
+    const AVAILABLE_PERMISSIONS = {
+        "Administrative": [
+            { key: "manage_users", label: "Manage Users", desc: "Create, edit, and delete user accounts" },
+            { key: "view_audit", label: "View Audit Logs", desc: "Access security audit logs" }
+        ],
+        "Infrastructure": [
+            { key: "manage_servers", label: "Manage Servers", desc: "Add/remove servers and credentials" },
+            { key: "manage_server_groups", label: "Manage Groups", desc: "Organize servers into groups" },
+            { key: "manage_providers", label: "Manage Allocations", desc: "Manage LLM providers and secrets" }
+        ],
+        "Operations": [
+            { key: "execute", label: "Execute Runbooks", desc: "Run remediation actions" },
+            { key: "update", label: "Update Content", desc: "Edit rules and runbooks" },
+            { key: "read", label: "Read Only", desc: "View dashboards and resources" }
+        ]
+    };
+
+    async function loadRoles() {
+        const tbody = document.getElementById('rolesTableBody');
+        tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-gray-500">Loading roles...</td></tr>';
+
+        try {
+            const response = await fetch('/api/roles');
+            if (response.ok) {
+                rolesCache = await response.json();
+                renderRoles();
+            } else {
+                tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-red-400">Failed to load roles</td></tr>';
+            }
+        } catch (e) {
+            console.error(e);
+            tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-red-400">Error loading roles</td></tr>';
+        }
+    }
+
+    function renderRoles() {
+        const tbody = document.getElementById('rolesTableBody');
+        if (rolesCache.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-gray-400">No roles found</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = rolesCache.map(role => `
+            <tr class="hover:bg-gray-800/50 transition-colors">
+                <td class="p-4 font-medium text-white">${role.name}</td>
+                <td class="p-4 text-gray-300">${role.description || '-'}</td>
+                <td class="p-4">
+                    <span class="px-2 py-1 rounded text-xs ${role.is_custom ? 'bg-blue-900 text-blue-300' : 'bg-gray-700 text-gray-300'}">
+                        ${role.is_custom ? 'Custom' : 'System'}
+                    </span>
+                </td>
+                <td class="p-4 text-right space-x-2">
+                    <button class="text-gray-400 hover:text-white" onclick="showEditRoleModal('${role.id}')" title="Edit Permissions">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    ${role.is_custom ? `
+                    <button class="text-red-400 hover:text-red-300" onclick="deleteRole('${role.id}')" title="Delete Role">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                    ` : ''}
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    function showCreateRoleModal() {
+        document.getElementById('roleModal').classList.remove('hidden');
+        document.getElementById('roleModal').classList.add('flex');
+        document.getElementById('roleModalTitle').textContent = "New Role";
+        document.getElementById('roleForm').reset();
+        document.getElementById('roleEditingId').value = "";
+        document.getElementById('roleName').disabled = false;
+        renderPermissionsCheckboxes([]);
+    }
+
+    function showEditRoleModal(roleId) {
+        const role = rolesCache.find(r => r.id === roleId);
+        if (!role) return;
+
+        document.getElementById('roleModal').classList.remove('hidden');
+        document.getElementById('roleModal').classList.add('flex');
+        document.getElementById('roleModalTitle').textContent = `Edit Role: ${role.name}`;
+
+        document.getElementById('roleEditingId').value = role.id;
+        document.getElementById('roleName').value = role.name;
+        document.getElementById('roleName').disabled = true; // Name is unique/indexed
+        document.getElementById('roleDescription').value = role.description || "";
+
+        renderPermissionsCheckboxes(role.permissions);
+    }
+
+    function closeRoleModal() {
+        document.getElementById('roleModal').classList.add('hidden');
+        document.getElementById('roleModal').classList.remove('flex');
+    }
+
+    function renderPermissionsCheckboxes(selectedPerms) {
+        const container = document.getElementById('permissionsContainer');
+        const set = new Set(selectedPerms);
+
+        let html = '';
+        for (const [category, perms] of Object.entries(AVAILABLE_PERMISSIONS)) {
+            html += `
+                <div class="bg-gray-800/50 p-3 rounded border border-gray-700">
+                    <h4 class="text-xs font-bold uppercase text-gray-500 mb-2">${category}</h4>
+                    <div class="space-y-2">
+            `;
+            perms.forEach(p => {
+                const checked = set.has(p.key) ? 'checked' : '';
+                html += `
+                    <label class="flex items-start gap-2 cursor-pointer">
+                        <input type="checkbox" name="role_permission" value="${p.key}" ${checked} class="mt-1">
+                        <div>
+                            <div class="text-sm font-medium text-gray-200">${p.label}</div>
+                            <div class="text-xs text-gray-500">${p.desc}</div>
+                        </div>
+                    </label>
+                `;
+            });
+            html += `</div></div>`;
+        }
+        container.innerHTML = html;
+    }
+
+    document.getElementById('roleForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const roleId = document.getElementById('roleEditingId').value;
+        const name = document.getElementById('roleName').value;
+        const description = document.getElementById('roleDescription').value;
+
+        // Harvest permissions
+        const checkboxes = document.querySelectorAll('input[name="role_permission"]:checked');
+        const permissions = Array.from(checkboxes).map(c => c.value);
+
+        const payload = {
+            name,
+            description,
+            permissions
+        };
+
+        let method = 'POST';
+        let url = '/api/roles';
+
+        if (roleId) {
+            method = 'PUT';
+            url = `/api/roles/${roleId}`;
+        }
+
+        try {
+            const res = await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                showToast(roleId ? 'Role updated' : 'Role created', 'success');
+                closeRoleModal();
+                loadRoles();
+            } else {
+                const err = await res.json();
+                showToast(err.detail || 'Failed to save role', 'error');
+            }
+        } catch (e) {
+            showToast('Error connecting to server', 'error');
+        }
+    });
+
+    async function deleteRole(roleId) {
+        if (!confirm("Are you sure you want to delete this role? This cannot be undone.")) return;
+
+        try {
+            const res = await fetch(`/api/roles/${roleId}`, { method: 'DELETE' });
+            if (res.ok) {
+                showToast('Role deleted', 'success');
+                loadRoles();
+            } else {
+                const err = await res.json();
+                showToast(err.detail || 'Failed to delete role', 'error');
+            }
+        } catch (e) {
+            showToast('Error deleting role', 'error');
+        }
+    }
+
+
+    /* Hook into section switching */
+    const originalSetActiveSection = setActiveSection;
+    setActiveSection = function (targetId) {
+        originalSetActiveSection(targetId);
+        if (targetId === 'section-roles') {
+            loadRoles();
+        }
+    };
 </script>
 {% endblock %}

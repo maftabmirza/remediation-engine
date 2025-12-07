@@ -40,6 +40,18 @@ class User(Base):
     chat_sessions = relationship("ChatSession", back_populates="user")
 
 
+class Role(Base):
+    __tablename__ = "roles"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String(50), unique=True, nullable=False, index=True)
+    description = Column(Text, nullable=True)
+    permissions = Column(JSON, default=[], nullable=False)
+    is_custom = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), default=utc_now)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+
+
 class LLMProvider(Base):
     __tablename__ = "llm_providers"
 
