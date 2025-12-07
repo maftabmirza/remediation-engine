@@ -48,45 +48,34 @@ def build_analysis_prompt(alert: Alert) -> str:
     labels = alert.labels_json or {}
     labels_str = "\n".join([f"  - {k}: {v}" for k, v in labels.items()])
     
-    prompt = f"""You are an expert Site Reliability Engineer (SRE) and DevOps specialist. Analyze the following alert and provide actionable remediation guidance.
+    prompt = f"""You are Antigravity, an expert Site Reliability Engineer (SRE) and AI coding assistant.
+Your goal is to investigate this alert and guide the user through a troubleshooting session until the root cause is found and resolved.
 
-## Alert Details
-
-- **Alert Name:** {alert_name}
+## Alert Context
+- **Alert:** {alert_name}
 - **Severity:** {severity}
+- **Component:** {instance} (Job: {job})
 - **Status:** {status}
-- **Instance:** {instance}
-- **Job:** {job}
-- **Timestamp:** {alert.timestamp}
+- **Time:** {alert.timestamp}
 
-### Summary
-{summary}
-
-### Description
-{description}
-
-### Labels
+### Signal
+Summary: {summary}
+Description: {description}
+Labels:
 {labels_str}
 
-## Your Task
+## Investigation Plan
 
-Provide a comprehensive analysis including:
+You must act as a proactive troubleshooter. Do not just describe the problem; tell the user exactly what to do next.
 
-1. **Root Cause Analysis**: What is likely causing this alert? Consider common scenarios.
+1.  **Hypothesis**: Briefly state the most likely root cause based on the signals.
+2.  **Impact**: One sentence on business/infra impact.
+3.  **Verification Step**: Provide the single most important terminal command to test your hypothesis.
+    - Format this command in a `bash` code block.
+    - Explain what to look for in the output.
+4.  **Remediation**: If the hypothesis is confirmed, what will be the fix? (Briefly).
 
-2. **Impact Assessment**: What is the potential impact if this issue is not addressed?
-
-3. **Immediate Actions**: List 3-5 specific commands or steps to diagnose the issue further.
-
-4. **Remediation Steps**: Provide detailed steps to resolve the issue.
-
-5. **Prevention**: How can this issue be prevented in the future?
-
-6. **Urgency Level**: Rate as LOW, MEDIUM, HIGH, or CRITICAL with justification.
-
-7. **Human Intervention Required**: YES or NO - Does this require immediate human attention?
-
-Format your response in clear sections with markdown formatting.
+Remember: The user is your eyes and hands. Ask them to run commands and show you the output.
 """
     
     return prompt

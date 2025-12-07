@@ -3,8 +3,13 @@ Rules Engine - Match alerts against auto-analyze rules
 """
 import fnmatch
 import re
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Dict, Any
 from sqlalchemy.orm import Session
+
+try:
+    from json_logic import jsonLogic
+except ImportError:
+    jsonLogic = None
 
 from app.models import AutoAnalyzeRule, Alert
 
@@ -37,14 +42,44 @@ def match_pattern(pattern: str, value: str) -> bool:
         return fnmatch.fnmatch(value.lower(), pattern.lower())
 
 
+def flatten_alert(alert_name: str, severity: str, instance: str, job: str) -> Dict[str, Any]:
+    """Helper to create a data dict for JSON logic."""
+    return {
+        "alert_name": alert_name,
+        "severity": severity,
+        "instance": instance,
+        "job": job,
+        # Flattened for easier access if we had more fields, 
+        # but for now this matches the logic arguments
+    }
+
+
 def match_rule(rule: AutoAnalyzeRule, alert_name: str, severity: str, instance: str, job: str) -> bool:
     """
     Check if an alert matches a rule's patterns.
-    All patterns must match for the rule to match.
+    Prioritizes JSON logic if present.
     """
     if not rule.enabled:
         return False
-    
+        
+    # 1. Advanced JSON Logic
+    if rule.condition_json:
+        if not jsonLogic:
+            # Log warning?
+            return False 
+            
+        data = {
+            "alert_name": alert_name,
+            "severity": severity,
+            "instance": instance,
+            "job": job
+        }
+        try:
+            return bool(jsonLogic(rule.condition_json, data))
+        except Exception:
+            return False
+
+    # 2. Legacy Pattern Matching
     # All patterns must match
     if not match_pattern(rule.alert_name_pattern, alert_name or ""):
         return False
@@ -108,7 +143,6 @@ def test_rules(
 ) -> dict:
     """
     Test which rule would match for given alert parameters.
-    Useful for debugging and rule creation.
     """
     matched_rule, action = find_matching_rule(db, alert_name, severity, instance, job)
     

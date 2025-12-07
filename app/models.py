@@ -63,6 +63,7 @@ class AutoAnalyzeRule(Base):
     name = Column(String(100), nullable=False)
     description = Column(Text, nullable=True)
     priority = Column(Integer, default=100, index=True)  # Lower = higher priority
+    condition_json = Column(JSON, nullable=True)
     alert_name_pattern = Column(String(255), default="*")
     severity_pattern = Column(String(50), default="*")
     instance_pattern = Column(String(255), default="*")
