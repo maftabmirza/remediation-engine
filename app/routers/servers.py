@@ -15,7 +15,8 @@ import yaml
 from app.database import get_db
 from app.models import ServerCredential, User, AuditLog, ServerGroup, CredentialProfile
 from app.services.auth_service import require_permission
-from app.utils.crypto import encrypt_value
+from app.services.executor_factory import ExecutorFactory
+from app.utils.crypto import encrypt_value, decrypt_value
 
 router = APIRouter(prefix="/api/servers", tags=["Servers"])
 
@@ -84,6 +85,14 @@ class ServerTestRequest(BaseModel):
     hostname: str
     port: int = 22
     protocol: str = "ssh"
+    username: Optional[str] = None
+    auth_type: str = "key"  # key or password
+    # For inline credentials
+    password: Optional[str] = None
+    ssh_key: Optional[str] = None
+    # For shared credentials
+    credential_source: str = "inline"
+    credential_profile_id: Optional[UUID] = None
 
 
 class ServerTestResponse(BaseModel):
@@ -590,9 +599,56 @@ async def update_server(
 async def test_server_on_demand(
     payload: ServerTestRequest,
     current_user: User = Depends(require_permission(["manage_servers"])),
+    db: Session = Depends(get_db),
 ):
-    """Test a server connection before saving credentials."""
-    return _probe_port(payload.hostname, payload.port)
+    """Test a server connection with provided credentials before saving."""
+    
+    # Check for shared profile if requested
+    profile = None
+    if payload.credential_source == "shared_profile" and payload.credential_profile_id:
+        profile = db.query(CredentialProfile).filter(CredentialProfile.id == payload.credential_profile_id).first()
+        if not profile:
+             return ServerTestResponse(status="error", message="Credential profile not found")
+
+    # Construct a temporary server object for the executor
+    server = ServerCredential(
+        name="test-server",
+        hostname=payload.hostname,
+        port=payload.port,
+        username=payload.username or "root",
+        protocol=payload.protocol,
+        auth_type=payload.auth_type,
+        credential_source=payload.credential_source,
+        credential_profile_id=payload.credential_profile_id,
+        credential_profile=profile
+    )
+    
+    # Set inline credentials if needed
+    if payload.credential_source == "inline":
+        if payload.password:
+            # Executor factory expects encrypted values (it decrypts them)
+            # But here we have raw values. This is a bit tricky.
+            # We should probably update factory to handle raw values or hack it here.
+            # Hack: Encrypt them temporarily since factory decrypts them.
+            server.password_encrypted = encrypt_value(payload.password)
+        
+        if payload.ssh_key:
+            server.ssh_key_encrypted = encrypt_value(payload.ssh_key)
+
+    # Use the executor factory to test connection
+    try:
+        result = await ExecutorFactory.test_server_connection(server)
+        
+        status_code = "success" if result.success else "error"
+        message = result.stdout if result.success else (result.error_message or result.stderr)
+        
+        return ServerTestResponse(
+            status=status_code,
+            message=message or "Connection successful",
+            latency_ms=result.duration_ms
+        )
+    except Exception as e:
+        return ServerTestResponse(status="error", message=str(e))
 
 
 @router.post("/import", response_model=ServerBulkImportResponse)
@@ -649,8 +705,21 @@ async def test_saved_server(
     if not server:
         raise HTTPException(status_code=404, detail="Server not found")
     
- 
-    probe = _probe_port(server.hostname, server.port)
+    # Use executor factory for real test
+    try:
+        result = await ExecutorFactory.test_server_connection(server)
+        
+        status_code = "success" if result.success else "error"
+        message = result.stdout if result.success else (result.error_message or result.stderr)
+        
+        probe = ServerTestResponse(
+            status=status_code, 
+            message=message or "Connection successful", 
+            latency_ms=result.duration_ms
+        )
+    except Exception as e:
+        probe = ServerTestResponse(status="error", message=str(e))
+    
     server.last_connection_test = datetime.utcnow()
     server.last_connection_status = probe.status
     server.last_connection_error = None if probe.status == "success" else probe.message

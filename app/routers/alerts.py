@@ -1,7 +1,7 @@
 """
 Alerts API endpoints
 """
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
@@ -10,6 +10,7 @@ from sqlalchemy import desc, func
 
 from app.database import get_db
 from app.models import Alert, User, LLMProvider, AuditLog
+from app.models_remediation import RunbookExecution
 from app.schemas import (
     AlertResponse, AlertListResponse, AnalyzeRequest, 
     AnalysisResponse, StatsResponse
@@ -67,27 +68,141 @@ async def list_alerts(
 
 @router.get("/stats", response_model=StatsResponse)
 async def get_stats(
+    time_range: str = Query("24h", pattern="^(24h|7d|30d)$"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
-    Get alert statistics.
+    Get alert statistics and dashboard metrics.
     """
-    total = db.query(Alert).count()
-    analyzed = db.query(Alert).filter(Alert.analyzed == True).count()
-    pending = db.query(Alert).filter(Alert.analyzed == False).count()
-    critical = db.query(Alert).filter(Alert.severity == "critical").count()
-    warning = db.query(Alert).filter(Alert.severity == "warning").count()
-    firing = db.query(Alert).filter(Alert.status == "firing").count()
-    resolved = db.query(Alert).filter(Alert.status == "resolved").count()
-    auto_analyzed = db.query(Alert).filter(Alert.action_taken == "auto_analyze").count()
-    manually_analyzed = db.query(Alert).filter(Alert.action_taken == "manual", Alert.analyzed == True).count()
-    ignored = db.query(Alert).filter(Alert.action_taken == "ignore").count()
-    
+    window_map = {"24h": timedelta(hours=24), "7d": timedelta(days=7), "30d": timedelta(days=30)}
+    now = datetime.now(timezone.utc)
+    start_time = now - window_map.get(time_range, timedelta(hours=24))
+
+    def to_utc(dt: Optional[datetime]) -> Optional[datetime]:
+        """Normalize datetimes (naive or aware) to UTC-aware values."""
+        if dt is None:
+            return None
+        return dt.astimezone(timezone.utc) if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+    alerts_query = db.query(Alert).filter(Alert.timestamp >= start_time)
+    alerts = alerts_query.all()
+
+    total = len(alerts)
+    analyzed = len([a for a in alerts if a.analyzed])
+    pending = total - analyzed
+    critical = len([a for a in alerts if a.severity == "critical"])
+    warning = len([a for a in alerts if a.severity == "warning"])
+    firing = len([a for a in alerts if a.status == "firing"])
+    resolved = len([a for a in alerts if a.status == "resolved"])
+    auto_analyzed = len([a for a in alerts if a.action_taken == "auto_analyze"])
+    manually_analyzed = len([a for a in alerts if a.action_taken == "manual" and a.analyzed])
+    ignored = len([a for a in alerts if a.action_taken == "ignore"])
+
+    # Rule counts are not time-bound
     from app.models import AutoAnalyzeRule
     total_rules = db.query(AutoAnalyzeRule).count()
     enabled_rules = db.query(AutoAnalyzeRule).filter(AutoAnalyzeRule.enabled == True).count()
-    
+
+    # MTTA: time from alert creation to analysis
+    mtta_values = [
+        (to_utc(alert.analyzed_at) - to_utc(alert.timestamp)).total_seconds() / 60
+        for alert in alerts
+        if alert.analyzed_at and alert.timestamp
+    ]
+    mtta_minutes = round(sum(mtta_values) / len(mtta_values), 2) if mtta_values else 0.0
+
+    # MTTR: time from execution start to completion for completed runbooks
+    execution_query = db.query(RunbookExecution).filter(RunbookExecution.queued_at >= start_time)
+    executions = execution_query.all()
+    duration_minutes = []
+    for execution in executions:
+        start_clock = execution.started_at or execution.queued_at
+        if execution.completed_at and start_clock:
+            duration_minutes.append((execution.completed_at - start_clock).total_seconds() / 60)
+    mttr_minutes = round(sum(duration_minutes) / len(duration_minutes), 2) if duration_minutes else 0.0
+
+    total_executions = len(executions)
+    successful_executions = len([ex for ex in executions if ex.status == "success"])
+    remediation_success_rate = round((successful_executions / total_executions) * 100, 2) if total_executions else 0.0
+
+    severity_distribution = {}
+    for alert in alerts:
+        key = alert.severity or "info"
+        severity_distribution[key] = severity_distribution.get(key, 0) + 1
+
+    # Trend buckets (hourly for 24h, daily otherwise)
+    bucket_size = timedelta(hours=1) if time_range == "24h" else timedelta(days=1)
+    trend_buckets = {}
+    for alert in alerts:
+        alert_ts = to_utc(alert.timestamp)
+        if bucket_size >= timedelta(days=1):
+            bucket_time = alert_ts.replace(hour=0, minute=0, second=0, microsecond=0)
+        else:
+            bucket_time = alert_ts.replace(minute=0, second=0, microsecond=0)
+        bucket_key = bucket_time.isoformat()
+        trend_buckets[bucket_key] = trend_buckets.get(bucket_key, 0) + 1
+
+    # Fill empty buckets to keep charts smooth
+    normalized_trend = []
+    cursor = start_time.replace(minute=0, second=0, microsecond=0)
+    if bucket_size >= timedelta(days=1):
+        cursor = cursor.replace(hour=0)
+    while cursor <= now:
+        bucket_key = cursor.isoformat()
+        normalized_trend.append({"bucket": bucket_key, "count": trend_buckets.get(bucket_key, 0)})
+        cursor += bucket_size
+
+    # Top sources by instance
+    source_counts = {}
+    for alert in alerts:
+        source = alert.instance or "unknown"
+        source_counts[source] = source_counts.get(source, 0) + 1
+    top_sources = [
+        {"source": source, "count": count}
+        for source, count in sorted(source_counts.items(), key=lambda item: item[1], reverse=True)[:5]
+    ]
+
+    active_incidents = [
+        {
+            "id": alert.id,
+            "alert_name": alert.alert_name,
+            "severity": alert.severity,
+            "timestamp": to_utc(alert.timestamp),
+            "status": alert.status,
+        }
+        for alert in alerts
+        if alert.status != "resolved"
+    ]
+    active_incidents = sorted(active_incidents, key=lambda item: item["timestamp"], reverse=True)[:10]
+
+    last_sync_time = max([to_utc(alert.timestamp) for alert in alerts], default=None)
+    connection_status = "degraded" if total == 0 else "online"
+
+    # Service Reliability Index: transparent, weighted view
+    # Weights: 40% critical impact, 35% timeliness, 25% remediation success.
+    critical_component = 0.0
+    timeliness_component = 0.0
+    remediation_component = (remediation_success_rate / 100) * 25  # percent to 0-25 range
+
+    if total:
+        critical_ratio = critical / total
+        critical_component = max(0.0, 1 - critical_ratio) * 40
+
+    # Timeliness scoring uses simple targets: 15m MTTA, 120m MTTR.
+    target_mtta = 15
+    target_mttr = 120
+    mtta_score = max(0.0, min(1.0, 1 - (mtta_minutes / target_mtta if target_mtta else 0))) if mtta_minutes else 1.0
+    mttr_score = max(0.0, min(1.0, 1 - (mttr_minutes / target_mttr if target_mttr else 0))) if mttr_minutes else 1.0
+    timeliness_component = ((mtta_score + mttr_score) / 2) * 35
+
+    reliability_index = round(min(100, max(0, critical_component + timeliness_component + remediation_component)))
+    reliability_breakdown = {
+        "critical_impact": round(critical_component, 2),
+        "timeliness": round(timeliness_component, 2),
+        "remediation": round(remediation_component, 2),
+    }
+
     return StatsResponse(
         total_alerts=total,
         analyzed_alerts=analyzed,
@@ -100,7 +215,19 @@ async def get_stats(
         manually_analyzed=manually_analyzed,
         ignored=ignored,
         total_rules=total_rules,
-        enabled_rules=enabled_rules
+        enabled_rules=enabled_rules,
+        mtta_minutes=mtta_minutes,
+        mttr_minutes=mttr_minutes,
+        remediation_success_rate=remediation_success_rate,
+        severity_distribution=severity_distribution,
+        alert_trend=normalized_trend,
+        top_sources=top_sources,
+        active_incidents=active_incidents,
+        reliability_index=reliability_index,
+        reliability_breakdown=reliability_breakdown,
+        last_sync_time=last_sync_time,
+        connection_status=connection_status,
+        time_range=time_range,
     )
 
 
@@ -187,7 +314,7 @@ async def analyze_alert_endpoint(
     
     # Update alert
     alert.analyzed = True
-    alert.analyzed_at = datetime.utcnow()
+    alert.analyzed_at = datetime.now(timezone.utc)
     alert.analyzed_by = current_user.id
     alert.llm_provider_id = used_provider.id
     alert.ai_analysis = analysis

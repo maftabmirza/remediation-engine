@@ -16,18 +16,22 @@
         transition: all 0.15s ease-in-out;
         border: 1px solid transparent;
     }
+
     .settings-nav-btn:hover {
         color: var(--text-primary);
         background: var(--bg-tertiary);
     }
+
     .settings-nav-btn.active {
         color: var(--accent-primary);
         background: var(--bg-tertiary);
         border-color: var(--accent-primary);
     }
+
     .settings-section {
         display: none;
     }
+
     .settings-section.active {
         display: block;
     }
@@ -78,159 +82,168 @@
             </div>
             <div class="bg-gray-800 bg-opacity-60 p-3 rounded" id="sectionActionPanel">
                 <p class="text-xs uppercase text-gray-400 tracking-wide">Section actions</p>
-                <p id="sectionActionBody" class="text-sm text-gray-300 mt-1">Select a section to see focused actions.</p>
+                <p id="sectionActionBody" class="text-sm text-gray-300 mt-1">Select a section to see focused actions.
+                </p>
             </div>
         </div>
     </div>
 
     <div class="flex-1 space-y-6">
         <section id="section-overview" class="settings-section active space-y-6">
-    <!-- Header -->
-    <div class="flex items-center justify-between">
-        <div>
-            <h1 class="text-2xl font-bold">Settings</h1>
-            <p class="text-gray-400">System configuration and user management</p>
-        </div>
-    </div>
+            <!-- Header -->
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-2xl font-bold">Settings</h1>
+                    <p class="text-gray-400">System configuration and user management</p>
+                </div>
+            </div>
 
-    <!-- Stats Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div class="card p-4">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm text-gray-400">LLM Providers</p>
-                    <p id="statProviders" class="text-2xl font-bold">-</p>
+            <!-- Stats Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="card p-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-400">LLM Providers</p>
+                            <p id="statProviders" class="text-2xl font-bold">-</p>
+                        </div>
+                        <div class="w-10 h-10 rounded-lg bg-purple-900 bg-opacity-50 flex items-center justify-center">
+                            <i class="fas fa-robot text-purple-400"></i>
+                        </div>
+                    </div>
                 </div>
-                <div class="w-10 h-10 rounded-lg bg-purple-900 bg-opacity-50 flex items-center justify-center">
-                    <i class="fas fa-robot text-purple-400"></i>
+                <div class="card p-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-400">Servers</p>
+                            <p id="statServers" class="text-2xl font-bold">-</p>
+                        </div>
+                        <div class="w-10 h-10 rounded-lg bg-green-900 bg-opacity-50 flex items-center justify-center">
+                            <i class="fas fa-server text-green-400"></i>
+                        </div>
+                    </div>
                 </div>
+                {% if 'manage_users' in permissions %}
+                <div class="card p-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-400">Users</p>
+                            <p id="statUsers" class="text-2xl font-bold">-</p>
+                        </div>
+                        <div class="w-10 h-10 rounded-lg bg-blue-900 bg-opacity-50 flex items-center justify-center">
+                            <i class="fas fa-users text-blue-400"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="card p-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-400">Active Users</p>
+                            <p id="statActiveUsers" class="text-2xl font-bold">-</p>
+                        </div>
+                        <div class="w-10 h-10 rounded-lg bg-yellow-900 bg-opacity-50 flex items-center justify-center">
+                            <i class="fas fa-user-check text-yellow-400"></i>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="card p-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-400">Your Role</p>
+                            <p class="text-2xl font-bold capitalize">{{ user.role }}</p>
+                        </div>
+                        <div class="w-10 h-10 rounded-lg bg-blue-900 bg-opacity-50 flex items-center justify-center">
+                            <i class="fas fa-user text-blue-400"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="card p-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-400">Account</p>
+                            <p class="text-lg font-bold">{{ user.username }}</p>
+                        </div>
+                        <div class="w-10 h-10 rounded-lg bg-yellow-900 bg-opacity-50 flex items-center justify-center">
+                            <i class="fas fa-id-badge text-yellow-400"></i>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
             </div>
-        </div>
-        <div class="card p-4">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm text-gray-400">Servers</p>
-                    <p id="statServers" class="text-2xl font-bold">-</p>
-                </div>
-                <div class="w-10 h-10 rounded-lg bg-green-900 bg-opacity-50 flex items-center justify-center">
-                    <i class="fas fa-server text-green-400"></i>
-                </div>
-            </div>
-        </div>
-        {% if 'manage_users' in permissions %}
-        <div class="card p-4">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm text-gray-400">Users</p>
-                    <p id="statUsers" class="text-2xl font-bold">-</p>
-                </div>
-                <div class="w-10 h-10 rounded-lg bg-blue-900 bg-opacity-50 flex items-center justify-center">
-                    <i class="fas fa-users text-blue-400"></i>
-                </div>
-            </div>
-        </div>
-        <div class="card p-4">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm text-gray-400">Active Users</p>
-                    <p id="statActiveUsers" class="text-2xl font-bold">-</p>
-                </div>
-                <div class="w-10 h-10 rounded-lg bg-yellow-900 bg-opacity-50 flex items-center justify-center">
-                    <i class="fas fa-user-check text-yellow-400"></i>
-                </div>
-            </div>
-        </div>
-        {% else %}
-        <div class="card p-4">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm text-gray-400">Your Role</p>
-                    <p class="text-2xl font-bold capitalize">{{ user.role }}</p>
-                </div>
-                <div class="w-10 h-10 rounded-lg bg-blue-900 bg-opacity-50 flex items-center justify-center">
-                    <i class="fas fa-user text-blue-400"></i>
-                </div>
-            </div>
-        </div>
-        <div class="card p-4">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm text-gray-400">Account</p>
-                    <p class="text-lg font-bold">{{ user.username }}</p>
-                </div>
-                <div class="w-10 h-10 rounded-lg bg-yellow-900 bg-opacity-50 flex items-center justify-center">
-                    <i class="fas fa-id-badge text-yellow-400"></i>
-                </div>
-            </div>
-        </div>
-        {% endif %}
-    </div>
 
-    <!-- Access & Governance Snapshot -->
-    <div class="card p-4">
-        <div class="flex items-center justify-between mb-4">
-            <div>
-                <h2 class="text-lg font-semibold">Access Control</h2>
-                <p class="text-sm text-gray-400">Page-level permissions and current enforcement mode</p>
-            </div>
-            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs bg-blue-900 bg-opacity-50 text-blue-300">
-                <i class="fas fa-user-shield mr-2"></i>{{ user.role | capitalize }}
-            </span>
-        </div>
-        <div class="grid md:grid-cols-3 gap-4 text-sm">
-            <div class="bg-gray-800 bg-opacity-60 p-3 rounded">
-                <div class="flex items-center justify-between">
-                    <span class="font-semibold">User Operations</span>
-                      <span class="text-xs px-2 py-1 rounded-full {{ 'bg-green-900 text-green-300' if 'manage_users' in permissions else 'bg-gray-700 text-gray-400' }}">{{ 'Manage' if 'manage_users' in permissions else 'Read-only' }}</span>
+            <!-- Access & Governance Snapshot -->
+            <div class="card p-4">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h2 class="text-lg font-semibold">Access Control</h2>
+                        <p class="text-sm text-gray-400">Page-level permissions and current enforcement mode</p>
+                    </div>
+                    <span
+                        class="inline-flex items-center px-3 py-1 rounded-full text-xs bg-blue-900 bg-opacity-50 text-blue-300">
+                        <i class="fas fa-user-shield mr-2"></i>{{ user.role | capitalize }}
+                    </span>
                 </div>
-                <p class="text-gray-400 mt-1">Create/deactivate users, update roles. Admin-only.</p>
-            </div>
-            <div class="bg-gray-800 bg-opacity-60 p-3 rounded">
-                <div class="flex items-center justify-between">
-                    <span class="font-semibold">Provider Controls</span>
-                      <span class="text-xs px-2 py-1 rounded-full {{ 'bg-green-900 text-green-300' if 'manage_providers' in permissions else 'bg-gray-700 text-gray-400' }}">{{ 'Manage' if 'manage_providers' in permissions else 'Read-only' }}</span>
+                <div class="grid md:grid-cols-3 gap-4 text-sm">
+                    <div class="bg-gray-800 bg-opacity-60 p-3 rounded">
+                        <div class="flex items-center justify-between">
+                            <span class="font-semibold">User Operations</span>
+                            <span
+                                class="text-xs px-2 py-1 rounded-full {{ 'bg-green-900 text-green-300' if 'manage_users' in permissions else 'bg-gray-700 text-gray-400' }}">{{
+                                'Manage' if 'manage_users' in permissions else 'Read-only' }}</span>
+                        </div>
+                        <p class="text-gray-400 mt-1">Create/deactivate users, update roles. Admin-only.</p>
+                    </div>
+                    <div class="bg-gray-800 bg-opacity-60 p-3 rounded">
+                        <div class="flex items-center justify-between">
+                            <span class="font-semibold">Provider Controls</span>
+                            <span
+                                class="text-xs px-2 py-1 rounded-full {{ 'bg-green-900 text-green-300' if 'manage_providers' in permissions else 'bg-gray-700 text-gray-400' }}">{{
+                                'Manage' if 'manage_providers' in permissions else 'Read-only' }}</span>
+                        </div>
+                        <p class="text-gray-400 mt-1">Add/edit providers, rotate secrets, run health checks.</p>
+                    </div>
+                    <div class="bg-gray-800 bg-opacity-60 p-3 rounded">
+                        <div class="flex items-center justify-between">
+                            <span class="font-semibold">Auth Settings</span>
+                            <span
+                                class="text-xs px-2 py-1 rounded-full {{ 'bg-green-900 text-green-300' if 'manage_providers' in permissions else 'bg-gray-700 text-gray-400' }}">{{
+                                'Manage' if 'manage_providers' in permissions else 'Read-only' }}</span>
+                        </div>
+                        <p class="text-gray-400 mt-1">Configure LDAP/SAML, review audit events, test login.</p>
+                    </div>
                 </div>
-                <p class="text-gray-400 mt-1">Add/edit providers, rotate secrets, run health checks.</p>
             </div>
-            <div class="bg-gray-800 bg-opacity-60 p-3 rounded">
-                <div class="flex items-center justify-between">
-                    <span class="font-semibold">Auth Settings</span>
-                      <span class="text-xs px-2 py-1 rounded-full {{ 'bg-green-900 text-green-300' if 'manage_providers' in permissions else 'bg-gray-700 text-gray-400' }}">{{ 'Manage' if 'manage_providers' in permissions else 'Read-only' }}</span>
-                </div>
-                <p class="text-gray-400 mt-1">Configure LDAP/SAML, review audit events, test login.</p>
-            </div>
-        </div>
-    </div>
         </section>
 
         {% if 'manage_users' in permissions %}
         <section id="section-users" class="settings-section space-y-4">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <h2 class="text-xl font-semibold">User Management</h2>
-                        <p class="text-sm text-gray-400">Full-width view for large directories and role changes.</p>
-                    </div>
-                    {% if 'manage_users' in permissions %}
-                    <button onclick="showCreateUserModal()" class="btn-primary px-4 py-2 rounded">
-                        <i class="fas fa-plus mr-2"></i>Add User
-                    </button>
-                    {% endif %}
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-xl font-semibold">User Management</h2>
+                    <p class="text-sm text-gray-400">Full-width view for large directories and role changes.</p>
                 </div>
+                {% if 'manage_users' in permissions %}
+                <button onclick="showCreateUserModal()" class="btn-primary px-4 py-2 rounded">
+                    <i class="fas fa-plus mr-2"></i>Add User
+                </button>
+                {% endif %}
+            </div>
             <div class="card">
                 <div class="flex flex-wrap items-center justify-between p-4 border-b border-gray-700 gap-3">
                     <div class="flex flex-wrap items-center gap-2">
                         <div class="flex items-center gap-2">
-                            <input id="userSearch" type="text" class="input-field px-3 py-2 rounded text-sm" placeholder="Search username, name, or email">
-                              <select id="userRoleFilter" class="input-field px-3 py-2 rounded text-sm">
-                                  <option value="">All roles</option>
-                                  <option value="owner">Owners</option>
-                                  <option value="admin">Admins</option>
-                                  <option value="maintainer">Maintainers</option>
-                                  <option value="operator">Operators</option>
-                                  <option value="viewer">Viewers</option>
-                                  <option value="auditor">Auditors</option>
-                                  <option value="user">Legacy users</option>
-                              </select>
+                            <input id="userSearch" type="text" class="input-field px-3 py-2 rounded text-sm"
+                                placeholder="Search username, name, or email">
+                            <select id="userRoleFilter" class="input-field px-3 py-2 rounded text-sm">
+                                <option value="">All roles</option>
+                                <option value="owner">Owners</option>
+                                <option value="admin">Admins</option>
+                                <option value="maintainer">Maintainers</option>
+                                <option value="operator">Operators</option>
+                                <option value="viewer">Viewers</option>
+                                <option value="auditor">Auditors</option>
+                                <option value="user">Legacy users</option>
+                            </select>
                             <select id="userStatusFilter" class="input-field px-3 py-2 rounded text-sm">
                                 <option value="">Any status</option>
                                 <option value="active">Active</option>
@@ -274,10 +287,12 @@
                 {% endif %}
             </div>
             <div class="card">
-                <div class="flex flex-wrap items-center justify-between p-4 border-b border-gray-700 space-y-3 md:space-y-0 space-x-4">
+                <div
+                    class="flex flex-wrap items-center justify-between p-4 border-b border-gray-700 space-y-3 md:space-y-0 space-x-4">
                     <div class="flex items-center space-x-3">
                         <div class="hidden md:flex items-center space-x-2">
-                            <input id="providerSearch" type="text" class="input-field px-3 py-2 rounded text-sm" placeholder="Search name or model">
+                            <input id="providerSearch" type="text" class="input-field px-3 py-2 rounded text-sm"
+                                placeholder="Search name or model">
                             <select id="providerTypeFilter" class="input-field px-3 py-2 rounded text-sm">
                                 <option value="">All Types</option>
                                 <option value="anthropic">Anthropic</option>
@@ -295,8 +310,10 @@
                     </div>
                     {% if 'manage_providers' in permissions %}
                     <div class="flex items-center space-x-2">
-                        <button class="btn-secondary px-3 py-1 rounded text-sm" onclick="bulkEnableProviders(true)"><i class="fas fa-check mr-1"></i>Enable</button>
-                        <button class="btn-secondary px-3 py-1 rounded text-sm" onclick="bulkEnableProviders(false)"><i class="fas fa-pause mr-1"></i>Disable</button>
+                        <button class="btn-secondary px-3 py-1 rounded text-sm" onclick="bulkEnableProviders(true)"><i
+                                class="fas fa-check mr-1"></i>Enable</button>
+                        <button class="btn-secondary px-3 py-1 rounded text-sm" onclick="bulkEnableProviders(false)"><i
+                                class="fas fa-pause mr-1"></i>Disable</button>
                     </div>
                     {% endif %}
                 </div>
@@ -317,69 +334,75 @@
         </section>
 
         <section id="section-servers" class="settings-section space-y-4">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <h2 class="text-xl font-semibold">Servers</h2>
-                        <p class="text-sm text-gray-400">Expanded credential list with filters and connection tests.</p>
-                    </div>
-                    {% if 'manage_servers' in permissions %}
-                    <button onclick="showCreateServerModal()" class="btn-primary px-4 py-2 rounded">
-                        <i class="fas fa-plus mr-2"></i>Add Server
-                    </button>
-                    {% endif %}
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-xl font-semibold">Servers</h2>
+                    <p class="text-sm text-gray-400">Expanded credential list with filters and connection tests.</p>
                 </div>
-                <div class="card">
-                    <div class="flex flex-wrap items-center justify-between p-4 border-b border-gray-700 space-y-3 md:space-y-0 space-x-4">
-                        <div class="flex items-center space-x-3">
-                            <div class="hidden md:flex items-center space-x-2">
-                                <input id="serverSearch" type="text" class="input-field px-3 py-2 rounded text-sm" placeholder="Search server or host">
+                {% if 'manage_servers' in permissions %}
+                <button onclick="showCreateServerModal()" class="btn-primary px-4 py-2 rounded">
+                    <i class="fas fa-plus mr-2"></i>Add Server
+                </button>
+                {% endif %}
+            </div>
+            <div class="card">
+                <div
+                    class="flex flex-wrap items-center justify-between p-4 border-b border-gray-700 space-y-3 md:space-y-0 space-x-4">
+                    <div class="flex items-center space-x-3">
+                        <div class="hidden md:flex items-center space-x-2">
+                            <input id="serverSearch" type="text" class="input-field px-3 py-2 rounded text-sm"
+                                placeholder="Search server or host">
                             <select id="serverEnvFilter" class="input-field px-3 py-2 rounded text-sm">
                                 <option value="">All Environments</option>
                                 <option value="production">Production</option>
                                 <option value="staging">Staging</option>
                                 <option value="development">Development</option>
                             </select>
-                                <select id="serverStatusFilter" class="input-field px-3 py-2 rounded text-sm">
-                                    <option value="">Any Auth</option>
-                                    <option value="key">SSH Key</option>
-                                    <option value="password">Password</option>
-                                </select>
-                            </div>
+                            <select id="serverStatusFilter" class="input-field px-3 py-2 rounded text-sm">
+                                <option value="">Any Auth</option>
+                                <option value="key">SSH Key</option>
+                                <option value="password">Password</option>
+                            </select>
                         </div>
-                        {% if 'manage_servers' in permissions %}
-                        <div class="flex items-center space-x-2">
-                            <button class="btn-secondary px-3 py-2 rounded text-sm" onclick="bulkTestServers()"><i class="fas fa-heartbeat mr-1"></i>Test Selected</button>
-                        </div>
-                        {% endif %}
                     </div>
-
-                    {% if 'manage_server_groups' in permissions %}
-                    <div class="p-4 border-b border-gray-800 bg-gray-900 bg-opacity-50">
-                        <form id="serverGroupForm" class="grid md:grid-cols-3 gap-3 items-end">
-                            <div>
-                                <label class="block text-xs text-gray-400 mb-1">New Group Name</label>
-                                <input id="serverGroupName" type="text" class="input-field px-3 py-2 rounded text-sm" placeholder="e.g., Production/Web" required>
-                            </div>
-                            <div>
-                                <label class="block text-xs text-gray-400 mb-1">Parent Group</label>
-                                <select id="serverGroupParent" class="input-field px-3 py-2 rounded text-sm">
-                                    <option value="">No parent</option>
-                                </select>
-                            </div>
-                            <div class="flex items-center space-x-2">
-                                <button type="submit" class="btn-secondary px-3 py-2 rounded text-sm w-full md:w-auto"><i class="fas fa-layer-group mr-2"></i>Create Group</button>
-                                <span class="text-xs text-gray-500 hidden md:inline">Organize hosts with parent/child groupings.</span>
-                            </div>
-                        </form>
-                    </div>
-                    {% endif %}
-
                     {% if 'manage_servers' in permissions %}
-                    <div class="flex items-center space-x-2 px-4 py-3 text-sm text-gray-300 border-b border-gray-800">
-                        <input type="checkbox" id="serverSelectAll" class="mr-1" onchange="toggleSelectAll('server')">
-                        <span>Select all</span>
+                    <div class="flex items-center space-x-2">
+                        <button class="btn-secondary px-3 py-2 rounded text-sm" onclick="bulkTestServers()"><i
+                                class="fas fa-heartbeat mr-1"></i>Test Selected</button>
                     </div>
                     {% endif %}
+                </div>
+
+                {% if 'manage_server_groups' in permissions %}
+                <div class="p-4 border-b border-gray-800 bg-gray-900 bg-opacity-50">
+                    <form id="serverGroupForm" class="grid md:grid-cols-3 gap-3 items-end">
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">New Group Name</label>
+                            <input id="serverGroupName" type="text" class="input-field px-3 py-2 rounded text-sm"
+                                placeholder="e.g., Production/Web" required>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Parent Group</label>
+                            <select id="serverGroupParent" class="input-field px-3 py-2 rounded text-sm">
+                                <option value="">No parent</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <button type="submit" class="btn-secondary px-3 py-2 rounded text-sm w-full md:w-auto"><i
+                                    class="fas fa-layer-group mr-2"></i>Create Group</button>
+                            <span class="text-xs text-gray-500 hidden md:inline">Organize hosts with parent/child
+                                groupings.</span>
+                        </div>
+                    </form>
+                </div>
+                {% endif %}
+
+                {% if 'manage_servers' in permissions %}
+                <div class="flex items-center space-x-2 px-4 py-3 text-sm text-gray-300 border-b border-gray-800">
+                    <input type="checkbox" id="serverSelectAll" class="mr-1" onchange="toggleSelectAll('server')">
+                    <span>Select all</span>
+                </div>
+                {% endif %}
 
                 <div id="serversTableContainer" class="overflow-x-auto">
                     <div class="text-center py-8">
@@ -392,7 +415,8 @@
                 <div class="p-4 border-b border-gray-700 flex items-center justify-between">
                     <div>
                         <h3 class="font-semibold">Bulk import servers</h3>
-                        <p class="text-sm text-gray-400">Paste YAML/JSON to create many hosts at once. We test reachability before saving.</p>
+                        <p class="text-sm text-gray-400">Paste YAML/JSON to create many hosts at once. We test
+                            reachability before saving.</p>
                     </div>
                     <div class="flex flex-wrap items-center space-x-2 text-sm">
                         <select id="importFormat" class="input-field px-3 py-2 rounded">
@@ -410,7 +434,8 @@
                     </div>
                 </div>
                 <div class="p-4 space-y-2">
-                    <textarea id="serverImportPayload" class="input-field w-full px-3 py-2 rounded h-32 font-mono text-xs" placeholder="- name: prod-db-01
+                    <textarea id="serverImportPayload"
+                        class="input-field w-full px-3 py-2 rounded h-32 font-mono text-xs" placeholder="- name: prod-db-01
   hostname: 10.0.0.5
   username: ec2-user
   auth_type: key
@@ -422,7 +447,9 @@
   hostname: jump.prod.local
   credential_source: shared_profile
   credential_profile_id: <profile uuid>"></textarea>
-                    <p class="text-xs text-gray-400">Tips: set <code>credential_source: shared_profile</code> to reuse vault or CyberArk secrets. You can also pre-set defaults for <code>auth_type</code> and <code>group</code> via the dropdowns.</p>
+                    <p class="text-xs text-gray-400">Tips: set <code>credential_source: shared_profile</code> to reuse
+                        vault or CyberArk secrets. You can also pre-set defaults for <code>auth_type</code> and
+                        <code>group</code> via the dropdowns.</p>
                 </div>
             </div>
         </section>
@@ -432,7 +459,8 @@
             <div class="flex items-center justify-between">
                 <div>
                     <h2 class="text-xl font-semibold">API Credentials</h2>
-                    <p class="text-sm text-gray-400">Manage credentials for external APIs (Ansible AWX, Jenkins, Kubernetes, etc.)</p>
+                    <p class="text-sm text-gray-400">Manage credentials for external APIs (Ansible AWX, Jenkins,
+                        Kubernetes, etc.)</p>
                 </div>
                 <button onclick="showApiCredentialModal()" class="btn-primary px-4 py-2 rounded">
                     <i class="fas fa-plus mr-2"></i>New API Credential
@@ -440,9 +468,11 @@
             </div>
 
             <div class="card">
-                <div class="flex flex-wrap items-center justify-between p-4 border-b border-gray-700 space-y-3 md:space-y-0 space-x-4">
+                <div
+                    class="flex flex-wrap items-center justify-between p-4 border-b border-gray-700 space-y-3 md:space-y-0 space-x-4">
                     <div class="flex items-center space-x-2">
-                        <input id="apiCredentialSearch" type="text" class="input-field px-3 py-2 rounded text-sm" placeholder="Search by name or base URL...">
+                        <input id="apiCredentialSearch" type="text" class="input-field px-3 py-2 rounded text-sm"
+                            placeholder="Search by name or base URL...">
                         <select id="apiCredentialAuthTypeFilter" class="input-field px-3 py-2 rounded text-sm">
                             <option value="">All Auth Types</option>
                             <option value="none">No Auth</option>
@@ -481,9 +511,11 @@
             </div>
 
             <div class="card">
-                <div class="flex flex-wrap items-center justify-between p-4 border-b border-gray-700 space-y-3 md:space-y-0 space-x-4">
+                <div
+                    class="flex flex-wrap items-center justify-between p-4 border-b border-gray-700 space-y-3 md:space-y-0 space-x-4">
                     <div class="flex items-center space-x-2">
-                        <input id="credentialSearch" type="text" class="input-field px-3 py-2 rounded text-sm" placeholder="Search credential or backend">
+                        <input id="credentialSearch" type="text" class="input-field px-3 py-2 rounded text-sm"
+                            placeholder="Search credential or backend">
                         <select id="credentialBackendFilter" class="input-field px-3 py-2 rounded text-sm">
                             <option value="">Any backend</option>
                             <option value="inline">Inline</option>
@@ -495,7 +527,8 @@
                         </select>
                     </div>
                     <div class="text-sm text-gray-300">
-                        Attach profiles to server groups or pick them per host; choose "Inline secret" inside a server form for one-off credentials.
+                        Attach profiles to server groups or pick them per host; choose "Inline secret" inside a server
+                        form for one-off credentials.
                     </div>
                 </div>
                 <div id="credentialTableContainer" class="overflow-x-auto">
@@ -517,127 +550,148 @@
             </div>
             <div class="card p-6">
                 <form id="authConfigForm" class="space-y-4">
-            <div>
-                <label class="label-with-tooltip block text-sm font-medium mb-1">
-                    Authentication Method
-                    <span class="info-tooltip info-tooltip-align-left">
-                        <span class="info-tooltip-icon">?</span>
-                        <span class="info-tooltip-text"><strong>Local:</strong> Built-in database auth.<br><strong>LDAP:</strong> Active Directory/OpenLDAP.<br><strong>SAML:</strong> SSO (Okta, Azure AD, etc).</span>
-                    </span>
-                </label>
-                <select id="authMethod" class="input-field w-full px-3 py-2 rounded" onchange="toggleAuthSections()">
-                    <option value="local">Local Database (Default)</option>
-                    <option value="ldap">LDAP / Active Directory</option>
-                    <option value="saml">SAML 2.0 (SSO)</option>
-                </select>
-            </div>
-
-            <!-- LDAP Config -->
-            <div id="ldapConfig" class="hidden space-y-4 border-l-2 border-blue-500 pl-4 ml-1">
-                <h3 class="text-sm font-semibold text-blue-400">LDAP Configuration</h3>
-                <div>
-                    <label class="label-with-tooltip block text-sm font-medium mb-1">
-                        Server URL
-                        <span class="info-tooltip info-tooltip-align-left">
-                            <span class="info-tooltip-icon">?</span>
-                            <span class="info-tooltip-text">LDAP server address (e.g. ldap://domain.com:389 or ldaps://domain.com:636).</span>
-                        </span>
-                    </label>
-                    <input type="text" id="ldapUrl" class="input-field w-full px-3 py-2 rounded" placeholder="ldap://domain.com:389">
-                </div>
-                <div>
-                    <label class="label-with-tooltip block text-sm font-medium mb-1">
-                        Bind DN
-                        <span class="info-tooltip info-tooltip-align-left">
-                            <span class="info-tooltip-icon">?</span>
-                            <span class="info-tooltip-text">Distinguished Name for the service account used to search users.</span>
-                        </span>
-                    </label>
-                    <input type="text" id="ldapBindDn" class="input-field w-full px-3 py-2 rounded" placeholder="cn=admin,dc=domain,dc=com">
-                </div>
-                <div>
-                    <label class="label-with-tooltip block text-sm font-medium mb-1">
-                        Base DN
-                        <span class="info-tooltip info-tooltip-align-left">
-                            <span class="info-tooltip-icon">?</span>
-                            <span class="info-tooltip-text">Root of the directory tree where users are located.</span>
-                        </span>
-                    </label>
-                    <input type="text" id="ldapBaseDn" class="input-field w-full px-3 py-2 rounded" placeholder="dc=domain,dc=com">
-                </div>
-                <div class="grid md:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium mb-1">Service Account Password</label>
-                        <input type="password" id="ldapBindPassword" class="input-field w-full px-3 py-2 rounded" placeholder="Required when Bind DN is set">
+                        <label class="label-with-tooltip block text-sm font-medium mb-1">
+                            Authentication Method
+                            <span class="info-tooltip info-tooltip-align-left">
+                                <span class="info-tooltip-icon">?</span>
+                                <span class="info-tooltip-text"><strong>Local:</strong> Built-in database
+                                    auth.<br><strong>LDAP:</strong> Active Directory/OpenLDAP.<br><strong>SAML:</strong>
+                                    SSO (Okta, Azure AD, etc).</span>
+                            </span>
+                        </label>
+                        <select id="authMethod" class="input-field w-full px-3 py-2 rounded"
+                            onchange="toggleAuthSections()">
+                            <option value="local">Local Database (Default)</option>
+                            <option value="ldap">LDAP / Active Directory</option>
+                            <option value="saml">SAML 2.0 (SSO)</option>
+                        </select>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium mb-1">Certificate / CA Bundle</label>
-                        <input type="file" id="ldapCaCert" class="input-field w-full px-3 py-2 rounded" accept=".pem,.crt">
-                        <p class="text-xs text-gray-400 mt-1">Optional for LDAPS trust.</p>
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium mb-1">Attribute Mapping</label>
-                    <textarea id="ldapAttributeMap" class="input-field w-full px-3 py-2 rounded h-20" placeholder='{"username": "sAMAccountName", "email": "mail"}'></textarea>
-                </div>
-                <button type="button" class="btn-secondary px-4 py-2 rounded" onclick="testAuthLogin('ldap')"><i class="fas fa-heartbeat mr-2"></i>Test LDAP Login</button>
-            </div>
 
-            <!-- SAML Config -->
-            <div id="samlConfig" class="hidden space-y-4 border-l-2 border-orange-500 pl-4 ml-1">
-                <h3 class="text-sm font-semibold text-orange-400">SAML Configuration</h3>
-                <div>
-                    <label class="label-with-tooltip block text-sm font-medium mb-1">
-                        IdP Metadata URL
-                        <span class="info-tooltip info-tooltip-align-left">
-                            <span class="info-tooltip-icon">?</span>
-                            <span class="info-tooltip-text">URL to your Identity Provider's XML metadata.</span>
-                        </span>
-                    </label>
-                    <input type="text" id="samlMetadataUrl" class="input-field w-full px-3 py-2 rounded" placeholder="https://idp.example.com/metadata">
-                </div>
-                <div>
-                    <label class="label-with-tooltip block text-sm font-medium mb-1">
-                        Entity ID
-                        <span class="info-tooltip info-tooltip-align-left">
-                            <span class="info-tooltip-icon">?</span>
-                            <span class="info-tooltip-text">Unique identifier for this application in your IdP.</span>
-                        </span>
-                    </label>
-                    <input type="text" id="samlEntityId" class="input-field w-full px-3 py-2 rounded" placeholder="urn:aiops:platform">
-                </div>
-                <div class="grid md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium mb-1">ACS URL</label>
-                        <input type="text" id="samlAcsUrl" class="input-field w-full px-3 py-2 rounded" placeholder="https://app.example.com/saml/callback">
+                    <!-- LDAP Config -->
+                    <div id="ldapConfig" class="hidden space-y-4 border-l-2 border-blue-500 pl-4 ml-1">
+                        <h3 class="text-sm font-semibold text-blue-400">LDAP Configuration</h3>
+                        <div>
+                            <label class="label-with-tooltip block text-sm font-medium mb-1">
+                                Server URL
+                                <span class="info-tooltip info-tooltip-align-left">
+                                    <span class="info-tooltip-icon">?</span>
+                                    <span class="info-tooltip-text">LDAP server address (e.g. ldap://domain.com:389 or
+                                        ldaps://domain.com:636).</span>
+                                </span>
+                            </label>
+                            <input type="text" id="ldapUrl" class="input-field w-full px-3 py-2 rounded"
+                                placeholder="ldap://domain.com:389">
+                        </div>
+                        <div>
+                            <label class="label-with-tooltip block text-sm font-medium mb-1">
+                                Bind DN
+                                <span class="info-tooltip info-tooltip-align-left">
+                                    <span class="info-tooltip-icon">?</span>
+                                    <span class="info-tooltip-text">Distinguished Name for the service account used to
+                                        search users.</span>
+                                </span>
+                            </label>
+                            <input type="text" id="ldapBindDn" class="input-field w-full px-3 py-2 rounded"
+                                placeholder="cn=admin,dc=domain,dc=com">
+                        </div>
+                        <div>
+                            <label class="label-with-tooltip block text-sm font-medium mb-1">
+                                Base DN
+                                <span class="info-tooltip info-tooltip-align-left">
+                                    <span class="info-tooltip-icon">?</span>
+                                    <span class="info-tooltip-text">Root of the directory tree where users are
+                                        located.</span>
+                                </span>
+                            </label>
+                            <input type="text" id="ldapBaseDn" class="input-field w-full px-3 py-2 rounded"
+                                placeholder="dc=domain,dc=com">
+                        </div>
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Service Account Password</label>
+                                <input type="password" id="ldapBindPassword"
+                                    class="input-field w-full px-3 py-2 rounded"
+                                    placeholder="Required when Bind DN is set">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Certificate / CA Bundle</label>
+                                <input type="file" id="ldapCaCert" class="input-field w-full px-3 py-2 rounded"
+                                    accept=".pem,.crt">
+                                <p class="text-xs text-gray-400 mt-1">Optional for LDAPS trust.</p>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Attribute Mapping</label>
+                            <textarea id="ldapAttributeMap" class="input-field w-full px-3 py-2 rounded h-20"
+                                placeholder='{"username": "sAMAccountName", "email": "mail"}'></textarea>
+                        </div>
+                        <button type="button" class="btn-secondary px-4 py-2 rounded" onclick="testAuthLogin('ldap')"><i
+                                class="fas fa-heartbeat mr-2"></i>Test LDAP Login</button>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium mb-1">X.509 Certificate</label>
-                        <input type="file" id="samlCertificate" class="input-field w-full px-3 py-2 rounded" accept=".pem,.crt">
+
+                    <!-- SAML Config -->
+                    <div id="samlConfig" class="hidden space-y-4 border-l-2 border-orange-500 pl-4 ml-1">
+                        <h3 class="text-sm font-semibold text-orange-400">SAML Configuration</h3>
+                        <div>
+                            <label class="label-with-tooltip block text-sm font-medium mb-1">
+                                IdP Metadata URL
+                                <span class="info-tooltip info-tooltip-align-left">
+                                    <span class="info-tooltip-icon">?</span>
+                                    <span class="info-tooltip-text">URL to your Identity Provider's XML metadata.</span>
+                                </span>
+                            </label>
+                            <input type="text" id="samlMetadataUrl" class="input-field w-full px-3 py-2 rounded"
+                                placeholder="https://idp.example.com/metadata">
+                        </div>
+                        <div>
+                            <label class="label-with-tooltip block text-sm font-medium mb-1">
+                                Entity ID
+                                <span class="info-tooltip info-tooltip-align-left">
+                                    <span class="info-tooltip-icon">?</span>
+                                    <span class="info-tooltip-text">Unique identifier for this application in your
+                                        IdP.</span>
+                                </span>
+                            </label>
+                            <input type="text" id="samlEntityId" class="input-field w-full px-3 py-2 rounded"
+                                placeholder="urn:aiops:platform">
+                        </div>
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium mb-1">ACS URL</label>
+                                <input type="text" id="samlAcsUrl" class="input-field w-full px-3 py-2 rounded"
+                                    placeholder="https://app.example.com/saml/callback">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-1">X.509 Certificate</label>
+                                <input type="file" id="samlCertificate" class="input-field w-full px-3 py-2 rounded"
+                                    accept=".pem,.crt">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Attribute Mapping</label>
+                            <textarea id="samlAttributeMap" class="input-field w-full px-3 py-2 rounded h-20"
+                                placeholder='{"email": "mail", "name": "displayName"}'></textarea>
+                        </div>
+                        <button type="button" class="btn-secondary px-4 py-2 rounded" onclick="testAuthLogin('saml')"><i
+                                class="fas fa-heartbeat mr-2"></i>Test SSO Login</button>
                     </div>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium mb-1">Attribute Mapping</label>
-                    <textarea id="samlAttributeMap" class="input-field w-full px-3 py-2 rounded h-20" placeholder='{"email": "mail", "name": "displayName"}'></textarea>
-                </div>
-                <button type="button" class="btn-secondary px-4 py-2 rounded" onclick="testAuthLogin('saml')"><i class="fas fa-heartbeat mr-2"></i>Test SSO Login</button>
-            </div>
 
-            <div class="bg-gray-800 bg-opacity-60 p-4 rounded">
-                <h3 class="text-sm font-semibold mb-2">Guided Setup</h3>
-                <ol class="list-decimal list-inside text-sm text-gray-300 space-y-1">
-                    <li>Choose auth method and fill required endpoints.</li>
-                    <li>Upload certificates/metadata and map user attributes.</li>
-                    <li>Run "Test" to validate connectivity with a test account.</li>
-                    <li>Save and communicate the new login path to admins.</li>
-                </ol>
-            </div>
+                    <div class="bg-gray-800 bg-opacity-60 p-4 rounded">
+                        <h3 class="text-sm font-semibold mb-2">Guided Setup</h3>
+                        <ol class="list-decimal list-inside text-sm text-gray-300 space-y-1">
+                            <li>Choose auth method and fill required endpoints.</li>
+                            <li>Upload certificates/metadata and map user attributes.</li>
+                            <li>Run "Test" to validate connectivity with a test account.</li>
+                            <li>Save and communicate the new login path to admins.</li>
+                        </ol>
+                    </div>
 
-            <div class="flex justify-end pt-4">
-                <button type="submit" class="btn-primary px-4 py-2 rounded">Save Auth Settings</button>
+                    <div class="flex justify-end pt-4">
+                        <button type="submit" class="btn-primary px-4 py-2 rounded">Save Auth Settings</button>
+                    </div>
+                </form>
             </div>
-        </form>
-    </div>
         </section>
         {% endif %}
     </div>
@@ -647,7 +701,8 @@
 <div id="confirmModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
     <div class="card p-6 w-full max-w-md m-4">
         <div class="flex items-center space-x-3 mb-4">
-            <div id="confirmIcon" class="w-10 h-10 rounded-full bg-red-900 bg-opacity-50 flex items-center justify-center">
+            <div id="confirmIcon"
+                class="w-10 h-10 rounded-full bg-red-900 bg-opacity-50 flex items-center justify-center">
                 <i class="fas fa-exclamation-triangle text-red-400"></i>
             </div>
             <div>
@@ -657,13 +712,16 @@
         </div>
         <p id="confirmMessage" class="text-gray-300 mb-4">Are you sure you want to proceed?</p>
         <div id="confirmInputContainer" class="hidden mb-4">
-            <label for="confirmInput" class="block text-sm font-medium mb-1">Type <span id="confirmInputHint" class="font-mono text-red-300"></span> to continue</label>
-            <input id="confirmInput" type="text" class="input-field w-full px-3 py-2 rounded" placeholder="Type the confirmation text" autocomplete="off">
+            <label for="confirmInput" class="block text-sm font-medium mb-1">Type <span id="confirmInputHint"
+                    class="font-mono text-red-300"></span> to continue</label>
+            <input id="confirmInput" type="text" class="input-field w-full px-3 py-2 rounded"
+                placeholder="Type the confirmation text" autocomplete="off">
             <p id="confirmInputError" class="text-xs text-red-400 mt-1 hidden">Confirmation text does not match.</p>
         </div>
         <div class="flex justify-end space-x-3">
             <button onclick="closeConfirmModal()" class="btn-secondary px-4 py-2 rounded">Cancel</button>
-            <button id="confirmBtn" onclick="executeConfirmAction()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded transition-colors">Confirm</button>
+            <button id="confirmBtn" onclick="executeConfirmAction()"
+                class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded transition-colors">Confirm</button>
         </div>
     </div>
 </div>
@@ -677,31 +735,35 @@
                 <i class="fas fa-times"></i>
             </button>
         </div>
-        
+
         <form id="providerForm" class="space-y-4">
             <input type="hidden" id="providerId">
-            
+
             <div>
                 <label class="label-with-tooltip block text-sm font-medium mb-1">
                     Display Name *
                     <span class="info-tooltip info-tooltip-align-left">
                         <span class="info-tooltip-icon">?</span>
-                        <span class="info-tooltip-text">A friendly name to identify this provider in the UI (e.g. "Claude Sonnet Production").</span>
+                        <span class="info-tooltip-text">A friendly name to identify this provider in the UI (e.g.
+                            "Claude Sonnet Production").</span>
                     </span>
                 </label>
-                <input type="text" id="providerName" class="input-field w-full px-3 py-2 rounded" required placeholder="e.g., Claude Sonnet">
+                <input type="text" id="providerName" class="input-field w-full px-3 py-2 rounded" required
+                    placeholder="e.g., Claude Sonnet">
             </div>
-            
+
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="label-with-tooltip block text-sm font-medium mb-1">
                         Provider Type *
                         <span class="info-tooltip info-tooltip-align-left">
                             <span class="info-tooltip-icon">?</span>
-                            <span class="info-tooltip-text">The backend service to use. Choose "Ollama" for local models or others for cloud APIs.</span>
+                            <span class="info-tooltip-text">The backend service to use. Choose "Ollama" for local models
+                                or others for cloud APIs.</span>
                         </span>
                     </label>
-                    <select id="providerType" class="input-field w-full px-3 py-2 rounded" onchange="updateModelSuggestions()">
+                    <select id="providerType" class="input-field w-full px-3 py-2 rounded"
+                        onchange="updateModelSuggestions()">
                         <option value="anthropic">Anthropic (Claude)</option>
                         <option value="openai">OpenAI (GPT)</option>
                         <option value="google">Google (Gemini)</option>
@@ -714,26 +776,32 @@
                         Model ID *
                         <span class="info-tooltip info-tooltip-align-right">
                             <span class="info-tooltip-icon">?</span>
-                            <span class="info-tooltip-text">The specific model identifier string (e.g. "gpt-4", "claude-3-opus", "llama2").</span>
+                            <span class="info-tooltip-text">The specific model identifier string (e.g. "gpt-4",
+                                "claude-3-opus", "llama2").</span>
                         </span>
                     </label>
-                    <input type="text" id="providerModel" class="input-field w-full px-3 py-2 rounded" required placeholder="e.g., claude-sonnet-4-20250514">
+                    <input type="text" id="providerModel" class="input-field w-full px-3 py-2 rounded" required
+                        placeholder="e.g., claude-sonnet-4-20250514">
                 </div>
             </div>
-            
+
             <div>
                 <div class="flex items-center justify-between">
                     <label class="label-with-tooltip block text-sm font-medium mb-1">
                         API Key
                         <span class="info-tooltip info-tooltip-align-left">
                             <span class="info-tooltip-icon">?</span>
-                            <span class="info-tooltip-text">The secret key for authentication. Leave blank if you configured it via environment variables.</span>
+                            <span class="info-tooltip-text">The secret key for authentication. Leave blank if you
+                                configured it via environment variables.</span>
                         </span>
                     </label>
-                    <button type="button" onclick="toggleSecretVisibility('providerApiKey', this)" class="text-xs text-blue-400 hover:text-blue-300">Show</button>
+                    <button type="button" onclick="toggleSecretVisibility('providerApiKey', this)"
+                        class="text-xs text-blue-400 hover:text-blue-300">Show</button>
                 </div>
-                <input type="password" id="providerApiKey" class="input-field w-full px-3 py-2 rounded" placeholder="Leave empty to use environment variable" autocomplete="off">
-                <p class="text-xs text-gray-400 mt-1" id="providerSecretMeta">If empty, will use API key from environment variables</p>
+                <input type="password" id="providerApiKey" class="input-field w-full px-3 py-2 rounded"
+                    placeholder="Leave empty to use environment variable" autocomplete="off">
+                <p class="text-xs text-gray-400 mt-1" id="providerSecretMeta">If empty, will use API key from
+                    environment variables</p>
                 <div class="grid md:grid-cols-2 gap-3 mt-3">
                     <div>
                         <label class="block text-sm font-medium mb-1">Secret storage</label>
@@ -754,28 +822,32 @@
                     </div>
                 </div>
             </div>
-            
+
             <div>
                 <label class="label-with-tooltip block text-sm font-medium mb-1">
                     API Base URL (optional)
                     <span class="info-tooltip info-tooltip-align-left">
                         <span class="info-tooltip-icon">?</span>
-                        <span class="info-tooltip-text">Override the default API endpoint. Useful for proxies or self-hosted instances (like Ollama).</span>
+                        <span class="info-tooltip-text">Override the default API endpoint. Useful for proxies or
+                            self-hosted instances (like Ollama).</span>
                     </span>
                 </label>
-                <input type="text" id="providerBaseUrl" class="input-field w-full px-3 py-2 rounded" placeholder="For self-hosted or custom endpoints">
+                <input type="text" id="providerBaseUrl" class="input-field w-full px-3 py-2 rounded"
+                    placeholder="For self-hosted or custom endpoints">
             </div>
-            
+
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="label-with-tooltip block text-sm font-medium mb-1">
                         Temperature
                         <span class="info-tooltip info-tooltip-align-left">
                             <span class="info-tooltip-icon">?</span>
-                            <span class="info-tooltip-text">Controls randomness (0.0 to 1.0). Lower values are more deterministic, higher values are more creative.</span>
+                            <span class="info-tooltip-text">Controls randomness (0.0 to 1.0). Lower values are more
+                                deterministic, higher values are more creative.</span>
                         </span>
                     </label>
-                    <input type="number" id="providerTemp" class="input-field w-full px-3 py-2 rounded" value="0.3" min="0" max="2" step="0.1">
+                    <input type="number" id="providerTemp" class="input-field w-full px-3 py-2 rounded" value="0.3"
+                        min="0" max="2" step="0.1">
                 </div>
                 <div>
                     <label class="label-with-tooltip block text-sm font-medium mb-1">
@@ -785,10 +857,11 @@
                             <span class="info-tooltip-text">Maximum number of tokens to generate in the response.</span>
                         </span>
                     </label>
-                    <input type="number" id="providerMaxTokens" class="input-field w-full px-3 py-2 rounded" value="2000">
+                    <input type="number" id="providerMaxTokens" class="input-field w-full px-3 py-2 rounded"
+                        value="2000">
                 </div>
             </div>
-            
+
             <div class="flex items-center space-x-4">
                 <label class="flex items-center">
                     <input type="checkbox" id="providerEnabled" class="mr-2" checked>
@@ -799,9 +872,10 @@
                     <span class="text-sm">Set as default</span>
                 </label>
             </div>
-            
+
             <div class="flex justify-end space-x-2 pt-4 border-t border-gray-700">
-                <button type="button" onclick="closeProviderModal()" class="btn-secondary px-4 py-2 rounded">Cancel</button>
+                <button type="button" onclick="closeProviderModal()"
+                    class="btn-secondary px-4 py-2 rounded">Cancel</button>
                 <button type="submit" class="btn-primary px-4 py-2 rounded">Save Provider</button>
             </div>
         </form>
@@ -817,10 +891,10 @@
                 <i class="fas fa-times"></i>
             </button>
         </div>
-        
+
         <form id="userForm" class="space-y-4">
             <input type="hidden" id="userId">
-            
+
             <div>
                 <label class="label-with-tooltip block text-sm font-medium mb-1">
                     Username *
@@ -840,7 +914,8 @@
                         <span class="info-tooltip-text">Display name shown in the UI.</span>
                     </span>
                 </label>
-                <input type="text" id="userFullName" class="input-field w-full px-3 py-2 rounded" placeholder="John Doe">
+                <input type="text" id="userFullName" class="input-field w-full px-3 py-2 rounded"
+                    placeholder="John Doe">
             </div>
 
             <div>
@@ -851,47 +926,53 @@
                         <span class="info-tooltip-text">Contact email address for notifications.</span>
                     </span>
                 </label>
-                <input type="email" id="userEmail" class="input-field w-full px-3 py-2 rounded" placeholder="john@example.com">
+                <input type="email" id="userEmail" class="input-field w-full px-3 py-2 rounded"
+                    placeholder="john@example.com">
             </div>
-            
+
             <div>
                 <label class="label-with-tooltip block text-sm font-medium mb-1">
                     Password <span id="userPasswordReq">*</span>
                     <span class="info-tooltip info-tooltip-align-left">
                         <span class="info-tooltip-icon">?</span>
-                        <span class="info-tooltip-text">Login password. Required for new users. Leave blank when editing to keep existing password.</span>
+                        <span class="info-tooltip-text">Login password. Required for new users. Leave blank when editing
+                            to keep existing password.</span>
                     </span>
                 </label>
                 <input type="password" id="userPassword" class="input-field w-full px-3 py-2 rounded">
-                <p id="userPasswordHelp" class="text-xs text-gray-400 mt-1 hidden">Leave blank to keep current password</p>
+                <p id="userPasswordHelp" class="text-xs text-gray-400 mt-1 hidden">Leave blank to keep current password
+                </p>
             </div>
-            
+
             <div>
-                  <label class="label-with-tooltip block text-sm font-medium mb-1">
-                      Role
-                      <span class="info-tooltip info-tooltip-align-left">
-                          <span class="info-tooltip-icon">?</span>
-                          <span class="info-tooltip-text"><strong>Owner/Admin:</strong> Full platform control.<br><strong>Maintainer:</strong> Manage servers/providers.<br><strong>Operator:</strong> Execute and read.<br><strong>Viewer/Auditor:</strong> Read-only.</span>
-                      </span>
-                  </label>
-                  <select id="userRole" class="input-field w-full px-3 py-2 rounded">
-                      <option value="owner">Owner</option>
-                      <option value="admin">Admin</option>
-                      <option value="maintainer">Maintainer</option>
-                      <option value="operator">Operator</option>
-                      <option value="viewer">Viewer</option>
-                      <option value="auditor">Auditor</option>
-                      <option value="user">Legacy User</option>
-                  </select>
-              </div>
-            
+                <label class="label-with-tooltip block text-sm font-medium mb-1">
+                    Role
+                    <span class="info-tooltip info-tooltip-align-left">
+                        <span class="info-tooltip-icon">?</span>
+                        <span class="info-tooltip-text"><strong>Owner/Admin:</strong> Full platform
+                            control.<br><strong>Maintainer:</strong> Manage
+                            servers/providers.<br><strong>Operator:</strong> Execute and
+                            read.<br><strong>Viewer/Auditor:</strong> Read-only.</span>
+                    </span>
+                </label>
+                <select id="userRole" class="input-field w-full px-3 py-2 rounded">
+                    <option value="owner">Owner</option>
+                    <option value="admin">Admin</option>
+                    <option value="maintainer">Maintainer</option>
+                    <option value="operator">Operator</option>
+                    <option value="viewer">Viewer</option>
+                    <option value="auditor">Auditor</option>
+                    <option value="user">Legacy User</option>
+                </select>
+            </div>
+
             <div class="flex items-center">
                 <label class="flex items-center">
                     <input type="checkbox" id="userActive" class="mr-2" checked>
                     <span class="text-sm">Active</span>
                 </label>
             </div>
-            
+
             <div class="flex justify-end space-x-2 pt-4 border-t border-gray-700">
                 <button type="button" onclick="closeUserModal()" class="btn-secondary px-4 py-2 rounded">Cancel</button>
                 <button type="submit" class="btn-primary px-4 py-2 rounded">Save User</button>
@@ -909,7 +990,7 @@
                 <i class="fas fa-times"></i>
             </button>
         </div>
-        
+
         <form id="serverForm" class="space-y-4">
             <input type="hidden" id="serverId">
             <div>
@@ -917,12 +998,14 @@
                     Friendly Name *
                     <span class="info-tooltip info-tooltip-align-left">
                         <span class="info-tooltip-icon">?</span>
-                        <span class="info-tooltip-text">A descriptive name for this server (e.g. "Production DB", "Web Server 01").</span>
+                        <span class="info-tooltip-text">A descriptive name for this server (e.g. "Production DB", "Web
+                            Server 01").</span>
                     </span>
                 </label>
-                <input type="text" id="serverName" class="input-field w-full px-3 py-2 rounded" required placeholder="e.g., Production DB">
+                <input type="text" id="serverName" class="input-field w-full px-3 py-2 rounded" required
+                    placeholder="e.g., Production DB">
             </div>
-            
+
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="label-with-tooltip block text-sm font-medium mb-1">
@@ -932,7 +1015,8 @@
                             <span class="info-tooltip-text">The IP address or DNS hostname of the server.</span>
                         </span>
                     </label>
-                    <input type="text" id="serverHost" class="input-field w-full px-3 py-2 rounded" required placeholder="192.168.1.10">
+                    <input type="text" id="serverHost" class="input-field w-full px-3 py-2 rounded" required
+                        placeholder="192.168.1.10">
                 </div>
                 <div>
                     <label class="label-with-tooltip block text-sm font-medium mb-1">
@@ -945,28 +1029,32 @@
                     <input type="number" id="serverPort" class="input-field w-full px-3 py-2 rounded" value="22">
                 </div>
             </div>
-            
+
             <div>
                 <label class="label-with-tooltip block text-sm font-medium mb-1">
                     Username *
                     <span class="info-tooltip info-tooltip-align-left">
                         <span class="info-tooltip-icon">?</span>
-                        <span class="info-tooltip-text">SSH username for connection (e.g. "root", "ubuntu", "ec2-user").</span>
+                        <span class="info-tooltip-text">SSH username for connection (e.g. "root", "ubuntu",
+                            "ec2-user").</span>
                     </span>
                 </label>
-                <input type="text" id="serverUser" class="input-field w-full px-3 py-2 rounded" required placeholder="root">
+                <input type="text" id="serverUser" class="input-field w-full px-3 py-2 rounded" required
+                    placeholder="root">
             </div>
-            
+
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="label-with-tooltip block text-sm font-medium mb-1">
                         Credential Source
                         <span class="info-tooltip info-tooltip-align-left">
                             <span class="info-tooltip-icon">?</span>
-                            <span class="info-tooltip-text">Use an inline secret or reference a shared vault/CyberArk credential profile.</span>
+                            <span class="info-tooltip-text">Use an inline secret or reference a shared vault/CyberArk
+                                credential profile.</span>
                         </span>
                     </label>
-                    <select id="credentialSource" class="input-field w-full px-3 py-2 rounded" onchange="toggleCredentialSource()">
+                    <select id="credentialSource" class="input-field w-full px-3 py-2 rounded"
+                        onchange="toggleCredentialSource()">
                         <option value="inline">Inline secret</option>
                         <option value="shared_profile">Shared credential profile</option>
                     </select>
@@ -976,7 +1064,8 @@
                         Credential Profile
                         <span class="info-tooltip info-tooltip-align-left">
                             <span class="info-tooltip-icon">?</span>
-                            <span class="info-tooltip-text">Select a reusable credential stored in Vault, CyberArk, or inline.</span>
+                            <span class="info-tooltip-text">Select a reusable credential stored in Vault, CyberArk, or
+                                inline.</span>
                         </span>
                     </label>
                     <select id="credentialProfileId" class="input-field w-full px-3 py-2 rounded">
@@ -991,7 +1080,8 @@
                     Auth Type
                     <span class="info-tooltip info-tooltip-align-left">
                         <span class="info-tooltip-icon">?</span>
-                        <span class="info-tooltip-text">Choose between SSH Private Key (PEM) or Password authentication. Keys are recommended.</span>
+                        <span class="info-tooltip-text">Choose between SSH Private Key (PEM) or Password authentication.
+                            Keys are recommended.</span>
                     </span>
                 </label>
                 <select id="serverAuthType" class="input-field w-full px-3 py-2 rounded" onchange="toggleAuthFields()">
@@ -999,19 +1089,23 @@
                     <option value="password">Password</option>
                 </select>
             </div>
-            
+
             <div id="authKeyField">
                 <div class="flex items-center justify-between">
                     <label class="label-with-tooltip block text-sm font-medium mb-1">
                         Private Key (PEM format)
                         <span class="info-tooltip info-tooltip-align-left">
                             <span class="info-tooltip-icon">?</span>
-                            <span class="info-tooltip-text">Paste the full content of your private key, including BEGIN and END lines.</span>
+                            <span class="info-tooltip-text">Paste the full content of your private key, including BEGIN
+                                and END lines.</span>
                         </span>
                     </label>
-                    <button type="button" onclick="toggleSecretVisibility('serverKey', this, true)" class="text-xs text-blue-400 hover:text-blue-300">Show</button>
+                    <button type="button" onclick="toggleSecretVisibility('serverKey', this, true)"
+                        class="text-xs text-blue-400 hover:text-blue-300">Show</button>
                 </div>
-                <textarea id="serverKey" data-masked="true" style="filter: blur(5px);" class="input-field w-full px-3 py-2 rounded h-32 font-mono text-xs" placeholder="-----BEGIN RSA PRIVATE KEY-----..."></textarea>
+                <textarea id="serverKey" data-masked="true" style="filter: blur(5px);"
+                    class="input-field w-full px-3 py-2 rounded h-32 font-mono text-xs"
+                    placeholder="-----BEGIN RSA PRIVATE KEY-----..."></textarea>
                 <p class="text-xs text-gray-400 mt-1">Masked by default. Click Show to review while editing.</p>
             </div>
 
@@ -1024,9 +1118,11 @@
                             <span class="info-tooltip-text">SSH password.</span>
                         </span>
                     </label>
-                    <button type="button" onclick="toggleSecretVisibility('serverPassword', this)" class="text-xs text-blue-400 hover:text-blue-300">Show</button>
+                    <button type="button" onclick="toggleSecretVisibility('serverPassword', this)"
+                        class="text-xs text-blue-400 hover:text-blue-300">Show</button>
                 </div>
-                <input type="password" id="serverPassword" class="input-field w-full px-3 py-2 rounded" autocomplete="off">
+                <input type="password" id="serverPassword" class="input-field w-full px-3 py-2 rounded"
+                    autocomplete="off">
             </div>
 
             <div id="credentialMetadata" class="hidden">
@@ -1034,10 +1130,12 @@
                     Credential Metadata (Vault path, CyberArk safe, etc.)
                     <span class="info-tooltip info-tooltip-align-left">
                         <span class="info-tooltip-icon">?</span>
-                        <span class="info-tooltip-text">YAML/JSON describing external secret identifiers such as Vault path, CyberArk safe/account, or API token alias.</span>
+                        <span class="info-tooltip-text">YAML/JSON describing external secret identifiers such as Vault
+                            path, CyberArk safe/account, or API token alias.</span>
                     </span>
                 </label>
-                <textarea id="serverCredentialMetadata" class="input-field w-full px-3 py-2 rounded h-20 font-mono text-xs" placeholder="vault_path: secret/data/ssh/prod-db
+                <textarea id="serverCredentialMetadata"
+                    class="input-field w-full px-3 py-2 rounded h-20 font-mono text-xs" placeholder="vault_path: secret/data/ssh/prod-db
 safe: PLATFORM
 account: db-admin"></textarea>
             </div>
@@ -1048,10 +1146,13 @@ account: db-admin"></textarea>
                         Protocol *
                         <span class="info-tooltip info-tooltip-align-left">
                             <span class="info-tooltip-icon">?</span>
-                            <span class="info-tooltip-text">Choose connection method: SSH for Linux/Windows servers, or WinRM for Windows. API credentials are now managed separately in API Credential Profiles.</span>
+                            <span class="info-tooltip-text">Choose connection method: SSH for Linux/Windows servers, or
+                                WinRM for Windows. API credentials are now managed separately in API Credential
+                                Profiles.</span>
                         </span>
                     </label>
-                    <select id="serverProtocol" class="input-field w-full px-3 py-2 rounded" onchange="toggleProtocolFields()">
+                    <select id="serverProtocol" class="input-field w-full px-3 py-2 rounded"
+                        onchange="toggleProtocolFields()">
                         <option value="ssh">SSH (Linux/Windows)</option>
                         <option value="winrm">WinRM (Windows)</option>
                     </select>
@@ -1070,53 +1171,62 @@ account: db-admin"></textarea>
                     Tags (comma separated)
                     <span class="info-tooltip info-tooltip-align-left">
                         <span class="info-tooltip-icon">?</span>
-                        <span class="info-tooltip-text">Add labels like production, linux, db to filter and bulk manage servers.</span>
+                        <span class="info-tooltip-text">Add labels like production, linux, db to filter and bulk manage
+                            servers.</span>
                     </span>
                 </label>
-                <input type="text" id="serverTags" class="input-field w-full px-3 py-2 rounded" placeholder="production,linux,db">
+                <input type="text" id="serverTags" class="input-field w-full px-3 py-2 rounded"
+                    placeholder="production,linux,db">
             </div>
 
-              <div>
-                  <label class="label-with-tooltip block text-sm font-medium mb-1">
-                      Environment
-                      <span class="info-tooltip info-tooltip-align-left">
-                          <span class="info-tooltip-icon">?</span>
-                          <span class="info-tooltip-text">Tag this server to an environment for filtering and rule matching.</span>
-                      </span>
-                  </label>
-                  <select id="serverEnv" class="input-field w-full px-3 py-2 rounded">
-                      <option value="production">Production</option>
-                      <option value="staging">Staging</option>
-                      <option value="development">Development</option>
-                  </select>
-              </div>
+            <div>
+                <label class="label-with-tooltip block text-sm font-medium mb-1">
+                    Environment
+                    <span class="info-tooltip info-tooltip-align-left">
+                        <span class="info-tooltip-icon">?</span>
+                        <span class="info-tooltip-text">Tag this server to an environment for filtering and rule
+                            matching.</span>
+                    </span>
+                </label>
+                <select id="serverEnv" class="input-field w-full px-3 py-2 rounded">
+                    <option value="production">Production</option>
+                    <option value="staging">Staging</option>
+                    <option value="development">Development</option>
+                </select>
+            </div>
 
-              <div>
-                  <label class="label-with-tooltip block text-sm font-medium mb-1">
-                      Server Group
-                      <span class="info-tooltip info-tooltip-align-left">
-                          <span class="info-tooltip-icon">?</span>
-                          <span class="info-tooltip-text">Assign the host to a group or nested group to control access and organization.</span>
-                      </span>
-                  </label>
-                  <select id="serverGroupSelect" class="input-field w-full px-3 py-2 rounded">
-                      <option value="">No group</option>
-                  </select>
-              </div>
+            <div>
+                <label class="label-with-tooltip block text-sm font-medium mb-1">
+                    Server Group
+                    <span class="info-tooltip info-tooltip-align-left">
+                        <span class="info-tooltip-icon">?</span>
+                        <span class="info-tooltip-text">Assign the host to a group or nested group to control access and
+                            organization.</span>
+                    </span>
+                </label>
+                <select id="serverGroupSelect" class="input-field w-full px-3 py-2 rounded">
+                    <option value="">No group</option>
+                </select>
+            </div>
 
-              <div class="border border-gray-700 rounded p-3 bg-gray-800/40 flex items-center justify-between text-sm text-gray-300">
-                  <div>
-                      <p class="font-semibold">Need a reusable secret?</p>
-                      <p class="text-gray-400">Open the Credential Profiles workspace to add Vault, CyberArk, or shared keys without leaving this form.</p>
-                  </div>
-                  <button type="button" class="btn-secondary px-3 py-2 rounded" onclick="setActiveSection('section-credentials'); closeServerModal();">
-                      Manage credentials
-                  </button>
-              </div>
-            
+            <div
+                class="border border-gray-700 rounded p-3 bg-gray-800/40 flex items-center justify-between text-sm text-gray-300">
+                <div>
+                    <p class="font-semibold">Need a reusable secret?</p>
+                    <p class="text-gray-400">Open the Credential Profiles workspace to add Vault, CyberArk, or shared
+                        keys without leaving this form.</p>
+                </div>
+                <button type="button" class="btn-secondary px-3 py-2 rounded"
+                    onclick="setActiveSection('section-credentials'); closeServerModal();">
+                    Manage credentials
+                </button>
+            </div>
+
             <div class="flex justify-end space-x-2 pt-4 border-t border-gray-700">
-                <button type="button" onclick="closeServerModal()" class="btn-secondary px-4 py-2 rounded">Cancel</button>
-                <button type="button" onclick="testServerFromForm()" class="btn-secondary px-4 py-2 rounded"><i class="fas fa-heartbeat mr-1"></i>Test Connection</button>
+                <button type="button" onclick="closeServerModal()"
+                    class="btn-secondary px-4 py-2 rounded">Cancel</button>
+                <button type="button" onclick="testServerFromForm()" class="btn-secondary px-4 py-2 rounded"><i
+                        class="fas fa-heartbeat mr-1"></i>Test Connection</button>
                 <button type="submit" class="btn-primary px-4 py-2 rounded">Save Server</button>
             </div>
         </form>
@@ -1137,7 +1247,8 @@ account: db-admin"></textarea>
             <div class="grid md:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-sm font-medium mb-1">Profile name *</label>
-                    <input type="text" id="credentialProfileName" class="input-field w-full px-3 py-2 rounded" required placeholder="Shared automation key">
+                    <input type="text" id="credentialProfileName" class="input-field w-full px-3 py-2 rounded" required
+                        placeholder="Shared automation key">
                 </div>
                 <div>
                     <label class="block text-sm font-medium mb-1">Scope</label>
@@ -1169,29 +1280,39 @@ account: db-admin"></textarea>
             </div>
 
             <div>
-                <label class="block text-sm font-medium mb-1">Login username <span class="text-gray-400 text-xs">(required for password)</span></label>
-                <input type="text" id="credentialProfileUsername" class="input-field w-full px-3 py-2 rounded" placeholder="svc_automation">
-                <p class="text-xs text-gray-400 mt-1">Store the account name alongside the secret for reuse across servers and groups.</p>
+                <label class="block text-sm font-medium mb-1">Login username <span
+                        class="text-gray-400 text-xs">(required for password)</span></label>
+                <input type="text" id="credentialProfileUsername" class="input-field w-full px-3 py-2 rounded"
+                    placeholder="svc_automation">
+                <p class="text-xs text-gray-400 mt-1">Store the account name alongside the secret for reuse across
+                    servers and groups.</p>
             </div>
 
             <div>
                 <label class="block text-sm font-medium mb-1">Secret / reference</label>
-                <textarea id="credentialProfileSecret" class="input-field w-full px-3 py-2 rounded h-20 font-mono text-xs" placeholder="Inline secret or vault path"></textarea>
-                <p class="text-xs text-gray-400 mt-1">Store inline for single-use secrets or provide a vault/CyberArk reference path.</p>
+                <textarea id="credentialProfileSecret"
+                    class="input-field w-full px-3 py-2 rounded h-20 font-mono text-xs"
+                    placeholder="Inline secret or vault path"></textarea>
+                <p class="text-xs text-gray-400 mt-1">Store inline for single-use secrets or provide a vault/CyberArk
+                    reference path.</p>
             </div>
 
             <div>
                 <label class="block text-sm font-medium mb-1">Metadata (YAML/JSON)</label>
-                <textarea id="credentialProfileMetadata" class="input-field w-full px-3 py-2 rounded h-24 font-mono text-xs" placeholder="vault_path: secret/data/ssh/prod"></textarea>
+                <textarea id="credentialProfileMetadata"
+                    class="input-field w-full px-3 py-2 rounded h-24 font-mono text-xs"
+                    placeholder="vault_path: secret/data/ssh/prod"></textarea>
             </div>
 
             <div>
                 <label class="block text-sm font-medium mb-1">Description</label>
-                <textarea id="credentialProfileDescription" class="input-field w-full px-3 py-2 rounded h-16" placeholder="Usage notes, rotation owner, etc."></textarea>
+                <textarea id="credentialProfileDescription" class="input-field w-full px-3 py-2 rounded h-16"
+                    placeholder="Usage notes, rotation owner, etc."></textarea>
             </div>
 
             <div class="flex justify-end space-x-2 pt-4 border-t border-gray-700">
-                <button type="button" onclick="closeCredentialModal()" class="btn-secondary px-4 py-2 rounded">Cancel</button>
+                <button type="button" onclick="closeCredentialModal()"
+                    class="btn-secondary px-4 py-2 rounded">Cancel</button>
                 <button type="submit" class="btn-primary px-4 py-2 rounded">Save Credential</button>
             </div>
         </form>
@@ -1259,7 +1380,7 @@ account: db-admin"></textarea>
             return obj;
         }
     }
-    
+
     const modelSuggestions = {
         anthropic: 'claude-sonnet-4-20250514',
         openai: 'gpt-4-turbo-preview',
@@ -1312,7 +1433,7 @@ account: db-admin"></textarea>
         const initialTarget = initialHash && document.getElementById(initialHash) ? initialHash : buttons[0].dataset.target;
         setActiveSection(initialTarget);
     }
-    
+
     // --- Custom Confirm Modal ---
     function showConfirmModal(title, message, callback, options = {}) {
         document.getElementById('confirmTitle').textContent = title;
@@ -1361,7 +1482,7 @@ account: db-admin"></textarea>
         }
         closeConfirmModal();
     }
-    
+
     // --- Helper Functions ---
     function formatDate(dateStr) {
         if (!dateStr) return '<span class="text-gray-500">Never</span>';
@@ -1369,7 +1490,7 @@ account: db-admin"></textarea>
         const now = new Date();
         const diffMs = now - date;
         const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-        
+
         if (diffDays === 0) {
             const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
             if (diffHours === 0) {
@@ -1384,7 +1505,7 @@ account: db-admin"></textarea>
         }
         return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     }
-    
+
     function updateModelSuggestions() {
         const type = document.getElementById('providerType').value;
         document.getElementById('providerModel').placeholder = modelSuggestions[type] || '';
@@ -1419,7 +1540,7 @@ account: db-admin"></textarea>
             </div>
         `;
     }
-    
+
     // --- LLM Providers ---
     async function loadProviders() {
         try {
@@ -1474,7 +1595,7 @@ account: db-admin"></textarea>
             `;
             return;
         }
-        
+
         container.innerHTML = `
             <table class="w-full">
                 <thead>
@@ -1494,18 +1615,16 @@ account: db-admin"></textarea>
                             <td class="p-4 align-top">${canManageProviders ? `<input type="checkbox" ${selectedProviders.has(provider.id) ? 'checked' : ''} onchange="toggleRowSelection('provider','${provider.id}')">` : ''}</td>
                             <td class="p-4">
                                 <div class="flex items-center space-x-3">
-                                    <div class="w-9 h-9 rounded-lg flex items-center justify-center ${
-                                        provider.provider_type === 'anthropic' ? 'bg-orange-900 bg-opacity-50' :
-                                        provider.provider_type === 'openai' ? 'bg-green-900 bg-opacity-50' :
-                                        provider.provider_type === 'google' ? 'bg-blue-900 bg-opacity-50' :
-                                        'bg-gray-700'
-                                    }">
-                                        <i class="fas fa-${
-                                            provider.provider_type === 'anthropic' ? 'robot text-orange-400' :
-                                            provider.provider_type === 'openai' ? 'brain text-green-400' :
-                                            provider.provider_type === 'google' ? 'cloud text-blue-400' :
-                                            'server text-gray-400'
-                                        }"></i>
+                                    <div class="w-9 h-9 rounded-lg flex items-center justify-center ${provider.provider_type === 'anthropic' ? 'bg-orange-900 bg-opacity-50' :
+                provider.provider_type === 'openai' ? 'bg-green-900 bg-opacity-50' :
+                    provider.provider_type === 'google' ? 'bg-blue-900 bg-opacity-50' :
+                        'bg-gray-700'
+            }">
+                                        <i class="fas fa-${provider.provider_type === 'anthropic' ? 'robot text-orange-400' :
+                provider.provider_type === 'openai' ? 'brain text-green-400' :
+                    provider.provider_type === 'google' ? 'cloud text-blue-400' :
+                        'server text-gray-400'
+            }"></i>
                                     </div>
                                     <div>
                                         <div class="font-medium">${provider.name}</div>
@@ -1522,9 +1641,9 @@ account: db-admin"></textarea>
                                 <code class="text-xs bg-gray-800 px-2 py-1 rounded">${provider.model_id}</code>
                                 <div class="text-xs mt-2">
                                     ${provider.has_api_key
-                                        ? '<span class="inline-flex items-center px-2 py-1 rounded-full text-green-400 bg-green-900 bg-opacity-40 text-[11px]"><i class="fas fa-key mr-1"></i>Secret stored</span>'
-                                        : '<span class="inline-flex items-center px-2 py-1 rounded-full text-yellow-400 bg-yellow-900 bg-opacity-40 text-[11px]"><i class="fas fa-exclamation-triangle mr-1"></i>Missing key</span>'
-                                    }
+                ? '<span class="inline-flex items-center px-2 py-1 rounded-full text-green-400 bg-green-900 bg-opacity-40 text-[11px]"><i class="fas fa-key mr-1"></i>Secret stored</span>'
+                : '<span class="inline-flex items-center px-2 py-1 rounded-full text-yellow-400 bg-yellow-900 bg-opacity-40 text-[11px]"><i class="fas fa-exclamation-triangle mr-1"></i>Missing key</span>'
+            }
                                 </div>
                             </td>
                             <td class="p-4 text-sm text-gray-400">
@@ -1537,9 +1656,9 @@ account: db-admin"></textarea>
                             <td class="p-4">
                                 <div class="space-y-2">
                                     ${provider.is_enabled
-                                        ? '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-900 bg-opacity-50 text-green-400"><i class="fas fa-circle text-xs mr-1"></i>Active</span>'
-                                        : '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-700 text-gray-400"><i class="fas fa-pause mr-1"></i>Disabled</span>'
-                                    }
+                ? '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-900 bg-opacity-50 text-green-400"><i class="fas fa-circle text-xs mr-1"></i>Active</span>'
+                : '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-700 text-gray-400"><i class="fas fa-pause mr-1"></i>Disabled</span>'
+            }
                                     ${providerLastTest[provider.id] ? `<div class="text-[11px] ${providerLastTest[provider.id].ok ? 'text-green-400' : 'text-red-400'}"><i class="fas fa-stopwatch mr-1"></i>${providerLastTest[provider.id].latency}ms · ${providerLastTest[provider.id].ok ? 'Healthy' : 'Failed'}</div>` : ''}
                                 </div>
                             </td>
@@ -1573,7 +1692,7 @@ account: db-admin"></textarea>
             ${renderPagination(providerFilteredTotal, providerPage, providerPageSize, 'provider')}
         `;
     }
-    
+
     function confirmDeleteProvider(id, name) {
         showConfirmModal(
             'Delete Provider',
@@ -1582,7 +1701,7 @@ account: db-admin"></textarea>
             { confirmationText: name }
         );
     }
-    
+
     // --- Server Credentials ---
     async function loadServers() {
         try {
@@ -1645,7 +1764,7 @@ account: db-admin"></textarea>
             `;
             return;
         }
-        
+
         container.innerHTML = `
             <table class="w-full">
                 <thead>
@@ -1690,11 +1809,10 @@ account: db-admin"></textarea>
                                 </div>
                             </td>
                             <td class="p-4">
-                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs uppercase ${
-                                    server.environment === 'production' ? 'bg-red-900 bg-opacity-50 text-red-400' :
-                                    server.environment === 'staging' ? 'bg-yellow-900 bg-opacity-50 text-yellow-400' :
-                                    'bg-blue-900 bg-opacity-50 text-blue-400'
-                                }">
+                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs uppercase ${server.environment === 'production' ? 'bg-red-900 bg-opacity-50 text-red-400' :
+                server.environment === 'staging' ? 'bg-yellow-900 bg-opacity-50 text-yellow-400' :
+                    'bg-blue-900 bg-opacity-50 text-blue-400'
+            }">
                                     ${server.environment}
                                 </span>
                             </td>
@@ -1716,7 +1834,7 @@ account: db-admin"></textarea>
             ${renderPagination(serverCache.length ? serverFilteredTotal : 0, serverPage, serverPageSize, 'server')}
         `;
     }
-    
+
     function confirmDeleteServer(id, name) {
         showConfirmModal(
             'Delete Server',
@@ -1805,7 +1923,7 @@ account: db-admin"></textarea>
         try {
             const response = await apiCall('/api/users');
             if (!response) return;
-            
+
             if (!response.ok) {
                 if (response.status === 404) {
                     container.innerHTML = `
@@ -1953,17 +2071,17 @@ account: db-admin"></textarea>
                             </td>
                             <td class="p-4">
                                 ${u.is_active
-                                    ? '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-900 bg-opacity-50 text-green-400"><i class="fas fa-check-circle mr-1"></i>Active</span>'
-                                    : '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-red-900 bg-opacity-50 text-red-400"><i class="fas fa-ban mr-1"></i>Inactive</span>'
-                                }
+                ? '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-900 bg-opacity-50 text-green-400"><i class="fas fa-check-circle mr-1"></i>Active</span>'
+                : '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-red-900 bg-opacity-50 text-red-400"><i class="fas fa-ban mr-1"></i>Inactive</span>'
+            }
                             </td>
                             <td class="p-4 text-sm text-gray-400">
                                 ${formatDate(u.created_at)}
                             </td>
                             <td class="p-4 text-sm">
                                 ${u.last_login
-                                    ? `<span class="text-green-400">${formatDate(u.last_login)}</span>`
-                                    : '<span class="text-gray-500">Never</span>'}
+                ? `<span class="text-green-400">${formatDate(u.last_login)}</span>`
+                : '<span class="text-gray-500">Never</span>'}
                             </td>
                               <td class="p-4 text-right">
                                   ${canManageUsers ? `
@@ -1986,7 +2104,7 @@ account: db-admin"></textarea>
             ${renderPagination(userFilteredTotal, userPage, userPageSize, 'user')}
         `;
     }
-    
+
     function confirmDeleteUser(id, username) {
         showConfirmModal(
             'Delete User',
@@ -1995,7 +2113,7 @@ account: db-admin"></textarea>
             { confirmationText: username }
         );
     }
-    
+
     function showCreateProviderModal() {
         document.getElementById('providerModalTitle').textContent = 'Add LLM Provider';
         document.getElementById('providerForm').reset();
@@ -2013,12 +2131,12 @@ account: db-admin"></textarea>
         document.getElementById('providerModal').classList.remove('hidden');
         document.getElementById('providerModal').classList.add('flex');
     }
-    
+
     async function editProvider(providerId) {
         try {
             const response = await apiCall(`/api/settings/llm/${providerId}`);
             if (!response) return;
-            
+
             const provider = await response.json();
 
             document.getElementById('providerModalTitle').textContent = 'Edit Provider';
@@ -2047,12 +2165,12 @@ account: db-admin"></textarea>
             showToast('Failed to load provider', 'error');
         }
     }
-    
+
     function closeProviderModal() {
         document.getElementById('providerModal').classList.add('hidden');
         document.getElementById('providerModal').classList.remove('flex');
     }
-    
+
     document.getElementById('providerForm').addEventListener('submit', async (e) => {
         e.preventDefault();
 
@@ -2083,47 +2201,47 @@ account: db-admin"></textarea>
         if (apiKey) {
             data.api_key = apiKey;
         }
-        
+
         try {
             const url = providerId ? `/api/settings/llm/${providerId}` : '/api/settings/llm';
             const method = providerId ? 'PUT' : 'POST';
-            
+
             const response = await apiCall(url, {
                 method,
                 body: JSON.stringify(data)
             });
-            
+
             if (!response) return;
-            
+
             if (!response.ok) {
                 const error = await response.json();
                 throw new Error(error.detail || 'Failed to save');
             }
-            
+
             showToast(providerId ? 'Provider updated' : 'Provider created', 'success');
             closeProviderModal();
             loadProviders();
-            
+
         } catch (error) {
             showToast(error.message, 'error');
         }
     });
-    
+
     async function setDefaultProvider(providerId) {
         try {
             const response = await apiCall(`/api/settings/llm/${providerId}/set-default`, { method: 'POST' });
             if (!response) return;
-            
+
             showToast('Default provider updated', 'success');
             loadProviders();
         } catch (error) {
             showToast('Failed to update default', 'error');
         }
     }
-    
+
     async function toggleProvider(providerId, forceState = null) {
         try {
-            const response = await apiCall(`/api/settings/llm/${providerId}/toggle${forceState !== null ? `?enabled=${forceState}` : ''}` , { method: 'POST' });
+            const response = await apiCall(`/api/settings/llm/${providerId}/toggle${forceState !== null ? `?enabled=${forceState}` : ''}`, { method: 'POST' });
             if (!response) return;
 
             const result = await response.json();
@@ -2165,19 +2283,19 @@ account: db-admin"></textarea>
             }
         }
     }
-    
+
     async function deleteProvider(providerId) {
         try {
             const response = await apiCall(`/api/settings/llm/${providerId}`, { method: 'DELETE' });
             if (!response) return;
-            
+
             showToast('Provider deleted', 'success');
             loadProviders();
         } catch (error) {
             showToast('Failed to delete provider', 'error');
         }
     }
-    
+
     // --- Server Management ---
     async function loadServerGroups() {
         try {
@@ -2584,36 +2702,74 @@ account: db-admin"></textarea>
         const authType = document.getElementById('serverAuthType').value;
         const credentialSource = document.getElementById('credentialSource').value;
         const secret = authType === 'key' ? document.getElementById('serverKey').value.trim() : document.getElementById('serverPassword').value.trim();
+        const port = parseInt(document.getElementById('serverPort').value);
+
         if (!hostname || !user) {
             showToast('Host and user are required before testing', 'error');
-            return;
-        }
-        if (credentialSource === 'inline' && !secret) {
-            showToast('Provide credentials or select a profile before testing', 'error');
             return;
         }
 
         const payload = {
             hostname,
-            port: parseInt(document.getElementById('serverPort').value),
-            protocol: authType === 'key' ? 'ssh' : 'tcp'
+            port,
+            protocol: document.getElementById('serverProtocol').value,
+            username: user,
+            auth_type: authType,
+            credential_source: credentialSource
         };
+
+        if (credentialSource === 'inline') {
+            if (!editingServerId && !secret) {
+                showToast('Provide credentials or select a profile before testing', 'error');
+                return;
+            }
+            if (authType === 'key') {
+                payload.ssh_key = secret;
+            } else {
+                payload.password = secret;
+            }
+        } else if (credentialSource === 'shared_profile') {
+            payload.credential_profile_id = document.getElementById('credentialProfileId').value;
+            if (!payload.credential_profile_id) {
+                showToast('Select a credential profile to test', 'error');
+                return;
+            }
+        }
+
+        const button = document.querySelector('#serverModal .btn-secondary'); // Ideally add id to test button
+        const originalText = button ? button.innerHTML : '';
+        if (button) {
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testing...';
+        }
 
         try {
             const response = await apiCall('/api/servers/test', {
                 method: 'POST',
                 body: JSON.stringify(payload)
             });
+
+            if (button) {
+                button.disabled = false;
+                button.innerHTML = originalText;
+            }
+
             if (!response) return;
             const result = await response.json();
+
             if (result.status === 'success') {
                 serverFormTestOk = true;
-                showToast(`Connectivity check passed in ${result.latency_ms || 'unknown'}ms`, 'success');
+                const latency = result.latency_ms !== undefined ? result.latency_ms + 'ms' : '0ms';
+                showToast(`Connection successful (${latency}): ${result.message}`, 'success');
             } else {
                 serverFormTestOk = false;
-                showToast(`Connection test failed: ${result.message}`, 'error');
+                showToast(`Connection failed: ${result.message}`, 'error');
             }
         } catch (error) {
+            if (button) {
+                button.disabled = false;
+                button.innerHTML = originalText;
+            }
             serverFormTestOk = false;
             showToast(`Connection test failed: ${error.message}`, 'error');
         }
@@ -2660,7 +2816,7 @@ account: db-admin"></textarea>
             serverLastTest[serverId] = { ok: result.status === 'success', message: result.message };
             renderServersTable(filterServers());
             if (result.status === 'success') {
-                showToast(`Server responded: ${result.latency_ms ? result.latency_ms + 'ms' : result.message}` , 'success');
+                showToast(`Server responded: ${result.latency_ms !== undefined ? result.latency_ms + 'ms' : 'OK'} - ${result.message}`, 'success');
             } else {
                 showToast(`Server test failed: ${result.message}`, 'error');
             }
@@ -2669,28 +2825,28 @@ account: db-admin"></textarea>
         }
     }
 
-            function showCreateServerModal() {
-          document.getElementById('serverForm').reset();
-          document.getElementById('serverModal').querySelector('h3').textContent = 'Add Server Credential';
-          document.getElementById('serverId').value = '';
-          document.getElementById('serverProtocol').value = 'ssh';
-          document.getElementById('credentialSource').value = 'inline';
-          document.getElementById('credentialProfileId').value = '';
-          document.getElementById('serverKey').dataset.masked = 'true';
-          document.getElementById('serverKey').style.filter = 'blur(5px)';
-          document.getElementById('serverGroupSelect').value = '';
-          document.getElementById('serverOsType').value = 'linux';
-          document.getElementById('serverTags').value = '';
-          document.getElementById('serverCredentialMetadata').value = '';
-          document.getElementById('serverPort').value = '22';
-          toggleProtocolFields();
-          toggleCredentialSource();
-          toggleAuthFields();
-          serverFormTestOk = false;
-          editingServerId = null;
-          document.getElementById('serverModal').classList.remove('hidden');
-          document.getElementById('serverModal').classList.add('flex');
-      }
+    function showCreateServerModal() {
+        document.getElementById('serverForm').reset();
+        document.getElementById('serverModal').querySelector('h3').textContent = 'Add Server Credential';
+        document.getElementById('serverId').value = '';
+        document.getElementById('serverProtocol').value = 'ssh';
+        document.getElementById('credentialSource').value = 'inline';
+        document.getElementById('credentialProfileId').value = '';
+        document.getElementById('serverKey').dataset.masked = 'true';
+        document.getElementById('serverKey').style.filter = 'blur(5px)';
+        document.getElementById('serverGroupSelect').value = '';
+        document.getElementById('serverOsType').value = 'linux';
+        document.getElementById('serverTags').value = '';
+        document.getElementById('serverCredentialMetadata').value = '';
+        document.getElementById('serverPort').value = '22';
+        toggleProtocolFields();
+        toggleCredentialSource();
+        toggleAuthFields();
+        serverFormTestOk = false;
+        editingServerId = null;
+        document.getElementById('serverModal').classList.remove('hidden');
+        document.getElementById('serverModal').classList.add('flex');
+    }
 
     function showEditServerModal(serverId) {
         const server = serverCache.find(s => s.id === serverId);
@@ -2727,45 +2883,45 @@ account: db-admin"></textarea>
     document.getElementById('serverForm').addEventListener('submit', async (e) => {
         e.preventDefault();
 
-      const protocol = document.getElementById('serverProtocol').value;
+        const protocol = document.getElementById('serverProtocol').value;
 
-      const data = {
-          name: document.getElementById('serverName').value,
-          hostname: document.getElementById('serverHost').value,
-          port: parseInt(document.getElementById('serverPort').value),
-          username: document.getElementById('serverUser').value,
-          protocol: protocol,
-          auth_type: document.getElementById('serverAuthType').value,
-          environment: document.getElementById('serverEnv').value,
-          group_id: document.getElementById('serverGroupSelect').value || null,
-          credential_source: document.getElementById('credentialSource').value,
-          credential_profile_id: document.getElementById('credentialProfileId').value || null,
-          credential_metadata: parseYamlOrJson(document.getElementById('serverCredentialMetadata').value || '{}'),
-          os_type: document.getElementById('serverOsType').value,
-          tags: (document.getElementById('serverTags').value || '').split(',').map(t => t.trim()).filter(Boolean)
-      };
+        const data = {
+            name: document.getElementById('serverName').value,
+            hostname: document.getElementById('serverHost').value,
+            port: parseInt(document.getElementById('serverPort').value),
+            username: document.getElementById('serverUser').value,
+            protocol: protocol,
+            auth_type: document.getElementById('serverAuthType').value,
+            environment: document.getElementById('serverEnv').value,
+            group_id: document.getElementById('serverGroupSelect').value || null,
+            credential_source: document.getElementById('credentialSource').value,
+            credential_profile_id: document.getElementById('credentialProfileId').value || null,
+            credential_metadata: parseYamlOrJson(document.getElementById('serverCredentialMetadata').value || '{}'),
+            os_type: document.getElementById('serverOsType').value,
+            tags: (document.getElementById('serverTags').value || '').split(',').map(t => t.trim()).filter(Boolean)
+        };
 
-      // SSH/WinRM authentication
-      if (data.credential_source === 'inline') {
-          if (data.auth_type === 'key') {
-              data.ssh_key = document.getElementById('serverKey').value.trim();
-              if (!editingServerId && !data.ssh_key) {
-                  showToast('SSH key is required for key-based authentication', 'error');
-                  return;
-              }
-          } else {
-              data.password = document.getElementById('serverPassword').value.trim();
-              if (!editingServerId && !data.password) {
-                  showToast('Password is required for password authentication', 'error');
-                  return;
-              }
-          }
-      }
+        // SSH/WinRM authentication
+        if (data.credential_source === 'inline') {
+            if (data.auth_type === 'key') {
+                data.ssh_key = document.getElementById('serverKey').value.trim();
+                if (!editingServerId && !data.ssh_key) {
+                    showToast('SSH key is required for key-based authentication', 'error');
+                    return;
+                }
+            } else {
+                data.password = document.getElementById('serverPassword').value.trim();
+                if (!editingServerId && !data.password) {
+                    showToast('Password is required for password authentication', 'error');
+                    return;
+                }
+            }
+        }
 
-      if (!editingServerId && !serverFormTestOk && data.credential_source === 'inline') {
-          showToast('Run Test Connection before saving credentials', 'error');
-          return;
-      }
+        if (!editingServerId && !serverFormTestOk && data.credential_source === 'inline') {
+            showToast('Run Test Connection before saving credentials', 'error');
+            return;
+        }
 
         try {
             const url = editingServerId ? `/api/servers/${editingServerId}` : '/api/servers';
@@ -2791,11 +2947,11 @@ account: db-admin"></textarea>
         }
     });
 
-async function deleteServer(serverId) {
+    async function deleteServer(serverId) {
         try {
             const response = await apiCall(`/api/servers/${serverId}`, { method: 'DELETE' });
             if (!response) return;
-            
+
             showToast('Server deleted', 'success');
             loadServers();
         } catch (error) {
@@ -2813,7 +2969,7 @@ async function deleteServer(serverId) {
             closeUserModal();
         }
     });
-    
+
     document.getElementById('providerModal').addEventListener('click', (e) => {
         if (e.target === e.currentTarget) closeProviderModal();
     });
@@ -2863,7 +3019,7 @@ async function deleteServer(serverId) {
         const method = document.getElementById('authMethod').value;
         document.getElementById('ldapConfig').classList.add('hidden');
         document.getElementById('samlConfig').classList.add('hidden');
-        
+
         if (method === 'ldap') {
             document.getElementById('ldapConfig').classList.remove('hidden');
         } else if (method === 'saml') {
@@ -2902,26 +3058,26 @@ async function deleteServer(serverId) {
         try {
             const response = await apiCall('/api/auth/config');
             if (!response) return;
-            
+
             if (!response.ok) {
                 console.warn('Failed to load auth config, using defaults');
                 return;
             }
-            
+
             const config = await response.json();
             document.getElementById('authMethod').value = config.method;
-            
+
             if (config.ldap_config) {
                 document.getElementById('ldapUrl').value = config.ldap_config.url || '';
                 document.getElementById('ldapBindDn').value = config.ldap_config.bind_dn || '';
                 document.getElementById('ldapBaseDn').value = config.ldap_config.base_dn || '';
             }
-            
+
             if (config.saml_config) {
                 document.getElementById('samlMetadataUrl').value = config.saml_config.metadata_url || '';
                 document.getElementById('samlEntityId').value = config.saml_config.entity_id || '';
             }
-            
+
             toggleAuthSections();
         } catch (error) {
             console.error('Failed to load auth config:', error);
@@ -2930,7 +3086,7 @@ async function deleteServer(serverId) {
 
     document.getElementById('authConfigForm')?.addEventListener('submit', async (e) => {
         e.preventDefault();
-        
+
         const method = document.getElementById('authMethod').value;
         const data = {
             method: method,
@@ -2944,17 +3100,17 @@ async function deleteServer(serverId) {
                 entity_id: document.getElementById('samlEntityId').value
             } : null
         };
-        
+
         try {
             const response = await apiCall('/api/auth/config', {
                 method: 'POST',
                 body: JSON.stringify(data)
             });
-            
+
             if (!response) return;
-            
+
             showToast('Authentication settings saved', 'success');
-            
+
         } catch (error) {
             showToast('Failed to save auth settings', 'error');
         }
@@ -2976,7 +3132,7 @@ async function deleteServer(serverId) {
             const response = await apiCall('/api/users');
             const users = await response.json();
             const user = users.find(u => u.id === userId);
-            
+
             if (!user) return;
 
             document.getElementById('userModalTitle').textContent = 'Edit User';
@@ -2986,12 +3142,12 @@ async function deleteServer(serverId) {
             document.getElementById('userFullName').value = user.full_name || '';
             document.getElementById('userRole').value = user.role;
             document.getElementById('userActive').checked = user.is_active;
-            
+
             // Password is optional for edit
             document.getElementById('userPassword').value = '';
             document.getElementById('userPassword').required = false;
             document.getElementById('userPasswordHelp').classList.remove('hidden');
-            
+
             document.getElementById('userModal').classList.remove('hidden');
             document.getElementById('userModal').classList.add('flex');
         } catch (e) {
@@ -3006,10 +3162,10 @@ async function deleteServer(serverId) {
 
     document.getElementById('userForm')?.addEventListener('submit', async (e) => {
         e.preventDefault();
-        
+
         const userId = document.getElementById('userId').value;
         const password = document.getElementById('userPassword').value;
-        
+
         const data = {
             username: document.getElementById('userUsername').value,
             email: document.getElementById('userEmail').value || null,
@@ -3017,31 +3173,31 @@ async function deleteServer(serverId) {
             role: document.getElementById('userRole').value,
             is_active: document.getElementById('userActive').checked
         };
-        
+
         if (password) {
             data.password = password;
         }
-        
+
         try {
             const url = userId ? `/api/users/${userId}` : '/api/users';
             const method = userId ? 'PUT' : 'POST';
-            
+
             const response = await apiCall(url, {
                 method,
                 body: JSON.stringify(data)
             });
-            
+
             if (!response) return;
-            
+
             if (!response.ok) {
                 const error = await response.json();
                 throw new Error(error.detail || 'Failed to save user');
             }
-            
+
             showToast(userId ? 'User updated' : 'User created', 'success');
             closeUserModal();
             loadUsers();
-            
+
         } catch (error) {
             showToast(error.message, 'error');
         }
@@ -3051,7 +3207,7 @@ async function deleteServer(serverId) {
         try {
             const response = await apiCall(`/api/users/${userId}`, { method: 'DELETE' });
             if (!response) return;
-            
+
             showToast('User deleted', 'success');
             loadUsers();
         } catch (error) {

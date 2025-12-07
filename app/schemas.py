@@ -235,6 +235,31 @@ class AlertmanagerWebhook(BaseModel):
 
 # ============== Stats Schemas ==============
 
+
+class AlertTrendPoint(BaseModel):
+    bucket: str
+    count: int
+
+
+class AlertSourceBreakdown(BaseModel):
+    source: str
+    count: int
+
+
+class ActiveIncident(BaseModel):
+    id: UUID
+    alert_name: str
+    severity: Optional[str] = None
+    timestamp: datetime
+    status: str
+
+
+class ReliabilityBreakdown(BaseModel):
+    critical_impact: float
+    timeliness: float
+    remediation: float
+
+
 class StatsResponse(BaseModel):
     total_alerts: int
     analyzed_alerts: int
@@ -248,6 +273,18 @@ class StatsResponse(BaseModel):
     ignored: int
     total_rules: int
     enabled_rules: int
+    mtta_minutes: float
+    mttr_minutes: float
+    remediation_success_rate: float
+    severity_distribution: Dict[str, int]
+    alert_trend: List[AlertTrendPoint]
+    top_sources: List[AlertSourceBreakdown]
+    active_incidents: List[ActiveIncident]
+    reliability_index: int
+    reliability_breakdown: ReliabilityBreakdown
+    last_sync_time: Optional[datetime]
+    connection_status: str = "online"
+    time_range: str
 
 
 # ============== API Credential Profile Schemas ==============
