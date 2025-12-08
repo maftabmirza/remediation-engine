@@ -6,1814 +6,1387 @@
 
 ---
 
-## Overview
+## Executive Summary
 
-This plan addresses all gaps required to achieve full AIOps maturity. Organized into 4 phases with clear dependencies and deliverables.
+This document provides a comprehensive implementation plan to transform the AIOps Remediation Engine from a **reactive incident response tool** into a **proactive, intelligent operations platform**.
+
+### What We Have Today
+- Alerts come in from Prometheus/Alertmanager
+- AI analyzes each alert individually
+- Engineers manually investigate and fix issues
+- Runbooks can automate some fixes
+- No memory of past incidents or learning from outcomes
+
+### What We Want to Achieve
+- System automatically groups related alerts into incidents
+- AI learns from past successes and failures to give better recommendations
+- Engineers get notified through Slack/PagerDuty immediately
+- System predicts problems before they cause outages
+- Logs are automatically pulled to help understand issues
+- SLA compliance is tracked and reported automatically
+
+### Implementation Timeline
 
 ```
-Phase 1: Foundation (Weeks 1-3)     → 80% Maturity
-Phase 2: Intelligence (Weeks 4-6)  → 85% Maturity
-Phase 3: Automation (Weeks 7-9)    → 90% Maturity
-Phase 4: Enterprise (Weeks 10-12)  → 95% Maturity
-```
-
----
-
-## Gap Inventory
-
-| # | Gap | Priority | Phase | Dependencies |
-|---|-----|----------|-------|--------------|
-| 1 | Predictive Analytics / Anomaly Detection | HIGH | 2 | Gap 4 (Logs) |
-| 2 | Event Correlation / Topology Awareness | HIGH | 2 | Gap 5 (Changes) |
-| 3 | AI Feedback Loop | HIGH | 1 | None |
-| 4 | Log Aggregation / Analysis | MEDIUM | 2 | None |
-| 5 | Change Correlation | MEDIUM | 1 | None |
-| 6 | Notification / Escalation | MEDIUM | 1 | None |
-| 7 | Capacity Planning / Trend Analysis | MEDIUM | 3 | Gap 1, Gap 4 |
-| 8 | Runbook Git Sync | LOW | 3 | None |
-| 9 | Multi-Tenancy | LOW | 4 | All |
-| 10 | SLA/SLO Tracking | LOW | 3 | Gap 2 |
-| 11 | ChatOps Interface | LOW | 4 | Gap 6 |
-| 12 | Incident Timeline Visualization | LOW | 2 | Gap 2 |
-
----
-
-## Phase 1: Foundation Layer
-
-**Goal:** Establish core feedback, notification, and change tracking infrastructure
-
-### Gap 3: AI Feedback Loop
-
-**Objective:** Enable AI to learn from remediation outcomes
-
-#### Data Model
-```python
-# app/models_feedback.py
-
-class RemediationFeedback(Base):
-    __tablename__ = "remediation_feedback"
-
-    id: int                          # Primary key
-    alert_id: int                    # FK to Alert
-    execution_id: Optional[int]      # FK to RunbookExecution (if applicable)
-    feedback_type: str               # "helpful" | "not_helpful" | "incorrect" | "partially_helpful"
-    rating: Optional[int]            # 1-5 star rating
-    user_id: int                     # FK to User
-    comment: Optional[str]           # Free-text feedback
-    correct_action: Optional[str]    # What should have been done
-    created_at: datetime
-
-class AnalysisFeedback(Base):
-    __tablename__ = "analysis_feedback"
-
-    id: int
-    alert_id: int
-    analysis_section: str            # "root_cause" | "impact" | "remediation" | "prevention"
-    is_accurate: bool
-    user_correction: Optional[str]
-    user_id: int
-    created_at: datetime
-
-class SuccessfulRemediation(Base):
-    """Curated examples for few-shot learning"""
-    __tablename__ = "successful_remediations"
-
-    id: int
-    alert_pattern: str               # Alert name pattern for matching
-    alert_labels: dict               # Key labels for similarity
-    problem_summary: str             # Condensed problem description
-    solution_summary: str            # What worked
-    runbook_id: Optional[int]        # If automated
-    manual_steps: Optional[str]      # If manual
-    verified_by: int                 # User who verified
-    verified_at: datetime
-    use_count: int                   # Times used as example
-```
-
-#### API Endpoints
-```
-POST /api/alerts/{id}/feedback              # Submit feedback on alert analysis
-POST /api/executions/{id}/feedback          # Submit feedback on runbook execution
-GET  /api/feedback/stats                    # Feedback analytics
-POST /api/remediations/successful           # Mark as successful example
-GET  /api/remediations/similar?alert_id=X   # Find similar past remediations
-```
-
-#### LLM Integration
-```python
-# Enhance prompt with successful examples
-async def build_analysis_prompt(alert: Alert) -> str:
-    # 1. Find similar successful remediations
-    similar = await get_similar_remediations(alert, limit=3)
-
-    # 2. Build few-shot examples section
-    examples = format_examples(similar)
-
-    # 3. Include in system prompt
-    prompt = f"""
-    You are an AIOps assistant. Here are similar past incidents that were successfully resolved:
-
-    {examples}
-
-    Now analyze this new alert:
-    {format_alert(alert)}
-    """
-    return prompt
-```
-
-#### Files to Modify/Create
-- `app/models_feedback.py` (new)
-- `app/routers/feedback.py` (new)
-- `app/services/feedback_service.py` (new)
-- `app/services/llm_service.py` (modify - add few-shot)
-- `templates/alert_detail.html` (modify - add feedback UI)
-
----
-
-### Gap 5: Change Correlation
-
-**Objective:** Track deployments and correlate with incidents
-
-#### Data Model
-```python
-# app/models_changes.py
-
-class ChangeEvent(Base):
-    __tablename__ = "change_events"
-
-    id: int
-    event_type: str                  # "deployment" | "config_change" | "scaling" | "rollback" | "maintenance"
-    source: str                      # "github" | "jenkins" | "argocd" | "manual" | "kubernetes"
-    service: str                     # Affected service name
-    environment: str                 # "production" | "staging" | "development"
-    version: Optional[str]           # New version/tag
-    previous_version: Optional[str]  # Previous version
-    description: str
-    user: Optional[str]              # Who made the change
-    commit_sha: Optional[str]        # Git commit if applicable
-    timestamp: datetime
-    duration_seconds: Optional[int]  # How long the change took
-    status: str                      # "started" | "completed" | "failed" | "rolled_back"
-    metadata: dict                   # Additional context (labels, annotations)
-
-    # Correlation fields
-    related_alerts: List[int]        # Alerts that occurred during/after change
-    correlation_score: Optional[float]  # 0-1 likelihood change caused issues
-
-class ChangeCorrelation(Base):
-    """Links changes to alerts"""
-    __tablename__ = "change_correlations"
-
-    id: int
-    change_event_id: int
-    alert_id: int
-    correlation_type: str            # "temporal" | "service_match" | "user_confirmed"
-    time_delta_seconds: int          # Alert time - Change time
-    confidence: float                # 0-1
-    confirmed_by: Optional[int]      # User who confirmed correlation
-```
-
-#### API Endpoints
-```
-POST /webhook/changes                        # Ingest change events
-GET  /api/changes                            # List changes with filters
-GET  /api/changes/{id}                       # Change details
-GET  /api/alerts/{id}/related-changes        # Changes near alert time
-POST /api/changes/{id}/correlate/{alert_id}  # Manually link change to alert
-GET  /api/changes/stats                      # Change frequency metrics
-```
-
-#### Webhook Payloads
-```python
-# GitHub Actions / Jenkins / ArgoCD webhook
-{
-    "event_type": "deployment",
-    "source": "github",
-    "service": "payment-service",
-    "environment": "production",
-    "version": "v2.3.1",
-    "previous_version": "v2.3.0",
-    "description": "Deploy payment service with new retry logic",
-    "user": "developer@example.com",
-    "commit_sha": "abc123",
-    "timestamp": "2024-12-08T10:30:00Z",
-    "status": "completed",
-    "metadata": {
-        "pr_number": 456,
-        "jira_ticket": "PAY-789"
-    }
-}
-```
-
-#### Correlation Logic
-```python
-async def correlate_alert_with_changes(alert: Alert) -> List[ChangeCorrelation]:
-    """Find changes that might have caused this alert"""
-
-    correlations = []
-
-    # 1. Temporal correlation: Changes in last 2 hours before alert
-    recent_changes = await get_changes_before(alert.timestamp, hours=2)
-
-    for change in recent_changes:
-        score = 0.0
-
-        # Time proximity (closer = higher score)
-        delta = (alert.timestamp - change.timestamp).seconds
-        time_score = max(0, 1 - (delta / 7200))  # 0-1 based on 2hr window
-        score += time_score * 0.4
-
-        # Service match
-        if change.service in alert.labels.get("service", ""):
-            score += 0.3
-
-        # Environment match
-        if change.environment == alert.labels.get("env", ""):
-            score += 0.2
-
-        # Change type (deployments more likely to cause issues)
-        if change.event_type == "deployment":
-            score += 0.1
-
-        if score > 0.3:  # Threshold
-            correlations.append(ChangeCorrelation(
-                change_event_id=change.id,
-                alert_id=alert.id,
-                correlation_type="temporal",
-                time_delta_seconds=delta,
-                confidence=score
-            ))
-
-    return correlations
-```
-
-#### LLM Context Enhancement
-```python
-# Add to analysis prompt
-async def get_change_context(alert: Alert) -> str:
-    changes = await correlate_alert_with_changes(alert)
-    if not changes:
-        return "No recent changes detected in related services."
-
-    context = "Recent changes that may be relevant:\n"
-    for c in changes[:3]:
-        change = await get_change(c.change_event_id)
-        context += f"""
-        - {change.event_type}: {change.service} @ {change.timestamp}
-          Version: {change.previous_version} → {change.version}
-          Description: {change.description}
-          Correlation confidence: {c.confidence:.0%}
-        """
-    return context
-```
-
-#### Files to Modify/Create
-- `app/models_changes.py` (new)
-- `app/routers/changes.py` (new)
-- `app/services/change_service.py` (new)
-- `app/services/llm_service.py` (modify - add change context)
-- `app/routers/webhook.py` (modify - add change webhook)
-
----
-
-### Gap 6: Notification / Escalation
-
-**Objective:** Multi-channel notifications with escalation policies
-
-#### Data Model
-```python
-# app/models_notifications.py
-
-class NotificationChannel(Base):
-    __tablename__ = "notification_channels"
-
-    id: int
-    name: str                        # "Production Slack", "PagerDuty On-Call"
-    channel_type: str                # "slack" | "pagerduty" | "teams" | "email" | "webhook"
-    config_encrypted: str            # Encrypted: webhook_url, api_key, routing_key, etc.
-    is_enabled: bool
-    created_by: int
-    created_at: datetime
-
-class NotificationRule(Base):
-    __tablename__ = "notification_rules"
-
-    id: int
-    name: str
-    description: Optional[str]
-
-    # Trigger conditions
-    trigger_on: List[str]            # ["alert_received", "analysis_complete", "approval_needed",
-                                     #  "execution_started", "execution_success", "execution_failed"]
-    severity_filter: Optional[List[str]]  # ["critical", "warning"]
-    alert_pattern: Optional[str]     # Alert name pattern
-
-    # Actions
-    channels: List[int]              # FK to NotificationChannel
-
-    # Escalation
-    escalation_enabled: bool
-    escalation_delay_minutes: int    # Wait before escalating
-    escalation_channels: List[int]   # Escalation targets
-
-    # Rate limiting
-    rate_limit_count: int            # Max notifications
-    rate_limit_window_minutes: int   # Per time window
-
-    is_enabled: bool
-    priority: int
-    created_at: datetime
-
-class NotificationLog(Base):
-    __tablename__ = "notification_logs"
-
-    id: int
-    rule_id: int
-    channel_id: int
-    trigger_event: str
-    alert_id: Optional[int]
-    execution_id: Optional[int]
-    status: str                      # "sent" | "failed" | "rate_limited" | "escalated"
-    response: Optional[str]          # Provider response
-    sent_at: datetime
-
-class EscalationPolicy(Base):
-    __tablename__ = "escalation_policies"
-
-    id: int
-    name: str
-    levels: List[dict]               # [{delay_minutes, channels[], repeat_count}]
-    is_default: bool
-```
-
-#### Channel Configurations
-```python
-# Slack
-{
-    "webhook_url": "https://hooks.slack.com/services/...",
-    "channel": "#incidents",
-    "username": "AIOps Bot",
-    "icon_emoji": ":robot_face:"
-}
-
-# PagerDuty
-{
-    "routing_key": "your-integration-key",
-    "api_url": "https://events.pagerduty.com/v2/enqueue"
-}
-
-# Microsoft Teams
-{
-    "webhook_url": "https://outlook.office.com/webhook/..."
-}
-
-# Email (SMTP)
-{
-    "smtp_host": "smtp.example.com",
-    "smtp_port": 587,
-    "username": "notifications@example.com",
-    "password": "encrypted",
-    "from_address": "aiops@example.com",
-    "to_addresses": ["oncall@example.com"]
-}
-
-# Generic Webhook
-{
-    "url": "https://your-service.com/webhook",
-    "method": "POST",
-    "headers": {"Authorization": "Bearer token"},
-    "template": "jinja2_template"
-}
-```
-
-#### API Endpoints
-```
-# Channels
-GET    /api/notifications/channels
-POST   /api/notifications/channels
-PATCH  /api/notifications/channels/{id}
-DELETE /api/notifications/channels/{id}
-POST   /api/notifications/channels/{id}/test    # Send test notification
-
-# Rules
-GET    /api/notifications/rules
-POST   /api/notifications/rules
-PATCH  /api/notifications/rules/{id}
-DELETE /api/notifications/rules/{id}
-
-# Logs
-GET    /api/notifications/logs
-
-# Escalation Policies
-GET    /api/notifications/escalation-policies
-POST   /api/notifications/escalation-policies
-```
-
-#### Notification Service
-```python
-# app/services/notification_service.py
-
-class NotificationService:
-    providers: Dict[str, NotificationProvider] = {
-        "slack": SlackProvider(),
-        "pagerduty": PagerDutyProvider(),
-        "teams": TeamsProvider(),
-        "email": EmailProvider(),
-        "webhook": WebhookProvider(),
-    }
-
-    async def send_notification(
-        self,
-        event_type: str,
-        alert: Optional[Alert] = None,
-        execution: Optional[RunbookExecution] = None,
-    ) -> List[NotificationLog]:
-        """Send notifications based on matching rules"""
-
-        # 1. Find matching rules
-        rules = await self.get_matching_rules(event_type, alert)
-
-        logs = []
-        for rule in rules:
-            # 2. Check rate limits
-            if await self.is_rate_limited(rule):
-                logs.append(NotificationLog(status="rate_limited", ...))
-                continue
-
-            # 3. Send to each channel
-            for channel_id in rule.channels:
-                channel = await self.get_channel(channel_id)
-                provider = self.providers[channel.channel_type]
-
-                message = self.format_message(event_type, alert, execution)
-                result = await provider.send(channel.config, message)
-
-                logs.append(NotificationLog(
-                    status="sent" if result.success else "failed",
-                    response=result.response,
-                    ...
-                ))
-
-            # 4. Schedule escalation if enabled
-            if rule.escalation_enabled:
-                await self.schedule_escalation(rule, alert, execution)
-
-        return logs
-```
-
-#### Message Templates
-```python
-# Slack message format
-def format_slack_message(event_type: str, alert: Alert) -> dict:
-    color_map = {"critical": "#ff0000", "warning": "#ffa500", "info": "#0000ff"}
-
-    return {
-        "attachments": [{
-            "color": color_map.get(alert.severity, "#808080"),
-            "title": f"🚨 {alert.alert_name}",
-            "title_link": f"https://aiops.example.com/alerts/{alert.id}",
-            "fields": [
-                {"title": "Severity", "value": alert.severity, "short": True},
-                {"title": "Instance", "value": alert.instance, "short": True},
-                {"title": "Status", "value": alert.status, "short": True},
-                {"title": "Time", "value": alert.timestamp.isoformat(), "short": True},
-            ],
-            "text": alert.annotations.get("description", ""),
-            "footer": "AIOps Remediation Engine",
-            "ts": int(alert.timestamp.timestamp())
-        }],
-        "blocks": [
-            {
-                "type": "actions",
-                "elements": [
-                    {"type": "button", "text": {"type": "plain_text", "text": "View Alert"},
-                     "url": f"https://aiops.example.com/alerts/{alert.id}"},
-                    {"type": "button", "text": {"type": "plain_text", "text": "Acknowledge"},
-                     "action_id": f"ack_{alert.id}"}
-                ]
-            }
-        ]
-    }
-```
-
-#### Files to Modify/Create
-- `app/models_notifications.py` (new)
-- `app/routers/notifications.py` (new)
-- `app/services/notification_service.py` (new)
-- `app/services/providers/slack.py` (new)
-- `app/services/providers/pagerduty.py` (new)
-- `app/services/providers/teams.py` (new)
-- `app/services/providers/email.py` (new)
-- `templates/settings/notifications.html` (new)
-
----
-
-## Phase 2: Intelligence Layer
-
-**Goal:** Add correlation, log analysis, anomaly detection, and timeline visualization
-
-### Gap 2: Event Correlation / Topology Awareness
-
-**Objective:** Group related alerts into incidents and understand service dependencies
-
-#### Data Model
-```python
-# app/models_incidents.py
-
-class Incident(Base):
-    """Groups related alerts into a single incident"""
-    __tablename__ = "incidents"
-
-    id: int
-    title: str                       # Auto-generated or manual
-    description: Optional[str]
-    status: str                      # "open" | "investigating" | "identified" | "mitigated" | "resolved"
-    severity: str                    # Highest severity of member alerts
-
-    # Correlation info
-    correlation_method: str          # "temporal" | "topology" | "label" | "manual" | "ml"
-    root_cause_alert_id: Optional[int]  # Primary alert
-
-    # Impact
-    affected_services: List[str]
-    affected_environments: List[str]
-    estimated_impact: Optional[str]  # "high" | "medium" | "low"
-    customer_impact: bool
-
-    # Timeline
-    started_at: datetime             # First alert time
-    detected_at: datetime            # When incident created
-    acknowledged_at: Optional[datetime]
-    mitigated_at: Optional[datetime]
-    resolved_at: Optional[datetime]
-
-    # Assignment
-    assigned_to: Optional[int]       # User
-    assigned_team: Optional[str]
-
-    # Post-mortem
-    postmortem_url: Optional[str]
-    lessons_learned: Optional[str]
-
-    created_by: int
-    created_at: datetime
-    updated_at: datetime
-
-class IncidentAlert(Base):
-    """Many-to-many: Incidents contain multiple alerts"""
-    __tablename__ = "incident_alerts"
-
-    id: int
-    incident_id: int
-    alert_id: int
-    added_at: datetime
-    added_by: Optional[int]          # Null if auto-correlated
-    is_root_cause: bool
-
-class ServiceDependency(Base):
-    """Service topology for correlation"""
-    __tablename__ = "service_dependencies"
-
-    id: int
-    source_service: str              # Service that depends on target
-    target_service: str              # Service being depended upon
-    dependency_type: str             # "sync" | "async" | "database" | "cache" | "external"
-    criticality: str                 # "critical" | "degraded" | "optional"
-    discovered_from: str             # "manual" | "kubernetes" | "consul" | "istio"
-    metadata: dict
-    created_at: datetime
-    updated_at: datetime
-
-class ServiceTopology(Base):
-    """Service registry"""
-    __tablename__ = "service_topology"
-
-    id: int
-    service_name: str
-    service_type: str                # "api" | "worker" | "database" | "cache" | "queue"
-    environment: str
-    namespace: Optional[str]         # Kubernetes namespace
-    owner_team: Optional[str]
-    criticality: str                 # "tier1" | "tier2" | "tier3"
-    health_check_url: Optional[str]
-    documentation_url: Optional[str]
-    labels: dict
-    discovered_from: str
-    last_seen: datetime
-```
-
-#### Correlation Engine
-```python
-# app/services/correlation_service.py
-
-class CorrelationEngine:
-    """Groups alerts into incidents using multiple strategies"""
-
-    async def process_alert(self, alert: Alert) -> Optional[Incident]:
-        """Determine if alert belongs to existing incident or creates new one"""
-
-        # Strategy 1: Temporal clustering (alerts within 5 minutes)
-        recent_incidents = await self.get_recent_open_incidents(minutes=30)
-        for incident in recent_incidents:
-            if await self.is_temporally_related(alert, incident):
-                await self.add_alert_to_incident(alert, incident)
-                return incident
-
-        # Strategy 2: Topology-based (upstream/downstream services)
-        related_services = await self.get_related_services(alert.service)
-        for incident in recent_incidents:
-            if await self.has_topology_overlap(incident, related_services):
-                await self.add_alert_to_incident(alert, incident)
-                return incident
-
-        # Strategy 3: Label matching (same deployment, same host)
-        for incident in recent_incidents:
-            if await self.has_label_match(alert, incident, keys=["deployment", "host", "pod"]):
-                await self.add_alert_to_incident(alert, incident)
-                return incident
-
-        # No match: Create new incident
-        return await self.create_incident_from_alert(alert)
-
-    async def is_temporally_related(self, alert: Alert, incident: Incident) -> bool:
-        """Check if alert is within time window of incident"""
-        window = timedelta(minutes=5)
-        return abs(alert.timestamp - incident.started_at) < window
-
-    async def get_related_services(self, service: str) -> List[str]:
-        """Get upstream and downstream services"""
-        deps = await self.db.query(ServiceDependency).filter(
-            or_(
-                ServiceDependency.source_service == service,
-                ServiceDependency.target_service == service
-            )
-        ).all()
-        return [d.source_service for d in deps] + [d.target_service for d in deps]
-
-    async def identify_root_cause(self, incident: Incident) -> Optional[Alert]:
-        """Use topology to identify root cause alert"""
-        alerts = await self.get_incident_alerts(incident.id)
-
-        # Build dependency graph
-        graph = await self.build_service_graph([a.service for a in alerts])
-
-        # Root cause is typically the most upstream failing service
-        for alert in sorted(alerts, key=lambda a: a.timestamp):
-            upstream_count = graph.get_upstream_count(alert.service)
-            if upstream_count == 0:  # No dependencies = potential root cause
-                return alert
-
-        # Fallback: earliest alert
-        return min(alerts, key=lambda a: a.timestamp)
-```
-
-#### API Endpoints
-```
-# Incidents
-GET    /api/incidents                        # List with filters
-POST   /api/incidents                        # Create manually
-GET    /api/incidents/{id}                   # Details with alerts
-PATCH  /api/incidents/{id}                   # Update status, assign
-POST   /api/incidents/{id}/alerts            # Add alert manually
-DELETE /api/incidents/{id}/alerts/{alert_id} # Remove alert
-POST   /api/incidents/{id}/merge/{other_id}  # Merge incidents
-
-# Topology
-GET    /api/topology/services                # Service registry
-POST   /api/topology/services                # Register service
-GET    /api/topology/dependencies            # All dependencies
-POST   /api/topology/dependencies            # Add dependency
-GET    /api/topology/graph                   # Full graph for visualization
-POST   /api/topology/discover                # Trigger auto-discovery
-
-# Correlation
-GET    /api/correlation/config               # Correlation settings
-PATCH  /api/correlation/config               # Update settings
-```
-
-#### Files to Modify/Create
-- `app/models_incidents.py` (new)
-- `app/routers/incidents.py` (new)
-- `app/routers/topology.py` (new)
-- `app/services/correlation_service.py` (new)
-- `app/services/topology_service.py` (new)
-- `templates/incidents.html` (new)
-- `templates/topology.html` (new)
-
----
-
-### Gap 4: Log Aggregation / Analysis
-
-**Objective:** Query logs during AI analysis for deeper context
-
-#### Data Model
-```python
-# app/models_logs.py
-
-class LogSource(Base):
-    """Log backend configuration"""
-    __tablename__ = "log_sources"
-
-    id: int
-    name: str                        # "Production Loki", "ELK Cluster"
-    source_type: str                 # "loki" | "elasticsearch" | "cloudwatch" | "splunk"
-    config_encrypted: str            # Connection details
-    is_enabled: bool
-    is_default: bool
-
-class LogQuery(Base):
-    """Saved log queries"""
-    __tablename__ = "log_queries"
-
-    id: int
-    name: str
-    source_id: int
-    query_template: str              # Jinja2 template with {{instance}}, {{service}}, etc.
-    time_range_minutes: int
-    description: Optional[str]
-
-class AlertLogContext(Base):
-    """Cached log context for alerts"""
-    __tablename__ = "alert_log_contexts"
-
-    id: int
-    alert_id: int
-    source_id: int
-    query_used: str
-    log_summary: str                 # LLM-generated summary
-    log_snippet: str                 # Key log lines
-    error_patterns: List[str]        # Extracted error patterns
-    queried_at: datetime
-```
-
-#### Log Providers
-```python
-# app/services/log_providers/loki.py
-
-class LokiProvider:
-    async def query(self, config: dict, query: str, start: datetime, end: datetime) -> List[LogEntry]:
-        """Query Loki for logs"""
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                f"{config['url']}/loki/api/v1/query_range",
-                params={
-                    "query": query,
-                    "start": int(start.timestamp() * 1e9),
-                    "end": int(end.timestamp() * 1e9),
-                    "limit": config.get("limit", 1000)
-                },
-                headers={"Authorization": f"Bearer {config.get('token', '')}"}
-            )
-            return self.parse_response(response.json())
-
-# app/services/log_providers/elasticsearch.py
-
-class ElasticsearchProvider:
-    async def query(self, config: dict, query: str, start: datetime, end: datetime) -> List[LogEntry]:
-        """Query Elasticsearch for logs"""
-        # Build ES query DSL
-        body = {
-            "query": {
-                "bool": {
-                    "must": [{"query_string": {"query": query}}],
-                    "filter": [{"range": {"@timestamp": {"gte": start.isoformat(), "lte": end.isoformat()}}}]
-                }
-            },
-            "size": config.get("limit", 1000),
-            "sort": [{"@timestamp": "desc"}]
-        }
-        # Execute query...
-```
-
-#### Log Analysis Service
-```python
-# app/services/log_analysis_service.py
-
-class LogAnalysisService:
-    async def get_log_context(self, alert: Alert) -> str:
-        """Fetch and summarize relevant logs for an alert"""
-
-        # 1. Determine time range (alert time ± 5 minutes)
-        start = alert.timestamp - timedelta(minutes=5)
-        end = alert.timestamp + timedelta(minutes=5)
-
-        # 2. Build query from alert labels
-        query = self.build_query(alert)  # e.g., {instance="web-1", level="error"}
-
-        # 3. Query log source
-        source = await self.get_default_source()
-        provider = self.get_provider(source.source_type)
-        logs = await provider.query(source.config, query, start, end)
-
-        if not logs:
-            return "No relevant logs found in the time window."
-
-        # 4. Extract key patterns
-        error_patterns = self.extract_error_patterns(logs)
-
-        # 5. Summarize with LLM (if too many logs)
-        if len(logs) > 50:
-            summary = await self.summarize_logs(logs)
-        else:
-            summary = self.format_log_snippet(logs[:20])
-
-        return f"""
-        Log Analysis ({len(logs)} entries found):
-
-        Error Patterns Detected:
-        {chr(10).join(f'- {p}' for p in error_patterns[:5])}
-
-        Key Log Entries:
-        {summary}
-        """
-
-    def build_query(self, alert: Alert) -> str:
-        """Build log query from alert labels"""
-        # Loki example
-        labels = []
-        if alert.instance:
-            labels.append(f'instance="{alert.instance}"')
-        if alert.labels.get("pod"):
-            labels.append(f'pod="{alert.labels["pod"]}"')
-        if alert.labels.get("namespace"):
-            labels.append(f'namespace="{alert.labels["namespace"]}"')
-
-        return "{" + ", ".join(labels) + "} |= `error` or |= `exception` or |= `fatal`"
-```
-
-#### Integration with LLM
-```python
-# Modify app/services/llm_service.py
-
-async def analyze_alert(self, alert: Alert, provider_id: Optional[int] = None) -> str:
-    # ... existing code ...
-
-    # NEW: Add log context
-    log_context = await self.log_service.get_log_context(alert)
-
-    prompt = f"""
-    {self.base_prompt}
-
-    Alert Details:
-    {format_alert(alert)}
-
-    Recent Log Activity:
-    {log_context}
-
-    Recent Changes:
-    {change_context}
-
-    Please analyze this alert...
-    """
-```
-
-#### API Endpoints
-```
-# Log Sources
-GET    /api/logs/sources
-POST   /api/logs/sources
-PATCH  /api/logs/sources/{id}
-DELETE /api/logs/sources/{id}
-POST   /api/logs/sources/{id}/test         # Test connection
-
-# Log Queries
-GET    /api/logs/queries
-POST   /api/logs/queries
-GET    /api/logs/query                      # Execute ad-hoc query
-GET    /api/alerts/{id}/logs               # Get logs for specific alert
-```
-
-#### Files to Modify/Create
-- `app/models_logs.py` (new)
-- `app/routers/logs.py` (new)
-- `app/services/log_analysis_service.py` (new)
-- `app/services/log_providers/loki.py` (new)
-- `app/services/log_providers/elasticsearch.py` (new)
-- `app/services/llm_service.py` (modify)
-- `templates/settings/log_sources.html` (new)
-
----
-
-### Gap 1: Predictive Analytics / Anomaly Detection
-
-**Objective:** Predict incidents before they occur using historical patterns
-
-#### Data Model
-```python
-# app/models_predictions.py
-
-class MetricForecast(Base):
-    """Predicted metric values"""
-    __tablename__ = "metric_forecasts"
-
-    id: int
-    metric_name: str
-    labels: dict                     # {instance, job, etc.}
-    forecast_time: datetime          # When prediction was made
-    predicted_values: List[dict]     # [{timestamp, value, lower, upper}]
-    model_type: str                  # "prophet" | "arima" | "lstm"
-    confidence_level: float
-
-class AnomalyDetection(Base):
-    """Detected anomalies"""
-    __tablename__ = "anomaly_detections"
-
-    id: int
-    metric_name: str
-    labels: dict
-    detected_at: datetime
-    anomaly_type: str                # "spike" | "drop" | "trend_change" | "pattern_break"
-    severity: str                    # "low" | "medium" | "high"
-    expected_value: float
-    actual_value: float
-    deviation_percent: float
-    context: str                     # Description
-    alert_generated: bool
-    alert_id: Optional[int]
-
-class PredictiveRule(Base):
-    """Rules for predictive alerting"""
-    __tablename__ = "predictive_rules"
-
-    id: int
-    name: str
-    metric_pattern: str              # Metric name pattern
-    label_filters: dict
-
-    # Thresholds
-    anomaly_sensitivity: float       # 0-1 (lower = more sensitive)
-    forecast_horizon_hours: int      # How far ahead to predict
-    threshold_breach_percent: float  # % deviation to trigger
-
-    # Actions
-    create_alert: bool
-    notify_channels: List[int]
-    suggested_runbook_id: Optional[int]
-
-    is_enabled: bool
-```
-
-#### Prediction Service
-```python
-# app/services/prediction_service.py
-
-class PredictionService:
-    async def train_forecast_model(self, metric_name: str, labels: dict) -> ForecastModel:
-        """Train time-series forecast model"""
-        # 1. Fetch historical data from Prometheus
-        history = await self.prometheus.query_range(
-            metric_name, labels,
-            start=datetime.now() - timedelta(days=30),
-            end=datetime.now(),
-            step="5m"
-        )
-
-        # 2. Prepare data for Prophet
-        df = pd.DataFrame(history)
-        df.columns = ["ds", "y"]
-
-        # 3. Train model
-        model = Prophet(
-            yearly_seasonality=False,
-            weekly_seasonality=True,
-            daily_seasonality=True
-        )
-        model.fit(df)
-
-        return model
-
-    async def detect_anomalies(self, metric_name: str, labels: dict, window_hours: int = 1) -> List[Anomaly]:
-        """Detect anomalies in recent data"""
-        # Use Isolation Forest or similar
-        recent = await self.prometheus.query_range(...)
-
-        # Statistical anomaly detection
-        mean = np.mean(recent)
-        std = np.std(recent)
-
-        anomalies = []
-        for point in recent:
-            z_score = abs(point.value - mean) / std
-            if z_score > 3:  # 3 sigma
-                anomalies.append(Anomaly(
-                    anomaly_type="spike" if point.value > mean else "drop",
-                    expected_value=mean,
-                    actual_value=point.value,
-                    deviation_percent=((point.value - mean) / mean) * 100
-                ))
-
-        return anomalies
-
-    async def predict_breach(self, metric_name: str, labels: dict, threshold: float) -> Optional[datetime]:
-        """Predict when metric will breach threshold"""
-        model = await self.get_or_train_model(metric_name, labels)
-
-        future = model.make_future_dataframe(periods=24*12, freq="5min")  # 24 hours
-        forecast = model.predict(future)
-
-        # Find first breach
-        for _, row in forecast.iterrows():
-            if row["yhat"] > threshold:
-                return row["ds"]
-
-        return None  # No predicted breach
-```
-
-#### Alert Pattern Learning
-```python
-# app/services/pattern_learning_service.py
-
-class PatternLearningService:
-    """Learn from alert history to predict escalations"""
-
-    async def predict_escalation(self, alert: Alert) -> dict:
-        """Predict if alert will escalate to critical"""
-
-        # 1. Find similar historical alerts
-        similar = await self.find_similar_alerts(alert, limit=100)
-
-        # 2. Calculate escalation rate
-        escalated = [a for a in similar if a.severity == "critical"]
-        escalation_rate = len(escalated) / len(similar) if similar else 0
-
-        # 3. Analyze escalation patterns
-        avg_time_to_escalate = self.calculate_avg_escalation_time(escalated)
-
-        return {
-            "escalation_probability": escalation_rate,
-            "predicted_time_to_escalate": avg_time_to_escalate,
-            "similar_incidents": len(similar),
-            "recommendation": "Immediate attention needed" if escalation_rate > 0.5 else "Monitor"
-        }
-
-    async def get_trending_alerts(self) -> List[dict]:
-        """Identify alert patterns that are increasing"""
-        # Group alerts by name/pattern over time
-        # Detect increasing frequency
-        # Return alerts that are "trending up"
-        pass
-```
-
-#### API Endpoints
-```
-# Predictions
-GET  /api/predictions/forecasts              # Active forecasts
-POST /api/predictions/forecast               # Create forecast for metric
-GET  /api/predictions/anomalies              # Recent anomalies
-GET  /api/predictions/escalation/{alert_id}  # Escalation prediction
-
-# Rules
-GET    /api/predictions/rules
-POST   /api/predictions/rules
-PATCH  /api/predictions/rules/{id}
-
-# Patterns
-GET  /api/predictions/trending               # Trending alert patterns
-GET  /api/predictions/insights               # ML-generated insights
-```
-
-#### Files to Modify/Create
-- `app/models_predictions.py` (new)
-- `app/routers/predictions.py` (new)
-- `app/services/prediction_service.py` (new)
-- `app/services/pattern_learning_service.py` (new)
-- `templates/predictions.html` (new)
-- `requirements.txt` (add: prophet, scikit-learn)
-
----
-
-### Gap 12: Incident Timeline Visualization
-
-**Objective:** Visual timeline showing incident progression
-
-#### Frontend Component
-```javascript
-// static/js/incident-timeline.js
-
-class IncidentTimeline {
-    constructor(containerId, incident) {
-        this.container = document.getElementById(containerId);
-        this.incident = incident;
-        this.events = [];
-    }
-
-    async loadEvents() {
-        // Fetch all events for incident
-        const [alerts, changes, executions, comments] = await Promise.all([
-            fetch(`/api/incidents/${this.incident.id}/alerts`),
-            fetch(`/api/incidents/${this.incident.id}/changes`),
-            fetch(`/api/incidents/${this.incident.id}/executions`),
-            fetch(`/api/incidents/${this.incident.id}/comments`)
-        ]);
-
-        this.events = this.mergeAndSort([
-            ...alerts.map(a => ({type: 'alert', time: a.timestamp, data: a})),
-            ...changes.map(c => ({type: 'change', time: c.timestamp, data: c})),
-            ...executions.map(e => ({type: 'execution', time: e.started_at, data: e})),
-            ...comments.map(c => ({type: 'comment', time: c.created_at, data: c}))
-        ]);
-    }
-
-    render() {
-        const html = `
-            <div class="timeline">
-                ${this.events.map(e => this.renderEvent(e)).join('')}
-            </div>
-        `;
-        this.container.innerHTML = html;
-    }
-
-    renderEvent(event) {
-        const icons = {
-            alert: '🚨',
-            change: '🔄',
-            execution: '⚡',
-            comment: '💬'
-        };
-
-        return `
-            <div class="timeline-event timeline-event-${event.type}">
-                <div class="timeline-icon">${icons[event.type]}</div>
-                <div class="timeline-content">
-                    <div class="timeline-time">${this.formatTime(event.time)}</div>
-                    <div class="timeline-title">${this.getTitle(event)}</div>
-                    <div class="timeline-details">${this.getDetails(event)}</div>
-                </div>
-            </div>
-        `;
-    }
-}
-```
-
-#### API Enhancement
-```python
-# Add to app/routers/incidents.py
-
-@router.get("/{incident_id}/timeline")
-async def get_incident_timeline(incident_id: int, db: Session = Depends(get_db)):
-    """Get unified timeline of all incident events"""
-
-    events = []
-
-    # Alerts
-    alerts = await get_incident_alerts(db, incident_id)
-    events.extend([{
-        "type": "alert",
-        "timestamp": a.timestamp.isoformat(),
-        "title": f"Alert: {a.alert_name}",
-        "severity": a.severity,
-        "details": a.annotations.get("description", "")
-    } for a in alerts])
-
-    # Changes (correlated)
-    changes = await get_correlated_changes(db, incident_id)
-    events.extend([{
-        "type": "change",
-        "timestamp": c.timestamp.isoformat(),
-        "title": f"{c.event_type}: {c.service}",
-        "details": c.description
-    } for c in changes])
-
-    # Executions
-    executions = await get_incident_executions(db, incident_id)
-    events.extend([{
-        "type": "execution",
-        "timestamp": e.started_at.isoformat(),
-        "title": f"Runbook: {e.runbook.name}",
-        "status": e.status,
-        "details": e.output_summary
-    } for e in executions])
-
-    # Sort by timestamp
-    events.sort(key=lambda x: x["timestamp"])
-
-    return {"events": events}
-```
-
-#### Files to Modify/Create
-- `static/js/incident-timeline.js` (new)
-- `static/css/timeline.css` (new)
-- `templates/incident_detail.html` (new)
-- `app/routers/incidents.py` (modify)
-
----
-
-## Phase 3: Advanced Automation
-
-**Goal:** Enhance runbook capabilities and add capacity planning
-
-### Gap 7: Capacity Planning / Trend Analysis
-
-**Objective:** Predict resource exhaustion and generate capacity reports
-
-#### Data Model
-```python
-# app/models_capacity.py
-
-class CapacityMetric(Base):
-    __tablename__ = "capacity_metrics"
-
-    id: int
-    resource_type: str               # "cpu" | "memory" | "disk" | "network" | "custom"
-    resource_name: str               # "web-cluster", "postgres-primary"
-    current_usage: float
-    current_capacity: float
-    usage_trend: str                 # "increasing" | "stable" | "decreasing"
-    predicted_exhaustion: Optional[datetime]
-    last_updated: datetime
-
-class CapacityReport(Base):
-    __tablename__ = "capacity_reports"
-
-    id: int
-    report_type: str                 # "weekly" | "monthly" | "on_demand"
-    generated_at: datetime
-    report_data: dict                # Full report JSON
-    recommendations: List[str]
-    generated_by: int
-
-class CapacityThreshold(Base):
-    __tablename__ = "capacity_thresholds"
-
-    id: int
-    resource_type: str
-    resource_pattern: str
-    warning_threshold: float         # e.g., 0.7 (70%)
-    critical_threshold: float        # e.g., 0.9 (90%)
-    forecast_days: int               # Alert if predicted breach within N days
-    notify_channels: List[int]
-```
-
-#### Capacity Service
-```python
-# app/services/capacity_service.py
-
-class CapacityService:
-    async def analyze_capacity(self, resource_type: str) -> List[CapacityMetric]:
-        """Analyze current and projected capacity"""
-
-        metrics = []
-
-        # Query Prometheus for resource usage
-        queries = {
-            "cpu": '100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)',
-            "memory": '(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100',
-            "disk": '(1 - (node_filesystem_avail_bytes / node_filesystem_size_bytes)) * 100'
-        }
-
-        results = await self.prometheus.query(queries[resource_type])
-
-        for result in results:
-            # Get historical data for trend
-            history = await self.prometheus.query_range(...)
-            trend = self.calculate_trend(history)
-
-            # Predict exhaustion
-            if trend == "increasing":
-                exhaustion = await self.predict_exhaustion(history, threshold=0.9)
-            else:
-                exhaustion = None
-
-            metrics.append(CapacityMetric(
-                resource_type=resource_type,
-                resource_name=result.labels["instance"],
-                current_usage=result.value,
-                current_capacity=100,  # Percentage-based
-                usage_trend=trend,
-                predicted_exhaustion=exhaustion
-            ))
-
-        return metrics
-
-    async def generate_report(self, report_type: str) -> CapacityReport:
-        """Generate capacity planning report"""
-
-        # Collect all metrics
-        cpu = await self.analyze_capacity("cpu")
-        memory = await self.analyze_capacity("memory")
-        disk = await self.analyze_capacity("disk")
-
-        # Generate recommendations
-        recommendations = []
-
-        for metric in cpu + memory + disk:
-            if metric.predicted_exhaustion:
-                days_until = (metric.predicted_exhaustion - datetime.now()).days
-                if days_until < 7:
-                    recommendations.append(
-                        f"CRITICAL: {metric.resource_name} {metric.resource_type} "
-                        f"predicted to exhaust in {days_until} days"
-                    )
-                elif days_until < 30:
-                    recommendations.append(
-                        f"WARNING: {metric.resource_name} {metric.resource_type} "
-                        f"predicted to exhaust in {days_until} days"
-                    )
-
-        return CapacityReport(
-            report_type=report_type,
-            report_data={
-                "cpu": [m.dict() for m in cpu],
-                "memory": [m.dict() for m in memory],
-                "disk": [m.dict() for m in disk],
-                "summary": self.generate_summary(cpu, memory, disk)
-            },
-            recommendations=recommendations
-        )
-```
-
-#### API Endpoints
-```
-GET  /api/capacity/metrics                   # Current capacity metrics
-GET  /api/capacity/metrics/{type}            # By resource type
-GET  /api/capacity/forecast/{resource}       # Forecast for resource
-GET  /api/capacity/reports                   # List reports
-POST /api/capacity/reports                   # Generate report
-GET  /api/capacity/reports/{id}              # Get report
-GET  /api/capacity/recommendations           # Active recommendations
+Phase 1: Foundation     → Get the basics right (feedback, notifications, change tracking)
+Phase 2: Intelligence   → Make the system smarter (correlation, logs, predictions)
+Phase 3: Automation     → Improve self-healing (capacity planning, GitOps, SLAs)
+Phase 4: Enterprise     → Scale for large organizations (multi-tenancy, ChatOps)
 ```
 
 ---
 
-### Gap 8: Runbook Git Sync
+## Gap Inventory and Priorities
 
-**Objective:** Sync runbook definitions from Git repositories
+| # | Gap | What's Missing | Why It Matters | Priority |
+|---|-----|----------------|----------------|----------|
+| 1 | Predictive Analytics | System only reacts to problems, can't predict them | Prevents outages before they happen | HIGH |
+| 2 | Event Correlation | Each alert treated separately, no grouping | Reduces alert fatigue, finds real root cause | HIGH |
+| 3 | AI Feedback Loop | AI doesn't learn from outcomes | Better recommendations over time | HIGH |
+| 4 | Log Analysis | No log context during investigation | Faster root cause analysis | MEDIUM |
+| 5 | Change Correlation | No link between deployments and issues | Quickly identify if a deploy caused the problem | MEDIUM |
+| 6 | Notifications | No Slack/PagerDuty integration | Engineers miss critical alerts | MEDIUM |
+| 7 | Capacity Planning | No resource forecasting | Prevents "disk full" emergencies | MEDIUM |
+| 8 | Runbook Git Sync | Runbooks managed manually in UI | Version control, code review for runbooks | LOW |
+| 9 | Multi-Tenancy | Single team only | Support multiple teams/organizations | LOW |
+| 10 | SLA Tracking | No SLA compliance measurement | Prove service quality to stakeholders | LOW |
+| 11 | ChatOps | Web UI only | Manage incidents from Slack | LOW |
+| 12 | Incident Timeline | No visual incident history | Understand incident progression | LOW |
 
-#### Data Model
-```python
-# Extend app/models_remediation.py
+---
 
-class RunbookRepository(Base):
-    __tablename__ = "runbook_repositories"
+# Phase 1: Foundation Layer
 
-    id: int
-    name: str
-    repo_url: str                    # git@github.com:org/runbooks.git
-    branch: str                      # "main"
-    path: str                        # "runbooks/" (directory within repo)
-    auth_type: str                   # "ssh_key" | "token" | "none"
-    auth_encrypted: Optional[str]
-    sync_enabled: bool
-    sync_interval_minutes: int
-    last_sync_at: Optional[datetime]
-    last_sync_status: Optional[str]
-    last_sync_commit: Optional[str]
+**Goal:** Build the core infrastructure that all other features depend on.
+
+**Why Start Here:** These three features (feedback, notifications, change tracking) are prerequisites for the more advanced features. You can't have intelligent correlation without knowing about changes. You can't improve AI without feedback. You can't have ChatOps without notifications.
+
+---
+
+## Gap 3: AI Feedback Loop
+
+### The Problem Today
+
+When the AI analyzes an alert and suggests "restart the service," we have no way to know if that suggestion actually worked. The AI keeps making the same recommendations whether they succeed or fail. It never learns.
+
+**Example Scenario:**
+1. Alert: "Database connection timeout"
+2. AI suggests: "Restart the application"
+3. Engineer restarts the application
+4. Problem is NOT fixed (it was actually a network issue)
+5. Next time same alert appears, AI still suggests "Restart the application"
+
+### What We Want to Achieve
+
+Create a feedback system where engineers can rate AI recommendations and record what actually fixed the problem. The AI will use this history to give better suggestions in the future.
+
+**After Implementation:**
+1. Alert: "Database connection timeout"
+2. AI checks history: "Last 5 times this happened, restarting didn't help. Checking network routes fixed it 4 times."
+3. AI suggests: "Check network connectivity to database. Previous incidents showed network route issues."
+4. Engineer follows suggestion, problem fixed quickly
+
+### Success Criteria
+
+| Metric | Current | Target |
+|--------|---------|--------|
+| AI recommendation accuracy | Unknown | 70%+ rated helpful |
+| Time to resolution | ~45 min | ~20 min (using learned patterns) |
+| Repeat incorrect suggestions | Unlimited | Reduced by 50% |
+
+### Key Features to Build
+
+#### 1. Feedback Collection
+- **Thumbs Up/Down buttons** on every AI recommendation
+- **Star rating (1-5)** for overall analysis quality
+- **Free text comments** for engineers to explain what actually worked
+- **"Mark as Successful Fix"** button to save working solutions
+
+#### 2. Successful Remediation Library
+- Store confirmed working solutions by alert pattern
+- Track which runbooks successfully fixed which alert types
+- Record manual steps that worked when automation failed
+
+#### 3. AI Prompt Enhancement
+When analyzing a new alert, the AI will now receive:
+- The 3 most similar past incidents
+- What solutions worked for those incidents
+- What solutions did NOT work (so it doesn't suggest them again)
+
+### How It Works (Plain English)
+
+```
+1. Alert comes in: "High CPU on web-server-1"
+
+2. System searches history:
+   - Found 12 similar "High CPU" alerts in past 90 days
+   - 8 were fixed by "killing runaway process"
+   - 3 were fixed by "scaling up instances"
+   - 1 required "code optimization" (different root cause)
+
+3. AI receives this context and generates analysis:
+   "Based on 12 similar incidents, the most likely fix is to identify
+    and kill the runaway process. Here's how to do it..."
+
+4. Engineer follows suggestion, problem fixed
+
+5. Engineer clicks "Thumbs Up" and "Mark as Successful"
+
+6. Next time: AI has even stronger confidence in this solution
 ```
 
-#### Git Sync Service
-```python
-# app/services/git_sync_service.py
+### Database Tables to Create
 
-class GitSyncService:
-    async def sync_repository(self, repo: RunbookRepository) -> SyncResult:
-        """Sync runbooks from Git repository"""
+| Table | Purpose |
+|-------|---------|
+| `remediation_feedback` | Store thumbs up/down and ratings |
+| `analysis_feedback` | Detailed feedback on specific parts of analysis |
+| `successful_remediations` | Library of confirmed working solutions |
 
-        # 1. Clone/pull repository
-        repo_path = await self.ensure_repo(repo)
+### User Interface Changes
 
-        # 2. Find runbook files (YAML)
-        runbook_files = list(Path(repo_path / repo.path).glob("**/*.yaml"))
+**Alert Detail Page:**
+- Add feedback buttons below AI analysis
+- Add "Similar Past Incidents" section
+- Add "Rate this Analysis" star component
 
-        results = {"created": 0, "updated": 0, "unchanged": 0, "errors": []}
+**New Dashboard Section:**
+- Feedback statistics (% helpful vs not helpful)
+- Most common successful fixes
+- AI accuracy trends over time
 
-        for file in runbook_files:
-            try:
-                # 3. Parse YAML
-                definition = yaml.safe_load(file.read_text())
+### Expected Outcomes
 
-                # 4. Validate schema
-                validated = RunbookSchema(**definition)
+| Outcome | Benefit |
+|---------|---------|
+| Engineers rate recommendations | We know what's working |
+| AI uses past successes | Better first-time suggestions |
+| Working solutions are saved | Institutional knowledge preserved |
+| Accuracy improves over time | Faster incident resolution |
 
-                # 5. Check if exists
-                existing = await self.get_runbook_by_source(repo.id, str(file))
+---
 
-                if existing:
-                    if existing.checksum != self.compute_checksum(definition):
-                        await self.update_runbook(existing, validated)
-                        results["updated"] += 1
-                    else:
-                        results["unchanged"] += 1
-                else:
-                    await self.create_runbook(repo, file, validated)
-                    results["created"] += 1
+## Gap 5: Change Correlation
 
-            except Exception as e:
-                results["errors"].append({"file": str(file), "error": str(e)})
+### The Problem Today
 
-        return SyncResult(**results)
+When an alert fires, engineers have no visibility into what changed recently. They waste time asking "Did anyone deploy anything?" in Slack. Often, the problem IS the recent deployment, but there's no automatic connection.
+
+**Example Scenario:**
+1. Friday 3:00 PM: Developer deploys new payment service code
+2. Friday 3:15 PM: Alert fires: "Payment service error rate high"
+3. Friday 3:15-4:00 PM: Engineers investigate, check logs, scratch heads
+4. Friday 4:00 PM: Someone mentions "Oh, I deployed payment service at 3"
+5. Friday 4:05 PM: Rollback deployment, problem solved
+
+**Wasted time: 45 minutes**
+
+### What We Want to Achieve
+
+Automatically track all changes (deployments, config changes, scaling events) and immediately show relevant changes when an alert fires.
+
+**After Implementation:**
+1. Friday 3:00 PM: Deployment webhook notifies system
+2. Friday 3:15 PM: Alert fires
+3. Friday 3:15 PM: Dashboard immediately shows:
+   - "⚠️ Related Change Detected"
+   - "15 minutes ago: payment-service deployed v2.3.1 (was v2.3.0)"
+   - "Correlation confidence: 85%"
+4. Friday 3:20 PM: Rollback decision made
+5. Friday 3:25 PM: Problem solved
+
+**Time saved: 40 minutes**
+
+### Success Criteria
+
+| Metric | Current | Target |
+|--------|---------|--------|
+| Time to identify deployment-related issues | 30-60 min | < 5 min |
+| "Was there a deploy?" Slack questions | Many daily | Near zero |
+| Rollback decision speed | 30+ min | < 10 min |
+
+### Key Features to Build
+
+#### 1. Change Event Ingestion
+Accept webhooks from:
+- **GitHub Actions** - When deployments complete
+- **Jenkins** - When builds deploy
+- **ArgoCD** - When Kubernetes deployments sync
+- **Manual entry** - For ad-hoc changes
+
+#### 2. Automatic Correlation
+When an alert arrives:
+- Look for changes in the 2 hours before the alert
+- Calculate correlation score based on:
+  - Time proximity (closer = higher score)
+  - Service match (same service = higher score)
+  - Environment match (same environment = higher score)
+  - Change type (deployments = higher risk than config)
+
+#### 3. AI Context Enhancement
+Include recent changes in AI analysis prompts:
+- "Note: 15 minutes before this alert, payment-service was deployed from v2.3.0 to v2.3.1"
+- AI can then suggest: "This alert occurred shortly after a deployment. Consider rolling back to v2.3.0 if the issue persists."
+
+### How It Works (Plain English)
+
+```
+1. Developer pushes code to GitHub
+
+2. GitHub Actions deploys to production
+
+3. GitHub sends webhook to our system:
+   {
+     "type": "deployment",
+     "service": "payment-service",
+     "version": "v2.3.1",
+     "previous": "v2.3.0",
+     "who": "developer@company.com",
+     "when": "2024-12-08 15:00:00"
+   }
+
+4. 15 minutes later, alert fires
+
+5. System automatically:
+   - Finds the deployment from 15 minutes ago
+   - Calculates 85% correlation score
+   - Adds banner to alert: "Related deployment detected"
+   - Includes in AI analysis context
+
+6. Engineer sees immediately: "This might be caused by the deployment"
 ```
 
-#### Runbook YAML Schema
+### Webhook Integration Examples
+
+**GitHub Actions (add to your workflow):**
 ```yaml
-# Example runbook definition: runbooks/restart-service.yaml
+- name: Notify AIOps
+  run: |
+    curl -X POST https://your-aiops/webhook/changes \
+      -H "Content-Type: application/json" \
+      -d '{
+        "event_type": "deployment",
+        "source": "github",
+        "service": "${{ github.repository }}",
+        "version": "${{ github.sha }}",
+        "environment": "production"
+      }'
+```
+
+**Jenkins Pipeline:**
+```groovy
+post {
+    success {
+        httpRequest url: 'https://your-aiops/webhook/changes',
+                    httpMode: 'POST',
+                    contentType: 'APPLICATION_JSON',
+                    requestBody: '{"event_type": "deployment", ...}'
+    }
+}
+```
+
+### Database Tables to Create
+
+| Table | Purpose |
+|-------|---------|
+| `change_events` | Store all deployment/config changes |
+| `change_correlations` | Link changes to alerts they may have caused |
+
+### User Interface Changes
+
+**Alert Detail Page:**
+- New "Related Changes" panel
+- Timeline showing changes before alert
+- "Confirm this change caused the issue" button
+
+**New Changes Dashboard:**
+- List of recent changes across all services
+- Change frequency by service
+- "Risky changes" (high correlation with alerts)
+
+### Expected Outcomes
+
+| Outcome | Benefit |
+|---------|---------|
+| All deployments tracked automatically | No more "who deployed what?" |
+| Alerts show related changes | Faster root cause identification |
+| AI knows about recent changes | Better recommendations |
+| Change-to-alert correlation tracked | Identify risky deployment patterns |
+
+---
+
+## Gap 6: Notifications and Escalation
+
+### The Problem Today
+
+When a critical alert fires, it only appears in the web dashboard. Engineers must be actively watching the dashboard to see it. At 3 AM, critical alerts can go unnoticed for hours.
+
+**Example Scenario:**
+1. 3:00 AM: Critical alert fires - Database is down
+2. 3:00 AM - 6:00 AM: Alert sits in dashboard, nobody sees it
+3. 6:00 AM: Customers start complaining
+4. 6:15 AM: Someone finally checks dashboard
+5. 6:15 AM - 7:00 AM: Incident response begins
+
+**Customer impact: 4+ hours**
+
+### What We Want to Achieve
+
+Send notifications through multiple channels (Slack, PagerDuty, Teams, Email) with automatic escalation if nobody responds.
+
+**After Implementation:**
+1. 3:00 AM: Critical alert fires
+2. 3:00 AM: Slack message sent to #incidents
+3. 3:00 AM: PagerDuty pages on-call engineer
+4. 3:05 AM: On-call engineer acknowledges
+5. 3:15 AM: Problem resolved
+
+**Customer impact: 15 minutes**
+
+### Success Criteria
+
+| Metric | Current | Target |
+|--------|---------|--------|
+| Time to first response | 30+ min (daytime only) | < 5 min (24/7) |
+| Missed critical alerts | Common | Zero |
+| Escalation when needed | Never | Automatic |
+
+### Key Features to Build
+
+#### 1. Notification Channels
+Connect to popular notification platforms:
+
+| Channel | Use Case |
+|---------|----------|
+| **Slack** | Team awareness, non-urgent alerts |
+| **PagerDuty** | Critical alerts, on-call rotation |
+| **Microsoft Teams** | Alternative to Slack |
+| **Email** | Summary reports, audit trail |
+| **Custom Webhook** | Any other system |
+
+#### 2. Notification Rules
+Define when to send notifications:
+
+| Trigger Event | Example Configuration |
+|---------------|----------------------|
+| Alert received | Only for critical alerts → Slack + PagerDuty |
+| Analysis complete | All alerts → Slack |
+| Runbook needs approval | → Slack to approvers + Email |
+| Execution failed | → PagerDuty (escalate) |
+
+#### 3. Escalation Policies
+If nobody responds within X minutes, escalate:
+
+**Example Escalation Policy:**
+```
+Level 1 (0 min):   Notify on-call engineer via PagerDuty
+Level 2 (15 min):  If no ack, notify backup engineer
+Level 3 (30 min):  If still no ack, notify team lead
+Level 4 (60 min):  If still no ack, notify engineering manager
+```
+
+#### 4. Rate Limiting
+Prevent notification storms:
+- Maximum 10 notifications per hour for same alert pattern
+- Consolidate repeated alerts into single message
+- "Snooze" capability for known issues being worked
+
+### How It Works (Plain English)
+
+```
+1. Critical alert fires: "Database unreachable"
+
+2. System checks notification rules:
+   - This is "critical" severity → matches "Critical Alert" rule
+   - Rule says: Send to Slack #incidents AND PagerDuty on-call
+
+3. Slack message sent:
+   🚨 *Critical Alert: Database unreachable*
+   Instance: db-primary
+   Time: 3:00 AM
+   [View Alert] [Acknowledge]
+
+4. PagerDuty notification sent:
+   - Pages on-call engineer's phone
+
+5. Escalation timer starts (15 minutes)
+
+6. If on-call acknowledges within 15 min:
+   - Escalation cancelled
+   - Slack updated: "Acknowledged by John"
+
+7. If NO acknowledgment in 15 min:
+   - Level 2 escalation triggers
+   - Backup engineer paged
+```
+
+### Notification Message Examples
+
+**Slack - Critical Alert:**
+```
+🚨 *CRITICAL: Database Primary Unreachable*
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+*Instance:* db-primary.production
+*Duration:* 2 minutes
+*Impact:* All database operations failing
+
+*AI Analysis:* Connection refused on port 5432.
+Recommended: Check database process status.
+
+[View Details] [Acknowledge] [Start Runbook]
+```
+
+**PagerDuty - Incident:**
+```
+Title: Database Primary Unreachable
+Severity: Critical
+Service: Database
+Details: Connection refused on port 5432
+Dashboard: https://aiops.example.com/alerts/123
+```
+
+### Database Tables to Create
+
+| Table | Purpose |
+|-------|---------|
+| `notification_channels` | Slack/PagerDuty/etc configurations |
+| `notification_rules` | When to send which notifications |
+| `notification_logs` | History of all sent notifications |
+| `escalation_policies` | Escalation level definitions |
+
+### User Interface Changes
+
+**New Settings Section: Notifications**
+- Add/edit notification channels (Slack webhook, PagerDuty key, etc.)
+- Create notification rules with conditions
+- Configure escalation policies
+- View notification logs
+
+**Alert Detail Page:**
+- Show notification history ("Sent to Slack at 3:00 AM")
+- Show acknowledgment status
+
+### Expected Outcomes
+
+| Outcome | Benefit |
+|---------|---------|
+| Alerts pushed to Slack | Team awareness without dashboard |
+| On-call paged immediately | No missed critical alerts |
+| Automatic escalation | Problems never ignored |
+| Notification logs | Audit trail for incidents |
+
+---
+
+# Phase 2: Intelligence Layer
+
+**Goal:** Make the system smarter by understanding relationships between events, analyzing logs, and predicting problems.
+
+**Why This Phase:** Now that we have feedback (Phase 1) and notifications (Phase 1), we can build intelligence that uses this foundation. Correlation needs change data. Predictions need historical patterns.
+
+---
+
+## Gap 2: Event Correlation and Incident Management
+
+### The Problem Today
+
+When a major issue occurs, multiple alerts fire from different systems. Each alert is treated as a separate problem. Engineers investigate each one individually, not realizing they're all symptoms of the same root cause.
+
+**Example Scenario:**
+1. 2:00 PM: Network switch fails
+2. 2:01 PM: Alert: "Database connection timeout" (5 separate alerts for 5 apps)
+3. 2:01 PM: Alert: "API response time high" (3 alerts)
+4. 2:01 PM: Alert: "Cache unreachable" (2 alerts)
+5. 2:02 PM: Alert: "Health check failed" (4 alerts)
+
+**Result: 14 separate alerts, 14 separate investigations, 14 separate notifications**
+
+Engineers are overwhelmed and confused. They don't realize it's all one problem.
+
+### What We Want to Achieve
+
+Automatically group related alerts into a single "Incident." Identify the root cause alert. Reduce noise and focus attention on the real problem.
+
+**After Implementation:**
+1. 2:00 PM: Network switch fails
+2. 2:01 PM: 14 alerts arrive
+3. 2:01 PM: System creates **ONE incident**: "Network Connectivity Issue"
+   - Groups all 14 alerts together
+   - Identifies earliest alert as probable root cause
+   - Identifies affected services using topology
+4. Engineers see ONE problem to investigate, not 14
+
+### Success Criteria
+
+| Metric | Current | Target |
+|--------|---------|--------|
+| Alerts per major incident | 10-50 separate | 1 grouped incident |
+| Time to find root cause | 30-60 min | < 5 min |
+| Engineer cognitive load | High (many alerts) | Low (one incident) |
+
+### Key Features to Build
+
+#### 1. Incident Grouping Engine
+Group alerts using multiple strategies:
+
+| Strategy | How It Works | Example |
+|----------|--------------|---------|
+| **Temporal** | Alerts within 5 min window | 10 alerts in 2 minutes → same incident |
+| **Topology** | Alerts from related services | API + Database + Cache = same incident |
+| **Label Match** | Same host/pod/deployment | All alerts from pod-xyz → same incident |
+| **Manual** | Engineer groups them | "These 3 are related" |
+
+#### 2. Service Topology
+Understand which services depend on which:
+
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│   Web App   │────▶│   API       │────▶│  Database   │
+└─────────────┘     └─────────────┘     └─────────────┘
+                          │
+                          ▼
+                    ┌─────────────┐
+                    │   Cache     │
+                    └─────────────┘
+```
+
+If Database fails, we expect API to fail, then Web App to fail.
+The root cause is Database, even though Web App alerts came first.
+
+#### 3. Root Cause Identification
+Use topology to find the actual source:
+- Find the most "upstream" failing service
+- The service with no failing dependencies is likely root cause
+- Show this prominently: "Root Cause: Database Primary"
+
+#### 4. Incident Lifecycle Management
+Track incident from start to resolution:
+
+```
+Alert Detected → Incident Created → Investigating → Root Cause Found → Mitigated → Resolved
+```
+
+### How It Works (Plain English)
+
+```
+1. Alert arrives: "API response time high"
+
+2. System checks: Is there an existing incident?
+   - Looks for incidents in past 30 minutes
+   - Checks if this alert's service is related to existing incidents
+   - Result: Found incident "Possible Database Issue" from 2 min ago
+
+3. System adds alert to existing incident:
+   - Incident now has 5 alerts instead of 4
+   - Updates affected services list
+   - Re-evaluates root cause
+
+4. Engineer opens incident:
+   - Sees ONE incident with 5 grouped alerts
+   - Sees root cause: "Database Primary - Connection Timeout"
+   - Sees affected services: API, Cache, Web (downstream)
+   - Sees timeline of all events
+
+5. Engineer fixes database, all 5 alerts resolve
+   - Incident marked "Resolved"
+   - Total time tracked for metrics
+```
+
+### Incident View Example
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ INCIDENT #42: Database Connectivity Issue                       │
+│ Status: INVESTIGATING     Severity: CRITICAL     Alerts: 14     │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│ ROOT CAUSE (Identified):                                         │
+│ ┌──────────────────────────────────────────────────────────────┐│
+│ │ 🔴 Database Primary - Connection Refused                     ││
+│ │    First seen: 2:00:15 PM    Instance: db-primary            ││
+│ └──────────────────────────────────────────────────────────────┘│
+│                                                                  │
+│ AFFECTED SERVICES:                                               │
+│ • API Gateway (3 alerts) - Connection timeouts                   │
+│ • Payment Service (2 alerts) - Failed transactions               │
+│ • User Service (2 alerts) - Login failures                       │
+│ • Cache Layer (1 alert) - Write failures                         │
+│                                                                  │
+│ TIMELINE:                                                        │
+│ 2:00:15 PM  🔴 Database Primary - Connection refused             │
+│ 2:00:18 PM  🟡 API Gateway - Timeout connecting to database      │
+│ 2:00:20 PM  🟡 Payment Service - Transaction failed              │
+│ 2:00:22 PM  🟡 User Service - Authentication timeout             │
+│ ...                                                              │
+│                                                                  │
+│ [View All Alerts] [Acknowledge] [Assign to Me] [Run Playbook]    │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Database Tables to Create
+
+| Table | Purpose |
+|-------|---------|
+| `incidents` | Group of related alerts |
+| `incident_alerts` | Links alerts to incidents |
+| `service_topology` | Service registry |
+| `service_dependencies` | Which services depend on which |
+
+### Expected Outcomes
+
+| Outcome | Benefit |
+|---------|---------|
+| 14 alerts become 1 incident | Reduced alert fatigue |
+| Root cause highlighted | Faster resolution |
+| Service impact clear | Better communication to stakeholders |
+| Incident timeline | Post-mortem analysis easier |
+
+---
+
+## Gap 4: Log Aggregation and Analysis
+
+### The Problem Today
+
+When investigating an alert, engineers must:
+1. Open the AIOps dashboard to see the alert
+2. Open Loki/Kibana in another tab
+3. Manually construct a log query
+4. Copy timestamps and instance names between tools
+5. Scroll through logs looking for errors
+
+The AI analysis has NO access to logs. It can only guess based on the alert name.
+
+### What We Want to Achieve
+
+Automatically fetch relevant logs when analyzing an alert. Include log context in AI analysis. Show log snippets directly in the dashboard.
+
+**After Implementation:**
+1. Alert fires
+2. System automatically queries Loki/Elasticsearch for:
+   - Logs from the same instance
+   - Time window: 5 minutes before and after alert
+   - Filter for errors, exceptions, warnings
+3. AI receives: Alert details + relevant log snippets
+4. AI analysis includes: "Logs show 'OutOfMemoryError' exception at 14:32:15"
+5. Engineer sees logs directly in dashboard - no context switching
+
+### Success Criteria
+
+| Metric | Current | Target |
+|--------|---------|--------|
+| Tools needed to investigate | 3-4 tools | 1 tool (AIOps dashboard) |
+| Time to find relevant logs | 5-10 min | Automatic |
+| AI analysis accuracy | Limited (no log context) | Higher (log-informed) |
+
+### Key Features to Build
+
+#### 1. Log Source Configuration
+Connect to your log aggregation system:
+
+| Source | Query Language |
+|--------|----------------|
+| Loki (Grafana) | LogQL |
+| Elasticsearch | Query DSL / Lucene |
+| CloudWatch Logs | CloudWatch Insights |
+| Splunk | SPL |
+
+#### 2. Automatic Log Queries
+When alert arrives, automatically build and execute query:
+
+```
+Alert: { instance: "web-1", job: "nginx", severity: "critical" }
+
+Generated Loki Query:
+{instance="web-1", job="nginx"} |= "error" or |= "exception" or |= "fatal"
+Time Range: [alert_time - 5 min] to [alert_time + 5 min]
+```
+
+#### 3. Log Summarization
+Process fetched logs:
+- Extract unique error patterns
+- Count occurrences
+- Identify stack traces
+- Highlight most relevant entries
+
+#### 4. AI Context Injection
+Include log summary in AI analysis:
+
+**Before (no logs):**
+```
+AI Analysis: The alert indicates high response times. This could be caused
+by increased traffic, database slowness, or application issues.
+```
+
+**After (with logs):**
+```
+AI Analysis: Logs show "java.lang.OutOfMemoryError: Java heap space"
+at 14:32:15, occurring 23 times in the 5 minutes before the alert.
+This is causing the high response times.
+
+Recommended action: Increase Java heap size or investigate memory leak.
+```
+
+### How It Works (Plain English)
+
+```
+1. Alert fires: "High response time on payment-api"
+
+2. System automatically:
+   a. Builds query: {app="payment-api"} |= "error"
+   b. Queries Loki for logs from 5 min before/after
+   c. Receives 150 log lines
+
+3. System processes logs:
+   - Found 45 ERROR level entries
+   - Found 23 instances of "OutOfMemoryError"
+   - Found stack trace pointing to PaymentProcessor.java:234
+   - Found 10 instances of "Connection timeout to database"
+
+4. System summarizes for AI:
+   "Logs show: OutOfMemoryError (23x), DB connection timeout (10x).
+    Stack trace points to PaymentProcessor.java line 234."
+
+5. AI generates analysis WITH log context:
+   "Root cause appears to be memory exhaustion in PaymentProcessor.
+    The OutOfMemoryError is causing cascading database timeouts.
+    Recommended: Increase heap size and investigate memory leak at line 234."
+
+6. Engineer sees:
+   - AI analysis mentioning specific code location
+   - Log snippet panel showing relevant errors
+   - Link to full logs in Loki
+```
+
+### User Interface Changes
+
+**Alert Detail Page - New Logs Panel:**
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ RELATED LOGS (47 entries, 5 errors)                             │
+├─────────────────────────────────────────────────────────────────┤
+│ Error Patterns Detected:                                         │
+│ • OutOfMemoryError: Java heap space (23 occurrences)            │
+│ • Connection timeout (10 occurrences)                           │
+│                                                                  │
+│ Recent Error Logs:                                               │
+│ ────────────────────────────────────────────────────────────────│
+│ 14:32:15 ERROR [PaymentProcessor] OutOfMemoryError: Java heap   │
+│ 14:32:15 ERROR   at PaymentProcessor.processPayment(PP.java:234)│
+│ 14:32:16 ERROR   at PaymentService.handle(PS.java:89)           │
+│ 14:32:18 WARN  [DatabasePool] Connection timeout after 30s      │
+│                                                                  │
+│ [View Full Logs in Loki] [Download Logs] [Search Logs]          │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Database Tables to Create
+
+| Table | Purpose |
+|-------|---------|
+| `log_sources` | Loki/Elasticsearch connection configs |
+| `log_queries` | Saved query templates |
+| `alert_log_contexts` | Cached log summaries for alerts |
+
+### Expected Outcomes
+
+| Outcome | Benefit |
+|---------|---------|
+| Logs fetched automatically | No manual context switching |
+| Log patterns identified | Faster pattern recognition |
+| AI has log context | More accurate recommendations |
+| Logs shown in dashboard | Single pane of glass |
+
+---
+
+## Gap 1: Predictive Analytics and Anomaly Detection
+
+### The Problem Today
+
+The system is purely reactive. It waits for Prometheus to fire an alert, which only happens AFTER a threshold is breached. By then, the problem is already affecting users.
+
+**Example Scenario:**
+1. Disk usage slowly grows: 70% → 80% → 85% → 90%
+2. Alert threshold: 90%
+3. Alert fires at 90%
+4. By the time engineers respond, disk is at 95%
+5. Crash at 100%
+
+**We could have predicted this days in advance but didn't.**
+
+### What We Want to Achieve
+
+Analyze historical trends and predict problems before they happen. Detect unusual patterns that might indicate emerging issues.
+
+**After Implementation:**
+1. System notices disk growing steadily
+2. At 70%, system predicts: "At current rate, disk will be full in 5 days"
+3. Alert sent: "Predicted disk exhaustion in 5 days - action recommended"
+4. Engineer cleans up or adds storage with plenty of time
+
+### Success Criteria
+
+| Metric | Current | Target |
+|--------|---------|--------|
+| Advance warning time | 0 (reactive) | Hours to days |
+| Preventable outages | Many | Significant reduction |
+| Anomaly detection | None | Automatic |
+
+### Key Features to Build
+
+#### 1. Time-Series Forecasting
+Use historical metric data to predict future values:
+
+```
+Historical Data:
+Day 1: 50%
+Day 2: 55%
+Day 3: 60%
+Day 4: 65%
+Day 5: 70%
+
+Prediction: Day 10 = 95% (will breach 90% threshold on Day 9)
+Alert: "Disk predicted to reach critical level in 4 days"
+```
+
+#### 2. Anomaly Detection
+Identify unusual patterns that deviate from normal behavior:
+
+| Anomaly Type | Example |
+|--------------|---------|
+| Spike | CPU suddenly jumps from 20% to 80% |
+| Drop | Traffic drops from 1000 req/s to 100 req/s |
+| Trend Change | Normally flat metric starts climbing |
+| Pattern Break | Daily peak usually at 9 AM, today at 3 AM |
+
+#### 3. Alert Pattern Learning
+Learn from alert history to predict escalations:
+
+```
+Analysis of historical alerts:
+- "High Memory Warning" escalated to "Out of Memory Critical" 67% of the time
+- Average time between warning and critical: 2.3 hours
+
+When "High Memory Warning" fires:
+→ Add prediction: "67% chance of escalating to critical within 2.3 hours"
+→ Recommend proactive action
+```
+
+### How It Works (Plain English)
+
+```
+1. System collects historical metrics from Prometheus
+   - Last 30 days of CPU, Memory, Disk, Network data
+   - For each service and instance
+
+2. System trains forecasting models:
+   - Learns daily patterns (busy during work hours)
+   - Learns weekly patterns (quieter on weekends)
+   - Learns growth trends (disk filling up slowly)
+
+3. System continuously makes predictions:
+   - Every hour, forecast next 24-48 hours
+   - Compare predictions to thresholds
+
+4. If prediction crosses threshold:
+   - Create "Predictive Alert"
+   - Example: "Disk on web-1 predicted to exceed 90% in 18 hours"
+   - Include recommended action
+
+5. If anomaly detected:
+   - Create "Anomaly Alert"
+   - Example: "Unusual traffic pattern detected - 3x normal rate"
+   - Include context: what normal looks like vs current
+
+6. Engineers can act proactively:
+   - Clean up disk before it fills
+   - Investigate traffic spike before it causes issues
+   - Scale resources before capacity exhaustion
+```
+
+### Predictive Alert Example
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ 🔮 PREDICTIVE ALERT: Disk Space Exhaustion                      │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│ Instance: db-primary                                             │
+│ Current Usage: 72%                                               │
+│ Growth Rate: 3% per day                                          │
+│ Predicted Breach: 90% threshold in ~6 days                       │
+│                                                                  │
+│ Trend Chart:                                                     │
+│ 100% ┤                                    ╭─── Predicted ──╮     │
+│  90% ┤─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─X─ ─ ─ ─ ─ ─ ─ ─   │     │
+│  80% ┤                              ╱    (Breach in 6 days)      │
+│  70% ┤                         ╱                                 │
+│  60% ┤                    ╱                                      │
+│  50% ┤───────────────╱                                           │
+│      └───────────────────────────────────────────────────────    │
+│       5 days ago    Today    5 days    10 days                   │
+│                                                                  │
+│ RECOMMENDED ACTIONS:                                             │
+│ 1. Review and clean up old database logs                         │
+│ 2. Archive tables older than 90 days                             │
+│ 3. Consider expanding disk volume                                │
+│                                                                  │
+│ [View Details] [Dismiss] [Create Task]                           │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Database Tables to Create
+
+| Table | Purpose |
+|-------|---------|
+| `metric_forecasts` | Predicted future values |
+| `anomaly_detections` | Detected unusual patterns |
+| `predictive_rules` | Configuration for predictions |
+
+### Expected Outcomes
+
+| Outcome | Benefit |
+|---------|---------|
+| Disk/memory exhaustion predicted | Prevent outages |
+| Anomalies detected automatically | Early warning system |
+| Trends visible | Capacity planning |
+| Escalation probability shown | Prioritize warnings |
+
+---
+
+## Gap 12: Incident Timeline Visualization
+
+### The Problem Today
+
+When reviewing an incident, there's no visual representation of what happened and when. Engineers must piece together information from multiple alert records, execution logs, and chat messages.
+
+### What We Want to Achieve
+
+A clear, visual timeline showing every event related to an incident in chronological order.
+
+### How It Works
+
+Display all incident events on a single timeline:
+- When alerts fired
+- When changes/deployments occurred
+- When runbooks executed
+- When status changes happened
+- When engineers commented
+- When the incident was resolved
+
+### Timeline Example
+
+```
+INCIDENT #42 TIMELINE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+14:00 ─┬─ 🔄 CHANGE: payment-service deployed v2.3.1
+       │     By: developer@company.com
+       │     Commit: abc123
+
+14:15 ─┬─ 🚨 ALERT: Payment Service Error Rate High
+       │     Severity: Warning
+       │     Instance: payment-api-1
+
+14:16 ─┬─ 🚨 ALERT: Database Connection Timeout
+       │     Severity: Critical
+       │     Instance: db-replica-1
+
+14:16 ─┬─ 📋 INCIDENT CREATED: "Payment System Degraded"
+       │     14 alerts grouped
+       │     Root cause: Database Connection Timeout
+
+14:18 ─┬─ 🔔 NOTIFICATION: Sent to #incidents Slack
+       │     Sent to PagerDuty (on-call)
+
+14:20 ─┬─ 👤 ACKNOWLEDGED by John Smith
+       │     "Looking into this now"
+
+14:25 ─┬─ 💬 COMMENT by John Smith
+       │     "Database connection pool exhausted,
+       │      likely related to the deployment"
+
+14:30 ─┬─ ⚡ RUNBOOK EXECUTED: "Restart Connection Pool"
+       │     Status: Success
+       │     Duration: 45 seconds
+
+14:32 ─┬─ ✅ ALERT RESOLVED: Database Connection Timeout
+       │     Duration: 16 minutes
+
+14:35 ─┬─ ✅ INCIDENT RESOLVED
+       │     Total duration: 19 minutes
+       │     Root cause: Deployment caused connection pool exhaustion
+       │     Resolution: Connection pool restart
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+### Expected Outcomes
+
+| Outcome | Benefit |
+|---------|---------|
+| Complete incident story | Easy to understand what happened |
+| Correlation visible | See relationship between deploy and alert |
+| Post-mortem simplified | All data in one place |
+| Training material | Show new team members real incidents |
+
+---
+
+# Phase 3: Advanced Automation
+
+**Goal:** Enhance runbook capabilities, add capacity planning, and track SLA compliance.
+
+---
+
+## Gap 7: Capacity Planning and Trend Analysis
+
+### The Problem Today
+
+Engineers only find out about capacity issues when they become critical. There's no forward planning for resource needs.
+
+### What We Want to Achieve
+
+Automatically track resource usage trends. Predict when resources will be exhausted. Generate regular capacity reports.
+
+### Key Features
+
+#### 1. Resource Monitoring
+Track all resource types:
+- CPU usage trends
+- Memory usage trends
+- Disk space growth
+- Network bandwidth
+- Database connections
+- Queue depths
+
+#### 2. Exhaustion Prediction
+For each resource, predict:
+- When will it hit 80% (warning)?
+- When will it hit 90% (critical)?
+- When will it hit 100% (exhaustion)?
+
+#### 3. Capacity Reports
+Generate weekly/monthly reports:
+- Current usage by resource
+- Growth rates
+- Predicted needs
+- Recommendations for scaling
+
+### Report Example
+
+```
+WEEKLY CAPACITY REPORT - Week of Dec 8, 2024
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+SUMMARY
+• 3 resources require attention
+• 1 predicted to breach threshold within 7 days
+• 2 predicted to breach within 30 days
+
+CRITICAL ATTENTION NEEDED
+┌────────────────────────────────────────────────┐
+│ 🔴 db-primary: Disk Space                      │
+│    Current: 82%  |  Growth: 1.2%/day           │
+│    Predicted to hit 90% in: 6 days             │
+│    Recommendation: Add 100GB or archive data  │
+└────────────────────────────────────────────────┘
+
+WARNING - ACTION RECOMMENDED
+┌────────────────────────────────────────────────┐
+│ 🟡 api-cluster: Memory                         │
+│    Current: 71%  |  Growth: 0.5%/day           │
+│    Predicted to hit 90% in: 38 days            │
+│    Recommendation: Plan memory upgrade         │
+└────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────┐
+│ 🟡 cache-cluster: Connections                  │
+│    Current: 68%  |  Growth: 0.3%/day           │
+│    Predicted to hit 90% in: 73 days            │
+│    Recommendation: Monitor, no action needed   │
+└────────────────────────────────────────────────┘
+
+HEALTHY RESOURCES (12)
+All other monitored resources are within normal ranges
+with no concerning growth patterns.
+```
+
+### Expected Outcomes
+
+| Outcome | Benefit |
+|---------|---------|
+| Weekly capacity reports | Regular visibility |
+| Exhaustion predictions | Time to plan |
+| Proactive scaling | Avoid capacity outages |
+| Budget planning | Know when to scale |
+
+---
+
+## Gap 8: Runbook Git Sync
+
+### The Problem Today
+
+Runbooks are created and edited in the web UI. There's no version control, no code review, no rollback capability.
+
+### What We Want to Achieve
+
+Store runbooks as YAML files in Git. Automatically sync changes to the platform. Enable code review for runbook changes.
+
+### How It Works
+
+```
+1. Runbooks stored in Git repository:
+   runbooks/
+   ├── restart-service.yaml
+   ├── clear-cache.yaml
+   └── scale-cluster.yaml
+
+2. When developer pushes changes:
+   - Git webhook triggers sync
+   - System pulls latest changes
+   - YAML validated and imported
+   - Runbooks updated in database
+
+3. Benefits:
+   - Version history for all changes
+   - Pull request review for runbooks
+   - Rollback to previous version
+   - Multiple environments (dev/staging/prod)
+```
+
+### Runbook YAML Example
+
+```yaml
 name: Restart Service
-description: Safely restart a failing service
+description: Safely restart a failing service with health verification
 category: infrastructure
 tags: [restart, service, recovery]
-
-execution:
-  mode: semi_auto
-  approval_required: true
-  approval_timeout_minutes: 30
-  max_executions_per_hour: 5
-  cooldown_minutes: 15
 
 triggers:
   - alert_pattern: "ServiceDown*"
     severity: [critical, warning]
     min_duration_seconds: 300
 
+execution:
+  mode: semi_auto          # Require approval
+  approval_timeout: 30     # Minutes to wait for approval
+  max_per_hour: 5         # Rate limiting
+
 steps:
-  - name: Check current status
-    type: command
-    command_linux: systemctl status {{service_name}}
-    timeout_seconds: 30
+  - name: Check Current Status
+    command: systemctl status {{service_name}}
+    timeout: 30
     continue_on_fail: true
 
-  - name: Graceful restart
-    type: command
-    command_linux: systemctl restart {{service_name}}
-    requires_elevation: true
-    timeout_seconds: 60
-    rollback_command_linux: systemctl start {{service_name}}
+  - name: Restart Service
+    command: systemctl restart {{service_name}}
+    requires_sudo: true
+    timeout: 60
+    rollback: systemctl start {{service_name}}
 
-  - name: Verify service health
+  - name: Verify Health
     type: api
-    method: GET
-    endpoint: "{{health_check_url}}"
-    expected_status_codes: [200]
-    retry_count: 3
-    retry_delay_seconds: 10
-
-notifications:
-  on_success:
-    - channel: slack
-      message: "Service {{service_name}} restarted successfully"
-  on_failure:
-    - channel: pagerduty
-      severity: critical
+    url: "{{health_check_url}}"
+    expected_status: 200
+    retries: 3
+    retry_delay: 10
 ```
 
 ---
 
-### Gap 10: SLA/SLO Tracking
+## Gap 10: SLA/SLO Tracking
 
-**Objective:** Define SLA targets and track compliance
+### The Problem Today
 
-#### Data Model
-```python
-# app/models_sla.py
+We calculate MTTA and MTTR but don't track them against targets. There's no way to know if we're meeting our SLAs.
 
-class SLADefinition(Base):
-    __tablename__ = "sla_definitions"
+### What We Want to Achieve
 
-    id: int
-    name: str                        # "Critical Alert Response"
-    description: str
+Define SLA targets. Automatically track compliance. Alert when approaching breach.
 
-    # Targets
-    target_mtta_minutes: float       # Mean Time to Acknowledge
-    target_mttr_minutes: float       # Mean Time to Resolve
-    target_availability: float       # 99.9%
-    target_success_rate: float       # Remediation success rate
+### Key Features
 
-    # Scope
-    applies_to_severity: List[str]   # ["critical", "warning"]
-    applies_to_services: List[str]   # ["payment-*", "auth-*"]
+#### 1. SLA Definitions
+Define targets for different alert types:
 
-    # Alerting
-    breach_notify_channels: List[int]
-    warning_threshold_percent: float  # Alert at 80% of SLA
+| SLA | Target MTTA | Target MTTR | Applies To |
+|-----|-------------|-------------|------------|
+| Critical | 5 min | 30 min | All critical alerts |
+| Standard | 30 min | 4 hours | Warning alerts |
+| Payment System | 2 min | 15 min | Payment-* alerts |
 
-    is_active: bool
-    created_at: datetime
-
-class SLAReport(Base):
-    __tablename__ = "sla_reports"
-
-    id: int
-    sla_id: int
-    period_start: datetime
-    period_end: datetime
-
-    # Actuals
-    actual_mtta_minutes: float
-    actual_mttr_minutes: float
-    actual_availability: float
-    actual_success_rate: float
-
-    # Compliance
-    mtta_compliant: bool
-    mttr_compliant: bool
-    availability_compliant: bool
-    success_rate_compliant: bool
-    overall_compliant: bool
-
-    # Details
-    total_incidents: int
-    breached_incidents: int
-    breach_details: List[dict]
-
-class SLABreach(Base):
-    __tablename__ = "sla_breaches"
-
-    id: int
-    sla_id: int
-    alert_id: int
-    incident_id: Optional[int]
-    breach_type: str                 # "mtta" | "mttr" | "availability"
-    target_value: float
-    actual_value: float
-    breached_at: datetime
-    notified: bool
+#### 2. Real-Time Tracking
+Monitor alerts against SLA in real-time:
+```
+Alert: Payment Service Error
+SLA: Payment System (2 min MTTA, 15 min MTTR)
+Timer: 00:01:30 until MTTA breach
+Status: ⏰ Approaching deadline
 ```
 
-#### SLA Service
-```python
-# app/services/sla_service.py
+#### 3. Compliance Reporting
 
-class SLAService:
-    async def check_compliance(self, sla: SLADefinition, period: str = "current_month") -> SLAReport:
-        """Check SLA compliance for a period"""
+```
+SLA COMPLIANCE REPORT - November 2024
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-        start, end = self.get_period_bounds(period)
+Overall Compliance: 94.2%
 
-        # Get relevant alerts
-        alerts = await self.get_alerts_in_scope(sla, start, end)
+BY SLA:
+┌─────────────────────────────────────┐
+│ Critical SLA           98.5% ✓     │
+│ Standard SLA           92.1% ✓     │
+│ Payment System SLA     88.3% ⚠     │
+└─────────────────────────────────────┘
 
-        # Calculate metrics
-        mtta = self.calculate_mtta(alerts)
-        mttr = self.calculate_mttr(alerts)
-        availability = await self.calculate_availability(sla.applies_to_services, start, end)
-        success_rate = await self.calculate_success_rate(alerts)
+BREACHES THIS MONTH: 7
+• 3 MTTR breaches (payment system)
+• 4 MTTA breaches (standard)
 
-        # Check compliance
-        report = SLAReport(
-            sla_id=sla.id,
-            period_start=start,
-            period_end=end,
-            actual_mtta_minutes=mtta,
-            actual_mttr_minutes=mttr,
-            actual_availability=availability,
-            actual_success_rate=success_rate,
-            mtta_compliant=mtta <= sla.target_mtta_minutes,
-            mttr_compliant=mttr <= sla.target_mttr_minutes,
-            availability_compliant=availability >= sla.target_availability,
-            success_rate_compliant=success_rate >= sla.target_success_rate,
-        )
-        report.overall_compliant = all([
-            report.mtta_compliant,
-            report.mttr_compliant,
-            report.availability_compliant,
-            report.success_rate_compliant
-        ])
-
-        return report
-
-    async def record_breach(self, sla: SLADefinition, alert: Alert, breach_type: str):
-        """Record an SLA breach"""
-        breach = SLABreach(
-            sla_id=sla.id,
-            alert_id=alert.id,
-            breach_type=breach_type,
-            target_value=getattr(sla, f"target_{breach_type}"),
-            actual_value=self.get_actual_value(alert, breach_type),
-            breached_at=datetime.now()
-        )
-
-        # Notify
-        await self.notification_service.send(
-            event_type="sla_breach",
-            channels=sla.breach_notify_channels,
-            context={"breach": breach, "alert": alert}
-        )
+TOP BREACH REASONS:
+1. On-call not available (3)
+2. Complex root cause (2)
+3. Runbook failure (2)
 ```
 
 ---
 
-## Phase 4: Enterprise Features
+# Phase 4: Enterprise Features
 
-**Goal:** Multi-tenancy and ChatOps for enterprise deployment
-
-### Gap 9: Multi-Tenancy
-
-**Objective:** Support multiple teams/organizations with data isolation
-
-#### Data Model
-```python
-# app/models_tenancy.py
-
-class Organization(Base):
-    __tablename__ = "organizations"
-
-    id: int
-    name: str
-    slug: str                        # URL-safe identifier
-    settings: dict                   # Org-level settings
-    created_at: datetime
-
-class Team(Base):
-    __tablename__ = "teams"
-
-    id: int
-    organization_id: int
-    name: str
-    slug: str
-    settings: dict
-    created_at: datetime
-
-class TeamMembership(Base):
-    __tablename__ = "team_memberships"
-
-    id: int
-    team_id: int
-    user_id: int
-    role: str                        # "owner" | "admin" | "member" | "viewer"
-    joined_at: datetime
-
-# Add to existing models
-class Alert(Base):
-    # ... existing fields ...
-    organization_id: int             # NEW: Tenant isolation
-    team_id: Optional[int]           # NEW: Team scoping
-
-class Runbook(Base):
-    # ... existing fields ...
-    organization_id: int
-    team_id: Optional[int]
-    visibility: str                  # "team" | "organization" | "private"
-```
-
-#### Tenant Context
-```python
-# app/middleware/tenant.py
-
-class TenantMiddleware:
-    async def __call__(self, request: Request, call_next):
-        # Extract tenant from JWT or subdomain
-        tenant_id = self.extract_tenant(request)
-
-        # Set in request state
-        request.state.organization_id = tenant_id
-
-        response = await call_next(request)
-        return response
-
-# Use in queries
-def get_alerts(db: Session, org_id: int, filters: AlertFilters):
-    query = db.query(Alert).filter(Alert.organization_id == org_id)
-    # ... apply filters ...
-    return query.all()
-```
+**Goal:** Scale the platform for large organizations with multiple teams.
 
 ---
 
-### Gap 11: ChatOps Interface
+## Gap 9: Multi-Tenancy
 
-**Objective:** Slack/Teams bot for incident management
+### The Problem Today
 
-#### Bot Commands
+All users share the same view. There's no separation between teams or organizations.
+
+### What We Want to Achieve
+
+Support multiple organizations and teams with data isolation.
+
+### Key Features
+
+#### 1. Organization Structure
 ```
-/aiops incidents                    - List active incidents
-/aiops incident <id>                - Get incident details
-/aiops ack <alert_id>               - Acknowledge alert
-/aiops analyze <alert_id>           - Trigger AI analysis
-/aiops run <runbook> [target]       - Execute runbook
-/aiops approve <execution_id>       - Approve pending execution
-/aiops status                       - System health overview
-/aiops oncall                       - Show on-call schedule
+Organization: Acme Corp
+├── Team: Platform Engineering
+│   ├── Users: 5
+│   ├── Runbooks: 12
+│   └── Alerts: Platform-*
+│
+├── Team: Payment Team
+│   ├── Users: 3
+│   ├── Runbooks: 8
+│   └── Alerts: Payment-*
+│
+└── Team: API Team
+    ├── Users: 4
+    ├── Runbooks: 10
+    └── Alerts: API-*
 ```
 
-#### Slack App Service
-```python
-# app/services/chatops/slack_bot.py
+#### 2. Data Isolation
+Each team only sees:
+- Their own alerts
+- Their own runbooks
+- Their own incidents
+- Shared resources (if granted)
 
-from slack_bolt.async_app import AsyncApp
+#### 3. Role-Based Access
 
-class SlackBotService:
-    def __init__(self):
-        self.app = AsyncApp(token=settings.SLACK_BOT_TOKEN)
-        self.register_handlers()
-
-    def register_handlers(self):
-        @self.app.command("/aiops")
-        async def handle_command(ack, command, respond):
-            await ack()
-
-            args = command["text"].split()
-            action = args[0] if args else "help"
-
-            handlers = {
-                "incidents": self.list_incidents,
-                "incident": self.get_incident,
-                "ack": self.acknowledge_alert,
-                "analyze": self.trigger_analysis,
-                "run": self.execute_runbook,
-                "approve": self.approve_execution,
-                "status": self.system_status,
-                "help": self.show_help
-            }
-
-            handler = handlers.get(action, self.show_help)
-            response = await handler(args[1:], command["user_id"])
-            await respond(response)
-
-        @self.app.action("approve_execution")
-        async def handle_approval(ack, body, respond):
-            await ack()
-            execution_id = body["actions"][0]["value"]
-            user = body["user"]["id"]
-
-            result = await self.approve_execution_action(execution_id, user)
-            await respond(result)
-
-    async def list_incidents(self, args, user_id) -> dict:
-        incidents = await self.incident_service.get_open_incidents(limit=5)
-
-        blocks = [{
-            "type": "section",
-            "text": {"type": "mrkdwn", "text": "*Active Incidents*"}
-        }]
-
-        for inc in incidents:
-            blocks.append({
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": f"*{inc.title}*\n{inc.severity} | {inc.status} | {len(inc.alerts)} alerts"
-                },
-                "accessory": {
-                    "type": "button",
-                    "text": {"type": "plain_text", "text": "View"},
-                    "url": f"{settings.BASE_URL}/incidents/{inc.id}"
-                }
-            })
-
-        return {"blocks": blocks}
-```
+| Role | Permissions |
+|------|------------|
+| Viewer | View alerts, view runbooks |
+| Operator | Above + run runbooks, acknowledge |
+| Admin | Above + create/edit runbooks |
+| Owner | Above + manage team members |
 
 ---
 
-## Dependency Graph
+## Gap 11: ChatOps Interface
 
-```
-                    ┌─────────────────────┐
-                    │    Gap 3: Feedback  │
-                    │    (No deps)        │
-                    └─────────┬───────────┘
-                              │
-        ┌─────────────────────┼─────────────────────┐
-        │                     │                     │
-        ▼                     ▼                     ▼
-┌───────────────┐   ┌─────────────────┐   ┌─────────────────┐
-│ Gap 5: Change │   │ Gap 6: Notify   │   │ Gap 8: Git Sync │
-│ Correlation   │   │                 │   │ (No deps)       │
-└───────┬───────┘   └────────┬────────┘   └─────────────────┘
-        │                    │
-        ▼                    │
-┌───────────────┐            │
-│ Gap 2: Event  │◄───────────┘
-│ Correlation   │
-└───────┬───────┘
-        │
-        ├──────────────────────┐
-        │                      │
-        ▼                      ▼
-┌───────────────┐    ┌─────────────────┐
-│ Gap 4: Logs   │    │ Gap 12: Timeline│
-└───────┬───────┘    └─────────────────┘
-        │
-        ▼
-┌───────────────┐    ┌─────────────────┐
-│ Gap 1: Predict│    │ Gap 10: SLA     │
-│               │    │                 │
-└───────┬───────┘    └────────┬────────┘
-        │                     │
-        ▼                     │
-┌───────────────┐             │
-│ Gap 7: Capac- │◄────────────┘
-│ ity Planning  │
-└───────────────┘
+### The Problem Today
 
-┌─────────────────────────────────────────────┐
-│              Phase 4 (Independent)          │
-│  Gap 9: Multi-Tenancy  ←  All other gaps    │
-│  Gap 11: ChatOps       ←  Gap 6 (Notify)    │
-└─────────────────────────────────────────────┘
+All interaction requires opening the web dashboard.
+
+### What We Want to Achieve
+
+Manage incidents directly from Slack or Teams.
+
+### Slash Commands
+
+| Command | Action |
+|---------|--------|
+| `/aiops incidents` | List active incidents |
+| `/aiops alert 123` | Show alert details |
+| `/aiops ack 123` | Acknowledge alert |
+| `/aiops run restart-service payment-api` | Run runbook |
+| `/aiops approve 456` | Approve pending execution |
+
+### Interactive Messages
+
+When an alert is posted to Slack:
 ```
+🚨 Critical Alert: Database Connection Timeout
+Instance: db-primary
+
+[Acknowledge] [View Details] [Run Playbook ▼]
+```
+
+Engineers can click buttons directly in Slack to take action.
 
 ---
 
-## Summary
+# Summary and Next Steps
 
-| Phase | Gaps | Key Deliverables |
-|-------|------|------------------|
-| **Phase 1** | 3, 5, 6 | Feedback loop, change tracking, Slack/PagerDuty |
-| **Phase 2** | 1, 2, 4, 12 | Correlation engine, log context, predictions, timeline |
-| **Phase 3** | 7, 8, 10 | Capacity reports, GitOps runbooks, SLA tracking |
-| **Phase 4** | 9, 11 | Multi-tenancy, Slack bot |
+## Implementation Summary
 
-**Total New Files:** ~40
-**Total Modified Files:** ~15
-**New Database Tables:** ~25
-**New API Endpoints:** ~60
+| Phase | Gaps | Key Outcome |
+|-------|------|-------------|
+| **Phase 1** | Feedback, Changes, Notifications | Foundation for intelligence |
+| **Phase 2** | Correlation, Logs, Predictions, Timeline | Smart incident management |
+| **Phase 3** | Capacity, GitOps, SLAs | Enterprise operations |
+| **Phase 4** | Multi-tenancy, ChatOps | Scale and accessibility |
+
+## Recommended Starting Point
+
+**Start with Phase 1, Gap 6 (Notifications)** because:
+1. Immediate value - engineers get alerted via Slack/PagerDuty
+2. Low complexity - well-defined integrations
+3. Foundation - required for ChatOps later
+4. Quick win - visible improvement in days
+
+## Effort Estimates
+
+| Phase | New Tables | New Endpoints | New Files | Complexity |
+|-------|------------|---------------|-----------|------------|
+| Phase 1 | 8 | 20 | 15 | Medium |
+| Phase 2 | 10 | 25 | 18 | High |
+| Phase 3 | 5 | 15 | 10 | Medium |
+| Phase 4 | 5 | 10 | 8 | Medium |
+| **Total** | **28** | **70** | **51** | - |
+
+## Dependencies
+
+```
+Phase 1 (Foundation)
+├── Gap 3: Feedback Loop (no deps - start here)
+├── Gap 5: Change Correlation (no deps)
+└── Gap 6: Notifications (no deps)
+
+Phase 2 (Intelligence)
+├── Gap 2: Event Correlation (needs Gap 5)
+├── Gap 4: Log Analysis (no deps)
+├── Gap 1: Predictions (benefits from Gap 4)
+└── Gap 12: Timeline (needs Gap 2)
+
+Phase 3 (Automation)
+├── Gap 7: Capacity (needs Gap 1)
+├── Gap 8: Git Sync (no deps)
+└── Gap 10: SLA Tracking (needs Gap 2)
+
+Phase 4 (Enterprise)
+├── Gap 9: Multi-Tenancy (needs all above)
+└── Gap 11: ChatOps (needs Gap 6)
+```
