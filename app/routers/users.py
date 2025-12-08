@@ -22,9 +22,9 @@ from app.services.auth_service import (
 router = APIRouter(prefix="/api/users", tags=["Users"])
 
 
-def serialize_user(user: User) -> UserResponse:
+def serialize_user(user: User, db: Session) -> UserResponse:
     payload = UserResponse.model_validate(user)
-    payload.permissions = list(get_permissions_for_role(user.role))
+    payload.permissions = list(get_permissions_for_role(db, user.role))
     return payload
 
 @router.get("", response_model=List[UserResponse])
@@ -34,7 +34,7 @@ async def list_users(
 ):
     """List all users (Admin only)"""
     users = db.query(User).all()
-    return [serialize_user(u) for u in users]
+    return [serialize_user(u, db) for u in users]
 
 @router.post("", response_model=UserResponse)
 async def create_user(
@@ -73,7 +73,7 @@ async def create_user(
     db.add(audit)
     db.commit()
     
-    return serialize_user(user)
+    return serialize_user(user, db)
 
 @router.put("/{user_id}", response_model=UserResponse)
 async def update_user(
@@ -115,7 +115,7 @@ async def update_user(
     db.add(audit)
     db.commit()
     
-    return serialize_user(user)
+    return serialize_user(user, db)
 
 @router.delete("/{user_id}")
 async def delete_user(

@@ -162,6 +162,23 @@ app.include_router(api_credential_profiles.router)
 app.include_router(roles.router)
 
 
+@app.get("/profile", response_class=HTMLResponse)
+async def profile_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    User profile page
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+    
+    return templates.TemplateResponse("profile.html", {
+        "request": request,
+        "user": current_user
+    })
+
+
 # ============== Web UI Routes ==============
 
 @app.get("/", response_class=HTMLResponse)

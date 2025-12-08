@@ -17,7 +17,7 @@
         </button>
         {% endif %}
     </div>
-    
+
     <!-- Rules Info -->
     <div class="card p-4 bg-blue-900 bg-opacity-20 border-blue-500">
         <div class="flex items-start space-x-3">
@@ -25,186 +25,170 @@
             <div class="text-sm">
                 <p class="font-medium text-blue-400">How Rules Work</p>
                 <p class="text-gray-300 mt-1">
-                    Rules are evaluated in priority order (lower number = higher priority). 
+                    Rules are evaluated in priority order (lower number = higher priority).
                     The first matching rule determines the action. Use wildcards (*) to match any value.
                 </p>
             </div>
         </div>
     </div>
-    
+
     <!-- Rules List -->
     <div class="card">
         <div id="rulesList" class="divide-y divide-gray-700">
             <div class="p-8 text-center">
-    <!-- Rules List -->
-    <div class="card overflow-hidden">
-        <table class="w-full text-left border-collapse">
-            <thead>
-                <tr class="bg-gray-800 text-gray-400 text-sm">
-                    <th class="px-6 py-3 font-medium">Name</th>
-                    <th class="px-6 py-3 font-medium">Priority</th>
-                    <th class="px-6 py-3 font-medium">Match</th>
-                    <th class="px-6 py-3 font-medium">Action</th>
-                    <th class="px-6 py-3 font-medium">Enabled</th>
-                    <th class="px-6 py-3 font-medium text-right">Actions</th>
-                </tr>
-            </thead>
-            <tbody id="rulesTableBody" class="divide-y divide-gray-700 text-sm">
-                <tr>
-                   <td colspan="6" class="p-8 text-center">
-                        <div class="loading-spinner mx-auto"></div>
-                   </td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
-        <h2 class="text-lg font-semibold mb-4">
-            <i class="fas fa-flask text-purple-400 mr-2"></i>
-            Test Rule Matching
-        </h2>
-        <p class="text-gray-400 text-sm mb-4">Enter sample alert values to see which rule would match</p>
-        
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-            <input type="text" id="testAlertName" class="input-field px-3 py-2 rounded" placeholder="Alert name">
-            <input type="text" id="testSeverity" class="input-field px-3 py-2 rounded" placeholder="Severity">
-            <input type="text" id="testInstance" class="input-field px-3 py-2 rounded" placeholder="Instance">
-            <input type="text" id="testJob" class="input-field px-3 py-2 rounded" placeholder="Job">
+                <!-- Rules List -->
+                <div class="card overflow-hidden">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-gray-800 text-gray-400 text-sm">
+                                <th class="px-6 py-3 font-medium">Name</th>
+                                <th class="px-6 py-3 font-medium">Priority</th>
+                                <th class="px-6 py-3 font-medium">Match</th>
+                                <th class="px-6 py-3 font-medium">Action</th>
+                                <th class="px-6 py-3 font-medium">Enabled</th>
+                                <th class="px-6 py-3 font-medium text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rulesTableBody" class="divide-y divide-gray-700 text-sm">
+                            <tr>
+                                <td colspan="6" class="p-8 text-center">
+                                    <div class="loading-spinner mx-auto"></div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <h2 class="text-lg font-semibold mb-4">
+                    <i class="fas fa-flask text-purple-400 mr-2"></i>
+                    Test Rule Matching
+                </h2>
+                <p class="text-gray-400 text-sm mb-4">Enter sample alert values to see which rule would match</p>
+
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                    <input type="text" id="testAlertName" class="input-field px-3 py-2 rounded"
+                        placeholder="Alert name">
+                    <input type="text" id="testSeverity" class="input-field px-3 py-2 rounded" placeholder="Severity">
+                    <input type="text" id="testInstance" class="input-field px-3 py-2 rounded" placeholder="Instance">
+                    <input type="text" id="testJob" class="input-field px-3 py-2 rounded" placeholder="Job">
+                </div>
+                <div class="flex justify-end mb-4">
+                    <button onclick="testRules()" class="btn-secondary px-6 py-2 rounded">
+                        <i class="fas fa-play mr-2"></i>Test Rule
+                    </button>
+                </div>
+
+                <div id="testResult" class="hidden text-left bg-gray-900 p-4 rounded border border-gray-700"></div>
+            </div>
         </div>
-        <button onclick="testRules()" class="btn-secondary px-4 py-2 rounded">
-            <i class="fas fa-play mr-2"></i>Test
-        </button>
-        <div id="testResult" class="mt-4 hidden"></div>
     </div>
 </div>
+</div>
 
-<!-- Create/Edit Modal -->
+<!-- Rule Modal -->
 <div id="ruleModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-    <div class="card p-6 w-3/4 max-w-5xl m-4 max-h-[90vh] flex flex-col">
-        <div class="flex items-center justify-between mb-4 flex-shrink-0">
+    <div class="card w-full max-w-2xl m-4 max-h-[90vh] flex flex-col">
+        <div class="flex items-center justify-between p-6 pb-0 flex-shrink-0">
             <h3 id="modalTitle" class="text-lg font-semibold">New Rule</h3>
             <button onclick="closeModal()" class="text-gray-400 hover:text-white">
                 <i class="fas fa-times"></i>
             </button>
         </div>
-        
-        <form id="ruleForm" class="space-y-4 overflow-y-auto pr-2 custom-scrollbar">
+
+        <form id="ruleForm" class="flex-1 min-h-0 flex flex-col">
             <input type="hidden" id="ruleId">
-            
-            <div>
-                <label class="label-with-tooltip block text-sm font-medium mb-1">
-                    Name *
-                    <span class="info-tooltip info-tooltip-align-left">
-                        <span class="info-tooltip-icon">?</span>
-                        <span class="info-tooltip-text">A unique name for this rule to identify it in logs and the dashboard.</span>
-                    </span>
-                </label>
-                <input type="text" id="ruleName" class="input-field w-full px-3 py-2 rounded" required>
-            </div>
-            
-            <div>
-                <label class="label-with-tooltip block text-sm font-medium mb-1">
-                    Description
-                    <span class="info-tooltip info-tooltip-align-left">
-                        <span class="info-tooltip-icon">?</span>
-                        <span class="info-tooltip-text">Optional description to explain the purpose of this rule or what alerts it handles.</span>
-                    </span>
-                </label>
-                <input type="text" id="ruleDescription" class="input-field w-full px-3 py-2 rounded">
-            </div>
-            
-            <div class="grid grid-cols-2 gap-4">
-                <div>
-                    <label class="label-with-tooltip block text-sm font-medium mb-1">
-                        Priority
-                        <span class="info-tooltip info-tooltip-align-left">
-                            <span class="info-tooltip-icon">?</span>
-                            <span class="info-tooltip-text">Evaluation order. Lower numbers are checked first (e.g. 10 is checked before 100). The first matching rule wins.</span>
-                        </span>
-                    </label>
-                    <input type="number" id="rulePriority" class="input-field w-full px-3 py-2 rounded" value="100">
-                    <p class="text-xs text-gray-400 mt-1">Lower = higher priority</p>
-                </div>
-                <div>
-                    <label class="label-with-tooltip block text-sm font-medium mb-1">
-                        Action *
-                        <span class="info-tooltip info-tooltip-align-right">
-                            <span class="info-tooltip-icon">?</span>
-                            <span class="info-tooltip-text"><strong>Manual:</strong> Store alert but do nothing.<br><strong>Auto-analyze:</strong> Trigger AI analysis immediately.<br><strong>Ignore:</strong> Discard alert completely.</span>
-                        </span>
-                    </label>
-                    <select id="ruleAction" class="input-field w-full px-3 py-2 rounded">
-                        <option value="manual">Manual (store only)</option>
-                        <option value="auto_analyze">Auto-analyze</option>
-                        <option value="ignore">Ignore</option>
-                    </select>
-                </div>
-            </div>
-            
-            <div class="border-t border-gray-700 pt-4">
-                <p class="text-sm font-medium mb-2">Match Patterns (use * for wildcard)</p>
-                
+            <div class="flex-1 overflow-y-auto p-6 pt-4 space-y-4 custom-scrollbar">
+
                 <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="label-with-tooltip block text-sm text-gray-400 mb-1">
-                            Alert Name
-                            <span class="info-tooltip info-tooltip-align-left">
-                                <span class="info-tooltip-icon">?</span>
-                                <span class="info-tooltip-text">Regex pattern to match alert name. Use * for any name, or e.g. "CPU.*" to match all CPU alerts.</span>
-                            </span>
-                        </label>
-                        <input type="text" id="ruleAlertPattern" class="input-field w-full px-3 py-2 rounded" value="*">
-            <div class="border-t border-gray-700 pt-4">
-                <div class="flex items-center justify-between mb-2">
-                    <p class="text-sm font-medium">Match Condition</p>
-                    <div class="flex bg-gray-700 p-1 rounded">
-                        <button type="button" onclick="setMode('basic')" id="btn-basic" class="text-xs px-3 py-1 rounded bg-blue-600 text-white">Basic</button>
-                        <button type="button" onclick="setMode('advanced')" id="btn-advanced" class="text-xs px-3 py-1 rounded text-gray-300 hover:text-white">Advanced (JSON)</button>
+                    <div class="col-span-2">
+                        <label class="block text-sm font-medium mb-1">Rule Name</label>
+                        <input type="text" id="ruleName" class="input-field w-full px-3 py-2 rounded" required>
+                    </div>
+                    <div class="col-span-2">
+                        <label class="block text-sm font-medium mb-1">Description</label>
+                        <textarea id="ruleDescription" class="input-field w-full px-3 py-2 rounded" rows="2"></textarea>
                     </div>
                 </div>
 
-                <!-- Basic Mode -->
-                <div id="mode-basic" class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="label-with-tooltip block text-sm text-gray-400 mb-1">
-                            Alert Name
-                        </label>
-                        <input type="text" id="ruleAlertPattern" class="input-field w-full px-3 py-2 rounded" value="*">
+                <div class="border-t border-gray-700 pt-4">
+                    <div class="flex items-center justify-between mb-4">
+                        <h4 class="font-medium text-blue-400">Match Conditions</h4>
+                        <div class="flex bg-gray-800 rounded p-1 text-xs">
+                            <button type="button" id="btn-basic" onclick="setMode('basic')"
+                                class="px-3 py-1 rounded bg-blue-600 text-white transition-colors">Basic</button>
+                            <button type="button" id="btn-advanced" onclick="setMode('advanced')"
+                                class="px-3 py-1 rounded text-gray-300 hover:text-white transition-colors">Advanced</button>
+                        </div>
                     </div>
-                    <div>
-                        <label class="label-with-tooltip block text-sm text-gray-400 mb-1">
-                            Severity
-                        </label>
-                        <input type="text" id="ruleSeverityPattern" class="input-field w-full px-3 py-2 rounded" value="*">
+
+                    <!-- Basic Mode -->
+                    <div id="mode-basic" class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Alert Name Pattern</label>
+                            <input type="text" id="ruleAlertPattern" class="input-field w-full px-3 py-2 rounded"
+                                value="*" placeholder="e.g. CPU*">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Severity Pattern</label>
+                            <input type="text" id="ruleSeverityPattern" class="input-field w-full px-3 py-2 rounded"
+                                value="*" placeholder="e.g. critical">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Instance Pattern</label>
+                            <input type="text" id="ruleInstancePattern" class="input-field w-full px-3 py-2 rounded"
+                                value="*" placeholder="e.g. prod-*">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Job Pattern</label>
+                            <input type="text" id="ruleJobPattern" class="input-field w-full px-3 py-2 rounded"
+                                value="*" placeholder="e.g. node-exporter">
+                        </div>
                     </div>
-                    <div>
-                        <label class="label-with-tooltip block text-sm text-gray-400 mb-1">
-                            Instance
-                        </label>
-                        <input type="text" id="ruleInstancePattern" class="input-field w-full px-3 py-2 rounded" value="*">
-                    </div>
-                    <div>
-                        <label class="label-with-tooltip block text-sm text-gray-400 mb-1">
-                            Job
-                        </label>
-                        <input type="text" id="ruleJobPattern" class="input-field w-full px-3 py-2 rounded" value="*">
+
+                    <!-- Advanced Mode -->
+                    <div id="mode-advanced" class="hidden">
+                        <label class="block text-sm font-medium mb-1">JSON Logic Condition</label>
+                        <textarea id="ruleConditionJson" class="input-field w-full px-3 py-2 rounded font-mono text-xs"
+                            rows="6"
+                            placeholder='{"and": [{"==": [{"var": "severity"}, "critical"]}, {">": [{"var": "value"}, 90]}]}'></textarea>
+                        <p class="text-xs text-gray-500 mt-1">Use JsonLogic format for complex conditions.</p>
                     </div>
                 </div>
 
-                <!-- Advanced Mode -->
-                <div id="mode-advanced" class="hidden">
-                     <label class="label-with-tooltip block text-sm text-gray-400 mb-1">
-                        JSON Logic Condition
+                <div class="border-t border-gray-700 pt-4 grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Priority</label>
+                        <input type="number" id="rulePriority" class="input-field w-full px-3 py-2 rounded" value="100">
+                        <p class="text-xs text-gray-500 mt-1">Lower number = higher priority</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Action</label>
+                        <select id="ruleAction" class="input-field w-full px-3 py-2 rounded">
+                            <option value="auto_analyze">Auto Analyze ( remediation )</option>
+                            <option value="ignore">Ignore / Suppress</option>
+                            <option value="notify">Notify Only</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="pt-2">
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                        <input type="checkbox" id="ruleEnabled"
+                            class="form-checkbox text-blue-500 rounded bg-gray-700 border-gray-600" checked>
+                        <span class="text-sm">Rule Enabled</span>
                     </label>
-                    <textarea id="ruleConditionJson" class="input-field w-full px-3 py-2 rounded font-mono text-sm h-32" placeholder='{"==": [{"var": "severity"}, "critical"]}'></textarea>
-                     <p class="text-xs text-gray-500 mt-1">See <a href="https://jsonlogic.com/" target="_blank" class="text-blue-400 hover:underline">jsonlogic.com</a> for syntax.</p>
                 </div>
             </div>
+
+            <div
+                class="flex justify-end space-x-2 p-6 border-t border-gray-700 flex-shrink-0 bg-gray-900 bg-opacity-95">
                 <button type="button" onclick="closeModal()" class="btn-secondary px-4 py-2 rounded">Cancel</button>
                 <button type="submit" class="btn-primary px-4 py-2 rounded">Save Rule</button>
             </div>
         </form>
     </div>
 </div>
+
+
 {% endblock %}
 
 {% block scripts %}
@@ -237,76 +221,100 @@
             basicBtn.classList.add('text-gray-300');
         }
     }
-    
+
     async function loadRules() {
         try {
             const response = await apiCall('/api/rules');
-            if (!response) return;
-            
+            if (!response) {
+                rules = [];
+                renderRulesTable();
+                return;
+            }
+
+            if (!response.ok) {
+                throw new Error(`Failed to fetch rules: ${response.status}`);
+            }
+
             rules = await response.json();
             renderRulesTable();
         } catch (error) {
+            console.error('Failed to load rules:', error);
+            rules = [];
+            renderRulesTable();
             showToast('Failed to load rules', 'error');
         }
     }
-    
+
     function renderRulesTable() {
         const tbody = document.getElementById('rulesTableBody');
         tbody.innerHTML = '';
-        
+
+        if (!rules || rules.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="px-6 py-12 text-center text-gray-400">
+                        <i class="fas fa-list-check text-4xl mb-3"></i>
+                        <p>No rules configured</p>
+                        <p class="text-sm mt-2">Create a rule to automatically trigger runbooks based on alerts</p>
+                    </td>
+                </tr>`;
+            return;
+        }
+
         rules.forEach(rule => {
             const tr = document.createElement('tr');
             tr.className = 'border-b border-gray-700 hover:bg-gray-800 transition-colors';
-            
+
             // Format match patterns for display
             let matchDisplay = '';
-                if (rule.condition_json) {
-                    matchDisplay = `<span class="px-2 py-1 rounded bg-purple-900 text-purple-200 text-xs">JSON Logic</span>`;
-                } else {
-                    const parts = [];
-                    if (rule.alert_name_pattern !== '*') parts.push(`Alert: ${rule.alert_name_pattern}`);
-                    if (rule.severity_pattern !== '*') parts.push(`Sev: ${rule.severity_pattern}`);
-                    if (rule.instance_pattern !== '*') parts.push(`Inst: ${rule.instance_pattern}`);
-                    if (rule.job_pattern !== '*') parts.push(`Job: ${rule.job_pattern}`);
-                    matchDisplay = parts.length > 0 ? parts.join(', ') : '<span class="text-gray-500">Match all</span>';
-                }
+            if (rule.condition_json) {
+                matchDisplay = `<span class="px-2 py-1 rounded bg-purple-900 text-purple-200 text-xs">JSON
+                        Logic</span>`;
+            } else {
+                const parts = [];
+                if (rule.alert_name_pattern !== '*') parts.push(`Alert: ${rule.alert_name_pattern}`);
+                if (rule.severity_pattern !== '*') parts.push(`Sev: ${rule.severity_pattern}`);
+                if (rule.instance_pattern !== '*') parts.push(`Inst: ${rule.instance_pattern}`);
+                if (rule.job_pattern !== '*') parts.push(`Job: ${rule.job_pattern}`);
+                matchDisplay = parts.length > 0 ? parts.join(', ') : '<span class="text-gray-500">Match all</span>';
+            }
 
-            
+
             tr.innerHTML = `
-                <td class="px-6 py-4">
-                    <div class="font-medium text-white">${rule.name}</div>
-                    <div class="text-sm text-gray-400">${rule.description || '-'}</div>
-                </td>
-                <td class="px-6 py-4">
-                    <span class="px-2 py-1 rounded bg-gray-700 text-sm">${rule.priority}</span>
-                </td>
-                <td class="px-6 py-4 text-sm text-gray-300">
-                    ${matchDisplay}
-                </td>
-                <td class="px-6 py-4">
-                    <span class="px-2 py-1 rounded text-xs font-semibold
-                        ${rule.action === 'auto_analyze' ? 'bg-green-900 text-green-200' : 
-                          rule.action === 'ignore' ? 'bg-red-900 text-red-200' : 'bg-gray-600 text-gray-200'}">
-                        ${rule.action}
-                    </span>
-                </td>
-                <td class="px-6 py-4">
-                    <button onclick="toggleRule('${rule.id}')" 
-                        class="text-xl ${rule.enabled ? 'text-green-500' : 'text-gray-500'} focus:outline-none">
-                        <i class="fas ${rule.enabled ? 'fa-toggle-on' : 'fa-toggle-off'}"></i>
-                    </button>
-                </td>
-                <td class="px-6 py-4 text-right">
-                    <button onclick="openModal('${rule.id}')" class="text-blue-400 hover:text-blue-300 mr-3">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    ${currentUserRole === 'admin' ? `
-                    <button onclick="deleteRule('${rule.id}')" class="text-red-400 hover:text-red-300">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                    ` : ''}
-                </td>
-            `;
+                    <td class="px-6 py-4">
+                        <div class="font-medium text-white">${rule.name}</div>
+                        <div class="text-sm text-gray-400">${rule.description || '-'}</div>
+                    </td>
+                    <td class="px-6 py-4">
+                        <span class="px-2 py-1 rounded bg-gray-700 text-sm">${rule.priority}</span>
+                    </td>
+                    <td class="px-6 py-4 text-sm text-gray-300">
+                        ${matchDisplay}
+                    </td>
+                    <td class="px-6 py-4">
+                        <span class="px-2 py-1 rounded text-xs font-semibold
+                        ${rule.action === 'auto_analyze' ? 'bg-green-900 text-green-200' :
+                    rule.action === 'ignore' ? 'bg-red-900 text-red-200' : 'bg-gray-600 text-gray-200'}">
+                            ${rule.action}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4">
+                        <button onclick="toggleRule('${rule.id}')"
+                            class="text-xl ${rule.enabled ? 'text-green-500' : 'text-gray-500'} focus:outline-none">
+                            <i class="fas ${rule.enabled ? 'fa-toggle-on' : 'fa-toggle-off'}"></i>
+                        </button>
+                    </td>
+                    <td class="px-6 py-4 text-right">
+                        <button onclick="openModal('${rule.id}')" class="text-blue-400 hover:text-blue-300 mr-3">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        ${currentUserRole === 'admin' ? `
+                        <button onclick="deleteRule('${rule.id}')" class="text-red-400 hover:text-red-300">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                        ` : ''}
+                    </td>
+                    `;
             tbody.appendChild(tr);
         });
     }
@@ -315,10 +323,10 @@
         const modal = document.getElementById('ruleModal');
         const title = document.getElementById('modalTitle');
         const form = document.getElementById('ruleForm');
-        
+
         modal.classList.remove('hidden');
         modal.classList.add('flex');
-        
+
         if (ruleId) {
             const rule = rules.find(r => r.id === ruleId);
             title.textContent = 'Edit Rule';
@@ -328,12 +336,12 @@
             document.getElementById('rulePriority').value = rule.priority;
             document.getElementById('ruleAction').value = rule.action;
             document.getElementById('ruleEnabled').checked = rule.enabled;
-            
+
             // Check mode
             if (rule.condition_json) {
                 setMode('advanced');
                 document.getElementById('ruleConditionJson').value = JSON.stringify(rule.condition_json, null, 2);
-                
+
                 // Clear basic fields visually
                 document.getElementById('ruleAlertPattern').value = '*';
                 document.getElementById('ruleSeverityPattern').value = '*';
@@ -355,16 +363,16 @@
             setMode('basic');
         }
     }
-    
+
     function closeModal() {
         const modal = document.getElementById('ruleModal');
         modal.classList.add('hidden');
         modal.classList.remove('flex');
     }
-    
+
     document.getElementById('ruleForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-        
+
         const ruleId = document.getElementById('ruleId').value;
         const data = {
             name: document.getElementById('ruleName').value,
@@ -390,36 +398,36 @@
             try {
                 const jsonStr = document.getElementById('ruleConditionJson').value;
                 if (jsonStr && jsonStr.trim() !== '') {
-                   data.condition_json = JSON.parse(jsonStr);
+                    data.condition_json = JSON.parse(jsonStr);
                 } else {
-                   data.condition_json = null;
+                    data.condition_json = null;
                 }
             } catch (e) {
                 showToast('Invalid JSON in condition: ' + e.message, 'error');
                 return;
             }
         }
-        
+
         try {
             const url = ruleId ? `/api/rules/${ruleId}` : '/api/rules';
             const method = ruleId ? 'PUT' : 'POST';
-            
+
             const response = await apiCall(url, {
                 method,
                 body: JSON.stringify(data)
             });
-            
+
             if (!response) return;
-            
+
             if (!response.ok) {
                 const error = await response.json();
                 throw new Error(error.detail || 'Failed to save');
             }
-            
+
             showToast(ruleId ? 'Rule updated' : 'Rule created', 'success');
             closeModal();
             loadRules();
-            
+
         } catch (error) {
             showToast(error.message, 'error');
         }
@@ -439,7 +447,7 @@
 
     async function deleteRule(ruleId) {
         if (!confirm('Are you sure you want to delete this rule?')) return;
-        
+
         try {
             const response = await apiCall(`/api/rules/${ruleId}`, { method: 'DELETE' });
             if (response && response.ok) {
@@ -450,7 +458,7 @@
             showToast('Failed to delete rule', 'error');
         }
     }
-    
+
     async function testRules() {
         const data = {
             alert_name: document.getElementById('testAlertName').value,
@@ -458,31 +466,30 @@
             instance: document.getElementById('testInstance').value,
             job: document.getElementById('testJob').value
         };
-        
+
         try {
             const response = await apiCall('/api/rules/test', {
                 method: 'POST',
                 body: JSON.stringify(data)
             });
-            
+
             if (!response) return;
-            
+
             const result = await response.json();
             const resultDiv = document.getElementById('testResult');
             resultDiv.classList.remove('hidden');
             resultDiv.innerHTML = `
-                <div class="p-4 rounded-lg border ${
-                    result.matched_rule ? 'bg-green-900 border-green-700 text-green-100' : 'bg-gray-700 border-gray-600 text-gray-300'
+                    <div class="p-4 rounded-lg border ${result.matched_rule ? 'bg-green-900 border-green-700 text-green-100' : 'bg-gray-700 border-gray-600 text-gray-300'
                 }">
-                    <div class="font-medium">${result.message}</div>
-                    ${result.matched_rule ? `
+                        <div class="font-medium">${result.message}</div>
+                        ${result.matched_rule ? `
                         <div class="text-sm opacity-75 mt-2">
                             Matched Rule: <strong>${result.matched_rule.name}</strong>
-                             (Priority: ${result.matched_rule.priority})
+                            (Priority: ${result.matched_rule.priority})
                         </div>
-                    ` : ''}
-                </div>
-            `;
+                        ` : ''}
+                    </div>
+                    `;
         } catch (error) {
             showToast('Test failed', 'error');
         }
@@ -492,11 +499,11 @@
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') closeModal();
     });
-    
+
     document.getElementById('ruleModal').addEventListener('click', (e) => {
         if (e.target === e.currentTarget) closeModal();
     });
-    
+
     // Initial load
     loadRules();
 </script>

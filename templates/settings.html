@@ -770,152 +770,103 @@
 
 <!-- Provider Modal -->
 <div id="providerModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-    <div class="card p-6 w-3/4 max-w-5xl m-4 max-h-[90vh] flex flex-col">
-        <div class="flex items-center justify-between mb-4 flex-shrink-0">
+    <div class="card w-3/4 max-w-5xl m-4 max-h-[90vh] flex flex-col">
+        <div class="flex items-center justify-between p-6 pb-0 flex-shrink-0">
             <h3 id="providerModalTitle" class="text-lg font-semibold">Add LLM Provider</h3>
             <button onclick="closeProviderModal()" class="text-gray-400 hover:text-white">
                 <i class="fas fa-times"></i>
             </button>
         </div>
 
-        <form id="providerForm" class="space-y-4 overflow-y-auto pr-2 custom-scrollbar">
+        <form id="providerForm" class="flex-1 min-h-0 flex flex-col">
             <input type="hidden" id="providerId">
-
-            <div>
-                <label class="label-with-tooltip block text-sm font-medium mb-1">
-                    Display Name *
-                    <span class="info-tooltip info-tooltip-align-left">
-                        <span class="info-tooltip-icon">?</span>
-                        <span class="info-tooltip-text">A friendly name to identify this provider in the UI (e.g.
-                            "Claude Sonnet Production").</span>
-                    </span>
-                </label>
-                <input type="text" id="providerName" class="input-field w-full px-3 py-2 rounded" required
-                    placeholder="e.g., Claude Sonnet">
-            </div>
-
-            <div class="grid grid-cols-2 gap-4">
-                <div>
-                    <label class="label-with-tooltip block text-sm font-medium mb-1">
-                        Provider Type *
-                        <span class="info-tooltip info-tooltip-align-left">
-                            <span class="info-tooltip-icon">?</span>
-                            <span class="info-tooltip-text">The backend service to use. Choose "Ollama" for local models
-                                or others for cloud APIs.</span>
-                        </span>
-                    </label>
-                    <select id="providerType" class="input-field w-full px-3 py-2 rounded"
-                        onchange="updateModelSuggestions()">
-                        <option value="anthropic">Anthropic (Claude)</option>
-                        <option value="openai">OpenAI (GPT)</option>
-                        <option value="google">Google (Gemini)</option>
-                        <option value="ollama">Ollama (Local)</option>
-                        <option value="azure">Azure OpenAI</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="label-with-tooltip block text-sm font-medium mb-1">
-                        Model ID *
-                        <span class="info-tooltip info-tooltip-align-right">
-                            <span class="info-tooltip-icon">?</span>
-                            <span class="info-tooltip-text">The specific model identifier string (e.g. "gpt-4",
-                                "claude-3-opus", "llama2").</span>
-                        </span>
-                    </label>
-                    <input type="text" id="providerModel" class="input-field w-full px-3 py-2 rounded" required
-                        placeholder="e.g., claude-sonnet-4-20250514">
-                </div>
-            </div>
-
-            <div>
-                <div class="flex items-center justify-between">
-                    <label class="label-with-tooltip block text-sm font-medium mb-1">
-                        API Key
-                        <span class="info-tooltip info-tooltip-align-left">
-                            <span class="info-tooltip-icon">?</span>
-                            <span class="info-tooltip-text">The secret key for authentication. Leave blank if you
-                                configured it via environment variables.</span>
-                        </span>
-                    </label>
-                    <button type="button" onclick="toggleSecretVisibility('providerApiKey', this)"
-                        class="text-xs text-blue-400 hover:text-blue-300">Show</button>
-                </div>
-                <input type="password" id="providerApiKey" class="input-field w-full px-3 py-2 rounded"
-                    placeholder="Leave empty to use environment variable" autocomplete="off">
-                <p class="text-xs text-gray-400 mt-1" id="providerSecretMeta">If empty, will use API key from
-                    environment variables</p>
-                <div class="grid md:grid-cols-2 gap-3 mt-3">
+            <div class="flex-1 overflow-y-auto p-6 pt-4 space-y-4 custom-scrollbar">
+                <div class="grid md:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium mb-1">Secret storage</label>
-                        <select id="providerSecretStorage" class="input-field w-full px-3 py-2 rounded">
-                            <option value="vault">Vault / KMS (recommended)</option>
-                            <option value="database">Encrypted database</option>
+                        <label class="block text-sm font-medium mb-1">Provider Name *</label>
+                        <input type="text" id="providerName" class="input-field w-full px-3 py-2 rounded" required
+                            placeholder="e.g. Primary OpenAI">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Provider Type</label>
+                        <select id="providerType" class="input-field w-full px-3 py-2 rounded"
+                            onchange="updateModelSuggestions()">
+                            <option value="anthropic">Anthropic</option>
+                            <option value="openai">OpenAI</option>
+                            <option value="google">Google Gemini</option>
+                            <option value="ollama">Ollama (Local)</option>
+                            <option value="azure">Azure OpenAI</option>
                         </select>
                     </div>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium mb-1">Last rotated</label>
-                        <div id="providerLastRotated" class="text-xs text-gray-300">Not set</div>
+                        <label class="block text-sm font-medium mb-1">Model ID *</label>
+                        <input type="text" id="providerModel" class="input-field w-full px-3 py-2 rounded" required
+                            placeholder="gpt-4">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Base URL <span
+                                class="text-gray-400 text-xs">(Optional)</span></label>
+                        <input type="text" id="providerBaseUrl" class="input-field w-full px-3 py-2 rounded"
+                            placeholder="https://api.openai.com/v1">
                     </div>
                 </div>
-                <div class="mt-2 p-2 rounded bg-gray-800 text-xs text-gray-300" id="providerAuditTrail">
-                    <div class="font-semibold text-gray-200 mb-1">Audit trail</div>
-                    <div class="space-y-1" id="providerAuditEntries">
-                        <div class="text-gray-400">No secret changes yet.</div>
+
+                <div>
+                    <label class="block text-sm font-medium mb-1">API Key / Token</label>
+                    <div class="relative">
+                        <input type="password" id="providerApiKey" class="input-field w-full px-3 py-2 rounded pr-10"
+                            placeholder="sk-..." data-has-key="false">
+                        <button type="button" class="absolute right-2 top-2 text-gray-400 hover:text-white"
+                            onclick="toggleSecretVisibility('providerApiKey', this)">Show</button>
+                    </div>
+                    <p id="providerSecretMeta" class="text-xs text-gray-400 mt-1">Key is stored securely in the vault.
+                    </p>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Max Tokens</label>
+                        <input type="number" id="providerMaxTokens" class="input-field w-full px-3 py-2 rounded"
+                            value="2000">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Temperature (0.0 - 1.0)</label>
+                        <input type="number" id="providerTemp" class="input-field w-full px-3 py-2 rounded" step="0.1"
+                            min="0" max="1" value="0.3">
                     </div>
                 </div>
-            </div>
 
-            <div>
-                <label class="label-with-tooltip block text-sm font-medium mb-1">
-                    API Base URL (optional)
-                    <span class="info-tooltip info-tooltip-align-left">
-                        <span class="info-tooltip-icon">?</span>
-                        <span class="info-tooltip-text">Override the default API endpoint. Useful for proxies or
-                            self-hosted instances (like Ollama).</span>
-                    </span>
-                </label>
-                <input type="text" id="providerBaseUrl" class="input-field w-full px-3 py-2 rounded"
-                    placeholder="For self-hosted or custom endpoints">
-            </div>
-
-            <div class="grid grid-cols-2 gap-4">
-                <div>
-                    <label class="label-with-tooltip block text-sm font-medium mb-1">
-                        Temperature
-                        <span class="info-tooltip info-tooltip-align-left">
-                            <span class="info-tooltip-icon">?</span>
-                            <span class="info-tooltip-text">Controls randomness (0.0 to 1.0). Lower values are more
-                                deterministic, higher values are more creative.</span>
-                        </span>
-                    </label>
-                    <input type="number" id="providerTemp" class="input-field w-full px-3 py-2 rounded" value="0.3"
-                        min="0" max="2" step="0.1">
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Secret Storage</label>
+                        <select id="providerSecretStorage" class="input-field w-full px-3 py-2 rounded">
+                            <option value="vault">Encrypted Vault (Default)</option>
+                            <option value="env">Environment Variable</option>
+                        </select>
+                    </div>
+                    <div id="providerAuditEntries" class="text-xs text-gray-500 pt-6"></div>
                 </div>
-                <div>
-                    <label class="label-with-tooltip block text-sm font-medium mb-1">
-                        Max Tokens
-                        <span class="info-tooltip info-tooltip-align-right">
-                            <span class="info-tooltip-icon">?</span>
-                            <span class="info-tooltip-text">Maximum number of tokens to generate in the response.</span>
-                        </span>
+
+                <div class="flex items-center space-x-6 pt-2">
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                        <input type="checkbox" id="providerEnabled"
+                            class="form-checkbox text-blue-500 rounded bg-gray-700 border-gray-600">
+                        <span class="text-sm">Enabled</span>
                     </label>
-                    <input type="number" id="providerMaxTokens" class="input-field w-full px-3 py-2 rounded"
-                        value="2000">
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                        <input type="checkbox" id="providerDefault"
+                            class="form-checkbox text-blue-500 rounded bg-gray-700 border-gray-600">
+                        <span class="text-sm">Set as Default</span>
+                    </label>
+                    <div class="text-xs text-gray-400 ml-auto" id="providerLastRotated"></div>
                 </div>
             </div>
 
-            <div class="flex items-center space-x-4">
-                <label class="flex items-center">
-                    <input type="checkbox" id="providerEnabled" class="mr-2" checked>
-                    <span class="text-sm">Enabled</span>
-                </label>
-                <label class="flex items-center">
-                    <input type="checkbox" id="providerDefault" class="mr-2">
-                    <span class="text-sm">Set as default</span>
-                </label>
-            </div>
-
-            <div class="flex justify-end space-x-2 pt-4 border-t border-gray-700">
+            <div
+                class="flex justify-end space-x-2 p-6 border-t border-gray-700 flex-shrink-0 bg-gray-900 bg-opacity-95">
                 <button type="button" onclick="closeProviderModal()"
                     class="btn-secondary px-4 py-2 rounded">Cancel</button>
                 <button type="submit" class="btn-primary px-4 py-2 rounded">Save Provider</button>
@@ -924,98 +875,211 @@
     </div>
 </div>
 
+<!-- Server Modal -->
+<div id="serverModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="card w-3/4 max-w-5xl m-4 max-h-[90vh] flex flex-col">
+        <div class="flex items-center justify-between p-6 pb-0 flex-shrink-0">
+            <h3 class="text-lg font-semibold">Add Server Credential</h3>
+            <button onclick="closeServerModal()" class="text-gray-400 hover:text-white">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <form id="serverForm" class="flex-1 min-h-0 flex flex-col">
+            <input type="hidden" id="serverId">
+            <div class="flex-1 overflow-y-auto p-6 pt-4 space-y-4 custom-scrollbar">
+                <!-- Basic Info -->
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Friendly Name *</label>
+                        <input type="text" id="serverName" class="input-field w-full px-3 py-2 rounded" required
+                            placeholder="Prod-DB-01">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Environment</label>
+                        <select id="serverEnv" class="input-field w-full px-3 py-2 rounded">
+                            <option value="production">Production</option>
+                            <option value="staging">Staging</option>
+                            <option value="development">Development</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Connection Info -->
+                <div class="grid md:grid-cols-12 gap-4">
+                    <div class="md:col-span-4">
+                        <label class="block text-sm font-medium mb-1">Hostname / IP *</label>
+                        <input type="text" id="serverHost" class="input-field w-full px-3 py-2 rounded" required
+                            placeholder="192.168.1.10">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium mb-1">Port</label>
+                        <input type="number" id="serverPort" class="input-field w-full px-3 py-2 rounded" value="22">
+                    </div>
+                    <div class="md:col-span-3">
+                        <label class="block text-sm font-medium mb-1">Protocol</label>
+                        <select id="serverProtocol" class="input-field w-full px-3 py-2 rounded"
+                            onchange="toggleProtocolFields()">
+                            <option value="ssh">SSH</option>
+                            <option value="winrm">WinRM</option>
+                        </select>
+                    </div>
+                    <div class="md:col-span-3">
+                        <label class="block text-sm font-medium mb-1">OS Type</label>
+                        <select id="serverOsType" class="input-field w-full px-3 py-2 rounded">
+                            <option value="linux">Linux</option>
+                            <option value="windows">Windows</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Auth Config -->
+                <div class="p-4 rounded border border-gray-700 bg-gray-800 bg-opacity-30">
+                    <h4 class="text-sm font-semibold mb-3 text-blue-400">Authentication</h4>
+                    <div class="grid md:grid-cols-2 gap-4 mb-3">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Username *</label>
+                            <input type="text" id="serverUser" class="input-field w-full px-3 py-2 rounded" required
+                                placeholder="root">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Credential Source</label>
+                            <select id="credentialSource" class="input-field w-full px-3 py-2 rounded"
+                                onchange="toggleCredentialSource()">
+                                <option value="inline">Inline (This Server Only)</option>
+                                <option value="shared_profile">Shared Credential Profile</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Inline Auth -->
+                    <div id="inlineAuthFields">
+                        <div class="mb-3">
+                            <label class="block text-sm font-medium mb-1">Auth Type</label>
+                            <select id="serverAuthType" class="input-field w-full px-3 py-2 rounded"
+                                onchange="toggleAuthFields()">
+                                <option value="key">SSH Key</option>
+                                <option value="password">Password</option>
+                            </select>
+                        </div>
+                        <div id="authKeyField">
+                            <label class="block text-sm font-medium mb-1">Private Key (PEM format)</label>
+                            <div class="relative">
+                                <textarea id="serverKey"
+                                    class="input-field w-full px-3 py-2 rounded font-mono text-xs h-32"
+                                    placeholder="-----BEGIN OPENSSH PRIVATE KEY-----..."></textarea>
+                                <button type="button"
+                                    class="absolute right-2 top-2 text-xs bg-gray-700 px-2 py-1 rounded hover:bg-gray-600"
+                                    onclick="toggleSecretVisibility('serverKey', this, true)">Show</button>
+                            </div>
+                        </div>
+                        <div id="authPasswordField" class="hidden">
+                            <label class="block text-sm font-medium mb-1">Password</label>
+                            <div class="relative">
+                                <input type="password" id="serverPassword"
+                                    class="input-field w-full px-3 py-2 rounded pr-14">
+                                <button type="button" class="absolute right-2 top-2 text-xs text-gray-400 uppercase"
+                                    onclick="toggleSecretVisibility('serverPassword', this)">Show</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Shared Profile Auth -->
+                    <div id="credentialProfilePicker" class="hidden">
+                        <label class="block text-sm font-medium mb-1">Select Profile</label>
+                        <select id="credentialProfileId" class="input-field w-full px-3 py-2 rounded">
+                            <option value="">Loading profiles...</option>
+                        </select>
+                        <p class="text-xs text-gray-400 mt-1">Uses a stored secret rotated by Vault/CyberArk.</p>
+                    </div>
+                </div>
+
+                <!-- Organization -->
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Server Group</label>
+                        <select id="serverGroupSelect" class="input-field w-full px-3 py-2 rounded">
+                            <option value="">Loading...</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Tags</label>
+                        <input type="text" id="serverTags" class="input-field w-full px-3 py-2 rounded"
+                            placeholder="db, production, aws (comma separated)">
+                    </div>
+                </div>
+
+                <!-- Advanced -->
+                <div id="credentialMetadata" class="hidden">
+                    <label class="block text-sm font-medium mb-1">Credential Metadata (JSON/YAML)</label>
+                    <textarea id="serverCredentialMetadata"
+                        class="input-field w-full px-3 py-2 rounded font-mono text-xs h-20"
+                        placeholder="vault_path: secret/data/foo"></textarea>
+                </div>
+            </div>
+
+            <div
+                class="flex justify-end space-x-2 p-6 border-t border-gray-700 flex-shrink-0 bg-gray-900 bg-opacity-95">
+                <button type="button" class="btn-secondary px-4 py-2 rounded" onclick="testServerFromForm()">Test
+                    Connection</button>
+                <button type="button" onclick="closeServerModal()"
+                    class="btn-secondary px-4 py-2 rounded">Cancel</button>
+                <button type="submit" class="btn-primary px-4 py-2 rounded">Save Server</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- User Modal -->
 <div id="userModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-    <div class="card p-6 w-3/4 max-w-5xl m-4 max-h-[90vh] flex flex-col">
-        <div class="flex items-center justify-between mb-4 flex-shrink-0">
+    <div class="card w-full max-w-lg m-4 max-h-[90vh] flex flex-col">
+        <div class="flex items-center justify-between p-6 pb-0 flex-shrink-0">
             <h3 id="userModalTitle" class="text-lg font-semibold">Add User</h3>
             <button onclick="closeUserModal()" class="text-gray-400 hover:text-white">
                 <i class="fas fa-times"></i>
             </button>
         </div>
 
-        <form id="userForm" class="space-y-4 overflow-y-auto pr-2 custom-scrollbar">
+        <form id="userForm" class="flex-1 min-h-0 flex flex-col">
             <input type="hidden" id="userId">
-
-            <div>
-                <label class="label-with-tooltip block text-sm font-medium mb-1">
-                    Username *
-                    <span class="info-tooltip info-tooltip-align-left">
-                        <span class="info-tooltip-icon">?</span>
-                        <span class="info-tooltip-text">Unique login identifier for the user.</span>
-                    </span>
-                </label>
-                <input type="text" id="userUsername" class="input-field w-full px-3 py-2 rounded" required>
+            <div class="flex-1 overflow-y-auto p-6 pt-4 space-y-4 custom-scrollbar">
+                <div>
+                    <label class="block text-sm font-medium mb-1">Username *</label>
+                    <input type="text" id="userUsername" class="input-field w-full px-3 py-2 rounded" required>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Email</label>
+                    <input type="email" id="userEmail" class="input-field w-full px-3 py-2 rounded">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Full Name</label>
+                    <input type="text" id="userFullName" class="input-field w-full px-3 py-2 rounded">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Role</label>
+                    <select id="userRole" class="input-field w-full px-3 py-2 rounded">
+                        <option value="admin">Admin</option>
+                        <option value="editor">Editor</option>
+                        <option value="viewer">Viewer</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Password</label>
+                    <input type="password" id="userPassword" class="input-field w-full px-3 py-2 rounded">
+                    <p id="userPasswordHelp" class="text-xs text-gray-400 mt-1 hidden">Leave blank to keep current
+                        password.</p>
+                </div>
+                <div class="pt-2">
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                        <input type="checkbox" id="userActive"
+                            class="form-checkbox text-blue-500 rounded bg-gray-700 border-gray-600" checked>
+                        <span class="text-sm">Active Account</span>
+                    </label>
+                </div>
             </div>
 
-            <div>
-                <label class="label-with-tooltip block text-sm font-medium mb-1">
-                    Full Name
-                    <span class="info-tooltip info-tooltip-align-left">
-                        <span class="info-tooltip-icon">?</span>
-                        <span class="info-tooltip-text">Display name shown in the UI.</span>
-                    </span>
-                </label>
-                <input type="text" id="userFullName" class="input-field w-full px-3 py-2 rounded"
-                    placeholder="John Doe">
-            </div>
-
-            <div>
-                <label class="label-with-tooltip block text-sm font-medium mb-1">
-                    Email
-                    <span class="info-tooltip info-tooltip-align-left">
-                        <span class="info-tooltip-icon">?</span>
-                        <span class="info-tooltip-text">Contact email address for notifications.</span>
-                    </span>
-                </label>
-                <input type="email" id="userEmail" class="input-field w-full px-3 py-2 rounded"
-                    placeholder="john@example.com">
-            </div>
-
-            <div>
-                <label class="label-with-tooltip block text-sm font-medium mb-1">
-                    Password <span id="userPasswordReq">*</span>
-                    <span class="info-tooltip info-tooltip-align-left">
-                        <span class="info-tooltip-icon">?</span>
-                        <span class="info-tooltip-text">Login password. Required for new users. Leave blank when editing
-                            to keep existing password.</span>
-                    </span>
-                </label>
-                <input type="password" id="userPassword" class="input-field w-full px-3 py-2 rounded">
-                <p id="userPasswordHelp" class="text-xs text-gray-400 mt-1 hidden">Leave blank to keep current password
-                </p>
-            </div>
-
-            <div>
-                <label class="label-with-tooltip block text-sm font-medium mb-1">
-                    Role
-                    <span class="info-tooltip info-tooltip-align-left">
-                        <span class="info-tooltip-icon">?</span>
-                        <span class="info-tooltip-text"><strong>Owner/Admin:</strong> Full platform
-                            control.<br><strong>Maintainer:</strong> Manage
-                            servers/providers.<br><strong>Operator:</strong> Execute and
-                            read.<br><strong>Viewer/Auditor:</strong> Read-only.</span>
-                    </span>
-                </label>
-                <select id="userRole" class="input-field w-full px-3 py-2 rounded">
-                    <option value="owner">Owner</option>
-                    <option value="admin">Admin</option>
-                    <option value="maintainer">Maintainer</option>
-                    <option value="operator">Operator</option>
-                    <option value="viewer">Viewer</option>
-                    <option value="auditor">Auditor</option>
-                    <option value="user">Legacy User</option>
-                </select>
-            </div>
-
-            <div class="flex items-center">
-                <label class="flex items-center">
-                    <input type="checkbox" id="userActive" class="mr-2" checked>
-                    <span class="text-sm">Active</span>
-                </label>
-            </div>
-
-            <div class="flex justify-end space-x-2 pt-4 border-t border-gray-700">
+            <div
+                class="flex justify-end space-x-2 p-6 border-t border-gray-700 flex-shrink-0 bg-gray-900 bg-opacity-95">
                 <button type="button" onclick="closeUserModal()" class="btn-secondary px-4 py-2 rounded">Cancel</button>
                 <button type="submit" class="btn-primary px-4 py-2 rounded">Save User</button>
             </div>
@@ -1023,336 +1087,89 @@
     </div>
 </div>
 
-<!-- Server Modal -->
-<div id="serverModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-    <div class="card p-6 w-3/4 max-w-5xl m-4 max-h-[90vh] flex flex-col">
-        <div class="flex items-center justify-between mb-4 flex-shrink-0">
-            <h3 class="text-lg font-semibold">Add Server Credential</h3>
-            <button onclick="closeServerModal()" class="text-gray-400 hover:text-white">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-
-        <form id="serverForm" class="space-y-4 overflow-y-auto pr-2 custom-scrollbar">
-            <input type="hidden" id="serverId">
-            <div>
-                <label class="label-with-tooltip block text-sm font-medium mb-1">
-                    Friendly Name *
-                    <span class="info-tooltip info-tooltip-align-left">
-                        <span class="info-tooltip-icon">?</span>
-                        <span class="info-tooltip-text">A descriptive name for this server (e.g. "Production DB", "Web
-                            Server 01").</span>
-                    </span>
-                </label>
-                <input type="text" id="serverName" class="input-field w-full px-3 py-2 rounded" required
-                    placeholder="e.g., Production DB">
-            </div>
-
-            <div class="grid grid-cols-2 gap-4">
-                <div>
-                    <label class="label-with-tooltip block text-sm font-medium mb-1">
-                        Hostname/IP *
-                        <span class="info-tooltip info-tooltip-align-left">
-                            <span class="info-tooltip-icon">?</span>
-                            <span class="info-tooltip-text">The IP address or DNS hostname of the server.</span>
-                        </span>
-                    </label>
-                    <input type="text" id="serverHost" class="input-field w-full px-3 py-2 rounded" required
-                        placeholder="192.168.1.10">
-                </div>
-                <div>
-                    <label class="label-with-tooltip block text-sm font-medium mb-1">
-                        Port
-                        <span class="info-tooltip info-tooltip-align-right">
-                            <span class="info-tooltip-icon">?</span>
-                            <span class="info-tooltip-text">SSH port number (default is 22).</span>
-                        </span>
-                    </label>
-                    <input type="number" id="serverPort" class="input-field w-full px-3 py-2 rounded" value="22">
-                </div>
-            </div>
-
-            <div>
-                <label class="label-with-tooltip block text-sm font-medium mb-1">
-                    Username *
-                    <span class="info-tooltip info-tooltip-align-left">
-                        <span class="info-tooltip-icon">?</span>
-                        <span class="info-tooltip-text">SSH username for connection (e.g. "root", "ubuntu",
-                            "ec2-user").</span>
-                    </span>
-                </label>
-                <input type="text" id="serverUser" class="input-field w-full px-3 py-2 rounded" required
-                    placeholder="root">
-            </div>
-
-            <div class="grid grid-cols-2 gap-4">
-                <div>
-                    <label class="label-with-tooltip block text-sm font-medium mb-1">
-                        Credential Source
-                        <span class="info-tooltip info-tooltip-align-left">
-                            <span class="info-tooltip-icon">?</span>
-                            <span class="info-tooltip-text">Use an inline secret or reference a shared vault/CyberArk
-                                credential profile.</span>
-                        </span>
-                    </label>
-                    <select id="credentialSource" class="input-field w-full px-3 py-2 rounded"
-                        onchange="toggleCredentialSource()">
-                        <option value="inline">Inline secret</option>
-                        <option value="shared_profile">Shared credential profile</option>
-                    </select>
-                </div>
-                <div id="credentialProfilePicker" class="hidden">
-                    <label class="label-with-tooltip block text-sm font-medium mb-1">
-                        Credential Profile
-                        <span class="info-tooltip info-tooltip-align-left">
-                            <span class="info-tooltip-icon">?</span>
-                            <span class="info-tooltip-text">Select a reusable credential stored in Vault, CyberArk, or
-                                inline.</span>
-                        </span>
-                    </label>
-                    <select id="credentialProfileId" class="input-field w-full px-3 py-2 rounded">
-                        <option value="">Select profile</option>
-                    </select>
-                    <p class="text-xs text-gray-400 mt-1">Profiles keep secrets centralized; create below if needed.</p>
-                </div>
-            </div>
-
-            <div>
-                <label class="label-with-tooltip block text-sm font-medium mb-1">
-                    Auth Type
-                    <span class="info-tooltip info-tooltip-align-left">
-                        <span class="info-tooltip-icon">?</span>
-                        <span class="info-tooltip-text">Choose between SSH Private Key (PEM) or Password authentication.
-                            Keys are recommended.</span>
-                    </span>
-                </label>
-                <select id="serverAuthType" class="input-field w-full px-3 py-2 rounded" onchange="toggleAuthFields()">
-                    <option value="key">SSH Key (PEM)</option>
-                    <option value="password">Password</option>
-                </select>
-            </div>
-
-            <div id="authKeyField">
-                <div class="flex items-center justify-between">
-                    <label class="label-with-tooltip block text-sm font-medium mb-1">
-                        Private Key (PEM format)
-                        <span class="info-tooltip info-tooltip-align-left">
-                            <span class="info-tooltip-icon">?</span>
-                            <span class="info-tooltip-text">Paste the full content of your private key, including BEGIN
-                                and END lines.</span>
-                        </span>
-                    </label>
-                    <button type="button" onclick="toggleSecretVisibility('serverKey', this, true)"
-                        class="text-xs text-blue-400 hover:text-blue-300">Show</button>
-                </div>
-                <textarea id="serverKey" data-masked="true" style="filter: blur(5px);"
-                    class="input-field w-full px-3 py-2 rounded h-32 font-mono text-xs"
-                    placeholder="-----BEGIN RSA PRIVATE KEY-----..."></textarea>
-                <p class="text-xs text-gray-400 mt-1">Masked by default. Click Show to review while editing.</p>
-            </div>
-
-            <div id="authPasswordField" class="hidden">
-                <div class="flex items-center justify-between">
-                    <label class="label-with-tooltip block text-sm font-medium mb-1">
-                        Password
-                        <span class="info-tooltip info-tooltip-align-left">
-                            <span class="info-tooltip-icon">?</span>
-                            <span class="info-tooltip-text">SSH password.</span>
-                        </span>
-                    </label>
-                    <button type="button" onclick="toggleSecretVisibility('serverPassword', this)"
-                        class="text-xs text-blue-400 hover:text-blue-300">Show</button>
-                </div>
-                <input type="password" id="serverPassword" class="input-field w-full px-3 py-2 rounded"
-                    autocomplete="off">
-            </div>
-
-            <div id="credentialMetadata" class="hidden">
-                <label class="label-with-tooltip block text-sm font-medium mb-1">
-                    Credential Metadata (Vault path, CyberArk safe, etc.)
-                    <span class="info-tooltip info-tooltip-align-left">
-                        <span class="info-tooltip-icon">?</span>
-                        <span class="info-tooltip-text">YAML/JSON describing external secret identifiers such as Vault
-                            path, CyberArk safe/account, or API token alias.</span>
-                    </span>
-                </label>
-                <textarea id="serverCredentialMetadata"
-                    class="input-field w-full px-3 py-2 rounded h-20 font-mono text-xs" placeholder="vault_path: secret/data/ssh/prod-db
-safe: PLATFORM
-account: db-admin"></textarea>
-            </div>
-
-            <div class="grid grid-cols-2 gap-4">
-                <div>
-                    <label class="label-with-tooltip block text-sm font-medium mb-1">
-                        Protocol *
-                        <span class="info-tooltip info-tooltip-align-left">
-                            <span class="info-tooltip-icon">?</span>
-                            <span class="info-tooltip-text">Choose connection method: SSH for Linux/Windows servers, or
-                                WinRM for Windows. API credentials are now managed separately in API Credential
-                                Profiles.</span>
-                        </span>
-                    </label>
-                    <select id="serverProtocol" class="input-field w-full px-3 py-2 rounded"
-                        onchange="toggleProtocolFields()">
-                        <option value="ssh">SSH (Linux/Windows)</option>
-                        <option value="winrm">WinRM (Windows)</option>
-                    </select>
-                </div>
-                <div id="osTypeField">
-                    <label class="label-with-tooltip block text-sm font-medium mb-1">OS Type</label>
-                    <select id="serverOsType" class="input-field w-full px-3 py-2 rounded">
-                        <option value="linux">Linux</option>
-                        <option value="windows">Windows</option>
-                    </select>
-                </div>
-            </div>
-
-            <div>
-                <label class="label-with-tooltip block text-sm font-medium mb-1">
-                    Tags (comma separated)
-                    <span class="info-tooltip info-tooltip-align-left">
-                        <span class="info-tooltip-icon">?</span>
-                        <span class="info-tooltip-text">Add labels like production, linux, db to filter and bulk manage
-                            servers.</span>
-                    </span>
-                </label>
-                <input type="text" id="serverTags" class="input-field w-full px-3 py-2 rounded"
-                    placeholder="production,linux,db">
-            </div>
-
-            <div>
-                <label class="label-with-tooltip block text-sm font-medium mb-1">
-                    Environment
-                    <span class="info-tooltip info-tooltip-align-left">
-                        <span class="info-tooltip-icon">?</span>
-                        <span class="info-tooltip-text">Tag this server to an environment for filtering and rule
-                            matching.</span>
-                    </span>
-                </label>
-                <select id="serverEnv" class="input-field w-full px-3 py-2 rounded">
-                    <option value="production">Production</option>
-                    <option value="staging">Staging</option>
-                    <option value="development">Development</option>
-                </select>
-            </div>
-
-            <div>
-                <label class="label-with-tooltip block text-sm font-medium mb-1">
-                    Server Group
-                    <span class="info-tooltip info-tooltip-align-left">
-                        <span class="info-tooltip-icon">?</span>
-                        <span class="info-tooltip-text">Assign the host to a group or nested group to control access and
-                            organization.</span>
-                    </span>
-                </label>
-                <select id="serverGroupSelect" class="input-field w-full px-3 py-2 rounded">
-                    <option value="">No group</option>
-                </select>
-            </div>
-
-            <div
-                class="border border-gray-700 rounded p-3 bg-gray-800/40 flex items-center justify-between text-sm text-gray-300">
-                <div>
-                    <p class="font-semibold">Need a reusable secret?</p>
-                    <p class="text-gray-400">Open the Credential Profiles workspace to add Vault, CyberArk, or shared
-                        keys without leaving this form.</p>
-                </div>
-                <button type="button" class="btn-secondary px-3 py-2 rounded"
-                    onclick="setActiveSection('section-credentials'); closeServerModal();">
-                    Manage credentials
-                </button>
-            </div>
-
-            <div class="flex justify-end space-x-2 pt-4 border-t border-gray-700">
-                <button type="button" onclick="closeServerModal()"
-                    class="btn-secondary px-4 py-2 rounded">Cancel</button>
-                <button type="button" onclick="testServerFromForm()" class="btn-secondary px-4 py-2 rounded"><i
-                        class="fas fa-heartbeat mr-1"></i>Test Connection</button>
-                <button type="submit" class="btn-primary px-4 py-2 rounded">Save Server</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<!-- Credential Profile Modal -->
+<!-- Credential Modal -->
 <div id="credentialModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-    <div class="card p-6 w-3/4 max-w-5xl m-4 max-h-[90vh] flex flex-col">
-        <div class="flex items-center justify-between mb-4 flex-shrink-0">
+    <div class="card w-3/4 max-w-5xl m-4 max-h-[90vh] flex flex-col">
+        <div class="flex items-center justify-between p-6 pb-0 flex-shrink-0">
             <h3 id="credentialModalTitle" class="text-lg font-semibold">New Credential Profile</h3>
             <button onclick="closeCredentialModal()" class="text-gray-400 hover:text-white">
                 <i class="fas fa-times"></i>
             </button>
         </div>
-        <form id="credentialForm" class="space-y-4 overflow-y-auto pr-2 custom-scrollbar">
+        <form id="credentialForm" class="flex-1 min-h-0 flex flex-col">
             <input type="hidden" id="credentialProfileEditingId">
-            <div class="grid md:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-sm font-medium mb-1">Profile name *</label>
-                    <input type="text" id="credentialProfileName" class="input-field w-full px-3 py-2 rounded" required
-                        placeholder="Shared automation key">
+            <div class="flex-1 overflow-y-auto p-6 pt-4 space-y-4 custom-scrollbar">
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Profile name *</label>
+                        <input type="text" id="credentialProfileName" class="input-field w-full px-3 py-2 rounded"
+                            required placeholder="Shared automation key">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Scope</label>
+                        <select id="credentialProfileGroup" class="input-field w-full px-3 py-2 rounded">
+                            <option value="">All groups</option>
+                        </select>
+                        <p class="text-xs text-gray-400 mt-1">Tie a credential to a server group or leave global.
+                        </p>
+                    </div>
                 </div>
+
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Credential type</label>
+                        <select id="credentialProfileType" class="input-field w-full px-3 py-2 rounded">
+                            <option value="key">SSH Key</option>
+                            <option value="password">Password</option>
+                            <option value="vault">Vault</option>
+                            <option value="cyberark">CyberArk</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Backend</label>
+                        <select id="credentialProfileBackend" class="input-field w-full px-3 py-2 rounded">
+                            <option value="inline">Inline (encrypted)</option>
+                            <option value="vault">HashiCorp Vault</option>
+                            <option value="cyberark">CyberArk</option>
+                        </select>
+                    </div>
+                </div>
+
                 <div>
-                    <label class="block text-sm font-medium mb-1">Scope</label>
-                    <select id="credentialProfileGroup" class="input-field w-full px-3 py-2 rounded">
-                        <option value="">All groups</option>
-                    </select>
-                    <p class="text-xs text-gray-400 mt-1">Tie a credential to a server group or leave global.</p>
+                    <label class="block text-sm font-medium mb-1">Login username <span
+                            class="text-gray-400 text-xs">(required for password)</span></label>
+                    <input type="text" id="credentialProfileUsername" class="input-field w-full px-3 py-2 rounded"
+                        placeholder="svc_automation">
+                    <p class="text-xs text-gray-400 mt-1">Store the account name alongside the secret for reuse
+                        across
+                        servers and groups.</p>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium mb-1">Secret / reference</label>
+                    <textarea id="credentialProfileSecret"
+                        class="input-field w-full px-3 py-2 rounded h-20 font-mono text-xs"
+                        placeholder="Inline secret or vault path"></textarea>
+                    <p class="text-xs text-gray-400 mt-1">Store inline for single-use secrets or provide a
+                        vault/CyberArk reference path.</p>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium mb-1">Metadata (YAML/JSON)</label>
+                    <textarea id="credentialProfileMetadata"
+                        class="input-field w-full px-3 py-2 rounded h-24 font-mono text-xs"
+                        placeholder="vault_path: secret/data/ssh/prod"></textarea>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium mb-1">Description</label>
+                    <textarea id="credentialProfileDescription" class="input-field w-full px-3 py-2 rounded h-16"
+                        placeholder="Usage notes, rotation owner, etc."></textarea>
                 </div>
             </div>
 
-            <div class="grid md:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-sm font-medium mb-1">Credential type</label>
-                    <select id="credentialProfileType" class="input-field w-full px-3 py-2 rounded">
-                        <option value="key">SSH Key</option>
-                        <option value="password">Password</option>
-                        <option value="vault">Vault</option>
-                        <option value="cyberark">CyberArk</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium mb-1">Backend</label>
-                    <select id="credentialProfileBackend" class="input-field w-full px-3 py-2 rounded">
-                        <option value="inline">Inline (encrypted)</option>
-                        <option value="vault">HashiCorp Vault</option>
-                        <option value="cyberark">CyberArk</option>
-                    </select>
-                </div>
-            </div>
-
-            <div>
-                <label class="block text-sm font-medium mb-1">Login username <span
-                        class="text-gray-400 text-xs">(required for password)</span></label>
-                <input type="text" id="credentialProfileUsername" class="input-field w-full px-3 py-2 rounded"
-                    placeholder="svc_automation">
-                <p class="text-xs text-gray-400 mt-1">Store the account name alongside the secret for reuse across
-                    servers and groups.</p>
-            </div>
-
-            <div>
-                <label class="block text-sm font-medium mb-1">Secret / reference</label>
-                <textarea id="credentialProfileSecret"
-                    class="input-field w-full px-3 py-2 rounded h-20 font-mono text-xs"
-                    placeholder="Inline secret or vault path"></textarea>
-                <p class="text-xs text-gray-400 mt-1">Store inline for single-use secrets or provide a vault/CyberArk
-                    reference path.</p>
-            </div>
-
-            <div>
-                <label class="block text-sm font-medium mb-1">Metadata (YAML/JSON)</label>
-                <textarea id="credentialProfileMetadata"
-                    class="input-field w-full px-3 py-2 rounded h-24 font-mono text-xs"
-                    placeholder="vault_path: secret/data/ssh/prod"></textarea>
-            </div>
-
-            <div>
-                <label class="block text-sm font-medium mb-1">Description</label>
-                <textarea id="credentialProfileDescription" class="input-field w-full px-3 py-2 rounded h-16"
-                    placeholder="Usage notes, rotation owner, etc."></textarea>
-            </div>
-
-            <div class="flex justify-end space-x-2 pt-4 border-t border-gray-700">
+            <div
+                class="flex justify-end space-x-2 p-6 border-t border-gray-700 flex-shrink-0 bg-gray-900 bg-opacity-95">
                 <button type="button" onclick="closeCredentialModal()"
                     class="btn-secondary px-4 py-2 rounded">Cancel</button>
                 <button type="submit" class="btn-primary px-4 py-2 rounded">Save Credential</button>
@@ -1361,47 +1178,196 @@ account: db-admin"></textarea>
     </div>
 </div>
 
+<!-- API Credential Modal (Ported) -->
+<div id="apiCredentialModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="card w-3/4 max-w-5xl m-4 max-h-[90vh] flex flex-col">
+        <div class="flex items-center justify-between p-6 pb-0 flex-shrink-0">
+            <h2 id="apiCredentialModalTitle" class="text-xl font-bold">Create API Credential Profile</h2>
+            <button onclick="closeApiCredentialModal()" class="text-gray-400 hover:text-white">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <form id="apiCredentialForm" class="flex-1 min-h-0 flex flex-col">
+            <input type="hidden" id="apiCredentialProfileId">
+
+            <div class="flex-1 overflow-y-auto p-6 pt-4 space-y-4 custom-scrollbar">
+                <!-- Basic Info -->
+                <div>
+                    <label class="block text-sm font-medium mb-1">
+                        Profile Name <span class="text-red-400">*</span>
+                    </label>
+                    <input type="text" id="apiCredentialName" class="input-field w-full px-3 py-2 rounded"
+                        placeholder="e.g., Production AWX" required>
+                    <p class="text-xs text-gray-400 mt-1">Unique identifier for this credential profile</p>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium mb-1">Description</label>
+                    <textarea id="apiCredentialDescription" class="input-field w-full px-3 py-2 rounded" rows="2"
+                        placeholder="Optional description..."></textarea>
+                </div>
+
+                <!-- API Configuration -->
+                <div>
+                    <label class="block text-sm font-medium mb-1">
+                        Base URL <span class="text-red-400">*</span>
+                    </label>
+                    <input type="url" id="apiCredentialBaseUrl" class="input-field w-full px-3 py-2 rounded"
+                        placeholder="https://api.example.com" required>
+                    <p class="text-xs text-gray-400 mt-1">Base URL for the API (e.g., https://awx.example.com/api/v2)
+                    </p>
+                </div>
+
+                <!-- Authentication -->
+                <div>
+                    <label class="block text-sm font-medium mb-1">
+                        Authentication Type <span class="text-red-400">*</span>
+                    </label>
+                    <select id="apiCredentialAuthType" class="input-field w-full px-3 py-2 rounded"
+                        onchange="toggleApiCredentialAuthFields()" required>
+                        <option value="none">No Authentication</option>
+                        <option value="api_key">API Key (Header)</option>
+                        <option value="bearer">Bearer Token</option>
+                        <option value="basic">Basic Auth (Username/Password)</option>
+                        <option value="oauth">OAuth 2.0</option>
+                    </select>
+                </div>
+
+                <!-- Auth Header (for api_key type) -->
+                <div id="apiCredentialAuthHeaderField" class="hidden">
+                    <label class="block text-sm font-medium mb-1">Auth Header Name</label>
+                    <input type="text" id="apiCredentialAuthHeader" class="input-field w-full px-3 py-2 rounded"
+                        placeholder="e.g., X-API-Key">
+                    <p class="text-xs text-gray-400 mt-1">Header name for API key (default: Authorization)</p>
+                </div>
+
+                <!-- Token/API Key (for api_key, bearer types) -->
+                <div id="apiCredentialTokenField" class="hidden">
+                    <label class="block text-sm font-medium mb-1">Token / API Key</label>
+                    <input type="password" id="apiCredentialToken" class="input-field w-full px-3 py-2 rounded"
+                        placeholder="Enter token or API key">
+                    <p class="text-xs text-gray-400 mt-1">Will be encrypted before storage</p>
+                </div>
+
+                <!-- Username/Password (for basic auth) -->
+                <div id="apiCredentialBasicAuthFields" class="hidden space-y-3">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Username</label>
+                        <input type="text" id="apiCredentialUsername" class="input-field w-full px-3 py-2 rounded"
+                            placeholder="Username">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Password</label>
+                        <input type="password" id="apiCredentialPassword" class="input-field w-full px-3 py-2 rounded"
+                            placeholder="Password">
+                    </div>
+                </div>
+
+                <!-- OAuth Fields -->
+                <div id="apiCredentialOAuthFields" class="hidden space-y-3">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">OAuth Token URL</label>
+                        <input type="url" id="apiCredentialOAuthTokenUrl" class="input-field w-full px-3 py-2 rounded"
+                            placeholder="https://auth.example.com/oauth/token">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Client ID</label>
+                        <input type="text" id="apiCredentialOAuthClientId" class="input-field w-full px-3 py-2 rounded"
+                            placeholder="Client ID">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Client Secret</label>
+                        <input type="password" id="apiCredentialOAuthClientSecret"
+                            class="input-field w-full px-3 py-2 rounded" placeholder="Client Secret">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Scope (Optional)</label>
+                        <input type="text" id="apiCredentialOAuthScope" class="input-field w-full px-3 py-2 rounded"
+                            placeholder="read write">
+                    </div>
+                </div>
+
+                <!-- Advanced Options -->
+                <div class="border-t border-gray-700 pt-4 space-y-3">
+                    <div class="flex items-center gap-3">
+                        <input type="checkbox" id="apiCredentialVerifySSL" class="form-checkbox" checked>
+                        <label for="apiCredentialVerifySSL" class="text-sm">Verify SSL Certificate</label>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Timeout (seconds)</label>
+                        <input type="number" id="apiCredentialTimeout" class="input-field w-full px-3 py-2 rounded"
+                            value="30" min="1" max="300">
+                    </div>
+
+                    <div class="flex items-center gap-3">
+                        <input type="checkbox" id="apiCredentialEnabled" class="form-checkbox" checked>
+                        <label for="apiCredentialEnabled" class="text-sm font-medium">Enable this profile</label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex justify-end gap-3 p-6 border-t border-gray-700 flex-shrink-0 bg-gray-900 bg-opacity-95">
+                <button type="button" onclick="closeApiCredentialModal()" class="btn-secondary px-4 py-2 rounded">
+                    Cancel
+                </button>
+                <button type="button" onclick="testApiCredentialConnection()" class="btn-secondary px-4 py-2 rounded"
+                    id="apiCredentialTestButton">
+                    <i class="fas fa-plug mr-2"></i>Test Connection
+                </button>
+                <button type="submit" class="btn-primary px-4 py-2 rounded">
+                    <i class="fas fa-save mr-2"></i>Save Profile
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- Role Modal -->
 <div id="roleModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-    <div class="card p-6 w-3/4 max-w-5xl m-4 max-h-[90vh] flex flex-col">
-        <div class="flex items-center justify-between mb-4 flex-shrink-0">
+    <div class="card w-3/4 max-w-5xl m-4 max-h-[90vh] flex flex-col">
+        <div class="flex items-center justify-between p-6 pb-0 flex-shrink-0">
             <h3 id="roleModalTitle" class="text-lg font-semibold">New Role</h3>
             <button onclick="closeRoleModal()" class="text-gray-400 hover:text-white">
                 <i class="fas fa-times"></i>
             </button>
         </div>
 
-        <form id="roleForm" class="space-y-4 overflow-y-auto pr-2 custom-scrollbar">
-            <input type="hidden" id="roleEditingId"> <!-- Using roleEditingId to store UUID if editing -->
+        <form id="roleForm" class="flex-1 min-h-0 flex flex-col">
+            <input type="hidden" id="roleEditingId">
             <input type="hidden" id="roleOriginalName">
 
-            <div>
-                <label class="block text-sm font-medium mb-1">Name *</label>
-                <input type="text" id="roleName" class="input-field w-full px-3 py-2 rounded" required
-                    placeholder="e.g. Compliance Officer">
-                <p class="text-xs text-gray-400 mt-1">Unique identifier for the role.</p>
-            </div>
-            <div>
-                <label class="block text-sm font-medium mb-1">Description</label>
-                <textarea id="roleDescription" class="input-field w-full px-3 py-2 rounded h-20"
-                    placeholder="Role responsibilities..."></textarea>
-            </div>
+            <div class="flex-1 overflow-y-auto p-6 pt-4 space-y-4 custom-scrollbar">
+                <div>
+                    <label class="block text-sm font-medium mb-1">Name *</label>
+                    <input type="text" id="roleName" class="input-field w-full px-3 py-2 rounded" required
+                        placeholder="e.g. Compliance Officer">
+                    <p class="text-xs text-gray-400 mt-1">Unique identifier for the role.</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Description</label>
+                    <textarea id="roleDescription" class="input-field w-full px-3 py-2 rounded h-20"
+                        placeholder="Role responsibilities..."></textarea>
+                </div>
 
-            <div>
-                <label class="block text-sm font-medium mb-3">Permissions</label>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="permissionsContainer">
-                    <!-- Loading... -->
+                <div>
+                    <label class="block text-sm font-medium mb-3">Permissions</label>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="permissionsContainer">
+                        <!-- Loading... -->
+                    </div>
                 </div>
             </div>
 
-            <div class="flex justify-end space-x-2 pt-4 border-t border-gray-700 mt-4">
+            <div
+                class="flex justify-end space-x-2 p-6 border-t border-gray-700 flex-shrink-0 bg-gray-900 bg-opacity-95">
                 <button type="button" onclick="closeRoleModal()" class="btn-secondary px-4 py-2 rounded">Cancel</button>
                 <button type="submit" class="btn-primary px-4 py-2 rounded">Save Role</button>
             </div>
         </form>
     </div>
 </div>
-
 {% endblock %}
 
 {% block scripts %}
@@ -1442,6 +1408,359 @@ account: db-admin"></textarea>
     let serverPageSize = 10;
     let serverSort = { key: 'name', direction: 'asc' };
     let serverFilteredTotal = 0;
+
+    // --- Utilities ---
+    function getSortIcon(key, sortState) {
+        if (sortState.key !== key) return '<i class="fas fa-sort text-gray-600 ml-1"></i>';
+        return sortState.direction === 'asc'
+            ? '<i class="fas fa-sort-up text-accent-primary ml-1"></i>'
+            : '<i class="fas fa-sort-down text-accent-primary ml-1"></i>';
+    }
+
+    function renderPagination(totalItems, pageSize, currentPage, type) {
+        const totalPages = Math.ceil(totalItems / pageSize);
+        if (totalPages <= 1) return '';
+
+        let html = '<div class="flex items-center justify-between px-4 py-3 border-t border-gray-700 bg-gray-800">';
+        html += `<div class="text-xs text-gray-400">Showing ${(currentPage - 1) * pageSize + 1} to ${Math.min(currentPage * pageSize, totalItems)} of ${totalItems} entries</div>`;
+        html += '<div class="flex space-x-1">';
+
+        // Previous
+        html += `<button onclick="changePage('${type}', ${currentPage - 1})" class="px-2 py-1 rounded hover:bg-gray-700 ${currentPage === 1 ? 'text-gray-600 cursor-not-allowed' : 'text-gray-300'}" ${currentPage === 1 ? 'disabled' : ''}><i class="fas fa-chevron-left"></i></button>`;
+
+        // Page Numbers (simplified)
+        for (let i = 1; i <= totalPages; i++) {
+            if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
+                html += `<button onclick="changePage('${type}', ${i})" class="px-2 py-1 rounded text-xs ${currentPage === i ? 'bg-accent-primary text-white' : 'hover:bg-gray-700 text-gray-300'}">${i}</button>`;
+            } else if (i === currentPage - 2 || i === currentPage + 2) {
+                html += `<span class="px-1 text-gray-500">...</span>`;
+            }
+        }
+
+        // Next
+        html += `<button onclick="changePage('${type}', ${currentPage + 1})" class="px-2 py-1 rounded hover:bg-gray-700 ${currentPage === totalPages ? 'text-gray-600 cursor-not-allowed' : 'text-gray-300'}" ${currentPage === totalPages ? 'disabled' : ''}><i class="fas fa-chevron-right"></i></button>`;
+
+        html += '</div></div>';
+        return html;
+    }
+
+    function changePage(type, page) {
+        if (type === 'provider') { providerPage = page; renderProvidersTable(filterProviders()); }
+        else if (type === 'server') { serverPage = page; renderServersTable(filterServers()); }
+        else if (type === 'user') { userPage = page; renderUsersTable(); }
+        else if (type === 'credential') { credentialPage = page; renderCredentialProfiles(filterCredentialProfiles()); }
+        else if (type === 'apiCredential') { /* Pending API Cred pagination impl */ }
+    }
+
+    function sortProvider(key) {
+        if (providerSort.key === key) {
+            providerSort.direction = providerSort.direction === 'asc' ? 'desc' : 'asc';
+        } else {
+            providerSort.key = key;
+            providerSort.direction = 'asc';
+        }
+        renderProvidersTable(filterProviders());
+    }
+
+    // --- API Credentials ---
+    async function loadApiCredentials() {
+        try {
+            const response = await apiCall('/api/credential-profiles');
+            if (!response || !response.ok) {
+                apiCredentialProfiles = [];
+                renderApiCredentials([]);
+                return;
+            }
+
+            apiCredentialProfiles = await response.json();
+            renderApiCredentials(filterApiCredentials());
+        } catch (error) {
+            console.error('Failed to load API credentials:', error);
+            apiCredentialProfiles = [];
+            renderApiCredentials([]);
+        }
+    }
+
+    function filterApiCredentials() {
+        const search = document.getElementById('apiCredentialSearch')?.value.toLowerCase() || '';
+        const type = document.getElementById('apiCredentialAuthTypeFilter')?.value || '';
+        const status = document.getElementById('apiCredentialStatusFilter')?.value || '';
+
+        return apiCredentialProfiles.filter(p => {
+            const matchesSearch = !search || p.name.toLowerCase().includes(search) || (p.base_url || '').toLowerCase().includes(search);
+            const matchesType = !type || p.auth_type === type;
+            const matchesStatus = !status || (status === 'enabled' ? p.enabled : !p.enabled);
+            return matchesSearch && matchesType && matchesStatus;
+        });
+    }
+
+    function renderApiCredentials(profiles) {
+        const container = document.getElementById('apiCredentialTableContainer');
+        if (!container) return;
+
+        if (!apiCredentialProfiles.length) {
+            container.innerHTML = `
+            <div class="text-center py-12 text-gray-400">
+                <i class="fas fa-globe text-4xl mb-3"></i>
+                <p>No API credentials configured</p>
+                <button onclick="showCreateApiCredentialModal()" class="mt-4 text-accent-primary hover:text-accent-secondary">
+                    Add your first connector
+                </button>
+            </div>`;
+            return;
+        }
+
+        if (!profiles.length) {
+            container.innerHTML = `<div class="text-center py-8 text-gray-400">No connectors match filters</div>`;
+            return;
+        }
+
+        let html = `
+        <div class="bg-gray-800 rounded-lg shadow overflow-hidden border border-gray-700">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-gray-900 text-gray-400 text-xs uppercase tracking-wider border-b border-gray-700">
+                        <th class="p-4">Name</th>
+                        <th class="p-4">Base URL</th>
+                        <th class="p-4">Auth Type</th>
+                        <th class="p-4 text-center">Status</th>
+                        <th class="p-4 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-700">`;
+
+        profiles.forEach(p => {
+            html += `
+            <tr class="hover:bg-gray-700/50 transition-colors">
+                <td class="p-4 font-medium text-white">${p.name}</td>
+                <td class="p-4 text-gray-300 font-mono text-xs">${p.base_url}</td>
+                <td class="p-4 text-gray-300 capitalize">${p.auth_type}</td>
+                <td class="p-4 text-center">
+                    <span class="badge ${p.enabled ? 'bg-green-900 text-green-300' : 'bg-gray-700 text-gray-400'}">
+                        ${p.enabled ? 'Enabled' : 'Disabled'}
+                    </span>
+                </td>
+                <td class="p-4 text-right space-x-2">
+                    <button onclick="showEditApiCredentialModal('${p.id}')" class="text-gray-400 hover:text-white" title="Edit">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <!-- Delete logic needed if separate from credential profiles -->
+                </td>
+            </tr>`;
+        });
+        html += `</tbody></table></div>`;
+        container.innerHTML = html;
+    }
+
+    function showCreateApiCredentialModal() {
+        document.getElementById('apiCredentialForm').reset();
+        document.getElementById('apiCredentialModalTitle').textContent = 'Create API Credential Profile';
+        document.getElementById('apiCredentialProfileId').value = '';
+        document.getElementById('apiCredentialModal').classList.remove('hidden');
+        document.getElementById('apiCredentialModal').classList.add('flex');
+        toggleApiCredentialAuthFields();
+    }
+
+    function showEditApiCredentialModal(id) {
+        const p = apiCredentialProfiles.find(x => x.id === id);
+        if (!p) return;
+
+        document.getElementById('apiCredentialModalTitle').textContent = 'Edit API Credential Profile';
+        document.getElementById('apiCredentialProfileId').value = p.id;
+        document.getElementById('apiCredentialName').value = p.name;
+        document.getElementById('apiCredentialDescription').value = p.description || '';
+        document.getElementById('apiCredentialBaseUrl').value = p.base_url;
+        document.getElementById('apiCredentialAuthType').value = p.auth_type;
+        document.getElementById('apiCredentialAuthHeader').value = p.auth_header || '';
+        // Secrets are not pre-filled for security usually, or masked
+        document.getElementById('apiCredentialUsername').value = p.username || '';
+
+        document.getElementById('apiCredentialVerifySSL').checked = p.verify_ssl;
+        document.getElementById('apiCredentialTimeout').value = p.timeout_seconds || 30;
+        document.getElementById('apiCredentialEnabled').checked = p.enabled;
+
+        toggleApiCredentialAuthFields();
+        document.getElementById('apiCredentialModal').classList.remove('hidden');
+        document.getElementById('apiCredentialModal').classList.add('flex');
+    }
+
+    function closeApiCredentialModal() {
+        document.getElementById('apiCredentialModal').classList.add('hidden');
+        document.getElementById('apiCredentialModal').classList.remove('flex');
+    }
+
+    function toggleApiCredentialAuthFields() {
+        const type = document.getElementById('apiCredentialAuthType').value;
+        document.getElementById('apiCredentialAuthHeaderField').classList.toggle('hidden', type !== 'api_key');
+        document.getElementById('apiCredentialTokenField').classList.toggle('hidden', !['api_key', 'bearer'].includes(type));
+        document.getElementById('apiCredentialBasicAuthFields').classList.toggle('hidden', type !== 'basic');
+        document.getElementById('apiCredentialOAuthFields').classList.toggle('hidden', type !== 'oauth');
+    }
+
+
+    // --- LLM Providers ---
+    async function loadProviders() {
+        const container = document.getElementById('providersTableContainer');
+        try {
+            const response = await apiCall('/api/settings/llm');
+            if (response && response.ok) {
+                providersCache = await response.json();
+                renderProvidersTable(filterProviders());
+            } else {
+                container.innerHTML = `<div class="text-center py-8 text-red-400">Failed to load providers</div>`;
+            }
+        } catch (error) {
+            console.error('Failed to load providers:', error);
+            container.innerHTML = `<div class="text-center py-8 text-red-400">Error loading providers</div>`;
+        }
+    }
+
+    function filterProviders() {
+        const search = document.getElementById('providerSearch')?.value.toLowerCase() || '';
+        const type = document.getElementById('providerTypeFilter')?.value || '';
+        const status = document.getElementById('providerStatusFilter')?.value || '';
+
+        let filtered = providersCache.filter(p => {
+            const matchesSearch = !search || p.name.toLowerCase().includes(search) || (p.model_id || '').toLowerCase().includes(search);
+            const matchesType = !type || p.provider_type === type;
+            const matchesStatus = !status || (status === 'enabled' ? p.is_enabled : !p.is_enabled);
+            return matchesSearch && matchesType && matchesStatus;
+        });
+
+        providerFilteredTotal = filtered.length;
+        const totalPages = Math.max(1, Math.ceil(providerFilteredTotal / providerPageSize));
+        providerPage = Math.min(providerPage, totalPages);
+
+        // Sorting
+        filtered.sort((a, b) => {
+            const valA = (a[providerSort.key] || '').toString().toLowerCase();
+            const valB = (b[providerSort.key] || '').toString().toLowerCase();
+            if (valA < valB) return providerSort.direction === 'asc' ? -1 : 1;
+            if (valA > valB) return providerSort.direction === 'asc' ? 1 : -1;
+            return 0;
+        });
+
+        const start = (providerPage - 1) * providerPageSize;
+        return filtered.slice(start, start + providerPageSize);
+    }
+
+    function renderProvidersTable(providers) {
+        const container = document.getElementById('providersTableContainer');
+        if (!container) return;
+
+        if (!providersCache.length) {
+            container.innerHTML = `
+            <div class="text-center py-12 text-gray-400">
+                <i class="fas fa-robot text-4xl mb-3"></i>
+                <p>No LLM providers configured</p>
+                <button onclick="showCreateProviderModal()" class="mt-4 text-accent-primary hover:text-accent-secondary">
+                    Add your first provider
+                </button>
+            </div>`;
+            return;
+        }
+
+        if (!providers.length) {
+            container.innerHTML = `
+            <div class="text-center py-12 text-gray-400">
+                <i class="fas fa-filter text-4xl mb-3"></i>
+                <p>No providers match your filters</p>
+                <button onclick="clearProviderFilters()" class="mt-2 text-sm text-accent-primary hover:underline">Clear filters</button>
+            </div>`;
+            return;
+        }
+
+        const totalPages = Math.ceil(providerFilteredTotal / providerPageSize);
+
+        let html = `
+        <div class="bg-gray-800 rounded-lg shadow-lg overflow-hidden border border-gray-700">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-gray-900 text-gray-400 text-xs uppercase tracking-wider border-b border-gray-700">
+                        <th class="p-4 cursor-pointer hover:text-white" onclick="sortProvider('name')">Name ${getSortIcon('name', providerSort)}</th>
+                        <th class="p-4 cursor-pointer hover:text-white" onclick="sortProvider('provider_type')">Type ${getSortIcon('provider_type', providerSort)}</th>
+                        <th class="p-4 cursor-pointer hover:text-white" onclick="sortProvider('model_id')">Model ${getSortIcon('model_id', providerSort)}</th>
+                        <th class="p-4 text-center">Status</th>
+                        <th class="p-4 text-center">Health</th>
+                        <th class="p-4 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-700">
+        `;
+
+        providers.forEach(p => {
+            const health = providerLastTest[p.id];
+            let healthBadge = '<span class="text-gray-500 text-xs">-</span>';
+            if (health) {
+                healthBadge = health.ok ?
+                    `<span class="badge bg-green-900 text-green-300"><i class="fas fa-check mr-1"></i>${health.latency}ms</span>` :
+                    `<span class="badge bg-red-900 text-red-300"><i class="fas fa-times mr-1"></i>Error</span>`;
+            }
+
+            html += `
+             <tr class="hover:bg-gray-700/50 transition-colors">
+                 <td class="p-4">
+                     <div class="font-medium text-white flex items-center">
+                         ${p.is_default ? '<i class="fas fa-star text-yellow-500 mr-2" title="Default Provider"></i>' : ''}
+                         ${p.name}
+                     </div>
+                     ${p.is_default ? '<div class="text-xs text-gray-500 mt-0.5">Default</div>' : ''}
+                 </td>
+                 <td class="p-4 text-gray-300 capitalize">${p.provider_type}</td>
+                 <td class="p-4 text-gray-300 font-mono text-xs">${p.model_id}</td>
+                 <td class="p-4 text-center">
+                     <button onclick="toggleProvider('${p.id}', ${!p.is_enabled})" 
+                        class="relative inline-flex items-center h-5 w-9 rounded-full transition-colors focus:outline-none ${p.is_enabled ? 'bg-accent-primary' : 'bg-gray-600'}">
+                        <span class="sr-only">Toggle</span>
+                        <span class="inline-block h-3 w-3 transform bg-white rounded-full transition-transform ${p.is_enabled ? 'translate-x-5' : 'translate-x-1'}"></span>
+                     </button>
+                 </td>
+                 <td class="p-4 text-center">
+                     ${healthBadge}
+                 </td>
+                 <td class="p-4 text-right space-x-2">
+                     <button onclick="testProvider('${p.id}')" data-test-btn="${p.id}" class="text-gray-400 hover:text-white" title="Test Connection">
+                         <i class="fas fa-plug"></i>
+                     </button>
+                     <button onclick="showEditProviderModal('${p.id}')" class="text-gray-400 hover:text-white" title="Edit">
+                         <i class="fas fa-edit"></i>
+                     </button>
+                     ${!p.is_default ? `
+                     <button onclick="setDefaultProvider('${p.id}')" class="text-gray-400 hover:text-yellow-400" title="Make Default">
+                         <i class="far fa-star"></i>
+                     </button>
+                     <button onclick="deleteProvider('${p.id}')" class="text-red-400 hover:text-red-300" title="Delete">
+                         <i class="fas fa-trash"></i>
+                     </button>
+                     ` : ''}
+                 </td>
+             </tr>`;
+        });
+
+        html += `</tbody></table></div>`;
+
+        // Paginator
+        html += renderPagination(providerFilteredTotal, providerPageSize, providerPage, 'provider');
+
+        container.innerHTML = html;
+    }
+
+    // --- User Management ---
+    async function loadUsers() {
+        const container = document.getElementById('usersTableContainer');
+        try {
+            const response = await apiCall('/api/users');
+            if (response && response.ok) {
+                userCache = await response.json();
+                renderUsersTable();
+            } else {
+                container.innerHTML = `<div class="text-center py-8 text-red-400">Failed to load users</div>`;
+            }
+        } catch (error) {
+            console.error('Failed to load users:', error);
+            container.innerHTML = `<div class="text-center py-8 text-red-400">Error loading users</div>`;
+        }
+    }
     let selectedProviders = new Set();
     let selectedServers = new Set();
     let providerLastTest = {};
@@ -1581,201 +1900,189 @@ account: db-admin"></textarea>
             if (diffHours === 0) {
                 const diffMins = Math.floor(diffMs / (1000 * 60));
                 return diffMins <= 1 ? 'Just now' : `${diffMins}m ago`;
-            }
-            return `${diffHours}h ago`;
+            } return `${diffHours}h ago`;
         } else if (diffDays === 1) {
             return 'Yesterday';
-        } else if (diffDays < 7) {
-            return `${diffDays}d ago`;
-        }
-        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    }
-
-    function updateModelSuggestions() {
-        const type = document.getElementById('providerType').value;
-        document.getElementById('providerModel').placeholder = modelSuggestions[type] || '';
-    }
-
-    function toggleSecretVisibility(inputId, trigger, isMultiline = false) {
-        const field = document.getElementById(inputId);
-        if (!field) return;
-
-        if (isMultiline) {
-            const masked = field.dataset.masked === 'true';
-            field.dataset.masked = masked ? 'false' : 'true';
-            field.style.filter = masked ? 'none' : 'blur(5px)';
-            if (trigger) trigger.textContent = masked ? 'Hide' : 'Show';
-            return;
+        } else if (diffDays < 7) { return `${diffDays}d ago`; } return
+        date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        function updateModelSuggestions() {
+            const type = document.getElementById('providerType').value;
+            const input = document.getElementById('providerModel');
+            if (input) {
+                input.placeholder = modelSuggestions[type] || '';
+            }
         }
 
-        field.type = field.type === 'password' ? 'text' : 'password';
-        if (trigger) trigger.textContent = field.type === 'password' ? 'Show' : 'Hide';
-    }
+        function toggleSecretVisibility(inputId, trigger, isMultiline = false) {
+            const field = document.getElementById(inputId);
+            if (!field) return;
 
-    function renderPagination(total, page, size, type) {
-        if (total <= size) return '';
-        const totalPages = Math.ceil(total / size);
-        return `
-            <div class="flex items-center justify-between px-4 py-3 text-xs text-gray-300 border-t border-gray-800">
-                <div>Page ${page} of ${totalPages}</div>
-                <div class="space-x-2">
-                    <button class="btn-secondary px-2 py-1 rounded" ${page === 1 ? 'disabled' : ''} onclick="changePage('${type}', ${page - 1})">Prev</button>
-                    <button class="btn-secondary px-2 py-1 rounded" ${page >= totalPages ? 'disabled' : ''} onclick="changePage('${type}', ${page + 1})">Next</button>
-                </div>
+            if (isMultiline) {
+                const masked = field.dataset.masked === 'true';
+                field.dataset.masked = masked ? 'false' : 'true';
+                field.style.filter = masked ? 'none' : 'blur(5px)';
+                if (trigger) trigger.textContent = masked ? 'Hide' : 'Show';
+                return;
+            }
+
+            field.type = field.type === 'password' ? 'text' : 'password';
+            if (trigger) trigger.textContent = field.type === 'password' ? 'Show' : 'Hide';
+        }
+
+        function renderPagination(total, page, size, type) {
+            if (total <= size) return '';
+            const totalPages = Math.ceil(total / size);
+            return `
+        <div class="flex items-center justify-between px-4 py-3 text-xs text-gray-300 border-t border-gray-800">
+            <div>Page ${page} of ${totalPages}</div>
+            <div class="space-x-2">
+                <button class="btn-secondary px-2 py-1 rounded" ${page === 1 ? 'disabled' : ''}
+                    onclick="changePage('${type}', ${page - 1})">Prev</button>
+                <button class="btn-secondary px-2 py-1 rounded" ${page >= totalPages ? 'disabled' : ''}
+                    onclick="changePage('${type}', ${page + 1})">Next</button>
             </div>
-        `;
-    }
-
-    // --- LLM Providers ---
-    async function loadProviders() {
-        try {
-            const response = await apiCall('/api/settings/llm');
-            if (!response) return;
-
-            const providers = await response.json();
-            providerCache = providers;
-            document.getElementById('statProviders').textContent = providers.length;
-            renderProvidersTable(filterProviders());
-        } catch (error) {
-            console.error('Failed to load providers:', error);
+        </div>`;
         }
-    }
 
-    function filterProviders() {
-        const search = document.getElementById('providerSearch')?.value.toLowerCase() || '';
-        const typeFilter = document.getElementById('providerTypeFilter')?.value;
-        const statusFilter = document.getElementById('providerStatusFilter')?.value;
+        // --- LLM Providers ---
+        async function loadProviders() {
+            try {
+                const response = await apiCall('/api/settings/llm');
+                if (!response) return;
 
-        let filtered = providerCache.filter(provider => {
-            const matchesType = !typeFilter || provider.provider_type === typeFilter;
-            const matchesStatus = !statusFilter || (statusFilter === 'enabled' ? provider.is_enabled : !provider.is_enabled);
-            const matchesSearch = !search || `${provider.name} ${provider.model_id}`.toLowerCase().includes(search);
-            return matchesType && matchesStatus && matchesSearch;
-        });
+                const providers = await response.json();
+                providerCache = providers;
+                document.getElementById('statProviders').textContent = providers.length;
+                renderProvidersTable(filterProviders());
+            } catch (error) {
+                console.error('Failed to load providers:', error);
+            }
+        }
 
-        providerFilteredTotal = filtered.length;
+        function filterProviders() {
+            const search = document.getElementById('providerSearch')?.value.toLowerCase() || '';
+            const typeFilter = document.getElementById('providerTypeFilter')?.value;
+            const statusFilter = document.getElementById('providerStatusFilter')?.value;
 
-        filtered = filtered.sort((a, b) => {
-            const dir = providerSort.direction === 'asc' ? 1 : -1;
-            const key = providerSort.key;
-            if (a[key] > b[key]) return dir;
-            if (a[key] < b[key]) return -dir;
-            return 0;
-        });
+            let filtered = providerCache.filter(provider => {
+                const matchesType = !typeFilter || provider.provider_type === typeFilter;
+                const matchesStatus = !statusFilter || (statusFilter === 'enabled' ? provider.is_enabled : !provider.is_enabled);
+                const matchesSearch = !search || `${provider.name} ${provider.model_id}`.toLowerCase().includes(search);
+                return matchesType && matchesStatus && matchesSearch;
+            });
 
-        const start = (providerPage - 1) * providerPageSize;
-        return filtered.slice(start, start + providerPageSize);
-    }
+            providerFilteredTotal = filtered.length;
 
-    function renderProvidersTable(providers) {
-        const container = document.getElementById('providersTableContainer');
+            filtered = filtered.sort((a, b) => {
+                const dir = providerSort.direction === 'asc' ? 1 : -1;
+                const key = providerSort.key;
+                if (a[key] > b[key]) return dir;
+                if (a[key] < b[key]) return -dir;
+                return 0;
+            });
 
-        if (providers.length === 0) {
-            container.innerHTML = `
+            const start = (providerPage - 1) * providerPageSize;
+            return filtered.slice(start, start + providerPageSize);
+        }
+
+        function renderProvidersTable(providers) {
+            const container = document.getElementById('providersTableContainer');
+            if (providers.length === 0) {
+                container.innerHTML = `
                 <div class="text-center py-12 text-gray-400">
                     <i class="fas fa-robot text-4xl mb-3"></i>
                     <p>${providerCache.length ? 'No providers match your filters' : 'No LLM providers configured'}</p>
                     <p class="text-sm mt-2">Add a provider to enable AI analysis or adjust filters</p>
-                </div>
-            `;
-            return;
-        }
+                </div>`;
+                return;
+            }
 
-        container.innerHTML = `
-            <table class="w-full">
-                <thead>
-                    <tr class="text-left text-xs text-gray-400 uppercase border-b border-gray-700">
-                        <th class="p-4">${canManageProviders ? '<input type="checkbox" id="providerTableSelectAll" onclick="toggleSelectAll(\'provider\')">' : ''}</th>
-                        <th class="p-4 cursor-pointer" onclick="setProviderSort('name')">Provider</th>
-                        <th class="p-4">Type</th>
-                        <th class="p-4">Model</th>
-                        <th class="p-4">Configuration</th>
-                        <th class="p-4">Status</th>
-                        <th class="p-4 text-right">Actions</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-800">
-                    ${providers.map(provider => `
-                        <tr class="hover:bg-gray-800 transition-colors ${!provider.is_enabled ? 'opacity-50' : ''}">
-                            <td class="p-4 align-top">${canManageProviders ? `<input type="checkbox" ${selectedProviders.has(provider.id) ? 'checked' : ''} onchange="toggleRowSelection('provider','${provider.id}')">` : ''}</td>
-                            <td class="p-4">
-                                <div class="flex items-center space-x-3">
-                                    <div class="w-9 h-9 rounded-lg flex items-center justify-center ${provider.provider_type === 'anthropic' ? 'bg-orange-900 bg-opacity-50' :
-                provider.provider_type === 'openai' ? 'bg-green-900 bg-opacity-50' :
-                    provider.provider_type === 'google' ? 'bg-blue-900 bg-opacity-50' :
-                        'bg-gray-700'
-            }">
-                                        <i class="fas fa-${provider.provider_type === 'anthropic' ? 'robot text-orange-400' :
-                provider.provider_type === 'openai' ? 'brain text-green-400' :
-                    provider.provider_type === 'google' ? 'cloud text-blue-400' :
-                        'server text-gray-400'
-            }"></i>
-                                    </div>
-                                    <div>
-                                        <div class="font-medium">${provider.name}</div>
-                                        <div class="text-xs text-gray-500">Updated ${formatDate(provider.updated_at)}</div>
-                                        ${provider.is_default ? '<span class="text-xs text-blue-400"><i class="fas fa-star mr-1"></i>Default</span>' : ''}
-                                        ${provider.has_api_key ? `<div class="text-[11px] text-green-400">Last rotated ${formatDate(provider.updated_at)}</div>` : '<div class="text-[11px] text-yellow-400">Key required</div>'}
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="p-4">
-                                <span class="capitalize">${provider.provider_type}</span>
-                            </td>
-                            <td class="p-4">
-                                <code class="text-xs bg-gray-800 px-2 py-1 rounded">${provider.model_id}</code>
-                                <div class="text-xs mt-2">
-                                    ${provider.has_api_key
-                ? '<span class="inline-flex items-center px-2 py-1 rounded-full text-green-400 bg-green-900 bg-opacity-40 text-[11px]"><i class="fas fa-key mr-1"></i>Secret stored</span>'
-                : '<span class="inline-flex items-center px-2 py-1 rounded-full text-yellow-400 bg-yellow-900 bg-opacity-40 text-[11px]"><i class="fas fa-exclamation-triangle mr-1"></i>Missing key</span>'
-            }
-                                </div>
-                            </td>
-                            <td class="p-4 text-sm text-gray-400">
-                                <div class="flex items-center space-x-3">
-                                    <span title="Temperature"><i class="fas fa-thermometer-half mr-1"></i>${provider.config_json?.temperature || 0.3}</span>
-                                    <span title="Max Tokens"><i class="fas fa-text-width mr-1"></i>${provider.config_json?.max_tokens || 2000}</span>
-                                    ${provider.has_api_key ? '<span class="text-green-400" title="API Key Set"><i class="fas fa-key"></i></span>' : '<span class="text-yellow-400" title="No API Key"><i class="fas fa-exclamation-triangle"></i></span>'}
-                                </div>
-                            </td>
-                            <td class="p-4">
-                                <div class="space-y-2">
-                                    ${provider.is_enabled
-                ? '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-900 bg-opacity-50 text-green-400"><i class="fas fa-circle text-xs mr-1"></i>Active</span>'
-                : '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-700 text-gray-400"><i class="fas fa-pause mr-1"></i>Disabled</span>'
-            }
-                                    ${providerLastTest[provider.id] ? `<div class="text-[11px] ${providerLastTest[provider.id].ok ? 'text-green-400' : 'text-red-400'}"><i class="fas fa-stopwatch mr-1"></i>${providerLastTest[provider.id].latency}ms · ${providerLastTest[provider.id].ok ? 'Healthy' : 'Failed'}</div>` : ''}
-                                </div>
-                            </td>
-                            <td class="p-4 text-right">
-                                  <div class="flex items-center justify-end space-x-2">
-                                      ${canManageProviders ? `
-                                          <button data-test-btn="${provider.id}" onclick="testProvider('${provider.id}')" class="btn-secondary px-2 py-1 rounded text-xs" title="Test connection">
-                                              <i class="fas fa-heartbeat"></i>
-                                          </button>
-                                          ${!provider.is_default && provider.is_enabled ? `
-                                              <button onclick="setDefaultProvider('${provider.id}')" class="btn-secondary px-2 py-1 rounded text-xs" title="Set as default">
-                                                  <i class="fas fa-star"></i>
-                                              </button>
-                                          ` : ''}
-                                          <button onclick="toggleProvider('${provider.id}')" class="btn-secondary px-2 py-1 rounded text-xs" title="${provider.is_enabled ? 'Disable' : 'Enable'}">
-                                              <i class="fas fa-${provider.is_enabled ? 'pause' : 'play'}"></i>
-                                          </button>
-                                          <button onclick="editProvider('${provider.id}')" class="btn-secondary px-2 py-1 rounded text-xs" title="Edit">
-                                              <i class="fas fa-edit"></i>
-                                          </button>
-                                          <button onclick="confirmDeleteProvider('${provider.id}', '${provider.name}')" class="btn-secondary px-2 py-1 rounded text-xs text-red-400" title="Delete">
-                                              <i class="fas fa-trash"></i>
-                                          </button>
-                                      ` : '<span class="text-xs text-gray-500">View only</span>'}
-                                  </div>
-                            </td>
-                        </tr>
-                    `).join('')}
-                </tbody>
-            </table>
-            ${renderPagination(providerFilteredTotal, providerPage, providerPageSize, 'provider')}
+            container.innerHTML = `
+        <table class="w-full">
+            <thead>
+                <tr class="text-left text-xs text-gray-400 uppercase border-b border-gray-700">
+                    <th class="p-4">${canManageProviders ? `<input type="checkbox" id="providerTableSelectAll" onclick="toggleSelectAll('provider')">` : ''}</th>
+                    <th class="p-4 cursor-pointer" onclick="setProviderSort('name')">Provider</th>
+                    <th class="p-4">Type</th>
+                    <th class="p-4">Model</th>
+                    <th class="p-4">Configuration</th>
+                    <th class="p-4">Status</th>
+                    <th class="p-4 text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-800">
+                ${providers.map(provider => `
+                <tr class="hover:bg-gray-800 transition-colors ${!provider.is_enabled ? 'opacity-50' : ''}">
+                    <td class="p-4 align-top">${canManageProviders ? `<input type="checkbox" ${selectedProviders.has(provider.id) ? 'checked' : ''} onchange="toggleRowSelection('provider','${provider.id}')">` : ''}</td>
+                    <td class="p-4">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-9 h-9 rounded-lg flex items-center justify-center ${provider.provider_type === 'anthropic' ? 'bg-orange-900 bg-opacity-50' :
+                    provider.provider_type === 'openai' ? 'bg-green-900 bg-opacity-50' :
+                        provider.provider_type === 'google' ? 'bg-blue-900 bg-opacity-50' :
+                            'bg-gray-700'
+                }">
+                                <i class="fas fa-${provider.provider_type === 'anthropic' ? 'robot text-orange-400' :
+                    provider.provider_type === 'openai' ? 'brain text-green-400' :
+                        provider.provider_type === 'google' ? 'cloud text-blue-400' :
+                            'server text-gray-400'
+                }"></i>
+                            </div>
+                            <div>
+                                <div class="font-medium">${provider.name}</div>
+                                <div class="text-xs text-gray-500">Updated ${formatDate(provider.updated_at)}</div>
+                                ${provider.is_default ? '<span class="text-xs text-blue-400"><i class="fas fa-star mr-1"></i>Default</span>' : ''}
+                                ${provider.has_api_key
+                    ? `<div class="text-[11px] text-green-400">Last rotated ${formatDate(provider.updated_at)}</div>`
+                    : '<div class="text-[11px] text-yellow-400">Key required</div>'}
+                            </div>
+                        </div>
+                    </td>
+                    <td class="p-4">
+                        <span class="capitalize">${provider.provider_type}</span>
+                    </td>
+                    <td class="p-4">
+                        <code class="text-xs bg-gray-800 px-2 py-1 rounded">${provider.model_id}</code>
+                        <div class="text-xs mt-2">
+                            ${provider.has_api_key
+                    ? '<span class="inline-flex items-center px-2 py-1 rounded-full text-green-400 bg-green-900 bg-opacity-40 text-[11px]"><i class="fas fa-key mr-1"></i>Secret stored</span>'
+                    : '<span class="inline-flex items-center px-2 py-1 rounded-full text-yellow-400 bg-yellow-900 bg-opacity-40 text-[11px]"><i class="fas fa-exclamation-triangle mr-1"></i>Missing key</span>'
+                }
+                        </div>
+                    </td>
+                    <td class="p-4 text-sm text-gray-400">
+                        <div class="flex items-center space-x-3">
+                            <span title="Temperature"><i class="fas fa-thermometer-half mr-1"></i>${provider.config_json?.temperature || 0.3}</span>
+                            <span title="Max Tokens"><i class="fas fa-text-width mr-1"></i>${provider.config_json?.max_tokens || 2000}</span>
+                            ${provider.has_api_key ? '<span class="text-green-400" title="API Key Set"><i class="fas fa-key"></i></span>' : '<span class="text-yellow-400" title="No API Key"><i class="fas fa-exclamation-triangle"></i></span>'}
+                        </div>
+                    </td>
+                    <td class="p-4">
+                        <div class="space-y-2">
+                            ${provider.is_enabled
+                    ? '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-900 bg-opacity-50 text-green-400"><i class="fas fa-circle text-xs mr-1"></i>Active</span>'
+                    : '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-700 text-gray-400"><i class="fas fa-pause mr-1"></i>Disabled</span>'
+                }
+                            ${providerLastTest[provider.id] ? `<div class="text-[11px] ${providerLastTest[provider.id].ok ? 'text-green-400' : 'text-red-400'}">
+                                <i class="fas fa-stopwatch mr-1"></i>${providerLastTest[provider.id].latency}ms · ${providerLastTest[provider.id].ok ? 'Healthy' : 'Failed'}</div>` : ''}
+                        </div>
+                    </td>
+                    <td class="p-4 text-right">
+                        <div class="flex items-center justify-end space-x-2">
+                            ${canManageProviders ? `
+                            <button data-test-btn="${provider.id}" onclick="testProvider('${provider.id}')" class="btn-secondary px-2 py-1 rounded text-xs" title="Test connection"><i class="fas fa-heartbeat"></i></button>
+                            ${!provider.is_default && provider.is_enabled ? `<button onclick="setDefaultProvider('${provider.id}')" class="btn-secondary px-2 py-1 rounded text-xs" title="Set as default"><i class="fas fa-star"></i></button>` : ''}
+                            <button onclick="toggleProvider('${provider.id}')" class="btn-secondary px-2 py-1 rounded text-xs" title="${provider.is_enabled ? 'Disable' : 'Enable'}"><i class="fas fa-${provider.is_enabled ? 'pause' : 'play'}"></i></button>
+                            <button onclick="editProvider('${provider.id}')" class="btn-secondary px-2 py-1 rounded text-xs" title="Edit"><i class="fas fa-edit"></i></button>
+                            <button onclick="confirmDeleteProvider('${provider.id}', '${provider.name}')" class="btn-secondary px-2 py-1 rounded text-xs text-red-400" title="Delete"><i class="fas fa-trash"></i></button>
+                            ` : '<span class="text-xs text-gray-500">View only</span>'}
+                        </div>
+                    </td>
+                </tr>`).join('')}
+            </tbody>
+        </table>
+        ${renderPagination(providerFilteredTotal, providerPage, providerPageSize, 'provider')}
         `;
+        }
     }
 
     function confirmDeleteProvider(id, name) {
@@ -1818,7 +2125,8 @@ account: db-admin"></textarea>
         let filtered = serverCache.filter(server => {
             const matchesEnv = !env || server.environment === env;
             const matchesAuth = !authType || server.auth_type === authType;
-            const matchesSearch = !search || `${server.name} ${server.hostname} ${server.group_path || ''}`.toLowerCase().includes(search);
+            const matchesSearch = !search || `${server.name} ${server.hostname} ${server.group_path ||
+                ''}`.toLowerCase().includes(search);
             return matchesEnv && matchesAuth && matchesSearch;
         });
 
@@ -1838,85 +2146,80 @@ account: db-admin"></textarea>
 
     function renderServersTable(servers) {
         const container = document.getElementById('serversTableContainer');
-
-        if (servers.length === 0) {
-            container.innerHTML = `
-                <div class="text-center py-12 text-gray-400">
-                    <i class="fas fa-server text-4xl mb-3"></i>
-                    <p>${serverCache.length ? 'No servers match your filters' : 'No servers configured'}</p>
-                    <p class="text-sm mt-2">Add server credentials to execute runbooks or adjust filters</p>
-                </div>
-            `;
+        if (!servers || servers.length === 0) {
+            container.innerHTML = ` 
+            <div class="text-center py-12 text-gray-400">
+                <i class="fas fa-server text-4xl mb-3"></i>
+                <p>${serverCache.length ? 'No servers match your filters' : 'No servers configured'}</p>
+                <p class="text-sm mt-2">Add server credentials to execute runbooks or adjust filters</p>
+            </div>`;
             return;
         }
 
         container.innerHTML = `
-            <table class="w-full">
-                <thead>
-                      <tr class="text-left text-xs text-gray-400 uppercase border-b border-gray-700">
-                          <th class="p-4">${canManageServers ? '<input type="checkbox" id="serverTableSelectAll" onclick="toggleSelectAll(\'server\')">' : ''}</th>
-                          <th class="p-4">Server</th>
-                          <th class="p-4">Connection</th>
-                          <th class="p-4">Credential</th>
-                          <th class="p-4">Environment</th>
-                          <th class="p-4 text-right">Actions</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-800">
-                    ${servers.map(server => `
-                          <tr class="hover:bg-gray-800 transition-colors">
-                              <td class="p-4 align-top">${canManageServers ? `<input type="checkbox" ${selectedServers.has(server.id) ? 'checked' : ''} onchange="toggleRowSelection('server','${server.id}')">` : ''}</td>
-                              <td class="p-4">
-                                  <div class="flex items-center space-x-3">
-                                      <div class="w-9 h-9 rounded-lg bg-gray-700 flex items-center justify-center">
-                                          <i class="fas fa-terminal text-green-400"></i>
-                                      </div>
-                                      <div>
-                                          <div class="font-medium">${server.name}</div>
-                                          <div class="text-xs text-gray-500">${server.hostname}</div>
-                                          <div class="text-[11px] text-gray-500">Added ${formatDate(server.created_at)}</div>
-                                          <div class="text-[11px] ${server.group_path ? 'text-blue-300' : 'text-gray-500'}">${server.group_path ? `Group: ${server.group_path}` : 'Ungrouped'}</div>
-                                      </div>
-                                  </div>
-                              </td>
-                            <td class="p-4">
-                                <code class="text-sm">${server.username}@${server.hostname}:${server.port}</code>
-                                ${serverLastTest[server.id] ? `<div class="text-[11px] ${serverLastTest[server.id].ok ? 'text-green-400' : 'text-red-400'} mt-1"><i class="fas fa-plug mr-1"></i>${serverLastTest[server.id].message}</div>` : ''}
-                            </td>
-                            <td class="p-4">
-                                <div class="space-y-1">
-                                    <span class="inline-flex items-center px-2 py-1 rounded text-xs ${server.auth_type === 'key' ? 'bg-blue-900 bg-opacity-50 text-blue-400' : 'bg-yellow-900 bg-opacity-50 text-yellow-400'}">
-                                        <i class="fas fa-${server.auth_type === 'key' ? 'key' : 'lock'} mr-1"></i>
-                                        ${server.auth_type === 'key' ? 'SSH Key' : 'Password'}
-                                    </span>
-                                    <div class="text-[11px] text-gray-400">${server.credential_source === 'shared_profile' ? `Profile: ${server.credential_profile_name || 'unknown'}` : 'Inline credential'}</div>
-                                    ${server.tags?.length ? `<div class="flex flex-wrap gap-1">${server.tags.map(tag => `<span class='text-[11px] px-2 py-1 bg-gray-800 rounded-full text-gray-300'>${tag}</span>`).join('')}</div>` : ''}
+        <table class="w-full">
+            <thead>
+                <tr class="text-left text-xs text-gray-400 uppercase border-b border-gray-700">
+                    <th class="p-4">${canManageServers ? '<input type="checkbox" id="serverTableSelectAll" onclick="toggleSelectAll(\'server\')">' : ''}</th>
+                    <th class="p-4">Server</th>
+                    <th class="p-4">Connection</th>
+                    <th class="p-4">Credential</th>
+                    <th class="p-4">Environment</th>
+                    <th class="p-4 text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-800">
+                ${servers.map(server => `
+                <tr class="hover:bg-gray-800 transition-colors">
+                    <td class="p-4 align-top">${canManageServers ? `<input type="checkbox" ${selectedServers.has(server.id) ? 'checked' : ''} onchange="toggleRowSelection('server','${server.id}')">` : ''}</td>
+                    <td class="p-4">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-9 h-9 rounded-lg bg-gray-700 flex items-center justify-center">
+                                <i class="fas fa-terminal text-green-400"></i>
+                            </div>
+                            <div>
+                                <div class="font-medium">${server.name}</div>
+                                <div class="text-xs text-gray-500">${server.hostname}</div>
+                                <div class="text-[11px] text-gray-500">Added ${formatDate(server.created_at)}</div>
+                                <div class="text-[11px] ${server.group_path ? 'text-blue-300' : 'text-gray-500'}">
+                                    ${server.group_path ? `Group: ${server.group_path}` : 'Ungrouped'}
                                 </div>
-                            </td>
-                            <td class="p-4">
-                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs uppercase ${server.environment === 'production' ? 'bg-red-900 bg-opacity-50 text-red-400' :
-                server.environment === 'staging' ? 'bg-yellow-900 bg-opacity-50 text-yellow-400' :
-                    'bg-blue-900 bg-opacity-50 text-blue-400'
-            }">
-                                    ${server.environment}
-                                </span>
-                            </td>
-                              <td class="p-4 text-right">
-                                  ${canManageServers ? `
-                                      <div class="flex items-center justify-end space-x-2">
-                                          <button onclick="showEditServerModal('${server.id}')" class="btn-secondary px-2 py-1 rounded text-xs" title="Edit server"><i class="fas fa-edit"></i></button>
-                                          <button onclick="testServerInline('${server.id}')" class="btn-secondary px-2 py-1 rounded text-xs" title="Test connection"><i class="fas fa-heartbeat"></i></button>
-                                          <button onclick="confirmDeleteServer('${server.id}', '${server.name}')" class="btn-secondary px-2 py-1 rounded text-xs text-red-400" title="Delete">
-                                              <i class="fas fa-trash"></i>
-                                          </button>
-                                      </div>
-                                  ` : '<span class="text-xs text-gray-500">View only</span>'}
-                              </td>
-                        </tr>
-                    `).join('')}
-                </tbody>
-            </table>
-            ${renderPagination(serverCache.length ? serverFilteredTotal : 0, serverPage, serverPageSize, 'server')}
+                            </div>
+                        </div>
+                    </td>
+                    <td class="p-4">
+                        <code class="text-sm">${server.username}@${server.hostname}:${server.port}</code>
+                        ${serverLastTest[server.id] ? `<div class="text-[11px] ${serverLastTest[server.id].ok ? 'text-green-400' : 'text-red-400'} mt-1"><i class="fas fa-plug mr-1"></i>${serverLastTest[server.id].message}</div>` : ''}
+                    </td>
+                    <td class="p-4">
+                        <div class="space-y-1">
+                            <span class="inline-flex items-center px-2 py-1 rounded text-xs ${server.auth_type === 'key' ? 'bg-blue-900 bg-opacity-50 text-blue-400' : 'bg-yellow-900 bg-opacity-50 text-yellow-400'}">
+                                <i class="fas fa-${server.auth_type === 'key' ? 'key' : 'lock'} mr-1"></i>
+                                ${server.auth_type === 'key' ? 'SSH Key' : 'Password'}
+                            </span>
+                            <div class="text-[11px] text-gray-400">${server.credential_source === 'shared_profile' ? `Profile: ${server.credential_profile_name || 'unknown'}` : 'Inline credential'}</div>
+                            ${server.tags?.length ? `<div class="flex flex-wrap gap-1">${server.tags.map(tag => `<span class="text-[11px] px-2 py-1 bg-gray-800 rounded-full text-gray-300">${tag}</span>`).join('')}</div>` : ''}
+                        </div>
+                    </td>
+                    <td class="p-4">
+                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs uppercase ${server.environment === 'production' ? 'bg-red-900 bg-opacity-50 text-red-400' : server.environment === 'staging' ? 'bg-yellow-900 bg-opacity-50 text-yellow-400' : 'bg-blue-900 bg-opacity-50 text-blue-400'}">
+                            ${server.environment}
+                        </span>
+                    </td>
+                    <td class="p-4 text-right">
+                        ${canManageServers ? `
+                        <div class="flex items-center justify-end space-x-2">
+                            <button onclick="showEditServerModal('${server.id}')" class="btn-secondary px-2 py-1 rounded text-xs" title="Edit server"><i class="fas fa-edit"></i></button>
+                            <button onclick="testServerInline('${server.id}')" class="btn-secondary px-2 py-1 rounded text-xs" title="Test connection"><i class="fas fa-heartbeat"></i></button>
+                            <button onclick="confirmDeleteServer('${server.id}', '${server.name}')" class="btn-secondary px-2 py-1 rounded text-xs text-red-400" title="Delete"><i class="fas fa-trash"></i></button>
+                        </div>
+                        ` : '<span class="text-xs text-gray-500">View only</span>'}
+                    </td>
+                </tr>
+                `).join('')}
+            </tbody>
+        </table>
+        ${renderPagination(serverCache.length ? serverFilteredTotal : 0, serverPage, serverPageSize, 'server')}
         `;
     }
 
@@ -2018,11 +2321,10 @@ account: db-admin"></textarea>
                             <button onclick="loadUsers()" class="mt-2 text-sm text-blue-400 hover:text-blue-300">
                                 <i class="fas fa-sync-alt mr-1"></i> Retry
                             </button>
-                        </div>
-                    `;
+                        </div>`;
                     return;
                 }
-                throw new Error(`${response.status} ${response.statusText}`);
+                throw new Error(`${response.status} ${response.statusText} `);
             }
 
             const users = await response.json();
@@ -2040,8 +2342,7 @@ account: db-admin"></textarea>
                     <i class="fas fa-exclamation-circle text-4xl mb-3"></i>
                     <p>Unable to load users</p>
                     <p class="text-xs mt-1">${error.message}</p>
-                </div>
-            `;
+                </div>`;
         }
     }
 
@@ -2051,7 +2352,7 @@ account: db-admin"></textarea>
         const status = document.getElementById('userStatusFilter')?.value;
 
         let filtered = userCache.filter(u => {
-            const matchesSearch = !search || `${u.username} ${u.full_name || ''} ${u.email || ''}`.toLowerCase().includes(search);
+            const matchesSearch = !search || `${u.username} ${u.full_name || ''} ${u.email || ''} `.toLowerCase().includes(search);
             const matchesRole = !role || u.role === role;
             const matchesStatus = !status || (status === 'active' ? u.is_active : !u.is_active);
             return matchesSearch && matchesRole && matchesStatus;
@@ -2091,8 +2392,7 @@ account: db-admin"></textarea>
                 <div class="text-center py-12 text-gray-400">
                     <i class="fas fa-users text-4xl mb-3"></i>
                     <p>No users found</p>
-                </div>
-            `;
+                </div>`;
             return;
         }
 
@@ -2102,8 +2402,7 @@ account: db-admin"></textarea>
                     <i class="fas fa-filter text-4xl mb-3"></i>
                     <p>No users match your filters</p>
                     <p class="text-sm mt-1">Try adjusting role, status, or search criteria</p>
-                </div>
-            `;
+                </div>`;
             return;
         }
 
@@ -2111,89 +2410,89 @@ account: db-admin"></textarea>
         const end = Math.min(start + filteredUsers.length - 1, userFilteredTotal);
 
         container.innerHTML = `
-            <div class="flex items-center justify-between px-4 py-3 text-xs text-gray-300 border-b border-gray-800">
+                <div class="flex items-center justify-between px-4 py-3 text-xs text-gray-300 border-b border-gray-800">
                 <div class="text-sm">Showing ${start}-${end} of ${userFilteredTotal} users</div>
                 <div class="hidden md:block text-xs text-gray-400">Search, filter, and paginate large directories without leaving this view.</div>
             </div>
-            <table class="w-full">
-                <thead>
-                    <tr class="text-left text-xs text-gray-400 uppercase border-b border-gray-700">
-                        <th class="p-4">User</th>
-                        <th class="p-4">Contact</th>
-                        <th class="p-4">Role</th>
-                        <th class="p-4">Status</th>
-                        <th class="p-4">Created</th>
-                        <th class="p-4">Last Login</th>
-                        <th class="p-4 text-right">Actions</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-800">
-                    ${filteredUsers.map(u => `
-                        <tr class="hover:bg-gray-800 transition-colors ${!u.is_active ? 'opacity-50' : ''}">
-                            <td class="p-4">
-                                <div class="flex items-center space-x-3">
-                                    <div class="w-9 h-9 rounded-full flex items-center justify-center ${u.role === 'admin' ? 'bg-yellow-900 bg-opacity-50' : 'bg-blue-900 bg-opacity-50'}">
-                                        <i class="fas fa-${u.role === 'admin' ? 'user-shield' : 'user'} ${u.role === 'admin' ? 'text-yellow-400' : 'text-blue-400'}"></i>
-                                    </div>
-                                    <div>
-                                        <div class="font-medium">${u.username}</div>
-                                        ${u.full_name ? `<div class="text-xs text-gray-400">${u.full_name}</div>` : ''}
-                                    </div>
+                <table class="w-full">
+                    <thead>
+                        <tr class="text-left text-xs text-gray-400 uppercase border-b border-gray-700">
+                            <th class="p-4">User</th>
+                            <th class="p-4">Contact</th>
+                            <th class="p-4">Role</th>
+                            <th class="p-4">Status</th>
+                            <th class="p-4">Created</th>
+                            <th class="p-4">Last Login</th>
+                            <th class="p-4 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-800">
+                        ${filteredUsers.map(u => `
+                    <tr class="hover:bg-gray-800 transition-colors ${!u.is_active ? 'opacity-50' : ''}">
+                        <td class="p-4">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-9 h-9 rounded-full flex items-center justify-center ${u.role === 'admin' ? 'bg-yellow-900 bg-opacity-50' : 'bg-blue-900 bg-opacity-50'}">
+                                    <i class="fas fa-${u.role === 'admin' ? 'user-shield' : 'user'} ${u.role === 'admin' ? 'text-yellow-400' : 'text-blue-400'}"></i>
                                 </div>
-                            </td>
-                            <td class="p-4">
-                                ${u.email ? `
-                                    <a href="mailto:${u.email}" class="text-sm text-blue-400 hover:text-blue-300">
-                                        <i class="fas fa-envelope mr-1"></i>${u.email}
-                                    </a>
-                                ` : '<span class="text-gray-500 text-sm">No email</span>'}
-                            </td>
-                            <td class="p-4">
-                                <span class="inline-flex items-center px-2 py-1 rounded text-xs uppercase ${u.role === 'admin' ? 'bg-yellow-900 bg-opacity-50 text-yellow-400' : 'bg-gray-700 text-gray-300'}">
-                                    <i class="fas fa-${u.role === 'admin' ? 'crown' : 'user'} mr-1"></i>
-                                    ${u.role}
-                                </span>
-                            </td>
-                            <td class="p-4">
-                                ${u.is_active
+                                <div>
+                                    <div class="font-medium">${u.username}</div>
+                                    ${u.full_name ? `<div class="text-xs text-gray-400">${u.full_name}</div>` : ''}
+                                </div>
+                            </div>
+                        </td>
+                        <td class="p-4">
+                            ${u.email ? `
+                            <a href="mailto:${u.email}" class="text-sm text-blue-400 hover:text-blue-300">
+                                <i class="fas fa-envelope mr-1"></i>${u.email}
+                            </a>
+                            ` : '<span class="text-gray-500 text-sm">No email</span>'}
+                        </td>
+                        <td class="p-4">
+                            <span class="inline-flex items-center px-2 py-1 rounded text-xs uppercase ${u.role === 'admin' ? 'bg-yellow-900 bg-opacity-50 text-yellow-400' : 'bg-gray-700 text-gray-300'}">
+                                <i class="fas fa-${u.role === 'admin' ? 'crown' : 'user'} mr-1"></i>
+                                ${u.role}
+                            </span>
+                        </td>
+                        <td class="p-4">
+                            ${u.is_active
                 ? '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-900 bg-opacity-50 text-green-400"><i class="fas fa-check-circle mr-1"></i>Active</span>'
                 : '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-red-900 bg-opacity-50 text-red-400"><i class="fas fa-ban mr-1"></i>Inactive</span>'
             }
-                            </td>
-                            <td class="p-4 text-sm text-gray-400">
-                                ${formatDate(u.created_at)}
-                            </td>
-                            <td class="p-4 text-sm">
-                                ${u.last_login
+                        </td>
+                        <td class="p-4 text-sm text-gray-400">
+                            ${formatDate(u.created_at)}
+                        </td>
+                        <td class="p-4 text-sm">
+                            ${u.last_login
                 ? `<span class="text-green-400">${formatDate(u.last_login)}</span>`
                 : '<span class="text-gray-500">Never</span>'}
-                            </td>
-                              <td class="p-4 text-right">
-                                  ${canManageUsers ? `
-                                      <div class="flex items-center justify-end space-x-2">
-                                          <button onclick="editUser('${u.id}')" class="btn-secondary px-2 py-1 rounded text-xs" title="Edit">
-                                              <i class="fas fa-edit"></i>
-                                          </button>
-                                          ${u.username !== 'admin' && u.id !== currentUserId ? `
-                                              <button onclick="confirmDeleteUser('${u.id}', '${u.username}')" class="btn-secondary px-2 py-1 rounded text-xs text-red-400" title="Delete">
-                                                  <i class="fas fa-trash"></i>
-                                              </button>
-                                          ` : ''}
-                                      </div>
-                                  ` : '<span class="text-xs text-gray-500">View only</span>'}
-                              </td>
-                        </tr>
+                        </td>
+                        <td class="p-4 text-right">
+                            ${canManageUsers ? `
+                            <div class="flex items-center justify-end space-x-2">
+                                <button onclick="editUser('${u.id}')" class="btn-secondary px-2 py-1 rounded text-xs" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                ${u.username !== 'admin' && u.id !== currentUserId ? `
+                                <button onclick="confirmDeleteUser('${u.id}', '${u.username}')" class="btn-secondary px-2 py-1 rounded text-xs text-red-400" title="Delete">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                                ` : ''}
+                            </div>
+                            ` : '<span class="text-xs text-gray-500">View only</span>'}
+                        </td>
+                    </tr>
                     `).join('')}
-                </tbody>
-            </table>
+                    </tbody>
+                </table>
             ${renderPagination(userFilteredTotal, userPage, userPageSize, 'user')}
-        `;
+            `;
     }
 
     function confirmDeleteUser(id, username) {
         showConfirmModal(
             'Delete User',
-            `Type the username to confirm deleting "${username}". Consider disabling instead to preserve audit trails.`,
+            `Type the username to confirm deleting "${username}".Consider disabling instead to preserve audit trails.`,
             () => deleteUser(id),
             { confirmationText: username }
         );
@@ -2217,44 +2516,7 @@ account: db-admin"></textarea>
         document.getElementById('providerModal').classList.add('flex');
     }
 
-    async function editProvider(providerId) {
-        try {
-            const response = await apiCall(`/api/settings/llm/${providerId}`);
-            if (!response) return;
 
-            const provider = await response.json();
-
-            document.getElementById('providerModalTitle').textContent = 'Edit Provider';
-            document.getElementById('providerId').value = provider.id;
-            document.getElementById('providerName').value = provider.name;
-            document.getElementById('providerType').value = provider.provider_type;
-            document.getElementById('providerModel').value = provider.model_id;
-            document.getElementById('providerBaseUrl').value = provider.api_base_url || '';
-            document.getElementById('providerTemp').value = provider.config_json?.temperature || 0.3;
-            document.getElementById('providerMaxTokens').value = provider.config_json?.max_tokens || 2000;
-            document.getElementById('providerEnabled').checked = provider.is_enabled;
-            document.getElementById('providerDefault').checked = provider.is_default;
-            document.getElementById('providerApiKey').value = '';
-            document.getElementById('providerApiKey').dataset.hasKey = provider.has_api_key ? 'true' : 'false';
-            const rotatedAt = provider.secret_last_rotated || provider.updated_at;
-            document.getElementById('providerSecretMeta').textContent = provider.has_api_key
-                ? `Key stored securely. Last rotated ${rotatedAt ? formatDate(rotatedAt) : 'unknown'}. Enter a new key to rotate.`
-                : 'No API key stored yet. Add one to enable this provider.';
-            document.getElementById('providerSecretStorage').value = provider.config_json?.secret_storage || 'vault';
-            document.getElementById('providerLastRotated').textContent = rotatedAt ? formatDate(rotatedAt) : 'Not set';
-            document.getElementById('providerAuditEntries').innerHTML = `<div class="text-gray-300">Last updated by system on ${formatDate(provider.updated_at)}</div>`;
-
-            document.getElementById('providerModal').classList.remove('hidden');
-            document.getElementById('providerModal').classList.add('flex');
-        } catch (error) {
-            showToast('Failed to load provider', 'error');
-        }
-    }
-
-    function closeProviderModal() {
-        document.getElementById('providerModal').classList.add('hidden');
-        document.getElementById('providerModal').classList.remove('flex');
-    }
 
     document.getElementById('providerForm').addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -2288,7 +2550,7 @@ account: db-admin"></textarea>
         }
 
         try {
-            const url = providerId ? `/api/settings/llm/${providerId}` : '/api/settings/llm';
+            const url = providerId ? `/ api / settings / llm / ${providerId} ` : '/api/settings/llm';
             const method = providerId ? 'PUT' : 'POST';
 
             const response = await apiCall(url, {
@@ -2314,7 +2576,7 @@ account: db-admin"></textarea>
 
     async function setDefaultProvider(providerId) {
         try {
-            const response = await apiCall(`/api/settings/llm/${providerId}/set-default`, { method: 'POST' });
+            const response = await apiCall(`/ api / settings / llm / ${providerId}/set-default`, { method: 'POST' });
             if (!response) return;
 
             showToast('Default provider updated', 'success');
@@ -2326,7 +2588,8 @@ account: db-admin"></textarea>
 
     async function toggleProvider(providerId, forceState = null) {
         try {
-            const response = await apiCall(`/api/settings/llm/${providerId}/toggle${forceState !== null ? `?enabled=${forceState}` : ''}`, { method: 'POST' });
+            const response = await apiCall(`/api/settings/llm/${providerId}/toggle${forceState !== null ?
+                `?enabled=${forceState}` : ''}`, { method: 'POST' });
             if (!response) return;
 
             const result = await response.json();
@@ -2402,38 +2665,51 @@ account: db-admin"></textarea>
         const credentialFilter = document.getElementById('credentialGroupFilter');
 
         if (groupSelect) {
-            groupSelect.innerHTML = '<option value="">No group</option>' + serverGroups.map(g => `<option value="${g.id}">${g.path || g.name}</option>`).join('');
+            groupSelect.innerHTML = '<option value="">No group</option>' + serverGroups.map(g => `<option value="${g.id}">
+            ${g.path || g.name}</option>`).join('');
         }
 
         if (parentSelect) {
-            parentSelect.innerHTML = '<option value="">No parent</option>' + serverGroups.map(g => `<option value="${g.id}">${g.path || g.name}</option>`).join('');
+            parentSelect.innerHTML = '<option value="">No parent</option>' + serverGroups.map(g => `<option value="${g.id}">
+            ${g.path || g.name}</option>`).join('');
         }
 
         if (importGroupSelect) {
-            importGroupSelect.innerHTML = '<option value="">Group: none</option>' + serverGroups.map(g => `<option value="${g.id}">Group: ${g.path || g.name}</option>`).join('');
+            importGroupSelect.innerHTML = '<option value="">Group: none</option>' + serverGroups.map(g => `<option
+            value="${g.id}">Group: ${g.path || g.name}</option>`).join('');
         }
 
         if (credentialGroupSelect) {
-            credentialGroupSelect.innerHTML = '<option value="">All groups</option>' + serverGroups.map(g => `<option value="${g.id}">${g.path || g.name}</option>`).join('');
+            credentialGroupSelect.innerHTML = '<option value="">All groups</option>' + serverGroups.map(g => `<option
+            value="${g.id}">${g.path || g.name}</option>`).join('');
         }
 
         if (credentialFilter) {
-            credentialFilter.innerHTML = '<option value="">All groups</option>' + serverGroups.map(g => `<option value="${g.id}">${g.path || g.name}</option>`).join('');
+            credentialFilter.innerHTML = '<option value="">All groups</option>' + serverGroups.map(g => `<option
+            value="${g.id}">${g.path || g.name}</option>`).join('');
         }
     }
 
     async function loadCredentialProfiles() {
         try {
             const response = await apiCall('/api/servers/credentials');
-            if (!response) return;
+            if (!response || !response.ok) {
+                credentialProfiles = [];
+                renderCredentialProfiles([]);
+                return;
+            }
+
             credentialProfiles = await response.json();
             const select = document.getElementById('credentialProfileId');
             if (select) {
-                select.innerHTML = '<option value="">Select profile</option>' + credentialProfiles.map(p => `<option value="${p.id}">${p.name} (${p.backend})</option>`).join('');
+                select.innerHTML = '<option value="">Select profile</option>' + credentialProfiles.map(p => `<option
+            value="${p.id}">${p.name} (${p.backend})</option>`).join('');
             }
             renderCredentialProfiles(filterCredentialProfiles());
         } catch (error) {
             console.error('Failed to load credential profiles', error);
+            credentialProfiles = [];
+            renderCredentialProfiles([]);
         }
     }
 
@@ -2449,7 +2725,8 @@ account: db-admin"></textarea>
         const groupFilter = document.getElementById('credentialGroupFilter')?.value || '';
         let filtered = credentialProfiles;
         if (search) {
-            filtered = filtered.filter(p => p.name.toLowerCase().includes(search) || (p.backend || '').toLowerCase().includes(search));
+            filtered = filtered.filter(p => p.name.toLowerCase().includes(search) || (p.backend ||
+                '').toLowerCase().includes(search));
         }
         if (backend) {
             filtered = filtered.filter(p => p.backend === backend);
@@ -2464,238 +2741,258 @@ account: db-admin"></textarea>
     function renderCredentialProfiles(profiles) {
         const container = document.getElementById('credentialTableContainer');
         if (!container) return;
-        if (!profiles.length) {
-            container.innerHTML = '<div class="text-center py-8 text-gray-400">No credential profiles yet. Use "New Credential" to add inline, Vault, or CyberArk secrets.</div>';
+
+        if (!credentialProfiles.length) {
+            container.innerHTML = `
+                <div class="text-center py-12 text-gray-400">
+                    <i class="fas fa-key text-4xl mb-3"></i>
+                    <p>No credential profiles configured</p>
+                    <button onclick="showCredentialModal()" class="mt-4 text-accent-primary hover:text-accent-secondary">
+                        Create your first profile
+                    </button>
+                </div>`;
             return;
         }
 
-        const rows = profiles.map(p => {
-            const scope = getGroupLabel(p.group_id);
-            const lastRotated = p.last_rotated ? new Date(p.last_rotated).toLocaleString() : 'Not set';
-            return `<tr class="border-b border-gray-800">
-                <td class="px-4 py-3">
-                    <div class="font-semibold">${p.name}</div>
-                    <div class="text-xs text-gray-400">${p.description || ''}</div>
-                </td>
-                <td class="px-4 py-3 text-sm">${p.backend}</td>
-                <td class="px-4 py-3 text-sm">${p.credential_type}</td>
-                <td class="px-4 py-3 text-sm">${p.username || '—'}</td>
-                <td class="px-4 py-3 text-sm">${scope}</td>
-                <td class="px-4 py-3 text-sm">${lastRotated}</td>
-                <td class="px-4 py-3 text-sm">${p.has_secret ? '<span class="text-green-400">Secret saved</span>' : '<span class="text-gray-400">Reference only</span>'}</td>
-                <td class="px-4 py-3 text-right space-x-2">
-                    <button class="btn-secondary px-2 py-1 rounded text-xs" onclick="showCredentialModal('${p.id}')"><i class="fas fa-edit"></i></button>
-                    <button class="btn-secondary px-2 py-1 rounded text-xs" onclick="deleteCredentialProfile('${p.id}', '${p.name.replace(/'/g, "&apos;")}')"><i class="fas fa-trash"></i></button>
-                </td>
-            </tr>`;
-        }).join('');
-
-        container.innerHTML = `<table class="min-w-full text-left">
-            <thead class="text-xs uppercase text-gray-400">
-                <tr>
-                    <th class="px-4 py-2">Name</th>
-                    <th class="px-4 py-2">Backend</th>
-                    <th class="px-4 py-2">Type</th>
-                    <th class="px-4 py-2">Username</th>
-                    <th class="px-4 py-2">Scope</th>
-                    <th class="px-4 py-2">Last rotated</th>
-                    <th class="px-4 py-2">Secret</th>
-                    <th class="px-4 py-2 text-right">Actions</th>
-                </tr>
-            </thead>
-            <tbody class="text-sm text-gray-200">${rows}</tbody>
-        </table>
-        <div class="p-3 text-xs text-gray-400">Showing ${profiles.length} of ${credentialFilteredTotal} credential profiles</div>`;
-    }
-
-    function showCredentialModal(profileId = null) {
-        editingCredentialId = profileId;
-        const form = document.getElementById('credentialForm');
-        form.reset();
-        document.getElementById('credentialProfileEditingId').value = profileId || '';
-        document.getElementById('credentialModalTitle').textContent = profileId ? 'Edit Credential Profile' : 'New Credential Profile';
-
-        if (profileId) {
-            const profile = credentialProfiles.find(p => p.id === profileId);
-            if (profile) {
-                document.getElementById('credentialProfileName').value = profile.name;
-                document.getElementById('credentialProfileGroup').value = profile.group_id || '';
-                document.getElementById('credentialProfileType').value = profile.credential_type || 'key';
-                document.getElementById('credentialProfileBackend').value = profile.backend || 'inline';
-                document.getElementById('credentialProfileDescription').value = profile.description || '';
-                document.getElementById('credentialProfileUsername').value = profile.username || '';
-                document.getElementById('credentialProfileMetadata').value = profile.metadata_json ? JSON.stringify(profile.metadata_json, null, 2) : '';
-            }
+        if (!profiles.length) {
+            container.innerHTML = `<div class="text-center py-8 text-gray-400">No profiles match filters</div>`;
+            return;
         }
 
-        const modal = document.getElementById('credentialModal');
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
-    }
+        let html = `
+        <div class="bg-gray-800 rounded-lg shadow overflow-hidden border border-gray-700">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-gray-800 text-gray-400 text-sm">
+                        <th class="px-4 py-3 font-medium">Name</th>
+                        <th class="px-4 py-3 font-medium">Backend</th>
+                        <th class="px-4 py-3 font-medium">Description</th>
+                        <th class="px-4 py-3 font-medium">Group</th>
+                        <th class="px-4 py-3 font-medium text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-700">
+                    ${profiles.map(p => `
+                    <tr class="hover:bg-gray-800/50 transition-colors">
+                        <td class="p-4 font-medium text-white">${p.name}</td>
+                        <td class="p-4 text-gray-300">${p.backend}</td>
+                        <td class="p-4 text-gray-300">${p.description || '-'}</td>
+                        <td class="p-4">${getGroupLabel(p.group_id)}</td>
+                        <td class="p-4 text-right space-x-2">
+                            <button class="text-gray-400 hover:text-white" onclick="showEditCredentialProfileModal('${p.id}')" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="text-red-400 hover:text-red-300" onclick="deleteCredentialProfile('${p.id}')" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>`;
 
-    function closeCredentialModal() {
-        const modal = document.getElementById('credentialModal');
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
-        editingCredentialId = null;
+        container.innerHTML = html;
     }
 
     async function saveCredentialProfile(event) {
         event.preventDefault();
-        const payload = {
-            name: document.getElementById('credentialProfileName').value.trim(),
-            description: document.getElementById('credentialProfileDescription').value.trim() || null,
-            username: document.getElementById('credentialProfileUsername').value.trim() || null,
-            credential_type: document.getElementById('credentialProfileType').value,
-            backend: document.getElementById('credentialProfileBackend').value,
-            secret_value: document.getElementById('credentialProfileSecret').value || null,
-            metadata_json: parseYamlOrJson(document.getElementById('credentialProfileMetadata').value || '{}'),
+        const id = document.getElementById('credentialProfileEditingId').value;
+        const data = {
+            name: document.getElementById('credentialName').value.trim(),
+            description: document.getElementById('credentialDescription').value.trim(),
+            backend: document.getElementById('credentialBackend').value,
             group_id: document.getElementById('credentialProfileGroup').value || null,
+            login_username: document.getElementById('credentialUsername').value.trim(),
+            login_password: document.getElementById('credentialPassword').value || null,
+            ssh_private_key: document.getElementById('credentialSshKey').value || null,
+            ssh_key_passphrase: document.getElementById('credentialSshPassphrase').value || null
         };
 
-        if (!payload.name) {
-            showToast('Profile name is required', 'error');
+        if (data.backend === 'ssh' && !data.ssh_private_key && !id) {
+            showToast('SSH private key is required for SSH backend', 'error');
+            return;
+        }
+        if (data.backend === 'winrm' && !data.login_password && !id) {
+            showToast('Password is required for WinRM backend', 'error');
             return;
         }
 
-        if (payload.credential_type === 'password' && !payload.username) {
-            showToast('Password credentials require a username', 'error');
-            return;
-        }
+        try {
+            const url = id ? `/api/servers/credentials/${id}` : '/api/servers/credentials';
+            const method = id ? 'PUT' : 'POST';
+            const response = await apiCall(url, {
+                method,
+                body: JSON.stringify(data)
+            });
 
-        if (payload.credential_type === 'password' && payload.backend === 'inline' && !payload.secret_value) {
-            showToast('Password credentials require a secret', 'error');
-            return;
-        }
-
-        const url = editingCredentialId ? `/api/servers/credentials/${editingCredentialId}` : '/api/servers/credentials';
-        const method = editingCredentialId ? 'PUT' : 'POST';
-        const response = await apiCall(url, { method, body: JSON.stringify(payload) });
-        if (!response) return;
-        if (!response.ok) {
-            const error = await response.json();
-            showToast(error.detail || 'Failed to save profile', 'error');
-            return;
-        }
-
-        showToast(editingCredentialId ? 'Credential profile updated' : 'Credential profile created', 'success');
-        closeCredentialModal();
-        document.getElementById('credentialProfileSecret').value = '';
-        await loadCredentialProfiles();
-    }
-
-    async function deleteCredentialProfile(profileId, profileName) {
-        showConfirmModal('Delete credential profile', `Type DELETE to remove ${profileName}. This profile must not be attached to servers.`, async (confirmed) => {
-            if (!confirmed) return;
-            const response = await apiCall(`/api/servers/credentials/${profileId}`, { method: 'DELETE' });
             if (!response) return;
             if (!response.ok) {
-                const error = await response.json();
-                showToast(error.detail || 'Failed to delete credential', 'error');
+                const err = await response.json();
+                showToast(err.detail || 'Failed to save profile', 'error');
                 return;
             }
-            showToast('Credential profile deleted', 'success');
-            await loadCredentialProfiles();
-        }, { confirmationText: 'DELETE' });
-    }
 
-    // API Credentials functions
-    async function loadApiCredentials() {
-        try {
-            const response = await apiCall('/api/credential-profiles');
-            if (!response) return;
-            apiCredentialProfiles = await response.json();
-            renderApiCredentials(filterApiCredentials());
+            showToast(id ? 'Profile updated' : 'Profile created', 'success');
+            closeCredentialModal();
+            loadCredentialProfiles();
         } catch (error) {
-            console.error('Failed to load API credentials', error);
+            showToast('Error saving profile', 'error');
         }
     }
 
-    function filterApiCredentials() {
-        const search = (document.getElementById('apiCredentialSearch')?.value || '').toLowerCase();
-        const authType = document.getElementById('apiCredentialAuthTypeFilter')?.value || '';
-        const status = document.getElementById('apiCredentialStatusFilter')?.value || '';
-
-        let filtered = apiCredentialProfiles;
-        if (search) {
-            filtered = filtered.filter(p =>
-                p.name.toLowerCase().includes(search) ||
-                (p.base_url || '').toLowerCase().includes(search)
-            );
+    async function deleteCredentialProfile(id) {
+        if (!confirm('Delete this credential profile?')) return;
+        try {
+            const response = await apiCall(`/api/servers/credentials/${id}`, { method: 'DELETE' });
+            if (response && response.ok) {
+                showToast('Profile deleted', 'success');
+                loadCredentialProfiles();
+            } else {
+                showToast('Failed to delete profile', 'error');
+            }
+        } catch (e) {
+            showToast('Error deleting profile', 'error');
         }
-        if (authType) {
-            filtered = filtered.filter(p => p.auth_type === authType);
-        }
-        if (status === 'enabled') {
-            filtered = filtered.filter(p => p.enabled === true);
-        } else if (status === 'disabled') {
-            filtered = filtered.filter(p => p.enabled === false);
-        }
-
-        return filtered.sort((a, b) => a.name.localeCompare(b.name));
     }
 
-    function renderApiCredentials(profiles) {
-        const container = document.getElementById('apiCredentialTableContainer');
-        if (!container) return;
+    function showCreateCredentialProfileModal() {
+        document.getElementById('credentialForm').reset();
+        document.getElementById('credentialModalTitle').textContent = 'New Credential Profile';
+        document.getElementById('credentialProfileEditingId').value = '';
+        document.getElementById('credentialModal').classList.remove('hidden');
+        document.getElementById('credentialModal').classList.add('flex');
+        toggleCredentialBackendFields();
+    }
 
-        if (!profiles.length) {
-            container.innerHTML = '<div class="text-center py-8 text-gray-400">No API credentials yet. Use "New API Credential" to add credentials for Ansible AWX, Jenkins, Kubernetes, etc.</div>';
+    function showEditCredentialProfileModal(id) {
+        const p = credentialProfiles.find(x => x.id === id);
+        if (!p) return;
+        document.getElementById('credentialModalTitle').textContent = 'Edit Credential Profile';
+        document.getElementById('credentialProfileEditingId').value = p.id;
+        document.getElementById('credentialName').value = p.name;
+        document.getElementById('credentialDescription').value = p.description || '';
+        document.getElementById('credentialBackend').value = p.backend;
+        document.getElementById('credentialProfileGroup').value = p.group_id || '';
+        document.getElementById('credentialUsername').value = p.login_username || '';
+        document.getElementById('credentialPassword').value = '';
+        document.getElementById('credentialSshKey').value = '';
+        document.getElementById('credentialSshPassphrase').value = '';
+
+        document.getElementById('credentialModal').classList.remove('hidden');
+        document.getElementById('credentialModal').classList.add('flex');
+        toggleCredentialBackendFields();
+    }
+
+    function closeCredentialModal() {
+        document.getElementById('credentialModal').classList.add('hidden');
+        document.getElementById('credentialModal').classList.remove('flex');
+    }
+
+    function toggleCredentialBackendFields() {
+        const backend = document.getElementById('credentialBackend').value;
+        const sshFields = document.getElementById('credentialSshFields');
+        const winrmFields = document.getElementById('credentialWinrmFields');
+        if (backend === 'ssh') {
+            sshFields?.classList.remove('hidden');
+            winrmFields?.classList.add('hidden');
+        } else {
+            sshFields?.classList.add('hidden');
+            winrmFields?.classList.remove('hidden');
+        }
+    }
+    // Save API Credential
+    document.getElementById('apiCredentialForm')?.addEventListener('submit', async function (e) {
+        e.preventDefault();
+
+        const profileId = document.getElementById('apiCredentialProfileId').value;
+        const data = {
+            name: document.getElementById('apiCredentialName').value.trim(),
+            description: document.getElementById('apiCredentialDescription').value.trim() || null,
+            base_url: document.getElementById('apiCredentialBaseUrl').value.trim(),
+            auth_type: document.getElementById('apiCredentialAuthType').value,
+            auth_header: document.getElementById('apiCredentialAuthHeader').value.trim() || null,
+            token: document.getElementById('apiCredentialToken').value || null,
+            username: document.getElementById('apiCredentialUsername').value.trim() || null,
+            password: document.getElementById('apiCredentialPassword').value || null,
+            oauth_token_url: document.getElementById('apiCredentialOAuthTokenUrl').value.trim() || null,
+            oauth_client_id: document.getElementById('apiCredentialOAuthClientId').value.trim() || null,
+            oauth_client_secret: document.getElementById('apiCredentialOAuthClientSecret').value || null,
+            oauth_scope: document.getElementById('apiCredentialOAuthScope').value.trim() || null,
+            verify_ssl: document.getElementById('apiCredentialVerifySSL').checked,
+            timeout_seconds: parseInt(document.getElementById('apiCredentialTimeout').value),
+            enabled: document.getElementById('apiCredentialEnabled').checked,
+            profile_metadata: {}
+        };
+
+        try {
+            let response;
+            if (profileId) {
+                // Update
+                response = await apiCall(`/ api / credential - profiles / ${profileId} `, {
+                    method: 'PUT',
+                    body: JSON.stringify(data)
+                });
+            } else {
+                // Create
+                response = await apiCall('/api/credential-profiles', {
+                    method: 'POST',
+                    body: JSON.stringify(data)
+                });
+            }
+
+            if (!response) return;
+
+            if (response.ok) {
+                showToast(profileId ? 'Connector updated' : 'Connector created', 'success');
+                closeApiCredentialModal();
+                loadApiCredentials(); // Reload list
+            } else {
+                const error = await response.json();
+                showToast(error.detail || 'Failed to save connector', 'error');
+            }
+        } catch (error) {
+            console.error('Error saving profile:', error);
+            showToast('Error saving connector', 'error');
+        }
+    });
+
+    async function testApiCredentialConnection() {
+        // We generally need a saved profile to test connection easily via ID,
+        // or we could implement a test-from-form endpoint similar to servers.
+        // For now, let's require save first or test existing ID if we have it?
+        // Actually, credential_profiles.html requires save first. Let's try to follow that or warn.
+        // But user experience is better if we can test dry-run.
+        // Let's rely on the profileId being present for now.
+        const profileId = document.getElementById('apiCredentialProfileId').value;
+        if (!profileId) {
+            showToast('Please save the connector first before testing', 'warning');
             return;
         }
 
-        const formatAuthType = (type) => {
-            const types = {
-                'none': 'No Auth',
-                'api_key': 'API Key',
-                'bearer': 'Bearer Token',
-                'basic': 'Basic Auth',
-                'oauth': 'OAuth 2.0'
-            };
-            return types[type] || type;
-        };
+        const button = document.getElementById('apiCredentialTestButton');
+        if (button) button.disabled = true;
 
-        const rows = profiles.map(p => {
-            const statusBadge = p.enabled
-                ? '<span class="px-2 py-1 text-xs rounded bg-green-900 text-green-300">Enabled</span>'
-                : '<span class="px-2 py-1 text-xs rounded bg-gray-700 text-gray-400">Disabled</span>';
+        try {
+            const response = await apiCall(`/ api / credential - profiles / ${profileId}/test`, {
+                method: 'POST'
+            });
 
-            return `<tr class="border-b border-gray-800">
-                <td class="px-4 py-3">
-                    <div class="font-semibold">${p.name}</div>
-                    <div class="text-xs text-gray-400">${p.description || ''}</div>
-                </td>
-                <td class="px-4 py-3 text-sm font-mono text-xs">${p.base_url}</td>
-                <td class="px-4 py-3 text-sm">${formatAuthType(p.auth_type)}</td>
-                <td class="px-4 py-3 text-sm">${statusBadge}</td>
-                <td class="px-4 py-3 text-sm">${p.timeout_seconds}s</td>
-                <td class="px-4 py-3 text-right space-x-2">
-                    <a href="/credential-profiles" class="btn-secondary px-2 py-1 rounded text-xs" title="Manage in full editor">
-                        <i class="fas fa-external-link-alt"></i>
-                    </a>
-                </td>
-            </tr>`;
-        }).join('');
+            if (!response) return;
+            const result = await response.json();
 
-        container.innerHTML = `<table class="min-w-full text-left">
-            <thead class="text-xs uppercase text-gray-400">
-                <tr>
-                    <th class="px-4 py-2">Name</th>
-                    <th class="px-4 py-2">Base URL</th>
-                    <th class="px-4 py-2">Auth Type</th>
-                    <th class="px-4 py-2">Status</th>
-                    <th class="px-4 py-2">Timeout</th>
-                    <th class="px-4 py-2 text-right">Actions</th>
-                </tr>
-            </thead>
-            <tbody class="text-sm text-gray-200">${rows}</tbody>
-        </table>
-        <div class="p-3 text-xs text-gray-400">Showing ${profiles.length} API credential profiles</div>`;
+            if (response.ok && result.success) {
+                showToast('Connection test successful!', 'success');
+            } else {
+                showToast(result.error || 'Connection test failed', 'error');
+            }
+        } catch (error) {
+            showToast('Error testing connection', 'error');
+        } finally {
+            if (button) button.disabled = false;
+        }
     }
 
-    function showApiCredentialModal() {
-        window.location.href = '/credential-profiles';
-    }
 
     // Add event listeners for API credential filters
     document.getElementById('apiCredentialSearch')?.addEventListener('input', () => {
@@ -2786,7 +3083,8 @@ account: db-admin"></textarea>
         const user = document.getElementById('serverUser').value.trim();
         const authType = document.getElementById('serverAuthType').value;
         const credentialSource = document.getElementById('credentialSource').value;
-        const secret = authType === 'key' ? document.getElementById('serverKey').value.trim() : document.getElementById('serverPassword').value.trim();
+        const secret = authType === 'key' ? document.getElementById('serverKey').value.trim() :
+            document.getElementById('serverPassword').value.trim();
         const port = parseInt(document.getElementById('serverPort').value);
 
         if (!hostname || !user) {
@@ -2901,7 +3199,8 @@ account: db-admin"></textarea>
             serverLastTest[serverId] = { ok: result.status === 'success', message: result.message };
             renderServersTable(filterServers());
             if (result.status === 'success') {
-                showToast(`Server responded: ${result.latency_ms !== undefined ? result.latency_ms + 'ms' : 'OK'} - ${result.message}`, 'success');
+                showToast(`Server responded: ${result.latency_ms !== undefined ? result.latency_ms + 'ms' : 'OK'} -
+        ${result.message}`, 'success');
             } else {
                 showToast(`Server test failed: ${result.message}`, 'error');
             }
@@ -2951,7 +3250,8 @@ account: db-admin"></textarea>
         document.getElementById('credentialProfileId').value = server.credential_profile_id || '';
         document.getElementById('serverOsType').value = server.os_type || 'linux';
         document.getElementById('serverTags').value = (server.tags || []).join(', ');
-        document.getElementById('serverCredentialMetadata').value = server.credential_metadata ? JSON.stringify(server.credential_metadata, null, 2) : '';
+        document.getElementById('serverCredentialMetadata').value = server.credential_metadata ?
+            JSON.stringify(server.credential_metadata, null, 2) : '';
 
         toggleProtocolFields();
         toggleCredentialSource();
@@ -3055,34 +3355,53 @@ account: db-admin"></textarea>
         }
     });
 
-    document.getElementById('providerModal').addEventListener('click', (e) => {
+    document.getElementById('providerModal')?.addEventListener('click', (e) => {
         if (e.target === e.currentTarget) closeProviderModal();
     });
 
-    document.getElementById('confirmModal').addEventListener('click', (e) => {
+    document.getElementById('confirmModal')?.addEventListener('click', (e) => {
         if (e.target === e.currentTarget) closeConfirmModal();
     });
 
-    document.getElementById('credentialModal').addEventListener('click', (e) => {
+    document.getElementById('credentialModal')?.addEventListener('click', (e) => {
         if (e.target === e.currentTarget) closeCredentialModal();
     });
 
-    document.getElementById('providerSearch')?.addEventListener('input', () => renderProvidersTable(filterProviders()));
-    document.getElementById('providerTypeFilter')?.addEventListener('change', () => renderProvidersTable(filterProviders()));
-    document.getElementById('providerStatusFilter')?.addEventListener('change', () => renderProvidersTable(filterProviders()));
+    document.getElementById('providerSearch')?.addEventListener('input', () =>
+        renderProvidersTable(filterProviders()));
+    document.getElementById('providerTypeFilter')?.addEventListener('change', () =>
+        renderProvidersTable(filterProviders()));
+    document.getElementById('providerStatusFilter')?.addEventListener('change', () =>
+        renderProvidersTable(filterProviders()));
     document.getElementById('serverSearch')?.addEventListener('input', () => renderServersTable(filterServers()));
-    document.getElementById('serverEnvFilter')?.addEventListener('change', () => renderServersTable(filterServers()));
-    document.getElementById('serverStatusFilter')?.addEventListener('change', () => renderServersTable(filterServers()));
+    document.getElementById('serverEnvFilter')?.addEventListener('change', () =>
+        renderServersTable(filterServers()));
+    document.getElementById('serverStatusFilter')?.addEventListener('change', () =>
+        renderServersTable(filterServers()));
     document.getElementById('serverGroupForm')?.addEventListener('submit', submitServerGroup);
-    document.getElementById('credentialSearch')?.addEventListener('input', () => renderCredentialProfiles(filterCredentialProfiles()));
-    document.getElementById('credentialBackendFilter')?.addEventListener('change', () => renderCredentialProfiles(filterCredentialProfiles()));
-    document.getElementById('credentialGroupFilter')?.addEventListener('change', () => renderCredentialProfiles(filterCredentialProfiles()));
+    document.getElementById('credentialSearch')?.addEventListener('input', () =>
+        renderCredentialProfiles(filterCredentialProfiles()));
+    document.getElementById('credentialBackendFilter')?.addEventListener('change', () =>
+        renderCredentialProfiles(filterCredentialProfiles()));
+    document.getElementById('credentialGroupFilter')?.addEventListener('change', () =>
+        renderCredentialProfiles(filterCredentialProfiles()));
     document.getElementById('credentialForm')?.addEventListener('submit', saveCredentialProfile);
     document.getElementById('userSearch')?.addEventListener('input', () => { userPage = 1; renderUsersTable(); });
-    document.getElementById('userRoleFilter')?.addEventListener('change', () => { userPage = 1; renderUsersTable(); });
-    document.getElementById('userStatusFilter')?.addEventListener('change', () => { userPage = 1; renderUsersTable(); });
-    document.getElementById('userSort')?.addEventListener('change', (e) => { userSort = e.target.value; userPage = 1; renderUsersTable(); });
-    document.getElementById('userPageSize')?.addEventListener('change', (e) => { userPageSize = parseInt(e.target.value, 10) || 10; userPage = 1; renderUsersTable(); });
+    document.getElementById('userRoleFilter')?.addEventListener('change', () => {
+        userPage = 1; renderUsersTable();
+    });
+    document.getElementById('userStatusFilter')?.addEventListener('change', () => {
+        userPage = 1;
+        renderUsersTable();
+    });
+    document.getElementById('userSort')?.addEventListener('change', (e) => {
+        userSort = e.target.value; userPage =
+            1; renderUsersTable();
+    });
+    document.getElementById('userPageSize')?.addEventListener('change', (e) => {
+        userPageSize =
+            parseInt(e.target.value, 10) || 10; userPage = 1; renderUsersTable();
+    });
 
     initSectionNavigation();
 
@@ -3321,7 +3640,9 @@ account: db-admin"></textarea>
 
     async function loadRoles() {
         const tbody = document.getElementById('rolesTableBody');
-        tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-gray-500">Loading roles...</td></tr>';
+        tbody.innerHTML = `<tr>
+            <td colspan="4" class="p-4 text-center text-gray-500">Loading roles...</td>
+        </tr>`;
 
         try {
             const response = await fetch('/api/roles');
@@ -3329,41 +3650,49 @@ account: db-admin"></textarea>
                 rolesCache = await response.json();
                 renderRoles();
             } else {
-                tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-red-400">Failed to load roles</td></tr>';
+                tbody.innerHTML = `<tr>
+                    <td colspan="4" class="p-4 text-center text-red-400">Failed to load roles</td>
+                </tr>`;
             }
         } catch (e) {
             console.error(e);
-            tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-red-400">Error loading roles</td></tr>';
+            tbody.innerHTML = `<tr>
+                <td colspan="4" class="p-4 text-center text-red-400">Error loading roles</td>
+            </tr>`;
         }
     }
 
     function renderRoles() {
         const tbody = document.getElementById('rolesTableBody');
         if (rolesCache.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-gray-400">No roles found</td></tr>';
+            tbody.innerHTML = `<tr>
+                <td colspan="4" class="p-4 text-center text-gray-400">No roles found</td>
+            </tr>`;
             return;
         }
 
         tbody.innerHTML = rolesCache.map(role => `
-            <tr class="hover:bg-gray-800/50 transition-colors">
-                <td class="p-4 font-medium text-white">${role.name}</td>
-                <td class="p-4 text-gray-300">${role.description || '-'}</td>
-                <td class="p-4">
-                    <span class="px-2 py-1 rounded text-xs ${role.is_custom ? 'bg-blue-900 text-blue-300' : 'bg-gray-700 text-gray-300'}">
-                        ${role.is_custom ? 'Custom' : 'System'}
-                    </span>
-                </td>
-                <td class="p-4 text-right space-x-2">
-                    <button class="text-gray-400 hover:text-white" onclick="showEditRoleModal('${role.id}')" title="Edit Permissions">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    ${role.is_custom ? `
-                    <button class="text-red-400 hover:text-red-300" onclick="deleteRole('${role.id}')" title="Delete Role">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                    ` : ''}
-                </td>
-            </tr>
+        <tr class="hover:bg-gray-800/50 transition-colors">
+            <td class="p-4 font-medium text-white">${role.name}</td>
+            <td class="p-4 text-gray-300">${role.description || '-'}</td>
+            <td class="p-4">
+                <span
+                    class="px-2 py-1 rounded text-xs ${role.is_custom ? 'bg-blue-900 text-blue-300' : 'bg-gray-700 text-gray-300'}">
+                    ${role.is_custom ? 'Custom' : 'System'}
+                </span>
+            </td>
+            <td class="p-4 text-right space-x-2">
+                <button class="text-gray-400 hover:text-white" onclick="showEditRoleModal('${role.id}')"
+                    title="Edit Permissions">
+                    <i class="fas fa-edit"></i>
+                </button>
+                ${role.is_custom ? `
+                <button class="text-red-400 hover:text-red-300" onclick="deleteRole('${role.id}')" title="Delete Role">
+                    <i class="fas fa-trash"></i>
+                </button>
+                ` : ''}
+            </td>
+        </tr>
         `).join('');
     }
 
@@ -3405,23 +3734,25 @@ account: db-admin"></textarea>
         let html = '';
         for (const [category, perms] of Object.entries(AVAILABLE_PERMISSIONS)) {
             html += `
-                <div class="bg-gray-800/50 p-3 rounded border border-gray-700">
-                    <h4 class="text-xs font-bold uppercase text-gray-500 mb-2">${category}</h4>
-                    <div class="space-y-2">
-            `;
+        <div class="bg-gray-800/50 p-3 rounded border border-gray-700">
+            <h4 class="text-xs font-bold uppercase text-gray-500 mb-2">${category}</h4>
+            <div class="space-y-2">
+                `;
             perms.forEach(p => {
                 const checked = set.has(p.key) ? 'checked' : '';
                 html += `
-                    <label class="flex items-start gap-2 cursor-pointer">
-                        <input type="checkbox" name="role_permission" value="${p.key}" ${checked} class="mt-1">
-                        <div>
-                            <div class="text-sm font-medium text-gray-200">${p.label}</div>
-                            <div class="text-xs text-gray-500">${p.desc}</div>
-                        </div>
-                    </label>
+                <label class="flex items-start gap-2 cursor-pointer">
+                    <input type="checkbox" name="role_permission" value="${p.key}" ${checked} class="mt-1">
+                    <div>
+                        <div class="text-sm font-medium text-gray-200">${p.label}</div>
+                        <div class="text-xs text-gray-500">${p.desc}</div>
+                    </div>
+                </label>
                 `;
             });
-            html += `</div></div>`;
+            html += `
+            </div>
+        </div>`;
         }
         container.innerHTML = html;
     }
