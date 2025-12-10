@@ -154,130 +154,89 @@ class AlertTriggerMatcher:
         Returns:
             Dict with matched status and extracted variables.
         """
-        conditions = trigger.conditions
-        match_type = trigger.match_type
-        
         result = {
             "matched": False,
             "matched_conditions": [],
             "extracted_variables": {}
         }
         
-        # Check severity condition
-        if "severity" in conditions:
-            severity_condition = conditions["severity"]
-            
-            if isinstance(severity_condition, list):
-                if alert.severity not in severity_condition:
-                    return result
-            else:
-                if alert.severity != severity_condition:
-                    return result
-            
-            result["matched_conditions"].append(f"severity: {alert.severity}")
+        # Get alert fields
+        alert_name = getattr(alert, 'alert_name', alert.name if hasattr(alert, 'name') else '')
+        alert_severity = getattr(alert, 'severity', '')
+        alert_instance = getattr(alert, 'instance', '')
+        alert_job = getattr(alert, 'job', '')
+        alert_labels = getattr(alert, 'labels_json', {}) or {}
         
-        # Check source condition
-        if "source" in conditions:
-            source_pattern = conditions["source"]
-            
-            if match_type == "regex":
-                if not re.search(source_pattern, alert.source, re.IGNORECASE):
-                    return result
-            elif match_type == "contains":
-                if source_pattern.lower() not in alert.source.lower():
-                    return result
-            else:  # exact
-                if alert.source.lower() != source_pattern.lower():
-                    return result
-            
-            result["matched_conditions"].append(f"source: {alert.source}")
-        
-        # Check message pattern
-        if "message_pattern" in conditions:
-            pattern = conditions["message_pattern"]
-            
+        # Check alert name pattern
+        if trigger.alert_name_pattern and trigger.alert_name_pattern != '*':
+            pattern = trigger.alert_name_pattern.replace('*', '.*')
             try:
-                if match_type == "regex":
-                    match = re.search(pattern, alert.message, re.IGNORECASE)
-                    if not match:
-                        return result
-                    
-                    # Extract named groups as variables
-                    if match.groupdict():
-                        result["extracted_variables"].update(match.groupdict())
-                elif match_type == "contains":
-                    if pattern.lower() not in alert.message.lower():
-                        return result
-                else:  # exact
-                    if alert.message != pattern:
-                        return result
-                
-                result["matched_conditions"].append(f"message pattern matched")
+                if not re.match(pattern, alert_name, re.IGNORECASE):
+                    return result
+                result["matched_conditions"].append(f"alert_name: {alert_name}")
             except re.error as e:
-                logger.error(f"Invalid regex pattern in trigger {trigger.id}: {e}")
+                logger.error(f"Invalid alert_name pattern in trigger {trigger.id}: {e}")
                 return result
         
-        # Check labels/tags condition
-        if "labels" in conditions:
-            required_labels = conditions["labels"]
-            alert_labels = alert.labels or {}
-            
-            for key, value in required_labels.items():
+        # Check severity pattern
+        if trigger.severity_pattern and trigger.severity_pattern != '*':
+            pattern = trigger.severity_pattern.replace('*', '.*')
+            try:
+                if not re.match(pattern, alert_severity, re.IGNORECASE):
+                    return result
+                result["matched_conditions"].append(f"severity: {alert_severity}")
+            except re.error as e:
+                logger.error(f"Invalid severity pattern in trigger {trigger.id}: {e}")
+                return result
+        
+        # Check instance pattern
+        if trigger.instance_pattern and trigger.instance_pattern != '*':
+            pattern = trigger.instance_pattern.replace('*', '.*')
+            try:
+                if not re.match(pattern, alert_instance, re.IGNORECASE):
+                    return result
+                result["matched_conditions"].append(f"instance: {alert_instance}")
+            except re.error as e:
+                logger.error(f"Invalid instance pattern in trigger {trigger.id}: {e}")
+                return result
+        
+        # Check job pattern
+        if trigger.job_pattern and trigger.job_pattern != '*':
+            pattern = trigger.job_pattern.replace('*', '.*')
+            try:
+                if not re.match(pattern, alert_job, re.IGNORECASE):
+                    return result
+                result["matched_conditions"].append(f"job: {alert_job}")
+            except re.error as e:
+                logger.error(f"Invalid job pattern in trigger {trigger.id}: {e}")
+                return result
+        
+        # Check label matchers
+        if trigger.label_matchers_json:
+            for key, value in trigger.label_matchers_json.items():
                 if key not in alert_labels:
                     return result
-                if value is not None and alert_labels[key] != value:
+                if value != '*' and alert_labels.get(key) != value:
                     return result
-            
-            result["matched_conditions"].append(f"labels: {required_labels}")
+            result["matched_conditions"].append(f"labels matched")
         
-        # Check time-based conditions
-        if "time_range" in conditions:
-            time_range = conditions["time_range"]
-            now = datetime.utcnow()
-            
-            if "start_hour" in time_range and "end_hour" in time_range:
-                current_hour = now.hour
-                start = time_range["start_hour"]
-                end = time_range["end_hour"]
-                
-                if start <= end:
-                    if not (start <= current_hour < end):
-                        return result
-                else:  # Spans midnight
-                    if not (current_hour >= start or current_hour < end):
-                        return result
-                
-                result["matched_conditions"].append(f"time range: {start}-{end}")
-            
-            if "days_of_week" in time_range:
-                allowed_days = time_range["days_of_week"]
-                current_day = now.weekday()  # 0=Monday
-                
-                if current_day not in allowed_days:
-                    return result
-                
-                result["matched_conditions"].append(f"day of week: {current_day}")
+        # If we got here, all patterns matched
+        result["matched"] = True
         
-        # If all conditions passed, it's a match
-        if not conditions:
-            # Empty conditions = match all
-            result["matched"] = True
-        elif result["matched_conditions"]:
-            result["matched"] = True
-        
-        # Add alert info as variables
-        result["extracted_variables"].update({
+        # Extract variables from alert
+        result["extracted_variables"] = {
             "alert_id": str(alert.id),
-            "alert_severity": alert.severity,
-            "alert_source": alert.source,
-            "alert_message": alert.message,
-            "alert_timestamp": alert.timestamp.isoformat() if alert.timestamp else "",
-        })
+            "alert_name": alert_name,
+            "alert_severity": alert_severity,
+            "alert_instance": alert_instance,
+            "alert_job": alert_job,
+            "alert_source": getattr(alert, 'source', ''),
+            "alert_timestamp": alert.timestamp.isoformat() if hasattr(alert, 'timestamp') and alert.timestamp else "",
+        }
         
         # Add alert labels as variables with prefix
-        if alert.labels:
-            for key, value in alert.labels.items():
-                result["extracted_variables"][f"alert_label_{key}"] = str(value)
+        for key, value in alert_labels.items():
+            result["extracted_variables"][f"alert_label_{key}"] = str(value)
         
         return result
     
