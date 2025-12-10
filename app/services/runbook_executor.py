@@ -125,9 +125,10 @@ class RunbookExecutor:
             alert = result.scalar_one_or_none()
             if alert:
                 alert_context = {
-                    "alert_name": alert.name,
+                    "alert_name": alert.alert_name,
                     "alert_severity": alert.severity,
-                    "alert_source": alert.source,
+                    "alert_instance": alert.instance,
+                    "alert_job": alert.job,
                     "alert_labels": alert.labels_json or {},
                     "alert_annotations": alert.annotations_json or {}
                 }
