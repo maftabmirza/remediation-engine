@@ -172,6 +172,8 @@ async def create_runbook(
             retry_delay_seconds=step_data.retry_delay_seconds,
             expected_exit_code=step_data.expected_exit_code,
             expected_output_pattern=step_data.expected_output_pattern,
+            output_variable=step_data.output_variable,
+            output_extract_pattern=step_data.output_extract_pattern,
             rollback_command_linux=step_data.rollback_command_linux,
             rollback_command_windows=step_data.rollback_command_windows
         )
@@ -337,6 +339,8 @@ async def update_runbook(
                 retry_delay_seconds=step_data.retry_delay_seconds,
                 expected_exit_code=step_data.expected_exit_code,
                 expected_output_pattern=step_data.expected_output_pattern,
+                output_variable=step_data.output_variable,
+                output_extract_pattern=step_data.output_extract_pattern,
                 rollback_command_linux=step_data.rollback_command_linux,
                 rollback_command_windows=step_data.rollback_command_windows
             )
@@ -487,6 +491,8 @@ async def clone_runbook(
             retry_delay_seconds=step.retry_delay_seconds,
             expected_exit_code=step.expected_exit_code,
             expected_output_pattern=step.expected_output_pattern,
+            output_variable=step.output_variable,
+            output_extract_pattern=step.output_extract_pattern,
             rollback_command_linux=step.rollback_command_linux,
             rollback_command_windows=step.rollback_command_windows
         )
@@ -685,6 +691,8 @@ async def add_step(
         retry_delay_seconds=step_data.retry_delay_seconds,
         expected_exit_code=step_data.expected_exit_code,
         expected_output_pattern=step_data.expected_output_pattern,
+        output_variable=step_data.output_variable,
+        output_extract_pattern=step_data.output_extract_pattern,
         rollback_command_linux=step_data.rollback_command_linux,
         rollback_command_windows=step_data.rollback_command_windows
     )
