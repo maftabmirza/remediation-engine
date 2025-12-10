@@ -2,7 +2,15 @@
 trigger: always_on
 ---
 
-1. Remediate-engine container is running at 172.234.217.11
+Local development environment 
+1. local code PS D:\remediate-engine-antigravity\remediation-engine>
+2. Local windows container 
+#d11204f9-edbb-44f8-82c8-b65eca2c6c58	Restart docker	queued	172.239.195.215	Auto	2m ago	2m 29s	
+#4e85a1e7-55c6-428a-91f1-82a74212931c	Restart docker	queued	172.239.195.215	Auto	8m ago	8m 44s	
+
+
+Servers environment 
+1.Remediate-engine container is running at 172.234.217.11
 2, We can connect to usning user name aftab and container is running under /home/aftab/aiops-platform
 3. There are few other container also running on same server as below
 CONTAINER ID   IMAGE                               COMMAND                  CREATED        STATUS                  PORTS                                         NAMES

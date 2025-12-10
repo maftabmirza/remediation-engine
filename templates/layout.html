@@ -52,6 +52,12 @@
                 <i class="fas fa-play-circle w-5 flex-shrink-0 nav-icon text-red-400"></i>
                 <span class="sidebar-text whitespace-nowrap hidden">Executions</span>
             </a>
+            <a href="/schedules"
+                class="sidebar-item flex items-center space-x-3 px-4 py-3 rounded-lg {% if active_page == 'schedules' %}active{% endif %}"
+                data-tooltip="Schedules">
+                <i class="fas fa-calendar-alt w-5 flex-shrink-0 nav-icon text-orange-400"></i>
+                <span class="sidebar-text whitespace-nowrap hidden">Schedules</span>
+            </a>
 
             <a href="/settings"
                 class="sidebar-item flex items-center space-x-3 px-4 py-3 rounded-lg {% if active_page == 'settings' %}active{% endif %}"

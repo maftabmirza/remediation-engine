@@ -504,7 +504,7 @@
                     <p class="text-sm text-gray-400">Manage credentials for external APIs (Ansible AWX, Jenkins,
                         Kubernetes, etc.)</p>
                 </div>
-                <button onclick="showApiCredentialModal()" class="btn-primary px-4 py-2 rounded">
+                <button onclick="showCreateApiCredentialModal()" class="btn-primary px-4 py-2 rounded">
                     <i class="fas fa-plus mr-2"></i>New API Credential
                 </button>
             </div>
@@ -547,7 +547,7 @@
                     <h2 class="text-xl font-semibold">Credential Profiles</h2>
                     <p class="text-sm text-gray-400">Create, rotate, and reuse secrets across server groups.</p>
                 </div>
-                <button onclick="showCredentialModal()" class="btn-primary px-4 py-2 rounded">
+                <button onclick="showCreateCredentialProfileModal()" class="btn-primary px-4 py-2 rounded">
                     <i class="fas fa-plus mr-2"></i>New Credential
                 </button>
             </div>
@@ -1722,7 +1722,7 @@
                      <button onclick="testProvider('${p.id}')" data-test-btn="${p.id}" class="text-gray-400 hover:text-white" title="Test Connection">
                          <i class="fas fa-plug"></i>
                      </button>
-                     <button onclick="showEditProviderModal('${p.id}')" class="text-gray-400 hover:text-white" title="Edit">
+                     <button onclick="editProvider('${p.id}')" class="text-gray-400 hover:text-white" title="Edit">
                          <i class="fas fa-edit"></i>
                      </button>
                      ${!p.is_default ? `
@@ -1900,39 +1900,44 @@
             if (diffHours === 0) {
                 const diffMins = Math.floor(diffMs / (1000 * 60));
                 return diffMins <= 1 ? 'Just now' : `${diffMins}m ago`;
-            } return `${diffHours}h ago`;
+            }
+            return `${diffHours}h ago`;
         } else if (diffDays === 1) {
             return 'Yesterday';
-        } else if (diffDays < 7) { return `${diffDays}d ago`; } return
-        date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-        function updateModelSuggestions() {
-            const type = document.getElementById('providerType').value;
-            const input = document.getElementById('providerModel');
-            if (input) {
-                input.placeholder = modelSuggestions[type] || '';
-            }
+        } else if (diffDays < 7) {
+            return `${diffDays}d ago`;
+        }
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function updateModelSuggestions() {
+        const type = document.getElementById('providerType').value;
+        const input = document.getElementById('providerModel');
+        if (input) {
+            input.placeholder = modelSuggestions[type] || '';
+        }
+    }
+
+    function toggleSecretVisibility(inputId, trigger, isMultiline = false) {
+        const field = document.getElementById(inputId);
+        if (!field) return;
+
+        if (isMultiline) {
+            const masked = field.dataset.masked === 'true';
+            field.dataset.masked = masked ? 'false' : 'true';
+            field.style.filter = masked ? 'none' : 'blur(5px)';
+            if (trigger) trigger.textContent = masked ? 'Hide' : 'Show';
+            return;
         }
 
-        function toggleSecretVisibility(inputId, trigger, isMultiline = false) {
-            const field = document.getElementById(inputId);
-            if (!field) return;
+        field.type = field.type === 'password' ? 'text' : 'password';
+        if (trigger) trigger.textContent = field.type === 'password' ? 'Show' : 'Hide';
+    }
 
-            if (isMultiline) {
-                const masked = field.dataset.masked === 'true';
-                field.dataset.masked = masked ? 'false' : 'true';
-                field.style.filter = masked ? 'none' : 'blur(5px)';
-                if (trigger) trigger.textContent = masked ? 'Hide' : 'Show';
-                return;
-            }
-
-            field.type = field.type === 'password' ? 'text' : 'password';
-            if (trigger) trigger.textContent = field.type === 'password' ? 'Show' : 'Hide';
-        }
-
-        function renderPagination(total, page, size, type) {
-            if (total <= size) return '';
-            const totalPages = Math.ceil(total / size);
-            return `
+    function renderPagination(total, page, size, type) {
+        if (total <= size) return '';
+        const totalPages = Math.ceil(total / size);
+        return `
         <div class="flex items-center justify-between px-4 py-3 text-xs text-gray-300 border-t border-gray-800">
             <div>Page ${page} of ${totalPages}</div>
             <div class="space-x-2">
@@ -1942,62 +1947,62 @@
                     onclick="changePage('${type}', ${page + 1})">Next</button>
             </div>
         </div>`;
+    }
+
+    // --- LLM Providers ---
+    async function loadProviders() {
+        try {
+            const response = await apiCall('/api/settings/llm');
+            if (!response) return;
+
+            const providers = await response.json();
+            providerCache = providers;
+            document.getElementById('statProviders').textContent = providers.length;
+            renderProvidersTable(filterProviders());
+        } catch (error) {
+            console.error('Failed to load providers:', error);
         }
+    }
 
-        // --- LLM Providers ---
-        async function loadProviders() {
-            try {
-                const response = await apiCall('/api/settings/llm');
-                if (!response) return;
+    function filterProviders() {
+        const search = document.getElementById('providerSearch')?.value.toLowerCase() || '';
+        const typeFilter = document.getElementById('providerTypeFilter')?.value;
+        const statusFilter = document.getElementById('providerStatusFilter')?.value;
 
-                const providers = await response.json();
-                providerCache = providers;
-                document.getElementById('statProviders').textContent = providers.length;
-                renderProvidersTable(filterProviders());
-            } catch (error) {
-                console.error('Failed to load providers:', error);
-            }
-        }
+        let filtered = providerCache.filter(provider => {
+            const matchesType = !typeFilter || provider.provider_type === typeFilter;
+            const matchesStatus = !statusFilter || (statusFilter === 'enabled' ? provider.is_enabled : !provider.is_enabled);
+            const matchesSearch = !search || `${provider.name} ${provider.model_id}`.toLowerCase().includes(search);
+            return matchesType && matchesStatus && matchesSearch;
+        });
 
-        function filterProviders() {
-            const search = document.getElementById('providerSearch')?.value.toLowerCase() || '';
-            const typeFilter = document.getElementById('providerTypeFilter')?.value;
-            const statusFilter = document.getElementById('providerStatusFilter')?.value;
+        providerFilteredTotal = filtered.length;
 
-            let filtered = providerCache.filter(provider => {
-                const matchesType = !typeFilter || provider.provider_type === typeFilter;
-                const matchesStatus = !statusFilter || (statusFilter === 'enabled' ? provider.is_enabled : !provider.is_enabled);
-                const matchesSearch = !search || `${provider.name} ${provider.model_id}`.toLowerCase().includes(search);
-                return matchesType && matchesStatus && matchesSearch;
-            });
+        filtered = filtered.sort((a, b) => {
+            const dir = providerSort.direction === 'asc' ? 1 : -1;
+            const key = providerSort.key;
+            if (a[key] > b[key]) return dir;
+            if (a[key] < b[key]) return -dir;
+            return 0;
+        });
 
-            providerFilteredTotal = filtered.length;
+        const start = (providerPage - 1) * providerPageSize;
+        return filtered.slice(start, start + providerPageSize);
+    }
 
-            filtered = filtered.sort((a, b) => {
-                const dir = providerSort.direction === 'asc' ? 1 : -1;
-                const key = providerSort.key;
-                if (a[key] > b[key]) return dir;
-                if (a[key] < b[key]) return -dir;
-                return 0;
-            });
-
-            const start = (providerPage - 1) * providerPageSize;
-            return filtered.slice(start, start + providerPageSize);
-        }
-
-        function renderProvidersTable(providers) {
-            const container = document.getElementById('providersTableContainer');
-            if (providers.length === 0) {
-                container.innerHTML = `
+    function renderProvidersTable(providers) {
+        const container = document.getElementById('providersTableContainer');
+        if (providers.length === 0) {
+            container.innerHTML = `
                 <div class="text-center py-12 text-gray-400">
                     <i class="fas fa-robot text-4xl mb-3"></i>
                     <p>${providerCache.length ? 'No providers match your filters' : 'No LLM providers configured'}</p>
                     <p class="text-sm mt-2">Add a provider to enable AI analysis or adjust filters</p>
                 </div>`;
-                return;
-            }
+            return;
+        }
 
-            container.innerHTML = `
+        container.innerHTML = `
         <table class="w-full">
             <thead>
                 <tr class="text-left text-xs text-gray-400 uppercase border-b border-gray-700">
@@ -2017,23 +2022,23 @@
                     <td class="p-4">
                         <div class="flex items-center space-x-3">
                             <div class="w-9 h-9 rounded-lg flex items-center justify-center ${provider.provider_type === 'anthropic' ? 'bg-orange-900 bg-opacity-50' :
-                    provider.provider_type === 'openai' ? 'bg-green-900 bg-opacity-50' :
-                        provider.provider_type === 'google' ? 'bg-blue-900 bg-opacity-50' :
-                            'bg-gray-700'
-                }">
+                provider.provider_type === 'openai' ? 'bg-green-900 bg-opacity-50' :
+                    provider.provider_type === 'google' ? 'bg-blue-900 bg-opacity-50' :
+                        'bg-gray-700'
+            }">
                                 <i class="fas fa-${provider.provider_type === 'anthropic' ? 'robot text-orange-400' :
-                    provider.provider_type === 'openai' ? 'brain text-green-400' :
-                        provider.provider_type === 'google' ? 'cloud text-blue-400' :
-                            'server text-gray-400'
-                }"></i>
+                provider.provider_type === 'openai' ? 'brain text-green-400' :
+                    provider.provider_type === 'google' ? 'cloud text-blue-400' :
+                        'server text-gray-400'
+            }"></i>
                             </div>
                             <div>
                                 <div class="font-medium">${provider.name}</div>
                                 <div class="text-xs text-gray-500">Updated ${formatDate(provider.updated_at)}</div>
                                 ${provider.is_default ? '<span class="text-xs text-blue-400"><i class="fas fa-star mr-1"></i>Default</span>' : ''}
                                 ${provider.has_api_key
-                    ? `<div class="text-[11px] text-green-400">Last rotated ${formatDate(provider.updated_at)}</div>`
-                    : '<div class="text-[11px] text-yellow-400">Key required</div>'}
+                ? `<div class="text-[11px] text-green-400">Last rotated ${formatDate(provider.updated_at)}</div>`
+                : '<div class="text-[11px] text-yellow-400">Key required</div>'}
                             </div>
                         </div>
                     </td>
@@ -2044,9 +2049,9 @@
                         <code class="text-xs bg-gray-800 px-2 py-1 rounded">${provider.model_id}</code>
                         <div class="text-xs mt-2">
                             ${provider.has_api_key
-                    ? '<span class="inline-flex items-center px-2 py-1 rounded-full text-green-400 bg-green-900 bg-opacity-40 text-[11px]"><i class="fas fa-key mr-1"></i>Secret stored</span>'
-                    : '<span class="inline-flex items-center px-2 py-1 rounded-full text-yellow-400 bg-yellow-900 bg-opacity-40 text-[11px]"><i class="fas fa-exclamation-triangle mr-1"></i>Missing key</span>'
-                }
+                ? '<span class="inline-flex items-center px-2 py-1 rounded-full text-green-400 bg-green-900 bg-opacity-40 text-[11px]"><i class="fas fa-key mr-1"></i>Secret stored</span>'
+                : '<span class="inline-flex items-center px-2 py-1 rounded-full text-yellow-400 bg-yellow-900 bg-opacity-40 text-[11px]"><i class="fas fa-exclamation-triangle mr-1"></i>Missing key</span>'
+            }
                         </div>
                     </td>
                     <td class="p-4 text-sm text-gray-400">
@@ -2059,9 +2064,9 @@
                     <td class="p-4">
                         <div class="space-y-2">
                             ${provider.is_enabled
-                    ? '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-900 bg-opacity-50 text-green-400"><i class="fas fa-circle text-xs mr-1"></i>Active</span>'
-                    : '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-700 text-gray-400"><i class="fas fa-pause mr-1"></i>Disabled</span>'
-                }
+                ? '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-900 bg-opacity-50 text-green-400"><i class="fas fa-circle text-xs mr-1"></i>Active</span>'
+                : '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-700 text-gray-400"><i class="fas fa-pause mr-1"></i>Disabled</span>'
+            }
                             ${providerLastTest[provider.id] ? `<div class="text-[11px] ${providerLastTest[provider.id].ok ? 'text-green-400' : 'text-red-400'}">
                                 <i class="fas fa-stopwatch mr-1"></i>${providerLastTest[provider.id].latency}ms · ${providerLastTest[provider.id].ok ? 'Healthy' : 'Failed'}</div>` : ''}
                         </div>
@@ -2082,7 +2087,6 @@
         </table>
         ${renderPagination(providerFilteredTotal, providerPage, providerPageSize, 'provider')}
         `;
-        }
     }
 
     function confirmDeleteProvider(id, name) {
@@ -2514,6 +2518,58 @@
 
         document.getElementById('providerModal').classList.remove('hidden');
         document.getElementById('providerModal').classList.add('flex');
+    }
+
+    function closeProviderModal() {
+        document.getElementById('providerModal').classList.add('hidden');
+        document.getElementById('providerModal').classList.remove('flex');
+        document.getElementById('providerForm').reset();
+    }
+
+    async function editProvider(providerId) {
+        try {
+            const response = await apiCall(`/api/settings/llm/${providerId}`);
+            if (!response || !response.ok) {
+                showToast('Failed to load provider details', 'error');
+                return;
+            }
+
+            const provider = await response.json();
+
+            document.getElementById('providerModalTitle').textContent = 'Edit LLM Provider';
+            document.getElementById('providerId').value = provider.id;
+            document.getElementById('providerName').value = provider.name;
+            document.getElementById('providerType').value = provider.provider_type;
+            document.getElementById('providerModel').value = provider.model_id;
+            document.getElementById('providerBaseUrl').value = provider.api_base_url || '';
+            document.getElementById('providerDefault').checked = provider.is_default;
+            document.getElementById('providerEnabled').checked = provider.is_enabled;
+            document.getElementById('providerTemp').value = provider.config_json?.temperature || '0.3';
+            document.getElementById('providerMaxTokens').value = provider.config_json?.max_tokens || '2000';
+            document.getElementById('providerSecretStorage').value = provider.config_json?.secret_storage || 'vault';
+
+            // Handle API key field
+            const apiKeyField = document.getElementById('providerApiKey');
+            apiKeyField.value = '';
+            apiKeyField.placeholder = provider.has_api_key ? 'Leave blank to keep current key' : 'Enter API key';
+            apiKeyField.dataset.hasKey = provider.has_api_key ? 'true' : 'false';
+
+            const secretMeta = document.getElementById('providerSecretMeta');
+            if (provider.has_api_key) {
+                secretMeta.textContent = `API key is set. Last updated ${formatDate(provider.updated_at)}`;
+            } else {
+                secretMeta.textContent = 'No API key stored. Enter one to save.';
+            }
+
+            document.getElementById('providerLastRotated').textContent = provider.has_api_key ? formatDate(provider.updated_at) : 'Not set';
+
+            updateModelSuggestions();
+
+            document.getElementById('providerModal').classList.remove('hidden');
+            document.getElementById('providerModal').classList.add('flex');
+        } catch (error) {
+            showToast('Failed to load provider: ' + error.message, 'error');
+        }
     }
 
 
@@ -3631,7 +3687,13 @@
             { key: "manage_server_groups", label: "Manage Groups", desc: "Organize servers into groups" },
             { key: "manage_providers", label: "Manage Allocations", desc: "Manage LLM providers and secrets" }
         ],
+        "Scheduler": [
+            { key: "manage_schedules", label: "Manage Schedules", desc: "Create, edit, and delete scheduled jobs" },
+            { key: "control_schedules", label: "Control Schedules", desc: "Pause, resume, and trigger scheduled jobs" },
+            { key: "view_schedules", label: "View Schedules", desc: "Read-only access to scheduled jobs" }
+        ],
         "Operations": [
+
             { key: "execute", label: "Execute Runbooks", desc: "Run remediation actions" },
             { key: "update", label: "Update Content", desc: "Edit rules and runbooks" },
             { key: "read", label: "Read Only", desc: "View dashboards and resources" }

@@ -34,7 +34,8 @@ from app.routers import (
     audit,
     metrics,
     remediation,
-    roles
+    roles,
+    scheduler
 )
 from app import api_credential_profiles
 from app.services.execution_worker import start_execution_worker, stop_execution_worker
@@ -99,12 +100,46 @@ async def lifespan(app: FastAPI):
     logger.info("Starting execution worker...")
     await start_execution_worker()
     
+    # Start scheduler
+    logger.info("Starting scheduler...")
+    from app.services.scheduler_service import get_scheduler
+    from app.models_scheduler import ScheduledJob
+    from app.database import get_async_db
+    from sqlalchemy import select
+    
+    scheduler = get_scheduler()
+    await scheduler.start()
+    
+    # Load existing enabled schedules from database
+    try:
+        async for db in get_async_db():
+            result = await db.execute(
+                select(ScheduledJob).where(ScheduledJob.enabled == True)
+            )
+            schedules = result.scalars().all()
+            
+            for schedule in schedules:
+                try:
+                    await scheduler.add_schedule(schedule)
+                    logger.info(f"Loaded schedule: {schedule.name}")
+                except Exception as e:
+                    logger.error(f"Failed to load schedule {schedule.name}: {e}")
+            
+            logger.info(f"✅ Loaded {len(schedules)} schedule(s)")
+            break
+    except Exception as e:
+        logger.error(f"Failed to load schedules: {e}")
+    
     logger.info("AIOps Platform started successfully")
     
     yield
     
     # Shutdown
     logger.info("Shutting down AIOps Platform...")
+    
+    # Stop scheduler gracefully
+    logger.info("Stopping scheduler...")
+    await scheduler.shutdown()
     
     # Stop execution worker gracefully
     logger.info("Stopping execution worker...")
@@ -160,6 +195,7 @@ app.include_router(metrics.router)
 app.include_router(remediation.router)
 app.include_router(api_credential_profiles.router)
 app.include_router(roles.router)
+app.include_router(scheduler.router)
 
 
 @app.get("/profile", response_class=HTMLResponse)
@@ -404,6 +440,23 @@ async def executions_page(
         return RedirectResponse(url="/login", status_code=302)
     
     return templates.TemplateResponse("executions.html", {
+        "request": request,
+        "user": current_user
+    })
+
+
+@app.get("/schedules", response_class=HTMLResponse)
+async def schedules_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    Scheduled runbook executions management page
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+    
+    return templates.TemplateResponse("schedules.html", {
         "request": request,
         "user": current_user
     })

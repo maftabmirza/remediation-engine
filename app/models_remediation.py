@@ -102,6 +102,7 @@ class Runbook(Base):
     steps = relationship("RunbookStep", back_populates="runbook", cascade="all, delete-orphan", order_by="RunbookStep.step_order")
     triggers = relationship("RunbookTrigger", back_populates="runbook", cascade="all, delete-orphan")
     executions = relationship("RunbookExecution", back_populates="runbook")
+    schedules = relationship("ScheduledJob", back_populates="runbook", cascade="all, delete-orphan")
     default_server = relationship("ServerCredential")
     created_by_user = relationship("User")
     
