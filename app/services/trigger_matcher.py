@@ -25,6 +25,7 @@ from ..models_remediation import (
     BlackoutWindow,
     ExecutionRateLimit
 )
+from ..models import ServerCredential
 
 logger = logging.getLogger(__name__)
 
@@ -451,6 +452,44 @@ class AlertTriggerMatcher:
         
         return result
     
+    async def _resolve_target_server(
+        self,
+        runbook: Runbook,
+        alert: Alert
+    ) -> Optional[str]:
+        """
+        Resolve target server from alert labels or runbook default.
+        
+        Returns:
+            Server ID if found, None otherwise.
+        """
+        server_id = None
+        
+        # Try to get from alert if configured
+        if runbook.target_from_alert and runbook.target_alert_label:
+            alert_labels = getattr(alert, 'labels_json', {}) or {}
+            target_identifier = alert_labels.get(runbook.target_alert_label)
+            
+            if target_identifier:
+                # Look up server by name or hostname
+                result = await self.db.execute(
+                    select(ServerCredential).where(
+                        (ServerCredential.name == target_identifier) |
+                        (ServerCredential.hostname == target_identifier)
+                    )
+                )
+                server = result.scalar_one_or_none()
+                if server:
+                    server_id = server.id
+                    logger.info(f"Resolved server {server.name} from alert label {runbook.target_alert_label}={target_identifier}")
+        
+        # Fall back to runbook default
+        if not server_id and runbook.default_server_id:
+            server_id = runbook.default_server_id
+            logger.info(f"Using runbook default server {runbook.default_server_id}")
+        
+        return server_id
+    
     async def _create_and_start_execution(
         self,
         match: TriggerMatch,
@@ -468,12 +507,16 @@ class AlertTriggerMatcher:
         Returns:
             Created execution record.
         """
+        # Resolve target server
+        server_id = await self._resolve_target_server(match.runbook, alert)
+        
         # Create execution record
         execution = RunbookExecution(
             runbook_id=match.runbook.id,
             runbook_version=match.runbook.version,
             trigger_id=match.trigger.id,
             alert_id=alert.id,
+            server_id=server_id,
             status="pending",
             execution_mode="auto",
             variables_json=match.match_details.get("extracted_variables", {})
@@ -506,12 +549,16 @@ class AlertTriggerMatcher:
         """
         import secrets
         
+        # Resolve target server
+        server_id = await self._resolve_target_server(match.runbook, alert)
+        
         # Create execution with pending_approval status
         execution = RunbookExecution(
             runbook_id=match.runbook.id,
             runbook_version=match.runbook.version,
             trigger_id=match.trigger.id,
             alert_id=alert.id,
+            server_id=server_id,
             status="pending_approval",
             execution_mode="semi_auto",
             variables_json=match.match_details.get("extracted_variables", {}),
