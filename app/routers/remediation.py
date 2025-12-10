@@ -1283,7 +1283,7 @@ async def approve_execution(
             detail=f"Execution {execution_id} not found"
         )
     
-    if execution.status not in ["pending", "queued"]:
+    if execution.status not in ["pending", "queued", "pending_approval"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Execution is not pending (status: {execution.status})"
