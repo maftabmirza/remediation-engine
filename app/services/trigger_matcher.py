@@ -475,7 +475,7 @@ class AlertTriggerMatcher:
             alert_id=alert.id,
             status="pending",
             execution_mode="auto",
-            variables=match.match_details.get("extracted_variables", {})
+            variables_json=match.match_details.get("extracted_variables", {})
         )
         
         self.db.add(execution)
@@ -512,7 +512,7 @@ class AlertTriggerMatcher:
             alert_id=alert.id,
             status="pending_approval",
             execution_mode="semi_auto",
-            variables=match.match_details.get("extracted_variables", {}),
+            variables_json=match.match_details.get("extracted_variables", {}),
             approval_token=secrets.token_urlsafe(32),
             approval_expires_at=datetime.utcnow() + timedelta(hours=4)  # 4 hour expiry
         )
