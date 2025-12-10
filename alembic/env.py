@@ -29,7 +29,7 @@ target_metadata = Base.metadata
 
 # Get database URL from app settings
 settings = get_settings()
-db_url = f"postgresql://{settings.db_user}:{settings.db_password}@{settings.db_host}:{settings.db_port}/{settings.db_name}"
+db_url = settings.database_url
 config.set_main_option("sqlalchemy.url", db_url)
 
 
