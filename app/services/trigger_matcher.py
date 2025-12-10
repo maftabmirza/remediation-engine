@@ -104,11 +104,19 @@ class AlertTriggerMatcher:
                     trigger.runbook
                 )
                 
+                # Determine execution mode from runbook settings
+                if trigger.runbook.auto_execute:
+                    execution_mode = "auto"
+                elif trigger.runbook.approval_required:
+                    execution_mode = "semi_auto"
+                else:
+                    execution_mode = "manual"
+                
                 match = TriggerMatch(
                     trigger=trigger,
                     runbook=trigger.runbook,
                     match_details=match_details,
-                    execution_mode=trigger.execution_mode,
+                    execution_mode=execution_mode,
                     can_execute=can_execute,
                     block_reason=block_reason
                 )
