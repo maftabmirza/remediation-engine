@@ -67,6 +67,10 @@ class RunbookStepBase(BaseModel):
     # Validation
     expected_exit_code: int = 0
     expected_output_pattern: Optional[str] = None
+    
+    # Variable Extraction
+    output_variable: Optional[str] = None
+    output_extract_pattern: Optional[str] = None
 
     # Rollback
     rollback_command_linux: Optional[str] = None
@@ -133,6 +137,8 @@ class RunbookStepUpdate(BaseModel):
     retry_count: Optional[int] = Field(None, ge=0, le=5)
     expected_exit_code: Optional[int] = None
     expected_output_pattern: Optional[str] = None
+    output_variable: Optional[str] = None
+    output_extract_pattern: Optional[str] = None
     rollback_command_linux: Optional[str] = None
     rollback_command_windows: Optional[str] = None
 

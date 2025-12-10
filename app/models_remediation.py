@@ -161,6 +161,10 @@ class RunbookStep(Base):
     # Validation
     expected_exit_code = Column(Integer, default=0)
     expected_output_pattern = Column(String(500), nullable=True)  # Regex to match in output
+    
+    # Variable Extraction
+    output_variable = Column(String(100), nullable=True)  # Variable name to store output
+    output_extract_pattern = Column(String(500), nullable=True)  # Regex to extract specific value
 
     # Rollback (optional)
     rollback_command_linux = Column(Text, nullable=True)
