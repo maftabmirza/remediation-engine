@@ -100,8 +100,25 @@ async def lifespan(app: FastAPI):
     try:
         from alembic.config import Config
         from alembic import command
+        import os
         
-        alembic_cfg = Config("alembic.ini")
+        # Get absolute path to alembic.ini (in project root)
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        alembic_ini_path = os.path.join(project_root, "alembic.ini")
+        
+        if not os.path.exists(alembic_ini_path):
+             logger.error(f"❌ alembic.ini not found at: {alembic_ini_path}")
+             # Fallback to CWD check/log
+             logger.info(f"CWD is: {os.getcwd()}")
+             raise FileNotFoundError(f"alembic.ini not found at {alembic_ini_path}")
+
+        alembic_cfg = Config(alembic_ini_path)
+        # We also need to set script_location somewhat relative or absolute? 
+        # Usually Config handles relative paths from ini file location if set correctly.
+        # But let's explicitly set the ini file directory as CWD for config context if needed, 
+        # or just assume ini works.
+        # Alembic Config object keeps path provided.
+        
         command.upgrade(alembic_cfg, "head")
         logger.info("✅ Database migrations completed successfully")
     except Exception as e:
