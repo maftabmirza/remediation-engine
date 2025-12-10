@@ -9,7 +9,7 @@ import re
 import logging
 from typing import List, Optional, Dict, Any, Tuple
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import json
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -563,7 +563,7 @@ class AlertTriggerMatcher:
             execution_mode="semi_auto",
             variables_json=match.match_details.get("extracted_variables", {}),
             approval_token=secrets.token_urlsafe(32),
-            approval_expires_at=datetime.utcnow() + timedelta(hours=4)  # 4 hour expiry
+            approval_expires_at=datetime.now(timezone.utc) + timedelta(hours=4)  # 4 hour expiry
         )
         
         self.db.add(execution)
