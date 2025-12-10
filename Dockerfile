@@ -17,6 +17,8 @@ COPY app/ ./app/
 COPY templates/ ./templates/
 COPY static/ ./static/
 COPY migrations/ ./migrations/
+COPY alembic/ ./alembic/
+COPY alembic.ini .
 COPY run_migrations.py .
 
 # Create non-root user
