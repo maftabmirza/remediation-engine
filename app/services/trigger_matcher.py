@@ -471,6 +471,7 @@ class AlertTriggerMatcher:
         # Create execution record
         execution = RunbookExecution(
             runbook_id=match.runbook.id,
+            runbook_version=match.runbook.version,
             trigger_id=match.trigger.id,
             alert_id=alert.id,
             status="pending",
@@ -508,6 +509,7 @@ class AlertTriggerMatcher:
         # Create execution with pending_approval status
         execution = RunbookExecution(
             runbook_id=match.runbook.id,
+            runbook_version=match.runbook.version,
             trigger_id=match.trigger.id,
             alert_id=alert.id,
             status="pending_approval",
