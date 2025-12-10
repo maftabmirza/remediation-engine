@@ -21,12 +21,12 @@ COPY alembic/ ./alembic/
 COPY alembic.ini .
 COPY run_migrations.py .
 
+COPY entrypoint.sh .
+RUN chmod +x entrypoint.sh
+
 # Create non-root user
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
-
-COPY entrypoint.sh .
-RUN chmod +x entrypoint.sh
 
 EXPOSE 8080
 
