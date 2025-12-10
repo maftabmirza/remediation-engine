@@ -543,7 +543,7 @@
                                                     HTTP ${step.http_status_code}
                                                 </span>
                                             ` : ''}
-                                            ${step.output || step.http_response_body ? `
+                                            ${step.stdout || step.stderr || step.http_response_body ? `
                                                 <button onclick="showStepOutput(${i})"
                                                     class="text-blue-400 hover:text-blue-300 text-sm">
                                                     <i class="fas fa-terminal"></i> ${step.http_response_body ? 'Response' : 'Output'}
@@ -702,8 +702,14 @@
             }
         }
         // Command output
-        else if (step.output) {
-            output = step.output.replace(/\\r/g, '\r').replace(/\\n/g, '\n');
+        else if (step.stdout || step.stderr) {
+            output = '';
+            if (step.stdout) {
+                output += '=== STDOUT ===\n' + step.stdout.replace(/\\r/g, '\r').replace(/\\n/g, '\n') + '\n\n';
+            }
+            if (step.stderr) {
+                output += '=== STDERR ===\n' + step.stderr.replace(/\\r/g, '\r').replace(/\\n/g, '\n');
+            }
         }
         // Fallback
         else {

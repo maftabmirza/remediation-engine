@@ -356,6 +356,7 @@ class RunbookExecutionResponse(BaseModel):
     """Schema for runbook execution response."""
     id: UUID
     runbook_id: UUID
+    runbook_name: Optional[str] = None
     runbook_version: int
     
     alert_id: Optional[UUID]

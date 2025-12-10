@@ -1251,7 +1251,10 @@ async def get_execution(
     """Get execution details with step results."""
     result = await db.execute(
         select(RunbookExecution)
-        .options(selectinload(RunbookExecution.step_executions))
+        .options(
+            selectinload(RunbookExecution.step_executions),
+            selectinload(RunbookExecution.runbook)
+        )
         .where(RunbookExecution.id == execution_id)
     )
     execution = result.scalar_one_or_none()
@@ -1261,6 +1264,17 @@ async def get_execution(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Execution {execution_id} not found"
         )
+    
+    # Manually populate runbook_name for the schema
+    # Pydantic's from_attributes will extract everything else from the generic object
+    # but runbook_name isn't on the model, so we attach it or let Pydantic extract it if we set it.
+    # However, since SQLAlchemy models are not dicts, we can't just set an arbitrary attribute easily 
+    # if it's not in the __dict__. 
+    # But RunbookExecutionResponse expects `runbook_name`.
+    # Let's create the response object explicitly to be safe, OR set the attribute on the instance 
+    # (Python objects allow this usually unless __slots__ prevents it).
+    
+    execution.runbook_name = execution.runbook.name if execution.runbook else "Unknown"
     
     return execution
 
