@@ -10,8 +10,9 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers
+# revision identifiers
 revision = '004_add_scheduler'
-down_revision = '003_add_remediation'  # Update based on your latest migration
+down_revision = None  # Was '003_add_remediation' but that file is missing
 branch_labels = None
 depends_on = None
 
