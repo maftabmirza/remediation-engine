@@ -302,29 +302,41 @@ class AlertTriggerMatcher:
             if affected:
                 return False, f"Blackout window active: {blackout.name}"
         
-        # Check rate limiting
-        rate_limit_result = await self.db.execute(
-            select(ExecutionRateLimit)
-            .where(ExecutionRateLimit.runbook_id == runbook.id)
-        )
-        rate_limit = rate_limit_result.scalar_one_or_none()
-        
-        if rate_limit:
-            window_start = now - timedelta(seconds=rate_limit.window_seconds)
+        # Check rate limiting using runbook's own settings
+        if hasattr(runbook, 'max_executions_per_hour') and runbook.max_executions_per_hour:
+            # Calculate window start (1 hour ago)
+            window_start = now - timedelta(hours=1)
             
             # Count recent executions
             exec_count_result = await self.db.execute(
                 select(RunbookExecution).where(
                     and_(
                         RunbookExecution.runbook_id == runbook.id,
-                        RunbookExecution.started_at >= window_start
+                        RunbookExecution.queued_at >= window_start
                     )
                 )
             )
             recent_executions = len(exec_count_result.scalars().all())
             
-            if recent_executions >= rate_limit.max_executions:
-                return False, f"Rate limit exceeded: {recent_executions}/{rate_limit.max_executions} in {rate_limit.window_seconds}s"
+            if recent_executions >= runbook.max_executions_per_hour:
+                return False, f"Rate limit exceeded: {recent_executions}/{runbook.max_executions_per_hour} executions in the last hour"
+        
+        # Check cooldown period
+        if hasattr(runbook, 'cooldown_minutes') and runbook.cooldown_minutes:
+            # Get the most recent execution
+            last_exec_result = await self.db.execute(
+                select(RunbookExecution)
+                .where(RunbookExecution.runbook_id == runbook.id)
+                .order_by(RunbookExecution.queued_at.desc())
+                .limit(1)
+            )
+            last_execution = last_exec_result.scalar_one_or_none()
+            
+            if last_execution and last_execution.queued_at:
+                cooldown_end = last_execution.queued_at + timedelta(minutes=runbook.cooldown_minutes)
+                if now < cooldown_end:
+                    remaining = int((cooldown_end - now).total_seconds() / 60)
+                    return False, f"Cooldown period active: {remaining} minutes remaining"
         
         return True, None
     
