@@ -123,6 +123,21 @@ class AlertTriggerMatcher:
                 )
                 matches.append(match)
         
+        # Deduplicate matches by runbook_id, picking highest priority (lowest number)
+        unique_matches = {}
+        for m in matches:
+            rb_id = m.runbook.id
+            if rb_id not in unique_matches:
+                unique_matches[rb_id] = m
+            else:
+                # Compare priority (lower is better)
+                curr_p = getattr(m.trigger, 'priority', 100)
+                best_p = getattr(unique_matches[rb_id].trigger, 'priority', 100)
+                if curr_p < best_p:
+                    unique_matches[rb_id] = m
+        
+        matches = list(unique_matches.values())
+
         # Categorize matches
         auto_execute = [
             m for m in matches 
