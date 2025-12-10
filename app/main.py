@@ -94,6 +94,20 @@ async def lifespan(app: FastAPI):
     """Application lifespan handler"""
     # Startup
     logger.info("Starting AIOps Platform...")
+    
+    # Run database migrations
+    logger.info("Running Alembic database migrations...")
+    try:
+        from alembic.config import Config
+        from alembic import command
+        
+        alembic_cfg = Config("alembic.ini")
+        command.upgrade(alembic_cfg, "head")
+        logger.info("✅ Database migrations completed successfully")
+    except Exception as e:
+        logger.error(f"❌ Database migration failed: {e}")
+        raise
+    
     init_db()
     
     # Start background execution worker
