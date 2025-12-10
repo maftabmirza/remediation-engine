@@ -267,7 +267,7 @@ class AlertTriggerMatcher:
         Returns:
             Tuple of (allowed, reason if blocked).
         """
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         
         # Check circuit breaker
         circuit_result = await self.db.execute(
@@ -623,7 +623,7 @@ class ApprovalService:
         if execution.approval_token != token:
             return False, "Invalid approval token"
         
-        if execution.approval_expires_at and execution.approval_expires_at < datetime.utcnow():
+        if execution.approval_expires_at and execution.approval_expires_at < datetime.now(timezone.utc):
             execution.status = "expired"
             await self.db.commit()
             return False, "Approval token has expired"
@@ -634,7 +634,7 @@ class ApprovalService:
         # Approve the execution
         execution.status = "pending"  # Ready for execution
         execution.approved_by_id = approver.id
-        execution.approved_at = datetime.utcnow()
+        execution.approved_at = datetime.now(timezone.utc)
         
         await self.db.commit()
         
@@ -681,7 +681,7 @@ class ApprovalService:
         # Reject the execution
         execution.status = "rejected"
         execution.approved_by_id = rejector.id  # Track who rejected
-        execution.approved_at = datetime.utcnow()
+        execution.approved_at = datetime.now(timezone.utc)
         
         # Store rejection reason in result_summary
         execution.result_summary = {"rejection_reason": reason} if reason else {}
@@ -727,7 +727,7 @@ class ApprovalService:
         Returns:
             Number of expired executions.
         """
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         
         result = await self.db.execute(
             select(RunbookExecution)
