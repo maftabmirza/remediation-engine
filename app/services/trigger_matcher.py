@@ -262,13 +262,17 @@ class AlertTriggerMatcher:
         
         # Check circuit breaker
         circuit_result = await self.db.execute(
-            select(CircuitBreaker)
-            .where(CircuitBreaker.runbook_id == runbook.id)
+            select(CircuitBreaker).where(
+                and_(
+                    CircuitBreaker.scope == "runbook",
+                    CircuitBreaker.scope_id == runbook.id
+                )
+            )
         )
         circuit = circuit_result.scalar_one_or_none()
         
         if circuit and circuit.state == "open":
-            return False, f"Circuit breaker is open until {circuit.reset_at}"
+            return False, f"Circuit breaker is open until {circuit.closes_at}"
         
         # Check blackout windows
         blackout_result = await self.db.execute(
