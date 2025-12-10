@@ -12,7 +12,7 @@ import yaml
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import Response
-from sqlalchemy import select, func, and_, or_
+from sqlalchemy import select, func, and_, or_, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -308,6 +308,12 @@ async def update_runbook(
             await db.delete(step)
             
         for trigger in list(runbook.triggers):
+            # Detach executions from this trigger before deletion to avoid FK violation
+            await db.execute(
+                update(RunbookExecution)
+                .where(RunbookExecution.trigger_id == trigger.id)
+                .values(trigger_id=None)
+            )
             await db.delete(trigger)
 
         await db.flush()
