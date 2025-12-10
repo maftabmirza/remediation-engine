@@ -25,6 +25,9 @@ COPY run_migrations.py .
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
 
+COPY entrypoint.sh .
+RUN chmod +x entrypoint.sh
+
 EXPOSE 8080
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
+ENTRYPOINT ["./entrypoint.sh"]
