@@ -1120,7 +1120,7 @@
                             <div class="text-xs text-gray-400 truncate max-w-xs" title="${escapeHtml(goal)}">${escapeHtml(goal)}</div>
                         </div>
                     </div>
-                    <button onclick="stopAgent()" class="text-red-400 hover:text-red-300 text-xs px-3 py-1 border border-red-500/30 rounded hover:bg-red-500/10 transition-colors">
+                    <button id="agentStopBtn" onclick="stopAgent()" class="text-red-400 hover:text-red-300 text-xs px-3 py-1 border border-red-500/30 rounded hover:bg-red-500/10 transition-colors">
                         <i class="fas fa-stop mr-1"></i>Stop
                     </button>
                 </div>
@@ -1540,16 +1540,12 @@
         }
 
         // Replace Stop button with Return to Chat button in header
-        const agentHeader = document.getElementById('agentHeader');
-        if (agentHeader) {
-            const stopBtn = agentHeader.querySelector('button[onclick="stopAgent()"]');
-            if (stopBtn) {
-                stopBtn.outerHTML = `
-                    <button onclick="exitAgentMode()" class="text-blue-400 hover:text-blue-300 text-xs px-3 py-1 border border-blue-500/30 rounded hover:bg-blue-500/10 transition-colors">
-                        <i class="fas fa-arrow-left mr-1"></i>Return to Chat
-                    </button>
-                `;
-            }
+        const stopBtn = document.getElementById('agentStopBtn');
+        if (stopBtn) {
+            stopBtn.id = 'agentReturnBtn'; // Change ID so we don't try to replace twice
+            stopBtn.className = 'text-blue-400 hover:text-blue-300 text-xs px-3 py-1 border border-blue-500/30 rounded hover:bg-blue-500/10 transition-colors';
+            stopBtn.onclick = exitAgentMode;
+            stopBtn.innerHTML = '<i class="fas fa-arrow-left mr-1"></i>Return to Chat';
         }
 
         // Also add exit button at bottom for visibility
