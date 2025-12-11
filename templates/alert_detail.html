@@ -935,17 +935,22 @@
                 body: JSON.stringify({ command: command, timeout: 60 })
             });
 
+            console.log('Command execution result:', result);
+
             // Also show in terminal for visual feedback (optional)
             if (terminalSocket && terminalSocket.readyState === WebSocket.OPEN) {
                 terminalSocket.send(command + '\r');
             }
 
-            // Use the clean output from SSH
-            const output = result.success
-                ? (result.stdout || result.stderr || 'Command completed successfully')
-                : (result.error || result.stderr || 'Command failed');
+            // Determine success - check exit_code first, then success flag
+            // exit_code 0 = success, or explicit success=true
+            const isSuccess = (result.exit_code === 0) || (result.success === true);
 
-            showCommandOutputInCard(cardId, command, output, result.success, result.exit_code);
+            // Use the clean output from SSH - prefer stdout, fallback to stderr
+            const output = result.stdout || result.stderr ||
+                (isSuccess ? 'Command completed successfully' : (result.error || 'Command failed'));
+
+            showCommandOutputInCard(cardId, command, output, isSuccess, result.exit_code);
 
         } catch (error) {
             console.error('Command execution failed:', error);
