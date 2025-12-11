@@ -30,7 +30,7 @@ def upgrade() -> None:
             sa.Column('id', UUID(as_uuid=True), primary_key=True),
             sa.Column('chat_session_id', UUID(as_uuid=True), sa.ForeignKey('chat_sessions.id'), nullable=False),
             sa.Column('user_id', UUID(as_uuid=True), sa.ForeignKey('users.id'), nullable=False),
-            sa.Column('server_id', UUID(as_uuid=True), sa.ForeignKey('servers.id'), nullable=True),
+            sa.Column('server_id', UUID(as_uuid=True), sa.ForeignKey('server_credentials.id'), nullable=True),
             sa.Column('goal', sa.Text(), nullable=False),
             sa.Column('status', sa.String(50), default='idle'),
             sa.Column('auto_approve', sa.Boolean(), default=False),
