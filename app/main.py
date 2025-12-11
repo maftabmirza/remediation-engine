@@ -35,7 +35,9 @@ from app.routers import (
     metrics,
     remediation,
     roles,
-    scheduler
+    scheduler,
+    agent_api,
+    agent_ws
 )
 from app import api_credential_profiles
 from app.services.execution_worker import start_execution_worker, stop_execution_worker
@@ -197,6 +199,8 @@ app.include_router(remediation.router)
 app.include_router(api_credential_profiles.router)
 app.include_router(roles.router)
 app.include_router(scheduler.router)
+app.include_router(agent_api.router)
+app.include_router(agent_ws.router)
 
 
 @app.get("/profile", response_class=HTMLResponse)
