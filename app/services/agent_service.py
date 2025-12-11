@@ -250,32 +250,33 @@ class AgentService:
         # Build context from history
         context = self.build_context(session)
         
-        # Build messages
-        messages = [
-            {"role": "system", "content": system_prompt}
-        ]
+        # Build the user message - combine context and instruction
+        user_content_parts = []
         
-        if context:
-            messages.append({"role": "user", "content": context})
+        # Add context only if there's actual command history
+        if context and context.strip():
+            user_content_parts.append(context)
         
         # Add instruction to generate next step
         if session.current_step_number == 0:
-            messages.append({
-                "role": "user", 
-                "content": "The agent session has started. Analyze the goal and alert context, then provide your first action."
-            })
+            user_content_parts.append("The agent session has started. Analyze the goal and alert context, then provide your first action as JSON.")
         else:
             last_step = session.steps[-1] if session.steps else None
             if last_step and last_step.output:
-                messages.append({
-                    "role": "user",
-                    "content": f"The previous command has completed. Analyze the output above and provide your next action."
-                })
+                user_content_parts.append("The previous command has completed. Analyze the output above and provide your next action as JSON.")
+            elif last_step and last_step.status == StepStatus.REJECTED.value:
+                user_content_parts.append("The user rejected/skipped the previous command. Please propose an alternative approach as JSON.")
             else:
-                messages.append({
-                    "role": "user",
-                    "content": "Provide your next action."
-                })
+                user_content_parts.append("Provide your next action as JSON.")
+        
+        # Combine into a single user message to avoid empty content issues
+        user_message = "\n\n".join(user_content_parts)
+        
+        # Build messages - just system + one user message
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_message}
+        ]
         
         # Call LLM
         full_response = ""
