@@ -793,6 +793,9 @@
             return;
         }
 
+        // CAPTURE: Get terminal line count BEFORE executing
+        const beforeLineCount = term.buffer.active.baseY + term.buffer.active.cursorY;
+
         // Update card to "executing" state
         const actionsDiv = card.querySelector('.cmd-actions');
         actionsDiv.innerHTML = `
@@ -811,11 +814,41 @@
         terminalSocket.send(command + '\r');
         term.focus();
 
-        // After short delay, capture output and update card
+        // After short delay, capture ONLY the new output (lines added after beforeLineCount)
         setTimeout(() => {
-            const output = getTerminalContent();
+            const output = getCommandOutput(beforeLineCount, command);
             showCommandOutputInCard(cardId, command, output);
-        }, 2000); // 2 second delay to capture output
+        }, 2500); // 2.5 second delay to capture output
+    }
+
+    function getCommandOutput(beforeLineCount, command) {
+        // Get only the lines that were added after the command was executed
+        const buffer = term.buffer.active;
+        const currentLineCount = buffer.baseY + buffer.cursorY;
+
+        const lines = [];
+        // Start from where we were before executing, skip 1 line (the command itself)
+        const startLine = Math.max(0, beforeLineCount + 1);
+        const endLine = currentLineCount + 1;
+
+        for (let i = startLine; i < endLine; i++) {
+            const line = buffer.getLine(i);
+            if (line) {
+                const text = line.translateToString(true);
+                // Skip empty lines and the command prompt line at the end
+                if (text.trim() && !text.match(/^\s*\$\s*$/)) {
+                    lines.push(text);
+                }
+            }
+        }
+
+        // Remove the last line if it's just a prompt
+        const lastLine = lines[lines.length - 1];
+        if (lastLine && (lastLine.includes('$') || lastLine.includes('#')) && lastLine.trim().endsWith('$')) {
+            lines.pop();
+        }
+
+        return lines.join('\n').trim();
     }
 
     function showCommandOutputInCard(cardId, command, output) {
@@ -870,7 +903,7 @@
         }
 
         // Trigger auto-analyze after showing output
-        triggerAutoAnalyze();
+        triggerAutoAnalyze(command, output);
     }
 
     function dismissCommandCard(cardId) {
@@ -890,12 +923,17 @@
         card.style.opacity = '0.6';
     }
 
-    function triggerAutoAnalyze() {
+    function triggerAutoAnalyze(command, output) {
+        // Only analyze if we have actual output
+        if (!output || !output.trim()) {
+            return;
+        }
+
         // Small delay then auto-analyze
         setTimeout(() => {
-            const termContent = getTerminalContent();
-            if (termContent && chatSocket && chatSocket.readyState === WebSocket.OPEN) {
-                const analysisRequest = `[SYSTEM: The user has executed a command. Here is the current terminal output:\n\`\`\`\n${termContent}\n\`\`\`\nPlease analyze this output and suggest the next step.]`;
+            if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+                // Send only the command and its output, not entire terminal buffer
+                const analysisRequest = `[SYSTEM: The user executed the following command:\n\`\`\`\n${command}\n\`\`\`\n\nHere is the output:\n\`\`\`\n${output}\n\`\`\`\n\nPlease analyze this output and suggest the next step.]`;
                 chatSocket.send(analysisRequest);
 
                 // Show analyzing indicator
