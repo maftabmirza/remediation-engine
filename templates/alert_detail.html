@@ -682,18 +682,139 @@
             if (pre.querySelector('.code-actions') || pre.closest('.command-card')) return; // Already processed
 
             // Detect language from class
-            const lang = block.className.match(/language-(\w+)/)?.[1] || 'shell';
-            const isShellCommand = ['shell', 'bash', 'sh', 'zsh', 'fish', ''].includes(lang);
-            const command = block.innerText.trim();
+            const lang = block.className.match(/language-(\w+)/)?.[1] || '';
+            const content = block.innerText.trim();
 
-            if (isShellCommand && command) {
+            // Only treat as command if it's explicitly shell/bash OR if it looks like an actual command
+            const isExplicitShell = ['shell', 'bash', 'sh', 'zsh', 'fish'].includes(lang);
+            const isUnmarked = lang === '';
+
+            if (isExplicitShell || (isUnmarked && isActualCommand(content))) {
                 // Create approval card (Agent Mode style)
-                createCommandCard(pre, command);
+                createCommandCard(pre, content);
             } else {
                 // Non-shell code: just add copy button
-                addCopyButton(pre, block, lang);
+                addCopyButton(pre, block, lang || 'text');
             }
         });
+    }
+
+    function isActualCommand(content) {
+        // Detect if content is actually a shell command vs prose/instructions
+
+        // Skip if empty or too short
+        if (!content || content.length < 2) return false;
+
+        // Skip if it's a multi-line paragraph of prose (has many lines that don't start with $, #, sudo, etc.)
+        const lines = content.split('\n').filter(l => l.trim());
+
+        // If more than 5 lines and doesn't look like a script, probably not a command
+        if (lines.length > 5) {
+            // Check if it looks like a script (lines starting with commands)
+            const commandLines = lines.filter(l => {
+                const trimmed = l.trim();
+                return trimmed.startsWith('$') ||
+                    trimmed.startsWith('#') ||
+                    trimmed.startsWith('sudo ') ||
+                    /^[a-z_][a-z0-9_-]*\s/.test(trimmed) || // starts with command name
+                    trimmed.startsWith('./') ||
+                    trimmed.startsWith('|');
+            });
+            if (commandLines.length < lines.length * 0.5) return false; // Less than 50% command-like
+        }
+
+        // Skip if it contains question marks (probably a question, not a command)
+        if (content.includes('?')) return false;
+
+        // Skip if it starts with a number followed by period (numbered list item)
+        if (/^\d+\.\s/.test(content)) return false;
+
+        // Skip if it starts with asterisk/dash (bullet point)
+        if (/^[\*\-]\s/.test(content)) return false;
+
+        // Skip if it contains common prose patterns
+        const prosePatterns = [
+            /^please\s/i,
+            /^let me know/i,
+            /^if you/i,
+            /^you can/i,
+            /^you should/i,
+            /^we need/i,
+            /^we can/i,
+            /^look for/i,
+            /^check if/i,
+            /^make sure/i,
+            /^note:/i,
+            /^warning:/i,
+            /^important:/i,
+            /^verification:/i,
+            /^solution:/i,
+            /^explanation:/i,
+        ];
+        for (const pattern of prosePatterns) {
+            if (pattern.test(content)) return false;
+        }
+
+        // Check for common command starters
+        const commandPatterns = [
+            /^(sudo\s+)?[a-z_][a-z0-9_-]*\s/i,  // command with args
+            /^\$\s/,                             // $ prompt
+            /^#\s*[a-z]/,                        // # followed by command (not just a comment)
+            /^\.\/[a-z]/,                        // ./script
+            /^cd\s/,                             // cd command
+            /^ls(\s|$)/,                         // ls command
+            /^cat\s/,                            // cat command
+            /^echo\s/,                           // echo command
+            /^grep\s/,                           // grep command
+            /^docker\s/,                         // docker command
+            /^kubectl\s/,                        // kubectl command
+            /^systemctl\s/,                      // systemctl command
+            /^service\s/,                        // service command
+            /^apt(-get)?\s/,                     // apt command
+            /^yum\s/,                            // yum command
+            /^pip\s/,                            // pip command
+            /^npm\s/,                            // npm command
+            /^git\s/,                            // git command
+            /^curl\s/,                           // curl command
+            /^wget\s/,                           // wget command
+            /^ssh\s/,                            // ssh command
+            /^scp\s/,                            // scp command
+            /^rsync\s/,                          // rsync command
+            /^tar\s/,                            // tar command
+            /^chmod\s/,                          // chmod command
+            /^chown\s/,                          // chown command
+            /^mkdir\s/,                          // mkdir command
+            /^rm\s/,                             // rm command
+            /^cp\s/,                             // cp command
+            /^mv\s/,                             // mv command
+            /^find\s/,                           // find command
+            /^awk\s/,                            // awk command
+            /^sed\s/,                            // sed command
+            /^journalctl\s/,                     // journalctl command
+            /^tail\s/,                           // tail command
+            /^head\s/,                           // head command
+            /^ps\s/,                             // ps command
+            /^kill\s/,                           // kill command
+            /^top(\s|$)/,                        // top command
+            /^htop(\s|$)/,                       // htop command
+            /^df\s/,                             // df command
+            /^du\s/,                             // du command
+            /^free(\s|$)/,                       // free command
+            /^mount\s/,                          // mount command
+            /^umount\s/,                         // umount command
+        ];
+
+        for (const pattern of commandPatterns) {
+            if (pattern.test(content)) return true;
+        }
+
+        // If it's a single short line without spaces that could be a command name
+        if (!content.includes('\n') && content.length < 50 && /^[a-z_][a-z0-9_-]*$/i.test(content)) {
+            return true;
+        }
+
+        // Default: not a command
+        return false;
     }
 
     function createCommandCard(pre, command) {
