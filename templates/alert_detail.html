@@ -378,9 +378,9 @@
             messages.forEach(msg => {
                 if (msg.role === 'user') {
                     const wrapper = document.createElement('div');
-                    wrapper.className = 'flex justify-end';
+                    wrapper.className = 'flex justify-end mb-3';
                     wrapper.innerHTML = `
-                        <div class="bg-blue-600 rounded-lg p-3 max-w-xs lg:max-w-md text-sm text-white">
+                        <div class="bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg p-3 max-w-xs lg:max-w-md text-sm text-white shadow-md">
                             ${escapeHtml(msg.content)}
                         </div>
                     `;
@@ -388,10 +388,18 @@
                     lastMessageRole = 'user';
                 } else if (msg.role === 'assistant') {
                     const wrapper = document.createElement('div');
-                    wrapper.className = 'flex justify-start w-full pr-2';
+                    wrapper.className = 'flex justify-start w-full pr-2 mb-3';
                     wrapper.innerHTML = `
-                        <div class="bg-gray-700 rounded-lg p-4 w-full text-sm ai-message-content">
-                            ${marked.parse(msg.content)}
+                        <div class="ai-message-wrapper w-full">
+                            <div class="flex items-center mb-2">
+                                <div class="w-6 h-6 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center mr-2">
+                                    <i class="fas fa-robot text-white text-xs"></i>
+                                </div>
+                                <span class="text-xs text-gray-400">AI Assistant</span>
+                            </div>
+                            <div class="bg-gray-800/80 rounded-lg p-4 border border-purple-500/20 text-sm ai-message-content shadow-lg">
+                                ${marked.parse(msg.content)}
+                            </div>
                         </div>
                     `;
                     container.appendChild(wrapper);
@@ -504,11 +512,19 @@
         const container = document.getElementById('chatMessages');
 
         if (lastMessageRole !== 'assistant') {
-            // Create new message bubble
+            // Create new message bubble with Agent Mode styling
             const wrapper = document.createElement('div');
             wrapper.className = 'flex justify-start w-full pr-2';
             wrapper.innerHTML = `
-                <div class="bg-gray-700 rounded-lg p-4 w-full text-sm ai-message-content shadow-md"></div>
+                <div class="ai-message-wrapper w-full">
+                    <div class="flex items-center mb-2">
+                        <div class="w-6 h-6 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center mr-2">
+                            <i class="fas fa-robot text-white text-xs"></i>
+                        </div>
+                        <span class="text-xs text-gray-400">AI Assistant</span>
+                    </div>
+                    <div class="bg-gray-800/80 rounded-lg p-4 border border-purple-500/20 text-sm ai-message-content shadow-lg"></div>
+                </div>
             `;
             container.appendChild(wrapper);
             currentMessageDiv = wrapper.querySelector('.ai-message-content');
@@ -663,58 +679,236 @@
         const blocks = element.querySelectorAll('pre code');
         blocks.forEach(block => {
             const pre = block.parentElement;
-            if (pre.querySelector('.code-actions')) return; // Already has buttons
+            if (pre.querySelector('.code-actions') || pre.closest('.command-card')) return; // Already processed
 
             // Detect language from class
             const lang = block.className.match(/language-(\w+)/)?.[1] || 'shell';
             const isShellCommand = ['shell', 'bash', 'sh', 'zsh', 'fish', ''].includes(lang);
+            const command = block.innerText.trim();
 
-            // Create button container - ALWAYS visible (not just on hover)
-            const btnContainer = document.createElement('div');
-            btnContainer.className = 'code-actions absolute top-1 right-1 flex space-x-1 z-10';
-
-            // Language badge
-            const langBadge = document.createElement('span');
-            langBadge.className = 'bg-gray-800 text-gray-400 text-[10px] px-1.5 py-0.5 rounded';
-            langBadge.textContent = isShellCommand ? 'shell' : lang;
-            btnContainer.appendChild(langBadge);
-
-            // Copy button
-            const copyBtn = document.createElement('button');
-            copyBtn.className = 'bg-gray-700 hover:bg-gray-600 text-white text-xs px-2 py-1 rounded transition-colors';
-            copyBtn.innerHTML = '<i class="fas fa-copy"></i>';
-            copyBtn.title = 'Copy code';
-            copyBtn.onclick = () => {
-                copyToClipboard(block.innerText.trim()).then(() => {
-                    copyBtn.innerHTML = '<i class="fas fa-check text-green-400"></i>';
-                    setTimeout(() => {
-                        copyBtn.innerHTML = '<i class="fas fa-copy"></i>';
-                    }, 2000);
-                }).catch(err => {
-                    console.error('Failed to copy:', err);
-                    showToast('Failed to copy', 'error');
-                });
-            };
-            btnContainer.appendChild(copyBtn);
-
-            // Run button (for shell/bash commands) - PROMINENT GREEN BUTTON
-            if (isShellCommand) {
-                const runBtn = document.createElement('button');
-                runBtn.className = 'bg-green-600 hover:bg-green-500 text-white text-xs px-3 py-1 rounded transition-colors flex items-center space-x-1 shadow-md';
-                runBtn.innerHTML = '<i class="fas fa-play"></i><span class="ml-1">Run</span>';
-                runBtn.title = 'Execute in terminal';
-                runBtn.onclick = () => runCommand(block.innerText.trim());
-                btnContainer.appendChild(runBtn);
-            }
-
-            // Enhanced styling: dark background, rounded corners, and green border for runnable commands
-            if (isShellCommand) {
-                pre.className += ' relative bg-gray-900 rounded-md p-3 my-2 border-2 border-green-600/30 hover:border-green-500 transition-all duration-200 whitespace-pre-wrap break-words overflow-x-auto';
+            if (isShellCommand && command) {
+                // Create approval card (Agent Mode style)
+                createCommandCard(pre, command);
             } else {
-                pre.className += ' relative bg-gray-900 rounded-md p-3 my-2 border-2 border-transparent hover:border-blue-500 transition-all duration-200 whitespace-pre-wrap break-words overflow-x-auto';
+                // Non-shell code: just add copy button
+                addCopyButton(pre, block, lang);
             }
-            pre.appendChild(btnContainer);
         });
+    }
+
+    function createCommandCard(pre, command) {
+        // Create wrapper that replaces the plain pre block
+        const cardId = 'cmd-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+
+        const card = document.createElement('div');
+        card.id = cardId;
+        card.className = 'command-card bg-gradient-to-r from-gray-800 to-gray-800/80 rounded-lg border border-purple-500/30 my-3 overflow-hidden';
+        card.innerHTML = `
+            <div class="flex items-center justify-between px-3 py-2 bg-gray-900/50 border-b border-gray-700">
+                <div class="flex items-center text-xs text-gray-400">
+                    <i class="fas fa-terminal text-green-400 mr-2"></i>
+                    <span>Command</span>
+                </div>
+                <div class="flex space-x-1">
+                    <button class="copy-cmd-btn bg-gray-700 hover:bg-gray-600 text-white text-xs px-2 py-1 rounded transition-colors" title="Copy">
+                        <i class="fas fa-copy"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="p-3">
+                <div class="bg-gray-900 rounded p-3 font-mono text-sm text-green-400 whitespace-pre-wrap break-all">${escapeHtml(command)}</div>
+            </div>
+            <div class="cmd-actions flex space-x-2 px-3 pb-3">
+                <button class="run-cmd-btn flex-1 bg-green-600 hover:bg-green-500 text-white text-sm px-4 py-2 rounded font-medium transition-colors flex items-center justify-center">
+                    <i class="fas fa-play mr-2"></i>Run in Terminal
+                </button>
+                <button class="skip-cmd-btn bg-gray-600 hover:bg-gray-500 text-white text-sm px-3 py-2 rounded font-medium transition-colors" title="Skip this command">
+                    <i class="fas fa-forward"></i>
+                </button>
+            </div>
+            <div class="cmd-output hidden"></div>
+        `;
+
+        // Replace pre with card
+        pre.parentNode.replaceChild(card, pre);
+
+        // Add event listeners
+        const copyBtn = card.querySelector('.copy-cmd-btn');
+        const runBtn = card.querySelector('.run-cmd-btn');
+        const skipBtn = card.querySelector('.skip-cmd-btn');
+
+        copyBtn.onclick = () => {
+            copyToClipboard(command).then(() => {
+                copyBtn.innerHTML = '<i class="fas fa-check text-green-400"></i>';
+                setTimeout(() => {
+                    copyBtn.innerHTML = '<i class="fas fa-copy"></i>';
+                }, 2000);
+            });
+        };
+
+        runBtn.onclick = () => {
+            executeCommandWithOutput(cardId, command);
+        };
+
+        skipBtn.onclick = () => {
+            dismissCommandCard(cardId);
+        };
+    }
+
+    function addCopyButton(pre, block, lang) {
+        // Simple copy button for non-shell code
+        const btnContainer = document.createElement('div');
+        btnContainer.className = 'code-actions absolute top-1 right-1 flex space-x-1 z-10';
+
+        const langBadge = document.createElement('span');
+        langBadge.className = 'bg-gray-800 text-gray-400 text-[10px] px-1.5 py-0.5 rounded';
+        langBadge.textContent = lang;
+        btnContainer.appendChild(langBadge);
+
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'bg-gray-700 hover:bg-gray-600 text-white text-xs px-2 py-1 rounded transition-colors';
+        copyBtn.innerHTML = '<i class="fas fa-copy"></i>';
+        copyBtn.title = 'Copy code';
+        copyBtn.onclick = () => {
+            copyToClipboard(block.innerText.trim()).then(() => {
+                copyBtn.innerHTML = '<i class="fas fa-check text-green-400"></i>';
+                setTimeout(() => {
+                    copyBtn.innerHTML = '<i class="fas fa-copy"></i>';
+                }, 2000);
+            });
+        };
+        btnContainer.appendChild(copyBtn);
+
+        pre.className += ' relative bg-gray-900 rounded-md p-3 my-2 border border-gray-700 whitespace-pre-wrap break-words overflow-x-auto';
+        pre.appendChild(btnContainer);
+    }
+
+    function executeCommandWithOutput(cardId, command) {
+        const card = document.getElementById(cardId);
+        if (!card) return;
+
+        // Check terminal connection
+        if (!terminalSocket || terminalSocket.readyState !== WebSocket.OPEN) {
+            showToast('Terminal not connected. Connect to a server first.', 'error');
+            return;
+        }
+
+        // Update card to "executing" state
+        const actionsDiv = card.querySelector('.cmd-actions');
+        actionsDiv.innerHTML = `
+            <div class="flex-1 flex items-center justify-center text-blue-400 text-sm py-2">
+                <i class="fas fa-spinner fa-spin mr-2"></i>Executing...
+            </div>
+        `;
+
+        // Update header to show running state
+        const headerBadge = card.querySelector('.text-green-400');
+        if (headerBadge) {
+            headerBadge.className = 'fas fa-cog fa-spin text-blue-400 mr-2';
+        }
+
+        // Execute command
+        terminalSocket.send(command + '\r');
+        term.focus();
+
+        // After short delay, capture output and update card
+        setTimeout(() => {
+            const output = getTerminalContent();
+            showCommandOutputInCard(cardId, command, output);
+        }, 2000); // 2 second delay to capture output
+    }
+
+    function showCommandOutputInCard(cardId, command, output) {
+        const card = document.getElementById(cardId);
+        if (!card) return;
+
+        // Update card to "executed" state
+        const actionsDiv = card.querySelector('.cmd-actions');
+        actionsDiv.innerHTML = `
+            <div class="flex-1 flex items-center text-green-400 text-sm py-2">
+                <i class="fas fa-check-circle mr-2"></i>Executed successfully
+            </div>
+            <button class="toggle-output-btn text-gray-400 hover:text-white text-sm px-3 py-2 transition-colors" title="Toggle output">
+                <i class="fas fa-chevron-down"></i>
+            </button>
+        `;
+
+        // Update header icon
+        const headerIcon = card.querySelector('.fa-cog, .fa-terminal');
+        if (headerIcon) {
+            headerIcon.className = 'fas fa-check text-green-400 mr-2';
+        }
+
+        // Add output section
+        const outputDiv = card.querySelector('.cmd-output');
+        if (outputDiv && output) {
+            // Truncate very long output
+            let displayOutput = output;
+            if (displayOutput.length > 3000) {
+                displayOutput = displayOutput.substring(0, 1500) + '\n... [truncated] ...\n' + displayOutput.substring(displayOutput.length - 1500);
+            }
+
+            outputDiv.innerHTML = `
+                <div class="border-t border-gray-700 p-3 bg-gray-900/50">
+                    <div class="text-xs text-gray-400 mb-2 flex items-center">
+                        <i class="fas fa-terminal mr-1"></i>Output
+                    </div>
+                    <pre class="bg-gray-950 rounded p-3 text-xs text-gray-300 overflow-x-auto max-h-60 overflow-y-auto whitespace-pre-wrap">${escapeHtml(displayOutput)}</pre>
+                </div>
+            `;
+            outputDiv.classList.remove('hidden');
+        }
+
+        // Toggle output visibility
+        const toggleBtn = card.querySelector('.toggle-output-btn');
+        if (toggleBtn && outputDiv) {
+            toggleBtn.onclick = () => {
+                outputDiv.classList.toggle('hidden');
+                const icon = toggleBtn.querySelector('i');
+                icon.className = outputDiv.classList.contains('hidden') ? 'fas fa-chevron-down' : 'fas fa-chevron-up';
+            };
+        }
+
+        // Trigger auto-analyze after showing output
+        triggerAutoAnalyze();
+    }
+
+    function dismissCommandCard(cardId) {
+        const card = document.getElementById(cardId);
+        if (!card) return;
+
+        // Update card to "skipped" state
+        const actionsDiv = card.querySelector('.cmd-actions');
+        actionsDiv.innerHTML = `
+            <div class="flex-1 flex items-center text-gray-500 text-sm py-2">
+                <i class="fas fa-forward mr-2"></i>Skipped
+            </div>
+        `;
+
+        // Dim the card
+        card.className = card.className.replace('border-purple-500/30', 'border-gray-700/50');
+        card.style.opacity = '0.6';
+    }
+
+    function triggerAutoAnalyze() {
+        // Small delay then auto-analyze
+        setTimeout(() => {
+            const termContent = getTerminalContent();
+            if (termContent && chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+                const analysisRequest = `[SYSTEM: The user has executed a command. Here is the current terminal output:\n\`\`\`\n${termContent}\n\`\`\`\nPlease analyze this output and suggest the next step.]`;
+                chatSocket.send(analysisRequest);
+
+                // Show analyzing indicator
+                const container = document.getElementById('chatMessages');
+                const note = document.createElement('div');
+                note.className = 'text-center text-xs text-gray-500 my-2';
+                note.innerHTML = '<i class="fas fa-magic mr-1"></i>Analyzing output...';
+                container.appendChild(note);
+                container.scrollTop = container.scrollHeight;
+
+                showTypingIndicator();
+            }
+        }, 500);
     }
 
     // --- Terminal Logic ---
