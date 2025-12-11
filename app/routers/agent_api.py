@@ -316,15 +316,13 @@ async def stop_agent(
     if not session:
         raise HTTPException(status_code=404, detail="Agent session not found")
     
+    # If already finished, just return success (idempotent)
     if session.status in [
         AgentStatus.COMPLETED.value,
         AgentStatus.FAILED.value,
         AgentStatus.STOPPED.value
     ]:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Agent is already finished (status: {session.status})"
-        )
+        return {"status": session.status, "session_id": str(session.id), "already_finished": True}
     
     service = AgentService(db)
     await service.stop_session(session)
