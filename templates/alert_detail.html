@@ -1533,7 +1533,26 @@
     function handleAgentComplete(data) {
         updateAgentStatus(data.status, data.status === 'completed' ? 'Goal achieved!' : 'Failed');
 
-        // Add exit button
+        // Stop the pulsing animation
+        const robotIcon = document.querySelector('#agentHeader .animate-pulse');
+        if (robotIcon) {
+            robotIcon.classList.remove('animate-pulse');
+        }
+
+        // Replace Stop button with Return to Chat button in header
+        const agentHeader = document.getElementById('agentHeader');
+        if (agentHeader) {
+            const stopBtn = agentHeader.querySelector('button[onclick="stopAgent()"]');
+            if (stopBtn) {
+                stopBtn.outerHTML = `
+                    <button onclick="exitAgentMode()" class="text-blue-400 hover:text-blue-300 text-xs px-3 py-1 border border-blue-500/30 rounded hover:bg-blue-500/10 transition-colors">
+                        <i class="fas fa-arrow-left mr-1"></i>Return to Chat
+                    </button>
+                `;
+            }
+        }
+
+        // Also add exit button at bottom for visibility
         const container = document.getElementById('agentSteps');
         if (container) {
             const exitBtn = document.createElement('div');
