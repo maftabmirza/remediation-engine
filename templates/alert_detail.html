@@ -89,6 +89,80 @@
     let fitAddon = null;
     let availableProviders = [];
 
+    // Command History - tracks all commands executed in this session
+    let commandHistory = [];
+    const MAX_HISTORY_SIZE = 50;
+
+    function addToCommandHistory(command, output, exitCode, success) {
+        const entry = {
+            id: Date.now(),
+            command: command,
+            output: output,
+            exitCode: exitCode,
+            success: success,
+            timestamp: new Date().toISOString(),
+            displayTime: new Date().toLocaleTimeString()
+        };
+
+        // Add to beginning (most recent first)
+        commandHistory.unshift(entry);
+
+        // Keep only last MAX_HISTORY_SIZE entries
+        if (commandHistory.length > MAX_HISTORY_SIZE) {
+            commandHistory = commandHistory.slice(0, MAX_HISTORY_SIZE);
+        }
+
+        // Update history panel if visible
+        updateCommandHistoryPanel();
+        updateHistoryCount();
+
+        return entry;
+    }
+
+    function getCommandHistoryContext() {
+        // Generate a structured summary for AI context
+        if (commandHistory.length === 0) return '';
+
+        const recentCommands = commandHistory.slice(0, 10); // Last 10 commands
+        let context = '\n\n[COMMAND HISTORY - Recent commands executed in this session]\n';
+
+        recentCommands.forEach((entry, index) => {
+            const status = entry.success ? '✓' : '✗';
+            const outputPreview = entry.output ? entry.output.substring(0, 200) : '(no output)';
+            context += `${index + 1}. [${status}] ${entry.command} (exit: ${entry.exitCode})\n`;
+            if (entry.output) {
+                context += `   Output: ${outputPreview}${entry.output.length > 200 ? '...' : ''}\n`;
+            }
+        });
+
+        return context;
+    }
+
+    function toggleCommandHistory() {
+        const panel = document.getElementById('commandHistoryPanel');
+        if (!panel) return;
+
+        panel.classList.toggle('hidden');
+
+        // Update the panel content when showing
+        if (!panel.classList.contains('hidden')) {
+            updateCommandHistoryPanel();
+        }
+    }
+
+    function clearCommandHistory() {
+        commandHistory = [];
+        updateCommandHistoryPanel();
+        showToast('Command history cleared', 'success');
+    }
+
+    function updateHistoryCount() {
+        const countEl = document.getElementById('historyCount');
+        if (countEl) {
+            countEl.textContent = commandHistory.length;
+        }
+    }
+
     // --- Font Size Logic ---
     let chatFontSize = 14; // default
     function adjustChatFont(delta) {
@@ -201,9 +275,34 @@
                             <button id="agentModeBtn" onclick="openAgentModal()" class="text-gray-400 hover:text-purple-400 px-1 transition-colors" title="Agent Mode (Ctrl+Shift+A)">
                                 <i class="fas fa-magic text-xs"></i>
                             </button>
+                            <button onclick="toggleCommandHistory()" class="text-gray-400 hover:text-blue-400 px-1 transition-colors" title="Command History (Ctrl+H)">
+                                <i class="fas fa-history text-xs"></i>
+                            </button>
                             <button onclick="clearChat()" class="text-gray-400 hover:text-white px-1" title="Clear Chat (Ctrl+L)"><i class="fas fa-eraser text-xs"></i></button>
                             <button onclick="adjustChatFont(-1)" class="text-gray-400 hover:text-white px-1" title="Decrease Font Size"><i class="fas fa-minus text-xs"></i></button>
                             <button onclick="adjustChatFont(1)" class="text-gray-400 hover:text-white px-1" title="Increase Font Size"><i class="fas fa-plus text-xs"></i></button>
+                        </div>
+                    </div>
+                    
+                    <!-- Command History Panel (collapsed by default) -->
+                    <div id="commandHistoryPanel" class="hidden border-b border-gray-700 bg-gray-900/80 flex-shrink-0">
+                        <div class="p-2 border-b border-gray-700/50 flex justify-between items-center">
+                            <div class="flex items-center text-xs text-gray-400">
+                                <i class="fas fa-history text-blue-400 mr-2"></i>
+                                <span>Command History</span>
+                                <span id="historyCount" class="ml-2 bg-gray-700 text-gray-300 px-1.5 py-0.5 rounded text-[10px]">0</span>
+                            </div>
+                            <div class="flex space-x-1">
+                                <button onclick="clearCommandHistory()" class="text-gray-400 hover:text-red-400 text-xs px-2 py-1" title="Clear History">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                                <button onclick="toggleCommandHistory()" class="text-gray-400 hover:text-white text-xs px-2 py-1" title="Close">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="history-list p-2 max-h-40 overflow-y-auto">
+                            <p class="text-gray-500 text-sm text-center py-4">No commands executed yet</p>
                         </div>
                     </div>
                     
@@ -1074,6 +1173,9 @@
             };
         }
 
+        // Add to command history
+        addToCommandHistory(command, output, exitCode, isSuccess);
+
         // Trigger auto-analyze after showing output
         triggerAutoAnalyze(command, output);
     }
@@ -1104,8 +1206,11 @@
         // Small delay then auto-analyze
         setTimeout(() => {
             if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
-                // Send only the command and its output, not entire terminal buffer
-                const analysisRequest = `[SYSTEM: The user executed the following command:\n\`\`\`\n${command}\n\`\`\`\n\nHere is the output:\n\`\`\`\n${output}\n\`\`\`\n\nPlease analyze this output and suggest the next step.]`;
+                // Include command history context for AI awareness
+                const historyContext = getCommandHistoryContext();
+
+                // Send the command, its output, and history context
+                const analysisRequest = `[SYSTEM: The user executed the following command:\n\`\`\`\n${command}\n\`\`\`\n\nHere is the output:\n\`\`\`\n${output}\n\`\`\`${historyContext}\n\nPlease analyze this output and suggest the next step. You can reference previous commands from the history if relevant.]`;
                 chatSocket.send(analysisRequest);
 
                 // Show analyzing indicator
@@ -1119,6 +1224,100 @@
                 showTypingIndicator();
             }
         }, 500);
+    }
+
+    function updateCommandHistoryPanel() {
+        const panel = document.getElementById('commandHistoryPanel');
+        if (!panel) return;
+
+        const listEl = panel.querySelector('.history-list');
+        if (!listEl) return;
+
+        if (commandHistory.length === 0) {
+            listEl.innerHTML = '<p class="text-gray-500 text-sm text-center py-4">No commands executed yet</p>';
+            return;
+        }
+
+        listEl.innerHTML = commandHistory.slice(0, 20).map(entry => `
+            <div class="history-item bg-gray-800 rounded p-2 mb-2 group hover:bg-gray-700 transition-colors">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center flex-1 min-w-0">
+                        <i class="fas ${entry.success ? 'fa-check-circle text-green-400' : 'fa-times-circle text-red-400'} mr-2 flex-shrink-0"></i>
+                        <span class="font-mono text-xs text-gray-300 truncate">${escapeHtml(entry.command)}</span>
+                    </div>
+                    <div class="flex items-center space-x-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onclick="rerunCommand('${escapeHtml(entry.command).replace(/'/g, "\\'")}')" 
+                            class="text-blue-400 hover:text-blue-300 text-xs px-1" title="Re-run">
+                            <i class="fas fa-redo"></i>
+                        </button>
+                        <button onclick="copyToClipboard('${escapeHtml(entry.command).replace(/'/g, "\\'")}')" 
+                            class="text-gray-400 hover:text-white text-xs px-1" title="Copy">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="text-[10px] text-gray-500 mt-1">${entry.displayTime} • exit ${entry.exitCode}</div>
+            </div>
+        `).join('');
+    }
+
+    function rerunCommand(command) {
+        // Create a temporary card and run the command
+        if (!currentServerId) {
+            showToast('Connect to a server first', 'error');
+            return;
+        }
+
+        showToast('Re-running: ' + command.substring(0, 30) + '...', 'success');
+
+        // Create a pseudo card for the rerun
+        const cardId = 'rerun-' + Date.now();
+        const container = document.getElementById('chatMessages');
+
+        const card = document.createElement('div');
+        card.id = cardId;
+        card.className = 'command-card bg-gradient-to-r from-gray-800 to-gray-800/80 rounded-lg border border-blue-500/30 my-3 overflow-hidden';
+        card.innerHTML = `
+            <div class="flex items-center justify-between px-3 py-2 bg-gray-900/50 border-b border-gray-700">
+                <div class="flex items-center text-xs text-gray-400">
+                    <i class="fas fa-redo text-blue-400 mr-2"></i>
+                    <span>Re-run</span>
+                </div>
+            </div>
+            <div class="p-3">
+                <div class="bg-gray-900 rounded p-3 font-mono text-sm text-green-400 whitespace-pre-wrap break-all">${escapeHtml(command)}</div>
+            </div>
+            <div class="cmd-actions flex space-x-2 px-3 pb-3">
+                <div class="flex-1 flex items-center justify-center text-blue-400 text-sm py-2">
+                    <i class="fas fa-spinner fa-spin mr-2"></i>Executing...
+                </div>
+            </div>
+            <div class="cmd-output hidden"></div>
+        `;
+        container.appendChild(card);
+        container.scrollTop = container.scrollHeight;
+
+        // Execute the command
+        executeRerunCommand(cardId, command);
+    }
+
+    async function executeRerunCommand(cardId, command) {
+        try {
+            const response = await apiCall(`/api/servers/${currentServerId}/execute`, {
+                method: 'POST',
+                body: JSON.stringify({ command: command, timeout: 60 })
+            });
+            const result = await response.json();
+
+            const isSuccess = (result.exit_code === 0) || (result.success === true);
+            const output = result.stdout || result.stderr ||
+                (isSuccess ? 'Command completed successfully' : (result.error || 'Command failed'));
+
+            showCommandOutputInCard(cardId, command, output, isSuccess, result.exit_code);
+        } catch (error) {
+            console.error('Re-run failed:', error);
+            showToast('Re-run failed: ' + error.message, 'error');
+        }
     }
 
     // --- Terminal Logic ---
