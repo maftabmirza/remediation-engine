@@ -667,15 +667,16 @@
 
             // Detect language from class
             const lang = block.className.match(/language-(\w+)/)?.[1] || 'shell';
+            const isShellCommand = ['shell', 'bash', 'sh', 'zsh', 'fish', ''].includes(lang);
 
-            // Create button container
+            // Create button container - ALWAYS visible (not just on hover)
             const btnContainer = document.createElement('div');
-            btnContainer.className = 'code-actions absolute top-2 right-2 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity z-10';
+            btnContainer.className = 'code-actions absolute top-1 right-1 flex space-x-1 z-10';
 
             // Language badge
             const langBadge = document.createElement('span');
-            langBadge.className = 'bg-gray-800 text-gray-400 text-xs px-2 py-1 rounded';
-            langBadge.textContent = lang;
+            langBadge.className = 'bg-gray-800 text-gray-400 text-[10px] px-1.5 py-0.5 rounded';
+            langBadge.textContent = isShellCommand ? 'shell' : lang;
             btnContainer.appendChild(langBadge);
 
             // Copy button
@@ -696,18 +697,22 @@
             };
             btnContainer.appendChild(copyBtn);
 
-            // Run button (only for shell/bash commands)
-            if (['shell', 'bash', 'sh', 'zsh', 'fish'].includes(lang)) {
+            // Run button (for shell/bash commands) - PROMINENT GREEN BUTTON
+            if (isShellCommand) {
                 const runBtn = document.createElement('button');
-                runBtn.className = 'bg-green-600 hover:bg-green-500 text-white text-xs px-2 py-1 rounded transition-colors';
-                runBtn.innerHTML = '<i class="fas fa-play"></i>';
-                runBtn.title = 'Run in terminal';
+                runBtn.className = 'bg-green-600 hover:bg-green-500 text-white text-xs px-3 py-1 rounded transition-colors flex items-center space-x-1 shadow-md';
+                runBtn.innerHTML = '<i class="fas fa-play"></i><span class="ml-1">Run</span>';
+                runBtn.title = 'Execute in terminal';
                 runBtn.onclick = () => runCommand(block.innerText.trim());
                 btnContainer.appendChild(runBtn);
             }
 
-            // Enhanced styling: dark background, rounded corners, and blue border on hover
-            pre.className += ' relative group bg-gray-900 rounded-md p-3 my-2 border-2 border-transparent hover:border-blue-500 transition-all duration-200 whitespace-pre-wrap break-words overflow-x-auto';
+            // Enhanced styling: dark background, rounded corners, and green border for runnable commands
+            if (isShellCommand) {
+                pre.className += ' relative bg-gray-900 rounded-md p-3 my-2 border-2 border-green-600/30 hover:border-green-500 transition-all duration-200 whitespace-pre-wrap break-words overflow-x-auto';
+            } else {
+                pre.className += ' relative bg-gray-900 rounded-md p-3 my-2 border-2 border-transparent hover:border-blue-500 transition-all duration-200 whitespace-pre-wrap break-words overflow-x-auto';
+            }
             pre.appendChild(btnContainer);
         });
     }
@@ -840,11 +845,18 @@
     }
 
     let analysisButton = null;
+    let autoAnalyzeTimer = null;
 
     function runCommand(cmd) {
         if (!terminalSocket || terminalSocket.readyState !== WebSocket.OPEN) {
             showToast('Terminal not connected. Connect to a server first.', 'error');
             return;
+        }
+
+        // Clear any pending auto-analyze
+        if (autoAnalyzeTimer) {
+            clearTimeout(autoAnalyzeTimer);
+            autoAnalyzeTimer = null;
         }
 
         // Send command with newline to auto-execute
@@ -856,7 +868,9 @@
         const runMsg = document.createElement('div');
         runMsg.className = 'flex justify-end my-2';
         runMsg.innerHTML = `
-            <div class="bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-xs text-gray-300 font-mono whitespace-pre-wrap break-all max-w-full"><i class="fas fa-terminal text-green-400 mr-2"></i>${cmd}</div>`;
+            <div class="bg-gray-800 border border-green-600/50 rounded-lg px-3 py-2 text-xs text-green-300 font-mono whitespace-pre-wrap break-all max-w-full">
+                <i class="fas fa-play text-green-400 mr-2"></i><span class="text-gray-400">Executing:</span> ${escapeHtml(cmd)}
+            </div>`;
 
         // If button exists, remove it first so we can move it to bottom
         if (analysisButton) {
@@ -865,22 +879,71 @@
 
         container.appendChild(runMsg);
 
-        // Add "Analyze Now" button
+        // Add countdown/analyze button
         analysisButton = document.createElement('div');
         analysisButton.className = 'flex justify-center my-4 fade-in';
-        analysisButton.innerHTML = `
-            <button onclick="triggerAnalysis()" class="bg-blue-600 hover:bg-blue-500 text-white text-sm px-6 py-2 rounded-full shadow-lg flex items-center transition-all transform hover:scale-105" title="Analyze the output of executed commands">
-                <i class="fas fa-magic mr-2"></i>Analyze Output
-            </button>
-        `;
+        analysisButton.id = 'analysisCountdown';
+
+        let countdown = 3;
+        const updateCountdown = () => {
+            analysisButton.innerHTML = `
+                <div class="flex flex-col items-center space-y-2">
+                    <div class="text-xs text-gray-500">
+                        <i class="fas fa-clock mr-1"></i>Auto-analyzing in ${countdown}s...
+                    </div>
+                    <div class="flex space-x-2">
+                        <button onclick="triggerAnalysis()" class="bg-blue-600 hover:bg-blue-500 text-white text-sm px-4 py-2 rounded-full shadow-lg flex items-center transition-all">
+                            <i class="fas fa-magic mr-2"></i>Analyze Now
+                        </button>
+                        <button onclick="cancelAutoAnalyze()" class="bg-gray-600 hover:bg-gray-500 text-white text-sm px-3 py-2 rounded-full">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        };
+
+        updateCountdown();
         container.appendChild(analysisButton);
         container.scrollTop = container.scrollHeight;
+
+        // Auto-analyze countdown
+        const tick = () => {
+            countdown--;
+            if (countdown <= 0) {
+                triggerAnalysis();
+            } else {
+                updateCountdown();
+                autoAnalyzeTimer = setTimeout(tick, 1000);
+            }
+        };
+        autoAnalyzeTimer = setTimeout(tick, 1000);
 
         // Reset last message role to force new bubble for next AI response
         lastMessageRole = 'system';
     }
 
+    function cancelAutoAnalyze() {
+        if (autoAnalyzeTimer) {
+            clearTimeout(autoAnalyzeTimer);
+            autoAnalyzeTimer = null;
+        }
+        if (analysisButton) {
+            analysisButton.innerHTML = `
+                <button onclick="triggerAnalysis()" class="bg-gray-600 hover:bg-gray-500 text-white text-sm px-6 py-2 rounded-full shadow-lg flex items-center transition-all">
+                    <i class="fas fa-magic mr-2"></i>Analyze Later
+                </button>
+            `;
+        }
+    }
+
     function triggerAnalysis() {
+        // Clear auto-analyze timer if running
+        if (autoAnalyzeTimer) {
+            clearTimeout(autoAnalyzeTimer);
+            autoAnalyzeTimer = null;
+        }
+
         if (analysisButton) {
             analysisButton.remove();
             analysisButton = null;
