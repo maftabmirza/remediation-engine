@@ -758,6 +758,81 @@ async def test_saved_server(
             status="error",
             message=f"Internal error: {str(e)}"
         )
+
+
+class CommandExecuteRequest(BaseModel):
+    """Request to execute a command on a server."""
+    command: str
+    timeout: int = 60  # seconds
+
+
+class CommandExecuteResponse(BaseModel):
+    """Response from command execution."""
+    success: bool
+    exit_code: Optional[int] = None
+    stdout: str = ""
+    stderr: str = ""
+    duration_ms: Optional[int] = None
+    error: Optional[str] = None
+
+
+@router.post("/{server_id}/execute", response_model=CommandExecuteResponse)
+async def execute_command(
+    server_id: UUID,
+    payload: CommandExecuteRequest,
+    current_user: User = Depends(require_permission(["read"])),
+    db: Session = Depends(get_db),
+):
+    """
+    Execute a command on a server via SSH and return clean output.
+    
+    This provides clean stdout/stderr capture without terminal escape codes,
+    making it ideal for command output that needs to be analyzed by AI.
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    try:
+        server = db.query(ServerCredential).filter(ServerCredential.id == server_id).first()
+        if not server:
+            raise HTTPException(status_code=404, detail="Server not found")
+        
+        # Use ExecutorFactory to run the command
+        try:
+            result = await ExecutorFactory.execute_command(
+                server=server,
+                command=payload.command,
+                timeout=payload.timeout,
+                use_sudo=False  # Let the command include sudo if needed
+            )
+            
+            return CommandExecuteResponse(
+                success=result.success,
+                exit_code=result.exit_code,
+                stdout=result.stdout or "",
+                stderr=result.stderr or "",
+                duration_ms=result.duration_ms,
+                error=result.error_message
+            )
+        except Exception as e:
+            logger.warning(f"Command execution failed on {server_id}: {e}")
+            return CommandExecuteResponse(
+                success=False,
+                stdout="",
+                stderr="",
+                error=str(e)
+            )
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Unexpected error executing command on server {server_id}: {e}")
+        return CommandExecuteResponse(
+            success=False,
+            error=f"Internal error: {str(e)}"
+        )
+
+
 @router.delete("/{server_id}")
 async def delete_server(
     server_id: UUID,

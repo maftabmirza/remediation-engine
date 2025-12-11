@@ -783,24 +783,21 @@
         pre.appendChild(btnContainer);
     }
 
-    function executeCommandWithOutput(cardId, command) {
+    async function executeCommandWithOutput(cardId, command) {
         const card = document.getElementById(cardId);
         if (!card) return;
 
-        // Check terminal connection
-        if (!terminalSocket || terminalSocket.readyState !== WebSocket.OPEN) {
-            showToast('Terminal not connected. Connect to a server first.', 'error');
+        // Check if we have a server connection (via terminal or direct)
+        if (!currentServerId) {
+            showToast('No server connected. Connect to a server first.', 'error');
             return;
         }
-
-        // CAPTURE: Get terminal line count BEFORE executing
-        const beforeLineCount = term.buffer.active.baseY + term.buffer.active.cursorY;
 
         // Update card to "executing" state
         const actionsDiv = card.querySelector('.cmd-actions');
         actionsDiv.innerHTML = `
             <div class="flex-1 flex items-center justify-center text-blue-400 text-sm py-2">
-                <i class="fas fa-spinner fa-spin mr-2"></i>Executing...
+                <i class="fas fa-spinner fa-spin mr-2"></i>Executing via SSH...
             </div>
         `;
 
@@ -810,15 +807,53 @@
             headerBadge.className = 'fas fa-cog fa-spin text-blue-400 mr-2';
         }
 
-        // Execute command
-        terminalSocket.send(command + '\r');
-        term.focus();
+        try {
+            // Execute command via SSH API (clean output, no terminal escape codes)
+            const result = await apiCall(`/api/servers/${currentServerId}/execute`, {
+                method: 'POST',
+                body: JSON.stringify({ command: command, timeout: 60 })
+            });
 
-        // After short delay, capture ONLY the new output (lines added after beforeLineCount)
-        setTimeout(() => {
-            const output = getCommandOutput(beforeLineCount, command);
-            showCommandOutputInCard(cardId, command, output);
-        }, 2500); // 2.5 second delay to capture output
+            // Also show in terminal for visual feedback (optional)
+            if (terminalSocket && terminalSocket.readyState === WebSocket.OPEN) {
+                terminalSocket.send(command + '\r');
+            }
+
+            // Use the clean output from SSH
+            const output = result.success
+                ? (result.stdout || result.stderr || 'Command completed successfully')
+                : (result.error || result.stderr || 'Command failed');
+
+            showCommandOutputInCard(cardId, command, output, result.success, result.exit_code);
+
+        } catch (error) {
+            console.error('Command execution failed:', error);
+
+            // Fallback to terminal-based execution if API fails
+            if (terminalSocket && terminalSocket.readyState === WebSocket.OPEN) {
+                actionsDiv.innerHTML = `
+                    <div class="flex-1 flex items-center justify-center text-yellow-400 text-sm py-2">
+                        <i class="fas fa-terminal mr-2"></i>Running in terminal (fallback)...
+                    </div>
+                `;
+
+                const beforeLineCount = term.buffer.active.baseY + term.buffer.active.cursorY;
+                terminalSocket.send(command + '\r');
+                term.focus();
+
+                setTimeout(() => {
+                    const output = getCommandOutput(beforeLineCount, command);
+                    showCommandOutputInCard(cardId, command, output, true, null);
+                }, 2500);
+            } else {
+                showToast('Command execution failed: ' + error.message, 'error');
+                actionsDiv.innerHTML = `
+                    <div class="flex-1 flex items-center text-red-400 text-sm py-2">
+                        <i class="fas fa-times-circle mr-2"></i>Failed
+                    </div>
+                `;
+            }
+        }
     }
 
     function getCommandOutput(beforeLineCount, command) {
@@ -851,15 +886,23 @@
         return lines.join('\n').trim();
     }
 
-    function showCommandOutputInCard(cardId, command, output) {
+    function showCommandOutputInCard(cardId, command, output, success = true, exitCode = null) {
         const card = document.getElementById(cardId);
         if (!card) return;
+
+        // Determine status based on success flag
+        const isSuccess = success && (exitCode === null || exitCode === 0);
+        const statusText = isSuccess
+            ? (exitCode !== null ? `Executed (exit code: ${exitCode})` : 'Executed successfully')
+            : `Failed (exit code: ${exitCode !== null ? exitCode : 'unknown'})`;
+        const statusColor = isSuccess ? 'text-green-400' : 'text-red-400';
+        const statusIcon = isSuccess ? 'fa-check-circle' : 'fa-times-circle';
 
         // Update card to "executed" state
         const actionsDiv = card.querySelector('.cmd-actions');
         actionsDiv.innerHTML = `
-            <div class="flex-1 flex items-center text-green-400 text-sm py-2">
-                <i class="fas fa-check-circle mr-2"></i>Executed successfully
+            <div class="flex-1 flex items-center ${statusColor} text-sm py-2">
+                <i class="fas ${statusIcon} mr-2"></i>${statusText}
             </div>
             <button class="toggle-output-btn text-gray-400 hover:text-white text-sm px-3 py-2 transition-colors" title="Toggle output">
                 <i class="fas fa-chevron-down"></i>
@@ -869,7 +912,7 @@
         // Update header icon
         const headerIcon = card.querySelector('.fa-cog, .fa-terminal');
         if (headerIcon) {
-            headerIcon.className = 'fas fa-check text-green-400 mr-2';
+            headerIcon.className = `fas ${statusIcon} ${statusColor} mr-2`;
         }
 
         // Add output section
