@@ -930,10 +930,13 @@
 
         try {
             // Execute command via SSH API (clean output, no terminal escape codes)
-            const result = await apiCall(`/api/servers/${currentServerId}/execute`, {
+            const response = await apiCall(`/api/servers/${currentServerId}/execute`, {
                 method: 'POST',
                 body: JSON.stringify({ command: command, timeout: 60 })
             });
+
+            // Parse JSON from response
+            const result = await response.json();
 
             console.log('Command execution result:', result);
 
