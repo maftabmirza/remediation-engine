@@ -54,7 +54,7 @@ class AgentSession(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     chat_session_id = Column(UUID(as_uuid=True), ForeignKey("chat_sessions.id"), nullable=False)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
-    server_id = Column(UUID(as_uuid=True), ForeignKey("servers.id"), nullable=True)
+    server_id = Column(UUID(as_uuid=True), ForeignKey("server_credentials.id"), nullable=True)
     
     # The goal the agent is trying to achieve
     goal = Column(Text, nullable=False)
@@ -83,7 +83,7 @@ class AgentSession(Base):
     # Relationships
     user = relationship("User")
     chat_session = relationship("ChatSession")
-    server = relationship("Server")
+    server = relationship("ServerCredential")
     steps = relationship("AgentStep", back_populates="agent_session", cascade="all, delete-orphan", order_by="AgentStep.step_number")
 
 
