@@ -112,7 +112,13 @@
 
             <!-- Runbook Selection -->
             <div class="mb-4">
-                <label class="block text-secondary text-sm mb-1">Runbook *</label>
+                <label class="block text-secondary text-sm mb-1">
+                    Runbook *
+                    <span class="info-tooltip info-tooltip-align-left info-tooltip-bottom">
+                        <span class="info-tooltip-icon">?</span>
+                        <span class="info-tooltip-text">The runbook to execute on this schedule.</span>
+                    </span>
+                </label>
                 <select id="runbookId" required class="input-field w-full px-3 py-2 rounded">
                     <option value="">Select a runbook...</option>
                 </select>
@@ -120,21 +126,41 @@
 
             <!-- Schedule Name -->
             <div class="mb-4">
-                <label class="block text-secondary text-sm mb-1">Schedule Name *</label>
+                <label class="block text-secondary text-sm mb-1">
+                    Schedule Name *
+                    <span class="info-tooltip info-tooltip-align-left">
+                        <span class="info-tooltip-icon">?</span>
+                        <span class="info-tooltip-text">A descriptive name for this schedule.</span>
+                    </span>
+                </label>
                 <input type="text" id="scheduleName" required class="input-field w-full px-3 py-2 rounded"
                     placeholder="e.g., Daily Database Cleanup">
             </div>
 
             <!-- Description -->
             <div class="mb-4">
-                <label class="block text-secondary text-sm mb-1">Description</label>
+                <label class="block text-secondary text-sm mb-1">
+                    Description
+                    <span class="info-tooltip info-tooltip-align-left">
+                        <span class="info-tooltip-icon">?</span>
+                        <span class="info-tooltip-text">Optional details about this schedule.</span>
+                    </span>
+                </label>
                 <textarea id="scheduleDescription" rows="2" class="input-field w-full px-3 py-2 rounded"
                     placeholder="Optional description"></textarea>
             </div>
 
             <!-- Schedule Type -->
             <div class="mb-4">
-                <label class="block text-secondary text-sm mb-1">Schedule Type *</label>
+                <label class="block text-secondary text-sm mb-1">
+                    Schedule Type *
+                    <span class="info-tooltip info-tooltip-align-left">
+                        <span class="info-tooltip-icon">?</span>
+                        <span class="info-tooltip-text"><strong>Cron:</strong> Complex
+                            recurrence.<br><strong>Interval:</strong> Fixed frequency.<br><strong>One-time:</strong>
+                            Single execution.</span>
+                    </span>
+                </label>
                 <div class="grid grid-cols-3 gap-2">
                     <button type="button" onclick="setScheduleType('cron')"
                         class="schedule-type-btn p-3 rounded border border-gray-600 hover:border-blue-500 transition"
@@ -159,7 +185,13 @@
 
             <!-- Cron Configuration -->
             <div id="cronConfig" class="hidden mb-4">
-                <label class="block text-secondary text-sm mb-2">Cron Expression *</label>
+                <label class="block text-secondary text-sm mb-2">
+                    Cron Expression *
+                    <span class="info-tooltip info-tooltip-align-left">
+                        <span class="info-tooltip-icon">?</span>
+                        <span class="info-tooltip-text">Standard cron format (min hour day month wday).</span>
+                    </span>
+                </label>
                 <input type="text" id="cronExpression"
                     class="input-field w-full px-3 py-2 rounded font-mono text-sm mb-2" placeholder="0 2 * * *">
                 <div class="grid grid-cols-2 gap-2 mb-2">
@@ -177,7 +209,13 @@
 
             <!-- Interval Configuration -->
             <div id="intervalConfig" class="hidden mb-4">
-                <label class="block text-secondary text-sm mb-1">Run Every *</label>
+                <label class="block text-secondary text-sm mb-1">
+                    Run Every *
+                    <span class="info-tooltip info-tooltip-align-left">
+                        <span class="info-tooltip-icon">?</span>
+                        <span class="info-tooltip-text">Frequency of execution (e.g., every 5 minutes).</span>
+                    </span>
+                </label>
                 <div class="grid grid-cols-2 gap-2">
                     <input type="number" id="intervalValue" min="1" class="input-field px-3 py-2 rounded"
                         placeholder="5">
@@ -191,13 +229,25 @@
 
             <!-- Date Configuration -->
             <div id="dateConfig" class="hidden mb-4">
-                <label class="block text-secondary text-sm mb-1">Run At *</label>
+                <label class="block text-secondary text-sm mb-1">
+                    Run At *
+                    <span class="info-tooltip info-tooltip-align-left">
+                        <span class="info-tooltip-icon">?</span>
+                        <span class="info-tooltip-text">Specific date and time for a one-time execution.</span>
+                    </span>
+                </label>
                 <input type="datetime-local" id="runDate" class="input-field w-full px-3 py-2 rounded">
             </div>
 
             <!-- Timezone -->
             <div class="mb-4">
-                <label class="block text-secondary text-sm mb-1">Timezone</label>
+                <label class="block text-secondary text-sm mb-1">
+                    Timezone
+                    <span class="info-tooltip info-tooltip-align-left">
+                        <span class="info-tooltip-icon">?</span>
+                        <span class="info-tooltip-text">Timezone for the schedule execution time.</span>
+                    </span>
+                </label>
                 <select id="timezone" class="input-field w-full px-3 py-2 rounded">
                     <option value="UTC">UTC</option>
                     <option value="America/New_York">America/New_York (EST/EDT)</option>
@@ -211,7 +261,13 @@
 
             <!-- Server Override -->
             <div class="mb-4">
-                <label class="block text-secondary text-sm mb-1">Target Server (Optional)</label>
+                <label class="block text-secondary text-sm mb-1">
+                    Target Server (Optional)
+                    <span class="info-tooltip info-tooltip-align-left">
+                        <span class="info-tooltip-icon">?</span>
+                        <span class="info-tooltip-text">Override the runbook's default target server.</span>
+                    </span>
+                </label>
                 <select id="targetServer" class="input-field w-full px-3 py-2 rounded">
                     <option value="">Use runbook default</option>
                 </select>

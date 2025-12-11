@@ -783,7 +783,13 @@
             <div class="flex-1 overflow-y-auto p-6 pt-4 space-y-4 custom-scrollbar">
                 <div class="grid md:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium mb-1">Provider Name *</label>
+                        <label class="block text-sm font-medium mb-1">
+                            Provider Name *
+                            <span class="info-tooltip info-tooltip-align-left info-tooltip-bottom">
+                                <span class="info-tooltip-icon">?</span>
+                                <span class="info-tooltip-text">A friendly name to identify this LLM provider.</span>
+                            </span>
+                        </label>
                         <input type="text" id="providerName" class="input-field w-full px-3 py-2 rounded" required
                             placeholder="e.g. Primary OpenAI">
                     </div>
@@ -802,7 +808,14 @@
 
                 <div class="grid md:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium mb-1">Model ID *</label>
+                        <label class="block text-sm font-medium mb-1">
+                            Model ID *
+                            <span class="info-tooltip info-tooltip-align-left">
+                                <span class="info-tooltip-icon">?</span>
+                                <span class="info-tooltip-text">The specific model identifier (e.g., gpt-4,
+                                    claude-3-opus).</span>
+                            </span>
+                        </label>
                         <input type="text" id="providerModel" class="input-field w-full px-3 py-2 rounded" required
                             placeholder="gpt-4">
                     </div>
@@ -891,7 +904,13 @@
                 <!-- Basic Info -->
                 <div class="grid md:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium mb-1">Friendly Name *</label>
+                        <label class="block text-sm font-medium mb-1">
+                            Friendly Name *
+                            <span class="info-tooltip info-tooltip-align-left info-tooltip-bottom">
+                                <span class="info-tooltip-icon">?</span>
+                                <span class="info-tooltip-text">A recognizable name for this server.</span>
+                            </span>
+                        </label>
                         <input type="text" id="serverName" class="input-field w-full px-3 py-2 rounded" required
                             placeholder="Prod-DB-01">
                     </div>
@@ -908,7 +927,14 @@
                 <!-- Connection Info -->
                 <div class="grid md:grid-cols-12 gap-4">
                     <div class="md:col-span-4">
-                        <label class="block text-sm font-medium mb-1">Hostname / IP *</label>
+                        <label class="block text-sm font-medium mb-1">
+                            Hostname / IP *
+                            <span class="info-tooltip info-tooltip-align-left">
+                                <span class="info-tooltip-icon">?</span>
+                                <span class="info-tooltip-text">DNS hostname or IP address reachable by the
+                                    engine.</span>
+                            </span>
+                        </label>
                         <input type="text" id="serverHost" class="input-field w-full px-3 py-2 rounded" required
                             placeholder="192.168.1.10">
                     </div>
@@ -1044,7 +1070,13 @@
             <input type="hidden" id="userId">
             <div class="flex-1 overflow-y-auto p-6 pt-4 space-y-4 custom-scrollbar">
                 <div>
-                    <label class="block text-sm font-medium mb-1">Username *</label>
+                    <label class="block text-sm font-medium mb-1">
+                        Username *
+                        <span class="info-tooltip info-tooltip-align-left info-tooltip-bottom">
+                            <span class="info-tooltip-icon">?</span>
+                            <span class="info-tooltip-text">Login username for the new user.</span>
+                        </span>
+                    </label>
                     <input type="text" id="userUsername" class="input-field w-full px-3 py-2 rounded" required>
                 </div>
                 <div>
@@ -1056,7 +1088,13 @@
                     <input type="text" id="userFullName" class="input-field w-full px-3 py-2 rounded">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium mb-1">Role</label>
+                    <label class="block text-sm font-medium mb-1">
+                        Role
+                        <span class="info-tooltip info-tooltip-align-left">
+                            <span class="info-tooltip-icon">?</span>
+                            <span class="info-tooltip-text">Assigns permissions to the user.</span>
+                        </span>
+                    </label>
                     <select id="userRole" class="input-field w-full px-3 py-2 rounded">
                         <option value="admin">Admin</option>
                         <option value="editor">Editor</option>
@@ -1101,23 +1139,39 @@
             <div class="flex-1 overflow-y-auto p-6 pt-4 space-y-4 custom-scrollbar">
                 <div class="grid md:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium mb-1">Profile name *</label>
+                        <label class="block text-sm font-medium mb-1">
+                            Profile name *
+                            <span class="info-tooltip info-tooltip-align-left info-tooltip-bottom">
+                                <span class="info-tooltip-icon">?</span>
+                                <span class="info-tooltip-text">Unique name for this credential set.</span>
+                            </span>
+                        </label>
                         <input type="text" id="credentialProfileName" class="input-field w-full px-3 py-2 rounded"
                             required placeholder="Shared automation key">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium mb-1">Scope</label>
+                        <label class="block text-sm font-medium mb-1">
+                            Scope
+                            <span class="info-tooltip info-tooltip-align-left">
+                                <span class="info-tooltip-icon">?</span>
+                                <span class="info-tooltip-text">Limit visibility to a specific server group.</span>
+                            </span>
+                        </label>
                         <select id="credentialProfileGroup" class="input-field w-full px-3 py-2 rounded">
                             <option value="">All groups</option>
                         </select>
-                        <p class="text-xs text-gray-400 mt-1">Tie a credential to a server group or leave global.
-                        </p>
                     </div>
                 </div>
 
                 <div class="grid md:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium mb-1">Credential type</label>
+                        <label class="block text-sm font-medium mb-1">
+                            Credential type
+                            <span class="info-tooltip info-tooltip-align-left">
+                                <span class="info-tooltip-icon">?</span>
+                                <span class="info-tooltip-text">Format of the stored secret.</span>
+                            </span>
+                        </label>
                         <select id="credentialProfileType" class="input-field w-full px-3 py-2 rounded">
                             <option value="key">SSH Key</option>
                             <option value="password">Password</option>
@@ -1196,10 +1250,13 @@
                 <div>
                     <label class="block text-sm font-medium mb-1">
                         Profile Name <span class="text-red-400">*</span>
+                        <span class="info-tooltip info-tooltip-align-left info-tooltip-bottom">
+                            <span class="info-tooltip-icon">?</span>
+                            <span class="info-tooltip-text">Unique identifier for this credential profile.</span>
+                        </span>
                     </label>
                     <input type="text" id="apiCredentialName" class="input-field w-full px-3 py-2 rounded"
                         placeholder="e.g., Production AWX" required>
-                    <p class="text-xs text-gray-400 mt-1">Unique identifier for this credential profile</p>
                 </div>
 
                 <div>
@@ -1341,10 +1398,15 @@
 
             <div class="flex-1 overflow-y-auto p-6 pt-4 space-y-4 custom-scrollbar">
                 <div>
-                    <label class="block text-sm font-medium mb-1">Name *</label>
+                    <label class="block text-sm font-medium mb-1">
+                        Name *
+                        <span class="info-tooltip info-tooltip-align-left info-tooltip-bottom">
+                            <span class="info-tooltip-icon">?</span>
+                            <span class="info-tooltip-text">Unique identifier for the role.</span>
+                        </span>
+                    </label>
                     <input type="text" id="roleName" class="input-field w-full px-3 py-2 rounded" required
                         placeholder="e.g. Compliance Officer">
-                    <p class="text-xs text-gray-400 mt-1">Unique identifier for the role.</p>
                 </div>
                 <div>
                     <label class="block text-sm font-medium mb-1">Description</label>
@@ -1353,7 +1415,13 @@
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium mb-3">Permissions</label>
+                    <label class="block text-sm font-medium mb-3">
+                        Permissions
+                        <span class="info-tooltip info-tooltip-align-left">
+                            <span class="info-tooltip-icon">?</span>
+                            <span class="info-tooltip-text">Capabilities granted to users with this role.</span>
+                        </span>
+                    </label>
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="permissionsContainer">
                         <!-- Loading... -->
                     </div>

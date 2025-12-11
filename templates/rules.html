@@ -100,11 +100,23 @@
 
                 <div class="grid grid-cols-2 gap-4">
                     <div class="col-span-2">
-                        <label class="block text-sm font-medium mb-1">Rule Name</label>
+                        <label class="block text-sm font-medium mb-1">
+                            Rule Name
+                            <span class="info-tooltip info-tooltip-align-left info-tooltip-bottom">
+                                <span class="info-tooltip-icon">?</span>
+                                <span class="info-tooltip-text">Descriptive name for this automation rule.</span>
+                            </span>
+                        </label>
                         <input type="text" id="ruleName" class="input-field w-full px-3 py-2 rounded" required>
                     </div>
                     <div class="col-span-2">
-                        <label class="block text-sm font-medium mb-1">Description</label>
+                        <label class="block text-sm font-medium mb-1">
+                            Description
+                            <span class="info-tooltip info-tooltip-align-left">
+                                <span class="info-tooltip-icon">?</span>
+                                <span class="info-tooltip-text">Explain the purpose and logic of this rule.</span>
+                            </span>
+                        </label>
                         <textarea id="ruleDescription" class="input-field w-full px-3 py-2 rounded" rows="2"></textarea>
                     </div>
                 </div>
@@ -123,22 +135,47 @@
                     <!-- Basic Mode -->
                     <div id="mode-basic" class="grid grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-sm font-medium mb-1">Alert Name Pattern</label>
+                            <label class="block text-sm font-medium mb-1">
+                                Alert Name Pattern
+                                <span class="info-tooltip info-tooltip-align-left">
+                                    <span class="info-tooltip-icon">?</span>
+                                    <span class="info-tooltip-text">Glob pattern for alert name (e.g., CPU*).</span>
+                                </span>
+                            </label>
                             <input type="text" id="ruleAlertPattern" class="input-field w-full px-3 py-2 rounded"
                                 value="*" placeholder="e.g. CPU*">
                         </div>
                         <div>
-                            <label class="block text-sm font-medium mb-1">Severity Pattern</label>
+                            <label class="block text-sm font-medium mb-1">
+                                Severity Pattern
+                                <span class="info-tooltip info-tooltip-align-left">
+                                    <span class="info-tooltip-icon">?</span>
+                                    <span class="info-tooltip-text">Glob pattern for severity (e.g., critical).</span>
+                                </span>
+                            </label>
                             <input type="text" id="ruleSeverityPattern" class="input-field w-full px-3 py-2 rounded"
                                 value="*" placeholder="e.g. critical">
                         </div>
                         <div>
-                            <label class="block text-sm font-medium mb-1">Instance Pattern</label>
+                            <label class="block text-sm font-medium mb-1">
+                                Instance Pattern
+                                <span class="info-tooltip info-tooltip-align-left">
+                                    <span class="info-tooltip-icon">?</span>
+                                    <span class="info-tooltip-text">Glob pattern for instance label (e.g.,
+                                        prod-*).</span>
+                                </span>
+                            </label>
                             <input type="text" id="ruleInstancePattern" class="input-field w-full px-3 py-2 rounded"
                                 value="*" placeholder="e.g. prod-*">
                         </div>
                         <div>
-                            <label class="block text-sm font-medium mb-1">Job Pattern</label>
+                            <label class="block text-sm font-medium mb-1">
+                                Job Pattern
+                                <span class="info-tooltip info-tooltip-align-left">
+                                    <span class="info-tooltip-icon">?</span>
+                                    <span class="info-tooltip-text">Glob pattern for job label.</span>
+                                </span>
+                            </label>
                             <input type="text" id="ruleJobPattern" class="input-field w-full px-3 py-2 rounded"
                                 value="*" placeholder="e.g. node-exporter">
                         </div>
@@ -146,7 +183,13 @@
 
                     <!-- Advanced Mode -->
                     <div id="mode-advanced" class="hidden">
-                        <label class="block text-sm font-medium mb-1">JSON Logic Condition</label>
+                        <label class="block text-sm font-medium mb-1">
+                            JSON Logic Condition
+                            <span class="info-tooltip info-tooltip-align-left">
+                                <span class="info-tooltip-icon">?</span>
+                                <span class="info-tooltip-text">Complex logic using JsonLogic syntax.</span>
+                            </span>
+                        </label>
                         <textarea id="ruleConditionJson" class="input-field w-full px-3 py-2 rounded font-mono text-xs"
                             rows="6"
                             placeholder='{"and": [{"==": [{"var": "severity"}, "critical"]}, {">": [{"var": "value"}, 90]}]}'></textarea>
@@ -156,16 +199,28 @@
 
                 <div class="border-t border-gray-700 pt-4 grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium mb-1">Priority</label>
+                        <label class="block text-sm font-medium mb-1">
+                            Priority
+                            <span class="info-tooltip info-tooltip-align-left">
+                                <span class="info-tooltip-icon">?</span>
+                                <span class="info-tooltip-text">Order of evaluation. Lower numbers = higher
+                                    priority.</span>
+                            </span>
+                        </label>
                         <input type="number" id="rulePriority" class="input-field w-full px-3 py-2 rounded" value="100">
-                        <p class="text-xs text-gray-500 mt-1">Lower number = higher priority</p>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium mb-1">Action</label>
+                        <label class="block text-sm font-medium mb-1">
+                            Action
+                            <span class="info-tooltip info-tooltip-align-left">
+                                <span class="info-tooltip-icon">?</span>
+                                <span class="info-tooltip-text">What to do when an alert matches this rule.</span>
+                            </span>
+                        </label>
                         <select id="ruleAction" class="input-field w-full px-3 py-2 rounded">
                             <option value="auto_analyze">Auto Analyze ( remediation )</option>
                             <option value="ignore">Ignore / Suppress</option>
-                            <option value="notify">Notify Only</option>
+                            <option value="manual">Manual / Notify Only</option>
                         </select>
                     </div>
                 </div>

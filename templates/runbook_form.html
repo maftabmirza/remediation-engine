@@ -235,12 +235,23 @@
                         <div class="col-span-2 md:col-span-1">
                             <label class="block text-secondary text-sm mb-1">
                                 Name <span class="text-red-400">*</span>
+                                <span class="info-tooltip info-tooltip-align-left info-tooltip-bottom">
+                                    <span class="info-tooltip-icon">?</span>
+                                    <span class="info-tooltip-text">A unique, descriptive name for this runbook.</span>
+                                </span>
                             </label>
                             <input type="text" id="runbookName" required class="input-field w-full px-3 py-2 rounded"
                                 placeholder="e.g., Restart Nginx Service">
                         </div>
                         <div class="col-span-2 md:col-span-1">
-                            <label class="block text-secondary text-sm mb-1">Category</label>
+                            <label class="block text-secondary text-sm mb-1">
+                                Category
+                                <span class="info-tooltip info-tooltip-align-left">
+                                    <span class="info-tooltip-icon">?</span>
+                                    <span class="info-tooltip-text">Group similar runbooks together for easier
+                                        management.</span>
+                                </span>
+                            </label>
                             <select id="runbookCategory" class="input-field w-full px-3 py-2 rounded">
                                 <option value="infrastructure">Infrastructure</option>
                                 <option value="application">Application</option>
@@ -250,17 +261,37 @@
                             </select>
                         </div>
                         <div class="col-span-2">
-                            <label class="block text-secondary text-sm mb-1">Description</label>
+                            <label class="block text-secondary text-sm mb-1">
+                                Description
+                                <span class="info-tooltip info-tooltip-align-left">
+                                    <span class="info-tooltip-icon">?</span>
+                                    <span class="info-tooltip-text">Explain the purpose of this runbook and when it
+                                        should be used.</span>
+                                </span>
+                            </label>
                             <textarea id="runbookDescription" rows="3" class="input-field w-full px-3 py-2 rounded"
                                 placeholder="Describe what this runbook does, when to use it, and any prerequisites..."></textarea>
                         </div>
                         <div class="col-span-2 md:col-span-1">
-                            <label class="block text-secondary text-sm mb-1">Tags</label>
+                            <label class="block text-secondary text-sm mb-1">
+                                Tags
+                                <span class="info-tooltip info-tooltip-align-left">
+                                    <span class="info-tooltip-icon">?</span>
+                                    <span class="info-tooltip-text">Keywords to help search and filter runbooks.</span>
+                                </span>
+                            </label>
                             <input type="text" id="runbookTags" class="input-field w-full px-3 py-2 rounded"
                                 placeholder="web, nginx, restart (comma-separated)">
                         </div>
                         <div class="col-span-2 md:col-span-1">
-                            <label class="block text-secondary text-sm mb-1">Documentation URL</label>
+                            <label class="block text-secondary text-sm mb-1">
+                                Documentation URL
+                                <span class="info-tooltip info-tooltip-align-left">
+                                    <span class="info-tooltip-icon">?</span>
+                                    <span class="info-tooltip-text">Link to external wiki or docs for this
+                                        runbook.</span>
+                                </span>
+                            </label>
                             <input type="url" id="runbookDocUrl" class="input-field w-full px-3 py-2 rounded"
                                 placeholder="https://wiki.example.com/runbooks/nginx">
                         </div>
@@ -336,7 +367,15 @@
                     <div class="space-y-6">
                         <!-- Status -->
                         <div>
-                            <label class="block text-secondary text-sm mb-2">Status</label>
+                            <label class="block text-secondary text-sm mb-2">
+                                Status
+                                <span class="info-tooltip info-tooltip-align-left">
+                                    <span class="info-tooltip-icon">?</span>
+                                    <span class="info-tooltip-text"><strong>Draft:</strong> Testing
+                                        only.<br><strong>Active:</strong> Enabled for
+                                        execution.<br><strong>Disabled:</strong> Cannot be executed.</span>
+                                </span>
+                            </label>
                             <div class="flex gap-4">
                                 <label class="flex items-center gap-2 cursor-pointer">
                                     <input type="radio" name="status" value="draft" checked class="text-blue-500">
@@ -358,7 +397,14 @@
                         <!-- Approval Settings -->
                         <div class="grid grid-cols-2 gap-4">
                             <div>
-                                <label class="block text-secondary text-sm mb-1">Approval Required</label>
+                                <label class="block text-secondary text-sm mb-1">
+                                    Approval Required
+                                    <span class="info-tooltip info-tooltip-align-left">
+                                        <span class="info-tooltip-icon">?</span>
+                                        <span class="info-tooltip-text">Control whether human approval is needed before
+                                            execution.</span>
+                                    </span>
+                                </label>
                                 <select id="approvalRequired" class="input-field w-full px-3 py-2 rounded">
                                     <option value="none">None (Execute immediately)</option>
                                     <option value="manual" selected>Manual Approval</option>
@@ -366,7 +412,14 @@
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-secondary text-sm mb-1">Approval Timeout (minutes)</label>
+                                <label class="block text-secondary text-sm mb-1">
+                                    Approval Timeout (minutes)
+                                    <span class="info-tooltip info-tooltip-align-left">
+                                        <span class="info-tooltip-icon">?</span>
+                                        <span class="info-tooltip-text">Time before auto-approval (if enabled) or
+                                            expiry.</span>
+                                    </span>
+                                </label>
                                 <input type="number" id="approvalTimeout" value="30" min="1" max="1440"
                                     class="input-field w-full px-3 py-2 rounded">
                             </div>
@@ -375,12 +428,26 @@
                         <!-- Rate Limiting -->
                         <div class="grid grid-cols-2 gap-4">
                             <div>
-                                <label class="block text-secondary text-sm mb-1">Max Executions per Hour</label>
+                                <label class="block text-secondary text-sm mb-1">
+                                    Max Executions per Hour
+                                    <span class="info-tooltip info-tooltip-align-left">
+                                        <span class="info-tooltip-icon">?</span>
+                                        <span class="info-tooltip-text">Limit how often this runbook can run to prevent
+                                            storms.</span>
+                                    </span>
+                                </label>
                                 <input type="number" id="maxExecutions" value="5" min="1" max="100"
                                     class="input-field w-full px-3 py-2 rounded">
                             </div>
                             <div>
-                                <label class="block text-secondary text-sm mb-1">Cooldown (minutes)</label>
+                                <label class="block text-secondary text-sm mb-1">
+                                    Cooldown (minutes)
+                                    <span class="info-tooltip info-tooltip-align-left">
+                                        <span class="info-tooltip-icon">?</span>
+                                        <span class="info-tooltip-text">Wait time between executions to prevent
+                                            flapping.</span>
+                                    </span>
+                                </label>
                                 <input type="number" id="cooldownMinutes" value="10" min="0" max="1440"
                                     class="input-field w-full px-3 py-2 rounded">
                             </div>
@@ -389,13 +456,27 @@
                         <!-- Target Settings -->
                         <div class="grid grid-cols-2 gap-4">
                             <div>
-                                <label class="block text-secondary text-sm mb-1">Default Server</label>
+                                <label class="block text-secondary text-sm mb-1">
+                                    Default Server
+                                    <span class="info-tooltip info-tooltip-align-left">
+                                        <span class="info-tooltip-icon">?</span>
+                                        <span class="info-tooltip-text">Server to run on if none is specified in
+                                            execution.</span>
+                                    </span>
+                                </label>
                                 <select id="defaultServer" class="input-field w-full px-3 py-2 rounded">
                                     <option value="">None (derive from alert)</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-secondary text-sm mb-1">Target OS Filter</label>
+                                <label class="block text-secondary text-sm mb-1">
+                                    Target OS Filter
+                                    <span class="info-tooltip info-tooltip-align-left">
+                                        <span class="info-tooltip-icon">?</span>
+                                        <span class="info-tooltip-text">Restrict this runbook to specific operating
+                                            systems.</span>
+                                    </span>
+                                </label>
                                 <div class="flex gap-4 mt-2">
                                     <label class="flex items-center gap-2 cursor-pointer">
                                         <input type="checkbox" id="osLinux" checked class="text-blue-500">
@@ -418,7 +499,14 @@
                                 </label>
                             </div>
                             <div>
-                                <label class="block text-secondary text-sm mb-1">Alert Label for Target</label>
+                                <label class="block text-secondary text-sm mb-1">
+                                    Alert Label for Target
+                                    <span class="info-tooltip info-tooltip-align-left">
+                                        <span class="info-tooltip-icon">?</span>
+                                        <span class="info-tooltip-text">Alert label containing the hostname/IP (e.g.,
+                                            'instance').</span>
+                                    </span>
+                                </label>
                                 <input type="text" id="targetAlertLabel" value="instance"
                                     class="input-field w-full px-3 py-2 rounded" placeholder="instance">
                             </div>
