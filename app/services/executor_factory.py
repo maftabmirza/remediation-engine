@@ -389,3 +389,66 @@ class ExecutorFactory:
         await asyncio.gather(*[test_with_limit(s) for s in servers])
         
         return results
+
+    @classmethod
+    async def execute_command(
+        cls,
+        server: ServerCredential,
+        command: str,
+        timeout: int = 60,
+        use_sudo: bool = False,
+        fernet_key: Optional[str] = None
+    ) -> ExecutionResult:
+        """
+        Execute a command on a server and return clean output.
+        
+        Args:
+            server: ServerCredential with connection details.
+            command: Command to execute.
+            timeout: Command timeout in seconds.
+            use_sudo: Whether to prepend sudo to command.
+            fernet_key: Encryption key.
+        
+        Returns:
+            ExecutionResult with stdout, stderr, exit_code.
+        """
+        try:
+            executor = cls.get_executor(server, fernet_key)
+            
+            async with executor:
+                # Optionally wrap with sudo
+                cmd = f"sudo {command}" if use_sudo else command
+                
+                # Execute the command
+                result = await executor.execute(cmd, timeout=timeout)
+                
+                return result
+                
+        except ConnectionError as e:
+            logger.error(f"Connection error executing command on {server.hostname}: {e}")
+            return ExecutionResult(
+                success=False,
+                exit_code=-1,
+                stdout="",
+                stderr=str(e),
+                duration_ms=0,
+                command=command,
+                server_hostname=server.hostname,
+                error_type=ErrorType.CONNECTION,
+                error_message=str(e),
+                retryable=True
+            )
+        except Exception as e:
+            logger.error(f"Error executing command on {server.hostname}: {e}")
+            return ExecutionResult(
+                success=False,
+                exit_code=-1,
+                stdout="",
+                stderr=str(e),
+                duration_ms=0,
+                command=command,
+                server_hostname=server.hostname,
+                error_type=ErrorType.UNKNOWN,
+                error_message=str(e),
+                retryable=False
+            )
