@@ -1646,32 +1646,34 @@
     function showFixButton() {
         let btn = document.getElementById('fixWithAIBtn');
 
-        // Find the terminal container
-        const terminalContainer = document.querySelector('#terminal')?.parentElement;
-        if (!terminalContainer) {
-            console.error('Terminal container not found');
+        // Find the terminal element to position relative to it
+        const terminalEl = document.querySelector('#terminal');
+        if (!terminalEl) {
+            console.error('Terminal not found');
             return;
         }
 
-        // Ensure parent has position relative for absolute positioning to work
-        terminalContainer.style.position = 'relative';
+        const rect = terminalEl.getBoundingClientRect();
 
         if (!btn) {
-            // Create the button if it doesn't exist
+            // Create the button if it doesn't exist - append to body with fixed position
             btn = document.createElement('div');
             btn.id = 'fixWithAIBtn';
-            // Use inline styles to ensure visibility
-            btn.style.cssText = 'position: absolute; top: 40px; left: 10px; z-index: 9999;';
+            // Use fixed position to avoid overflow:hidden clipping
+            btn.style.cssText = `position: fixed; top: ${rect.top + 10}px; left: ${rect.left + 10}px; z-index: 9999;`;
             btn.innerHTML = `
                 <button onclick="fixErrorWithAI()" 
-                    style="background: linear-gradient(to right, #9333ea, #ec4899); color: white; padding: 6px 12px; border-radius: 9999px; font-size: 12px; display: flex; align-items: center; gap: 4px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); border: none; cursor: pointer;">
-                    <span style="font-size: 14px;">✨</span>
+                    style="background: linear-gradient(to right, #9333ea, #ec4899); color: white; padding: 8px 16px; border-radius: 9999px; font-size: 13px; display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.4); border: none; cursor: pointer; animation: pulse 1.5s ease-in-out infinite;">
+                    <span style="font-size: 16px;">✨</span>
                     <span>Fix with AI</span>
                 </button>
             `;
-            terminalContainer.appendChild(btn);
-            console.log('Fix button created and appended to', terminalContainer);
+            document.body.appendChild(btn);
+            console.log('Fix button created with fixed position at', rect.top + 10, rect.left + 10);
         } else {
+            // Update position and show
+            btn.style.top = `${rect.top + 10}px`;
+            btn.style.left = `${rect.left + 10}px`;
             btn.style.display = 'block';
             console.log('Fix button shown');
         }
