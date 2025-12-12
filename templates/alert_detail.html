@@ -646,7 +646,8 @@
 
         const container = document.getElementById('chatMessages');
 
-        if (lastMessageRole !== 'assistant') {
+        // Ensure we have a message container to write to
+        if (lastMessageRole !== 'assistant' || !currentMessageDiv) {
             // Create new message bubble with Agent Mode styling
             const wrapper = document.createElement('div');
             wrapper.className = 'flex justify-start w-full pr-2';
@@ -658,12 +659,18 @@
                         </div>
                         <span class="text-xs text-gray-400">AI Assistant</span>
                     </div>
-                    <div class="bg-gray-800/80 rounded-lg p-4 border border-purple-500/20 text-sm ai-message-content shadow-lg"></div>
+                    <div class="bg-gray-800/80 rounded-lg p-4 border border-purple-500/20 text-sm ai-message-content shadow-lg" data-full-text=""></div>
                 </div>
             `;
             container.appendChild(wrapper);
             currentMessageDiv = wrapper.querySelector('.ai-message-content');
             lastMessageRole = 'assistant';
+        }
+
+        // Double-check currentMessageDiv is valid
+        if (!currentMessageDiv) {
+            console.error('Failed to create message container');
+            return;
         }
 
         // Append text (we need to buffer and render markdown properly)
