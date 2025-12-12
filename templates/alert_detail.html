@@ -1567,6 +1567,263 @@
         term.clearSelection();
     }
 
+    // --- Gap 3: Smart Error Detection ---
+
+    const errorPatterns = [
+        /error:/i,
+        /Error:/,
+        /ERROR/,
+        /failed/i,
+        /FAILED/,
+        /permission denied/i,
+        /command not found/i,
+        /No such file or directory/i,
+        /connection refused/i,
+        /timeout/i,
+        /Exception/,
+        /FATAL/,
+        /OOM/i,
+        /killed/i,
+        /segmentation fault/i,
+        /core dumped/i,
+        /not found/i,
+        /cannot/i,
+        /unable to/i,
+        /denied/i,
+    ];
+
+    let errorBuffer = '';
+    let lastErrorTime = 0;
+    let errorCheckDebounce = null;
+
+    function checkForErrors(data) {
+        // Accumulate recent output
+        errorBuffer += data;
+
+        // Keep buffer manageable (last 2000 chars)
+        if (errorBuffer.length > 2000) {
+            errorBuffer = errorBuffer.slice(-2000);
+        }
+
+        // Debounce to avoid showing button on every character
+        clearTimeout(errorCheckDebounce);
+        errorCheckDebounce = setTimeout(() => {
+            // Check if any error pattern matches
+            const hasError = errorPatterns.some(pattern => pattern.test(data));
+
+            if (hasError) {
+                // Don't show too frequently (at least 3 seconds apart)
+                const now = Date.now();
+                if (now - lastErrorTime > 3000) {
+                    lastErrorTime = now;
+                    showFixButton();
+                }
+            }
+        }, 500);
+    }
+
+    function showFixButton() {
+        let btn = document.getElementById('fixWithAIBtn');
+        if (!btn) {
+            // Create the button if it doesn't exist
+            btn = document.createElement('div');
+            btn.id = 'fixWithAIBtn';
+            btn.className = 'absolute top-2 left-2 z-50 animate-pulse';
+            btn.innerHTML = `
+                <button onclick="fixErrorWithAI()" 
+                    class="bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-500 hover:to-pink-400 text-white text-xs px-3 py-1.5 rounded-full shadow-lg flex items-center space-x-1 transition-all">
+                    <span class="text-sm">✨</span>
+                    <span>Fix with AI</span>
+                </button>
+            `;
+            document.querySelector('#terminal').parentElement.appendChild(btn);
+        } else {
+            btn.classList.remove('hidden');
+        }
+
+        // Auto-hide after 10 seconds
+        setTimeout(() => {
+            hideFixButton();
+        }, 10000);
+    }
+
+    function hideFixButton() {
+        const btn = document.getElementById('fixWithAIBtn');
+        if (btn) {
+            btn.classList.add('hidden');
+        }
+    }
+
+    function fixErrorWithAI() {
+        const context = getTerminalContext(40);
+
+        const message = `[ERROR DETECTED IN TERMINAL]\nPlease analyze the following terminal output and help me fix the error:\n\n\`\`\`\n${context}\n\`\`\`\n\nWhat went wrong? How can I fix this?`;
+
+        if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+            chatSocket.send(message);
+
+            // Add visual feedback in chat
+            const container = document.getElementById('chatMessages');
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'flex justify-end mb-2';
+            msgDiv.innerHTML = `
+                <div class="bg-gradient-to-r from-pink-600 to-purple-600 rounded-2xl rounded-br-sm px-4 py-2 max-w-[75%] shadow-lg">
+                    <div class="text-[10px] text-pink-200 mb-1 flex items-center">
+                        <span class="mr-1">✨</span>Fix Error Request
+                    </div>
+                    <p class="text-sm text-white">Help me fix this terminal error</p>
+                </div>
+            `;
+            container.appendChild(msgDiv);
+            container.scrollTop = container.scrollHeight;
+
+            showTypingIndicator();
+            showToast('Asking AI to help fix the error...', 'success');
+        } else {
+            showToast('Chat not connected', 'error');
+        }
+
+        hideFixButton();
+    }
+
+    // --- Gap 6: Slash Commands ---
+
+    const slashCommands = {
+        '/explain': {
+            description: 'Explain terminal output or error',
+            handler: (arg) => {
+                const context = arg || getTerminalContext();
+                return `[EXPLAIN REQUEST]\nPlease explain the following:\n\n\`\`\`\n${context}\n\`\`\`\n\nWhat does this mean?`;
+            }
+        },
+        '/fix': {
+            description: 'How to fix an error',
+            handler: (arg) => {
+                const context = arg || getTerminalContext();
+                return `[FIX REQUEST]\nHelp me fix this error:\n\n\`\`\`\n${context}\n\`\`\`\n\nWhat's wrong and how do I fix it?`;
+            }
+        },
+        '/next': {
+            description: 'What should I do next?',
+            handler: () => {
+                const context = getTerminalContext();
+                const history = getCommandHistoryContext();
+                return `[NEXT STEP REQUEST]\nBased on my terminal output and command history, what should I do next?\n\nTerminal:\n\`\`\`\n${context}\n\`\`\`${history}`;
+            }
+        },
+        '/suggest': {
+            description: 'Suggest commands for a task',
+            handler: (arg) => {
+                return `[SUGGEST COMMANDS]\nSuggest Linux/shell commands to: ${arg || 'accomplish the current troubleshooting task'}\n\nContext: ${getTerminalContext(20)}`;
+            }
+        },
+        '/history': {
+            description: 'Summarize command history',
+            handler: () => {
+                const history = getCommandHistoryContext();
+                if (!history) return 'No command history yet.';
+                return `[HISTORY SUMMARY]\nPlease summarize what I've done so far based on command history:${history}\n\nWhat have I accomplished?`;
+            }
+        },
+        '/clear': {
+            description: 'Clear chat display',
+            handler: () => {
+                clearChat();
+                return null; // Don't send message
+            }
+        }
+    };
+
+    function processSlashCommand(text) {
+        for (const [cmd, config] of Object.entries(slashCommands)) {
+            if (text.startsWith(cmd)) {
+                const arg = text.substring(cmd.length).trim();
+                return config.handler(arg);
+            }
+        }
+        return text;
+    }
+
+    function showSlashCommandAutocomplete(input, text) {
+        let dropdown = document.getElementById('slashCommandDropdown');
+
+        if (!text.startsWith('/') || text.includes(' ')) {
+            if (dropdown) dropdown.classList.add('hidden');
+            return;
+        }
+
+        const matchingCommands = Object.entries(slashCommands)
+            .filter(([cmd]) => cmd.startsWith(text))
+            .slice(0, 5);
+
+        if (matchingCommands.length === 0) {
+            if (dropdown) dropdown.classList.add('hidden');
+            return;
+        }
+
+        if (!dropdown) {
+            dropdown = document.createElement('div');
+            dropdown.id = 'slashCommandDropdown';
+            dropdown.className = 'absolute bottom-full left-0 right-0 mb-1 bg-gray-800 border border-gray-600 rounded-lg shadow-xl overflow-hidden z-50';
+            input.parentElement.style.position = 'relative';
+            input.parentElement.appendChild(dropdown);
+        }
+
+        dropdown.innerHTML = matchingCommands.map(([cmd, config], i) => `
+            <div class="slash-cmd-item px-3 py-2 hover:bg-gray-700 cursor-pointer flex items-center ${i === 0 ? 'bg-gray-700' : ''}"
+                 onclick="insertSlashCommand('${cmd}')">
+                <span class="text-purple-400 font-mono text-sm mr-2">${cmd}</span>
+                <span class="text-gray-400 text-xs">${config.description}</span>
+            </div>
+        `).join('');
+
+        dropdown.classList.remove('hidden');
+    }
+
+    function insertSlashCommand(cmd) {
+        const input = document.getElementById('chatInput');
+        if (input) {
+            input.value = cmd + ' ';
+            input.focus();
+        }
+        const dropdown = document.getElementById('slashCommandDropdown');
+        if (dropdown) dropdown.classList.add('hidden');
+    }
+
+    // Add input listener for autocomplete
+    document.addEventListener('DOMContentLoaded', () => {
+        const chatInput = document.getElementById('chatInput');
+        if (chatInput) {
+            chatInput.addEventListener('input', (e) => {
+                showSlashCommandAutocomplete(chatInput, e.target.value);
+            });
+
+            chatInput.addEventListener('keydown', (e) => {
+                const dropdown = document.getElementById('slashCommandDropdown');
+                if (dropdown && !dropdown.classList.contains('hidden')) {
+                    if (e.key === 'Tab' || e.key === 'Enter') {
+                        const firstItem = dropdown.querySelector('.slash-cmd-item');
+                        if (firstItem && chatInput.value.startsWith('/') && !chatInput.value.includes(' ')) {
+                            e.preventDefault();
+                            const cmd = firstItem.querySelector('.text-purple-400').textContent;
+                            insertSlashCommand(cmd);
+                        }
+                    }
+                    if (e.key === 'Escape') {
+                        dropdown.classList.add('hidden');
+                    }
+                }
+            });
+
+            chatInput.addEventListener('blur', () => {
+                setTimeout(() => {
+                    const dropdown = document.getElementById('slashCommandDropdown');
+                    if (dropdown) dropdown.classList.add('hidden');
+                }, 200);
+            });
+        }
+    });
+
     // Global keyboard shortcut handler
     document.addEventListener('keydown', (event) => {
         // Ctrl+I when not in input - toggle inline chat
@@ -1669,6 +1926,9 @@
                 }
             }
             term.write(data);
+
+            // Check for errors in terminal output (Gap 3: Smart Error Detection)
+            checkForErrors(data);
         };
 
         terminalSocket.onclose = () => {
