@@ -2992,19 +2992,32 @@
     function showEditCredentialProfileModal(id) {
         const p = credentialProfiles.find(x => x.id === id);
         if (!p) return;
-        document.getElementById('credentialModalTitle').textContent = 'Edit Credential Profile';
-        document.getElementById('credentialProfileEditingId').value = p.id;
-        document.getElementById('credentialName').value = p.name;
-        document.getElementById('credentialDescription').value = p.description || '';
-        document.getElementById('credentialBackend').value = p.backend;
-        document.getElementById('credentialProfileGroup').value = p.group_id || '';
-        document.getElementById('credentialUsername').value = p.login_username || '';
-        document.getElementById('credentialPassword').value = '';
-        document.getElementById('credentialSshKey').value = '';
-        document.getElementById('credentialSshPassphrase').value = '';
 
-        document.getElementById('credentialModal').classList.remove('hidden');
-        document.getElementById('credentialModal').classList.add('flex');
+        const setVal = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.value = val;
+        };
+        const setText = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = val;
+        };
+
+        setText('credentialModalTitle', 'Edit Credential Profile');
+        setVal('credentialProfileEditingId', p.id);
+        setVal('credentialName', p.name);
+        setVal('credentialDescription', p.description || '');
+        setVal('credentialBackend', p.backend);
+        setVal('credentialProfileGroup', p.group_id || '');
+        setVal('credentialUsername', p.login_username || '');
+        setVal('credentialPassword', '');
+        setVal('credentialSshKey', '');
+        setVal('credentialSshPassphrase', '');
+
+        const modal = document.getElementById('credentialModal');
+        if (modal) {
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
         toggleCredentialBackendFields();
     }
 
