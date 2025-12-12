@@ -2966,18 +2966,23 @@
     }
 
     async function deleteCredentialProfile(id) {
-        if (!confirm('Delete this credential profile?')) return;
-        try {
-            const response = await apiCall(`/api/servers/credentials/${id}`, { method: 'DELETE' });
-            if (response && response.ok) {
-                showToast('Profile deleted', 'success');
-                loadCredentialProfiles();
-            } else {
-                showToast('Failed to delete profile', 'error');
+        showConfirmModal(
+            'Delete Credential Profile',
+            'Are you sure you want to delete this credential profile? This action cannot be undone.',
+            async () => {
+                try {
+                    const response = await apiCall(`/api/servers/credentials/${id}`, { method: 'DELETE' });
+                    if (response && response.ok) {
+                        showToast('Profile deleted', 'success');
+                        loadCredentialProfiles();
+                    } else {
+                        showToast('Failed to delete profile', 'error');
+                    }
+                } catch (e) {
+                    showToast('Error deleting profile', 'error');
+                }
             }
-        } catch (e) {
-            showToast('Error deleting profile', 'error');
-        }
+        );
     }
 
     function showCreateCredentialProfileModal() {
@@ -3945,20 +3950,24 @@
     });
 
     async function deleteRole(roleId) {
-        if (!confirm("Are you sure you want to delete this role? This cannot be undone.")) return;
-
-        try {
-            const res = await fetch(`/api/roles/${roleId}`, { method: 'DELETE' });
-            if (res.ok) {
-                showToast('Role deleted', 'success');
-                loadRoles();
-            } else {
-                const err = await res.json();
-                showToast(err.detail || 'Failed to delete role', 'error');
+        showConfirmModal(
+            'Delete Role',
+            'Are you sure you want to delete this role? This cannot be undone and users with this role will lose their permissions.',
+            async () => {
+                try {
+                    const res = await fetch(`/api/roles/${roleId}`, { method: 'DELETE' });
+                    if (res.ok) {
+                        showToast('Role deleted', 'success');
+                        loadRoles();
+                    } else {
+                        const err = await res.json();
+                        showToast(err.detail || 'Failed to delete role', 'error');
+                    }
+                } catch (e) {
+                    showToast('Error deleting role', 'error');
+                }
             }
-        } catch (e) {
-            showToast('Error deleting role', 'error');
-        }
+        );
     }
 
 
