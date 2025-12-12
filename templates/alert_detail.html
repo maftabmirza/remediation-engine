@@ -3,6 +3,23 @@
 
 {% block title %}Alert Details - AIOps Platform{% endblock %}
 
+{% block extra_styles %}
+<style>
+    /* Fix user message code blocks to respect parent width */
+    .user-message-content pre,
+    .user-message-content code {
+        max-width: 100%;
+        overflow-x: auto;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+
+    .user-message-content pre {
+        margin: 0.5rem 0;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div id="alertContent" class="space-y-6 h-full flex flex-col">
     <div class="text-center py-8">
@@ -518,7 +535,7 @@
                     const hasCodeBlock = msg.content.includes('```') || msg.content.includes('[TERMINAL') || msg.content.includes('[ERROR') || msg.content.includes('[SYSTEM');
                     wrapper.innerHTML = `
                         <div class="bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg p-3 ${hasCodeBlock ? 'max-w-[90%]' : 'max-w-xs lg:max-w-md'} text-sm text-white shadow-md" style="word-break: break-word;">
-                            <div class="${hasCodeBlock ? 'overflow-x-auto max-h-80 overflow-y-auto' : ''}" style="word-break: break-word;">
+                            <div class="user-message-content ${hasCodeBlock ? 'overflow-x-auto max-h-80 overflow-y-auto' : ''}">
                                 ${hasCodeBlock ? marked.parse(msg.content) : escapeHtml(msg.content)}
                             </div>
                         </div>
