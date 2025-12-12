@@ -527,11 +527,12 @@
             messages.forEach(msg => {
                 if (msg.role === 'user') {
                     const wrapper = document.createElement('div');
-                    wrapper.className = 'flex justify-end mb-3';
                     // Check if content has code blocks or terminal/system output
                     const hasCodeBlock = msg.content.includes('```') || msg.content.includes('[TERMINAL') || msg.content.includes('[ERROR') || msg.content.includes('[SYSTEM');
+                    // For code blocks use full width, for regular messages align right
+                    wrapper.className = hasCodeBlock ? 'flex justify-end mb-3 w-full' : 'flex justify-end mb-3';
                     wrapper.innerHTML = `
-                        <div class="bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg p-3 ${hasCodeBlock ? 'max-w-[90%]' : 'max-w-xs lg:max-w-md'} text-sm text-white shadow-md" style="word-break: break-word;">
+                        <div class="bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg p-3 ${hasCodeBlock ? 'w-full' : 'max-w-xs lg:max-w-md'} text-sm text-white shadow-md" style="word-break: break-word;">
                             <div class="user-message-content ${hasCodeBlock ? 'overflow-x-auto max-h-80 overflow-y-auto' : ''}">
                                 ${hasCodeBlock ? marked.parse(msg.content) : escapeHtml(msg.content)}
                             </div>
