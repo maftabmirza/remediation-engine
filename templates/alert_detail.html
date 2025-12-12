@@ -340,6 +340,42 @@
                     </div>
                     <div class="flex-grow relative overflow-hidden h-full w-full">
                         <div id="terminal" class="absolute inset-0"></div>
+                        
+                        <!-- Inline Chat Overlay (Ctrl+I) -->
+                        <div id="inlineChatOverlay" class="hidden absolute bottom-4 left-4 right-4 z-50">
+                            <div class="bg-gray-900/95 border border-purple-500/50 rounded-lg shadow-2xl backdrop-blur-sm">
+                                <div class="flex items-center px-3 py-2 border-b border-gray-700">
+                                    <i class="fas fa-robot text-purple-400 mr-2"></i>
+                                    <span class="text-xs text-gray-300">Ask AI about terminal</span>
+                                    <span class="ml-auto text-[10px] text-gray-500">Esc to close</span>
+                                </div>
+                                <div class="p-2">
+                                    <div class="flex space-x-2">
+                                        <input type="text" id="inlineChatInput" 
+                                            class="flex-grow bg-gray-800 border border-gray-600 text-white text-sm px-3 py-2 rounded focus:border-purple-500 focus:outline-none"
+                                            placeholder="Ask about what you see in the terminal..."
+                                            onkeydown="handleInlineChatKey(event)">
+                                        <button onclick="sendInlineChat()" class="bg-purple-600 hover:bg-purple-500 text-white px-3 py-2 rounded text-sm">
+                                            <i class="fas fa-paper-plane"></i>
+                                        </button>
+                                    </div>
+                                    <div class="mt-2 flex flex-wrap gap-1">
+                                        <button onclick="sendQuickInlineChat('What does this error mean?')" class="text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-300 px-2 py-1 rounded">What does this error mean?</button>
+                                        <button onclick="sendQuickInlineChat('How do I fix this?')" class="text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-300 px-2 py-1 rounded">How do I fix this?</button>
+                                        <button onclick="sendQuickInlineChat('Explain the last command output')" class="text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-300 px-2 py-1 rounded">Explain output</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Explain Selection Button (appears when text selected) -->
+                        <div id="explainSelectionBtn" class="hidden absolute z-50">
+                            <button onclick="explainSelectedText()" 
+                                class="bg-purple-600 hover:bg-purple-500 text-white text-xs px-3 py-1.5 rounded shadow-lg flex items-center space-x-1">
+                                <i class="fas fa-magic"></i>
+                                <span>Explain with AI</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1348,7 +1384,202 @@
                 terminalSocket.send(data);
             }
         });
+
+        // Add keyboard shortcuts for Ctrl+I (inline chat)
+        term.attachCustomKeyEventHandler((event) => {
+            // Ctrl+I - Open inline chat
+            if (event.ctrlKey && event.key === 'i' && event.type === 'keydown') {
+                event.preventDefault();
+                toggleInlineChat();
+                return false;
+            }
+            return true;
+        });
+
+        // Listen for text selection in terminal
+        term.onSelectionChange(() => {
+            const selection = term.getSelection();
+            if (selection && selection.trim().length > 0) {
+                showExplainButton(selection);
+            } else {
+                hideExplainButton();
+            }
+        });
     }
+
+    // --- Inline Chat (Ctrl+I) ---
+
+    let inlineChatVisible = false;
+
+    function toggleInlineChat() {
+        const overlay = document.getElementById('inlineChatOverlay');
+        if (!overlay) return;
+
+        inlineChatVisible = !inlineChatVisible;
+        overlay.classList.toggle('hidden', !inlineChatVisible);
+
+        if (inlineChatVisible) {
+            const input = document.getElementById('inlineChatInput');
+            if (input) {
+                input.focus();
+                input.value = '';
+            }
+        } else {
+            term.focus();
+        }
+    }
+
+    function closeInlineChat() {
+        const overlay = document.getElementById('inlineChatOverlay');
+        if (overlay) {
+            overlay.classList.add('hidden');
+            inlineChatVisible = false;
+            term.focus();
+        }
+    }
+
+    function handleInlineChatKey(event) {
+        if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            sendInlineChat();
+        } else if (event.key === 'Escape') {
+            closeInlineChat();
+        }
+    }
+
+    function getTerminalContext(numLines = 30) {
+        // Get the last N lines of visible terminal content
+        if (!term) return '';
+
+        const buffer = term.buffer.active;
+        const lines = [];
+        const startRow = Math.max(0, buffer.baseY + buffer.cursorY - numLines);
+        const endRow = buffer.baseY + buffer.cursorY;
+
+        for (let i = startRow; i <= endRow; i++) {
+            const line = buffer.getLine(i);
+            if (line) {
+                lines.push(line.translateToString(true));
+            }
+        }
+
+        return lines.join('\n').trim();
+    }
+
+    function sendInlineChat() {
+        const input = document.getElementById('inlineChatInput');
+        if (!input || !input.value.trim()) return;
+
+        const question = input.value.trim();
+        const terminalContext = getTerminalContext();
+
+        // Build message with terminal context
+        const message = `[TERMINAL CONTEXT - Current terminal output]\n\`\`\`\n${terminalContext}\n\`\`\`\n\n[USER QUESTION]\n${question}`;
+
+        // Send to main chat
+        if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+            chatSocket.send(message);
+
+            // Add user message to chat display
+            const container = document.getElementById('chatMessages');
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'flex justify-end mb-2';
+            msgDiv.innerHTML = `
+                <div class="bg-gradient-to-r from-blue-600 to-blue-500 rounded-2xl rounded-br-sm px-4 py-2 max-w-[75%] shadow-lg">
+                    <p class="text-sm text-white whitespace-pre-wrap break-words">${escapeHtml(question)}</p>
+                    <div class="text-[10px] text-blue-200 mt-1 opacity-70">
+                        <i class="fas fa-terminal mr-1"></i>from terminal
+                    </div>
+                </div>
+            `;
+            container.appendChild(msgDiv);
+            container.scrollTop = container.scrollHeight;
+
+            showTypingIndicator();
+        } else {
+            showToast('Chat not connected', 'error');
+        }
+
+        closeInlineChat();
+    }
+
+    function sendQuickInlineChat(question) {
+        document.getElementById('inlineChatInput').value = question;
+        sendInlineChat();
+    }
+
+    // --- Explain Selection (Gap 4) ---
+
+    let currentSelection = '';
+
+    function showExplainButton(selectedText) {
+        currentSelection = selectedText;
+        const btn = document.getElementById('explainSelectionBtn');
+        if (!btn) return;
+
+        // Position button near the selection (top-right of terminal)
+        btn.style.top = '8px';
+        btn.style.right = '8px';
+        btn.classList.remove('hidden');
+    }
+
+    function hideExplainButton() {
+        const btn = document.getElementById('explainSelectionBtn');
+        if (btn) {
+            btn.classList.add('hidden');
+        }
+        currentSelection = '';
+    }
+
+    function explainSelectedText() {
+        if (!currentSelection || !currentSelection.trim()) {
+            showToast('No text selected', 'error');
+            return;
+        }
+
+        const message = `[EXPLAIN TERMINAL OUTPUT]\nPlease explain the following terminal output:\n\n\`\`\`\n${currentSelection}\n\`\`\`\n\nWhat does this mean? Is there an error? What action should I take?`;
+
+        if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+            chatSocket.send(message);
+
+            // Add visual feedback in chat
+            const container = document.getElementById('chatMessages');
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'flex justify-end mb-2';
+            msgDiv.innerHTML = `
+                <div class="bg-gradient-to-r from-purple-600 to-purple-500 rounded-2xl rounded-br-sm px-4 py-2 max-w-[75%] shadow-lg">
+                    <div class="text-[10px] text-purple-200 mb-1 flex items-center">
+                        <i class="fas fa-magic mr-1"></i>Explain Selection
+                    </div>
+                    <pre class="text-sm text-white whitespace-pre-wrap break-words bg-black/30 rounded p-2 max-h-32 overflow-y-auto">${escapeHtml(currentSelection.substring(0, 500))}${currentSelection.length > 500 ? '...' : ''}</pre>
+                </div>
+            `;
+            container.appendChild(msgDiv);
+            container.scrollTop = container.scrollHeight;
+
+            showTypingIndicator();
+            showToast('Asking AI to explain...', 'success');
+        } else {
+            showToast('Chat not connected', 'error');
+        }
+
+        hideExplainButton();
+        term.clearSelection();
+    }
+
+    // Global keyboard shortcut handler
+    document.addEventListener('keydown', (event) => {
+        // Ctrl+I when not in input - toggle inline chat
+        if (event.ctrlKey && event.key === 'i' && !event.target.matches('input, textarea')) {
+            event.preventDefault();
+            toggleInlineChat();
+        }
+
+        // Escape - close inline chat
+        if (event.key === 'Escape' && inlineChatVisible) {
+            closeInlineChat();
+        }
+    });
 
     async function openServerModal() {
         const modal = document.getElementById('serverModal');
