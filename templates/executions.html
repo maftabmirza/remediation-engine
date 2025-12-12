@@ -318,7 +318,10 @@
                 <code class="text-sm text-blue-400">#${ex.id}</code>
             </td>
             <td class="px-4 py-3">
-                <span class="text-primary font-medium">${escapeHtml(ex.runbook_name || 'Unknown')}</span>
+                ${ex.runbook_id ?
+                `<a href="/runbooks/${ex.runbook_id}/edit" class="text-blue-400 hover:text-blue-300 font-medium hover:underline">${escapeHtml(ex.runbook_name || 'Unknown')}</a>` :
+                `<span class="text-primary font-medium">${escapeHtml(ex.runbook_name || 'Unknown')}</span>`
+            }
             </td>
             <td class="px-4 py-3">
                 <span class="px-2 py-1 rounded text-xs font-medium ${getStatusClass(ex.status)}">
