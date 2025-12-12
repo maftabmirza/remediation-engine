@@ -1653,36 +1653,39 @@
             return;
         }
 
+        // Ensure parent has position relative for absolute positioning to work
+        terminalContainer.style.position = 'relative';
+
         if (!btn) {
             // Create the button if it doesn't exist
             btn = document.createElement('div');
             btn.id = 'fixWithAIBtn';
-            btn.className = 'absolute top-2 left-2 z-[100]';
+            // Use inline styles to ensure visibility
+            btn.style.cssText = 'position: absolute; top: 40px; left: 10px; z-index: 9999;';
             btn.innerHTML = `
                 <button onclick="fixErrorWithAI()" 
-                    class="bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-500 hover:to-pink-400 text-white text-xs px-3 py-1.5 rounded-full shadow-lg flex items-center space-x-1 transition-all animate-pulse"
-                    style="animation: pulse 1s ease-in-out infinite;">
-                    <span class="text-sm">✨</span>
+                    style="background: linear-gradient(to right, #9333ea, #ec4899); color: white; padding: 6px 12px; border-radius: 9999px; font-size: 12px; display: flex; align-items: center; gap: 4px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); border: none; cursor: pointer;">
+                    <span style="font-size: 14px;">✨</span>
                     <span>Fix with AI</span>
                 </button>
             `;
             terminalContainer.appendChild(btn);
-            console.log('Fix button created and appended');
+            console.log('Fix button created and appended to', terminalContainer);
         } else {
-            btn.classList.remove('hidden');
+            btn.style.display = 'block';
             console.log('Fix button shown');
         }
 
-        // Auto-hide after 10 seconds
+        // Auto-hide after 15 seconds (give more time to notice)
         setTimeout(() => {
             hideFixButton();
-        }, 10000);
+        }, 15000);
     }
 
     function hideFixButton() {
         const btn = document.getElementById('fixWithAIBtn');
         if (btn) {
-            btn.classList.add('hidden');
+            btn.style.display = 'none';
         }
     }
 
