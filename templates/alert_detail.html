@@ -3,24 +3,21 @@
 
 {% block title %}Alert Details - AIOps Platform{% endblock %}
 
-{% block extra_styles %}
+{% block content %}
 <style>
     /* Fix user message code blocks to respect parent width */
     .user-message-content pre,
     .user-message-content code {
-        max-width: 100%;
-        overflow-x: auto;
-        white-space: pre-wrap;
-        word-break: break-word;
+        max-width: 100% !important;
+        overflow-x: auto !important;
+        white-space: pre-wrap !important;
+        word-break: break-word !important;
     }
 
     .user-message-content pre {
         margin: 0.5rem 0;
     }
 </style>
-{% endblock %}
-
-{% block content %}
 <div id="alertContent" class="space-y-6 h-full flex flex-col">
     <div class="text-center py-8">
         <div class="loading-spinner mx-auto"></div>
