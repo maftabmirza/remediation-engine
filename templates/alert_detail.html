@@ -516,8 +516,9 @@
                     wrapper.className = 'flex justify-end mb-3';
                     // Check if content has code blocks or terminal output
                     const hasCodeBlock = msg.content.includes('```') || msg.content.includes('[TERMINAL') || msg.content.includes('[ERROR');
+                    const widthClass = hasCodeBlock ? 'max-w-[85%]' : 'max-w-xs lg:max-w-md';
                     wrapper.innerHTML = `
-                        <div class="bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg p-3 max-w-xs lg:max-w-md text-sm text-white shadow-md ${hasCodeBlock ? 'whitespace-pre-wrap overflow-x-auto max-h-60 overflow-y-auto' : ''}">
+                        <div class="bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg p-3 ${widthClass} text-sm text-white shadow-md ${hasCodeBlock ? 'whitespace-pre-wrap overflow-x-auto max-h-60 overflow-y-auto' : ''}">
                             ${hasCodeBlock ? marked.parse(msg.content) : escapeHtml(msg.content)}
                         </div>
                     `;
