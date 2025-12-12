@@ -2674,7 +2674,7 @@
         }
 
         try {
-            const url = providerId ? `/ api / settings / llm / ${providerId} ` : '/api/settings/llm';
+            const url = providerId ? `/api/settings/llm/${providerId}` : '/api/settings/llm';
             const method = providerId ? 'PUT' : 'POST';
 
             const response = await apiCall(url, {
@@ -2700,7 +2700,7 @@
 
     async function setDefaultProvider(providerId) {
         try {
-            const response = await apiCall(`/ api / settings / llm / ${providerId}/set-default`, { method: 'POST' });
+            const response = await apiCall(`/api/settings/llm/${providerId}/set-default`, { method: 'POST' });
             if (!response) return;
 
             showToast('Default provider updated', 'success');
@@ -3053,7 +3053,7 @@
             let response;
             if (profileId) {
                 // Update
-                response = await apiCall(`/ api / credential - profiles / ${profileId} `, {
+                response = await apiCall(`/api/credential-profiles/${profileId}`, {
                     method: 'PUT',
                     body: JSON.stringify(data)
                 });
@@ -3098,7 +3098,7 @@
         if (button) button.disabled = true;
 
         try {
-            const response = await apiCall(`/ api / credential - profiles / ${profileId}/test`, {
+            const response = await apiCall(`/api/credential-profiles/${profileId}/test`, {
                 method: 'POST'
             });
 
