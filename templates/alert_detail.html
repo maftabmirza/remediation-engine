@@ -1611,11 +1611,14 @@
             // Check if any error pattern matches
             const hasError = errorPatterns.some(pattern => pattern.test(data));
 
+            console.log('Error check:', hasError, 'Data sample:', data.substring(0, 100));
+
             if (hasError) {
                 // Don't show too frequently (at least 3 seconds apart)
                 const now = Date.now();
                 if (now - lastErrorTime > 3000) {
                     lastErrorTime = now;
+                    console.log('Showing Fix with AI button');
                     showFixButton();
                 }
             }
@@ -1624,21 +1627,32 @@
 
     function showFixButton() {
         let btn = document.getElementById('fixWithAIBtn');
+
+        // Find the terminal container
+        const terminalContainer = document.querySelector('#terminal')?.parentElement;
+        if (!terminalContainer) {
+            console.error('Terminal container not found');
+            return;
+        }
+
         if (!btn) {
             // Create the button if it doesn't exist
             btn = document.createElement('div');
             btn.id = 'fixWithAIBtn';
-            btn.className = 'absolute top-2 left-2 z-50 animate-pulse';
+            btn.className = 'absolute top-2 left-2 z-[100]';
             btn.innerHTML = `
                 <button onclick="fixErrorWithAI()" 
-                    class="bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-500 hover:to-pink-400 text-white text-xs px-3 py-1.5 rounded-full shadow-lg flex items-center space-x-1 transition-all">
+                    class="bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-500 hover:to-pink-400 text-white text-xs px-3 py-1.5 rounded-full shadow-lg flex items-center space-x-1 transition-all animate-pulse"
+                    style="animation: pulse 1s ease-in-out infinite;">
                     <span class="text-sm">✨</span>
                     <span>Fix with AI</span>
                 </button>
             `;
-            document.querySelector('#terminal').parentElement.appendChild(btn);
+            terminalContainer.appendChild(btn);
+            console.log('Fix button created and appended');
         } else {
             btn.classList.remove('hidden');
+            console.log('Fix button shown');
         }
 
         // Auto-hide after 10 seconds
