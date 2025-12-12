@@ -1596,6 +1596,13 @@
     let lastErrorTime = 0;
     let errorCheckDebounce = null;
 
+    // Strip ANSI escape codes for pattern matching
+    function stripAnsi(str) {
+        return str.replace(/\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g, '')
+            .replace(/\]0;[^\x07]*\x07/g, '')  // Strip terminal title sequences
+            .replace(/\[\?[0-9]+[hl]/g, '');    // Strip DEC private mode sequences
+    }
+
     function checkForErrors(data) {
         // Accumulate recent output
         errorBuffer += data;
@@ -1608,10 +1615,11 @@
         // Debounce to avoid showing button on every character
         clearTimeout(errorCheckDebounce);
         errorCheckDebounce = setTimeout(() => {
-            // Check if any error pattern matches
-            const hasError = errorPatterns.some(pattern => pattern.test(data));
+            // Strip ANSI codes and check recent buffer (not just current chunk)
+            const recentBuffer = stripAnsi(errorBuffer.slice(-500));
+            const hasError = errorPatterns.some(pattern => pattern.test(recentBuffer));
 
-            console.log('Error check:', hasError, 'Data sample:', data.substring(0, 100));
+            console.log('Error check:', hasError, 'Clean buffer sample:', recentBuffer.substring(0, 150));
 
             if (hasError) {
                 // Don't show too frequently (at least 3 seconds apart)
@@ -1620,6 +1628,9 @@
                     lastErrorTime = now;
                     console.log('Showing Fix with AI button');
                     showFixButton();
+
+                    // Clear error buffer after showing button to avoid re-triggering
+                    errorBuffer = '';
                 }
             }
         }, 500);
