@@ -304,6 +304,23 @@ async def alert_detail_page(
     })
 
 
+@app.get("/ai", response_class=HTMLResponse)
+async def ai_chat_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    Standalone AI Chat page with terminal
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+    
+    return templates.TemplateResponse("ai_chat.html", {
+        "request": request,
+        "user": current_user
+    })
+
+
 @app.get("/rules", response_class=HTMLResponse)
 async def rules_page(
     request: Request,
