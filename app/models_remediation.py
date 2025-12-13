@@ -102,6 +102,7 @@ class Runbook(Base):
     steps = relationship("RunbookStep", back_populates="runbook", cascade="all, delete-orphan", order_by="RunbookStep.step_order")
     triggers = relationship("RunbookTrigger", back_populates="runbook", cascade="all, delete-orphan")
     executions = relationship("RunbookExecution", back_populates="runbook")
+    schedules = relationship("ScheduledJob", back_populates="runbook", cascade="all, delete-orphan")
     default_server = relationship("ServerCredential")
     created_by_user = relationship("User")
     
@@ -160,6 +161,10 @@ class RunbookStep(Base):
     # Validation
     expected_exit_code = Column(Integer, default=0)
     expected_output_pattern = Column(String(500), nullable=True)  # Regex to match in output
+    
+    # Variable Extraction
+    output_variable = Column(String(100), nullable=True)  # Variable name to store output
+    output_extract_pattern = Column(String(500), nullable=True)  # Regex to extract specific value
 
     # Rollback (optional)
     rollback_command_linux = Column(Text, nullable=True)

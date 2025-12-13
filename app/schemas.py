@@ -109,6 +109,7 @@ class RuleBase(BaseModel):
     name: str
     description: Optional[str] = None
     priority: int = 100
+    condition_json: Optional[Dict[str, Any]] = None
     alert_name_pattern: str = "*"
     severity_pattern: str = "*"
     instance_pattern: str = "*"
@@ -125,6 +126,7 @@ class RuleUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     priority: Optional[int] = None
+    condition_json: Optional[Dict[str, Any]] = None
     alert_name_pattern: Optional[str] = None
     severity_pattern: Optional[str] = None
     instance_pattern: Optional[str] = None

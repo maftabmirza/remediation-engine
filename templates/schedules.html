@@ -1,0 +1,778 @@
+{% extends "layout.html" %}
+{% set active_page = 'schedules' %}
+
+{% block title %}Schedules - AIOps Platform{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Page Header -->
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-primary">Runbook Schedules</h1>
+            <p class="text-secondary mt-1">Automate runbook execution with scheduled jobs</p>
+        </div>
+        <button onclick="openCreateScheduleModal()" class="btn-primary px-4 py-2 rounded-lg flex items-center gap-2">
+            <i class="fas fa-calendar-plus"></i>
+            <span>Create Schedule</span>
+        </button>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="card p-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-blue-500 bg-opacity-20 flex items-center justify-center">
+                    <i class="fas fa-calendar text-blue-400"></i>
+                </div>
+                <div>
+                    <p class="text-secondary text-sm">Total Schedules</p>
+                    <p class="text-xl font-bold text-primary" id="totalSchedules">0</p>
+                </div>
+            </div>
+        </div>
+        <div class="card p-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-green-500 bg-opacity-20 flex items-center justify-center">
+                    <i class="fas fa-check-circle text-green-400"></i>
+                </div>
+                <div>
+                    <p class="text-secondary text-sm">Active</p>
+                    <p class="text-xl font-bold text-primary" id="activeSchedules">0</p>
+                </div>
+            </div>
+        </div>
+        <div class="card p-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-purple-500 bg-opacity-20 flex items-center justify-center">
+                    <i class="fas fa-clock text-purple-400"></i>
+                </div>
+                <div>
+                    <p class="text-secondary text-sm">Next Run</p>
+                    <p class="text-sm font-bold text-primary" id="nextRun">-</p>
+                </div>
+            </div>
+        </div>
+        <div class="card p-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-yellow-500 bg-opacity-20 flex items-center justify-center">
+                    <i class="fas fa-play text-yellow-400"></i>
+                </div>
+                <div>
+                    <p class="text-secondary text-sm">Runs Today</p>
+                    <p class="text-xl font-bold text-primary" id="runsToday">0</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Schedules List -->
+    <div class="card p-4">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold text-primary">Scheduled Jobs</h2>
+            <div class="flex gap-2">
+                <select id="filterRunbook" class="input-field px-3 py-2 rounded" onchange="filterSchedules()">
+                    <option value="">All Runbooks</option>
+                </select>
+                <select id="filterType" class="input-field px-3 py-2 rounded" onchange="filterSchedules()">
+                    <option value="">All Types</option>
+                    <option value="cron">Cron</option>
+                    <option value="interval">Interval</option>
+                    <option value="date">One-time</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="schedulesContainer" class="space-y-3">
+            <!-- Schedules will be loaded here -->
+        </div>
+
+        <div id="emptyState" class="text-center py-12 hidden">
+            <i class="fas fa-calendar-times text-4xl text-secondary mb-4"></i>
+            <h3 class="text-lg font-medium text-primary mb-2">No Schedules Found</h3>
+            <p class="text-secondary mb-4">Create your first schedule to automate runbook execution.</p>
+            <button onclick="openCreateScheduleModal()" class="btn-primary px-4 py-2 rounded-lg">
+                <i class="fas fa-plus mr-2"></i>Create Schedule
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Create/Edit Schedule Modal -->
+<div id="scheduleModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
+    <div class="card p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-xl font-bold text-primary" id="modalTitle">Create Schedule</h2>
+            <button onclick="closeScheduleModal()" class="text-secondary hover:text-primary">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+
+        <form id="scheduleForm" onsubmit="saveSchedule(event)">
+            <input type="hidden" id="scheduleId">
+
+            <!-- Runbook Selection -->
+            <div class="mb-4">
+                <label class="block text-secondary text-sm mb-1">
+                    Runbook *
+                    <span class="info-tooltip info-tooltip-align-left info-tooltip-bottom">
+                        <span class="info-tooltip-icon">?</span>
+                        <span class="info-tooltip-text">The runbook to execute on this schedule.</span>
+                    </span>
+                </label>
+                <select id="runbookId" required class="input-field w-full px-3 py-2 rounded">
+                    <option value="">Select a runbook...</option>
+                </select>
+            </div>
+
+            <!-- Schedule Name -->
+            <div class="mb-4">
+                <label class="block text-secondary text-sm mb-1">
+                    Schedule Name *
+                    <span class="info-tooltip info-tooltip-align-left">
+                        <span class="info-tooltip-icon">?</span>
+                        <span class="info-tooltip-text">A descriptive name for this schedule.</span>
+                    </span>
+                </label>
+                <input type="text" id="scheduleName" required class="input-field w-full px-3 py-2 rounded"
+                    placeholder="e.g., Daily Database Cleanup">
+            </div>
+
+            <!-- Description -->
+            <div class="mb-4">
+                <label class="block text-secondary text-sm mb-1">
+                    Description
+                    <span class="info-tooltip info-tooltip-align-left">
+                        <span class="info-tooltip-icon">?</span>
+                        <span class="info-tooltip-text">Optional details about this schedule.</span>
+                    </span>
+                </label>
+                <textarea id="scheduleDescription" rows="2" class="input-field w-full px-3 py-2 rounded"
+                    placeholder="Optional description"></textarea>
+            </div>
+
+            <!-- Schedule Type -->
+            <div class="mb-4">
+                <label class="block text-secondary text-sm mb-1">
+                    Schedule Type *
+                    <span class="info-tooltip info-tooltip-align-left">
+                        <span class="info-tooltip-icon">?</span>
+                        <span class="info-tooltip-text"><strong>Cron:</strong> Complex
+                            recurrence.<br><strong>Interval:</strong> Fixed frequency.<br><strong>One-time:</strong>
+                            Single execution.</span>
+                    </span>
+                </label>
+                <div class="grid grid-cols-3 gap-2">
+                    <button type="button" onclick="setScheduleType('cron')"
+                        class="schedule-type-btn p-3 rounded border border-gray-600 hover:border-blue-500 transition"
+                        data-type="cron">
+                        <i class="fas fa-clock block text-2xl mb-1"></i>
+                        <span class="text-sm">Cron</span>
+                    </button>
+                    <button type="button" onclick="setScheduleType('interval')"
+                        class="schedule-type-btn p-3 rounded border border-gray-600 hover:border-blue-500 transition"
+                        data-type="interval">
+                        <i class="fas fa-sync block text-2xl mb-1"></i>
+                        <span class="text-sm">Interval</span>
+                    </button>
+                    <button type="button" onclick="setScheduleType('date')"
+                        class="schedule-type-btn p-3 rounded border border-gray-600 hover:border-blue-500 transition"
+                        data-type="date">
+                        <i class="fas fa-calendar-day block text-2xl mb-1"></i>
+                        <span class="text-sm">One-time</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Cron Configuration -->
+            <div id="cronConfig" class="hidden mb-4">
+                <label class="block text-secondary text-sm mb-2">
+                    Cron Expression *
+                    <span class="info-tooltip info-tooltip-align-left">
+                        <span class="info-tooltip-icon">?</span>
+                        <span class="info-tooltip-text">Standard cron format (min hour day month wday).</span>
+                    </span>
+                </label>
+                <input type="text" id="cronExpression"
+                    class="input-field w-full px-3 py-2 rounded font-mono text-sm mb-2" placeholder="0 2 * * *">
+                <div class="grid grid-cols-2 gap-2 mb-2">
+                    <button type="button" onclick="setCronPreset('0 * * * *')"
+                        class="btn-secondary px-2 py-1 text-xs rounded">Every Hour</button>
+                    <button type="button" onclick="setCronPreset('0 */6 * * *')"
+                        class="btn-secondary px-2 py-1 text-xs rounded">Every 6 Hours</button>
+                    <button type="button" onclick="setCronPreset('0 2 * * *')"
+                        class="btn-secondary px-2 py-1 text-xs rounded">Daily at 2 AM</button>
+                    <button type="button" onclick="setCronPreset('0 0 * * 0')"
+                        class="btn-secondary px-2 py-1 text-xs rounded">Weekly (Sunday)</button>
+                </div>
+                <p class="text-xs text-secondary" id="cronDescription">-</p>
+            </div>
+
+            <!-- Interval Configuration -->
+            <div id="intervalConfig" class="hidden mb-4">
+                <label class="block text-secondary text-sm mb-1">
+                    Run Every *
+                    <span class="info-tooltip info-tooltip-align-left">
+                        <span class="info-tooltip-icon">?</span>
+                        <span class="info-tooltip-text">Frequency of execution (e.g., every 5 minutes).</span>
+                    </span>
+                </label>
+                <div class="grid grid-cols-2 gap-2">
+                    <input type="number" id="intervalValue" min="1" class="input-field px-3 py-2 rounded"
+                        placeholder="5">
+                    <select id="intervalUnit" class="input-field px-3 py-2 rounded">
+                        <option value="60">Minutes</option>
+                        <option value="3600">Hours</option>
+                        <option value="86400">Days</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Date Configuration -->
+            <div id="dateConfig" class="hidden mb-4">
+                <label class="block text-secondary text-sm mb-1">
+                    Run At *
+                    <span class="info-tooltip info-tooltip-align-left">
+                        <span class="info-tooltip-icon">?</span>
+                        <span class="info-tooltip-text">Specific date and time for a one-time execution.</span>
+                    </span>
+                </label>
+                <input type="datetime-local" id="runDate" class="input-field w-full px-3 py-2 rounded">
+            </div>
+
+            <!-- Timezone -->
+            <div class="mb-4">
+                <label class="block text-secondary text-sm mb-1">
+                    Timezone
+                    <span class="info-tooltip info-tooltip-align-left">
+                        <span class="info-tooltip-icon">?</span>
+                        <span class="info-tooltip-text">Timezone for the schedule execution time.</span>
+                    </span>
+                </label>
+                <select id="timezone" class="input-field w-full px-3 py-2 rounded">
+                    <option value="UTC">UTC</option>
+                    <option value="America/New_York">America/New_York (EST/EDT)</option>
+                    <option value="America/Chicago">America/Chicago (CST/CDT)</option>
+                    <option value="America/Denver">America/Denver (MST/MDT)</option>
+                    <option value="America/Los_Angeles">America/Los_Angeles (PST/PDT)</option>
+                    <option value="Europe/London">Europe/London (GMT/BST)</option>
+                    <option value="Asia/Tokyo">Asia/Tokyo (JST)</option>
+                </select>
+            </div>
+
+            <!-- Server Override -->
+            <div class="mb-4">
+                <label class="block text-secondary text-sm mb-1">
+                    Target Server (Optional)
+                    <span class="info-tooltip info-tooltip-align-left">
+                        <span class="info-tooltip-icon">?</span>
+                        <span class="info-tooltip-text">Override the runbook's default target server.</span>
+                    </span>
+                </label>
+                <select id="targetServer" class="input-field w-full px-3 py-2 rounded">
+                    <option value="">Use runbook default</option>
+                </select>
+            </div>
+
+            <!-- Enabled -->
+            <div class="mb-6 flex items-center gap-2">
+                <input type="checkbox" id="scheduleEnabled" checked class="h-4 w-4">
+                <label for="scheduleEnabled" class="text-sm text-secondary">Enable schedule immediately</label>
+            </div>
+
+            <div class="flex justify-end gap-3">
+                <button type="button" onclick="closeScheduleModal()" class="btn-secondary px-4 py-2 rounded-lg">
+                    Cancel
+                </button>
+                <button type="submit" class="btn-primary px-4 py-2 rounded-lg">
+                    <i class="fas fa-save mr-2"></i>Save Schedule
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- History Modal -->
+<div id="historyModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
+    <div class="card p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-xl font-bold text-primary">Execution History</h2>
+            <button onclick="closeHistoryModal()" class="text-secondary hover:text-primary">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <div id="historyContent"></div>
+    </div>
+</div>
+</div>
+
+<!-- Confirmation Modal -->
+<div id="confirmModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
+    <div class="card p-6 w-full max-w-md">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-xl font-bold text-primary flex items-center gap-2" id="confirmModalTitle">
+                <i class="fas fa-exclamation-triangle text-yellow-400"></i>
+                Confirm Action
+            </h2>
+            <button onclick="closeConfirmModal()" class="text-secondary hover:text-primary">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <p class="text-secondary mb-6" id="confirmModalMessage">Are you sure?</p>
+        <div class="flex justify-end gap-3">
+            <button onclick="closeConfirmModal()" class="btn-secondary px-4 py-2 rounded-lg">Cancel</button>
+            <button id="confirmModalBtn"
+                class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg">Confirm</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let schedules = [];
+    let runbooks = [];
+    let servers = [];
+    let currentScheduleType = 'cron';
+
+    document.addEventListener('DOMContentLoaded', function () {
+        loadSchedules();
+        loadRunbooks();
+        loadServers();
+        loadStats();
+    });
+
+    async function loadSchedules() {
+        try {
+            const response = await fetch('/api/schedules');
+            if (response.ok) {
+                schedules = await response.json();
+                renderSchedules();
+            } else {
+                showToast('Failed to load schedules', 'error');
+            }
+        } catch (error) {
+            console.error('Error loading schedules:', error);
+            showToast('Error loading schedules', 'error');
+        }
+    }
+
+    async function loadRunbooks() {
+        try {
+            const response = await fetch('/api/remediation/runbooks');
+            if (response.ok) {
+                runbooks = await response.json();
+                populateRunbookOptions();
+            }
+        } catch (error) {
+            console.error('Error loading runbooks:', error);
+        }
+    }
+
+    async function loadServers() {
+        try {
+            const response = await fetch('/api/servers');
+            if (response.ok) {
+                servers = await response.json();
+                populateServerOptions();
+            }
+        } catch (error) {
+            console.error('Error loading servers:', error);
+        }
+    }
+
+    async function loadStats() {
+        try {
+            const response = await fetch('/api/schedules/stats/summary');
+            if (response.ok) {
+                const stats = await response.json();
+                document.getElementById('totalSchedules').textContent = stats.total_schedules;
+                document.getElementById('activeSchedules').textContent = stats.enabled_schedules;
+                document.getElementById('runsToday').textContent = stats.total_executions_today;
+
+                if (stats.next_scheduled_run) {
+                    const nextRun = new Date(stats.next_scheduled_run);
+                    document.getElementById('nextRun').textContent = nextRun.toLocaleString();
+                }
+            }
+        } catch (error) {
+            console.error('Error loading stats:', error);
+        }
+    }
+
+    function renderSchedules() {
+        const container = document.getElementById('schedulesContainer');
+        const emptyState = document.getElementById('emptyState');
+
+        const filtered = schedules.filter(s => {
+            const runbookFilter = document.getElementById('filterRunbook').value;
+            const typeFilter = document.getElementById('filterType').value;
+            return (!runbookFilter || s.runbook_id === runbookFilter) &&
+                (!typeFilter || s.schedule_type === typeFilter);
+        });
+
+        if (filtered.length === 0) {
+            container.innerHTML = '';
+            emptyState.classList.remove('hidden');
+            return;
+        }
+
+        emptyState.classList.add('hidden');
+        container.innerHTML = filtered.map(s => `
+        <div class="card p-4 hover:border-blue-500 transition">
+            <div class="flex items-start justify-between">
+                <div class="flex-1">
+                    <div class="flex items-center gap-2 mb-2">
+                        <i class="fas fa-${getScheduleIcon(s.schedule_type)} text-blue-400"></i>
+                        <h3 class="font-medium text-primary">${escapeHtml(s.name)}</h3>
+                        ${s.enabled ?
+                '<span class="px-2 py-1 rounded text-xs bg-green-500 bg-opacity-20 text-green-400">Active</span>' :
+                '<span class="px-2 py-1 rounded text-xs bg-gray-500 bg-opacity-20 text-gray-400">Paused</span>'
+            }
+                    </div>
+                    <p class="text-sm text-secondary mb-2">${escapeHtml(s.runbook_name || 'Unknown runbook')}</p>
+                    <div class="flex items-center gap-4 text-xs text-secondary">
+                        <span><i class="fas fa-clock mr-1"></i>${getScheduleDisplay(s)}</span>
+                        <span><i class="fas fa-play mr-1"></i>${s.run_count} runs</span>
+                        ${s.next_run_at ? `<span><i class="fas fa-calendar-alt mr-1"></i>Next: ${new Date(s.next_run_at).toLocaleString()}</span>` : ''}
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    ${s.enabled ?
+                `<button onclick="pauseSchedule('${s.id}')" class="btn-secondary px-2 py-1 text-xs rounded" title="Pause">
+                            <i class="fas fa-pause"></i>
+                        </button>` :
+                `<button onclick="resumeSchedule('${s.id}')" class="btn-secondary px-2 py-1 text-xs rounded" title="Resume">
+                            <i class="fas fa-play"></i>
+                        </button>`
+            }
+                    <button onclick="triggerSchedule('${s.id}')" class="btn-secondary px-2 py-1 text-xs rounded" title="Run Now">
+                        <i class="fas fa-bolt"></i>
+                    </button>
+                    <button onclick="viewHistory('${s.id}')" class="btn-secondary px-2 py-1 text-xs rounded" title="History">
+                        <i class="fas fa-history"></i>
+                    </button>
+                    <button onclick="editSchedule('${s.id}')" class="btn-secondary px-2 py-1 text-xs rounded" title="Edit">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button onclick="deleteSchedule('${s.id}')" class="btn-secondary px-2 py-1 text-xs rounded text-red-400" title="Delete">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+    }
+
+    function getScheduleIcon(type) {
+        return type === 'cron' ? 'clock' : type === 'interval' ? 'sync' : 'calendar-day';
+    }
+
+    function getScheduleDisplay(schedule) {
+        if (schedule.schedule_type === 'cron') {
+            return `Cron: ${schedule.cron_expression}`;
+        } else if (schedule.schedule_type === 'interval') {
+            const hours = Math.floor(schedule.interval_seconds / 3600);
+            const minutes = Math.floor((schedule.interval_seconds % 3600) / 60);
+            return hours > 0 ? `Every ${hours}h` : `Every ${minutes}m`;
+        } else {
+            return `One-time: ${new Date(schedule.start_date).toLocaleString()}`;
+        }
+    }
+
+    function populateRunbookOptions() {
+        const select = document.getElementById('runbookId');
+        const filter = document.getElementById('filterRunbook');
+        select.innerHTML = '<option value="">Select a runbook...</option>' +
+            runbooks.map(r => `<option value="${r.id}">${escapeHtml(r.name)}</option>`).join('');
+        filter.innerHTML = '<option value="">All Runbooks</option>' +
+            runbooks.map(r => `<option value="${r.id}">${escapeHtml(r.name)}</option>`).join('');
+    }
+
+    function populateServerOptions() {
+        const select = document.getElementById('targetServer');
+        select.innerHTML = '<option value="">Use runbook default</option>' +
+            servers.map(s => `<option value="${s.id}">${escapeHtml(s.hostname)}</option>`).join('');
+    }
+
+    function openCreateScheduleModal() {
+        document.getElementById('modalTitle').textContent = 'Create Schedule';
+        document.getElementById('scheduleForm').reset();
+        document.getElementById('scheduleId').value = '';
+        setScheduleType('cron');
+        document.getElementById('scheduleModal').classList.remove('hidden');
+    }
+
+    function closeScheduleModal() {
+        document.getElementById('scheduleModal').classList.add('hidden');
+    }
+
+    function setScheduleType(type) {
+        currentScheduleType = type;
+        document.querySelectorAll('.schedule-type-btn').forEach(btn => {
+            btn.classList.toggle('border-blue-500', btn.dataset.type === type);
+            btn.classList.toggle('bg-blue-500', btn.dataset.type === type);
+            btn.classList.toggle('bg-opacity-20', btn.dataset.type === type);
+        });
+
+        document.getElementById('cronConfig').classList.toggle('hidden', type !== 'cron');
+        document.getElementById('intervalConfig').classList.toggle('hidden', type !== 'interval');
+        document.getElementById('dateConfig').classList.toggle('hidden', type !== 'date');
+    }
+
+    function setCronPreset(expression) {
+        document.getElementById('cronExpression').value = expression;
+        updateCronDescription();
+    }
+
+    function updateCronDescription() {
+        const expr = document.getElementById('cronExpression').value;
+        const desc = document.getElementById('cronDescription');
+        // Simple descriptions for common patterns
+        const descriptions = {
+            '* * * * *': 'Every minute',
+            '0 * * * *': 'Every hour',
+            '0 */6 * * *': 'Every 6 hours',
+            '0 2 * * *': 'Daily at 2:00 AM',
+            '0 0 * * 0': 'Weekly on Sunday at midnight',
+            '0 0 1 * *': 'Monthly on the 1st at midnight'
+        };
+        desc.textContent = descriptions[expr] || 'Custom cron expression';
+    }
+
+    async function saveSchedule(event) {
+        event.preventDefault();
+
+        const data = {
+            runbook_id: document.getElementById('runbookId').value,
+            name: document.getElementById('scheduleName').value,
+            description: document.getElementById('scheduleDescription').value,
+            schedule_type: currentScheduleType,
+            timezone: document.getElementById('timezone').value,
+            enabled: document.getElementById('scheduleEnabled').checked
+        };
+
+        if (currentScheduleType === 'cron') {
+            data.cron_expression = document.getElementById('cronExpression').value;
+        } else if (currentScheduleType === 'interval') {
+            const value = parseInt(document.getElementById('intervalValue').value);
+            const unit = parseInt(document.getElementById('intervalUnit').value);
+            data.interval_seconds = value * unit;
+        } else {
+            data.start_date = document.getElementById('runDate').value;
+        }
+
+        const targetServer = document.getElementById('targetServer').value;
+        if (targetServer) {
+            data.target_server_id = targetServer;
+        }
+
+        const scheduleId = document.getElementById('scheduleId').value;
+        const url = scheduleId ? `/api/schedules/${scheduleId}` : '/api/schedules';
+        const method = scheduleId ? 'PUT' : 'POST';
+
+        try {
+            const response = await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            if (response.ok) {
+                showToast('Schedule saved successfully', 'success');
+                closeScheduleModal();
+                loadSchedules();
+                loadStats();
+            } else {
+                const error = await response.json();
+                showToast(error.detail || 'Failed to save schedule', 'error');
+            }
+        } catch (error) {
+            console.error('Error saving schedule:', error);
+            showToast('Error saving schedule', 'error');
+        }
+    }
+
+    async function editSchedule(id) {
+        const schedule = schedules.find(s => s.id === id);
+        if (!schedule) return;
+
+        document.getElementById('modalTitle').textContent = 'Edit Schedule';
+        document.getElementById('scheduleId').value = schedule.id;
+        document.getElementById('runbookId').value = schedule.runbook_id;
+        document.getElementById('scheduleName').value = schedule.name;
+        document.getElementById('scheduleDescription').value = schedule.description || '';
+        document.getElementById('timezone').value = schedule.timezone;
+        document.getElementById('scheduleEnabled').checked = schedule.enabled;
+
+        if (schedule.target_server_id) {
+            document.getElementById('targetServer').value = schedule.target_server_id;
+        }
+
+        setScheduleType(schedule.schedule_type);
+
+        if (schedule.schedule_type === 'cron') {
+            document.getElementById('cronExpression').value = schedule.cron_expression;
+            updateCronDescription();
+        } else if (schedule.schedule_type === 'interval') {
+            // Convert seconds back to sensible unit
+            if (schedule.interval_seconds % 86400 === 0) {
+                document.getElementById('intervalValue').value = schedule.interval_seconds / 86400;
+                document.getElementById('intervalUnit').value = '86400';
+            } else if (schedule.interval_seconds % 3600 === 0) {
+                document.getElementById('intervalValue').value = schedule.interval_seconds / 3600;
+                document.getElementById('intervalUnit').value = '3600';
+            } else {
+                document.getElementById('intervalValue').value = schedule.interval_seconds / 60;
+                document.getElementById('intervalUnit').value = '60';
+            }
+        } else {
+            document.getElementById('runDate').value = schedule.start_date;
+        }
+
+        document.getElementById('scheduleModal').classList.remove('hidden');
+    }
+
+    async function deleteSchedule(id) {
+        showConfirmModal(
+            'Delete Schedule',
+            'Are you sure you want to delete this schedule? This action cannot be undone.',
+            'Delete',
+            async () => {
+                try {
+                    const response = await fetch(`/api/schedules/${id}`, { method: 'DELETE' });
+                    if (response.ok) {
+                        showToast('Schedule deleted', 'success');
+                        loadSchedules();
+                        loadStats();
+                    } else {
+                        showToast('Failed to delete schedule', 'error');
+                    }
+                } catch (error) {
+                    console.error('Error deleting schedule:', error);
+                    showToast('Error deleting schedule', 'error');
+                }
+            }
+        );
+    }
+
+    // Confirmation Modal Functions
+    let pendingConfirmAction = null;
+
+    function showConfirmModal(title, message, btnText, action) {
+        pendingConfirmAction = action;
+        document.getElementById('confirmModalTitle').innerHTML = `<i class="fas fa-exclamation-triangle text-yellow-400 mr-2"></i>${title}`;
+        document.getElementById('confirmModalMessage').textContent = message;
+        document.getElementById('confirmModalBtn').textContent = btnText;
+        document.getElementById('confirmModalBtn').onclick = executeConfirmAction;
+        document.getElementById('confirmModal').classList.remove('hidden');
+    }
+
+    function closeConfirmModal() {
+        document.getElementById('confirmModal').classList.add('hidden');
+        pendingConfirmAction = null;
+    }
+
+    function executeConfirmAction() {
+        if (pendingConfirmAction) {
+            pendingConfirmAction();
+        }
+        closeConfirmModal();
+    }
+
+    async function pauseSchedule(id) {
+        try {
+            const response = await fetch(`/api/schedules/${id}/pause`, { method: 'POST' });
+            if (response.ok) {
+                showToast('Schedule paused', 'success');
+                loadSchedules();
+                loadStats();
+            }
+        } catch (error) {
+            console.error('Error pausing schedule:', error);
+        }
+    }
+
+    async function resumeSchedule(id) {
+        try {
+            const response = await fetch(`/api/schedules/${id}/resume`, { method: 'POST' });
+            if (response.ok) {
+                showToast('Schedule resumed', 'success');
+                loadSchedules();
+                loadStats();
+            }
+        } catch (error) {
+            console.error('Error resuming schedule:', error);
+        }
+    }
+
+    async function triggerSchedule(id) {
+        showConfirmModal(
+            'Trigger Schedule',
+            'Run this schedule immediately? The associated runbook will be executed.',
+            'Trigger Now',
+            async () => {
+                try {
+                    const response = await fetch(`/api/schedules/${id}/trigger`, { method: 'POST' });
+                    if (response.ok) {
+                        showToast('Schedule triggered successfully', 'success');
+                        loadStats();
+                    } else {
+                        showToast('Failed to trigger schedule', 'error');
+                    }
+                } catch (error) {
+                    console.error('Error triggering schedule:', error);
+                    showToast('Error triggering schedule', 'error');
+                }
+            }
+        );
+    }
+
+    async function viewHistory(id) {
+        try {
+            const response = await fetch(`/api/schedules/${id}/history`);
+            if (response.ok) {
+                const history = await response.json();
+                const content = document.getElementById('historyContent');
+
+                if (history.length === 0) {
+                    content.innerHTML = '<p class="text-secondary text-center py-8">No execution history yet</p>';
+                } else {
+                    content.innerHTML = history.map(h => `
+                    <div class="card p-3 mb-2">
+                        <div class="flex items-center justify-between">
+                            <div class="flex-1">
+                                <div class="flex items-center gap-2 mb-1">
+                                    <i class="fas fa-${h.status === 'success' ? 'check-circle text-green-400' : 'times-circle text-red-400'}"></i>
+                                    <span class="text-sm text-primary">${new Date(h.scheduled_at).toLocaleString()}</span>
+                                </div>
+                                ${h.error_message ? `<p class="text-xs text-red-400">${escapeHtml(h.error_message)}</p>` : ''}
+                            </div>
+                            <span class="text-xs text-secondary">${h.duration_ms ? (h.duration_ms / 1000).toFixed(1) + 's' : '-'}</span>
+                        </div>
+                    </div>
+                `).join('');
+                }
+
+                document.getElementById('historyModal').classList.remove('hidden');
+            }
+        } catch (error) {
+            console.error('Error loading history:', error);
+        }
+    }
+
+    function closeHistoryModal() {
+        document.getElementById('historyModal').classList.add('hidden');
+    }
+
+    function filterSchedules() {
+        renderSchedules();
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+</script>
+{{ super() }}
+{% endblock %}

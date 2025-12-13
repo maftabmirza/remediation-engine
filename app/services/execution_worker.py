@@ -92,7 +92,7 @@ class ExecutionWorker:
                         selectinload(RunbookExecution.server)
                     )
                     .where(
-                        RunbookExecution.status.in_(["approved", "running"])
+                        RunbookExecution.status.in_(["approved", "running", "queued"])
                     )
                     .where(
                         # Only pick up executions that haven't actually started

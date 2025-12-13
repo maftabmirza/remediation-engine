@@ -16,7 +16,7 @@ from pydantic import BaseModel
 router = APIRouter(prefix="/api/chat", tags=["Chat"])
 
 class ChatSessionCreate(BaseModel):
-    alert_id: UUID
+    alert_id: Optional[UUID] = None
     llm_provider_id: Optional[UUID] = None
 
 class ChatSessionResponse(BaseModel):
@@ -42,16 +42,20 @@ async def create_session(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Create a new chat session for an alert"""
-    alert = db.query(Alert).filter(Alert.id == data.alert_id).first()
-    if not alert:
-        raise HTTPException(status_code=404, detail="Alert not found")
+    """Create a new chat session, optionally linked to an alert"""
+    title = "AI Chat"
+    
+    if data.alert_id:
+        alert = db.query(Alert).filter(Alert.id == data.alert_id).first()
+        if not alert:
+            raise HTTPException(status_code=404, detail="Alert not found")
+        title = f"Chat about {alert.alert_name}"
         
     session = ChatSession(
         user_id=current_user.id,
         alert_id=data.alert_id,
         llm_provider_id=data.llm_provider_id,
-        title=f"Chat about {alert.alert_name}"
+        title=title
     )
     db.add(session)
     db.commit()
@@ -164,5 +168,31 @@ async def get_session_by_alert(
 
     if not session:
         raise HTTPException(status_code=404, detail="No session found for this alert")
+
+    return session
+
+
+@router.get("/sessions/standalone", response_model=ChatSessionResponse)
+async def get_or_create_standalone_session(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get the most recent standalone chat session or create a new one"""
+    # Look for existing standalone session (no alert_id)
+    session = db.query(ChatSession).filter(
+        ChatSession.alert_id == None,
+        ChatSession.user_id == current_user.id
+    ).order_by(ChatSession.created_at.desc()).first()
+
+    if not session:
+        # Create new standalone session
+        session = ChatSession(
+            user_id=current_user.id,
+            alert_id=None,
+            title="AI Chat"
+        )
+        db.add(session)
+        db.commit()
+        db.refresh(session)
 
     return session

@@ -12,7 +12,7 @@ import yaml
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import Response
-from sqlalchemy import select, func, and_, or_
+from sqlalchemy import select, func, and_, or_, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -172,6 +172,8 @@ async def create_runbook(
             retry_delay_seconds=step_data.retry_delay_seconds,
             expected_exit_code=step_data.expected_exit_code,
             expected_output_pattern=step_data.expected_output_pattern,
+            output_variable=step_data.output_variable,
+            output_extract_pattern=step_data.output_extract_pattern,
             rollback_command_linux=step_data.rollback_command_linux,
             rollback_command_windows=step_data.rollback_command_windows
         )
@@ -244,112 +246,149 @@ async def update_runbook(
     current_user: User = Depends(require_role(["admin", "engineer"]))
 ):
     """Update a runbook with steps and triggers. Increments version number."""
-    result = await db.execute(
-        select(Runbook)
-        .options(selectinload(Runbook.steps), selectinload(Runbook.triggers))
-        .where(Runbook.id == runbook_id)
-    )
-    runbook = result.scalar_one_or_none()
-
-    if not runbook:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Runbook {runbook_id} not found"
+    try:
+        result = await db.execute(
+            select(Runbook)
+            .options(selectinload(Runbook.steps), selectinload(Runbook.triggers))
+            .where(Runbook.id == runbook_id)
         )
+        runbook = result.scalar_one_or_none()
 
-    # Check name uniqueness if changing
-    if runbook_data.name and runbook_data.name != runbook.name:
-        existing = await db.execute(
-            select(Runbook).where(
-                and_(Runbook.name == runbook_data.name, Runbook.id != runbook_id)
-            )
-        )
-        if existing.scalar_one_or_none():
+        if not runbook:
             raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Runbook with name '{runbook_data.name}' already exists"
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Runbook {runbook_id} not found"
             )
 
-    # Update runbook fields
-    runbook.name = runbook_data.name
-    runbook.description = runbook_data.description
-    runbook.category = runbook_data.category
-    runbook.tags = runbook_data.tags
-    runbook.enabled = runbook_data.enabled
-    runbook.auto_execute = runbook_data.auto_execute
-    runbook.approval_required = runbook_data.approval_required
-    runbook.approval_roles = runbook_data.approval_roles
-    runbook.approval_timeout_minutes = runbook_data.approval_timeout_minutes
-    runbook.max_executions_per_hour = runbook_data.max_executions_per_hour
-    runbook.cooldown_minutes = runbook_data.cooldown_minutes
-    runbook.default_server_id = runbook_data.default_server_id
-    runbook.target_os_filter = runbook_data.target_os_filter
-    runbook.target_from_alert = runbook_data.target_from_alert
-    runbook.target_alert_label = runbook_data.target_alert_label
-    runbook.notifications_json = runbook_data.notifications_json
-    runbook.documentation_url = runbook_data.documentation_url
+        # Check name uniqueness if changing
+        if runbook_data.name and runbook_data.name != runbook.name:
+            existing = await db.execute(
+                select(Runbook).where(
+                    and_(Runbook.name == runbook_data.name, Runbook.id != runbook_id)
+                )
+            )
+            if existing.scalar_one_or_none():
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"Runbook with name '{runbook_data.name}' already exists"
+                )
 
-    # Delete existing steps and triggers
-    for step in list(runbook.steps):
-        await db.delete(step)
-    for trigger in list(runbook.triggers):
-        await db.delete(trigger)
+        # Update runbook fields
+        runbook.name = runbook_data.name
+        runbook.description = runbook_data.description
+        runbook.category = runbook_data.category
+        runbook.tags = runbook_data.tags
+        runbook.enabled = runbook_data.enabled
+        runbook.auto_execute = runbook_data.auto_execute
+        runbook.approval_required = runbook_data.approval_required
+        runbook.approval_roles = runbook_data.approval_roles
+        runbook.approval_timeout_minutes = runbook_data.approval_timeout_minutes
+        runbook.max_executions_per_hour = runbook_data.max_executions_per_hour
+        runbook.cooldown_minutes = runbook_data.cooldown_minutes
+        runbook.default_server_id = runbook_data.default_server_id
+        runbook.target_os_filter = runbook_data.target_os_filter
+        runbook.target_from_alert = runbook_data.target_from_alert
+        runbook.target_alert_label = runbook_data.target_alert_label
+        runbook.notifications_json = runbook_data.notifications_json
+        runbook.documentation_url = runbook_data.documentation_url
 
-    await db.flush()
+        # Delete existing steps and triggers
+        # First, delete step_executions that reference these steps to avoid FK violation
+        for step in list(runbook.steps):
+            # Delete step executions that reference this step
+            await db.execute(
+                select(StepExecution).where(StepExecution.step_id == step.id)
+            )
+            step_execs_result = await db.execute(
+                select(StepExecution).where(StepExecution.step_id == step.id)
+            )
+            step_execs = step_execs_result.scalars().all()
+            for step_exec in step_execs:
+                await db.delete(step_exec)
+            
+            # Now safe to delete the step
+            await db.delete(step)
+            
+        for trigger in list(runbook.triggers):
+            # Detach executions from this trigger before deletion to avoid FK violation
+            await db.execute(
+                update(RunbookExecution)
+                .where(RunbookExecution.trigger_id == trigger.id)
+                .values(trigger_id=None)
+            )
+            await db.delete(trigger)
 
-    # Create new steps
-    for step_data in runbook_data.steps:
-        step = RunbookStep(
-            runbook_id=runbook.id,
-            step_order=step_data.step_order,
-            name=step_data.name,
-            description=step_data.description,
-            command_linux=step_data.command_linux,
-            command_windows=step_data.command_windows,
-            target_os=step_data.target_os,
-            timeout_seconds=step_data.timeout_seconds,
-            requires_elevation=step_data.requires_elevation,
-            working_directory=step_data.working_directory,
-            environment_json=step_data.environment_json,
-            continue_on_fail=step_data.continue_on_fail,
-            retry_count=step_data.retry_count,
-            retry_delay_seconds=step_data.retry_delay_seconds,
-            expected_exit_code=step_data.expected_exit_code,
-            expected_output_pattern=step_data.expected_output_pattern,
-            rollback_command_linux=step_data.rollback_command_linux,
-            rollback_command_windows=step_data.rollback_command_windows
+        await db.flush()
+
+        # Create new steps
+        for step_data in runbook_data.steps:
+            step = RunbookStep(
+                runbook_id=runbook.id,
+                step_order=step_data.step_order,
+                name=step_data.name,
+                description=step_data.description,
+                command_linux=step_data.command_linux,
+                command_windows=step_data.command_windows,
+                target_os=step_data.target_os,
+                timeout_seconds=step_data.timeout_seconds,
+                requires_elevation=step_data.requires_elevation,
+                working_directory=step_data.working_directory,
+                environment_json=step_data.environment_json,
+                continue_on_fail=step_data.continue_on_fail,
+                retry_count=step_data.retry_count,
+                retry_delay_seconds=step_data.retry_delay_seconds,
+                expected_exit_code=step_data.expected_exit_code,
+                expected_output_pattern=step_data.expected_output_pattern,
+                output_variable=step_data.output_variable,
+                output_extract_pattern=step_data.output_extract_pattern,
+                rollback_command_linux=step_data.rollback_command_linux,
+                rollback_command_windows=step_data.rollback_command_windows
+            )
+            db.add(step)
+
+        # Create new triggers
+        for trigger_data in runbook_data.triggers:
+            trigger = RunbookTrigger(
+                runbook_id=runbook.id,
+                alert_name_pattern=trigger_data.alert_name_pattern,
+                severity_pattern=trigger_data.severity_pattern,
+                instance_pattern=trigger_data.instance_pattern,
+                job_pattern=trigger_data.job_pattern,
+                label_matchers_json=trigger_data.label_matchers_json,
+                annotation_matchers_json=trigger_data.annotation_matchers_json,
+                min_duration_seconds=trigger_data.min_duration_seconds,
+                min_occurrences=trigger_data.min_occurrences,
+                priority=trigger_data.priority,
+                enabled=trigger_data.enabled
+            )
+            db.add(trigger)
+
+        # Increment version
+        runbook.version += 1
+
+        await db.commit()
+
+        # Reload with relationships
+        result = await db.execute(
+            select(Runbook)
+            .options(selectinload(Runbook.steps), selectinload(Runbook.triggers))
+            .where(Runbook.id == runbook_id)
         )
-        db.add(step)
-
-    # Create new triggers
-    for trigger_data in runbook_data.triggers:
-        trigger = RunbookTrigger(
-            runbook_id=runbook.id,
-            alert_name_pattern=trigger_data.alert_name_pattern,
-            severity_pattern=trigger_data.severity_pattern,
-            instance_pattern=trigger_data.instance_pattern,
-            job_pattern=trigger_data.job_pattern,
-            label_matchers_json=trigger_data.label_matchers_json,
-            annotation_matchers_json=trigger_data.annotation_matchers_json,
-            min_duration_seconds=trigger_data.min_duration_seconds,
-            min_occurrences=trigger_data.min_occurrences,
-            priority=trigger_data.priority,
-            enabled=trigger_data.enabled
+        return result.scalar_one()
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        await db.rollback()
+        raise
+    except Exception as e:
+        # Catch all other exceptions and return proper JSON error
+        await db.rollback()
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.exception(f"Unexpected error updating runbook {runbook_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal error updating runbook: {str(e)}"
         )
-        db.add(trigger)
-
-    # Increment version
-    runbook.version += 1
-
-    await db.commit()
-
-    # Reload with relationships
-    result = await db.execute(
-        select(Runbook)
-        .options(selectinload(Runbook.steps), selectinload(Runbook.triggers))
-        .where(Runbook.id == runbook_id)
-    )
-    return result.scalar_one()
 
 
 @router.delete("/runbooks/{runbook_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -452,6 +491,8 @@ async def clone_runbook(
             retry_delay_seconds=step.retry_delay_seconds,
             expected_exit_code=step.expected_exit_code,
             expected_output_pattern=step.expected_output_pattern,
+            output_variable=step.output_variable,
+            output_extract_pattern=step.output_extract_pattern,
             rollback_command_linux=step.rollback_command_linux,
             rollback_command_windows=step.rollback_command_windows
         )
@@ -650,6 +691,8 @@ async def add_step(
         retry_delay_seconds=step_data.retry_delay_seconds,
         expected_exit_code=step_data.expected_exit_code,
         expected_output_pattern=step_data.expected_output_pattern,
+        output_variable=step_data.output_variable,
+        output_extract_pattern=step_data.output_extract_pattern,
         rollback_command_linux=step_data.rollback_command_linux,
         rollback_command_windows=step_data.rollback_command_windows
     )
@@ -1216,7 +1259,10 @@ async def get_execution(
     """Get execution details with step results."""
     result = await db.execute(
         select(RunbookExecution)
-        .options(selectinload(RunbookExecution.step_executions))
+        .options(
+            selectinload(RunbookExecution.step_executions),
+            selectinload(RunbookExecution.runbook)
+        )
         .where(RunbookExecution.id == execution_id)
     )
     execution = result.scalar_one_or_none()
@@ -1226,6 +1272,17 @@ async def get_execution(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Execution {execution_id} not found"
         )
+    
+    # Manually populate runbook_name for the schema
+    # Pydantic's from_attributes will extract everything else from the generic object
+    # but runbook_name isn't on the model, so we attach it or let Pydantic extract it if we set it.
+    # However, since SQLAlchemy models are not dicts, we can't just set an arbitrary attribute easily 
+    # if it's not in the __dict__. 
+    # But RunbookExecutionResponse expects `runbook_name`.
+    # Let's create the response object explicitly to be safe, OR set the attribute on the instance 
+    # (Python objects allow this usually unless __slots__ prevents it).
+    
+    execution.runbook_name = execution.runbook.name if execution.runbook else "Unknown"
     
     return execution
 
@@ -1254,7 +1311,7 @@ async def approve_execution(
             detail=f"Execution {execution_id} not found"
         )
     
-    if execution.status != "pending":
+    if execution.status not in ["pending", "queued", "pending_approval"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Execution is not pending (status: {execution.status})"

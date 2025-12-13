@@ -125,19 +125,24 @@ class RunbookExecutor:
             alert = result.scalar_one_or_none()
             if alert:
                 alert_context = {
-                    "alert_name": alert.name,
+                    "alert_name": alert.alert_name,
                     "alert_severity": alert.severity,
-                    "alert_source": alert.source,
+                    "alert_instance": alert.instance,
+                    "alert_job": alert.job,
                     "alert_labels": alert.labels_json or {},
                     "alert_annotations": alert.annotations_json or {}
                 }
+        
+        # Runtime variables for this execution
+        runtime_vars = {}
         
         # Build context for template rendering
         context = self._build_context(
             runbook=runbook,
             server=server,
             alert_context=alert_context,
-            execution=execution
+            execution=execution,
+            runtime_vars=runtime_vars
         )
         
         # Update execution status
@@ -273,6 +278,60 @@ class RunbookExecutor:
                     if on_step_complete:
                         on_step_complete(step.step_order, step.name, step_success)
                     
+                    # Capture Output Variables for subsequent steps
+                    # Store step execution result in steps.<step_name> context
+                    if "steps" not in runtime_vars:
+                        runtime_vars["steps"] = {}
+                    
+                    # Sanitize step name for use as variable (replace spaces/special chars)
+                    safe_step_name = re.sub(r'[^a-zA-Z0-9_]', '_', step.name)
+                    
+                    step_output_data = {
+                        "stdout": step_exec.stdout or "",
+                        "stderr": step_exec.stderr or "",
+                        "exit_code": step_exec.exit_code,
+                        "success": step_success
+                    }
+                    runtime_vars["steps"][safe_step_name] = step_output_data
+                    
+                    # Custom Variable Extraction
+                    if step.output_variable:
+                        extracted_value = None
+                        
+                        # 1. API: Check for configured extraction (JSONPath/Regex)
+                        if step.step_type == "api" and step.api_response_extract_json:
+                            # Not implemented yet in this iteration, but schema supports it
+                            pass
+                            
+                        # 2. Command/API: Regex extraction from stdout/response body
+                        if step.output_extract_pattern:
+                            try:
+                                content = step_exec.stdout or step_exec.http_response_body or ""
+                                match = re.search(step.output_extract_pattern, content)
+                                if match:
+                                    # Use first group if available, else full match
+                                    extracted_value = match.group(1) if match.groups() else match.group(0)
+                            except Exception as e:
+                                logger.warning(f"Failed to extract variable {step.output_variable}: {e}")
+                        
+                        # 3. Default: Full stdout if no pattern
+                        elif not step.output_extract_pattern:
+                             extracted_value = (step_exec.stdout or step_exec.http_response_body or "").strip()
+                        
+                        # Store variable if found
+                        if extracted_value is not None:
+                            runtime_vars[step.output_variable] = extracted_value
+                            logger.info(f"Captured variable '{step.output_variable}': {extracted_value[:50]}...")
+                            
+                    # Update context for next iteration
+                    context = self._build_context(
+                        runbook=runbook,
+                        server=server,
+                        alert_context=alert_context,
+                        execution=execution,
+                        runtime_vars=runtime_vars
+                    )
+
                     # Stop on failure unless continue_on_fail
                     if not step_success and not step.continue_on_fail:
                         execution.error_message = f"Step '{step.name}' failed"
@@ -531,7 +590,8 @@ class RunbookExecutor:
         server: ServerCredential,
         alert_context: Dict[str, Any],
         execution: Optional[RunbookExecution],
-        extra_vars: Optional[Dict[str, str]] = None
+        extra_vars: Optional[Dict[str, str]] = None,
+        runtime_vars: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """Build Jinja2 template context."""
         context = {
@@ -570,6 +630,17 @@ class RunbookExecutor:
         # Add extra variables
         if extra_vars:
             context["vars"] = extra_vars
+            
+        # Add runtime variables (from previous steps)
+        if runtime_vars:
+            # Merge into top-level for direct access
+            context.update(runtime_vars)
+            # Also set in vars for consistency
+            context["vars"] = {**context.get("vars", {}), **runtime_vars}
+            
+            # Add steps context if available
+            if "steps" in runtime_vars:
+                context["steps"] = runtime_vars["steps"]
         
         # Add execution variables
         if execution and execution.variables_json:

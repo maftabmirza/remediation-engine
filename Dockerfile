@@ -16,6 +16,13 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app/ ./app/
 COPY templates/ ./templates/
 COPY static/ ./static/
+COPY migrations/ ./migrations/
+COPY alembic/ ./alembic/
+COPY alembic.ini .
+COPY run_migrations.py .
+
+COPY entrypoint.sh .
+RUN chmod +x entrypoint.sh
 
 # Create non-root user
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
@@ -23,4 +30,4 @@ USER appuser
 
 EXPOSE 8080
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
+ENTRYPOINT ["./entrypoint.sh"]

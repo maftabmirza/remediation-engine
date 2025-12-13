@@ -33,7 +33,11 @@ from app.routers import (
     terminal_ws,
     audit,
     metrics,
-    remediation
+    remediation,
+    roles,
+    scheduler,
+    agent_api,
+    agent_ws
 )
 from app import api_credential_profiles
 from app.services.execution_worker import start_execution_worker, stop_execution_worker
@@ -92,11 +96,42 @@ async def lifespan(app: FastAPI):
     """Application lifespan handler"""
     # Startup
     logger.info("Starting AIOps Platform...")
+    
     init_db()
     
     # Start background execution worker
     logger.info("Starting execution worker...")
     await start_execution_worker()
+    
+    # Start scheduler
+    logger.info("Starting scheduler...")
+    from app.services.scheduler_service import get_scheduler
+    from app.models_scheduler import ScheduledJob
+    from app.database import get_async_db
+    from sqlalchemy import select
+    
+    scheduler = get_scheduler()
+    await scheduler.start()
+    
+    # Load existing enabled schedules from database
+    try:
+        async for db in get_async_db():
+            result = await db.execute(
+                select(ScheduledJob).where(ScheduledJob.enabled == True)
+            )
+            schedules = result.scalars().all()
+            
+            for schedule in schedules:
+                try:
+                    await scheduler.add_schedule(schedule)
+                    logger.info(f"Loaded schedule: {schedule.name}")
+                except Exception as e:
+                    logger.error(f"Failed to load schedule {schedule.name}: {e}")
+            
+            logger.info(f"✅ Loaded {len(schedules)} schedule(s)")
+            break
+    except Exception as e:
+        logger.error(f"Failed to load schedules: {e}")
     
     logger.info("AIOps Platform started successfully")
     
@@ -104,6 +139,10 @@ async def lifespan(app: FastAPI):
     
     # Shutdown
     logger.info("Shutting down AIOps Platform...")
+    
+    # Stop scheduler gracefully
+    logger.info("Stopping scheduler...")
+    await scheduler.shutdown()
     
     # Stop execution worker gracefully
     logger.info("Stopping execution worker...")
@@ -158,6 +197,27 @@ app.include_router(audit.router)
 app.include_router(metrics.router)
 app.include_router(remediation.router)
 app.include_router(api_credential_profiles.router)
+app.include_router(roles.router)
+app.include_router(scheduler.router)
+app.include_router(agent_api.router)
+app.include_router(agent_ws.router)
+
+
+@app.get("/profile", response_class=HTMLResponse)
+async def profile_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    User profile page
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+    
+    return templates.TemplateResponse("profile.html", {
+        "request": request,
+        "user": current_user
+    })
 
 
 # ============== Web UI Routes ==============
@@ -244,6 +304,23 @@ async def alert_detail_page(
     })
 
 
+@app.get("/ai", response_class=HTMLResponse)
+async def ai_chat_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    Standalone AI Chat page with terminal
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+    
+    return templates.TemplateResponse("ai_chat.html", {
+        "request": request,
+        "user": current_user
+    })
+
+
 @app.get("/rules", response_class=HTMLResponse)
 async def rules_page(
     request: Request,
@@ -264,7 +341,8 @@ async def rules_page(
 @app.get("/settings", response_class=HTMLResponse)
 async def settings_page(
     request: Request,
-    current_user: User = Depends(get_current_user_optional)
+    current_user: User = Depends(get_current_user_optional),
+    db: Session = Depends(get_db)
 ):
     """
     Settings page (LLM providers)
@@ -275,7 +353,7 @@ async def settings_page(
     return templates.TemplateResponse("settings.html", {
         "request": request,
         "user": current_user,
-        "permissions": list(get_permissions_for_role(current_user.role)),
+        "permissions": list(get_permissions_for_role(db, current_user.role)),
     })
 
 
@@ -384,6 +462,23 @@ async def executions_page(
         return RedirectResponse(url="/login", status_code=302)
     
     return templates.TemplateResponse("executions.html", {
+        "request": request,
+        "user": current_user
+    })
+
+
+@app.get("/schedules", response_class=HTMLResponse)
+async def schedules_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    Scheduled runbook executions management page
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+    
+    return templates.TemplateResponse("schedules.html", {
         "request": request,
         "user": current_user
     })

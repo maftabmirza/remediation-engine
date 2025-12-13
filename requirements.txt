@@ -34,3 +34,9 @@ slowapi==0.1.9
 prometheus_client==0.19.0
 aiofiles==23.2.1
 pyyaml==6.0.1
+json-logic
+
+# Scheduler
+apscheduler==3.10.4
+pytz==2023.3
+croniter==2.0.1

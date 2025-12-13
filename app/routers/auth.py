@@ -82,7 +82,7 @@ async def login(
     )
     
     user_payload = UserResponse.model_validate(user)
-    user_payload.permissions = list(get_permissions_for_role(user.role))
+    user_payload.permissions = list(get_permissions_for_role(db, user.role))
 
     return LoginResponse(
         access_token=access_token,
@@ -120,11 +120,12 @@ async def logout(
 
 @router.get("/me", response_model=UserResponse)
 async def get_current_user_info(
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
     """
     Get current authenticated user info.
     """
     payload = UserResponse.model_validate(current_user)
-    payload.permissions = list(get_permissions_for_role(current_user.role))
+    payload.permissions = list(get_permissions_for_role(db, current_user.role))
     return payload

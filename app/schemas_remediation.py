@@ -67,6 +67,10 @@ class RunbookStepBase(BaseModel):
     # Validation
     expected_exit_code: int = 0
     expected_output_pattern: Optional[str] = None
+    
+    # Variable Extraction
+    output_variable: Optional[str] = None
+    output_extract_pattern: Optional[str] = None
 
     # Rollback
     rollback_command_linux: Optional[str] = None
@@ -133,6 +137,8 @@ class RunbookStepUpdate(BaseModel):
     retry_count: Optional[int] = Field(None, ge=0, le=5)
     expected_exit_code: Optional[int] = None
     expected_output_pattern: Optional[str] = None
+    output_variable: Optional[str] = None
+    output_extract_pattern: Optional[str] = None
     rollback_command_linux: Optional[str] = None
     rollback_command_windows: Optional[str] = None
 
@@ -254,6 +260,9 @@ class RunbookUpdate(BaseModel):
     target_os_filter: Optional[List[str]] = None
     notifications_json: Optional[Dict[str, List[str]]] = None
     documentation_url: Optional[str] = None
+    
+    steps: Optional[List[RunbookStepCreate]] = None
+    triggers: Optional[List[RunbookTriggerCreate]] = None
 
 
 class RunbookResponse(RunbookBase):
@@ -353,6 +362,7 @@ class RunbookExecutionResponse(BaseModel):
     """Schema for runbook execution response."""
     id: UUID
     runbook_id: UUID
+    runbook_name: Optional[str] = None
     runbook_version: int
     
     alert_id: Optional[UUID]

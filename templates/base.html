@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <base href="/">
@@ -15,7 +16,8 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
     <style>
         /* Aftab Theme - Based on Grafana dark mode (Default Theme) */
-        :root, [data-theme="aftab"] {
+        :root,
+        [data-theme="aftab"] {
             --bg-primary: #111217;
             --bg-secondary: #181b1f;
             --bg-tertiary: #22252b;
@@ -156,24 +158,24 @@
             text-decoration: underline;
         }
 
-        [data-theme="aftab"] .badge-critical { 
-            background-color: #d10e5c; 
-            color: #fff; 
+        [data-theme="aftab"] .badge-critical {
+            background-color: #d10e5c;
+            color: #fff;
         }
-        
-        [data-theme="aftab"] .badge-warning { 
-            background-color: #f90; 
-            color: #fff; 
+
+        [data-theme="aftab"] .badge-warning {
+            background-color: #f90;
+            color: #fff;
         }
-        
-        [data-theme="aftab"] .badge-info { 
-            background-color: #6e9fff; 
-            color: #fff; 
+
+        [data-theme="aftab"] .badge-info {
+            background-color: #6e9fff;
+            color: #fff;
         }
-        
-        [data-theme="aftab"] .badge-success { 
-            background-color: #1a7f4b; 
-            color: #fff; 
+
+        [data-theme="aftab"] .badge-success {
+            background-color: #1a7f4b;
+            color: #fff;
         }
 
         /* Grafana dropdown/modal backgrounds */
@@ -237,102 +239,96 @@
             background-color: #181b1f;
         }
 
-        [data-theme="aftab"] .sidebar-item {
-            color: #ccccdc;
-            border-radius: 2px;
-            margin-bottom: 2px;
-        }
-
-        [data-theme="aftab"] .sidebar-item:hover {
-            background-color: rgba(204, 204, 220, 0.07);
-        }
-
-        [data-theme="aftab"] .sidebar-item.active {
-            background-color: rgba(204, 204, 220, 0.12);
-            border-left: 3px solid #ff5722;
-        }
-
-        /* Keep nav icons colored in aftab theme */
-        [data-theme="aftab"] .sidebar-item .nav-icon {
-            /* Keep original color - don't override */
-        }
-
-        [data-theme="aftab"] .sidebar-item:hover .nav-icon,
-        [data-theme="aftab"] .sidebar-item.active .nav-icon {
-            /* Keep original color on hover/active too */
-            filter: brightness(1.2);
-        }
-        
         body {
             background-color: var(--bg-primary);
             color: var(--text-primary);
             font-family: 'Segoe UI', system-ui, sans-serif;
         }
-        
+
         .sidebar {
             background-color: var(--bg-secondary);
             border-right: 1px solid var(--bg-tertiary);
         }
-        
+
         .sidebar-item {
             transition: all 0.2s ease;
         }
-        
+
         .sidebar-item:hover {
             background-color: var(--bg-tertiary);
         }
-        
+
         .sidebar-item.active {
             background-color: var(--bg-tertiary);
             border-left: 3px solid var(--accent-blue);
         }
-        
+
         .card {
             background-color: var(--bg-secondary);
             border: 1px solid var(--bg-tertiary);
             border-radius: 8px;
         }
-        
+
         .btn-primary {
             background-color: var(--accent-blue);
             color: var(--bg-primary);
             transition: all 0.2s ease;
         }
-        
+
         .btn-primary:hover {
             opacity: 0.9;
             transform: translateY(-1px);
         }
-        
+
         .btn-secondary {
             background-color: var(--bg-tertiary);
             color: var(--text-primary);
             border: 1px solid var(--bg-tertiary);
         }
-        
+
         .btn-secondary:hover {
             border-color: var(--accent-blue);
         }
-        
+
         .input-field {
             background-color: var(--bg-tertiary);
             border: 1px solid var(--bg-tertiary);
             color: var(--text-primary);
         }
-        
+
         .input-field:focus {
             outline: none;
             border-color: var(--accent-blue);
         }
-        
-        .badge-critical { background-color: var(--accent-red); color: var(--bg-primary); }
-        .badge-warning { background-color: var(--accent-yellow); color: var(--bg-primary); }
-        .badge-info { background-color: var(--accent-blue); color: var(--bg-primary); }
-        .badge-success { background-color: var(--accent-green); color: var(--bg-primary); }
-        
-        .status-firing { color: var(--accent-red); }
-        .status-resolved { color: var(--accent-green); }
-        
+
+        .badge-critical {
+            background-color: var(--accent-red);
+            color: var(--bg-primary);
+        }
+
+        .badge-warning {
+            background-color: var(--accent-yellow);
+            color: var(--bg-primary);
+        }
+
+        .badge-info {
+            background-color: var(--accent-blue);
+            color: var(--bg-primary);
+        }
+
+        .badge-success {
+            background-color: var(--accent-green);
+            color: var(--bg-primary);
+        }
+
+        .status-firing {
+            color: var(--accent-red);
+        }
+
+        .status-resolved {
+            color: var(--accent-green);
+        }
+
         .loading-spinner {
             border: 3px solid var(--bg-tertiary);
             border-top: 3px solid var(--accent-blue);
@@ -341,12 +337,17 @@
             height: 24px;
             animation: spin 1s linear infinite;
         }
-        
+
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
         }
-        
+
         .toast {
             position: fixed;
             bottom: 20px;
@@ -356,30 +357,44 @@
             z-index: 1000;
             animation: slideIn 0.3s ease;
         }
-        
+
         @keyframes slideIn {
-            from { transform: translateX(100%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
         }
-        
-        .toast-success { background-color: var(--accent-green); color: var(--bg-primary); }
-        .toast-error { background-color: var(--accent-red); color: var(--bg-primary); }
-        
+
+        .toast-success {
+            background-color: var(--accent-green);
+            color: var(--bg-primary);
+        }
+
+        .toast-error {
+            background-color: var(--accent-red);
+            color: var(--bg-primary);
+        }
+
         /* Scrollbar styling */
         ::-webkit-scrollbar {
             width: 8px;
             height: 8px;
         }
-        
+
         ::-webkit-scrollbar-track {
             background: var(--bg-primary);
         }
-        
+
         ::-webkit-scrollbar-thumb {
             background: var(--bg-tertiary);
             border-radius: 4px;
         }
-        
+
         ::-webkit-scrollbar-thumb:hover {
             background: var(--text-secondary);
         }
@@ -388,7 +403,7 @@
         [data-theme="light"] .text-gray-400 {
             color: #6b7280 !important;
         }
-        
+
         [data-theme="light"] .text-gray-300 {
             color: #4b5563 !important;
         }
@@ -401,11 +416,11 @@
         [data-theme="light"] .bg-gray-700 {
             background-color: #e5e7eb !important;
         }
-        
+
         [data-theme="light"] .bg-gray-800 {
             background-color: #f3f4f6 !important;
         }
-        
+
         [data-theme="light"] .bg-gray-900 {
             background-color: #e5e7eb !important;
         }
@@ -414,7 +429,7 @@
         [data-theme="light"] .border-gray-700 {
             border-color: #d1d5db !important;
         }
-        
+
         [data-theme="light"] .border-gray-600 {
             border-color: #d1d5db !important;
         }
@@ -423,19 +438,19 @@
         [data-theme="light"] .text-green-400 {
             color: #059669 !important;
         }
-        
+
         [data-theme="light"] .text-blue-400 {
             color: #2563eb !important;
         }
-        
+
         [data-theme="light"] .text-red-400 {
             color: #dc2626 !important;
         }
-        
+
         [data-theme="light"] .text-yellow-400 {
             color: #d97706 !important;
         }
-        
+
         [data-theme="light"] .text-purple-400 {
             color: #7c3aed !important;
         }
@@ -444,19 +459,19 @@
         [data-theme="light"] .bg-blue-500.bg-opacity-20 {
             background-color: rgba(37, 99, 235, 0.15) !important;
         }
-        
+
         [data-theme="light"] .bg-green-500.bg-opacity-20 {
             background-color: rgba(5, 150, 105, 0.15) !important;
         }
-        
+
         [data-theme="light"] .bg-red-500.bg-opacity-20 {
             background-color: rgba(220, 38, 38, 0.15) !important;
         }
-        
+
         [data-theme="light"] .bg-yellow-500.bg-opacity-20 {
             background-color: rgba(217, 119, 6, 0.15) !important;
         }
-        
+
         [data-theme="light"] .bg-purple-500.bg-opacity-20 {
             background-color: rgba(124, 58, 237, 0.15) !important;
         }
@@ -475,11 +490,11 @@
         .text-secondary {
             color: var(--text-secondary);
         }
-        
+
         .text-primary {
             color: var(--text-primary);
         }
-        
+
         .bg-tertiary {
             background-color: var(--bg-tertiary);
         }
@@ -489,7 +504,7 @@
             background-color: #f3f4f6 !important;
             color: #1f2937 !important;
         }
-        
+
         [data-theme="light"] pre {
             background-color: #1f2937 !important;
             color: #10b981 !important;
@@ -499,11 +514,11 @@
         [data-theme="light"] .bg-red-900 {
             background-color: #fef2f2 !important;
         }
-        
+
         [data-theme="light"] .bg-red-900.bg-opacity-20 {
             background-color: rgba(254, 226, 226, 0.8) !important;
         }
-        
+
         [data-theme="light"] .bg-tertiary,
         [data-theme="light"] [class*="bg-tertiary"] {
             background-color: var(--bg-tertiary) !important;
@@ -535,11 +550,11 @@
         [data-theme="light"] thead tr {
             background-color: #f3f4f6 !important;
         }
-        
+
         [data-theme="light"] tbody tr {
             border-color: #e5e7eb !important;
         }
-        
+
         [data-theme="light"] tbody tr:hover {
             background-color: #f9fafb !important;
         }
@@ -554,12 +569,12 @@
             background-color: #059669 !important;
             color: white !important;
         }
-        
+
         [data-theme="light"] .bg-red-600 {
             background-color: #dc2626 !important;
             color: white !important;
         }
-        
+
         [data-theme="light"] .bg-blue-600 {
             background-color: #2563eb !important;
             color: white !important;
@@ -569,7 +584,7 @@
         [data-theme="light"] .text-gray-500 {
             color: #6b7280 !important;
         }
-        
+
         [data-theme="light"] .text-gray-600 {
             color: #4b5563 !important;
         }
@@ -585,7 +600,7 @@
             background-color: var(--bg-tertiary) !important;
             color: var(--text-primary) !important;
         }
-        
+
         [data-theme="light"] select option {
             background-color: white !important;
             color: #111827 !important;
@@ -600,7 +615,7 @@
         [data-theme="aftab"] .text-gray-400 {
             color: #8e8e8e !important;
         }
-        
+
         [data-theme="aftab"] .text-gray-300 {
             color: #ccccdc !important;
         }
@@ -612,11 +627,11 @@
         [data-theme="aftab"] .bg-gray-700 {
             background-color: #22252b !important;
         }
-        
+
         [data-theme="aftab"] .bg-gray-800 {
             background-color: #181b1f !important;
         }
-        
+
         [data-theme="aftab"] .bg-gray-900 {
             background-color: #111217 !important;
         }
@@ -629,19 +644,19 @@
         [data-theme="aftab"] .text-green-400 {
             color: #6ccf8e !important;
         }
-        
+
         [data-theme="aftab"] .text-blue-400 {
             color: #6e9fff !important;
         }
-        
+
         [data-theme="aftab"] .text-red-400 {
             color: #ff5286 !important;
         }
-        
+
         [data-theme="aftab"] .text-yellow-400 {
             color: #fbad37 !important;
         }
-        
+
         [data-theme="aftab"] .text-purple-400 {
             color: #b877d9 !important;
         }
@@ -649,19 +664,19 @@
         [data-theme="aftab"] .bg-blue-500.bg-opacity-20 {
             background-color: rgba(110, 159, 255, 0.15) !important;
         }
-        
+
         [data-theme="aftab"] .bg-green-500.bg-opacity-20 {
             background-color: rgba(108, 207, 142, 0.15) !important;
         }
-        
+
         [data-theme="aftab"] .bg-red-500.bg-opacity-20 {
             background-color: rgba(255, 82, 134, 0.15) !important;
         }
-        
+
         [data-theme="aftab"] .bg-yellow-500.bg-opacity-20 {
             background-color: rgba(251, 173, 55, 0.15) !important;
         }
-        
+
         [data-theme="aftab"] .bg-purple-500.bg-opacity-20 {
             background-color: rgba(184, 119, 217, 0.15) !important;
         }
@@ -670,11 +685,11 @@
         [data-theme="aftab"] thead tr {
             background-color: #22252b !important;
         }
-        
+
         [data-theme="aftab"] tbody tr {
             border-color: rgba(204, 204, 220, 0.12) !important;
         }
-        
+
         [data-theme="aftab"] tbody tr:hover {
             background-color: rgba(204, 204, 220, 0.07) !important;
         }
@@ -683,7 +698,7 @@
         [data-theme="aftab"] .bg-blue-600 {
             background: linear-gradient(180deg, #4979db 0%, #3d71d9 100%) !important;
         }
-        
+
         [data-theme="aftab"] .bg-blue-600:hover {
             background: linear-gradient(180deg, #5a86de 0%, #4979db 100%) !important;
         }
@@ -691,7 +706,7 @@
         [data-theme="aftab"] .bg-green-600 {
             background-color: #1a7f4b !important;
         }
-        
+
         [data-theme="aftab"] .bg-red-600 {
             background-color: #d10e5c !important;
         }
@@ -701,7 +716,7 @@
             background-color: #22252b !important;
             color: #6ccf8e !important;
         }
-        
+
         [data-theme="aftab"] pre {
             background-color: #111217 !important;
             border: 1px solid rgba(204, 204, 220, 0.12) !important;
@@ -711,11 +726,11 @@
         [data-theme="aftab"] ::-webkit-scrollbar-track {
             background: #111217;
         }
-        
+
         [data-theme="aftab"] ::-webkit-scrollbar-thumb {
             background: rgba(204, 204, 220, 0.2);
         }
-        
+
         [data-theme="aftab"] ::-webkit-scrollbar-thumb:hover {
             background: rgba(204, 204, 220, 0.3);
         }
@@ -728,7 +743,7 @@
             border: 1px solid rgba(204, 204, 220, 0.2) !important;
             color: #ccccdc !important;
         }
-        
+
         [data-theme="aftab"] input:focus,
         [data-theme="aftab"] textarea:focus,
         [data-theme="aftab"] select:focus {
@@ -782,7 +797,7 @@
             visibility: hidden;
             opacity: 0;
             position: absolute;
-            z-index: 1000;
+            z-index: 99999;
             bottom: calc(100% + 8px);
             left: 50%;
             transform: translateX(-50%);
@@ -795,7 +810,7 @@
             font-weight: 400;
             line-height: 1.5;
             border-radius: 6px;
-            border: 1px solid var(--color-border, rgba(204,204,220,0.12));
+            border: 1px solid var(--color-border, rgba(204, 204, 220, 0.12));
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
             transition: opacity 0.2s ease, visibility 0.2s ease;
             white-space: normal;
@@ -861,12 +876,14 @@
 
         /* Alignment modifiers for top/bottom tooltips */
         .info-tooltip-align-left .info-tooltip-text {
-            left: -8px; /* Slight offset to align with icon center roughly */
+            left: -8px;
+            /* Slight offset to align with icon center roughly */
             transform: none;
         }
-        
+
         .info-tooltip-align-left .info-tooltip-text::after {
-            left: 14px; /* Center arrow over icon (8px + 6px) */
+            left: 14px;
+            /* Center arrow over icon (8px + 6px) */
             transform: none;
         }
 
@@ -928,7 +945,7 @@
             background: var(--accent-primary);
             cursor: pointer;
             border: 2px solid var(--bg-primary);
-            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
         }
 
         .zoom-slider::-moz-range-thumb {
@@ -938,13 +955,13 @@
             background: var(--accent-primary);
             cursor: pointer;
             border: 2px solid var(--bg-primary);
-            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
         }
     </style>
     {% block head %}{% endblock %}
     <script>
         // Apply theme and zoom immediately to prevent flash
-        (function() {
+        (function () {
             const savedTheme = localStorage.getItem('aiops-theme') || 'aftab';
             const savedZoom = localStorage.getItem('aiops-zoom') || '100';
             document.documentElement.setAttribute('data-theme', savedTheme);
@@ -952,13 +969,83 @@
         })();
     </script>
 </head>
+
 <body class="min-h-screen">
     {% block body %}{% endblock %}
-    
+
     <!-- Toast container -->
     <div id="toast-container"></div>
-    
+
     <script>
+        // Global Tooltip Implementation (Avoids clipping)
+        (function () {
+            const tooltip = document.createElement('div');
+            tooltip.id = 'global-tooltip';
+            tooltip.className = 'fixed hidden bg-gray-800 text-white text-xs px-2 py-1 rounded shadow-lg border border-gray-700 pointer-events-none z-[9999] whitespace-nowrap fade-in';
+            tooltip.style.transition = 'opacity 0.1s ease';
+            document.body.appendChild(tooltip);
+
+            let activeTarget = null;
+
+            document.addEventListener('mouseover', (e) => {
+                const target = e.target.closest('[data-tooltip]');
+                if (target && !activeTarget) {
+                    // Check if we should show tooltip (sidebar collapsed logic specific)
+                    const sidebar = document.getElementById('sidebar');
+                    const isSidebarItem = target.closest('.sidebar');
+
+                    // Only show sidebar tooltips if sidebar is collapsed (w-20)
+                    if (isSidebarItem && sidebar && !sidebar.classList.contains('w-20')) {
+                        return;
+                    }
+
+                    activeTarget = target;
+                    const text = target.getAttribute('data-tooltip');
+                    tooltip.textContent = text;
+                    tooltip.classList.remove('hidden');
+                    tooltip.style.opacity = '1';
+
+                    updatePosition(target);
+                }
+            });
+
+            document.addEventListener('mouseout', (e) => {
+                const target = e.target.closest('[data-tooltip]');
+                if (target && target === activeTarget) {
+                    hideTooltip();
+                }
+            });
+
+            function hideTooltip() {
+                tooltip.style.opacity = '0';
+                activeTarget = null;
+                setTimeout(() => {
+                    if (!activeTarget) tooltip.classList.add('hidden');
+                }, 100);
+            }
+
+            function updatePosition(target) {
+                if (!target) return;
+                const rect = target.getBoundingClientRect();
+                const tooltipRect = tooltip.getBoundingClientRect();
+
+                // Default to right side for sidebar items
+                let top = rect.top + (rect.height / 2) - (tooltipRect.height / 2);
+                let left = rect.right + 10;
+
+                // Adjust if off-screen vertically
+                if (top < 0) top = 10;
+                if (top + tooltipRect.height > window.innerHeight) top = window.innerHeight - tooltipRect.height - 10;
+
+                tooltip.style.top = `${top}px`;
+                tooltip.style.left = `${left}px`;
+            }
+
+            // Hide on scroll/resize
+            window.addEventListener('scroll', hideTooltip, true);
+            window.addEventListener('resize', hideTooltip);
+        })();
+
         // Toast notification helper
         function showToast(message, type = 'success') {
             const container = document.getElementById('toast-container');
@@ -966,13 +1053,13 @@
             toast.className = `toast toast-${type}`;
             toast.textContent = message;
             container.appendChild(toast);
-            
+
             setTimeout(() => {
                 toast.style.animation = 'slideIn 0.3s ease reverse';
                 setTimeout(() => toast.remove(), 300);
             }, 3000);
         }
-        
+
         // API helper
         async function apiCall(url, options = {}) {
             const defaults = {
@@ -981,14 +1068,14 @@
                 },
                 credentials: 'same-origin'
             };
-            
+
             const response = await fetch(url, { ...defaults, ...options });
-            
+
             if (response.status === 401) {
                 window.location.href = '/login';
                 return null;
             }
-            
+
             return response;
         }
     </script>
@@ -999,4 +1086,5 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     {% block scripts %}{% endblock %}
 </body>
+
 </html>

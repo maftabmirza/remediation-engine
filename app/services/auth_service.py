@@ -11,7 +11,8 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.database import get_db
-from app.models import User
+from app.database import get_db
+from app.models import User, Role
 
 settings = get_settings()
 
@@ -130,15 +131,21 @@ def normalize_role(role: str) -> str:
     return ROLE_ALIASES.get(role, role)
 
 
-def get_permissions_for_role(role: str) -> Set[str]:
-    """Return the permission set for a given role string."""
+def get_permissions_for_role(db: Session, role: str) -> Set[str]:
+    """Return the permission set for a given role string from DB."""
     normalized = normalize_role(role)
+    # Query DB
+    role_obj = db.query(Role).filter(Role.name == normalized).first()
+    if role_obj:
+        return set(role_obj.permissions)
+    
+    # Fallback to defaults (useful during migration or if DB is empty)
     return ROLE_PERMISSIONS.get(normalized, set())
 
 
-def has_permission(user: User, permission: str) -> bool:
+def has_permission(db: Session, user: User, permission: str) -> bool:
     """Check if a user has a specific permission."""
-    return permission in get_permissions_for_role(user.role)
+    return permission in get_permissions_for_role(db, user.role)
 
 
 def create_user(db: Session, username: str, password: str, role: str = DEFAULT_ROLE) -> User:
@@ -265,8 +272,11 @@ def require_role(allowed_roles: list):
 def require_permission(required: List[str]):
     """Dependency factory that enforces the presence of permissions."""
 
-    def permission_checker(user: User = Depends(get_current_user)) -> User:
-        user_perms = get_permissions_for_role(user.role)
+    def permission_checker(
+        user: User = Depends(get_current_user),
+        db: Session = Depends(get_db)
+    ) -> User:
+        user_perms = get_permissions_for_role(db, user.role)
         if not set(required).issubset(user_perms):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
