@@ -1,0 +1,353 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex justify-between items-center bg-gray-800 p-4 rounded-lg border border-gray-700">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                <i class="fas fa-sitemap text-blue-400 text-xl"></i>
+            </div>
+            <div>
+                <h2 class="text-xl font-bold text-white">Application Registry</h2>
+                <p class="text-xs text-gray-400">Manage applications and dependency topology</p>
+            </div>
+        </div>
+        <div class="flex items-center space-x-3">
+            <div class="relative">
+                <input type="text" id="searchInput" placeholder="Search applications..."
+                    class="bg-gray-700 border border-gray-600 rounded-lg pl-10 pr-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none w-64"
+                    oninput="debouncedSearch()">
+                <i class="fas fa-search absolute left-3 top-2.5 text-gray-400"></i>
+            </div>
+            <button onclick="openCreateModal()"
+                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors">
+                <i class="fas fa-plus"></i>
+                <span>Register Application</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="card p-4 border-l-4 border-blue-500">
+            <div class="flex justify-between items-start">
+                <div>
+                    <h3 class="text-gray-400 text-xs uppercase font-bold tracking-wider">Total Apps</h3>
+                    <p class="text-2xl font-bold text-white mt-1" id="statTotal">0</p>
+                </div>
+                <i class="fas fa-layer-group text-blue-500/20 text-2xl"></i>
+            </div>
+        </div>
+        <div class="card p-4 border-l-4 border-red-500">
+            <div class="flex justify-between items-start">
+                <div>
+                    <h3 class="text-gray-400 text-xs uppercase font-bold tracking-wider">Critical</h3>
+                    <p class="text-2xl font-bold text-white mt-1" id="statCritical">0</p>
+                </div>
+                <i class="fas fa-exclamation-triangle text-red-500/20 text-2xl"></i>
+            </div>
+        </div>
+        <div class="card p-4 border-l-4 border-purple-500">
+            <div class="flex justify-between items-start">
+                <div>
+                    <h3 class="text-gray-400 text-xs uppercase font-bold tracking-wider">Components</h3>
+                    <p class="text-2xl font-bold text-white mt-1" id="statComponents">0</p>
+                </div>
+                <i class="fas fa-cubes text-purple-500/20 text-2xl"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Applications List -->
+    <div class="card overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-gray-800/50 text-gray-400 text-xs uppercase tracking-wider">
+                        <th class="p-4 border-b border-gray-700">Display Name / Slug</th>
+                        <th class="p-4 border-b border-gray-700">Team Owner</th>
+                        <th class="p-4 border-b border-gray-700">Criticality</th>
+                        <th class="p-4 border-b border-gray-700">Stack</th>
+                        <th class="p-4 border-b border-gray-700">Updated</th>
+                        <th class="p-4 border-b border-gray-700 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="appTableBody" class="text-sm">
+                    <!-- Loaded via JS -->
+                </tbody>
+            </table>
+        </div>
+        <!-- Pagination -->
+        <div class="p-4 border-t border-gray-700 flex justify-between items-center">
+            <div class="text-xs text-gray-400" id="paginationInfo">Showing 0 of 0</div>
+            <div class="flex space-x-2" id="paginationControls">
+                <!-- JS -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Application Modal -->
+<div id="createModal" class="fixed inset-0 bg-black bg-opacity-60 hidden items-center justify-center z-50">
+    <div class="card p-0 w-full max-w-lg m-4">
+        <div class="p-4 border-b border-gray-700 flex justify-between items-center bg-gray-800/50">
+            <h3 class="text-lg font-bold text-white" id="modalTitle">Register New Application</h3>
+            <button onclick="closeCreateModal()" class="text-gray-400 hover:text-white">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="p-6 space-y-4">
+            <div>
+                <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Application Name (Slug)</label>
+                <input type="text" id="appName" class="w-full input-dark font-mono text-sm"
+                    placeholder="e.g. payment-service">
+                <p class="text-xs text-gray-500 mt-1">Unique identifier, no spaces</p>
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Display Name</label>
+                <input type="text" id="appDisplayName" class="w-full input-dark"
+                    placeholder="e.g. Payment Processing Service">
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Criticality</label>
+                    <select id="appCriticality" class="w-full input-dark">
+                        <option value="critical">Critical</option>
+                        <option value="high">High</option>
+                        <option value="medium">Medium</option>
+                        <option value="low">Low</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Team Owner</label>
+                    <input type="text" id="appOwner" class="w-full input-dark" placeholder="e.g. Payments Team">
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Description</label>
+                <textarea id="appDescription" class="w-full input-dark h-24 resize-none"
+                    placeholder="Brief description of the application..."></textarea>
+            </div>
+        </div>
+        <div class="p-4 border-t border-gray-700 bg-gray-800/50 flex justify-end space-x-3">
+            <button onclick="closeCreateModal()"
+                class="px-4 py-2 rounded text-gray-300 hover:text-white hover:bg-gray-700 transition-colors">Cancel</button>
+            <button onclick="saveApplication()"
+                class="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors">Register
+                Application</button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let currentPage = 1;
+    const pageSize = 10;
+    let debounceTimer;
+
+    document.addEventListener('DOMContentLoaded', () => {
+        loadStats();
+        loadApplications();
+    });
+
+    async function loadStats() {
+        try {
+            const res = await fetch('/api/applications/stats');
+            if (!res.ok) throw new Error('Failed to load stats');
+            const stats = await res.json();
+
+            document.getElementById('statTotal').textContent = stats.total;
+            document.getElementById('statCritical').textContent = stats.critical;
+            document.getElementById('statComponents').textContent = stats.total_components;
+        } catch (e) {
+            console.error('Error loading stats:', e);
+        }
+    }
+
+    function debouncedSearch() {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+            currentPage = 1;
+            loadApplications();
+        }, 300);
+    }
+
+    async function loadApplications() {
+        const search = document.getElementById('searchInput').value;
+        const tbody = document.getElementById('appTableBody');
+
+        try {
+            let url = `/api/applications?page=${currentPage}&page_size=${pageSize}`;
+            if (search) url += `&search=${encodeURIComponent(search)}`;
+
+            const res = await fetch(url);
+            if (!res.ok) throw new Error('Failed to load apps');
+            const data = await res.json();
+
+            // Update stats (simple mock for now, ideally API returns stats)
+            document.getElementById('statTotal').textContent = data.total;
+
+            tbody.innerHTML = '';
+
+            if (data.items.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-gray-500">No applications found</td></tr>`;
+                return;
+            }
+
+            data.items.forEach(app => {
+                const row = document.createElement('tr');
+                row.className = 'border-b border-gray-700 hover:bg-gray-700/30 transition-colors';
+
+                const criticalityColor = {
+                    'critical': 'text-red-400 bg-red-400/10 border-red-500/20',
+                    'high': 'text-orange-400 bg-orange-400/10 border-orange-500/20',
+                    'medium': 'text-yellow-400 bg-yellow-400/10 border-yellow-500/20',
+                    'low': 'text-blue-400 bg-blue-400/10 border-blue-500/20'
+                }[app.criticality] || 'text-gray-400';
+
+                row.innerHTML = `
+                <td class="p-4">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-8 h-8 rounded bg-gray-700 flex items-center justify-center text-gray-300 font-bold">
+                            ${app.name.substring(0, 2).toUpperCase()}
+                        </div>
+                        <div>
+                            <a href="/applications/${app.id}" class="font-medium text-blue-400 hover:underline hover:text-blue-300">
+                                ${app.display_name || app.name}
+                            </a>
+                            <div class="text-xs text-gray-500 font-mono">${app.name}</div>
+                        </div>
+                    </div>
+                </td>
+                <td class="p-4 text-gray-300">${app.team_owner || '<span class="text-gray-600">-</span>'}</td>
+                <td class="p-4">
+                    <span class="px-2 py-0.5 rounded text-xs border ${criticalityColor} uppercase tracking-wider font-bold">
+                        ${app.criticality || 'Unknown'}
+                    </span>
+                </td>
+                <td class="p-4">
+                    <div class="flex flex-wrap gap-1">
+                        ${Object.keys(app.tech_stack || {}).slice(0, 3).map(k =>
+                    `<span class="px-1.5 py-0.5 bg-gray-800 rounded text-xs text-gray-400 border border-gray-600">${k}</span>`
+                ).join('')}
+                    </div>
+                </td>
+                <td class="p-4 text-gray-400 text-xs">
+                    ${new Date(app.updated_at).toLocaleDateString()}
+                </td>
+                <td class="p-4 text-right">
+                    <button onclick="window.location.href='/applications/${app.id}'" class="text-gray-400 hover:text-blue-400 mx-1" title="View Details">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <button onclick="deleteApp('${app.id}')" class="text-gray-400 hover:text-red-400 mx-1" title="Delete">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            `;
+                tbody.appendChild(row);
+            });
+
+            renderPagination(data.total, data.page, data.page_size);
+
+        } catch (e) {
+            console.error(e);
+            showToast('Error loading applications', 'error');
+        }
+    }
+
+    function renderPagination(total, page, size) {
+        const info = document.getElementById('paginationInfo');
+        const controls = document.getElementById('paginationControls');
+
+        const start = (page - 1) * size + 1;
+        const end = Math.min(page * size, total);
+        info.textContent = `Showing ${start} to ${end} of ${total}`;
+
+        const totalPages = Math.ceil(total / size);
+        controls.innerHTML = `
+        <button class="px-2 py-1 rounded bg-gray-700 text-gray-300 ${page === 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-600'}" 
+                onclick="changePage(${page - 1})" ${page === 1 ? 'disabled' : ''}>
+            <i class="fas fa-chevron-left"></i>
+        </button>
+        <span class="px-2 py-1 text-gray-400 text-sm">Page ${page} of ${totalPages}</span>
+        <button class="px-2 py-1 rounded bg-gray-700 text-gray-300 ${page === totalPages ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-600'}" 
+                onclick="changePage(${page + 1})" ${page === totalPages ? 'disabled' : ''}>
+            <i class="fas fa-chevron-right"></i>
+        </button>
+    `;
+    }
+
+    function changePage(p) {
+        if (p < 1) return;
+        currentPage = p;
+        loadApplications();
+    }
+
+    function openCreateModal() {
+        document.getElementById('createModal').classList.remove('hidden');
+        document.getElementById('createModal').classList.add('flex');
+    }
+
+    function closeCreateModal() {
+        document.getElementById('createModal').classList.add('hidden');
+        document.getElementById('createModal').classList.remove('flex');
+        // clear inputs
+        document.getElementById('appName').value = '';
+        document.getElementById('appDisplayName').value = '';
+        document.getElementById('appOwner').value = '';
+        document.getElementById('appDescription').value = '';
+    }
+
+    async function saveApplication() {
+        const data = {
+            name: document.getElementById('appName').value,
+            display_name: document.getElementById('appDisplayName').value || null,
+            owner: document.getElementById('appOwner').value || null,
+            description: document.getElementById('appDescription').value || null,
+            criticality: document.getElementById('appCriticality').value,
+            tech_stack: {}
+        };
+
+        if (!data.name) {
+            showToast('Application name is required', 'error');
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/applications', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.detail || 'Failed to create application');
+            }
+
+            showToast('Application registered successfully', 'success');
+            closeCreateModal();
+            loadApplications();
+
+        } catch (e) {
+            showToast(e.message, 'error');
+        }
+    }
+
+    async function deleteApp(id) {
+        if (!confirm('Are you sure you want to delete this application? This cannot be undone.')) return;
+
+        try {
+            const res = await fetch(`/api/applications/${id}`, { method: 'DELETE' });
+            if (!res.ok) throw new Error('Failed to delete');
+            showToast('Application deleted', 'success');
+            loadApplications();
+        } catch (e) {
+            showToast('Error deleting application', 'error');
+        }
+    }
+</script>
+{% endblock %}

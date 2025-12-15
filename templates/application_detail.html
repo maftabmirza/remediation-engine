@@ -1,0 +1,837 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex justify-between items-start">
+        <div class="flex items-center space-x-4">
+            <a href="/applications" class="text-gray-400 hover:text-white transition-colors">
+                <i class="fas fa-arrow-left text-xl"></i>
+            </a>
+            <div class="w-12 h-12 rounded-lg bg-gray-700 flex items-center justify-center text-gray-300 font-bold text-xl"
+                id="appIcon">
+                --
+            </div>
+            <div>
+                <h2 class="text-2xl font-bold text-white flex items-center gap-3">
+                    <span id="appDisplayName">Loading...</span>
+                    <!-- Criticality Badge -->
+                    <span id="appCriticalityBadge" class="text-xs px-2 py-0.5 rounded border hidden"></span>
+                </h2>
+                <div class="flex items-center space-x-4 text-sm text-gray-400 mt-1">
+                    <span class="font-mono" id="appName">...</span>
+                    <span>&bull;</span>
+                    <span id="appOwner">...</span>
+                </div>
+            </div>
+        </div>
+        <div class="flex space-x-2">
+            <button onclick="openComponentModal()"
+                class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors">
+                <i class="fas fa-cube"></i>
+                <span>Add Component</span>
+            </button>
+            <button onclick="openDependencyModal()"
+                class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors">
+                <i class="fas fa-link"></i>
+                <span>Add Dependency</span>
+            </button>
+            <button onclick="openEditAppModal()"
+                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors">
+                <i class="fas fa-edit"></i>
+                <span>Edit App</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Stats & Description -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="md:col-span-2 card p-6">
+            <h3 class="text-lg font-bold text-white mb-4">Topology Map</h3>
+            <div
+                class="bg-gray-900 rounded-lg p-4 h-[400px] border border-gray-700 flex items-center justify-center overflow-hidden relative">
+                <div id="topologyGraph" class="w-full h-full">Loading topology...</div>
+
+                <!-- Legend -->
+                <div
+                    class="absolute bottom-4 right-4 bg-gray-800/90 p-3 rounded border border-gray-700 text-xs text-gray-400 backdrop-blur-sm space-y-1">
+                    <div class="flex items-center"><span
+                            class="w-3 h-3 rounded-full bg-blue-500 mr-2"></span>Service/Compute</div>
+                    <div class="flex items-center"><span class="w-3 h-3 rounded-full bg-green-500 mr-2"></span>Database
+                    </div>
+                    <div class="flex items-center"><span
+                            class="w-3 h-3 rounded-full bg-purple-500 mr-2"></span>Queue/Cache</div>
+                    <div class="flex items-center"><span class="w-3 h-3 rounded-full bg-orange-500 mr-2"></span>Network
+                    </div>
+                    <div class="flex items-center"><span class="w-3 h-3 rounded-full bg-cyan-500 mr-2"></span>Cloud
+                    </div>
+                    <div class="flex items-center"><span class="w-3 h-3 rounded-full bg-gray-500 mr-2"></span>External
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="space-y-6">
+            <div class="card p-6">
+                <h3 class="text-xs uppercase text-gray-500 font-bold tracking-wider mb-4">Details</h3>
+                <div class="space-y-4">
+                    <div>
+                        <span class="text-gray-400 text-sm block">Description</span>
+                        <p class="text-gray-200 text-sm mt-1 leading-relaxed" id="appDesc">No description provided.</p>
+                    </div>
+                    <div>
+                        <span class="text-gray-400 text-sm block">Tech Stack</span>
+                        <div class="flex flex-wrap gap-2 mt-2" id="appStack">
+                            <!-- Tags -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card p-6">
+                <h3 class="text-xs uppercase text-gray-500 font-bold tracking-wider mb-4">Components</h3>
+                <div class="space-y-2 max-h-[200px] overflow-y-auto" id="componentList">
+                    <!-- List -->
+                </div>
+            </div>
+
+            <div class="card p-6">
+                <h3 class="text-xs uppercase text-gray-500 font-bold tracking-wider mb-4">Dependencies</h3>
+                <div class="space-y-2 max-h-[200px] overflow-y-auto" id="dependencyList">
+                    <!-- List -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Component Modal -->
+<div id="componentModal" class="fixed inset-0 bg-black bg-opacity-60 hidden items-center justify-center z-50">
+    <div class="card p-0 w-full max-w-lg m-4">
+        <div class="p-4 border-b border-gray-700 flex justify-between items-center bg-gray-800/50">
+            <h3 id="componentModalTitle" class="text-lg font-bold text-white">Add Component</h3>
+            <button onclick="closeComponentModal()" class="text-gray-400 hover:text-white"><i
+                    class="fas fa-times"></i></button>
+        </div>
+        <div class="p-6 space-y-4">
+            <div>
+                <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Name</label>
+                <input type="text" id="compName" class="w-full input-dark" placeholder="e.g. api-server">
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Type</label>
+                <select id="compType" class="w-full input-dark" onchange="updateSubtypeOptions()">
+                    <optgroup label="Compute">
+                        <option value="compute">Service/Application</option>
+                        <option value="container">Container</option>
+                        <option value="vm">Virtual Machine</option>
+                    </optgroup>
+                    <optgroup label="Data">
+                        <option value="database">Database</option>
+                        <option value="cache">Cache</option>
+                        <option value="queue">Message Queue</option>
+                        <option value="storage">Storage</option>
+                    </optgroup>
+                    <optgroup label="Network">
+                        <option value="load_balancer">Load Balancer</option>
+                        <option value="firewall">Firewall</option>
+                        <option value="switch">Network Switch</option>
+                        <option value="router">Router</option>
+                    </optgroup>
+                    <optgroup label="Cloud">
+                        <option value="cloud_function">Serverless Function</option>
+                        <option value="cloud_storage">Cloud Storage</option>
+                        <option value="cloud_db">Managed Database</option>
+                    </optgroup>
+                    <optgroup label="Other">
+                        <option value="external">External API</option>
+                        <option value="monitoring">Monitoring Tool</option>
+                    </optgroup>
+                </select>
+            </div>
+            <div id="subtypeContainer" style="display:none;">
+                <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Subtype</label>
+                <select id="compSubtype" class="w-full input-dark">
+                    <option value="">-- Select Subtype --</option>
+                </select>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Hostname</label>
+                    <input type="text" id="compHostname" class="w-full input-dark" placeholder="e.g. db-prod-01">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">IP Address</label>
+                    <input type="text" id="compIP" class="w-full input-dark" placeholder="e.g. 10.0.1.45">
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Criticality</label>
+                <select id="compCriticality" class="w-full input-dark">
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                    <option value="critical">Critical</option>
+                </select>
+            </div>
+        </div>
+        <div class="p-4 border-t border-gray-700 bg-gray-800/50 flex justify-end space-x-3">
+            <button onclick="closeComponentModal()"
+                class="px-4 py-2 rounded text-gray-300 hover:text-white hover:bg-gray-700">Cancel</button>
+            <button id="saveComponentBtn" onclick="saveComponent()"
+                class="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white font-medium">Add Component</button>
+        </div>
+    </div>
+</div>
+
+<!-- Add Dependency Modal -->
+<div id="dependencyModal" class="fixed inset-0 bg-black bg-opacity-60 hidden items-center justify-center z-50">
+    <div class="card p-0 w-full max-w-lg m-4">
+        <div class="p-4 border-b border-gray-700 flex justify-between items-center bg-gray-800/50">
+            <h3 id="dependencyModalTitle" class="text-lg font-bold text-white">Add Dependency</h3>
+            <button onclick="closeDependencyModal()" class="text-gray-400 hover:text-white"><i
+                    class="fas fa-times"></i></button>
+        </div>
+        <div class="p-6 space-y-4">
+            <div class="bg-blue-900/20 border border-blue-700/50 rounded p-3 text-sm text-blue-300">
+                <i class="fas fa-info-circle mr-2"></i>
+                Define which component depends on another (e.g., "API depends on Database")
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">From Component (Depends
+                    On)</label>
+                <select id="depFromComponent" class="w-full input-dark">
+                    <option value="">-- Select Component --</option>
+                </select>
+                <p class="text-xs text-gray-500 mt-1">The component that has the dependency</p>
+            </div>
+            <div class="flex items-center justify-center text-gray-500">
+                <i class="fas fa-arrow-down text-2xl"></i>
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">To Component
+                    (Dependency)</label>
+                <select id="depToComponent" class="w-full input-dark">
+                    <option value="">-- Select Component --</option>
+                </select>
+                <p class="text-xs text-gray-500 mt-1">The component being depended upon</p>
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Dependency Type</label>
+                <select id="depType" class="w-full input-dark">
+                    <option value="sync">Synchronous (Solid Arrow)</option>
+                    <option value="async">Asynchronous (Dashed Arrow)</option>
+                    <option value="optional">Optional</option>
+                </select>
+            </div>
+        </div>
+        <div class="p-4 border-t border-gray-700 bg-gray-800/50 flex justify-end space-x-3">
+            <button onclick="closeDependencyModal()"
+                class="px-4 py-2 rounded text-gray-300 hover:text-white hover:bg-gray-700">Cancel</button>
+            <button id="saveDependencyBtn" onclick="saveDependency()"
+                class="px-4 py-2 rounded bg-purple-600 hover:bg-purple-700 text-white font-medium">Create
+                Dependency</button>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Application Modal -->
+<div id="editAppModal" class="fixed inset-0 bg-black bg-opacity-60 hidden items-center justify-center z-50">
+    <div class="card p-0 w-full max-w-lg m-4">
+        <div class="p-4 border-b border-gray-700 flex justify-between items-center bg-gray-800/50">
+            <h3 class="text-lg font-bold text-white">Edit Application</h3>
+            <button onclick="closeEditAppModal()" class="text-gray-400 hover:text-white">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="p-6 space-y-4">
+            <div>
+                <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Application Name (Slug)</label>
+                <input type="text" id="editAppName" class="w-full input-dark font-mono text-sm bg-gray-800" readonly>
+                <p class="text-xs text-gray-500 mt-1">Name cannot be changed</p>
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Display Name</label>
+                <input type="text" id="editAppDisplayName" class="w-full input-dark"
+                    placeholder="e.g. Payment Processing Service">
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Criticality</label>
+                    <select id="editAppCriticality" class="w-full input-dark">
+                        <option value="critical">Critical</option>
+                        <option value="high">High</option>
+                        <option value="medium">Medium</option>
+                        <option value="low">Low</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Team Owner</label>
+                    <input type="text" id="editAppOwner" class="w-full input-dark" placeholder="e.g. Platform Team">
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Description</label>
+                <textarea id="editAppDescription" class="w-full input-dark h-24 resize-none"
+                    placeholder="Brief description of the application..."></textarea>
+            </div>
+        </div>
+        <div class="p-4 border-t border-gray-700 bg-gray-800/50 flex justify-end space-x-3">
+            <button onclick="closeEditAppModal()"
+                class="px-4 py-2 rounded text-gray-300 hover:text-white hover:bg-gray-700">Cancel</button>
+            <button onclick="saveAppChanges()"
+                class="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white font-medium">Save Changes</button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+
+    mermaid.initialize({
+        startOnLoad: false,
+        theme: 'dark',
+        securityLevel: 'loose',
+        flowchart: { curve: 'basis' }
+    });
+
+    window.renderGraph = async function (graphData) {
+        const element = document.getElementById('topologyGraph');
+        if (!graphData.nodes.length) {
+            element.innerHTML = '<div class="text-gray-500 flex flex-col items-center"><i class="fas fa-project-diagram text-4xl mb-2"></i><span>No components defined</span></div>';
+            return;
+        }
+
+        // Icon mapping for component types
+        const iconMap = {
+            compute: 'fa:fa-server',
+            container: 'fa:fa-box',
+            vm: 'fa:fa-desktop',
+            database: 'fa:fa-database',
+            cache: 'fa:fa-bolt',
+            queue: 'fa:fa-exchange-alt',
+            storage: 'fa:fa-hdd',
+            load_balancer: 'fa:fa-balance-scale',
+            firewall: 'fa:fa-shield-alt',
+            switch: 'fa:fa-network-wired',
+            router: 'fa:fa-route',
+            cloud_function: 'fa:fa-cloud',
+            cloud_storage: 'fa:fa-cloud-upload-alt',
+            cloud_db: 'fa:fa-cloud',
+            external: 'fa:fa-globe',
+            monitoring: 'fa:fa-chart-line'
+        };
+
+        // Build Mermaid syntax
+        let mmd = 'graph TD\n';
+
+        // Nodes with icons
+        graphData.nodes.forEach(n => {
+            // Style based on type category
+            let style = '';
+            if (n.type === 'database' || n.type === 'cloud_db') style = ':::db';
+            else if (n.type === 'cache' || n.type === 'queue') style = ':::queue';
+            else if (n.type === 'firewall' || n.type === 'switch' || n.type === 'router' || n.type === 'load_balancer') style = ':::network';
+            else if (n.type === 'cloud_function' || n.type === 'cloud_storage' || n.type === 'cloud_db') style = ':::cloud';
+            else if (n.type === 'external') style = ':::ext';
+            else style = ':::svc';
+
+            // Get icon
+            const icon = iconMap[n.type] || 'fa:fa-cube';
+
+            // Sanitize ID
+            const nodeId = n.id.replace(/-/g, '_');
+
+            // Add node with icon - format: nodeId[icon label]
+            mmd += `    ${nodeId}["${icon} ${n.name}"]${style}\n`;
+
+            // Add click event
+            mmd += `    click ${nodeId} call onNodeClick("${n.id}")\n`;
+        });
+
+        // Edges
+        graphData.edges.forEach(e => {
+            const from = e.from.replace(/-/g, '_');
+            const to = e.to.replace(/-/g, '_');
+            const type = e.type === 'async' ? '-.->' : '-->';
+            mmd += `    ${from} ${type} ${to}\n`;
+        });
+
+        // Custom classes with updated colors
+        mmd += `
+    classDef svc fill:#3b82f6,stroke:#2563eb,color:white,stroke-width:2px;
+    classDef db fill:#10b981,stroke:#059669,color:white,stroke-width:2px;
+    classDef queue fill:#8b5cf6,stroke:#7c3aed,color:white,stroke-width:2px;
+    classDef network fill:#f59e0b,stroke:#d97706,color:white,stroke-width:2px;
+    classDef cloud fill:#06b6d4,stroke:#0891b2,color:white,stroke-width:2px;
+    classDef ext fill:#6b7280,stroke:#4b5563,color:white,stroke-dasharray: 5 5;
+    `;
+
+        try {
+            const { svg } = await mermaid.render('graphDiv', mmd);
+            element.innerHTML = svg;
+        } catch (e) {
+            console.error('Mermaid render error:', e);
+            element.innerHTML = '<div class="text-red-400 text-sm">Error rendering topology</div>';
+        }
+    };
+</script>
+
+<script>
+    const appId = "{{ app_id }}";
+    let allComponents = []; // Global storage for dependency modal
+    let editingComponentId = null; // Track component being edited
+    let editingDependencyId = null; // Track dependency being edited
+
+    // Subtype mappings
+    const subtypes = {
+        database: ['postgresql', 'mysql', 'mongodb', 'oracle', 'mssql', 'mariadb'],
+        cache: ['redis', 'memcached', 'hazelcast'],
+        queue: ['kafka', 'rabbitmq', 'sqs', 'pubsub', 'activemq'],
+        firewall: ['cisco-asa', 'palo-alto', 'fortinet', 'aws-sg', 'checkpoint'],
+        load_balancer: ['nginx', 'haproxy', 'aws-elb', 'azure-lb', 'f5'],
+        cloud_function: ['aws-lambda', 'azure-functions', 'gcp-cloud-functions'],
+        cloud_storage: ['s3', 'azure-blob', 'gcs'],
+        cloud_db: ['rds', 'azure-sql', 'cloud-sql', 'dynamodb', 'cosmos-db']
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+        loadAppDetails();
+    });
+
+    async function loadAppDetails() {
+        try {
+            // Load App Data
+            const res = await fetch(`/api/applications/${appId}`);
+            if (!res.ok) throw new Error('Failed to load app');
+            const app = await res.json();
+
+            // Render Header
+            document.getElementById('appName').textContent = app.name;
+            document.getElementById('appIcon').textContent = app.name.substring(0, 2).toUpperCase();
+            document.getElementById('appDisplayName').textContent = app.display_name || app.name;
+            document.getElementById('appOwner').textContent = app.team_owner || 'No Owner';
+            document.getElementById('appDesc').textContent = app.description || 'No description provided.';
+
+            // Criticality Badge
+            const badge = document.getElementById('appCriticalityBadge');
+            badge.textContent = app.criticality;
+            badge.classList.remove('hidden');
+            badge.className = `text-xs px-2 py-0.5 rounded border uppercase tracking-wider font-bold ml-3 
+            ${app.criticality === 'critical' ? 'text-red-400 border-red-500/50 bg-red-900/20' :
+                    app.criticality === 'high' ? 'text-orange-400 border-orange-500/50 bg-orange-900/20' : 'text-blue-400 border-blue-500/50 bg-blue-900/20'}`;
+
+            // Tech Stack
+            const stackContainer = document.getElementById('appStack');
+            stackContainer.innerHTML = Object.keys(app.tech_stack || {}).map(k =>
+                `<span class="px-2 py-1 bg-gray-800 rounded text-xs text-gray-300 border border-gray-600">${k}</span>`
+            ).join('') || '<span class="text-xs text-gray-500">None defined</span>';
+
+            // Store components globally
+            allComponents = app.components;
+
+            // Store app data for edit modal
+            currentAppData = app;
+
+            // Components List
+            const list = document.getElementById('componentList');
+            list.innerHTML = '';
+            if (app.components.length === 0) list.innerHTML = '<div class="text-center text-gray-500 text-sm py-4">No components</div>';
+
+            app.components.forEach(c => {
+                const row = document.createElement('div');
+                row.className = 'flex items-center justify-between p-2 bg-gray-800/50 rounded hover:bg-gray-700/50';
+                const details = [];
+                if (c.subtype) details.push(c.subtype);
+                if (c.hostname) details.push(c.hostname);
+                if (c.ip_address) details.push(c.ip_address);
+
+                row.innerHTML = `
+                <div class="flex items-center space-x-3 flex-1">
+                    <div class="w-2 h-2 rounded-full ${c.criticality === 'critical' ? 'bg-red-500' : c.criticality === 'high' ? 'bg-orange-500' : 'bg-blue-500'}"></div>
+                    <div class="flex-1 min-w-0">
+                        <div class="text-sm font-medium text-white">${c.name}</div>
+                        <div class="text-[10px] text-gray-400 space-x-1">
+                            <span class="uppercase">${c.component_type || 'generic'}</span>
+                            ${details.length > 0 ? `<span class="text-gray-500">•</span> <span class="truncate">${details.join(' • ')}</span>` : ''}
+                        </div>
+                    </div>
+                </div>
+                <button onclick="openEditComponentModal('${c.id}')" class="text-gray-500 hover:text-blue-400 px-2" title="Edit component">
+                    <i class="fas fa-edit text-xs"></i>
+                </button>
+            `;
+                list.appendChild(row);
+            });
+
+            // Load dependencies
+            loadDependencies();
+
+            // Load Topology
+            loadTopology();
+
+        } catch (e) {
+            showToast('Error loading details', 'error');
+            console.error(e);
+        }
+    }
+
+    async function loadTopology() {
+        try {
+            const res = await fetch(`/api/applications/${appId}/dependency-graph`);
+            if (!res.ok) throw new Error('Failed to load topology');
+            const graph = await res.json();
+
+            // Using exposed renderGraph from module script
+            if (window.renderGraph) window.renderGraph(graph);
+
+        } catch (e) {
+            document.getElementById('topologyGraph').innerHTML = '<div class="text-red-400 text-sm p-4">Failed to load topology</div>';
+        }
+    }
+
+    function updateSubtypeOptions() {
+        const type = document.getElementById('compType').value;
+        const subtypeContainer = document.getElementById('subtypeContainer');
+        const subtypeSelect = document.getElementById('compSubtype');
+
+        if (subtypes[type]) {
+            subtypeSelect.innerHTML = '<option value="">-- Select Subtype --</option>';
+            subtypes[type].forEach(st => {
+                subtypeSelect.innerHTML += `<option value="${st}">${st.toUpperCase()}</option>`;
+            });
+            subtypeContainer.style.display = 'block';
+        } else {
+            subtypeContainer.style.display = 'none';
+        }
+    }
+
+    function openComponentModal() {
+        editingComponentId = null;
+        document.getElementById('componentModalTitle').textContent = 'Add Component';
+        document.getElementById('saveComponentBtn').textContent = 'Add Component';
+        document.getElementById('componentModal').classList.remove('hidden');
+        document.getElementById('componentModal').classList.add('flex');
+        updateSubtypeOptions(); // Initialize on open
+    }
+
+    function openEditComponentModal(componentId) {
+        const component = allComponents.find(c => c.id === componentId);
+        if (!component) return;
+
+        editingComponentId = componentId;
+        document.getElementById('componentModalTitle').textContent = 'Edit Component';
+        document.getElementById('saveComponentBtn').textContent = 'Update Component';
+
+        // Populate form
+        document.getElementById('compName').value = component.name || '';
+        document.getElementById('compType').value = component.component_type || 'compute';
+        document.getElementById('compHostname').value = component.hostname || '';
+        document.getElementById('compIP').value = component.ip_address || '';
+        document.getElementById('compCriticality').value = component.criticality || 'high';
+
+        // Update subtypes then set value
+        updateSubtypeOptions();
+        if (component.subtype) {
+            document.getElementById('compSubtype').value = component.subtype;
+        }
+
+        document.getElementById('componentModal').classList.remove('hidden');
+        document.getElementById('componentModal').classList.add('flex');
+    }
+    function closeComponentModal() {
+        document.getElementById('componentModal').classList.add('hidden');
+        document.getElementById('componentModal').classList.remove('flex');
+        editingComponentId = null;
+        // Reset form
+        document.getElementById('compName').value = '';
+        document.getElementById('compHostname').value = '';
+        document.getElementById('compIP').value = '';
+        document.getElementById('compSubtype').value = '';
+        document.getElementById('componentModalTitle').textContent = 'Add Component';
+        document.getElementById('saveComponentBtn').textContent = 'Add Component';
+    }
+
+    async function saveComponent() {
+        const data = {
+            name: document.getElementById('compName').value,
+            component_type: document.getElementById('compType').value,
+            subtype: document.getElementById('compSubtype').value || null,
+            hostname: document.getElementById('compHostname').value || null,
+            ip_address: document.getElementById('compIP').value || null,
+            criticality: document.getElementById('compCriticality').value
+        };
+
+        if (!data.name) return showToast('Name required', 'error');
+
+        try {
+            let res;
+            if (editingComponentId) {
+                // Update existing component
+                res = await fetch(`/api/applications/${appId}/components/${editingComponentId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+            } else {
+                // Create new component
+                res = await fetch(`/api/applications/${appId}/components`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+            }
+
+            if (!res.ok) throw new Error('Failed');
+            showToast(editingComponentId ? 'Component updated' : 'Component added', 'success');
+            closeComponentModal();
+            loadAppDetails(); // Reloads list and graph
+        } catch (e) {
+            showToast('Error saving component', 'error');
+        }
+    }
+
+    // Dependency Management
+    function openDependencyModal() {
+        if (allComponents.length < 2) {
+            showToast('Add at least 2 components first', 'error');
+            return;
+        }
+
+        editingDependencyId = null;
+        document.getElementById('dependencyModalTitle').textContent = 'Add Dependency';
+        document.getElementById('saveDependencyBtn').textContent = 'Create Dependency';
+
+        // Populate dropdowns
+        const fromSelect = document.getElementById('depFromComponent');
+        const toSelect = document.getElementById('depToComponent');
+
+        fromSelect.innerHTML = '<option value="">-- Select Component --</option>';
+        toSelect.innerHTML = '<option value="">-- Select Component --</option>';
+
+        allComponents.forEach(c => {
+            fromSelect.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+            toSelect.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+        });
+
+        // Reset type
+        document.getElementById('depType').value = 'sync';
+
+        document.getElementById('dependencyModal').classList.remove('hidden');
+        document.getElementById('dependencyModal').classList.add('flex');
+    }
+
+    function openEditDependencyModal(edge) {
+        editingDependencyId = edge.id;
+        document.getElementById('dependencyModalTitle').textContent = 'Edit Dependency';
+        document.getElementById('saveDependencyBtn').textContent = 'Update Dependency';
+
+        // Populate dropdowns first
+        const fromSelect = document.getElementById('depFromComponent');
+        const toSelect = document.getElementById('depToComponent');
+
+        fromSelect.innerHTML = '<option value="">-- Select Component --</option>';
+        toSelect.innerHTML = '<option value="">-- Select Component --</option>';
+
+        allComponents.forEach(c => {
+            fromSelect.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+            toSelect.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+        });
+
+        // Set values
+        fromSelect.value = edge.from;
+        toSelect.value = edge.to;
+        document.getElementById('depType').value = edge.type || 'sync';
+
+        document.getElementById('dependencyModal').classList.remove('hidden');
+        document.getElementById('dependencyModal').classList.add('flex');
+    }
+
+    function closeDependencyModal() {
+        document.getElementById('dependencyModal').classList.add('hidden');
+        document.getElementById('dependencyModal').classList.remove('flex');
+        editingDependencyId = null;
+        document.getElementById('dependencyModalTitle').textContent = 'Add Dependency';
+        document.getElementById('saveDependencyBtn').textContent = 'Create Dependency';
+    }
+
+    async function saveDependency() {
+        const fromId = document.getElementById('depFromComponent').value;
+        const toId = document.getElementById('depToComponent').value;
+        const depType = document.getElementById('depType').value;
+
+        if (!fromId || !toId) {
+            showToast('Select both components', 'error');
+            return;
+        }
+
+        if (fromId === toId) {
+            showToast('Components must be different', 'error');
+            return;
+        }
+
+        const data = {
+            from_component_id: fromId,
+            to_component_id: toId,
+            dependency_type: depType
+        };
+
+        try {
+            let res;
+            if (editingDependencyId) {
+                // Update existing dependency
+                res = await fetch(`/api/applications/${appId}/dependencies/${editingDependencyId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+            } else {
+                // Create new dependency
+                res = await fetch(`/api/applications/${appId}/dependencies`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+            }
+
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.detail || 'Failed to save dependency');
+            }
+
+            showToast(editingDependencyId ? 'Dependency updated' : 'Dependency created', 'success');
+            closeDependencyModal();
+            loadDependencies();
+            loadTopology(); // Refresh graph
+        } catch (e) {
+            showToast(e.message, 'error');
+        }
+    }
+
+    async function deleteDependency(depId) {
+        if (!confirm('Delete this dependency?')) return;
+
+        try {
+            const res = await fetch(`/api/applications/${appId}/dependencies/${depId}`, {
+                method: 'DELETE'
+            });
+
+            if (!res.ok) throw new Error('Failed to delete');
+
+            showToast('Dependency deleted', 'success');
+            loadDependencies();
+            loadTopology();
+        } catch (e) {
+            showToast('Error deleting dependency', 'error');
+        }
+    }
+
+    async function loadDependencies() {
+        try {
+            // Get all dependencies via graph
+            const res = await fetch(`/api/applications/${appId}/dependency-graph`);
+            if (!res.ok) return;
+
+            const graph = await res.json();
+            const depList = document.getElementById('dependencyList');
+            depList.innerHTML = '';
+
+            if (!graph.edges || graph.edges.length === 0) {
+                depList.innerHTML = '<div class="text-center text-gray-500 text-sm py-4">No dependencies</div>';
+                return;
+            }
+
+            graph.edges.forEach(edge => {
+                const fromComp = allComponents.find(c => c.id === edge.from);
+                const toComp = allComponents.find(c => c.id === edge.to);
+
+                if (!fromComp || !toComp) return;
+
+                const row = document.createElement('div');
+                row.className = 'p-2 bg-gray-800/50 rounded text-xs hover:bg-gray-700/50';
+                row.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-2 flex-1">
+                            <span class="text-blue-400">${fromComp.name}</span>
+                            <i class="fas fa-arrow-right text-gray-500"></i>
+                            <span class="text-green-400">${toComp.name}</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="text-gray-500 text-[10px] uppercase">${edge.type || 'sync'}</span>
+                            <button onclick='openEditDependencyModal(${JSON.stringify(edge)})' class="text-gray-500 hover:text-blue-400 px-1" title="Edit">
+                                <i class="fas fa-edit text-xs"></i>
+                            </button>
+                            <button onclick="deleteDependency('${edge.id}')" class="text-gray-500 hover:text-red-400 px-1" title="Delete">
+                                <i class="fas fa-trash text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                depList.appendChild(row);
+            });
+        } catch (e) {
+            console.error('Failed to load dependencies:', e);
+        }
+    }
+
+    // Edit Application Functions
+    let currentAppData = null;
+
+    function openEditAppModal() {
+        if (!currentAppData) {
+            showToast('App data not loaded yet', 'error');
+            return;
+        }
+
+        // Populate modal with current data
+        document.getElementById('editAppName').value = currentAppData.name || '';
+        document.getElementById('editAppDisplayName').value = currentAppData.display_name || '';
+        document.getElementById('editAppCriticality').value = currentAppData.criticality || 'medium';
+        document.getElementById('editAppOwner').value = currentAppData.team_owner || '';
+        document.getElementById('editAppDescription').value = currentAppData.description || '';
+
+        // Show modal
+        document.getElementById('editAppModal').classList.remove('hidden');
+        document.getElementById('editAppModal').classList.add('flex');
+    }
+
+    function closeEditAppModal() {
+        document.getElementById('editAppModal').classList.add('hidden');
+        document.getElementById('editAppModal').classList.remove('flex');
+    }
+
+    async function saveAppChanges() {
+        const data = {
+            display_name: document.getElementById('editAppDisplayName').value || null,
+            team_owner: document.getElementById('editAppOwner').value || null,
+            description: document.getElementById('editAppDescription').value || null,
+            criticality: document.getElementById('editAppCriticality').value
+        };
+
+        try {
+            const res = await fetch(`/api/applications/${appId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.detail || 'Failed to update application');
+            }
+
+            showToast('Application updated successfully', 'success');
+            closeEditAppModal();
+            loadAppDetails(); // Reload details
+        } catch (e) {
+            showToast(e.message, 'error');
+        }
+    }
+
+    window.onNodeClick = (id) => { console.log('Clicked node', id); showToast(`Selected component: ${id}`); };
+
+</script>
+{% endblock %}
