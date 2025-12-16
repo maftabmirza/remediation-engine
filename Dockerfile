@@ -31,5 +31,5 @@ USER appuser
 
 EXPOSE 8080
 
-# Run migrations and start app
-CMD python -m alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8080
+# Use entrypoint.sh for migrations and app startup
+ENTRYPOINT ["./entrypoint.sh"]
