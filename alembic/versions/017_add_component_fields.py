@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '017_add_component_fields'
-down_revision = '005_add_agent_mode'
+down_revision = '016_add_troubleshooting_tables'
 branch_labels = None
 depends_on = None
 
