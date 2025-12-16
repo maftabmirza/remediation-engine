@@ -5,6 +5,7 @@ from sqlalchemy import Column, String, Boolean, Integer, Text, ForeignKey, DateT
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from typing import TYPE_CHECKING
+from pgvector.sqlalchemy import Vector
 
 from app.database import Base
 if TYPE_CHECKING:
@@ -115,11 +116,26 @@ class Alert(Base):
     recommendations_json = Column(JSON, nullable=True)
     analysis_count = Column(Integer, default=0)
     created_at = Column(DateTime(timezone=True), default=utc_now)
+    
+    # Application/Component linking
+    app_id = Column(UUID(as_uuid=True), ForeignKey("applications.id", ondelete="SET NULL"), nullable=True, index=True)
+    component_id = Column(UUID(as_uuid=True), ForeignKey("application_components.id", ondelete="SET NULL"), nullable=True, index=True)
+    
+    # Vector embeddings for similarity search
+    embedding = Column(Vector(1536), nullable=True)
+    embedding_text = Column(Text, nullable=True)
+    
+    # Correlation/Troubleshooting
+    correlation_id = Column(UUID(as_uuid=True), ForeignKey("alert_correlations.id", ondelete="SET NULL"), nullable=True, index=True)
 
     # Relationships
     matched_rule = relationship("AutoAnalyzeRule", back_populates="matched_alerts")
     analyzed_by_user = relationship("User", back_populates="alerts_analyzed")
     llm_provider = relationship("LLMProvider")
+    application = relationship("Application", back_populates="alerts")
+    component = relationship("ApplicationComponent", back_populates="alerts")
+    feedback = relationship("AnalysisFeedback", back_populates="alert", cascade="all, delete-orphan")
+    correlation = relationship("AlertCorrelation", back_populates="alerts")
 
 
 class AuditLog(Base):

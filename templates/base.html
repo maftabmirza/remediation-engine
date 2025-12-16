@@ -1063,13 +1063,23 @@
         // API helper
         async function apiCall(url, options = {}) {
             const defaults = {
-                headers: {
-                    'Content-Type': 'application/json'
-                },
                 credentials: 'same-origin'
             };
 
-            const response = await fetch(url, { ...defaults, ...options });
+            // Only set Content-Type if not FormData
+            if (!options.isFormData) {
+                defaults.headers = {
+                    'Content-Type': 'application/json'
+                };
+            }
+
+            // Merge options
+            const finalOptions = { ...defaults, ...options };
+
+            // Remove isFormData flag before fetch
+            delete finalOptions.isFormData;
+
+            const response = await fetch(url, finalOptions);
 
             if (response.status === 401) {
                 window.location.href = '/login';

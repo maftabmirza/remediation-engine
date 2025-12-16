@@ -107,12 +107,15 @@ def parse_recommendations(analysis: str) -> List[str]:
     return recommendations[:5] if recommendations else ["Review the full analysis for detailed recommendations"]
 
 
-async def analyze_alert(
+async def generate_completion(
     db: Session,
-    alert: Alert,
-    provider: Optional[LLMProvider] = None
-) -> Tuple[str, List[str], LLMProvider]:
-    """Analyze an alert using the specified or default LLM provider."""
+    prompt: str,
+    provider: Optional[LLMProvider] = None,
+    json_mode: bool = False
+) -> Tuple[str, LLMProvider]:
+    """
+    Generate text completion using the specified or default LLM provider.
+    """
     if not provider:
         provider = db.query(LLMProvider).filter(
             LLMProvider.is_default == True,
@@ -128,11 +131,8 @@ async def analyze_alert(
         raise ValueError("No LLM provider configured or enabled")
     
     api_key = get_api_key_for_provider(provider)
-    # Note: Ollama might not need an API key, but this instance requires one
     if not api_key and provider.provider_type not in ["ollama"]:
         raise ValueError(f"No API key configured for provider: {provider.name}")
-    
-    prompt = build_analysis_prompt(alert)
     
     config = provider.config_json or {}
     temperature = config.get("temperature", 0.3)
@@ -142,9 +142,14 @@ async def analyze_alert(
         logger.info(f"Calling LLM provider: {provider.name} (type: {provider.provider_type})")
         start_time = time.time()
         
-        # Handle Ollama separately due to Bearer token requirement
+        analysis = ""
+        
+        # Handle Ollama separately
         if provider.provider_type == "ollama":
             messages = [{"role": "user", "content": prompt}]
+            
+            # TODO: Support JSON mode for Ollama if needed (using format='json')
+            
             analysis = await ollama_completion(
                 provider=provider,
                 messages=messages,
@@ -165,12 +170,9 @@ async def analyze_alert(
                 model=model_name
             ).observe(duration)
             
-            logger.info(f"Ollama response received from {provider.name} in {duration:.2f}s")
         else:
-            # Use LiteLLM for other providers
+            # Use LiteLLM
             model_name = provider.model_id
-            if provider.provider_type == "anthropic" and not model_name.startswith("anthropic/"):
-                pass 
             
             kwargs = {
                 "model": model_name,
@@ -178,6 +180,9 @@ async def analyze_alert(
                 "temperature": temperature,
                 "max_tokens": max_tokens,
             }
+
+            if json_mode:
+                 kwargs["response_format"] = { "type": "json_object" }
             
             if api_key:
                 kwargs["api_key"] = api_key
@@ -200,23 +205,7 @@ async def analyze_alert(
                     model=model_name
                 ).observe(duration)
                 
-                # Record token usage if available
-                if hasattr(response, 'usage') and response.usage:
-                    if response.usage.prompt_tokens:
-                        LLM_TOKENS.labels(
-                            provider=provider.provider_type,
-                            model=model_name,
-                            type="prompt"
-                        ).inc(response.usage.prompt_tokens)
-                    if response.usage.completion_tokens:
-                        LLM_TOKENS.labels(
-                            provider=provider.provider_type,
-                            model=model_name,
-                            type="completion"
-                        ).inc(response.usage.completion_tokens)
-                
                 analysis = response.choices[0].message.content
-                logger.info(f"LLM response received from {provider.name} in {duration:.2f}s")
                 
             except Exception as e:
                 duration = time.time() - start_time
@@ -230,13 +219,27 @@ async def analyze_alert(
                     model=model_name
                 ).observe(duration)
                 raise
+
+        return analysis, provider
         
     except Exception as e:
         raise RuntimeError(f"LLM API call failed: {str(e)}")
+
+
+async def analyze_alert(
+    db: Session,
+    alert: Alert,
+    provider: Optional[LLMProvider] = None
+) -> Tuple[str, List[str], LLMProvider]:
+    """Analyze an alert using the specified or default LLM provider."""
+    
+    prompt = build_analysis_prompt(alert)
+    
+    analysis, provider_used = await generate_completion(db, prompt, provider)
     
     recommendations = parse_recommendations(analysis)
     
-    return analysis, recommendations, provider
+    return analysis, recommendations, provider_used
 
 
 def get_available_providers(db: Session) -> List[LLMProvider]:

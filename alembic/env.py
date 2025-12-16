@@ -29,7 +29,7 @@ target_metadata = Base.metadata
 
 # Get database URL from app settings
 settings = get_settings()
-db_url = settings.database_url
+db_url = os.environ.get("DATABASE_URL") or settings.database_url
 config.set_main_option("sqlalchemy.url", db_url)
 
 

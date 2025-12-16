@@ -42,6 +42,17 @@
                 <span class="sidebar-text whitespace-nowrap hidden">Rules</span>
             </a>
 
+            <!-- Inventory Section -->
+            <div class="mt-4 mb-2 px-4 sidebar-text hidden">
+                <span class="text-xs text-gray-500 uppercase tracking-wider">Inventory</span>
+            </div>
+            <a href="/applications"
+                class="sidebar-item flex items-center space-x-3 px-4 py-3 rounded-lg {% if active_page == 'applications' %}active{% endif %}"
+                data-tooltip="Applications">
+                <i class="fas fa-sitemap w-5 flex-shrink-0 nav-icon text-indigo-400"></i>
+                <span class="sidebar-text whitespace-nowrap hidden">Applications</span>
+            </a>
+
             <!-- Auto-Remediation Section -->
             <div class="mt-4 mb-2 px-4 sidebar-text hidden">
                 <span class="text-xs text-gray-500 uppercase tracking-wider">Remediation</span>
@@ -63,6 +74,17 @@
                 data-tooltip="Schedules">
                 <i class="fas fa-calendar-alt w-5 flex-shrink-0 nav-icon text-orange-400"></i>
                 <span class="sidebar-text whitespace-nowrap hidden">Schedules</span>
+            </a>
+
+            <!-- Knowledge Base Section -->
+            <div class="mt-4 mb-2 px-4 sidebar-text hidden">
+                <span class="text-xs text-gray-500 uppercase tracking-wider">Knowledge</span>
+            </div>
+            <a href="/knowledge"
+                class="sidebar-item flex items-center space-x-3 px-4 py-3 rounded-lg {% if active_page == 'knowledge' %}active{% endif %}"
+                data-tooltip="Knowledge Base">
+                <i class="fas fa-book-open w-5 flex-shrink-0 nav-icon text-cyan-400"></i>
+                <span class="sidebar-text whitespace-nowrap hidden">Knowledge Base</span>
             </a>
 
             <a href="/settings"
@@ -239,6 +261,109 @@
         </div>
     </div>
 </div>
+
+<!-- Command Palette Modal -->
+<div id="commandPalette" class="fixed inset-0 bg-black bg-opacity-60 hidden items-center justify-center z-[100]"
+    onclick="if(event.target === this) toggleCommandPalette()">
+    <div class="bg-[#181b1f] border border-gray-700 rounded-lg shadow-2xl w-full max-w-2xl transform transition-all">
+        <!-- Search Input -->
+        <div class="p-4 border-b border-gray-700">
+            <div class="flex items-center space-x-3 text-gray-400">
+                <i class="fas fa-search text-xl"></i>
+                <input type="text" id="commandInput"
+                    class="bg-transparent border-none focus:ring-0 text-white text-lg w-full placeholder-gray-500"
+                    placeholder="Type a command or search..." oninput="filterCommands()">
+                <span class="text-xs border border-gray-600 rounded px-1.5 py-0.5">ESC</span>
+            </div>
+        </div>
+
+        <!-- Results -->
+        <div id="commandResults" class="max-h-[60vh] overflow-y-auto p-2">
+            <!-- Populated by JS -->
+        </div>
+
+        <!-- Footer -->
+        <div
+            class="p-2 border-t border-gray-800 bg-gray-900/50 rounded-b-lg flex justify-between px-4 text-xs text-gray-500">
+            <div>
+                <span class="mr-3">Select <strong class="text-gray-400">↵</strong></span>
+                <span>Navigate <strong class="text-gray-400">↑↓</strong></span>
+            </div>
+            <span>Antigravity AI</span>
+        </div>
+    </div>
+</div>
+
+<!-- Keyboard Shortcuts Modal -->
+<div id="shortcutsModal" class="fixed inset-0 bg-black bg-opacity-60 hidden items-center justify-center z-[100]"
+    onclick="if(event.target === this) toggleShortcutsModal()">
+    <div class="card p-0 w-full max-w-3xl m-8 overflow-hidden">
+        <div class="p-6 border-b border-gray-700 flex justify-between items-center bg-gray-800/30">
+            <h3 class="text-xl font-bold flex items-center">
+                <i class="fas fa-keyboard text-purple-400 mr-3"></i>
+                Keyboard Shortcuts
+            </h3>
+            <button onclick="toggleShortcutsModal()" class="text-gray-400 hover:text-white">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <div class="p-6 grid grid-cols-2 gap-8">
+            <div>
+                <h4 class="text-sm uppercase text-gray-500 font-semibold mb-4 tracking-wider">Global</h4>
+                <div class="space-y-3">
+                    <div class="flex justify-between items-center group">
+                        <span class="text-gray-300">Command Palette</span>
+                        <div class="flex space-x-1">
+                            <span
+                                class="kbd bg-gray-800 border border-gray-600 rounded px-2 py-1 text-xs text-gray-300">Ctrl</span>
+                            <span
+                                class="kbd bg-gray-800 border border-gray-600 rounded px-2 py-1 text-xs text-gray-300">K</span>
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center group">
+                        <span class="text-gray-300">Help / Shortcuts</span>
+                        <span
+                            class="kbd bg-gray-800 border border-gray-600 rounded px-2 py-1 text-xs text-gray-300">?</span>
+                    </div>
+                    <div class="flex justify-between items-center group">
+                        <span class="text-gray-300">Theme Settings</span>
+                        <div class="flex space-x-1">
+                            <span
+                                class="kbd bg-gray-800 border border-gray-600 rounded px-2 py-1 text-xs text-gray-300">Ctrl</span>
+                            <span
+                                class="kbd bg-gray-800 border border-gray-600 rounded px-2 py-1 text-xs text-gray-300">/</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <h4 class="text-sm uppercase text-gray-500 font-semibold mb-4 tracking-wider">Navigation</h4>
+                <div class="space-y-3">
+                    <div class="flex justify-between items-center group">
+                        <span class="text-gray-300">Go to Dashboard</span>
+                        <div class="flex space-x-1">
+                            <span
+                                class="kbd bg-gray-800 border border-gray-600 rounded px-2 py-1 text-xs text-gray-300">G</span>
+                            <span
+                                class="kbd bg-gray-800 border border-gray-600 rounded px-2 py-1 text-xs text-gray-300">D</span>
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center group">
+                        <span class="text-gray-300">Go to Alerts</span>
+                        <div class="flex space-x-1">
+                            <span
+                                class="kbd bg-gray-800 border border-gray-600 rounded px-2 py-1 text-xs text-gray-300">G</span>
+                            <span
+                                class="kbd bg-gray-800 border border-gray-600 rounded px-2 py-1 text-xs text-gray-300">A</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -380,5 +505,146 @@
         window.location.href = '/login';
     }
 </script>
-{{ super() }}
-{% endblock %}
+// --- Command Palette Logic ---
+const commands = [
+{ id: 'dash', name: 'Go to Dashboard', icon: 'fa-tachometer-alt', action: () => window.location.href = '/' },
+{ id: 'alerts', name: 'Go to Alerts', icon: 'fa-bell', action: () => window.location.href = '/alerts' },
+{ id: 'ai', name: 'Go to AI Assistant', icon: 'fa-robot', action: () => window.location.href = '/ai' },
+{ id: 'rules', name: 'Go to Rules', icon: 'fa-cogs', action: () => window.location.href = '/rules' },
+{ id: 'runbooks', name: 'Go to Runbooks', icon: 'fa-book', action: () => window.location.href = '/runbooks' },
+{ id: 'kb', name: 'Go to Knowledge Base', icon: 'fa-book-open', action: () => window.location.href = '/knowledge' },
+{ id: 'settings', name: 'Go to Settings', icon: 'fa-sliders-h', action: () => window.location.href = '/settings' },
+{ id: 'theme', name: 'Change Theme', icon: 'fa-palette', action: () => { toggleCommandPalette(); showThemeModal(); } },
+{ id: 'logout', name: 'Log Out', icon: 'fa-sign-out-alt', action: () => logout(), class: 'text-red-400' }
+];
+
+let selectedCommandIndex = 0;
+
+document.addEventListener('keydown', (e) => {
+// Toggle Command Palette: Ctrl+K or Cmd+K
+if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+e.preventDefault();
+toggleCommandPalette();
+}
+
+// Shortcuts Modal: ? (Shift+/)
+// Check if not focused on input
+const activeTag = document.activeElement.tagName;
+if (e.key === '?' && activeTag !== 'INPUT' && activeTag !== 'TEXTAREA') {
+e.preventDefault();
+toggleShortcutsModal();
+}
+
+// Navigation handling when palette is open
+const palette = document.getElementById('commandPalette');
+if (!palette.classList.contains('hidden')) {
+if (e.key === 'ArrowDown') {
+e.preventDefault();
+navigatePalette(1);
+} else if (e.key === 'ArrowUp') {
+e.preventDefault();
+navigatePalette(-1);
+} else if (e.key === 'Enter') {
+e.preventDefault();
+executeSelectedCommand();
+} else if (e.key === 'Escape') {
+e.preventDefault();
+toggleCommandPalette();
+}
+}
+
+// Shortcuts: G then Key
+// Simple implementation for G-chord would require state, skipping for now to keep simple
+});
+
+function toggleCommandPalette() {
+const palette = document.getElementById('commandPalette');
+const input = document.getElementById('commandInput');
+
+if (palette.classList.contains('hidden')) {
+palette.classList.remove('hidden');
+palette.classList.add('flex');
+input.value = '';
+filterCommands();
+setTimeout(() => input.focus(), 50);
+} else {
+palette.classList.add('hidden');
+palette.classList.remove('flex');
+}
+}
+
+function toggleShortcutsModal() {
+const modal = document.getElementById('shortcutsModal');
+if (modal.classList.contains('hidden')) {
+modal.classList.remove('hidden');
+modal.classList.add('flex');
+} else {
+modal.classList.add('hidden');
+modal.classList.remove('flex');
+}
+}
+
+function filterCommands() {
+const input = document.getElementById('commandInput').value.toLowerCase();
+const resultsDiv = document.getElementById('commandResults');
+resultsDiv.innerHTML = '';
+
+const filtered = commands.filter(c => c.name.toLowerCase().includes(input));
+
+if (filtered.length === 0) {
+resultsDiv.innerHTML = '<div class="p-4 text-center text-gray-500">No matching commands</div>';
+return;
+}
+
+filtered.forEach((cmd, index) => {
+const el = document.createElement('div');
+el.className = `flex items-center p-3 rounded-lg cursor-pointer transition-colors ${index === 0 ? 'bg-blue-600/20 border
+border-blue-500/50' : 'hover:bg-gray-800'}`;
+el.dataset.index = index;
+el.onclick = () => { cmd.action(); toggleCommandPalette(); };
+
+const iconClass = cmd.class || 'text-gray-400';
+
+el.innerHTML = `
+<i class="fas ${cmd.icon} w-6 ${iconClass}"></i>
+<span class="${cmd.class || 'text-gray-200'}">${cmd.name}</span>
+${index === 0 ? '<i class="fas fa-check text-blue-400 ml-auto text-xs"></i>' : ''}
+`;
+resultsDiv.appendChild(el);
+});
+
+selectedCommandIndex = 0;
+}
+
+function navigatePalette(direction) {
+const resultsDiv = document.getElementById('commandResults');
+const items = resultsDiv.children;
+if (!items.length) return;
+
+// Remove style from current
+if (items[selectedCommandIndex]) {
+items[selectedCommandIndex].className = 'flex items-center p-3 rounded-lg cursor-pointer transition-colors
+hover:bg-gray-800';
+const check = items[selectedCommandIndex].querySelector('.fa-check');
+if (check) check.remove();
+}
+
+selectedCommandIndex += direction;
+
+if (selectedCommandIndex >= items.length) selectedCommandIndex = 0;
+if (selectedCommandIndex < 0) selectedCommandIndex=items.length - 1; // Add style to new const
+    newSelected=items[selectedCommandIndex];
+    newSelected.className='flex items-center p-3 rounded-lg cursor-pointer transition-colors bg-blue-600/20 border border-blue-500/50'
+    ; newSelected.innerHTML +='<i class="fas fa-check text-blue-400 ml-auto text-xs"></i>' ;
+    newSelected.scrollIntoView({ block: 'nearest' }); } function executeSelectedCommand() { const
+    input=document.getElementById('commandInput').value.toLowerCase(); const filtered=commands.filter(c=>
+    c.name.toLowerCase().includes(input));
+
+    if (filtered[selectedCommandIndex]) {
+    filtered[selectedCommandIndex].action();
+    toggleCommandPalette();
+    }
+    }
+    </script>
+    {{ super() }}
+    {% endblock %}

@@ -31,6 +31,9 @@ ROLE_PERMISSIONS = {
         "update",
         "read",
         "view_audit",
+        "view_knowledge",
+        "upload_documents",
+        "manage_knowledge",
     },
     "admin": {
         "manage_users",
@@ -41,6 +44,9 @@ ROLE_PERMISSIONS = {
         "update",
         "read",
         "view_audit",
+        "view_knowledge",
+        "upload_documents",
+        "manage_knowledge",
     },
     "maintainer": {
         "manage_servers",
@@ -49,17 +55,24 @@ ROLE_PERMISSIONS = {
         "update",
         "execute",
         "read",
+        "view_knowledge",
+        "upload_documents",
+        "manage_knowledge",
     },
     "operator": {
         "execute",
         "read",
+        "view_knowledge",
+        "upload_documents",
     },
     "viewer": {
         "read",
+        "view_knowledge",
     },
     "auditor": {
         "read",
         "view_audit",
+        "view_knowledge",
     },
 }
 

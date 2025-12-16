@@ -13,7 +13,16 @@ from app.models_chat import ChatSession, ChatMessage
 from app.services.auth_service import get_current_user
 from pydantic import BaseModel
 
+from app.services.similarity_service import SimilarityService
+from app.models_learning import AnalysisFeedback
+
 router = APIRouter(prefix="/api/chat", tags=["Chat"])
+
+class ContextStatusResponse(BaseModel):
+    has_similar_incidents: bool
+    similar_count: int
+    has_feedback_history: bool
+    has_correlation: bool
 
 class ChatSessionCreate(BaseModel):
     alert_id: Optional[UUID] = None
@@ -196,3 +205,40 @@ async def get_or_create_standalone_session(
         db.refresh(session)
 
     return session
+
+@router.get("/context-status/{alert_id}", response_model=ContextStatusResponse)
+async def get_context_status(
+    alert_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Check what context is available for the AI prompts.
+    """
+    alert = db.query(Alert).filter(Alert.id == alert_id).first()
+    if not alert:
+        raise HTTPException(status_code=404, detail="Alert not found")
+        
+    # Check similar incidents
+    similar_count = 0
+    try:
+        sim_service = SimilarityService(db)
+        sim_resp = sim_service.find_similar_alerts(alert.id, limit=3)
+        if sim_resp:
+            similar_count = sim_resp.total_found
+    except Exception:
+        pass
+        
+    # Check feedback history (mock check for now, or real if we query by alert text/signature)
+    # Ideally we'd checking for feedback on *similar* alerts, or just general feedback existence
+    has_feedback = db.query(AnalysisFeedback).count() > 0
+    
+    # Check correlation
+    has_correlation = alert.correlation_id is not None
+    
+    return ContextStatusResponse(
+        has_similar_incidents=similar_count > 0,
+        similar_count=similar_count,
+        has_feedback_history=has_feedback,
+        has_correlation=has_correlation
+    )
