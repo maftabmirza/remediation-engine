@@ -7,7 +7,6 @@ Create Date: 2025-12-13 14:01:00.000000
 """
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.exc import ProgrammingError
 
 # revision identifiers, used by Alembic.
 revision = '008_add_pgvector'
@@ -21,14 +20,14 @@ def upgrade() -> None:
     # Try to enable pgvector extension - skip if not available
     try:
         op.execute('CREATE EXTENSION IF NOT EXISTS vector')
-    except ProgrammingError:
-        print("Warning: pgvector extension not available. Vector search features will be disabled.")
-        pass
+    except Exception as e:
+        print(f"Warning: pgvector extension not available ({e}). Vector search features will be disabled.")
 
 
 def downgrade() -> None:
     """Remove pgvector extension if it exists."""
     try:
         op.execute('DROP EXTENSION IF EXISTS vector CASCADE')
-    except ProgrammingError:
+    except Exception:
         pass
+
