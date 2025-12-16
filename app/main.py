@@ -13,6 +13,10 @@ from sqlalchemy import text
 from app.config import get_settings
 from app.database import get_db, engine, Base
 from app.models import User, LLMProvider
+# Import models to register them with SQLAlchemy
+import app.models_application  # noqa: F401
+import app.models_knowledge  # noqa: F401
+import app.models_learning  # noqa: F401 - Phase 3: Learning System
 from app.services.auth_service import (
     get_current_user_optional,
     create_user,
@@ -37,7 +41,11 @@ from app.routers import (
     roles,
     scheduler,
     agent_api,
-    agent_ws
+    agent_ws,
+    applications,
+    knowledge,  # Phase 2: Knowledge Base
+    feedback,  # Phase 3: Learning System
+    troubleshooting  # Phase 4: Troubleshooting Engine
 )
 from app import api_credential_profiles
 from app.services.execution_worker import start_execution_worker, stop_execution_worker
@@ -201,6 +209,10 @@ app.include_router(roles.router)
 app.include_router(scheduler.router)
 app.include_router(agent_api.router)
 app.include_router(agent_ws.router)
+app.include_router(applications.router)  # Phase 1: Application Registry
+app.include_router(knowledge.router)      # Phase 2: Knowledge Base
+app.include_router(feedback.router, prefix="/api/v1", tags=["learning"])  # Phase 3: Learning System
+app.include_router(troubleshooting.router, prefix="/api/v1", tags=["troubleshooting"])  # Phase 4: Troubleshooting Engine
 
 
 @app.get("/profile", response_class=HTMLResponse)
@@ -462,6 +474,59 @@ async def executions_page(
         return RedirectResponse(url="/login", status_code=302)
     
     return templates.TemplateResponse("executions.html", {
+        "request": request,
+        "user": current_user
+    })
+
+
+@app.get("/applications", response_class=HTMLResponse)
+async def applications_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    Application Registry list page
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+    
+    return templates.TemplateResponse("applications.html", {
+        "request": request,
+        "user": current_user
+    })
+
+
+@app.get("/applications/{app_id}", response_class=HTMLResponse)
+async def application_detail_page(
+    request: Request,
+    app_id: str,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    Application detail and topology page
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+    
+    return templates.TemplateResponse("application_detail.html", {
+        "request": request,
+        "user": current_user,
+        "app_id": app_id
+    })
+
+
+@app.get("/knowledge", response_class=HTMLResponse)
+async def knowledge_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    Knowledge Base page - manage design documents and SOPs
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+    
+    return templates.TemplateResponse("knowledge.html", {
         "request": request,
         "user": current_user
     })
