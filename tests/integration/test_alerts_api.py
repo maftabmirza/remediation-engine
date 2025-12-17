@@ -102,7 +102,6 @@ class TestAlertDetails:
         assert response.status_code in [404, 401]
 
 
-@_event_loop_skip
 class TestAlertActions:
     """Test alert action endpoints."""
     
@@ -127,7 +126,6 @@ class TestAlertActions:
         assert response.status_code in [404, 401, 403]
 
 
-@_event_loop_skip
 class TestWebhookValidation:
     """Test webhook payload validation."""
     
@@ -164,7 +162,6 @@ class TestWebhookValidation:
         assert response.status_code in [400, 422, 405]
 
 
-@_event_loop_skip
 class TestAlertStatistics:
     """Test alert statistics endpoints."""
     
@@ -181,7 +178,6 @@ class TestAlertStatistics:
         assert response.status_code in [200, 401, 404]
 
 
-@_event_loop_skip
 class TestBatchOperations:
     """Test batch alert operations."""
     
@@ -209,7 +205,6 @@ class TestBatchOperations:
         assert response.status_code in [200, 401, 403, 404]
 
 
-@_event_loop_skip
 class TestAlertAnalysis:
     """Test alert analysis endpoints."""
     
@@ -237,7 +232,6 @@ class TestAlertAnalysis:
         assert response.status_code in [200, 401, 404]
 
 
-@_event_loop_skip
 class TestConcurrency:
     """Test concurrent alert handling."""
     
