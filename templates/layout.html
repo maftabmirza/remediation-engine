@@ -599,18 +599,17 @@
 
         filtered.forEach((cmd, index) => {
             const el = document.createElement('div');
-            el.className = `flex items-center p-3 rounded-lg cursor-pointer transition-colors ${index === 0 ? 'bg-blue-600/20 border
-border - blue - 500 / 50' : 'hover: bg - gray - 800'}`;
+            el.className = `flex items-center p-3 rounded-lg cursor-pointer transition-colors ${index === 0 ? 'bg-blue-600/20 border border-blue-500/50' : 'hover:bg-gray-800'}`;
             el.dataset.index = index;
             el.onclick = () => { cmd.action(); toggleCommandPalette(); };
 
             const iconClass = cmd.class || 'text-gray-400';
 
             el.innerHTML = `
-<i class="fas ${cmd.icon} w-6 ${iconClass}"></i>
-<span class="${cmd.class || 'text-gray-200'}">${cmd.name}</span>
-${index === 0 ? '<i class="fas fa-check text-blue-400 ml-auto text-xs"></i>' : ''}
-`;
+                <i class="fas ${cmd.icon} w-6 ${iconClass}"></i>
+                <span class="${cmd.class || 'text-gray-200'}">${cmd.name}</span>
+                ${index === 0 ? '<i class="fas fa-check text-blue-400 ml-auto text-xs"></i>' : ''}
+            `;
             resultsDiv.appendChild(el);
         });
 
@@ -624,8 +623,7 @@ ${index === 0 ? '<i class="fas fa-check text-blue-400 ml-auto text-xs"></i>' : '
 
         // Remove style from current
         if (items[selectedCommandIndex]) {
-            items[selectedCommandIndex].className = 'flex items-center p-3 rounded-lg cursor-pointer transition-colors
-            hover: bg - gray - 800';
+            items[selectedCommandIndex].className = 'flex items-center p-3 rounded-lg cursor-pointer transition-colors hover:bg-gray-800';
             const check = items[selectedCommandIndex].querySelector('.fa-check');
             if (check) check.remove();
         }
@@ -633,15 +631,18 @@ ${index === 0 ? '<i class="fas fa-check text-blue-400 ml-auto text-xs"></i>' : '
         selectedCommandIndex += direction;
 
         if (selectedCommandIndex >= items.length) selectedCommandIndex = 0;
-        if (selectedCommandIndex < 0) selectedCommandIndex = items.length - 1; // Add style to new const
-        newSelected = items[selectedCommandIndex];
-        newSelected.className = 'flex items-center p-3 rounded-lg cursor-pointer transition-colors bg-blue-600/20 border border-blue-500/50'
-            ; newSelected.innerHTML += '<i class="fas fa-check text-blue-400 ml-auto text-xs"></i>';
+        if (selectedCommandIndex < 0) selectedCommandIndex = items.length - 1;
+
+        // Add style to new
+        const newSelected = items[selectedCommandIndex];
+        newSelected.className = 'flex items-center p-3 rounded-lg cursor-pointer transition-colors bg-blue-600/20 border border-blue-500/50';
+        newSelected.innerHTML += '<i class="fas fa-check text-blue-400 ml-auto text-xs"></i>';
         newSelected.scrollIntoView({ block: 'nearest' });
-    } function executeSelectedCommand() {
-        const
-        input = document.getElementById('commandInput').value.toLowerCase(); const filtered = commands.filter(c =>
-            c.name.toLowerCase().includes(input));
+    }
+
+    function executeSelectedCommand() {
+        const input = document.getElementById('commandInput').value.toLowerCase();
+        const filtered = commands.filter(c => c.name.toLowerCase().includes(input));
 
         if (filtered[selectedCommandIndex]) {
             filtered[selectedCommandIndex].action();
