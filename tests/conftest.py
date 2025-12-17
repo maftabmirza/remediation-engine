@@ -5,16 +5,16 @@ import os
 import sys
 
 # ============================================================================
-# CRITICAL: Force set test database environment BEFORE importing app
-# Using direct assignment (not setdefault) to override any existing values
+# CRITICAL: Set test database environment BEFORE importing app
+# Using setdefault to respect values from docker-compose while providing defaults
 # ============================================================================
-os.environ["POSTGRES_HOST"] = os.environ.get("TEST_POSTGRES_HOST", "postgres")
-os.environ["POSTGRES_PORT"] = os.environ.get("TEST_POSTGRES_PORT", "5432")
-os.environ["POSTGRES_DB"] = os.environ.get("TEST_POSTGRES_DB", "aiops_test")
-os.environ["POSTGRES_USER"] = os.environ.get("TEST_POSTGRES_USER", "aiops")
-os.environ["POSTGRES_PASSWORD"] = os.environ.get("TEST_POSTGRES_PASSWORD", "aiops_secure_password")
-os.environ["JWT_SECRET"] = os.environ.get("JWT_SECRET", "test-jwt-secret-key")
-os.environ["ENCRYPTION_KEY"] = os.environ.get("ENCRYPTION_KEY", "test-encryption-key-32chars-ok!")
+os.environ.setdefault("POSTGRES_HOST", "postgres-test")
+os.environ.setdefault("POSTGRES_PORT", "5432")
+os.environ.setdefault("POSTGRES_DB", "aiops_test")
+os.environ.setdefault("POSTGRES_USER", "aiops")
+os.environ.setdefault("POSTGRES_PASSWORD", "aiops_secure_password")
+os.environ.setdefault("JWT_SECRET", "test-jwt-secret-key")
+os.environ.setdefault("ENCRYPTION_KEY", "test-encryption-key-32chars-ok!")
 
 # Add parent directory to path FIRST
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
