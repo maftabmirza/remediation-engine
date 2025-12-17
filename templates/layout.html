@@ -505,146 +505,149 @@
         window.location.href = '/login';
     }
 </script>
-// --- Command Palette Logic ---
-const commands = [
-{ id: 'dash', name: 'Go to Dashboard', icon: 'fa-tachometer-alt', action: () => window.location.href = '/' },
-{ id: 'alerts', name: 'Go to Alerts', icon: 'fa-bell', action: () => window.location.href = '/alerts' },
-{ id: 'ai', name: 'Go to AI Assistant', icon: 'fa-robot', action: () => window.location.href = '/ai' },
-{ id: 'rules', name: 'Go to Rules', icon: 'fa-cogs', action: () => window.location.href = '/rules' },
-{ id: 'runbooks', name: 'Go to Runbooks', icon: 'fa-book', action: () => window.location.href = '/runbooks' },
-{ id: 'kb', name: 'Go to Knowledge Base', icon: 'fa-book-open', action: () => window.location.href = '/knowledge' },
-{ id: 'settings', name: 'Go to Settings', icon: 'fa-sliders-h', action: () => window.location.href = '/settings' },
-{ id: 'theme', name: 'Change Theme', icon: 'fa-palette', action: () => { toggleCommandPalette(); showThemeModal(); } },
-{ id: 'logout', name: 'Log Out', icon: 'fa-sign-out-alt', action: () => logout(), class: 'text-red-400' }
-];
+<script>
+    // --- Command Palette Logic ---
+    const commands = [
+        { id: 'dash', name: 'Go to Dashboard', icon: 'fa-tachometer-alt', action: () => window.location.href = '/' },
+        { id: 'alerts', name: 'Go to Alerts', icon: 'fa-bell', action: () => window.location.href = '/alerts' },
+        { id: 'ai', name: 'Go to AI Assistant', icon: 'fa-robot', action: () => window.location.href = '/ai' },
+        { id: 'rules', name: 'Go to Rules', icon: 'fa-cogs', action: () => window.location.href = '/rules' },
+        { id: 'runbooks', name: 'Go to Runbooks', icon: 'fa-book', action: () => window.location.href = '/runbooks' },
+        { id: 'kb', name: 'Go to Knowledge Base', icon: 'fa-book-open', action: () => window.location.href = '/knowledge' },
+        { id: 'settings', name: 'Go to Settings', icon: 'fa-sliders-h', action: () => window.location.href = '/settings' },
+        { id: 'theme', name: 'Change Theme', icon: 'fa-palette', action: () => { toggleCommandPalette(); showThemeModal(); } },
+        { id: 'logout', name: 'Log Out', icon: 'fa-sign-out-alt', action: () => logout(), class: 'text-red-400' }
+    ];
 
-let selectedCommandIndex = 0;
+    let selectedCommandIndex = 0;
 
-document.addEventListener('keydown', (e) => {
-// Toggle Command Palette: Ctrl+K or Cmd+K
-if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-e.preventDefault();
-toggleCommandPalette();
-}
+    document.addEventListener('keydown', (e) => {
+        // Toggle Command Palette: Ctrl+K or Cmd+K
+        if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+            e.preventDefault();
+            toggleCommandPalette();
+        }
 
-// Shortcuts Modal: ? (Shift+/)
-// Check if not focused on input
-const activeTag = document.activeElement.tagName;
-if (e.key === '?' && activeTag !== 'INPUT' && activeTag !== 'TEXTAREA') {
-e.preventDefault();
-toggleShortcutsModal();
-}
+        // Shortcuts Modal: ? (Shift+/)
+        // Check if not focused on input
+        const activeTag = document.activeElement.tagName;
+        if (e.key === '?' && activeTag !== 'INPUT' && activeTag !== 'TEXTAREA') {
+            e.preventDefault();
+            toggleShortcutsModal();
+        }
 
-// Navigation handling when palette is open
-const palette = document.getElementById('commandPalette');
-if (!palette.classList.contains('hidden')) {
-if (e.key === 'ArrowDown') {
-e.preventDefault();
-navigatePalette(1);
-} else if (e.key === 'ArrowUp') {
-e.preventDefault();
-navigatePalette(-1);
-} else if (e.key === 'Enter') {
-e.preventDefault();
-executeSelectedCommand();
-} else if (e.key === 'Escape') {
-e.preventDefault();
-toggleCommandPalette();
-}
-}
+        // Navigation handling when palette is open
+        const palette = document.getElementById('commandPalette');
+        if (!palette.classList.contains('hidden')) {
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                navigatePalette(1);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                navigatePalette(-1);
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                executeSelectedCommand();
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                toggleCommandPalette();
+            }
+        }
 
-// Shortcuts: G then Key
-// Simple implementation for G-chord would require state, skipping for now to keep simple
-});
+        // Shortcuts: G then Key
+        // Simple implementation for G-chord would require state, skipping for now to keep simple
+    });
 
-function toggleCommandPalette() {
-const palette = document.getElementById('commandPalette');
-const input = document.getElementById('commandInput');
+    function toggleCommandPalette() {
+        const palette = document.getElementById('commandPalette');
+        const input = document.getElementById('commandInput');
 
-if (palette.classList.contains('hidden')) {
-palette.classList.remove('hidden');
-palette.classList.add('flex');
-input.value = '';
-filterCommands();
-setTimeout(() => input.focus(), 50);
-} else {
-palette.classList.add('hidden');
-palette.classList.remove('flex');
-}
-}
+        if (palette.classList.contains('hidden')) {
+            palette.classList.remove('hidden');
+            palette.classList.add('flex');
+            input.value = '';
+            filterCommands();
+            setTimeout(() => input.focus(), 50);
+        } else {
+            palette.classList.add('hidden');
+            palette.classList.remove('flex');
+        }
+    }
 
-function toggleShortcutsModal() {
-const modal = document.getElementById('shortcutsModal');
-if (modal.classList.contains('hidden')) {
-modal.classList.remove('hidden');
-modal.classList.add('flex');
-} else {
-modal.classList.add('hidden');
-modal.classList.remove('flex');
-}
-}
+    function toggleShortcutsModal() {
+        const modal = document.getElementById('shortcutsModal');
+        if (modal.classList.contains('hidden')) {
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        } else {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+    }
 
-function filterCommands() {
-const input = document.getElementById('commandInput').value.toLowerCase();
-const resultsDiv = document.getElementById('commandResults');
-resultsDiv.innerHTML = '';
+    function filterCommands() {
+        const input = document.getElementById('commandInput').value.toLowerCase();
+        const resultsDiv = document.getElementById('commandResults');
+        resultsDiv.innerHTML = '';
 
-const filtered = commands.filter(c => c.name.toLowerCase().includes(input));
+        const filtered = commands.filter(c => c.name.toLowerCase().includes(input));
 
-if (filtered.length === 0) {
-resultsDiv.innerHTML = '<div class="p-4 text-center text-gray-500">No matching commands</div>';
-return;
-}
+        if (filtered.length === 0) {
+            resultsDiv.innerHTML = '<div class="p-4 text-center text-gray-500">No matching commands</div>';
+            return;
+        }
 
-filtered.forEach((cmd, index) => {
-const el = document.createElement('div');
-el.className = `flex items-center p-3 rounded-lg cursor-pointer transition-colors ${index === 0 ? 'bg-blue-600/20 border
-border-blue-500/50' : 'hover:bg-gray-800'}`;
-el.dataset.index = index;
-el.onclick = () => { cmd.action(); toggleCommandPalette(); };
+        filtered.forEach((cmd, index) => {
+            const el = document.createElement('div');
+            el.className = `flex items-center p-3 rounded-lg cursor-pointer transition-colors ${index === 0 ? 'bg-blue-600/20 border
+border - blue - 500 / 50' : 'hover: bg - gray - 800'}`;
+            el.dataset.index = index;
+            el.onclick = () => { cmd.action(); toggleCommandPalette(); };
 
-const iconClass = cmd.class || 'text-gray-400';
+            const iconClass = cmd.class || 'text-gray-400';
 
-el.innerHTML = `
+            el.innerHTML = `
 <i class="fas ${cmd.icon} w-6 ${iconClass}"></i>
 <span class="${cmd.class || 'text-gray-200'}">${cmd.name}</span>
 ${index === 0 ? '<i class="fas fa-check text-blue-400 ml-auto text-xs"></i>' : ''}
 `;
-resultsDiv.appendChild(el);
-});
+            resultsDiv.appendChild(el);
+        });
 
-selectedCommandIndex = 0;
-}
-
-function navigatePalette(direction) {
-const resultsDiv = document.getElementById('commandResults');
-const items = resultsDiv.children;
-if (!items.length) return;
-
-// Remove style from current
-if (items[selectedCommandIndex]) {
-items[selectedCommandIndex].className = 'flex items-center p-3 rounded-lg cursor-pointer transition-colors
-hover:bg-gray-800';
-const check = items[selectedCommandIndex].querySelector('.fa-check');
-if (check) check.remove();
-}
-
-selectedCommandIndex += direction;
-
-if (selectedCommandIndex >= items.length) selectedCommandIndex = 0;
-if (selectedCommandIndex < 0) selectedCommandIndex=items.length - 1; // Add style to new const
-    newSelected=items[selectedCommandIndex];
-    newSelected.className='flex items-center p-3 rounded-lg cursor-pointer transition-colors bg-blue-600/20 border border-blue-500/50'
-    ; newSelected.innerHTML +='<i class="fas fa-check text-blue-400 ml-auto text-xs"></i>' ;
-    newSelected.scrollIntoView({ block: 'nearest' }); } function executeSelectedCommand() { const
-    input=document.getElementById('commandInput').value.toLowerCase(); const filtered=commands.filter(c=>
-    c.name.toLowerCase().includes(input));
-
-    if (filtered[selectedCommandIndex]) {
-    filtered[selectedCommandIndex].action();
-    toggleCommandPalette();
+        selectedCommandIndex = 0;
     }
+
+    function navigatePalette(direction) {
+        const resultsDiv = document.getElementById('commandResults');
+        const items = resultsDiv.children;
+        if (!items.length) return;
+
+        // Remove style from current
+        if (items[selectedCommandIndex]) {
+            items[selectedCommandIndex].className = 'flex items-center p-3 rounded-lg cursor-pointer transition-colors
+            hover: bg - gray - 800';
+            const check = items[selectedCommandIndex].querySelector('.fa-check');
+            if (check) check.remove();
+        }
+
+        selectedCommandIndex += direction;
+
+        if (selectedCommandIndex >= items.length) selectedCommandIndex = 0;
+        if (selectedCommandIndex < 0) selectedCommandIndex = items.length - 1; // Add style to new const
+        newSelected = items[selectedCommandIndex];
+        newSelected.className = 'flex items-center p-3 rounded-lg cursor-pointer transition-colors bg-blue-600/20 border border-blue-500/50'
+            ; newSelected.innerHTML += '<i class="fas fa-check text-blue-400 ml-auto text-xs"></i>';
+        newSelected.scrollIntoView({ block: 'nearest' });
+    } function executeSelectedCommand() {
+        const
+        input = document.getElementById('commandInput').value.toLowerCase(); const filtered = commands.filter(c =>
+            c.name.toLowerCase().includes(input));
+
+        if (filtered[selectedCommandIndex]) {
+            filtered[selectedCommandIndex].action();
+            toggleCommandPalette();
+        }
     }
-    </script>
-    {{ super() }}
-    {% endblock %}
+</script>
+{{ super() }}
+{% endblock %}
