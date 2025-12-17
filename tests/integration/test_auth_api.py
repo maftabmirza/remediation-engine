@@ -1,22 +1,19 @@
 """
 Integration tests for authentication API endpoints.
+
+Uses async httpx client to properly handle FastAPI async operations.
 """
 import pytest
 from datetime import datetime, timedelta
 
 
-# Skip this entire module - tests fail with "Event loop is closed" error
-# caused by FastAPI async background tasks in webhook tests running first.
-# This is a pytest-asyncio / FastAPI compatibility issue, not a code bug.
-pytestmark = pytest.mark.skip(reason="Event loop closed by async background tasks - needs FastAPI test isolation fix")
-
-
 class TestUserAuthentication:
     """Test user authentication endpoints."""
     
-    def test_login_with_valid_credentials(self, test_client):
+    @pytest.mark.asyncio
+    async def test_login_with_valid_credentials(self, async_client):
         """Test login with valid username and password."""
-        response = test_client.post(
+        response = await async_client.post(
             "/api/auth/login",
             json={
                 "username": "admin",
@@ -31,9 +28,10 @@ class TestUserAuthentication:
             data = response.json()
             assert "access_token" in data or "token" in data
     
-    def test_login_with_invalid_credentials(self, test_client):
+    @pytest.mark.asyncio
+    async def test_login_with_invalid_credentials(self, async_client):
         """Test login with invalid credentials."""
-        response = test_client.post(
+        response = await async_client.post(
             "/api/auth/login",
             json={
                 "username": "admin",
@@ -44,9 +42,10 @@ class TestUserAuthentication:
         # Should fail authentication
         assert response.status_code in [401, 404]
     
-    def test_login_missing_username(self, test_client):
+    @pytest.mark.asyncio
+    async def test_login_missing_username(self, async_client):
         """Test login with missing username."""
-        response = test_client.post(
+        response = await async_client.post(
             "/api/auth/login",
             json={
                 "password": "password"
@@ -56,9 +55,10 @@ class TestUserAuthentication:
         # Should reject request
         assert response.status_code in [400, 422]
     
-    def test_login_missing_password(self, test_client):
+    @pytest.mark.asyncio
+    async def test_login_missing_password(self, async_client):
         """Test login with missing password."""
-        response = test_client.post(
+        response = await async_client.post(
             "/api/auth/login",
             json={
                 "username": "admin"
@@ -68,9 +68,10 @@ class TestUserAuthentication:
         # Should reject request
         assert response.status_code in [400, 422]
     
-    def test_login_empty_credentials(self, test_client):
+    @pytest.mark.asyncio
+    async def test_login_empty_credentials(self, async_client):
         """Test login with empty credentials."""
-        response = test_client.post(
+        response = await async_client.post(
             "/api/auth/login",
             json={
                 "username": "",
@@ -85,16 +86,18 @@ class TestUserAuthentication:
 class TestTokenValidation:
     """Test JWT token validation."""
     
-    def test_access_protected_endpoint_without_token(self, test_client):
+    @pytest.mark.asyncio
+    async def test_access_protected_endpoint_without_token(self, async_client):
         """Test accessing protected endpoint without token."""
-        response = test_client.get("/api/alerts")
+        response = await async_client.get("/api/alerts")
         
         # May require authentication
         assert response.status_code in [200, 401, 403]
     
-    def test_access_protected_endpoint_with_invalid_token(self, test_client):
+    @pytest.mark.asyncio
+    async def test_access_protected_endpoint_with_invalid_token(self, async_client):
         """Test accessing protected endpoint with invalid token."""
-        response = test_client.get(
+        response = await async_client.get(
             "/api/alerts",
             headers={"Authorization": "Bearer invalid_token"}
         )
@@ -102,10 +105,11 @@ class TestTokenValidation:
         # Should reject invalid token
         assert response.status_code in [401, 403]
     
-    def test_access_protected_endpoint_with_expired_token(self, test_client):
+    @pytest.mark.asyncio
+    async def test_access_protected_endpoint_with_expired_token(self, async_client):
         """Test accessing protected endpoint with expired token."""
         # This would require creating an expired token
-        response = test_client.get(
+        response = await async_client.get(
             "/api/alerts",
             headers={"Authorization": "Bearer expired_token"}
         )
@@ -116,9 +120,10 @@ class TestTokenValidation:
 class TestUserRegistration:
     """Test user registration endpoints."""
     
-    def test_register_new_user(self, test_client):
+    @pytest.mark.asyncio
+    async def test_register_new_user(self, async_client):
         """Test registering a new user."""
-        response = test_client.post(
+        response = await async_client.post(
             "/api/auth/register",
             json={
                 "username": "newuser",
@@ -131,7 +136,8 @@ class TestUserRegistration:
         # Registration may be disabled or require admin
         assert response.status_code in [200, 201, 401, 403, 404]
     
-    def test_register_duplicate_username(self, test_client):
+    @pytest.mark.asyncio
+    async def test_register_duplicate_username(self, async_client):
         """Test registering with duplicate username."""
         user_data = {
             "username": "testuser",
@@ -140,17 +146,18 @@ class TestUserRegistration:
         }
         
         # First registration
-        test_client.post("/api/auth/register", json=user_data)
+        await async_client.post("/api/auth/register", json=user_data)
         
         # Second registration with same username
-        response = test_client.post("/api/auth/register", json=user_data)
+        response = await async_client.post("/api/auth/register", json=user_data)
         
         # Should reject duplicate
         assert response.status_code in [400, 409, 422, 404]
     
-    def test_register_invalid_email(self, test_client):
+    @pytest.mark.asyncio
+    async def test_register_invalid_email(self, async_client):
         """Test registering with invalid email."""
-        response = test_client.post(
+        response = await async_client.post(
             "/api/auth/register",
             json={
                 "username": "newuser",
@@ -162,9 +169,10 @@ class TestUserRegistration:
         # Should reject invalid email
         assert response.status_code in [400, 422, 404]
     
-    def test_register_weak_password(self, test_client):
+    @pytest.mark.asyncio
+    async def test_register_weak_password(self, async_client):
         """Test registering with weak password."""
-        response = test_client.post(
+        response = await async_client.post(
             "/api/auth/register",
             json={
                 "username": "newuser",
@@ -180,9 +188,10 @@ class TestUserRegistration:
 class TestPasswordManagement:
     """Test password management endpoints."""
     
-    def test_change_password(self, test_client):
+    @pytest.mark.asyncio
+    async def test_change_password(self, async_client):
         """Test changing user password."""
-        response = test_client.post(
+        response = await async_client.post(
             "/api/auth/change-password",
             json={
                 "old_password": "oldpass",
@@ -193,9 +202,10 @@ class TestPasswordManagement:
         # Requires authentication
         assert response.status_code in [200, 401, 403, 404]
     
-    def test_reset_password_request(self, test_client):
+    @pytest.mark.asyncio
+    async def test_reset_password_request(self, async_client):
         """Test requesting password reset."""
-        response = test_client.post(
+        response = await async_client.post(
             "/api/auth/reset-password",
             json={
                 "email": "user@example.com"
@@ -209,23 +219,26 @@ class TestPasswordManagement:
 class TestSessionManagement:
     """Test session management."""
     
-    def test_logout(self, test_client):
+    @pytest.mark.asyncio
+    async def test_logout(self, async_client):
         """Test user logout."""
-        response = test_client.post("/api/auth/logout")
+        response = await async_client.post("/api/auth/logout")
         
         # May require auth or just return success
         assert response.status_code in [200, 401, 404]
     
-    def test_refresh_token(self, test_client):
+    @pytest.mark.asyncio
+    async def test_refresh_token(self, async_client):
         """Test refreshing authentication token."""
-        response = test_client.post("/api/auth/refresh")
+        response = await async_client.post("/api/auth/refresh")
         
         # Requires valid refresh token
         assert response.status_code in [200, 401, 404]
     
-    def test_get_current_user(self, test_client):
+    @pytest.mark.asyncio
+    async def test_get_current_user(self, async_client):
         """Test getting current user info."""
-        response = test_client.get("/api/auth/me")
+        response = await async_client.get("/api/auth/me")
         
         # Requires authentication
         assert response.status_code in [200, 401]
@@ -234,18 +247,20 @@ class TestSessionManagement:
 class TestRoleBasedAccess:
     """Test role-based access control."""
     
-    def test_admin_only_endpoint_as_user(self, test_client):
+    @pytest.mark.asyncio
+    async def test_admin_only_endpoint_as_user(self, async_client):
         """Test accessing admin endpoint as regular user."""
         # This would require proper user setup and authentication
-        response = test_client.get("/api/users")
+        response = await async_client.get("/api/users")
         
         # Should require admin role
         assert response.status_code in [401, 403]
     
-    def test_admin_endpoint_as_admin(self, test_client):
+    @pytest.mark.asyncio
+    async def test_admin_endpoint_as_admin(self, async_client):
         """Test accessing admin endpoint as admin."""
         # This would require admin authentication
-        response = test_client.get("/api/users")
+        response = await async_client.get("/api/users")
         
         assert response.status_code in [200, 401, 403]
 
@@ -253,9 +268,10 @@ class TestRoleBasedAccess:
 class TestSecurityHeaders:
     """Test security headers in responses."""
     
-    def test_security_headers_present(self, test_client):
+    @pytest.mark.asyncio
+    async def test_security_headers_present(self, async_client):
         """Test that security headers are present in responses."""
-        response = test_client.get("/")
+        response = await async_client.get("/")
         
         # Check for common security headers
         # Note: FastAPI may not set all of these by default

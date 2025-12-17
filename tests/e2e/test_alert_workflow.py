@@ -2,25 +2,22 @@
 End-to-end tests for alert workflow.
 Tests the complete flow from alert ingestion to analysis.
 
-Note: These tests are skipped due to event loop closure from async background tasks.
+Uses async httpx client to properly handle FastAPI async background tasks.
 """
 import pytest
 from unittest.mock import patch, MagicMock
-
-
-# Skip this entire module - webhook tests trigger async background tasks that close the event loop
-pytestmark = pytest.mark.skip(reason="Event loop closed by async background tasks - needs test isolation fix")
 
 
 @pytest.mark.e2e
 class TestAlertWorkflow:
     """Test complete alert workflow from webhook to analysis."""
     
+    @pytest.mark.asyncio
     @patch('app.services.llm_service.acompletion')
-    def test_alert_ingestion_to_analysis(
+    async def test_alert_ingestion_to_analysis(
         self, 
         mock_llm,
-        test_client,
+        async_client,
         sample_alert_payload
     ):
         """
@@ -44,7 +41,7 @@ class TestAlertWorkflow:
         )
         
         # Step 1: Send alert via webhook
-        webhook_response = test_client.post(
+        webhook_response = await async_client.post(
             "/webhook/alerts",
             json=sample_alert_payload
         )
@@ -55,11 +52,12 @@ class TestAlertWorkflow:
         # Without proper auth setup, we can't test the rest of the flow
         # But this demonstrates the structure of an E2E test
     
+    @pytest.mark.asyncio
     @patch('app.services.llm_service.acompletion')
-    def test_manual_analysis_workflow(
+    async def test_manual_analysis_workflow(
         self,
         mock_llm,
-        test_client
+        async_client
     ):
         """
         Test manual analysis workflow:
@@ -75,7 +73,8 @@ class TestAlertWorkflow:
         # This would require full authentication and database setup
         pass
     
-    def test_alert_to_runbook_execution(self, test_client):
+    @pytest.mark.asyncio
+    async def test_alert_to_runbook_execution(self, async_client):
         """
         Test workflow from alert to runbook execution:
         1. Alert received
@@ -92,7 +91,8 @@ class TestAlertWorkflow:
 class TestUserWorkflow:
     """Test complete user workflows."""
     
-    def test_new_user_onboarding(self, test_client):
+    @pytest.mark.asyncio
+    async def test_new_user_onboarding(self, async_client):
         """
         Test new user onboarding:
         1. User registers
@@ -102,7 +102,8 @@ class TestUserWorkflow:
         """
         pass
     
-    def test_alert_triage_workflow(self, test_client):
+    @pytest.mark.asyncio
+    async def test_alert_triage_workflow(self, async_client):
         """
         Test alert triage workflow:
         1. User logs in

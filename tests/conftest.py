@@ -132,6 +132,34 @@ def test_client(test_db_session) -> Generator[TestClient, None, None]:
     app.dependency_overrides.clear()
 
 
+@pytest.fixture(scope="function")
+async def async_client(test_db_session) -> AsyncGenerator:
+    """Create an async HTTP client for testing FastAPI endpoints.
+    
+    This fixture uses httpx.AsyncClient with ASGITransport which properly
+    handles async context and prevents event loop closure issues that occur
+    with the synchronous TestClient when background tasks are used.
+    """
+    import httpx
+    from httpx import ASGITransport
+    
+    def override_get_db():
+        try:
+            yield test_db_session
+        finally:
+            pass
+    
+    app.dependency_overrides[get_db] = override_get_db
+    
+    async with httpx.AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test"
+    ) as client:
+        yield client
+    
+    app.dependency_overrides.clear()
+
+
 # ============================================================================
 # Authentication Fixtures
 # ============================================================================
