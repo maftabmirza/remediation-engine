@@ -43,6 +43,23 @@ except ImportError as e:
     engine = None
 
 
+import asyncio
+
+# ============================================================================
+# Asyncio Event Loop Fixture - Session scope to prevent loop closure between tests
+# ============================================================================
+
+@pytest.fixture(scope="session")
+def event_loop():
+    """Create a session-scoped event loop for async tests.
+    
+    This prevents the 'Event loop is closed' error that occurs when
+    FastAPI background tasks close the default function-scoped loop.
+    """
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    yield loop
+    loop.close()
 
 
 # ============================================================================
