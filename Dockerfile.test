@@ -16,9 +16,9 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Install test dependencies
+# Install test dependencies (--no-deps to avoid overriding app dependencies)
 COPY requirements-test.txt .
-RUN pip install --no-cache-dir -r requirements-test.txt
+RUN pip install --no-cache-dir --no-deps pytest pytest-asyncio pytest-cov pytest-mock pytest-xdist httpx faker freezegun
 
 # Copy application and test code
 COPY app/ ./app/
