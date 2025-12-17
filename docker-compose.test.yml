@@ -1,0 +1,47 @@
+# Docker Compose for running tests
+# Uses the same PostgreSQL as production but separate test database
+
+version: '3.8'
+
+services:
+  postgres-test:
+    image: pgvector/pgvector:pg16
+    container_name: aiops-postgres-test
+    environment:
+      POSTGRES_DB: aiops_test
+      POSTGRES_USER: aiops
+      POSTGRES_PASSWORD: aiops_secure_password
+    ports:
+      - "5433:5432" # Different port to avoid conflict
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U aiops -d aiops_test" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - test-network
+
+  test-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    container_name: remediation-engine-tests
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+    environment:
+      POSTGRES_HOST: postgres-test
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: aiops_test
+      POSTGRES_USER: aiops
+      POSTGRES_PASSWORD: aiops_secure_password
+      JWT_SECRET: test-jwt-secret-key
+      ENCRYPTION_KEY: test-encryption-key-32chars-ok!
+    networks:
+      - test-network
+    volumes:
+      - ./htmlcov:/app/htmlcov # Persist coverage reports
+
+networks:
+  test-network:
+    driver: bridge

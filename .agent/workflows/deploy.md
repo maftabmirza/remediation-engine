@@ -38,6 +38,27 @@ grep pgvector requirements.txt
 grep "pgvector/pgvector" docker-compose.yml
 ```
 
+## Run Tests (Local)
+
+5. Run automated tests before deployment:
+```bash
+docker-compose -f docker-compose.test.yml up --build --abort-on-container-exit
+```
+
+// turbo
+6. Check test results:
+```bash
+docker-compose -f docker-compose.test.yml logs test-runner | tail -20
+```
+
+7. Clean up test containers:
+```bash
+docker-compose -f docker-compose.test.yml down -v
+```
+
+> [!WARNING]
+> Do not proceed with deployment if tests fail!
+
 ## Server Deployment
 
 5. Connect to server:

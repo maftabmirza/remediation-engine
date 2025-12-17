@@ -1,0 +1,36 @@
+# Test environment Dockerfile
+# Uses the same base as production but includes test dependencies
+
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    libpq-dev \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first for caching
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Install test dependencies
+COPY requirements-test.txt .
+RUN pip install --no-cache-dir -r requirements-test.txt
+
+# Copy application and test code
+COPY app/ ./app/
+COPY tests/ ./tests/
+COPY alembic/ ./alembic/
+COPY alembic.ini .
+COPY pytest.ini .
+
+# Set environment for tests
+ENV PYTHONPATH=/app
+ENV POSTGRES_HOST=postgres
+ENV POSTGRES_DB=aiops_test
+
+# Default command runs tests
+CMD ["pytest", "tests/", "-v", "--tb=short"]
