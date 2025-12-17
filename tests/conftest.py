@@ -5,16 +5,23 @@ import os
 import sys
 
 # ============================================================================
-# CRITICAL: Set test database environment BEFORE importing app
-# This ensures database.py uses PostgreSQL instead of any fallback
+# CRITICAL: Force set test database environment BEFORE importing app
+# Using direct assignment (not setdefault) to override any existing values
 # ============================================================================
-os.environ.setdefault("POSTGRES_HOST", os.environ.get("TEST_POSTGRES_HOST", "localhost"))
-os.environ.setdefault("POSTGRES_PORT", os.environ.get("TEST_POSTGRES_PORT", "5432"))
-os.environ.setdefault("POSTGRES_DB", os.environ.get("TEST_POSTGRES_DB", "aiops_test"))
-os.environ.setdefault("POSTGRES_USER", os.environ.get("TEST_POSTGRES_USER", "aiops"))
-os.environ.setdefault("POSTGRES_PASSWORD", os.environ.get("TEST_POSTGRES_PASSWORD", "aiops_secure_password"))
-os.environ.setdefault("JWT_SECRET", "test-jwt-secret-key")
-os.environ.setdefault("ENCRYPTION_KEY", "test-encryption-key-32chars-ok!")
+os.environ["POSTGRES_HOST"] = os.environ.get("TEST_POSTGRES_HOST", "postgres")
+os.environ["POSTGRES_PORT"] = os.environ.get("TEST_POSTGRES_PORT", "5432")
+os.environ["POSTGRES_DB"] = os.environ.get("TEST_POSTGRES_DB", "aiops_test")
+os.environ["POSTGRES_USER"] = os.environ.get("TEST_POSTGRES_USER", "aiops")
+os.environ["POSTGRES_PASSWORD"] = os.environ.get("TEST_POSTGRES_PASSWORD", "aiops_secure_password")
+os.environ["JWT_SECRET"] = os.environ.get("JWT_SECRET", "test-jwt-secret-key")
+os.environ["ENCRYPTION_KEY"] = os.environ.get("ENCRYPTION_KEY", "test-encryption-key-32chars-ok!")
+
+# Add parent directory to path FIRST
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+# Clear the settings cache to ensure our new env vars are picked up
+from app.config import get_settings
+get_settings.cache_clear()
 
 import pytest
 from typing import Generator, AsyncGenerator
@@ -23,9 +30,6 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import StaticPool
 from fastapi.testclient import TestClient
-
-# Add parent directory to path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # Now import app - it will use the environment variables we set above
 try:
@@ -37,6 +41,7 @@ except ImportError as e:
     get_db = None
     app = None
     engine = None
+
 
 
 
