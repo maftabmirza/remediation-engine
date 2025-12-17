@@ -245,7 +245,8 @@ class TestMatchRule:
         assert result is False
         mock_json_logic.jsonLogic.assert_called_once()
     
-    @pytest.mark.skip(reason=\"JSON logic mock not working with json_logic_qubit import\")\n    def test_match_rule_json_logic_takes_precedence(self):
+    @pytest.mark.skip(reason="JSON logic mock not working with json_logic_qubit import")
+    def test_match_rule_json_logic_takes_precedence(self):
         """Test that JSON logic condition takes precedence over legacy patterns."""
         mock_json_logic.jsonLogic.reset_mock()
         mock_json_logic.jsonLogic.return_value = False
