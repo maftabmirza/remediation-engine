@@ -26,6 +26,8 @@ RUN pip install --no-cache-dir 'pydantic>=2.0'
 COPY app/ ./app/
 COPY tests/ ./tests/
 COPY alembic/ ./alembic/
+COPY static/ ./static/
+COPY templates/ ./templates/
 COPY alembic.ini .
 COPY pytest.ini .
 
