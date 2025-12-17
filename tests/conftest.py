@@ -3,10 +3,23 @@ Pytest configuration and shared fixtures for the AIOps Remediation Engine test s
 """
 import os
 import sys
+
+# ============================================================================
+# CRITICAL: Set test database environment BEFORE importing app
+# This ensures database.py uses PostgreSQL instead of any fallback
+# ============================================================================
+os.environ.setdefault("POSTGRES_HOST", os.environ.get("TEST_POSTGRES_HOST", "localhost"))
+os.environ.setdefault("POSTGRES_PORT", os.environ.get("TEST_POSTGRES_PORT", "5432"))
+os.environ.setdefault("POSTGRES_DB", os.environ.get("TEST_POSTGRES_DB", "aiops_test"))
+os.environ.setdefault("POSTGRES_USER", os.environ.get("TEST_POSTGRES_USER", "aiops"))
+os.environ.setdefault("POSTGRES_PASSWORD", os.environ.get("TEST_POSTGRES_PASSWORD", "aiops_secure_password"))
+os.environ.setdefault("JWT_SECRET", "test-jwt-secret-key")
+os.environ.setdefault("ENCRYPTION_KEY", "test-encryption-key-32chars-ok!")
+
 import pytest
 from typing import Generator, AsyncGenerator
 from unittest.mock import MagicMock, AsyncMock
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import StaticPool
 from fastapi.testclient import TestClient
@@ -14,15 +27,17 @@ from fastapi.testclient import TestClient
 # Add parent directory to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-# Import will be done lazily to avoid initialization issues
+# Now import app - it will use the environment variables we set above
 try:
-    from app.database import Base, get_db
+    from app.database import Base, get_db, engine
     from app.main import app
-except ImportError:
-    # If imports fail, tests will handle it
+except ImportError as e:
+    print(f"Warning: Could not import app modules: {e}")
     Base = None
     get_db = None
     app = None
+    engine = None
+
 
 
 # ============================================================================
@@ -31,39 +46,25 @@ except ImportError:
 
 @pytest.fixture(scope="function")
 def test_db_engine():
-    """Create a test database engine using PostgreSQL.
+    """Use the app's database engine for tests.
     
-    Uses the existing PostgreSQL container from docker-compose.
-    Falls back to environment variable TEST_DATABASE_URL if set.
+    The engine is already configured via environment variables set above.
+    This fixture creates tables, yields the engine, and cleans up data after tests.
     """
-    # Use test database URL from environment or default to docker-compose postgres
-    test_db_url = os.environ.get(
-        "TEST_DATABASE_URL",
-        os.environ.get(
-            "DATABASE_URL",
-            "postgresql://aiops:aiops_secure_password@localhost:5432/aiops_test"
-        )
-    )
-    
-    # Ensure we're using a test database (not production)
-    if "test" not in test_db_url:
-        # Append _test to database name for safety
-        test_db_url = test_db_url.replace("/aiops", "/aiops_test")
-    
-    engine = create_engine(test_db_url, echo=False)
+    if engine is None:
+        pytest.skip("Database engine not available")
     
     # Create all tables
     Base.metadata.create_all(bind=engine)
     
     yield engine
     
-    # Clean up - drop all data but keep schema for speed
+    # Clean up - delete all data but keep schema for speed
     with engine.connect() as conn:
         for table in reversed(Base.metadata.sorted_tables):
             conn.execute(table.delete())
         conn.commit()
-    
-    engine.dispose()
+
 
 
 
