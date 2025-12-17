@@ -33,8 +33,8 @@ COPY pytest.ini .
 
 # Set environment for tests
 ENV PYTHONPATH=/app
-ENV POSTGRES_HOST=postgres
+ENV POSTGRES_HOST=postgres-test
 ENV POSTGRES_DB=aiops_test
 
-# Default command runs tests
-CMD ["pytest", "tests/", "-v", "--tb=short"]
+# Default command runs migrations then tests
+CMD ["sh", "-c", "alembic upgrade head && pytest tests/ -v --tb=short"]
