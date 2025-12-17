@@ -31,21 +31,40 @@ except ImportError:
 
 @pytest.fixture(scope="function")
 def test_db_engine():
-    """Create a test database engine using SQLite in-memory."""
-    engine = create_engine(
-        "sqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
+    """Create a test database engine using PostgreSQL.
+    
+    Uses the existing PostgreSQL container from docker-compose.
+    Falls back to environment variable TEST_DATABASE_URL if set.
+    """
+    # Use test database URL from environment or default to docker-compose postgres
+    test_db_url = os.environ.get(
+        "TEST_DATABASE_URL",
+        os.environ.get(
+            "DATABASE_URL",
+            "postgresql://aiops:aiops_secure_password@localhost:5432/aiops_test"
+        )
     )
+    
+    # Ensure we're using a test database (not production)
+    if "test" not in test_db_url:
+        # Append _test to database name for safety
+        test_db_url = test_db_url.replace("/aiops", "/aiops_test")
+    
+    engine = create_engine(test_db_url, echo=False)
     
     # Create all tables
     Base.metadata.create_all(bind=engine)
     
     yield engine
     
-    # Drop all tables
-    Base.metadata.drop_all(bind=engine)
+    # Clean up - drop all data but keep schema for speed
+    with engine.connect() as conn:
+        for table in reversed(Base.metadata.sorted_tables):
+            conn.execute(table.delete())
+        conn.commit()
+    
     engine.dispose()
+
 
 
 @pytest.fixture(scope="function")
@@ -367,7 +386,8 @@ def mock_rules_engine():
 @pytest.fixture
 def mock_env_vars(monkeypatch):
     """Set up mock environment variables for testing."""
-    monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
+    monkeypatch.setenv("DATABASE_URL", "postgresql://aiops:aiops_secure_password@localhost:5432/aiops_test")
+    monkeypatch.setenv("TEST_DATABASE_URL", "postgresql://aiops:aiops_secure_password@localhost:5432/aiops_test")
     monkeypatch.setenv("JWT_SECRET_KEY", "test-secret-key")
     monkeypatch.setenv("JWT_ALGORITHM", "HS256")
     monkeypatch.setenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30")
