@@ -181,7 +181,9 @@ async def generate_completion(
                 "max_tokens": max_tokens,
             }
 
-            if json_mode:
+            # json_mode: only set response_format for providers that support it
+            # Anthropic doesn't support response_format parameter
+            if json_mode and provider.provider_type not in ["anthropic"]:
                  kwargs["response_format"] = { "type": "json_object" }
             
             if api_key:
