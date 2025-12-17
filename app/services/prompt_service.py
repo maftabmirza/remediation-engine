@@ -96,7 +96,7 @@ PAST FEEDBACK TO CONSIDER:
         Generate prompt for Root Cause Analysis.
         """
         alerts_desc = "\n".join([
-            f"- [{a.timestamp}] {a.severity.upper()}: {a.alert_name} on {a.instance} ({a.service or 'unknown service'})" 
+            f"- [{a.timestamp}] {a.severity.upper()}: {a.alert_name} on {a.instance} ({a.job or 'unknown service'})" 
             for a in alerts
         ])
 
