@@ -235,7 +235,7 @@ class TestConcurrency:
         responses = []
         for i in range(3):
             response = test_client.post(
-                "/webhook",
+                "/webhook/alerts",
                 json=sample_alert_payload
             )
             responses.append(response)
