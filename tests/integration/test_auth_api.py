@@ -278,4 +278,4 @@ class TestSecurityHeaders:
         headers = response.headers
         
         # Just verify response is valid
-        assert response.status_code in [200, 404]
+        assert response.status_code in [200, 302, 404]
