@@ -39,7 +39,7 @@ class TestAlertWorkflow:
         
         # Step 1: Send alert via webhook
         webhook_response = test_client.post(
-            "/webhook",
+            "/webhook/alerts",
             json=sample_alert_payload
         )
         
