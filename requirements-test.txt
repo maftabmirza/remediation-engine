@@ -1,0 +1,29 @@
+# Testing Framework
+pytest==8.0.0
+pytest-asyncio==0.23.3
+pytest-cov==4.1.0
+pytest-mock==3.12.0
+pytest-xdist==3.5.0
+
+# Testing Utilities
+faker==22.6.0
+factory-boy==3.3.0
+freezegun==1.4.0
+
+# HTTP Testing
+httpx==0.26.0
+websockets==12.0
+
+# Security Testing
+bandit==1.7.6
+safety==3.0.1
+
+# Code Quality
+black==24.1.1
+flake8==7.0.0
+mypy==1.8.0
+pylint==3.0.3
+
+# Performance Testing
+locust==2.20.1
+pytest-benchmark==4.0.0
