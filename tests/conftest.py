@@ -165,9 +165,98 @@ async def async_client(test_db_session) -> AsyncGenerator:
 # ============================================================================
 
 @pytest.fixture
-def mock_jwt_token():
-    """Mock JWT token for authenticated requests."""
-    return "mock_jwt_token_for_testing"
+def test_admin_user(test_db_session):
+    """Create a real admin user in the test database."""
+    from app.services.auth_service import get_password_hash
+    from app.models import User
+    import uuid
+    
+    user = User(
+        id=str(uuid.uuid4()),
+        username=f"test_admin_{uuid.uuid4().hex[:8]}",
+        password_hash=get_password_hash("TestPassword123!"),
+        role="admin",
+        is_active=True
+    )
+    test_db_session.add(user)
+    test_db_session.commit()
+    test_db_session.refresh(user)
+    return user
+
+
+@pytest.fixture
+def test_operator_user(test_db_session):
+    """Create a real operator user in the test database."""
+    from app.services.auth_service import get_password_hash
+    from app.models import User
+    import uuid
+    
+    user = User(
+        id=str(uuid.uuid4()),
+        username=f"test_operator_{uuid.uuid4().hex[:8]}",
+        password_hash=get_password_hash("TestPassword123!"),
+        role="operator",
+        is_active=True
+    )
+    test_db_session.add(user)
+    test_db_session.commit()
+    test_db_session.refresh(user)
+    return user
+
+
+@pytest.fixture
+def admin_auth_headers(test_admin_user):
+    """Get authorization headers with a valid admin JWT token."""
+    from app.services.auth_service import create_access_token
+    
+    token = create_access_token(data={"sub": str(test_admin_user.id)})
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
+def operator_auth_headers(test_operator_user):
+    """Get authorization headers with a valid operator JWT token."""
+    from app.services.auth_service import create_access_token
+    
+    token = create_access_token(data={"sub": str(test_operator_user.id)})
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
+async def authenticated_client(async_client, admin_auth_headers):
+    """Async client with admin authentication headers pre-configured."""
+    # Return a wrapper that adds auth headers to requests
+    class AuthenticatedClient:
+        def __init__(self, client, headers):
+            self._client = client
+            self._headers = headers
+        
+        async def get(self, url, **kwargs):
+            headers = kwargs.pop("headers", {})
+            headers.update(self._headers)
+            return await self._client.get(url, headers=headers, **kwargs)
+        
+        async def post(self, url, **kwargs):
+            headers = kwargs.pop("headers", {})
+            headers.update(self._headers)
+            return await self._client.post(url, headers=headers, **kwargs)
+        
+        async def put(self, url, **kwargs):
+            headers = kwargs.pop("headers", {})
+            headers.update(self._headers)
+            return await self._client.put(url, headers=headers, **kwargs)
+        
+        async def delete(self, url, **kwargs):
+            headers = kwargs.pop("headers", {})
+            headers.update(self._headers)
+            return await self._client.delete(url, headers=headers, **kwargs)
+        
+        async def patch(self, url, **kwargs):
+            headers = kwargs.pop("headers", {})
+            headers.update(self._headers)
+            return await self._client.patch(url, headers=headers, **kwargs)
+    
+    return AuthenticatedClient(async_client, admin_auth_headers)
 
 
 @pytest.fixture
