@@ -450,6 +450,27 @@ def upgrade() -> None:
         )
         op.create_unique_constraint("uq_rate_limit_window", "execution_rate_limits", ["scope", "scope_id", "window_start"])
 
+    if 'chat_sessions' not in tables:
+        op.create_table('chat_sessions',
+            sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True),
+            sa.Column('user_id', postgresql.UUID(as_uuid=True), sa.ForeignKey('users.id'), nullable=False),
+            sa.Column('alert_id', postgresql.UUID(as_uuid=True), sa.ForeignKey('alerts.id'), nullable=True),
+            sa.Column('title', sa.String(255), nullable=True),
+            sa.Column('llm_provider_id', postgresql.UUID(as_uuid=True), sa.ForeignKey('llm_providers.id'), nullable=True),
+            sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now()),
+            sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.func.now()),
+        )
+
+    if 'chat_messages' not in tables:
+        op.create_table('chat_messages',
+            sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True),
+            sa.Column('session_id', postgresql.UUID(as_uuid=True), sa.ForeignKey('chat_sessions.id'), nullable=False),
+            sa.Column('role', sa.String(20), nullable=False),
+            sa.Column('content', sa.Text, nullable=False),
+            sa.Column('tokens_used', sa.Integer, default=0),
+            sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now()),
+        )
+
     if 'terminal_sessions' not in tables:
         op.create_table('terminal_sessions',
             sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True),
