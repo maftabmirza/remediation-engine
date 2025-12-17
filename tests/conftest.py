@@ -45,6 +45,13 @@ except ImportError as e:
 
 import asyncio
 
+# Apply nest_asyncio to allow nested event loops (fixes FastAPI background task issues)
+try:
+    import nest_asyncio
+    nest_asyncio.apply()
+except ImportError:
+    pass  # nest_asyncio not installed, try without it
+
 # ============================================================================
 # Asyncio Event Loop Fixture - Session scope to prevent loop closure between tests
 # ============================================================================
