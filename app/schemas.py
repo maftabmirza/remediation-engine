@@ -235,6 +235,54 @@ class AlertmanagerWebhook(BaseModel):
     alerts: List[AlertmanagerAlert]
 
 
+# ============== Alert Cluster Schemas ==============
+
+class AlertClusterBase(BaseModel):
+    cluster_key: str
+    severity: str
+    cluster_type: str = "exact"
+
+
+class AlertClusterCreate(AlertClusterBase):
+    first_seen: datetime
+    last_seen: datetime
+    alert_count: int = 1
+
+
+class AlertClusterResponse(AlertClusterBase):
+    id: UUID
+    alert_count: int
+    first_seen: datetime
+    last_seen: datetime
+    summary: Optional[str] = None
+    is_active: bool
+    closed_at: Optional[datetime] = None
+    closed_reason: Optional[str] = None
+    metadata: Dict[str, Any] = {}
+    created_at: datetime
+    updated_at: datetime
+    duration_hours: float = 0.0
+    alerts_per_hour: float = 0.0
+
+    class Config:
+        from_attributes = True
+
+
+class AlertClusterDetail(AlertClusterResponse):
+    """Cluster with member alerts"""
+    alerts: List[AlertResponse] = []
+
+
+class AlertClusterStats(BaseModel):
+    """Dashboard statistics for clustering"""
+    total_alerts: int
+    clustered_alerts: int
+    active_clusters: int
+    noise_reduction_pct: float
+    avg_cluster_size: float
+    largest_cluster_size: int
+
+
 # ============== Stats Schemas ==============
 
 

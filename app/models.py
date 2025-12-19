@@ -92,6 +92,72 @@ class AutoAnalyzeRule(Base):
     matched_alerts = relationship("Alert", back_populates="matched_rule")
 
 
+class AlertCluster(Base):
+    """Alert cluster for grouping related alerts"""
+    __tablename__ = "alert_clusters"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    cluster_key = Column(String(255), unique=True, nullable=False, index=True)
+    alert_count = Column(Integer, default=1, nullable=False)
+    first_seen = Column(DateTime(timezone=True), nullable=False, index=True)
+    last_seen = Column(DateTime(timezone=True), nullable=False, index=True)
+    severity = Column(String(20), nullable=False, index=True)
+    cluster_type = Column(String(50), default='exact', nullable=False)
+    summary = Column(Text, nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False, index=True)
+    closed_at = Column(DateTime(timezone=True), nullable=True)
+    closed_reason = Column(String(100), nullable=True)
+    metadata = Column(JSON, default={})
+    created_at = Column(DateTime(timezone=True), default=utc_now)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+
+    # Relationships
+    alerts = relationship("Alert", back_populates="cluster")
+
+    @property
+    def duration_hours(self):
+        """Calculate cluster duration in hours"""
+        if not self.first_seen or not self.last_seen:
+            return 0.0
+        delta = self.last_seen - self.first_seen
+        return delta.total_seconds() / 3600
+
+    @property
+    def alerts_per_hour(self):
+        """Calculate alert frequency"""
+        if self.duration_hours == 0:
+            return float(self.alert_count)
+        return self.alert_count / self.duration_hours
+
+    def update_stats(self, db):
+        """Recalculate cluster statistics"""
+        from sqlalchemy.orm import Session
+        alerts = db.query(Alert).filter(Alert.cluster_id == self.id).all()
+
+        if not alerts:
+            return
+
+        self.alert_count = len(alerts)
+        self.first_seen = min(a.timestamp for a in alerts)
+        self.last_seen = max(a.timestamp for a in alerts)
+
+        # Update severity to highest
+        severity_order = {'critical': 3, 'warning': 2, 'info': 1}
+        severities = [a.severity for a in alerts if a.severity]
+        if severities:
+            self.severity = max(severities, key=lambda s: severity_order.get(s, 0))
+
+        self.updated_at = utc_now()
+
+    def should_close(self, inactive_hours=24):
+        """Check if cluster should be closed due to inactivity"""
+        if not self.is_active:
+            return False
+
+        inactive_duration = utc_now() - self.last_seen
+        return inactive_duration.total_seconds() / 3600 >= inactive_hours
+
+
 class Alert(Base):
     __tablename__ = "alerts"
 
@@ -127,6 +193,10 @@ class Alert(Base):
     
     # Correlation/Troubleshooting
     correlation_id = Column(UUID(as_uuid=True), ForeignKey("alert_correlations.id", ondelete="SET NULL"), nullable=True, index=True)
+    
+    # Alert Clustering
+    cluster_id = Column(UUID(as_uuid=True), ForeignKey("alert_clusters.id", ondelete="SET NULL"), nullable=True, index=True)
+    clustered_at = Column(DateTime(timezone=True), nullable=True)
 
     # Relationships
     matched_rule = relationship("AutoAnalyzeRule", back_populates="matched_alerts")
@@ -136,6 +206,7 @@ class Alert(Base):
     component = relationship("ApplicationComponent", back_populates="alerts")
     feedback = relationship("AnalysisFeedback", back_populates="alert", cascade="all, delete-orphan")
     correlation = relationship("AlertCorrelation", back_populates="alerts")
+    cluster = relationship("AlertCluster", back_populates="alerts")
 
 
 class AuditLog(Base):
