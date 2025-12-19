@@ -17,7 +17,6 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from app.database import get_db
 from app.models import Alert, AlertCluster, utc_now
 from app.services.alert_clustering_service import AlertClusteringService
-from app.services.llm_service import LLMService
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +76,7 @@ async def _generate_summaries_async(clusters: List[AlertCluster]):
         # Get a new database session for async operation
         db = next(get_db())
 
-        llm_service = LLMService()
+        from app.services.llm_service import generate_completion
 
         for cluster in clusters:
             # Only generate for clusters with 3+ alerts
@@ -124,8 +123,8 @@ Please provide a concise 2-3 sentence summary of this alert cluster,
 focusing on the root cause and impact.
 """
 
-                # Generate summary
-                summary = await llm_service.generate_analysis(context)
+                # Generate summary using llm_service function
+                summary, _ = await generate_completion(db, context)
 
                 # Update cluster
                 cluster.summary = summary[:500]  # Limit length

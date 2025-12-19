@@ -247,9 +247,7 @@ async def regenerate_summary(
         raise HTTPException(status_code=400, detail="No alerts in cluster")
 
     try:
-        from app.services.llm_service import LLMService
-
-        llm_service = LLMService()
+        from app.services.llm_service import generate_completion
 
         # Build context
         alert_details = []
@@ -278,8 +276,8 @@ Please provide a concise 2-3 sentence summary of this alert cluster,
 focusing on the root cause and impact.
 """
 
-        # Generate summary
-        summary = await llm_service.generate_analysis(context)
+        # Generate summary using llm_service function
+        summary, _ = await generate_completion(db, context)
 
         # Update cluster
         cluster.summary = summary[:500]  # Limit length
