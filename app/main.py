@@ -141,6 +141,12 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Failed to load schedules: {e}")
     
+    # Start alert clustering jobs
+    logger.info("Starting alert clustering jobs...")
+    from app.services.clustering_worker import start_clustering_jobs
+    start_clustering_jobs(scheduler.scheduler)  # Pass APScheduler instance
+    logger.info("✅ Alert clustering jobs started")
+    
     logger.info("AIOps Platform started successfully")
     
     yield
