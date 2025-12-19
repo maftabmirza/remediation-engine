@@ -8,6 +8,7 @@ Scheduled jobs for automated alert clustering:
 """
 import logging
 import asyncio
+import threading
 from datetime import datetime, timedelta
 from typing import List
 
@@ -60,7 +61,13 @@ def cluster_recent_alerts(db: Session):
 
         # Generate AI summaries asynchronously (non-blocking)
         if created_clusters:
-            asyncio.create_task(_generate_summaries_async(created_clusters))
+            logger.info(f"Scheduling AI summary generation for {len(created_clusters)} clusters")
+            # Use threading to avoid event loop issues in sync context
+            thread = threading.Thread(
+                target=lambda: asyncio.run(_generate_summaries_async(created_clusters)),
+                daemon=True
+            )
+            thread.start()
 
     except Exception as e:
         logger.error(f"Alert clustering job failed: {e}", exc_info=True)
