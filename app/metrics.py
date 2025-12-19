@@ -113,3 +113,47 @@ HTTP_DURATION = Histogram(
     ['method', 'endpoint'],
     buckets=[0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.0, 5.0]
 )
+
+# =============================================================================
+# Alert Clustering Metrics
+# =============================================================================
+
+CLUSTERS_CREATED = Counter(
+    'aiops_clusters_created_total',
+    'Total number of alert clusters created',
+    ['cluster_type']  # exact, temporal, semantic, auto
+)
+
+ALERTS_CLUSTERED = Counter(
+    'aiops_alerts_clustered_total',
+    'Total number of alerts added to clusters',
+    ['cluster_type']
+)
+
+CLUSTERS_CLOSED = Counter(
+    'aiops_clusters_closed_total',
+    'Total number of clusters closed',
+    ['reason']  # inactive, manual, merged
+)
+
+ACTIVE_CLUSTERS = Gauge(
+    'aiops_active_clusters',
+    'Current number of active alert clusters'
+)
+
+NOISE_REDUCTION = Gauge(
+    'aiops_noise_reduction_percent',
+    'Current noise reduction percentage from clustering'
+)
+
+CLUSTERING_DURATION = Histogram(
+    'aiops_clustering_duration_seconds',
+    'Time spent running clustering job',
+    buckets=[0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0]
+)
+
+AI_SUMMARIES_GENERATED = Counter(
+    'aiops_ai_summaries_generated_total',
+    'Total AI summaries generated for clusters',
+    ['status']  # success, error
+)

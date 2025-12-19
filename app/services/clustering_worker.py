@@ -18,6 +18,11 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from app.database import get_db
 from app.models import Alert, AlertCluster, utc_now
 from app.services.alert_clustering_service import AlertClusteringService
+from app.metrics import (
+    CLUSTERS_CREATED, ALERTS_CLUSTERED, CLUSTERS_CLOSED,
+    ACTIVE_CLUSTERS, NOISE_REDUCTION, CLUSTERING_DURATION,
+    AI_SUMMARIES_GENERATED
+)
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +32,9 @@ def cluster_recent_alerts(db: Session):
     Cluster unclustered alerts from the last hour
     Runs every 5 minutes
     """
+    import time
+    start_time = time.time()
+    
     try:
         logger.info("Starting alert clustering job")
 
@@ -68,6 +76,28 @@ def cluster_recent_alerts(db: Session):
                 daemon=True
             )
             thread.start()
+        
+        # Record metrics
+        for cluster in created_clusters:
+            CLUSTERS_CREATED.labels(cluster_type=cluster.cluster_type).inc()
+            ALERTS_CLUSTERED.labels(cluster_type=cluster.cluster_type).inc(cluster.alert_count)
+        
+        if closed_count > 0:
+            CLUSTERS_CLOSED.labels(reason='inactive').inc(closed_count)
+        
+        # Update gauges
+        active_count = db.query(AlertCluster).filter(AlertCluster.is_active == True).count()
+        ACTIVE_CLUSTERS.set(active_count)
+        
+        total_alerts = db.query(Alert).count()
+        clustered_alerts = db.query(Alert).filter(Alert.cluster_id.isnot(None)).count()
+        if total_alerts > 0:
+            noise_reduction = ((total_alerts - active_count) / total_alerts) * 100
+            NOISE_REDUCTION.set(round(noise_reduction, 1))
+        
+        # Record duration
+        duration = time.time() - start_time
+        CLUSTERING_DURATION.observe(duration)
 
     except Exception as e:
         logger.error(f"Alert clustering job failed: {e}", exc_info=True)
@@ -138,9 +168,11 @@ focusing on the root cause and impact.
                 db.commit()
 
                 logger.info(f"Generated summary for cluster {cluster.id}")
+                AI_SUMMARIES_GENERATED.labels(status='success').inc()
 
             except Exception as e:
                 logger.error(f"Failed to generate summary for cluster {cluster.id}: {e}")
+                AI_SUMMARIES_GENERATED.labels(status='error').inc()
                 continue
 
         db.close()
