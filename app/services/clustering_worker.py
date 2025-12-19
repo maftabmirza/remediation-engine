@@ -193,7 +193,7 @@ def start_clustering_jobs(scheduler: AsyncIOScheduler):
 
     # Job 1: Cluster recent alerts every 5 minutes
     scheduler.add_job(
-        func=lambda: cluster_recent_alerts(next(get_db())),
+        func='app.services.clustering_worker:cluster_recent_alerts_job',
         trigger='interval',
         minutes=5,
         id='cluster_recent_alerts',
@@ -204,7 +204,7 @@ def start_clustering_jobs(scheduler: AsyncIOScheduler):
 
     # Job 2: Cleanup old clusters daily at 2 AM
     scheduler.add_job(
-        func=lambda: cleanup_old_clusters(next(get_db())),
+        func='app.services.clustering_worker:cleanup_old_clusters_job',
         trigger='cron',
         hour=2,
         minute=0,
@@ -214,3 +214,24 @@ def start_clustering_jobs(scheduler: AsyncIOScheduler):
     )
 
     logger.info("Alert clustering jobs registered successfully")
+
+
+# Module-level wrapper functions for APScheduler
+def cluster_recent_alerts_job():
+    """Wrapper function for cluster_recent_alerts"""
+    from app.database import SessionLocal
+    db = SessionLocal()
+    try:
+        cluster_recent_alerts(db)
+    finally:
+        db.close()
+
+
+def cleanup_old_clusters_job():
+    """Wrapper function for cleanup_old_clusters"""
+    from app.database import SessionLocal
+    db = SessionLocal()
+    try:
+        cleanup_old_clusters(db)
+    finally:
+        db.close()
