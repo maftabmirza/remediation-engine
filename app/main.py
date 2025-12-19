@@ -145,7 +145,7 @@ async def lifespan(app: FastAPI):
     # Start alert clustering jobs
     logger.info("Starting alert clustering jobs...")
     from app.services.clustering_worker import start_clustering_jobs
-    start_clustering_jobs(scheduler.scheduler)  # Pass APScheduler instance
+    start_clustering_jobs(scheduler._scheduler)  # Pass APScheduler instance
     logger.info("✅ Alert clustering jobs started")
     
     logger.info("AIOps Platform started successfully")
