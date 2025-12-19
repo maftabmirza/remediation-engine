@@ -6,6 +6,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     gcc \
     libpq-dev \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for caching
@@ -19,7 +20,7 @@ COPY static/ ./static/
 COPY migrations/ ./migrations/
 COPY alembic/ ./alembic/
 COPY alembic.ini .
-COPY run_migrations.py .
+# COPY run_migrations.py .
 
 COPY entrypoint.sh .
 RUN chmod +x entrypoint.sh
@@ -30,4 +31,5 @@ USER appuser
 
 EXPOSE 8080
 
+# Use entrypoint.sh for migrations and app startup
 ENTRYPOINT ["./entrypoint.sh"]

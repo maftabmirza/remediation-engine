@@ -342,8 +342,20 @@
                 </div>
             </div>
             
-            <!-- 2-Pane Layout (Chat 40% | Terminal 60%) -->
-            <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-grow overflow-hidden" style="height: calc(100vh - 140px);">
+            <!-- Tab Navigation -->
+            <div class="flex border-b border-gray-700 mb-4">
+                <button id="btn-tab-live" onclick="switchMainTab('live')" class="px-4 py-2 text-sm font-medium border-b-2 border-purple-500 text-purple-400">
+                    <i class="fas fa-terminal mr-2"></i>Live Investigation
+                </button>
+                <button id="btn-tab-analysis" onclick="switchMainTab('analysis')" class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-400 hover:text-gray-300">
+                    <i class="fas fa-project-diagram mr-2"></i>Troubleshooting Analysis
+                </button>
+            </div>
+
+            <!-- Tab Content: Live Investigation -->
+            <div id="tab-live" class="flex-grow flex flex-col min-h-0">
+                <!-- 2-Pane Layout (Chat 40% | Terminal 60%) -->
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-grow overflow-hidden" style="height: calc(100vh - 190px);">
                 
                 <!-- Pane 1: Chat (5 cols ~ 41%) -->
                 <div class="lg:col-span-5 flex flex-col card h-full min-h-0 overflow-hidden">
@@ -394,6 +406,12 @@
                         <div class="history-list p-2 max-h-40 overflow-y-auto">
                             <p class="text-gray-500 text-sm text-center py-4">No commands executed yet</p>
                         </div>
+                    </div>
+                    
+                    <!-- Context Status Panel (AI Knowledge Awareness) -->
+                    <div id="contextStatusPanel" class="hidden px-4 py-2 bg-gray-900 border-b border-gray-800 flex items-center space-x-2 text-xs">
+                        <span class="text-gray-500 font-semibold uppercase tracking-wider mr-2">Context:</span>
+                        <!-- Badges populated by JS -->
                     </div>
                     
                     <div id="chatMessages" class="flex-grow overflow-y-auto p-4 space-y-4 min-h-0 text-sm">
@@ -468,6 +486,79 @@
                         </div>
                     </div>
                 </div>
+                </div>
+            </div>
+
+            <!-- Tab Content: Troubleshooting Analysis -->
+            <div id="tab-analysis" class="hidden flex-grow flex flex-col min-h-0">
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-grow overflow-hidden" style="height: calc(100vh - 190px);">
+                    
+                    <!-- Left: Correlation & Graph -->
+                    <div class="lg:col-span-4 flex flex-col space-y-4 overflow-y-auto min-h-0">
+                        <!-- Correlation Info -->
+                        <div class="card p-4 flex-shrink-0">
+                            <h3 class="font-bold text-lg mb-2 text-purple-400">Correlation Group</h3>
+                            <div class="flex justify-between text-sm mb-4">
+                                <span class="text-gray-400">Total Alerts:</span>
+                                <span id="corr-count" class="font-mono text-white">1</span>
+                            </div>
+                            <div class="flex justify-between text-sm mb-4">
+                                <span class="text-gray-400">Duration:</span>
+                                <span id="corr-duration" class="font-mono text-white">0h</span>
+                            </div>
+                            <div class="border-t border-gray-700 my-2"></div>
+                            <div id="correlated-alerts-list" class="space-y-2 mt-2 max-h-60 overflow-y-auto">
+                                <!-- List populated by JS -->
+                                <p class="text-gray-500 text-xs text-center">Loading...</p>
+                            </div>
+                        </div>
+
+                        <!-- Root Cause Analysis -->
+                        <div class="card p-4 flex-grow overflow-y-auto min-h-0">
+                            <h3 class="font-bold text-lg mb-2 text-red-400">Root Cause Analysis</h3>
+                            <div id="rca-loading" class="text-center py-4">
+                                <i class="fas fa-spinner fa-spin text-purple-400"></i> Analyzing...
+                            </div>
+                            <div id="rca-content" class="hidden">
+                                <div class="mb-3">
+                                    <div class="text-xs text-gray-400 uppercase tracking-wide">Primary Cause</div>
+                                    <div id="rca-title" class="font-bold text-white text-md"></div>
+                                </div>
+                                <div class="mb-3">
+                                    <div class="text-xs text-gray-400 uppercase tracking-wide">Confidence</div>
+                                    <div class="flex items-center">
+                                        <div class="flex-grow bg-gray-700 h-2 rounded-full mr-2">
+                                            <div id="rca-confidence-bar" class="bg-red-500 h-2 rounded-full" style="width: 0%"></div>
+                                        </div>
+                                        <span id="rca-confidence" class="text-xs font-mono">0%</span>
+                                    </div>
+                                    <p id="rca-desc" class="text-xs text-gray-400 mt-1"></p>
+                                </div>
+                                <div>
+                                    <div class="text-xs text-gray-400 uppercase tracking-wide mb-1">Reasoning</div>
+                                    <ul id="rca-reasoning" class="list-disc list-inside text-xs text-gray-300 space-y-1"></ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Investigation Path -->
+                    <div class="lg:col-span-8 flex flex-col card h-full overflow-hidden">
+                        <div class="p-4 border-b border-gray-700 bg-gray-800/50 flex-shrink-0">
+                            <h3 class="font-bold text-md text-blue-400"><i class="fas fa-shoe-prints mr-2"></i>Investigation Path</h3>
+                        </div>
+                        <div class="flex-grow overflow-y-auto p-6 relative">
+                            <div class="absolute left-6 top-6 bottom-6 w-0.5 bg-gray-700"></div>
+                            <div id="path-steps" class="ml-6">
+                                <!-- Steps populated by JS -->
+                                <div class="text-center py-10 text-gray-500">
+                                    <i class="fas fa-circle-notch fa-spin mr-2"></i>Generating investigation steps...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
             </div>
         `;
     }
@@ -510,9 +601,63 @@
             // Connect WebSocket
             connectChatWebSocket(currentSession.id);
 
+            // Check Context Availability
+            checkContextStatus(alertId);
+
         } catch (error) {
             console.error('Chat init failed:', error);
             showToast('Failed to initialize chat', 'error');
+        }
+    }
+
+    async function checkContextStatus(alertId) {
+        try {
+            const res = await apiCall(`/api/chat/context-status/${alertId}`);
+            if (res.ok) {
+                const status = await res.json();
+                renderContextBadges(status);
+            }
+        } catch (e) {
+            console.error("Failed to check context status", e);
+        }
+    }
+
+    function renderContextBadges(status) {
+        const panel = document.getElementById('contextStatusPanel');
+        panel.innerHTML = '<span class="text-gray-500 font-semibold uppercase tracking-wider mr-2">Context:</span>';
+        let hasContext = false;
+
+        if (status.has_similar_incidents) {
+            hasContext = true;
+            panel.innerHTML += `
+                <span class="bg-blue-900/50 text-blue-300 border border-blue-700/50 px-2 py-0.5 rounded flex items-center" title="AI is using ${status.similar_count} similar past incidents">
+                    <i class="fas fa-history mr-1.5 opacity-70"></i>
+                    Upcoming: ${status.similar_count} Similar
+                </span>`;
+        }
+
+        if (status.has_feedback_history) {
+            hasContext = true;
+            panel.innerHTML += `
+                <span class="bg-green-900/50 text-green-300 border border-green-700/50 px-2 py-0.5 rounded flex items-center" title="AI is learning from past user feedback">
+                    <i class="fas fa-thumbs-up mr-1.5 opacity-70"></i>
+                    Learning Active
+                </span>`;
+        }
+
+        if (status.has_correlation) {
+            hasContext = true;
+            panel.innerHTML += `
+                <span class="bg-purple-900/50 text-purple-300 border border-purple-700/50 px-2 py-0.5 rounded flex items-center" title="AI is analyzing related alerts in this group">
+                    <i class="fas fa-layer-group mr-1.5 opacity-70"></i>
+                    Correlated Group
+                </span>`;
+        }
+
+        if (hasContext) {
+            panel.classList.remove('hidden');
+        } else {
+            panel.classList.add('hidden');
         }
     }
 
@@ -795,6 +940,122 @@
         container.scrollTop = container.scrollHeight;
         lastMessageRole = 'user';
     }
+
+    function switchMainTab(tab) {
+        // Toggle Buttons
+        document.getElementById('btn-tab-live').className = tab === 'live'
+            ? 'px-4 py-2 text-sm font-medium border-b-2 border-purple-500 text-purple-400'
+            : 'px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-400 hover:text-gray-300';
+
+        document.getElementById('btn-tab-analysis').className = tab === 'analysis'
+            ? 'px-4 py-2 text-sm font-medium border-b-2 border-purple-500 text-purple-400'
+            : 'px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-400 hover:text-gray-300';
+
+        // Toggle Content
+        if (tab === 'live') {
+            document.getElementById('tab-live').classList.remove('hidden');
+            document.getElementById('tab-analysis').classList.add('hidden');
+            // Refresh terminal fit
+            if (fitAddon) setTimeout(() => fitAddon.fit(), 100);
+        } else {
+            document.getElementById('tab-live').classList.add('hidden');
+            document.getElementById('tab-analysis').classList.remove('hidden');
+            // Load analysis data
+            loadTroubleshootingData();
+        }
+    }
+
+    async function loadTroubleshootingData() {
+        try {
+            // 1. Get Correlation Data
+            const corrRes = await apiCall(`/api/v1/alerts/${alertId}/correlation`);
+            if (corrRes.ok) {
+                const correlation = await corrRes.json();
+                renderCorrelation(correlation);
+
+                // 2. Trigger RCA if active
+                if (correlation.status === 'active' && !correlation.root_cause_analysis) {
+                    const rcaRes = await apiCall(`/api/v1/alerts/${alertId}/analyze-root-cause`, { method: 'POST' });
+                    if (rcaRes.ok) {
+                        const rca = await rcaRes.json();
+                        renderRCA(rca);
+                    }
+                } else if (correlation.root_cause_analysis) {
+                    // Parse stored string or object
+                    // For now handled by renderRCA logic if struct available
+                }
+            }
+
+            // 3. Get Investigation Path
+            const pathRes = await apiCall(`/api/v1/alerts/${alertId}/investigation-path`);
+            if (pathRes.ok) {
+                const path = await pathRes.json();
+                renderInvestigationPath(path);
+            }
+
+        } catch (e) {
+            console.error("Error loading troubleshooting data", e);
+        }
+    }
+
+    function renderCorrelation(data) {
+        document.getElementById('corr-count').innerText = data.alerts ? data.alerts.length : 1;
+        // Calc duration
+        const start = new Date(data.created_at);
+        const now = new Date();
+        const diffHrs = Math.round((now - start) / 1000 / 60 / 60);
+        document.getElementById('corr-duration').innerText = diffHrs + "h";
+
+        // Render List
+        const list = document.getElementById('correlated-alerts-list');
+        list.innerHTML = (data.alerts || []).map(a => `
+            <div class="bg-gray-800 p-3 rounded border border-gray-700 flex justify-between items-center hover:bg-gray-700 cursor-pointer" onclick="window.location.href='/alerts/${a.id}'">
+                <div>
+                    <div class="font-bold text-sm text-gray-200">${a.alert_name}</div>
+                    <div class="text-xs text-gray-500">${new Date(a.timestamp).toLocaleString()}</div>
+                </div>
+                <span class="badge-${a.severity} px-2 py-1 rounded text-xs">${a.severity}</span>
+            </div>
+        `).join('');
+    }
+
+    function renderRCA(rca) {
+        document.getElementById('rca-loading').classList.add('hidden');
+        document.getElementById('rca-content').classList.remove('hidden');
+
+        document.getElementById('rca-title').innerText = rca.root_cause;
+        document.getElementById('rca-desc').innerText = "Identified with " + Math.round(rca.confidence * 100) + "% confidence.";
+        document.getElementById('rca-confidence').innerText = (rca.confidence * 100) + "%";
+
+        const reasons = document.getElementById('rca-reasoning');
+        reasons.innerHTML = rca.reasoning.map(r => `<li>${r}</li>`).join('');
+    }
+
+    function renderInvestigationPath(path) {
+        const container = document.getElementById('path-steps');
+        container.innerHTML = path.steps.map(step => `
+            <div class="relative mb-6">
+                <span class="absolute -left-[29px] w-6 h-6 rounded-full bg-purple-600 flex items-center justify-center text-xs font-bold border-2 border-gray-800">
+                    ${step.step_number}
+                </span>
+                <div class="ml-2">
+                    <h4 class="font-bold text-purple-400 text-sm">${step.action}</h4>
+                    <p class="text-gray-400 text-sm mb-2">${step.description}</p>
+                    ${step.command_to_run ? `
+                        <div class="bg-black rounded p-2 text-xs font-mono text-green-400 flex justify-between group">
+                            <code>${step.command_to_run}</code>
+                            <button class="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-white" onclick="copyToClipboard('${step.command_to_run}')">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // --- End Troubleshooting Logic ---
+
 
     function getTerminalContent() {
         if (!term) return '';
@@ -2752,6 +3013,159 @@
             }
         }
     });
+
+
+    // --- Troubleshooting Logic ---
+
+    function switchMainTab(tab) {
+        // Toggle Buttons
+        const btnLive = document.getElementById('btn-tab-live');
+        const btnAnalysis = document.getElementById('btn-tab-analysis');
+
+        if (btnLive && btnAnalysis) {
+            btnLive.className = tab === 'live'
+                ? 'px-4 py-2 text-sm font-medium border-b-2 border-purple-500 text-purple-400'
+                : 'px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-400 hover:text-gray-300';
+
+            btnAnalysis.className = tab === 'analysis'
+                ? 'px-4 py-2 text-sm font-medium border-b-2 border-purple-500 text-purple-400'
+                : 'px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-400 hover:text-gray-300';
+        }
+
+        // Toggle Content
+        const tabLive = document.getElementById('tab-live');
+        const tabAnalysis = document.getElementById('tab-analysis');
+
+        if (tabLive && tabAnalysis) {
+            if (tab === 'live') {
+                tabLive.classList.remove('hidden');
+                tabAnalysis.classList.add('hidden');
+                // Refresh terminal fit
+                if (fitAddon) setTimeout(() => fitAddon.fit(), 100);
+            } else {
+                tabLive.classList.add('hidden');
+                tabAnalysis.classList.remove('hidden');
+                // Load analysis data
+                loadTroubleshootingData();
+            }
+        }
+    }
+
+    async function loadTroubleshootingData() {
+        try {
+            // 1. Get Correlation Data
+            const corrRes = await apiCall(`/api/v1/alerts/${alertId}/correlation`);
+
+            if (corrRes.ok) {
+                const correlation = await corrRes.json();
+                renderCorrelation(correlation);
+
+                // 2. Trigger RCA if active
+                if (correlation.status === 'active' && !correlation.root_cause_analysis) {
+                    const rcaRes = await apiCall(`/api/v1/alerts/${alertId}/analyze-root-cause`, { method: 'POST' });
+                    if (rcaRes.ok) {
+                        const rca = await rcaRes.json();
+                        renderRCA(rca);
+                    }
+                } else if (correlation.root_cause_analysis) {
+                    // Parse stored string into RCA object format
+                    try {
+                        const rcaRaw = correlation.root_cause_analysis || '';
+                        const rcaLines = rcaRaw.split('\n').filter(line => line.trim().length > 0);
+                        const rcaObj = {
+                            root_cause: rcaLines[0] ? rcaLines[0].replace(/^Likely Root Cause: /, '') : 'Unknown Cause',
+                            confidence: correlation.confidence_score || 0.8,
+                            reasoning: rcaLines
+                        };
+                        renderRCA(rcaObj);
+                    } catch (err) {
+                        console.error('RCA Render Error:', err);
+                    }
+                }
+            }
+
+            // 3. Get Investigation Path
+            const pathRes = await apiCall(`/api/v1/alerts/${alertId}/investigation-path`);
+            if (pathRes.ok) {
+                const path = await pathRes.json();
+                renderInvestigationPath(path);
+            }
+
+        } catch (e) {
+            console.error("Error loading troubleshooting data", e);
+            showToast('Error loading data: ' + e.message, 'error');
+        }
+    }
+
+    function renderCorrelation(data) {
+        const countEl = document.getElementById('corr-count');
+        if (countEl) countEl.innerText = data.alerts ? data.alerts.length : 1;
+
+        // Calc duration
+        const start = new Date(data.created_at);
+        const now = new Date();
+        const diffHrs = Math.round((now - start) / 1000 / 60 / 60);
+        const durEl = document.getElementById('corr-duration');
+        if (durEl) durEl.innerText = diffHrs + "h";
+
+        // Render List
+        const list = document.getElementById('correlated-alerts-list');
+        if (list) {
+            list.innerHTML = (data.alerts || []).map(a => `
+                <div class="bg-gray-800 p-3 rounded border border-gray-700 flex justify-between items-center hover:bg-gray-700 cursor-pointer" onclick="window.location.href='/alerts/${a.id}'">
+                    <div>
+                        <div class="font-bold text-sm text-gray-200">${a.alert_name}</div>
+                        <div class="text-xs text-gray-500">${new Date(a.timestamp).toLocaleString()}</div>
+                    </div>
+                    <span class="badge-${a.severity} px-2 py-1 rounded text-xs">${a.severity}</span>
+                </div>
+            `).join('');
+        }
+    }
+
+    function renderRCA(rca) {
+        const loading = document.getElementById('rca-loading');
+        const content = document.getElementById('rca-content');
+        if (loading) loading.classList.add('hidden');
+        if (content) content.classList.remove('hidden');
+
+        const title = document.getElementById('rca-title');
+        if (title) title.innerText = rca.root_cause;
+
+        const desc = document.getElementById('rca-desc');
+        if (desc) desc.innerText = "Identified with " + Math.round(rca.confidence * 100) + "% confidence.";
+
+        const conf = document.getElementById('rca-confidence');
+        if (conf) conf.innerText = (rca.confidence * 100) + "%";
+
+        const reasons = document.getElementById('rca-reasoning');
+        if (reasons) reasons.innerHTML = rca.reasoning.map(r => `<li>${r}</li>`).join('');
+    }
+
+    function renderInvestigationPath(path) {
+        const container = document.getElementById('path-steps');
+        if (container) {
+            container.innerHTML = path.steps.map(step => `
+                <div class="relative mb-6">
+                    <span class="absolute -left-[29px] w-6 h-6 rounded-full bg-purple-600 flex items-center justify-center text-xs font-bold border-2 border-gray-800">
+                        ${step.step_number}
+                    </span>
+                    <div class="ml-2">
+                        <h4 class="font-bold text-purple-400 text-sm">${step.action}</h4>
+                        <p class="text-gray-400 text-sm mb-2">${step.description}</p>
+                        ${step.command_to_run ? `
+                            <div class="bg-black rounded p-2 text-xs font-mono text-green-400 flex justify-between group">
+                                <code>${step.command_to_run}</code>
+                                <button class="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-white" onclick="copyToClipboard('${step.command_to_run}')">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+    }
 
 </script>
 {% endblock %}

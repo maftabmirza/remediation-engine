@@ -15,6 +15,9 @@ from app.models_chat import ChatSession, ChatMessage
 from app.services.llm_service import get_api_key_for_provider
 from app.services.ollama_service import ollama_completion_stream
 from app.services.ollama_service import ollama_completion_stream
+from app.services.prompt_service import PromptService
+from app.services.similarity_service import SimilarityService
+from app.models_troubleshooting import AlertCorrelation
 
 async def get_chat_llm(provider: LLMProvider):
     """
@@ -38,43 +41,7 @@ async def get_chat_llm(provider: LLMProvider):
     
     return llm
 
-def get_system_prompt(alert: Optional[Alert] = None) -> str:
-    """
-    Generate the system prompt for the chat.
-    """
-    base_prompt = """You are Antigravity, an advanced SRE AI Agent.
-You are pair-programming with the user to resolve a production incident.
 
-## Your Operating Mode:
-1.  **Iterative Troubleshooting**: Do not dump a wall of text. Propose **one** step at a time.
-2.  **Command Execution**: When you need information, provide the exact `bash` command to run.
-3.  **Output Analysis**: The user will paste the command output. You must analyze it deeply.
-    - If the output confirms your hypothesis -> Propose the fix.
-    - If the output disproves it -> Propose a new hypothesis and a new command.
-4.  **Tone**: Professional, concise, confidence-inspiring.
-
-## Format:
-- Use **bold** for key concepts.
-- Use `code blocks` for all commands/file paths.
-- Keep responses short (under 2 paragraphs) per turn unless explaining a complex solution.
-"""
-
-    if alert:
-        alert_context = f"""
-CURRENT ALERT CONTEXT:
-- Name: {alert.alert_name}
-- Severity: {alert.severity}
-- Instance: {alert.instance}
-- Status: {alert.status}
-- Summary: {alert.annotations_json.get('summary', 'N/A')}
-- Description: {alert.annotations_json.get('description', 'N/A')}
-
-INITIAL ANALYSIS (Hypothesis & Plan):
-{alert.ai_analysis or 'No initial analysis available.'}
-"""
-        return base_prompt + alert_context
-    
-    return base_prompt
 
 async def stream_chat_response(
     db: Session,
@@ -117,7 +84,33 @@ async def stream_chat_response(
     
     # Convert to message format
     messages = []
-    system_prompt = get_system_prompt(session.alert)
+    messages = []
+    
+    # Fetch Context
+    alert = session.alert
+    correlation = None
+    similar_incidents = []
+    
+    if alert:
+        if alert.correlation_id:
+            correlation = db.query(AlertCorrelation).filter(AlertCorrelation.id == alert.correlation_id).first()
+            
+        # Try to find similar incidents
+        try:
+            sim_service = SimilarityService(db)
+            sim_resp = sim_service.find_similar_alerts(alert.id, limit=3)
+            if sim_resp:
+                similar_incidents = [s.dict() for s in sim_resp.similar_incidents]
+        except Exception as e:
+            # Don't fail chat if similarity search fails
+            pass
+
+    system_prompt = PromptService.get_system_prompt(
+        alert=alert, 
+        correlation=correlation, 
+        similar_incidents=similar_incidents
+    )
+    
     messages.append({"role": "system", "content": system_prompt})
     
     for msg in history_messages:

@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16 # PostgreSQL 16 with pgvector extension
     container_name: aiops-postgres
     restart: unless-stopped
     environment:
@@ -41,6 +41,7 @@ services:
       - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
       - DEBUG=${DEBUG:-false}
     ports:
       - "8080:8080"

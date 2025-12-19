@@ -1,0 +1,21 @@
+<script>
+    // File upload handler
+    function handleFileUpload(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            document.getElementById('docContent').value = e.target.result;
+
+            const titleInput = document.querySelector('input[name="title"]');
+            if (!titleInput.value) {
+                titleInput.value = file.name.replace(/\.(md|txt|markdown)$/i, '');
+            }
+
+            showToast('File loaded! (' + file.name + ')', 'success');
+        };
+        reader.onerror = () => showToast('Failed to read file', 'error');
+        reader.readAsText(file);
+    }
+</script>
