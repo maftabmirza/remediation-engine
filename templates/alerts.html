@@ -11,11 +11,24 @@
             <h1 class="text-2xl font-bold">Alerts</h1>
             <p class="text-gray-400">View and analyze alerts from your infrastructure</p>
         </div>
-        <button onclick="loadAlerts()" class="btn-secondary px-4 py-2 rounded-lg">
-            <i class="fas fa-sync-alt mr-2"></i> Refresh
-        </button>
+        <div class="flex items-center gap-3">
+            <!-- View Toggle -->
+            <div class="flex items-center bg-gray-800 rounded-lg p-1 border border-gray-700">
+                <button id="viewIndividual" onclick="switchView('individual')"
+                    class="px-3 py-1.5 rounded text-sm font-medium transition bg-gray-700 text-white">
+                    <i class="fas fa-list mr-1"></i> Individual
+                </button>
+                <button id="viewGrouped" onclick="switchView('grouped')"
+                    class="px-3 py-1.5 rounded text-sm font-medium transition text-gray-400 hover:text-white">
+                    <i class="fas fa-layer-group mr-1"></i> Grouped
+                </button>
+            </div>
+            <button onclick="refreshCurrentView()" class="btn-secondary px-4 py-2 rounded-lg">
+                <i class="fas fa-sync-alt mr-2"></i> Refresh
+            </button>
+        </div>
     </div>
-    
+
     <!-- Filters -->
     <div class="card p-4">
         <div class="flex flex-wrap gap-4 items-center">
@@ -24,7 +37,8 @@
                     Severity
                     <span class="info-tooltip info-tooltip-align-left">
                         <span class="info-tooltip-icon">?</span>
-                        <span class="info-tooltip-text">Filter alerts by severity level (Critical, Warning, Info).</span>
+                        <span class="info-tooltip-text">Filter alerts by severity level (Critical, Warning,
+                            Info).</span>
                     </span>
                 </label>
                 <select id="filterSeverity" class="input-field px-3 py-2 rounded" onchange="loadAlerts()">
@@ -39,7 +53,8 @@
                     Status
                     <span class="info-tooltip info-tooltip-align-left">
                         <span class="info-tooltip-icon">?</span>
-                        <span class="info-tooltip-text"><strong>Firing:</strong> Active alerts.<br><strong>Resolved:</strong> Alerts that have cleared.</span>
+                        <span class="info-tooltip-text"><strong>Firing:</strong> Active
+                            alerts.<br><strong>Resolved:</strong> Alerts that have cleared.</span>
                     </span>
                 </label>
                 <select id="filterStatus" class="input-field px-3 py-2 rounded" onchange="loadAlerts()">
@@ -70,26 +85,21 @@
                         <span class="info-tooltip-text">Search by alert name, instance, or job.</span>
                     </span>
                 </label>
-                <input 
-                    type="text" 
-                    id="filterSearch" 
-                    class="input-field px-3 py-2 rounded w-full"
-                    placeholder="Search alert name..."
-                    onkeyup="debounceSearch()"
-                >
+                <input type="text" id="filterSearch" class="input-field px-3 py-2 rounded w-full"
+                    placeholder="Search alert name..." onkeyup="debounceSearch()">
             </div>
         </div>
     </div>
-    
-    <!-- Alerts List -->
-    <div class="card">
+
+    <!-- Individual Alerts List -->
+    <div id="individualView" class="card">
         <div id="alertsList" class="divide-y divide-gray-700">
             <div class="p-8 text-center">
                 <div class="loading-spinner mx-auto mb-2"></div>
                 <p class="text-gray-400">Loading alerts...</p>
             </div>
         </div>
-        
+
         <!-- Pagination -->
         <div id="pagination" class="p-4 border-t border-gray-700 flex items-center justify-between hidden">
             <div class="text-sm text-gray-400">
@@ -103,6 +113,16 @@
                 <button id="nextBtn" class="btn-secondary px-3 py-1 rounded" onclick="nextPage()">
                     <i class="fas fa-chevron-right"></i>
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Grouped Clusters View -->
+    <div id="groupedView" class="hidden space-y-4">
+        <div id="clustersList">
+            <div class="card p-8 text-center">
+                <div class="loading-spinner mx-auto mb-2"></div>
+                <p class="text-gray-400">Loading clusters...</p>
             </div>
         </div>
     </div>
@@ -130,28 +150,68 @@
     let currentPage = 1;
     let totalPages = 1;
     let searchTimeout = null;
-    
+    let currentView = 'individual'; // 'individual' or 'grouped'
+    let expandedClusters = new Set(); // Track expanded clusters
+
+    function switchView(view) {
+        currentView = view;
+
+        // Update button styles
+        const individualBtn = document.getElementById('viewIndividual');
+        const groupedBtn = document.getElementById('viewGrouped');
+
+        if (view === 'individual') {
+            individualBtn.classList.add('bg-gray-700', 'text-white');
+            individualBtn.classList.remove('text-gray-400');
+            groupedBtn.classList.remove('bg-gray-700', 'text-white');
+            groupedBtn.classList.add('text-gray-400');
+
+            document.getElementById('individualView').classList.remove('hidden');
+            document.getElementById('groupedView').classList.add('hidden');
+
+            loadAlerts();
+        } else {
+            groupedBtn.classList.add('bg-gray-700', 'text-white');
+            groupedBtn.classList.remove('text-gray-400');
+            individualBtn.classList.remove('bg-gray-700', 'text-white');
+            individualBtn.classList.add('text-gray-400');
+
+            document.getElementById('individualView').classList.add('hidden');
+            document.getElementById('groupedView').classList.remove('hidden');
+
+            loadClusters();
+        }
+    }
+
+    function refreshCurrentView() {
+        if (currentView === 'individual') {
+            loadAlerts();
+        } else {
+            loadClusters();
+        }
+    }
+
     function debounceSearch() {
         clearTimeout(searchTimeout);
-        searchTimeout = setTimeout(() => loadAlerts(), 300);
+        searchTimeout = setTimeout(() => refreshCurrentView(), 300);
     }
-    
+
     async function loadAlerts() {
         const severity = document.getElementById('filterSeverity').value;
         const status = document.getElementById('filterStatus').value;
         const analyzed = document.getElementById('filterAnalyzed').value;
         const search = document.getElementById('filterSearch').value;
-        
+
         let url = `/api/alerts?page=${currentPage}&page_size=15`;
         if (severity) url += `&severity=${severity}`;
         if (status) url += `&status=${status}`;
         if (analyzed) url += `&analyzed=${analyzed}`;
         if (search) url += `&alert_name=${encodeURIComponent(search)}`;
-        
+
         try {
             const response = await apiCall(url);
             if (!response) return;
-            
+
             const data = await response.json();
             renderAlerts(data);
         } catch (error) {
@@ -164,11 +224,11 @@
             `;
         }
     }
-    
+
     function renderAlerts(data) {
         const container = document.getElementById('alertsList');
         totalPages = data.total_pages;
-        
+
         if (data.alerts.length === 0) {
             container.innerHTML = `
                 <div class="p-8 text-center text-gray-400">
@@ -179,7 +239,7 @@
             document.getElementById('pagination').classList.add('hidden');
             return;
         }
-        
+
         container.innerHTML = data.alerts.map(alert => `
             <div class="p-4 hover:bg-gray-800 transition">
                 <div class="flex items-start justify-between">
@@ -191,10 +251,10 @@
                             <span class="status-${alert.status} text-sm">
                                 <i class="fas fa-circle text-xs mr-1"></i>${alert.status}
                             </span>
-                            ${alert.analyzed 
-                                ? '<span class="text-green-400 text-sm"><i class="fas fa-check-circle mr-1"></i>Analyzed</span>' 
-                                : '<span class="text-yellow-400 text-sm"><i class="fas fa-clock mr-1"></i>Pending</span>'
-                            }
+                            ${alert.analyzed
+                ? '<span class="text-green-400 text-sm"><i class="fas fa-check-circle mr-1"></i>Analyzed</span>'
+                : '<span class="text-yellow-400 text-sm"><i class="fas fa-clock mr-1"></i>Pending</span>'
+            }
                         </div>
                         <h3 class="font-semibold text-lg">${alert.alert_name}</h3>
                         <div class="text-sm text-gray-400 mt-1">
@@ -225,43 +285,43 @@
                 </div>
             </div>
         `).join('');
-        
+
         // Update pagination
         const pagination = document.getElementById('pagination');
         pagination.classList.remove('hidden');
-        
+
         const from = (currentPage - 1) * 15 + 1;
         const to = Math.min(currentPage * 15, data.total);
         document.getElementById('showingFrom').textContent = from;
         document.getElementById('showingTo').textContent = to;
         document.getElementById('totalAlerts').textContent = data.total;
         document.getElementById('pageInfo').textContent = `Page ${currentPage} of ${totalPages}`;
-        
+
         document.getElementById('prevBtn').disabled = currentPage <= 1;
         document.getElementById('nextBtn').disabled = currentPage >= totalPages;
     }
-    
+
     function prevPage() {
         if (currentPage > 1) {
             currentPage--;
             loadAlerts();
         }
     }
-    
+
     function nextPage() {
         if (currentPage < totalPages) {
             currentPage++;
             loadAlerts();
         }
     }
-    
+
     async function analyzeAlert(alertId, force = false) {
         const modal = document.getElementById('analyzeModal');
         const modalContent = document.getElementById('modalContent');
-        
+
         modal.classList.remove('hidden');
         modal.classList.add('flex');
-        
+
         modalContent.innerHTML = `
             <div class="text-center py-8">
                 <div class="loading-spinner mx-auto mb-4"></div>
@@ -269,24 +329,24 @@
                 <p class="text-sm text-gray-500 mt-2">This may take a few seconds</p>
             </div>
         `;
-        
+
         try {
             const response = await apiCall(`/api/alerts/${alertId}/analyze`, {
                 method: 'POST',
                 body: JSON.stringify({ force })
             });
-            
+
             if (!response) return;
-            
+
             if (!response.ok) {
                 const error = await response.json();
                 throw new Error(error.detail || 'Analysis failed');
             }
-            
+
             const data = await response.json();
             showAnalysisResult(data);
             loadAlerts(); // Refresh the list
-            
+
         } catch (error) {
             modalContent.innerHTML = `
                 <div class="text-center py-8 text-red-400">
@@ -298,26 +358,26 @@
             `;
         }
     }
-    
+
     async function viewAnalysis(alertId) {
         const modal = document.getElementById('analyzeModal');
         const modalContent = document.getElementById('modalContent');
-        
+
         modal.classList.remove('hidden');
         modal.classList.add('flex');
-        
+
         modalContent.innerHTML = `
             <div class="text-center py-8">
                 <div class="loading-spinner mx-auto"></div>
             </div>
         `;
-        
+
         try {
             const response = await apiCall(`/api/alerts/${alertId}`);
             if (!response) return;
-            
+
             const alert = await response.json();
-            
+
             if (!alert.ai_analysis) {
                 modalContent.innerHTML = `
                     <div class="text-center py-8">
@@ -329,7 +389,7 @@
                 `;
                 return;
             }
-            
+
             showAnalysisResult({
                 alert_id: alert.id,
                 analysis: alert.ai_analysis,
@@ -337,7 +397,7 @@
                 analyzed_at: alert.analyzed_at,
                 analysis_count: alert.analysis_count
             });
-            
+
         } catch (error) {
             modalContent.innerHTML = `
                 <div class="text-center py-8 text-red-400">
@@ -346,17 +406,17 @@
             `;
         }
     }
-    
+
     function showAnalysisResult(data) {
         const modalContent = document.getElementById('modalContent');
-        
+
         // Convert markdown-like formatting
         let formattedAnalysis = data.analysis
             .replace(/## (.*)/g, '<h3 class="text-lg font-semibold mt-4 mb-2 text-blue-400">$1</h3>')
             .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
             .replace(/`(.*?)`/g, '<code class="bg-gray-800 px-1 rounded">$1</code>')
             .replace(/\n/g, '<br>');
-        
+
         modalContent.innerHTML = `
             <div class="space-y-4">
                 <div class="flex items-center justify-between text-sm text-gray-400">
@@ -396,26 +456,263 @@
             </div>
         `;
     }
-    
+
+    async function loadClusters() {
+        const container = document.getElementById('clustersList');
+        const severity = document.getElementById('filterSeverity').value;
+        const status = document.getElementById('filterStatus').value;
+
+        container.innerHTML = `
+            <div class="card p-8 text-center">
+                <div class="loading-spinner mx-auto mb-2"></div>
+                <p class="text-gray-400">Loading clusters...</p>
+            </div>
+        `;
+
+        try {
+            let url = '/api/clusters?page_size=50';
+            if (severity) url += `&severity=${severity}`;
+            if (status === 'firing') url += `&is_active=true`;
+            if (status === 'resolved') url += `&is_active=false`;
+
+            const response = await apiCall(url);
+            if (!response || !response.ok) {
+                throw new Error('Failed to load clusters');
+            }
+
+            const clusters = await response.json();
+            renderClusters(clusters);
+
+        } catch (error) {
+            console.error('Failed to load clusters:', error);
+            container.innerHTML = `
+                <div class="card p-8 text-center text-red-400">
+                    <i class="fas fa-exclamation-circle text-2xl mb-2"></i>
+                    <p>Failed to load clusters</p>
+                </div>
+            `;
+        }
+    }
+
+    function renderClusters(clusters) {
+        const container = document.getElementById('clustersList');
+
+        if (clusters.length === 0) {
+            container.innerHTML = `
+                <div class="card p-8 text-center text-gray-400">
+                    <i class="fas fa-inbox text-4xl mb-3"></i>
+                    <p>No alert clusters found</p>
+                    <p class="text-sm mt-2">Clusters are created automatically when similar alerts are detected</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = clusters.map(cluster => `
+            <div class="card">
+                <!-- Cluster Header -->
+                <div class="p-4 border-b border-gray-700">
+                    <div class="flex items-start justify-between">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-3 mb-2">
+                                <span class="badge-${cluster.severity || 'info'} px-2 py-1 rounded text-xs font-semibold uppercase">
+                                    ${cluster.severity || 'info'}
+                                </span>
+                                <span class="text-sm ${cluster.is_active ? 'text-green-400' : 'text-gray-400'}">
+                                    <i class="fas fa-circle text-xs mr-1"></i>${cluster.is_active ? 'Active' : 'Closed'}
+                                </span>
+                                <span class="text-sm text-gray-400">
+                                    <i class="fas fa-layer-group mr-1"></i>${cluster.cluster_type}
+                                </span>
+                                <span class="text-sm font-semibold text-purple-400">
+                                    <i class="fas fa-bell mr-1"></i>${cluster.alert_count} alerts
+                                </span>
+                            </div>
+                            <h3 class="font-semibold text-lg mb-1">
+                                ${cluster.cluster_key.replace(/_/g, ' ')}
+                            </h3>
+                            ${cluster.summary ? `
+                                <p class="text-sm text-gray-400 mt-2">
+                                    <i class="fas fa-robot mr-1 text-blue-400"></i>${cluster.summary}
+                                </p>
+                            ` : ''}
+                            <div class="flex items-center gap-4 text-xs text-gray-500 mt-2">
+                                <span><i class="fas fa-clock mr-1"></i>First: ${new Date(cluster.first_seen).toLocaleString()}</span>
+                                <span><i class="fas fa-clock mr-1"></i>Last: ${new Date(cluster.last_seen).toLocaleString()}</span>
+                                <span><i class="fas fa-hourglass-half mr-1"></i>${cluster.duration_hours.toFixed(1)}h duration</span>
+                                <span><i class="fas fa-chart-line mr-1"></i>${cluster.alerts_per_hour.toFixed(1)} alerts/h</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 ml-4">
+                            ${cluster.is_active ? `
+                                <button onclick="closeCluster('${cluster.id}')" class="btn-secondary px-3 py-1 rounded text-sm" title="Close cluster">
+                                    <i class="fas fa-check mr-1"></i> Resolve
+                                </button>
+                            ` : ''}
+                            ${!cluster.summary && cluster.alert_count >= 3 ? `
+                                <button onclick="generateClusterSummary('${cluster.id}')" class="btn-secondary px-3 py-1 rounded text-sm" title="Generate AI summary">
+                                    <i class="fas fa-brain mr-1"></i> Analyze
+                                </button>
+                            ` : ''}
+                            <button onclick="toggleCluster('${cluster.id}')" class="btn-secondary px-3 py-1 rounded text-sm">
+                                <i class="fas fa-chevron-down" id="icon-${cluster.id}"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Cluster Alerts (Hidden by default) -->
+                <div id="cluster-${cluster.id}" class="hidden border-t border-gray-700">
+                    <div class="p-4 bg-gray-800 bg-opacity-50">
+                        <p class="text-sm text-gray-400 mb-3">
+                            <i class="fas fa-info-circle mr-1"></i>Loading ${cluster.alert_count} alerts in this cluster...
+                        </p>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    async function toggleCluster(clusterId) {
+        const clusterDiv = document.getElementById(`cluster-${clusterId}`);
+        const icon = document.getElementById(`icon-${clusterId}`);
+
+        if (expandedClusters.has(clusterId)) {
+            // Collapse
+            clusterDiv.classList.add('hidden');
+            icon.classList.remove('fa-chevron-up');
+            icon.classList.add('fa-chevron-down');
+            expandedClusters.delete(clusterId);
+        } else {
+            // Expand
+            clusterDiv.classList.remove('hidden');
+            icon.classList.remove('fa-chevron-down');
+            icon.classList.add('fa-chevron-up');
+            expandedClusters.add(clusterId);
+
+            // Load alerts if not already loaded
+            if (clusterDiv.querySelector('.bg-gray-800')) {
+                await loadClusterAlerts(clusterId);
+            }
+        }
+    }
+
+    async function loadClusterAlerts(clusterId) {
+        const clusterDiv = document.getElementById(`cluster-${clusterId}`);
+
+        try {
+            const response = await apiCall(`/api/clusters/${clusterId}/alerts?page_size=100`);
+            if (!response || !response.ok) {
+                throw new Error('Failed to load alerts');
+            }
+
+            const alerts = await response.json();
+
+            clusterDiv.innerHTML = `
+                <div class="divide-y divide-gray-700">
+                    ${alerts.map(alert => `
+                        <div class="p-3 hover:bg-gray-800 transition">
+                            <div class="flex items-start justify-between">
+                                <div class="flex-1">
+                                    <div class="flex items-center gap-2 mb-1">
+                                        <span class="badge-${alert.severity || 'info'} px-2 py-0.5 rounded text-xs">
+                                            ${alert.severity || 'info'}
+                                        </span>
+                                        <span class="font-medium text-sm">${alert.alert_name}</span>
+                                    </div>
+                                    <div class="text-xs text-gray-400">
+                                        <span><i class="fas fa-server mr-1"></i>${alert.instance || 'N/A'}</span>
+                                        <span class="mx-2">•</span>
+                                        <span><i class="fas fa-clock mr-1"></i>${new Date(alert.timestamp).toLocaleString()}</span>
+                                    </div>
+                                </div>
+                                <a href="/alerts/${alert.id}" class="btn-secondary px-2 py-1 rounded text-xs">
+                                    <i class="fas fa-external-link-alt"></i>
+                                </a>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+
+        } catch (error) {
+            console.error('Failed to load cluster alerts:', error);
+            clusterDiv.innerHTML = `
+                <div class="p-4 text-center text-red-400">
+                    <p class="text-sm">Failed to load alerts</p>
+                </div>
+            `;
+        }
+    }
+
+    async function closeCluster(clusterId) {
+        if (!confirm('Are you sure you want to close this cluster? This will mark it as resolved.')) {
+            return;
+        }
+
+        try {
+            const response = await apiCall(`/api/clusters/${clusterId}/close?reason=manual`, {
+                method: 'POST'
+            });
+
+            if (!response || !response.ok) {
+                throw new Error('Failed to close cluster');
+            }
+
+            // Reload clusters
+            loadClusters();
+
+        } catch (error) {
+            console.error('Failed to close cluster:', error);
+            alert('Failed to close cluster: ' + error.message);
+        }
+    }
+
+    async function generateClusterSummary(clusterId) {
+        const button = event.target.closest('button');
+        const originalHTML = button.innerHTML;
+        button.disabled = true;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Analyzing...';
+
+        try {
+            const response = await apiCall(`/api/clusters/${clusterId}/regenerate-summary`, {
+                method: 'POST'
+            });
+
+            if (!response || !response.ok) {
+                throw new Error('Failed to generate summary');
+            }
+
+            // Reload clusters to show new summary
+            loadClusters();
+
+        } catch (error) {
+            console.error('Failed to generate summary:', error);
+            alert('Failed to generate summary: ' + error.message);
+            button.disabled = false;
+            button.innerHTML = originalHTML;
+        }
+    }
+
     function closeModal() {
         const modal = document.getElementById('analyzeModal');
         modal.classList.add('hidden');
         modal.classList.remove('flex');
     }
-    
+
     // Close modal on escape key
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') closeModal();
     });
-    
+
     // Close modal on backdrop click
     document.getElementById('analyzeModal').addEventListener('click', (e) => {
         if (e.target === e.currentTarget) closeModal();
     });
-    
+
     // Initial load
     loadAlerts();
-    
+
     // Check URL params for filters
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.has('analyzed')) {
