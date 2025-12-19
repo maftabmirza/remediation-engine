@@ -45,7 +45,8 @@ from app.routers import (
     applications,
     knowledge,  # Phase 2: Knowledge Base
     feedback,  # Phase 3: Learning System
-    troubleshooting  # Phase 4: Troubleshooting Engine
+    troubleshooting,  # Phase 4: Troubleshooting Engine
+    clusters  # Week 1-2: Alert Clustering
 )
 from app import api_credential_profiles
 from app.services.execution_worker import start_execution_worker, stop_execution_worker
@@ -219,6 +220,7 @@ app.include_router(applications.router)  # Phase 1: Application Registry
 app.include_router(knowledge.router)      # Phase 2: Knowledge Base
 app.include_router(feedback.router, prefix="/api/v1", tags=["learning"])  # Phase 3: Learning System
 app.include_router(troubleshooting.router, prefix="/api/v1", tags=["troubleshooting"])  # Phase 4: Troubleshooting Engine
+app.include_router(clusters.router)       # Week 1-2: Alert Clustering
 
 
 @app.get("/profile", response_class=HTMLResponse)
