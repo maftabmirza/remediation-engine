@@ -384,7 +384,7 @@ class AlertClusteringService:
             last_seen=max(a.timestamp for a in alerts),
             severity=self._calculate_severity(alerts),
             cluster_type='exact',  # Default, can be updated
-            metadata=self._extract_metadata(alerts),
+            cluster_metadata=self._extract_metadata(alerts),
             is_active=True
         )
 
@@ -405,7 +405,7 @@ class AlertClusteringService:
         cluster.first_seen = min(a.timestamp for a in alerts)
         cluster.last_seen = max(a.timestamp for a in alerts)
         cluster.severity = self._calculate_severity(alerts)
-        cluster.metadata = self._extract_metadata(alerts)
+        cluster.cluster_metadata = self._extract_metadata(alerts)
         cluster.updated_at = utc_now()
 
         logger.debug(f"Updated cluster {cluster.cluster_key} with {len(alerts)} alerts")

@@ -30,7 +30,7 @@ def upgrade():
         sa.Column('is_active', sa.Boolean(), nullable=False, server_default='true'),
         sa.Column('closed_at', sa.DateTime(timezone=True), nullable=True),
         sa.Column('closed_reason', sa.String(100), nullable=True),
-        sa.Column('metadata', postgresql.JSONB(astext_type=sa.Text()), server_default='{}'),
+        sa.Column('cluster_metadata', postgresql.JSONB(astext_type=sa.Text()), server_default='{}'),
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.func.now())
     )

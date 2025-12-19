@@ -258,7 +258,7 @@ class AlertClusterResponse(AlertClusterBase):
     is_active: bool
     closed_at: Optional[datetime] = None
     closed_reason: Optional[str] = None
-    metadata: Dict[str, Any] = {}
+    cluster_metadata: Dict[str, Any] = {}
     created_at: datetime
     updated_at: datetime
     duration_hours: float = 0.0

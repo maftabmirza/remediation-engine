@@ -107,7 +107,7 @@ class AlertCluster(Base):
     is_active = Column(Boolean, default=True, nullable=False, index=True)
     closed_at = Column(DateTime(timezone=True), nullable=True)
     closed_reason = Column(String(100), nullable=True)
-    metadata = Column(JSON, default={})
+    cluster_metadata = Column(JSON, default={})
     created_at = Column(DateTime(timezone=True), default=utc_now)
     updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
 
