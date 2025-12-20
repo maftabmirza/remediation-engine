@@ -8,7 +8,7 @@ Tests:
 4. Cluster actions work (close)
 """
 import pytest
-from datetime import datetime, timezone, timedelta
+from datetime import timedelta
 from uuid import uuid4
 
 from app.models import Alert, AlertCluster, utc_now
@@ -52,10 +52,10 @@ class TestClusteringService:
         service = AlertClusteringService(test_db_session)
         clusters = service.cluster_alerts(sample_alerts, strategy='exact')
         
+        # clusters is a dict: {cluster_key: [alert_ids]}
         assert len(clusters) == 1
-        cluster = clusters[0]
-        assert len(cluster['alerts']) == 5
-        assert cluster['cluster_type'] == 'exact'
+        cluster_key = list(clusters.keys())[0]
+        assert len(clusters[cluster_key]) == 5
 
     def test_apply_clustering_creates_cluster(self, test_db_session, sample_alerts):
         """Test that apply_clustering creates database records."""
@@ -122,7 +122,7 @@ class TestClusteringWorker:
         for i in range(3):
             alert = Alert(
                 id=uuid4(),
-                fingerprint=f"worker-test-{i}",
+                fingerprint=f"worker-test-{uuid4()}",
                 timestamp=base_time - timedelta(minutes=i*5),
                 alert_name="WorkerTestAlert",
                 severity="warning",
@@ -155,7 +155,7 @@ class TestClusteringWorker:
         # Create old inactive cluster
         old_cluster = AlertCluster(
             id=uuid4(),
-            cluster_key="cleanup_test_cluster",
+            cluster_key=f"cleanup_test_cluster_{uuid4()}",
             cluster_type="exact",
             severity="info",
             alert_count=1,
@@ -188,7 +188,7 @@ class TestClusteringAPI:
         """Create a sample cluster for API testing."""
         cluster = AlertCluster(
             id=uuid4(),
-            cluster_key="api_test_cluster",
+            cluster_key=f"api_test_cluster_{uuid4()}",
             cluster_type="exact",
             severity="critical",
             alert_count=3,
@@ -199,6 +199,7 @@ class TestClusteringAPI:
         )
         test_db_session.add(cluster)
         test_db_session.commit()
+        test_db_session.refresh(cluster)
         return cluster
 
     def test_list_clusters(self, test_client, admin_auth_headers, sample_cluster):
@@ -209,7 +210,7 @@ class TestClusteringAPI:
         data = response.json()
         assert isinstance(data, list)
 
-    def test_get_cluster_detail(self, test_client, admin_auth_headers, sample_cluster, test_db_session):
+    def test_get_cluster_detail(self, test_client, admin_auth_headers, sample_cluster):
         """Test GET /api/clusters/{id} returns cluster details."""
         response = test_client.get(
             f"/api/clusters/{sample_cluster.id}",
