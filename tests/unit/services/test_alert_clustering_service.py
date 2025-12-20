@@ -10,9 +10,9 @@ from app.services.alert_clustering_service import AlertClusteringService
 
 
 @pytest.fixture
-def db_session(db):
+def db_session(test_db_session):
     """Provide a database session for tests"""
-    return db
+    return test_db_session
 
 
 @pytest.fixture
