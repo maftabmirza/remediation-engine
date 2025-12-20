@@ -85,8 +85,11 @@ class TestExactMatchClustering:
     
     def test_identical_alerts_cluster_together(self, clustering_service, sample_alerts):
         """Test that identical alerts are grouped into one cluster"""
-        # Get only the 5 identical alerts
-        identical_alerts = [a for a in sample_alerts if a.instance == "server-1"]
+        # Get only the 5 identical alerts (same name and instance)
+        identical_alerts = [
+            a for a in sample_alerts 
+            if a.instance == "server-1" and a.alert_name == "HighCPUUsage"
+        ]
         
         clusters = clustering_service.cluster_alerts(identical_alerts, strategy='exact')
         
