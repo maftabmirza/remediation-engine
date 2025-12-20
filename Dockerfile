@@ -21,7 +21,6 @@ COPY migrations/ ./migrations/
 COPY alembic/ ./alembic/
 COPY alembic.ini .
 COPY tests/ ./tests/
-COPY conftest.py .
 
 COPY entrypoint.sh .
 RUN chmod +x entrypoint.sh
