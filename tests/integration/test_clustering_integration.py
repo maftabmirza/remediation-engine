@@ -6,6 +6,10 @@ Tests:
 2. Clustering job creates clusters  
 3. API endpoints return correct data
 4. Cluster actions work (close)
+
+Note: API tests may need to run individually due to async event loop
+issues in the test environment. All tests pass when run individually:
+    pytest tests/integration/test_clustering_integration.py::TestClusteringAPI::test_list_clusters -v
 """
 import pytest
 from datetime import timedelta
@@ -212,8 +216,8 @@ class TestClusteringWorker:
         assert result is None
 
 
-class TestClusteringAPI:
-    """Test clustering API endpoints."""
+class TestClusteringAPIListClusters:
+    """Test listing clusters API endpoint."""
 
     def test_list_clusters(self, test_client, admin_auth_headers, test_db_session):
         """Test GET /api/clusters returns cluster list."""
@@ -238,6 +242,10 @@ class TestClusteringAPI:
         data = response.json()
         assert isinstance(data, list)
         assert len(data) >= 1
+
+
+class TestClusteringAPIDetail:
+    """Test cluster detail API endpoint."""
 
     def test_get_cluster_detail(self, test_client, admin_auth_headers, test_db_session):
         """Test GET /api/clusters/{id} returns cluster details."""
@@ -267,6 +275,10 @@ class TestClusteringAPI:
         assert data["cluster_type"] == "exact"
         assert data["is_active"] == True
 
+
+class TestClusteringAPIClose:
+    """Test cluster close API endpoint."""
+
     def test_close_cluster(self, test_client, admin_auth_headers, test_db_session):
         """Test POST /api/clusters/{id}/close closes the cluster."""
         # Create a cluster
@@ -295,6 +307,10 @@ class TestClusteringAPI:
         test_db_session.refresh(cluster)
         assert cluster.is_active == False
         assert cluster.closed_at is not None
+
+
+class TestClusteringAPIStats:
+    """Test cluster stats API endpoint."""
 
     def test_get_cluster_stats(self, test_client, admin_auth_headers, test_db_session):
         """Test GET /api/clusters/stats/overview returns statistics."""
@@ -346,6 +362,10 @@ class TestClusteringAPI:
         assert "avg_cluster_size" in data
         assert data["active_clusters"] >= 1
 
+
+class TestClusteringAPINotFound:
+    """Test cluster not found API behavior."""
+
     def test_cluster_not_found(self, test_client, admin_auth_headers):
         """Test 404 for non-existent cluster."""
         fake_id = uuid4()
@@ -357,4 +377,10 @@ class TestClusteringAPI:
         assert response.status_code == 404
 
 
-# Run with: pytest tests/integration/test_clustering_integration.py -v
+# Run all tests:
+#   pytest tests/integration/test_clustering_integration.py -v
+#
+# Or run by class to avoid event loop issues:
+#   pytest tests/integration/test_clustering_integration.py::TestClusteringService -v
+#   pytest tests/integration/test_clustering_integration.py::TestClusteringWorker -v
+#   pytest tests/integration/test_clustering_integration.py::TestClusteringAPIListClusters -v
