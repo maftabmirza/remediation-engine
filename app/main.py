@@ -177,6 +177,11 @@ app = FastAPI(
     redoc_url=None  # Disable default to override
 )
 
+# Add ProxyHeadersMiddleware to handle X-Forwarded-* headers from reverse proxy
+# This ensures HTTPS URLs are used in redirects when behind Nginx/SSL termination
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
+app = ProxyHeadersMiddleware(app, trusted_hosts=["*"])
+
 @app.get("/redoc", include_in_schema=False)
 async def redoc_html():
     return get_redoc_html(
