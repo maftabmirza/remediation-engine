@@ -63,26 +63,42 @@ class AlertClusteringService:
             clusters = self._convert_semantic_to_dict(cluster_groups)
         else:  # auto
             # Layer 1: Exact match (catches 70%)
-            exact_clusters = self._exact_match_clustering(alerts)
-
-            # Flatten to get clustered alerts
-            clustered_ids = set()
-            for alert_list in exact_clusters.values():
-                clustered_ids.update(a.id for a in alert_list)
+            exact_match_groups = self._exact_match_clustering(alerts)
+            
+            # Divide into clusters (size > 1) and unclustered (size == 1)
+            clusters = {}
+            unclustered = []
+            
+            for key, alert_list in exact_match_groups.items():
+                if len(alert_list) > 1:
+                    clusters[key] = alert_list
+                else:
+                    unclustered.extend(alert_list)
 
             # Layer 2: Temporal on remaining alerts
-            unclustered = [a for a in alerts if a.id not in clustered_ids]
-
             if unclustered:
                 temporal_groups = self._temporal_clustering(unclustered)
                 temporal_clusters = self._convert_temporal_to_dict(temporal_groups)
-
+                
                 # Merge clusters
-                clusters = exact_clusters
                 for key, alert_list in temporal_clusters.items():
                     clusters[key] = alert_list
-            else:
-                clusters = exact_clusters
+                    
+                # Find alerts still unclustered
+                clustered_ids = set()
+                for alert_list in temporal_clusters.values():
+                    clustered_ids.update(a.id for a in alert_list)
+                
+                unclustered = [a for a in unclustered if a.id not in clustered_ids]
+            
+            # Layer 3: Semantic on remaining alerts
+            if unclustered:
+                semantic_groups = self._semantic_clustering(unclustered)
+                semantic_clusters = self._convert_semantic_to_dict(semantic_groups)
+                
+                # Merge clusters
+                for key, alert_list in semantic_clusters.items():
+                    clusters[key] = alert_list
 
         # Convert Alert objects to IDs
         result = {}
