@@ -74,15 +74,62 @@
         </div>
     </div>
 
-    <!-- Change Timeline -->
+    <!-- Change Timeline Table -->
     <div class="card p-6">
-        <h3 class="font-bold text-lg mb-4">
-            <i class="fas fa-stream text-blue-400 mr-2"></i>Change Timeline
-        </h3>
-        <div id="changeTimeline" class="space-y-2">
-            <div class="text-center py-8 text-gray-400">
-                <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
-                <p>Loading timeline...</p>
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="font-bold text-lg">
+                <i class="fas fa-list-alt text-blue-400 mr-2"></i>Change Events
+            </h3>
+            <div class="flex items-center space-x-2 text-sm">
+                <span class="text-gray-400">Show:</span>
+                <select id="pageSize" class="input-field py-1 px-2 text-sm" onchange="loadChangeTimeline()">
+                    <option value="10">10</option>
+                    <option value="25" selected>25</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Table -->
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-left text-gray-400 border-b border-gray-700">
+                        <th class="pb-3 pr-4">Change ID</th>
+                        <th class="pb-3 pr-4">Type</th>
+                        <th class="pb-3 pr-4">Service</th>
+                        <th class="pb-3 pr-4">Description</th>
+                        <th class="pb-3 pr-4">Timestamp</th>
+                        <th class="pb-3 pr-4 text-center">Impact</th>
+                        <th class="pb-3 text-center">Incidents</th>
+                    </tr>
+                </thead>
+                <tbody id="changeTableBody" class="divide-y divide-gray-800">
+                    <tr>
+                        <td colspan="7" class="text-center py-8 text-gray-400">
+                            <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                            <p>Loading changes...</p>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="flex justify-between items-center mt-4 pt-4 border-t border-gray-700">
+            <div class="text-sm text-gray-400" id="paginationInfo">
+                Showing 0-0 of 0 changes
+            </div>
+            <div class="flex items-center space-x-2">
+                <button onclick="prevPage()" id="prevBtn" disabled
+                    class="btn-secondary py-1 px-3 text-sm disabled:opacity-50">
+                    <i class="fas fa-chevron-left mr-1"></i>Prev
+                </button>
+                <span class="text-sm text-gray-400" id="pageIndicator">Page 1</span>
+                <button onclick="nextPage()" id="nextBtn" class="btn-secondary py-1 px-3 text-sm disabled:opacity-50">
+                    Next<i class="fas fa-chevron-right ml-1"></i>
+                </button>
             </div>
         </div>
     </div>
@@ -325,49 +372,111 @@
         }
     }
 
+    // Pagination state
+    let currentPage = 1;
+    let totalChanges = 0;
+    let allChanges = [];
+
     async function loadChangeTimeline() {
-        const container = document.getElementById('changeTimeline');
+        const tbody = document.getElementById('changeTableBody');
         const timeRange = document.getElementById('timeRange').value;
+        const pageSize = parseInt(document.getElementById('pageSize').value) || 25;
 
         try {
             const res = await apiCall(`/api/changes/timeline?time_range=${timeRange}`);
             if (!res.ok) throw new Error('Failed to load');
 
             const data = await res.json();
+            allChanges = data.entries || [];
+            totalChanges = allChanges.length;
+            currentPage = 1;
 
-            if (data.entries.length === 0) {
-                container.innerHTML = `
-                <div class="text-center py-8 text-gray-400">
-                    <i class="fas fa-inbox text-3xl mb-2"></i>
-                    <p>No changes in this period</p>
-                </div>
-            `;
-                return;
-            }
-
-            container.innerHTML = data.entries.map(entry => `
-            <div class="flex items-center space-x-4 p-3 bg-gray-800 rounded-lg hover:bg-gray-750 transition-colors">
-                <div class="w-3 h-3 rounded-full ${getImpactDot(entry.impact_level)}"></div>
-                <div class="flex-grow">
-                    <div class="flex items-center space-x-2">
-                        <span class="font-mono text-sm text-blue-400">${escapeHtml(entry.change_id)}</span>
-                        <span class="text-xs text-gray-500">${entry.change_type}</span>
-                    </div>
-                    <p class="text-sm text-gray-400">${escapeHtml(entry.description || 'No description')}</p>
-                </div>
-                <div class="text-right text-xs text-gray-500">
-                    <div>${formatDateTime(entry.timestamp)}</div>
-                    <div>${entry.incidents_after} incidents</div>
-                </div>
-            </div>
-        `).join('');
+            renderChangesTable();
         } catch (e) {
-            container.innerHTML = `
-            <div class="text-center py-8 text-red-400">
-                <i class="fas fa-exclamation-triangle text-2xl mb-2"></i>
-                <p>Failed to load timeline</p>
-            </div>
-        `;
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="7" class="text-center py-8 text-red-400">
+                        <i class="fas fa-exclamation-triangle text-2xl mb-2"></i>
+                        <p>Failed to load changes</p>
+                    </td>
+                </tr>
+            `;
+        }
+    }
+
+    function renderChangesTable() {
+        const tbody = document.getElementById('changeTableBody');
+        const pageSize = parseInt(document.getElementById('pageSize').value) || 25;
+        const startIdx = (currentPage - 1) * pageSize;
+        const endIdx = Math.min(startIdx + pageSize, totalChanges);
+        const pageData = allChanges.slice(startIdx, endIdx);
+
+        if (totalChanges === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="7" class="text-center py-8 text-gray-400">
+                        <i class="fas fa-inbox text-3xl mb-2"></i>
+                        <p>No changes in this period</p>
+                    </td>
+                </tr>
+            `;
+            updatePaginationUI(0, 0, 0);
+            return;
+        }
+
+        tbody.innerHTML = pageData.map(entry => `
+            <tr class="hover:bg-gray-800/50 transition-colors">
+                <td class="py-3 pr-4">
+                    <span class="font-mono text-blue-400">${escapeHtml(entry.change_id)}</span>
+                </td>
+                <td class="py-3 pr-4">
+                    <span class="text-xs bg-gray-700 px-2 py-1 rounded">${escapeHtml(entry.change_type || 'unknown')}</span>
+                </td>
+                <td class="py-3 pr-4 text-gray-300">
+                    ${escapeHtml(entry.service_name || '-')}
+                </td>
+                <td class="py-3 pr-4 text-gray-400 max-w-xs truncate" title="${escapeHtml(entry.description || '')}">
+                    ${escapeHtml((entry.description || 'No description').substring(0, 60))}${(entry.description || '').length > 60 ? '...' : ''}
+                </td>
+                <td class="py-3 pr-4 text-gray-500 text-xs whitespace-nowrap">
+                    ${formatDateTime(entry.timestamp)}
+                </td>
+                <td class="py-3 pr-4 text-center">
+                    <span class="inline-block w-3 h-3 rounded-full ${getImpactDot(entry.impact_level)}" title="${entry.impact_level || 'none'}"></span>
+                </td>
+                <td class="py-3 text-center">
+                    <span class="${(entry.incidents_after || 0) > 0 ? 'text-yellow-400' : 'text-gray-500'}">${entry.incidents_after || 0}</span>
+                </td>
+            </tr>
+        `).join('');
+
+        updatePaginationUI(startIdx + 1, endIdx, totalChanges);
+    }
+
+    function updatePaginationUI(start, end, total) {
+        document.getElementById('paginationInfo').textContent = `Showing ${start}-${end} of ${total} changes`;
+        document.getElementById('pageIndicator').textContent = `Page ${currentPage}`;
+
+        const pageSize = parseInt(document.getElementById('pageSize').value) || 25;
+        const totalPages = Math.ceil(total / pageSize);
+
+        document.getElementById('prevBtn').disabled = currentPage <= 1;
+        document.getElementById('nextBtn').disabled = currentPage >= totalPages;
+    }
+
+    function prevPage() {
+        if (currentPage > 1) {
+            currentPage--;
+            renderChangesTable();
+        }
+    }
+
+    function nextPage() {
+        const pageSize = parseInt(document.getElementById('pageSize').value) || 25;
+        const totalPages = Math.ceil(totalChanges / pageSize);
+        if (currentPage < totalPages) {
+            currentPage++;
+            renderChangesTable();
         }
     }
 
