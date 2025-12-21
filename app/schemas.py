@@ -401,5 +401,79 @@ class APICredentialProfileResponse(APICredentialProfileBase):
         from_attributes = True
 
 
+
+# ============== Incident Metrics Schemas ==============
+
+class IncidentMetricsBase(BaseModel):
+    incident_started: datetime
+    incident_detected: datetime
+    service_name: Optional[str] = None
+    severity: Optional[str] = None
+
+class IncidentMetricsCreate(IncidentMetricsBase):
+    alert_id: UUID
+
+class IncidentMetricsUpdate(BaseModel):
+    incident_acknowledged: Optional[datetime] = None
+    incident_engaged: Optional[datetime] = None
+    incident_resolved: Optional[datetime] = None
+    resolution_type: Optional[str] = None
+    assigned_to: Optional[UUID] = None
+    time_to_detect: Optional[int] = None
+    time_to_acknowledge: Optional[int] = None
+    time_to_engage: Optional[int] = None
+    time_to_resolve: Optional[int] = None
+
+class IncidentMetricsResponse(IncidentMetricsBase):
+    id: UUID
+    alert_id: UUID
+    incident_acknowledged: Optional[datetime] = None
+    incident_engaged: Optional[datetime] = None
+    incident_resolved: Optional[datetime] = None
+    time_to_detect: Optional[int] = None
+    time_to_acknowledge: Optional[int] = None
+    time_to_engage: Optional[int] = None
+    time_to_resolve: Optional[int] = None
+    resolution_type: Optional[str] = None
+    assigned_to: Optional[UUID] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+# Analytics schemas
+class MTTRAnalytics(BaseModel):
+    """MTTR analytics response"""
+    avg: float
+    p50: float
+    p95: float
+    p99: float
+    sample_size: int
+    unit: str = "seconds"
+
+class MTTRBreakdown(BaseModel):
+    """MTTR breakdown by dimension"""
+    dimension: str  # service, severity, resolution_type
+    breakdown: Dict[str, MTTRAnalytics]
+
+class TrendPoint(BaseModel):
+    """Single point in trend chart"""
+    timestamp: datetime
+    value: float
+    sample_size: int = 0
+
+class RegressionAlert(BaseModel):
+    """MTTR regression detection"""
+    service_name: str
+    metric: str  # mttr, mtta
+    current_value: float
+    previous_value: float
+    change_percent: float
+    severity: str  # critical, warning
+
+
+
 # Update forward references
 LoginResponse.model_rebuild()
+
