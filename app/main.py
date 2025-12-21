@@ -17,6 +17,7 @@ from app.models import User, LLMProvider
 import app.models_application  # noqa: F401
 import app.models_knowledge  # noqa: F401
 import app.models_learning  # noqa: F401 - Phase 3: Learning System
+import app.models_dashboards  # noqa: F401 - Prometheus Dashboard Builder
 from app.services.auth_service import (
     get_current_user_optional,
     create_user,
@@ -51,7 +52,10 @@ from app.routers import (
     analytics,  # Phase 3-4: Analytics API
     itsm,  # Week 5-6: Change Correlation
     changes,  # Week 5-6: Change Correlation
-    prometheus  # Prometheus Integration
+    prometheus,  # Prometheus Integration
+    datasources_api,  # Prometheus Dashboard Builder - Datasources
+    panels_api,  # Prometheus Dashboard Builder - Panels
+    dashboards_api  # Prometheus Dashboard Builder - Dashboards
 )
 from app import api_credential_profiles
 from app.services.execution_worker import start_execution_worker, stop_execution_worker
@@ -100,7 +104,29 @@ def init_db():
             db.add(provider)
             db.commit()
             logger.info("Default LLM provider created")
-            
+
+        # Check if default Prometheus datasource exists
+        from app.models_dashboards import PrometheusDatasource
+        default_datasource = db.query(PrometheusDatasource).filter(
+            PrometheusDatasource.is_default == True
+        ).first()
+
+        if not default_datasource and settings.prometheus_url:
+            logger.info("Creating default Prometheus datasource")
+            import uuid
+            datasource = PrometheusDatasource(
+                id=str(uuid.uuid4()),
+                name="Default Prometheus",
+                url=settings.prometheus_url,
+                description="Default Prometheus server from configuration",
+                is_default=True,
+                is_enabled=True,
+                timeout=settings.prometheus_timeout
+            )
+            db.add(datasource)
+            db.commit()
+            logger.info("Default Prometheus datasource created")
+
     finally:
         db.close()
 
@@ -241,6 +267,9 @@ app.include_router(analytics.router)      # Phase 3-4: Analytics API
 app.include_router(itsm.router)           # Week 5-6: Change Correlation - ITSM
 app.include_router(changes.router)        # Week 5-6: Change Correlation - Changes
 app.include_router(prometheus.router)     # Prometheus Integration
+app.include_router(datasources_api.router)  # Prometheus Dashboard Builder - Datasources
+app.include_router(panels_api.router)       # Prometheus Dashboard Builder - Panels
+app.include_router(dashboards_api.router)   # Prometheus Dashboard Builder - Dashboards
 
 
 @app.get("/profile", response_class=HTMLResponse)
@@ -604,8 +633,59 @@ async def schedules_page(
     """
     if not current_user:
         return RedirectResponse(url="/login", status_code=302)
-    
+
     return templates.TemplateResponse("schedules.html", {
+        "request": request,
+        "user": current_user
+    })
+
+
+@app.get("/datasources", response_class=HTMLResponse)
+async def datasources_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    Prometheus Datasources management page
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    return templates.TemplateResponse("datasources.html", {
+        "request": request,
+        "user": current_user
+    })
+
+
+@app.get("/panels", response_class=HTMLResponse)
+async def panels_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    Prometheus Panels management page
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    return templates.TemplateResponse("panels.html", {
+        "request": request,
+        "user": current_user
+    })
+
+
+@app.get("/dashboards-builder", response_class=HTMLResponse)
+async def dashboards_builder_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    Dashboard Builder page
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    return templates.TemplateResponse("dashboards.html", {
         "request": request,
         "user": current_user
     })
