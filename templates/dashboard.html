@@ -310,6 +310,39 @@
     let alertTrendChart = null;
     let severityChart = null;
     let currentRange = '24h';
+    let prometheusConfig = null;
+    let refreshIntervalId = null;
+
+    // Load Prometheus configuration
+    async function loadPrometheusConfig() {
+        try {
+            const response = await apiCall('/api/prometheus/config');
+            if (response && response.ok) {
+                prometheusConfig = await response.json();
+                console.log('Loaded Prometheus config:', prometheusConfig);
+                return prometheusConfig;
+            }
+        } catch (error) {
+            console.error('Failed to load Prometheus config:', error);
+            // Use defaults if config load fails
+            prometheusConfig = {
+                prometheus_refresh_interval: 30,
+                infrastructure_cpu_warning_threshold: 75,
+                infrastructure_cpu_critical_threshold: 90,
+                infrastructure_memory_warning_threshold: 75,
+                infrastructure_memory_critical_threshold: 90,
+                infrastructure_disk_warning_threshold: 75,
+                infrastructure_disk_critical_threshold: 90,
+                infrastructure_show_cpu: true,
+                infrastructure_show_memory: true,
+                infrastructure_show_disk: true,
+                infrastructure_metrics_enabled: true,
+                chart_enable_zoom: true,
+                chart_enable_animations: true
+            };
+        }
+        return prometheusConfig;
+    }
 
     // ECharts Grafana-inspired Dark Theme
     const grafanaDarkTheme = {
@@ -689,16 +722,40 @@
             return;
         }
 
+        // Use config thresholds or defaults
+        const config = prometheusConfig || {};
+        const cpuWarning = config.infrastructure_cpu_warning_threshold || 75;
+        const cpuCritical = config.infrastructure_cpu_critical_threshold || 90;
+        const memWarning = config.infrastructure_memory_warning_threshold || 75;
+        const memCritical = config.infrastructure_memory_critical_threshold || 90;
+        const diskWarning = config.infrastructure_disk_warning_threshold || 75;
+        const diskCritical = config.infrastructure_disk_critical_threshold || 90;
+
+        const showCpu = config.infrastructure_show_cpu !== false;
+        const showMemory = config.infrastructure_show_memory !== false;
+        const showDisk = config.infrastructure_show_disk !== false;
+
         gridEl.innerHTML = instances.map(instance => {
             const isUp = instance.status === 'up';
             const cpu = instance.cpu_percent;
             const memory = instance.memory_percent;
             const disk = instance.disk_percent;
 
-            function getStatusColor(value) {
+            function getStatusColor(value, metricType) {
                 if (!value) return 'text-gray-500';
-                if (value >= 90) return 'text-red-400';
-                if (value >= 75) return 'text-yellow-400';
+                let warning, critical;
+                if (metricType === 'cpu') {
+                    warning = cpuWarning;
+                    critical = cpuCritical;
+                } else if (metricType === 'memory') {
+                    warning = memWarning;
+                    critical = memCritical;
+                } else if (metricType === 'disk') {
+                    warning = diskWarning;
+                    critical = diskCritical;
+                }
+                if (value >= critical) return 'text-red-400';
+                if (value >= warning) return 'text-yellow-400';
                 return 'text-green-400';
             }
 
@@ -714,18 +771,21 @@
                         </span>
                     </div>
                     <div class="space-y-2 text-xs">
+                        ${showCpu ? `
                         <div class="flex items-center justify-between">
                             <span class="text-gray-400">CPU</span>
-                            <span class="font-mono ${getStatusColor(cpu)}">${cpu !== null ? cpu.toFixed(1) + '%' : '--'}</span>
-                        </div>
+                            <span class="font-mono ${getStatusColor(cpu, 'cpu')}">${cpu !== null ? cpu.toFixed(1) + '%' : '--'}</span>
+                        </div>` : ''}
+                        ${showMemory ? `
                         <div class="flex items-center justify-between">
                             <span class="text-gray-400">Memory</span>
-                            <span class="font-mono ${getStatusColor(memory)}">${memory !== null ? memory.toFixed(1) + '%' : '--'}</span>
-                        </div>
+                            <span class="font-mono ${getStatusColor(memory, 'memory')}">${memory !== null ? memory.toFixed(1) + '%' : '--'}</span>
+                        </div>` : ''}
+                        ${showDisk ? `
                         <div class="flex items-center justify-between">
                             <span class="text-gray-400">Disk</span>
-                            <span class="font-mono ${getStatusColor(disk)}">${disk !== null ? disk.toFixed(1) + '%' : '--'}</span>
-                        </div>
+                            <span class="font-mono ${getStatusColor(disk, 'disk')}">${disk !== null ? disk.toFixed(1) + '%' : '--'}</span>
+                        </div>` : ''}
                     </div>
                     <div class="mt-3 pt-3 border-t border-gray-700">
                         <div class="flex items-center justify-between text-xs">
@@ -794,17 +854,44 @@
         }
     }
 
-    // Initial load
-    refreshDashboard();
-    loadRecentAlerts();
-    loadInfrastructureHealth();
+    // Initialize dashboard
+    async function initDashboard() {
+        // Load configuration first
+        await loadPrometheusConfig();
 
-    // Refresh every 30 seconds
-    setInterval(() => {
+        // Initial data load
         refreshDashboard();
         loadRecentAlerts();
-        loadInfrastructureHealth();
-        document.getElementById('lastUpdated').textContent = new Date().toLocaleTimeString();
-    }, 30000);
+
+        // Load infrastructure only if enabled
+        if (prometheusConfig && prometheusConfig.infrastructure_metrics_enabled !== false) {
+            loadInfrastructureHealth();
+        }
+
+        // Setup auto-refresh with configurable interval
+        const refreshInterval = (prometheusConfig?.prometheus_refresh_interval || 30) * 1000;
+
+        // Clear any existing interval
+        if (refreshIntervalId) {
+            clearInterval(refreshIntervalId);
+        }
+
+        // Set new interval
+        refreshIntervalId = setInterval(() => {
+            refreshDashboard();
+            loadRecentAlerts();
+
+            if (prometheusConfig && prometheusConfig.infrastructure_metrics_enabled !== false) {
+                loadInfrastructureHealth();
+            }
+
+            document.getElementById('lastUpdated').textContent = new Date().toLocaleTimeString();
+        }, refreshInterval);
+
+        console.log(`Dashboard auto-refresh set to ${refreshInterval / 1000} seconds`);
+    }
+
+    // Start the dashboard
+    initDashboard();
 </script>
 {% endblock %}

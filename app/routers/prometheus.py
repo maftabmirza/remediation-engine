@@ -4,10 +4,11 @@ Prometheus Integration API
 Provides endpoints to query Prometheus metrics and expose them
 in the AIOps platform UI, eliminating the need to use Grafana separately.
 """
-from fastapi import APIRouter, HTTPException, Query
-from typing import Optional
+from fastapi import APIRouter, HTTPException, Query, Body
+from typing import Optional, Dict, Any
 from datetime import datetime, timedelta
 import logging
+from pydantic import BaseModel, Field
 
 from app.services.prometheus_service import (
     PrometheusClient,
@@ -19,6 +20,149 @@ from app.config import get_settings
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/prometheus", tags=["Prometheus"])
+
+
+# Configuration Models
+class PrometheusConfig(BaseModel):
+    """Prometheus integration configuration"""
+    prometheus_url: str = Field(..., description="Prometheus server URL")
+    enable_prometheus_queries: bool = Field(True, description="Enable Prometheus queries")
+    prometheus_timeout: int = Field(30, description="Request timeout in seconds", ge=5, le=300)
+
+    prometheus_dashboard_enabled: bool = Field(True, description="Show Prometheus dashboard section")
+    prometheus_refresh_interval: int = Field(30, description="Dashboard refresh interval (seconds)", ge=10, le=300)
+    prometheus_default_time_range: str = Field("24h", description="Default time range")
+
+    infrastructure_metrics_enabled: bool = Field(True, description="Show infrastructure metrics")
+    infrastructure_show_cpu: bool = Field(True, description="Show CPU metrics")
+    infrastructure_show_memory: bool = Field(True, description="Show memory metrics")
+    infrastructure_show_disk: bool = Field(True, description="Show disk metrics")
+    infrastructure_cpu_warning_threshold: int = Field(75, ge=0, le=100)
+    infrastructure_cpu_critical_threshold: int = Field(90, ge=0, le=100)
+    infrastructure_memory_warning_threshold: int = Field(75, ge=0, le=100)
+    infrastructure_memory_critical_threshold: int = Field(90, ge=0, le=100)
+    infrastructure_disk_warning_threshold: int = Field(75, ge=0, le=100)
+    infrastructure_disk_critical_threshold: int = Field(90, ge=0, le=100)
+
+    chart_library: str = Field("echarts", description="Chart library to use")
+    chart_theme: str = Field("grafana-dark", description="Chart theme")
+    chart_enable_zoom: bool = Field(True, description="Enable chart zoom")
+    chart_enable_animations: bool = Field(True, description="Enable chart animations")
+    chart_max_data_points: int = Field(1000, description="Max data points per chart", ge=100, le=10000)
+
+    alert_trends_enabled: bool = Field(True, description="Show alert trends")
+    alert_trends_default_hours: int = Field(24, description="Default hours for trends", ge=1, le=168)
+    alert_trends_step: str = Field("1h", description="Query step size")
+
+    prometheus_use_cache: bool = Field(True, description="Enable query caching")
+    prometheus_cache_ttl: int = Field(60, description="Cache TTL in seconds", ge=10, le=3600)
+    prometheus_max_retries: int = Field(3, description="Max retry attempts", ge=0, le=10)
+    prometheus_retry_delay: int = Field(2, description="Retry delay in seconds", ge=1, le=60)
+
+
+@router.get("/config")
+async def get_prometheus_config() -> PrometheusConfig:
+    """
+    Get current Prometheus integration configuration
+
+    Returns all configurable settings for Prometheus integration
+    """
+    settings = get_settings()
+
+    return PrometheusConfig(
+        prometheus_url=settings.prometheus_url,
+        enable_prometheus_queries=settings.enable_prometheus_queries,
+        prometheus_timeout=settings.prometheus_timeout,
+        prometheus_dashboard_enabled=settings.prometheus_dashboard_enabled,
+        prometheus_refresh_interval=settings.prometheus_refresh_interval,
+        prometheus_default_time_range=settings.prometheus_default_time_range,
+        infrastructure_metrics_enabled=settings.infrastructure_metrics_enabled,
+        infrastructure_show_cpu=settings.infrastructure_show_cpu,
+        infrastructure_show_memory=settings.infrastructure_show_memory,
+        infrastructure_show_disk=settings.infrastructure_show_disk,
+        infrastructure_cpu_warning_threshold=settings.infrastructure_cpu_warning_threshold,
+        infrastructure_cpu_critical_threshold=settings.infrastructure_cpu_critical_threshold,
+        infrastructure_memory_warning_threshold=settings.infrastructure_memory_warning_threshold,
+        infrastructure_memory_critical_threshold=settings.infrastructure_memory_critical_threshold,
+        infrastructure_disk_warning_threshold=settings.infrastructure_disk_warning_threshold,
+        infrastructure_disk_critical_threshold=settings.infrastructure_disk_critical_threshold,
+        chart_library=settings.chart_library,
+        chart_theme=settings.chart_theme,
+        chart_enable_zoom=settings.chart_enable_zoom,
+        chart_enable_animations=settings.chart_enable_animations,
+        chart_max_data_points=settings.chart_max_data_points,
+        alert_trends_enabled=settings.alert_trends_enabled,
+        alert_trends_default_hours=settings.alert_trends_default_hours,
+        alert_trends_step=settings.alert_trends_step,
+        prometheus_use_cache=settings.prometheus_use_cache,
+        prometheus_cache_ttl=settings.prometheus_cache_ttl,
+        prometheus_max_retries=settings.prometheus_max_retries,
+        prometheus_retry_delay=settings.prometheus_retry_delay,
+    )
+
+
+@router.put("/config")
+async def update_prometheus_config(config: PrometheusConfig):
+    """
+    Update Prometheus integration configuration
+
+    Note: Updates are written to environment variables and require app restart.
+    For runtime config, use the settings page.
+    """
+    import os
+    from pathlib import Path
+
+    # Update .env file
+    env_file = Path(".env")
+    env_vars = {}
+
+    if env_file.exists():
+        with open(env_file, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#') and '=' in line:
+                    key, value = line.split('=', 1)
+                    env_vars[key] = value
+
+    # Update Prometheus settings
+    env_vars['PROMETHEUS_URL'] = config.prometheus_url
+    env_vars['ENABLE_PROMETHEUS_QUERIES'] = str(config.enable_prometheus_queries)
+    env_vars['PROMETHEUS_TIMEOUT'] = str(config.prometheus_timeout)
+    env_vars['PROMETHEUS_DASHBOARD_ENABLED'] = str(config.prometheus_dashboard_enabled)
+    env_vars['PROMETHEUS_REFRESH_INTERVAL'] = str(config.prometheus_refresh_interval)
+    env_vars['PROMETHEUS_DEFAULT_TIME_RANGE'] = config.prometheus_default_time_range
+    env_vars['INFRASTRUCTURE_METRICS_ENABLED'] = str(config.infrastructure_metrics_enabled)
+    env_vars['INFRASTRUCTURE_SHOW_CPU'] = str(config.infrastructure_show_cpu)
+    env_vars['INFRASTRUCTURE_SHOW_MEMORY'] = str(config.infrastructure_show_memory)
+    env_vars['INFRASTRUCTURE_SHOW_DISK'] = str(config.infrastructure_show_disk)
+    env_vars['INFRASTRUCTURE_CPU_WARNING_THRESHOLD'] = str(config.infrastructure_cpu_warning_threshold)
+    env_vars['INFRASTRUCTURE_CPU_CRITICAL_THRESHOLD'] = str(config.infrastructure_cpu_critical_threshold)
+    env_vars['INFRASTRUCTURE_MEMORY_WARNING_THRESHOLD'] = str(config.infrastructure_memory_warning_threshold)
+    env_vars['INFRASTRUCTURE_MEMORY_CRITICAL_THRESHOLD'] = str(config.infrastructure_memory_critical_threshold)
+    env_vars['INFRASTRUCTURE_DISK_WARNING_THRESHOLD'] = str(config.infrastructure_disk_warning_threshold)
+    env_vars['INFRASTRUCTURE_DISK_CRITICAL_THRESHOLD'] = str(config.infrastructure_disk_critical_threshold)
+    env_vars['CHART_LIBRARY'] = config.chart_library
+    env_vars['CHART_THEME'] = config.chart_theme
+    env_vars['CHART_ENABLE_ZOOM'] = str(config.chart_enable_zoom)
+    env_vars['CHART_ENABLE_ANIMATIONS'] = str(config.chart_enable_animations)
+    env_vars['CHART_MAX_DATA_POINTS'] = str(config.chart_max_data_points)
+    env_vars['ALERT_TRENDS_ENABLED'] = str(config.alert_trends_enabled)
+    env_vars['ALERT_TRENDS_DEFAULT_HOURS'] = str(config.alert_trends_default_hours)
+    env_vars['ALERT_TRENDS_STEP'] = config.alert_trends_step
+    env_vars['PROMETHEUS_USE_CACHE'] = str(config.prometheus_use_cache)
+    env_vars['PROMETHEUS_CACHE_TTL'] = str(config.prometheus_cache_ttl)
+    env_vars['PROMETHEUS_MAX_RETRIES'] = str(config.prometheus_max_retries)
+    env_vars['PROMETHEUS_RETRY_DELAY'] = str(config.prometheus_retry_delay)
+
+    # Write back to .env
+    with open(env_file, 'w') as f:
+        for key, value in env_vars.items():
+            f.write(f"{key}={value}\n")
+
+    return {
+        "message": "Configuration updated successfully. Restart the application for changes to take effect.",
+        "config": config
+    }
 
 
 @router.get("/health")
