@@ -207,6 +207,56 @@ class Alert(Base):
     feedback = relationship("AnalysisFeedback", back_populates="alert", cascade="all, delete-orphan")
     correlation = relationship("AlertCorrelation", back_populates="alerts")
     cluster = relationship("AlertCluster", back_populates="alerts")
+    metrics = relationship("IncidentMetrics", back_populates="alert", uselist=False)
+
+
+
+class IncidentMetrics(Base):
+    """Detailed incident timeline metrics"""
+    __tablename__ = "incident_metrics"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    alert_id = Column(UUID(as_uuid=True), ForeignKey("alerts.id", ondelete="CASCADE"), unique=True, nullable=False)
+
+    # Lifecycle timestamps
+    incident_started = Column(DateTime(timezone=True), nullable=False)
+    incident_detected = Column(DateTime(timezone=True), nullable=False)
+    incident_acknowledged = Column(DateTime(timezone=True))
+    incident_engaged = Column(DateTime(timezone=True))
+    incident_resolved = Column(DateTime(timezone=True))
+
+    # Calculated durations (seconds)
+    time_to_detect = Column(Integer)
+    time_to_acknowledge = Column(Integer)
+    time_to_engage = Column(Integer)
+    time_to_resolve = Column(Integer)
+
+    # Context
+    service_name = Column(String(255), index=True)
+    severity = Column(String(20), index=True)
+    resolution_type = Column(String(50), index=True)
+    assigned_to = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"))
+
+    created_at = Column(DateTime(timezone=True), default=utc_now)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+
+    # Relationships
+    alert = relationship("Alert", back_populates="metrics")
+    assignee = relationship("User")
+
+    def calculate_durations(self):
+        """Calculate all time_to_* fields from timestamps"""
+        if self.incident_detected and self.incident_started:
+            self.time_to_detect = int((self.incident_detected - self.incident_started).total_seconds())
+
+        if self.incident_acknowledged and self.incident_detected:
+            self.time_to_acknowledge = int((self.incident_acknowledged - self.incident_detected).total_seconds())
+
+        if self.incident_engaged and self.incident_acknowledged:
+            self.time_to_engage = int((self.incident_engaged - self.incident_acknowledged).total_seconds())
+
+        if self.incident_resolved and self.incident_engaged:
+            self.time_to_resolve = int((self.incident_resolved - self.incident_engaged).total_seconds())
 
 
 class AuditLog(Base):

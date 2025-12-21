@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc, func
 
 from app.database import get_db
-from app.models import Alert, User, LLMProvider, AuditLog
+from app.models import Alert, User, LLMProvider, AuditLog, IncidentMetrics
 from app.models_remediation import RunbookExecution
 from app.schemas import (
     AlertResponse, AlertListResponse, AnalyzeRequest, 
@@ -386,3 +386,112 @@ async def delete_alert(
     db.commit()
     
     return {"message": "Alert deleted successfully"}
+
+
+@router.post("/{alert_id}/acknowledge")
+async def acknowledge_alert(
+    alert_id: UUID,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Acknowledge an alert (start MTTA timer)"""
+    alert = db.query(Alert).filter(Alert.id == alert_id).first()
+    if not alert:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Alert not found"
+        )
+    
+    # Update status if needed
+    if alert.status == "firing":
+        alert.status = "acknowledged"
+        
+    # Update metrics
+    metric = db.query(IncidentMetrics).filter(
+        IncidentMetrics.alert_id == alert_id
+    ).first()
+    
+    # If explicit metric record exists
+    if metric:
+        if not metric.incident_acknowledged:
+            metric.incident_acknowledged = datetime.now(timezone.utc)
+            metric.assigned_to = current_user.id
+            metric.calculate_durations()
+    
+    # Audit log
+    audit = AuditLog(
+        user_id=current_user.id,
+        action="acknowledge_alert",
+        resource_type="alert",
+        resource_id=alert.id,
+        details_json={"alert_name": alert.alert_name},
+        ip_address=request.client.host if request.client else None
+    )
+    db.add(audit)
+    db.commit()
+    
+    return {"status": "acknowledged", "alert_id": str(alert_id)}
+
+
+@router.post("/{alert_id}/resolve")
+async def resolve_alert(
+    alert_id: UUID,
+    request: Request,
+    resolution_type: str = Query("manual"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Mark alert as resolved (stop MTTR timer)"""
+    alert = db.query(Alert).filter(Alert.id == alert_id).first()
+    if not alert:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Alert not found"
+        )
+    
+    alert.status = "resolved"
+    
+    # Update metrics
+    metric = db.query(IncidentMetrics).filter(
+        IncidentMetrics.alert_id == alert_id
+    ).first()
+    
+    if metric:
+        if not metric.incident_resolved:
+            now = datetime.now(timezone.utc)
+            # Auto-set engaged time if not set (skipped straight to resolve)
+            if not metric.incident_engaged:
+                metric.incident_engaged = metric.incident_acknowledged or now
+            
+            metric.incident_resolved = now
+            metric.resolution_type = resolution_type
+            metric.calculate_durations()
+    
+    # Close cluster if part of one
+    if alert.cluster_id:
+        from app.services.alert_clustering_service import AlertClusteringService
+        service = AlertClusteringService(db)
+        cluster = alert.cluster
+        if cluster and cluster.is_active:
+            # Check if all alerts in cluster are resolved
+            all_resolved = all(a.status == 'resolved' for a in cluster.alerts)
+            if all_resolved:
+                service.close_cluster(cluster, reason='all_alerts_resolved')
+
+    # Audit log
+    audit = AuditLog(
+        user_id=current_user.id,
+        action="resolve_alert",
+        resource_type="alert",
+        resource_id=alert.id,
+        details_json={
+            "alert_name": alert.alert_name,
+            "resolution_type": resolution_type
+        },
+        ip_address=request.client.host if request.client else None
+    )
+    db.add(audit)
+    db.commit()
+    
+    return {"status": "resolved", "alert_id": str(alert_id)}

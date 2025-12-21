@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from ..models import ServerCredential, Alert, APICredentialProfile
+from ..models import ServerCredential, Alert, APICredentialProfile, IncidentMetrics
 from ..models_remediation import (
     Runbook, RunbookStep, RunbookExecution, StepExecution,
     CircuitBreaker
@@ -150,6 +150,25 @@ class RunbookExecutor:
         execution.started_at = utc_now()
         execution.steps_total = len(runbook.steps)
         await self.db.commit()
+
+        # Update Alert engagement time (MTTR)
+        if execution.alert_id:
+            try:
+                # Find metrics record
+                result = await self.db.execute(
+                    select(IncidentMetrics).where(IncidentMetrics.alert_id == execution.alert_id)
+                )
+                metrics = result.scalar_one_or_none()
+                
+                if metrics:
+                    # Mark as engaged if not already
+                    if not metrics.incident_engaged:
+                        metrics.incident_engaged = utc_now()
+                        metrics.resolution_type = "automated"
+                        metrics.calculate_durations()
+                        await self.db.commit()
+            except Exception as e:
+                logger.error(f"Failed to update incident metrics for alert {execution.alert_id}: {e}")
         
         # Sort steps by order
         steps = sorted(runbook.steps, key=lambda s: s.step_order)
@@ -375,6 +394,28 @@ class RunbookExecutor:
                 success=(execution.status == "success")
             )
             
+            # Resolve incident if successful and configured (implicit for now)
+            if execution.status == "success" and execution.alert_id:
+                try:
+                    result = await self.db.execute(
+                        select(IncidentMetrics).where(IncidentMetrics.alert_id == execution.alert_id)
+                    )
+                    metrics = result.scalar_one_or_none()
+                    if metrics and not metrics.incident_resolved:
+                        metrics.incident_resolved = utc_now()
+                        metrics.resolution_type = "automated"
+                        metrics.calculate_durations()
+                        
+                        # Also update Alert status
+                        result = await self.db.execute(
+                            select(Alert).where(Alert.id == execution.alert_id)
+                        )
+                        alert = result.scalar_one_or_none()
+                        if alert and alert.status != "resolved":
+                            alert.status = "resolved"
+                except Exception as e:
+                     logger.error(f"Failed to auto-resolve incident for alert {execution.alert_id}: {e}")
+
             await self.db.commit()
         
         return execution
