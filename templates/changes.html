@@ -402,10 +402,13 @@
                     </div>
                 </div>
                 <div class="flex items-center space-x-2">
-                    <button onclick="syncITSM('${int.id}')" class="btn-secondary text-xs px-2 py-1">
+                    <button onclick="editITSM('${int.id}')" class="text-blue-400 hover:text-blue-300 px-2" title="Edit">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button onclick="syncITSM('${int.id}')" class="btn-secondary text-xs px-2 py-1" title="Sync Now">
                         <i class="fas fa-sync"></i>
                     </button>
-                    <button onclick="deleteITSM('${int.id}')" class="text-red-400 hover:text-red-300 px-2">
+                    <button onclick="deleteITSM('${int.id}')" class="text-red-400 hover:text-red-300 px-2" title="Delete">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
@@ -459,14 +462,56 @@
     }
 
     // ITSM Modal Functions
-    function showITSMModal() {
+    let editingIntegrationId = null;
+
+    function showITSMModal(isEdit = false) {
         document.getElementById('itsmModal').classList.remove('hidden');
+        const title = document.querySelector('#itsmModal h3');
+        title.textContent = isEdit ? 'Edit ITSM Integration' : 'Configure ITSM Integration';
     }
 
     function hideITSMModal() {
         document.getElementById('itsmModal').classList.add('hidden');
         document.getElementById('itsmForm').reset();
         document.getElementById('testResult').classList.add('hidden');
+        editingIntegrationId = null;
+    }
+
+    async function editITSM(id) {
+        editingIntegrationId = id;
+        showToast('Loading integration...', 'info');
+
+        try {
+            const res = await apiCall(`/api/itsm/integrations/${id}`);
+            if (!res.ok) throw new Error('Failed to load');
+
+            const integration = await res.json();
+
+            // Populate form fields
+            document.getElementById('itsmName').value = integration.name;
+            document.getElementById('itsmUrl').value = integration.config?.api_config?.base_url || '';
+
+            // Set auth type
+            const authType = integration.config?.auth?.type || 'bearer_token';
+            document.getElementById('itsmAuthType').value = authType;
+            updateAuthFields();
+
+            // Set field mappings if available
+            const mapping = integration.config?.field_mapping || {};
+            if (mapping.change_id) document.getElementById('mapChangeId').value = mapping.change_id;
+            if (mapping.change_type) document.getElementById('mapChangeType').value = mapping.change_type;
+            if (mapping.service_name) document.getElementById('mapServiceName').value = mapping.service_name;
+            if (mapping.impacted_ci) document.getElementById('mapImpactedCI').value = mapping.impacted_ci;
+            if (mapping.description) document.getElementById('mapDescription').value = mapping.description;
+            if (mapping.timestamp) document.getElementById('mapTimestamp').value = mapping.timestamp;
+            if (mapping.author) document.getElementById('mapAuthor').value = mapping.author;
+            if (mapping.environment) document.getElementById('mapEnvironment').value = mapping.environment;
+
+            showITSMModal(true);
+        } catch (e) {
+            showToast('Failed to load integration', 'error');
+            console.error('Edit ITSM error:', e);
+        }
     }
 
     function updateAuthFields() {
@@ -654,8 +699,14 @@
         };
 
         try {
-            const res = await apiCall('/api/itsm/integrations', {
-                method: 'POST',
+            // Determine if creating or updating
+            const url = editingIntegrationId
+                ? `/api/itsm/integrations/${editingIntegrationId}`
+                : '/api/itsm/integrations';
+            const method = editingIntegrationId ? 'PUT' : 'POST';
+
+            const res = await apiCall(url, {
+                method: method,
                 body: JSON.stringify({
                     name: document.getElementById('itsmName').value,
                     connector_type: 'generic_api',
@@ -665,7 +716,7 @@
 
             if (!res.ok) throw new Error('Failed to save');
 
-            showToast('Integration saved!', 'success');
+            showToast(editingIntegrationId ? 'Integration updated!' : 'Integration saved!', 'success');
             hideITSMModal();
             loadITSMIntegrations();
         } catch (e) {

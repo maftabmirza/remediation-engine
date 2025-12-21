@@ -34,6 +34,7 @@ class ITSMConfigUpdate(BaseModel):
 class ITSMConfigResponse(ITSMConfigBase):
     """ITSM integration response"""
     id: UUID
+    config: Optional[Dict[str, Any]] = None  # Decrypted config (for editing)
     last_sync: Optional[datetime] = None
     last_sync_status: Optional[str] = None
     last_error: Optional[str] = None

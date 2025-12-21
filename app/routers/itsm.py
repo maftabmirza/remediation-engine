@@ -51,7 +51,7 @@ async def get_integration(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Get a specific ITSM integration"""
+    """Get a specific ITSM integration with decrypted config for editing"""
     integration = db.query(ITSMIntegration).filter(
         ITSMIntegration.id == integration_id
     ).first()
@@ -59,7 +59,27 @@ async def get_integration(
     if not integration:
         raise HTTPException(status_code=404, detail="Integration not found")
     
-    return integration
+    # Decrypt config for response
+    try:
+        config_json = decrypt_value(integration.config_encrypted)
+        config = json.loads(config_json)
+    except Exception as e:
+        logger.error(f"Failed to decrypt config: {e}")
+        config = None
+    
+    # Build response with decrypted config
+    return ITSMConfigResponse(
+        id=integration.id,
+        name=integration.name,
+        connector_type=integration.connector_type,
+        is_enabled=integration.is_enabled,
+        config=config,
+        last_sync=integration.last_sync,
+        last_sync_status=integration.last_sync_status,
+        last_error=integration.last_error,
+        created_at=integration.created_at,
+        updated_at=integration.updated_at
+    )
 
 
 @router.post("/integrations", response_model=ITSMConfigResponse)
