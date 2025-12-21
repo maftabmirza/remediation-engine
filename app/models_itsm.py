@@ -43,6 +43,8 @@ class ChangeEvent(Base):
     service_name = Column(String(255), index=True)
     description = Column(Text)
     timestamp = Column(DateTime(timezone=True), nullable=False, index=True)
+    start_time = Column(DateTime(timezone=True))  # When the change started
+    end_time = Column(DateTime(timezone=True))    # When the change completed
     source = Column(String(100), index=True)  # integration ID or 'webhook'
     change_metadata = Column(JSONB, default={})  # Renamed from 'metadata' which is reserved
     correlation_score = Column(Float, index=True)

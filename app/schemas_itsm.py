@@ -61,6 +61,8 @@ class ChangeEventBase(BaseModel):
     service_name: Optional[str] = None
     description: Optional[str] = None
     timestamp: datetime
+    start_time: Optional[datetime] = None
+    end_time: Optional[datetime] = None
 
 
 class ChangeEventCreate(ChangeEventBase):
@@ -126,6 +128,8 @@ class ChangeTimelineEntry(BaseModel):
     service_name: Optional[str]
     description: Optional[str]
     timestamp: datetime
+    start_time: Optional[datetime] = None
+    end_time: Optional[datetime] = None
     impact_level: Optional[str]
     incidents_after: int = 0
 

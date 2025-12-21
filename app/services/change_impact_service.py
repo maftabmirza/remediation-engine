@@ -262,6 +262,8 @@ class ChangeImpactService:
                 'service_name': change.service_name,
                 'description': change.description,
                 'timestamp': change.timestamp.isoformat(),
+                'start_time': change.start_time.isoformat() if change.start_time else None,
+                'end_time': change.end_time.isoformat() if change.end_time else None,
                 'impact_level': change.impact_level,
                 'correlation_score': change.correlation_score,
                 'incidents_after': change.impact_analysis.incidents_after if change.impact_analysis else 0

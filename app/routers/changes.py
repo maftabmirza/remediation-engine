@@ -103,6 +103,8 @@ async def get_change_timeline(
             service_name=t.get('service_name'),
             description=t.get('description'),
             timestamp=datetime.fromisoformat(t['timestamp']),
+            start_time=datetime.fromisoformat(t['start_time']) if t.get('start_time') else None,
+            end_time=datetime.fromisoformat(t['end_time']) if t.get('end_time') else None,
             impact_level=t.get('impact_level'),
             incidents_after=t.get('incidents_after', 0)
         )
@@ -276,7 +278,9 @@ async def receive_change_webhook(
         existing.service_name = data.service_name
         existing.description = data.description
         existing.timestamp = data.timestamp
-        existing.metadata = data.metadata
+        existing.start_time = data.start_time
+        existing.end_time = data.end_time
+        existing.change_metadata = data.metadata
         db.commit()
         
         return {"status": "updated", "id": str(existing.id)}
@@ -288,8 +292,10 @@ async def receive_change_webhook(
         service_name=data.service_name,
         description=data.description,
         timestamp=data.timestamp,
+        start_time=data.start_time,
+        end_time=data.end_time,
         source=data.source,
-        metadata=data.metadata
+        change_metadata=data.metadata
     )
     db.add(change)
     db.commit()
