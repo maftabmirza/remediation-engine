@@ -702,36 +702,134 @@
             });
 
             const result = await res.json();
+            const data = result.sample_data || {};
 
             if (result.success) {
                 testResult.innerHTML = `
-                    <div class="p-3 bg-green-900/50 border border-green-500/30 rounded-lg">
-                        <div class="flex items-center text-green-400 mb-2">
-                            <i class="fas fa-check-circle mr-2"></i>
-                            <span class="font-medium">Connection successful!</span>
+                    <div class="p-4 bg-green-900/30 border border-green-500/30 rounded-lg space-y-3">
+                        <div class="flex items-center text-green-400">
+                            <i class="fas fa-check-circle mr-2 text-lg"></i>
+                            <span class="font-semibold text-lg">${escapeHtml(result.message)}</span>
                         </div>
-                        <p class="text-sm text-gray-400">${escapeHtml(result.message)}</p>
+                        
+                        <!-- Diagnostics Summary -->
+                        <div class="grid grid-cols-3 gap-2 text-sm">
+                            <div class="bg-gray-800/50 p-2 rounded">
+                                <span class="text-gray-400">HTTP Status:</span>
+                                <span class="text-green-400 font-medium ml-1">${data.http_status || 200}</span>
+                            </div>
+                            <div class="bg-gray-800/50 p-2 rounded">
+                                <span class="text-gray-400">Records Found:</span>
+                                <span class="text-white font-medium ml-1">${data.records_found || 0}</span>
+                            </div>
+                            <div class="bg-gray-800/50 p-2 rounded">
+                                <span class="text-gray-400">Response Type:</span>
+                                <span class="text-white font-medium ml-1">${data.response_type || 'Unknown'}</span>
+                            </div>
+                        </div>
+                        
+                        ${data.field_mapping_results ? `
+                        <!-- Field Mapping Results -->
+                        <div class="bg-gray-800/50 p-3 rounded">
+                            <div class="text-sm text-gray-300 font-medium mb-2">
+                                <i class="fas fa-project-diagram mr-1"></i> Field Mapping Results
+                            </div>
+                            <div class="grid grid-cols-2 gap-2 text-xs">
+                                ${Object.entries(data.field_mapping_results).map(([field, info]) => `
+                                    <div class="flex items-center space-x-2">
+                                        <i class="fas ${info.extracted ? 'fa-check text-green-400' : 'fa-times text-red-400'}"></i>
+                                        <span class="text-gray-400">${field}:</span>
+                                        <span class="text-gray-200 truncate">${info.value_preview ? escapeHtml(info.value_preview.substring(0, 30)) : '(empty)'}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                        ` : ''}
+                        
+                        ${data.sample_record ? `
+                        <!-- Sample Record -->
+                        <details class="bg-gray-800/50 p-3 rounded">
+                            <summary class="text-sm text-gray-300 cursor-pointer hover:text-white">
+                                <i class="fas fa-database mr-1"></i> Sample Record Preview
+                            </summary>
+                            <pre class="mt-2 text-xs text-gray-400 overflow-x-auto max-h-32">${escapeHtml(JSON.stringify(data.sample_record, null, 2))}</pre>
+                        </details>
+                        ` : ''}
+                        
+                        ${data.response_preview ? `
+                        <!-- Response Preview -->
+                        <details class="bg-gray-800/50 p-3 rounded">
+                            <summary class="text-sm text-gray-300 cursor-pointer hover:text-white">
+                                <i class="fas fa-code mr-1"></i> API Response Preview
+                            </summary>
+                            <pre class="mt-2 text-xs text-gray-400 overflow-x-auto max-h-32">${escapeHtml(data.response_preview)}</pre>
+                        </details>
+                        ` : ''}
+                        
+                        ${data.warnings && data.warnings.length > 0 ? `
+                        <div class="text-yellow-400 text-sm">
+                            <i class="fas fa-exclamation-triangle mr-1"></i>
+                            ${data.warnings.map(w => escapeHtml(w)).join('<br>')}
+                        </div>
+                        ` : ''}
                     </div>
                 `;
             } else {
                 testResult.innerHTML = `
-                    <div class="p-3 bg-red-900/50 border border-red-500/30 rounded-lg">
-                        <div class="flex items-center text-red-400 mb-2">
-                            <i class="fas fa-times-circle mr-2"></i>
-                            <span class="font-medium">Connection failed</span>
+                    <div class="p-4 bg-red-900/30 border border-red-500/30 rounded-lg space-y-3">
+                        <div class="flex items-center text-red-400">
+                            <i class="fas fa-times-circle mr-2 text-lg"></i>
+                            <span class="font-semibold text-lg">Connection Failed</span>
                         </div>
-                        <p class="text-sm text-gray-400">${escapeHtml(result.message)}</p>
+                        
+                        <p class="text-sm text-red-300">${escapeHtml(result.message)}</p>
+                        
+                        ${data.http_status ? `
+                        <div class="bg-gray-800/50 p-2 rounded text-sm">
+                            <span class="text-gray-400">HTTP Status:</span>
+                            <span class="text-red-400 font-medium ml-1">${data.http_status}</span>
+                        </div>
+                        ` : ''}
+                        
+                        ${data.url_tested ? `
+                        <div class="bg-gray-800/50 p-2 rounded text-sm">
+                            <span class="text-gray-400">URL Tested:</span>
+                            <span class="text-gray-300 ml-1 text-xs break-all">${escapeHtml(data.url_tested)}</span>
+                        </div>
+                        ` : ''}
+                        
+                        ${data.warnings && data.warnings.length > 0 ? `
+                        <div class="bg-yellow-900/30 border border-yellow-500/30 p-3 rounded">
+                            <div class="text-yellow-400 text-sm font-medium mb-1">
+                                <i class="fas fa-lightbulb mr-1"></i> Troubleshooting Tips
+                            </div>
+                            <ul class="text-sm text-yellow-300 list-disc list-inside space-y-1">
+                                ${data.warnings.map(w => `<li>${escapeHtml(w)}</li>`).join('')}
+                            </ul>
+                        </div>
+                        ` : ''}
+                        
+                        ${data.response_preview ? `
+                        <details class="bg-gray-800/50 p-3 rounded">
+                            <summary class="text-sm text-gray-300 cursor-pointer hover:text-white">
+                                <i class="fas fa-code mr-1"></i> Error Response
+                            </summary>
+                            <pre class="mt-2 text-xs text-gray-400 overflow-x-auto max-h-32">${escapeHtml(data.response_preview)}</pre>
+                        </details>
+                        ` : ''}
                     </div>
                 `;
             }
         } catch (e) {
             console.error('Test error:', e);
             testResult.innerHTML = `
-                <div class="p-3 bg-red-900/50 border border-red-500/30 rounded-lg">
-                    <div class="flex items-center text-red-400">
+                <div class="p-4 bg-red-900/30 border border-red-500/30 rounded-lg">
+                    <div class="flex items-center text-red-400 mb-2">
                         <i class="fas fa-exclamation-triangle mr-2"></i>
-                        <span>Error: ${escapeHtml(e.message || 'Test failed')}</span>
+                        <span class="font-medium">Request Error</span>
                     </div>
+                    <p class="text-sm text-gray-400">${escapeHtml(e.message || 'Failed to test connection')}</p>
+                    <p class="text-xs text-gray-500 mt-2">Check browser console for details</p>
                 </div>
             `;
         }

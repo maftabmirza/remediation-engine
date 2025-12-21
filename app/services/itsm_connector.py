@@ -399,11 +399,22 @@ class GenericAPIConnector:
 
     def test_connection(self) -> Tuple[bool, str, Optional[Dict]]:
         """
-        Test API connection
+        Test API connection with detailed diagnostics
 
         Returns:
-            Tuple of (success, message, sample_data)
+            Tuple of (success, message, detailed_results)
         """
+        diagnostics = {
+            'http_status': None,
+            'response_type': None,
+            'response_preview': None,
+            'records_found': 0,
+            'sample_record': None,
+            'field_mapping_results': {},
+            'warnings': [],
+            'url_tested': None
+        }
+
         try:
             # Build request
             url = self.api_config.get('base_url', '')
@@ -411,15 +422,15 @@ class GenericAPIConnector:
             headers = self.api_config.get('headers', {'Content-Type': 'application/json'})
             params = self.api_config.get('query_params', {}).copy()
 
+            diagnostics['url_tested'] = url
+
             # Apply auth
             headers = self.auth_handler.apply_auth(headers)
 
-            # Make request (limit to 1 record for test)
-            if 'limit' in params or self.pagination_handler.__class__.__name__ != 'NoPagination':
-                # Try to limit results
-                pagination_config = self.config.get('pagination', {})
-                limit_param = pagination_config.get('limit_param') or pagination_config.get('per_page_param') or 'limit'
-                params[limit_param] = 1
+            # Make request (limit to small number for test)
+            pagination_config = self.config.get('pagination', {})
+            limit_param = pagination_config.get('limit_param') or pagination_config.get('per_page_param') or 'maxResults'
+            params[limit_param] = 5  # Get up to 5 records for preview
 
             logger.info(f"Testing connection to {url}")
 
@@ -431,25 +442,74 @@ class GenericAPIConnector:
                 timeout=self.timeout
             )
 
+            diagnostics['http_status'] = response.status_code
+
             if response.status_code == 200:
                 try:
                     data = response.json()
-                    # Try to extract a sample record
+                    diagnostics['response_type'] = 'JSON'
+                    
+                    # Show response preview (truncated)
+                    response_str = json.dumps(data, indent=2)
+                    diagnostics['response_preview'] = response_str[:500] + ('...' if len(response_str) > 500 else '')
+                    
+                    # Try to extract records using field mapping
                     records = self.field_mapper.extract_fields(data)
-                    sample = records[0] if records else None
-                    return True, "Connection successful", sample
+                    diagnostics['records_found'] = len(records)
+                    
+                    if records:
+                        diagnostics['sample_record'] = records[0]
+                        
+                        # Show which fields were successfully mapped
+                        for field_name in self.field_mapper.field_mapping.keys():
+                            value = records[0].get(field_name)
+                            diagnostics['field_mapping_results'][field_name] = {
+                                'extracted': value is not None,
+                                'value_preview': str(value)[:100] if value else None
+                            }
+                        
+                        return True, f"Success! Found {len(records)} record(s)", diagnostics
+                    else:
+                        diagnostics['warnings'].append("No records extracted - check JSONPath field mappings")
+                        return True, "Connected but no records extracted", diagnostics
+                        
                 except json.JSONDecodeError:
-                    return True, "Connection successful (non-JSON response)", None
+                    diagnostics['response_type'] = 'Non-JSON'
+                    diagnostics['response_preview'] = response.text[:300]
+                    diagnostics['warnings'].append("Response is not valid JSON")
+                    return True, "Connection OK but response is not JSON", diagnostics
+                    
+            elif response.status_code == 401:
+                diagnostics['warnings'].append("Authentication failed - check credentials")
+                return False, "401 Unauthorized - Invalid credentials", diagnostics
+                
+            elif response.status_code == 403:
+                diagnostics['response_preview'] = response.text[:300]
+                diagnostics['warnings'].append("Access forbidden - check API permissions")
+                return False, f"403 Forbidden - {response.text[:100]}", diagnostics
+                
+            elif response.status_code == 404:
+                diagnostics['warnings'].append("Endpoint not found - check API URL")
+                return False, "404 Not Found - Invalid API URL", diagnostics
+                
+            elif response.status_code == 410:
+                diagnostics['warnings'].append("API endpoint deprecated or unavailable")
+                return False, "410 Gone - API endpoint not available", diagnostics
+                
             else:
-                return False, f"API returned status {response.status_code}: {response.text[:200]}", None
+                diagnostics['response_preview'] = response.text[:300]
+                return False, f"HTTP {response.status_code}: {response.text[:150]}", diagnostics
 
         except requests.exceptions.Timeout:
-            return False, "Connection timed out", None
+            diagnostics['warnings'].append("Request timed out - server may be slow or unreachable")
+            return False, "Connection timed out", diagnostics
         except requests.exceptions.ConnectionError as e:
-            return False, f"Connection error: {str(e)}", None
+            diagnostics['warnings'].append(f"Network error: {str(e)[:100]}")
+            return False, f"Connection error: {str(e)[:100]}", diagnostics
         except Exception as e:
             logger.exception("Error testing connection")
-            return False, f"Error: {str(e)}", None
+            diagnostics['warnings'].append(f"Unexpected error: {str(e)[:100]}")
+            return False, f"Error: {str(e)[:100]}", diagnostics
 
     def fetch_changes(self, since: Optional[datetime] = None) -> List[Dict[str, Any]]:
         """
