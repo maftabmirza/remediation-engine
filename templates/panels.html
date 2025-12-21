@@ -191,6 +191,25 @@
 
                 <!-- Right Column - Query Editor -->
                 <div class="space-y-4">
+                    <!-- Query Examples -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Query Examples</label>
+                        <select id="query-examples" onchange="loadQueryExample()"
+                                class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                            <option value="">Select an example...</option>
+                            <option value="cpu">CPU Usage (%)</option>
+                            <option value="memory">Memory Usage (GB)</option>
+                            <option value="disk">Disk Usage (%)</option>
+                            <option value="network_rx">Network Received (MB/s)</option>
+                            <option value="network_tx">Network Transmitted (MB/s)</option>
+                            <option value="http_rate">HTTP Request Rate</option>
+                            <option value="http_errors">HTTP Error Rate (%)</option>
+                            <option value="http_latency">HTTP Request Duration p95</option>
+                            <option value="alerts">Active Alerts</option>
+                            <option value="up">Target Up/Down</option>
+                        </select>
+                    </div>
+
                     <div>
                         <div class="flex justify-between items-center mb-1">
                             <label class="block text-sm font-medium text-gray-300">PromQL Query *</label>
@@ -202,7 +221,7 @@
                         <textarea id="query-editor" rows="8" required
                             placeholder="Example: rate(http_requests_total[5m])"
                             class="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"></textarea>
-                        <p class="text-xs text-gray-400 mt-1">Enter your PromQL query</p>
+                        <p class="text-xs text-gray-400 mt-1">Enter your PromQL query or select an example above</p>
                     </div>
 
                     <div id="query-result" class="hidden p-3 rounded text-sm">
@@ -356,6 +375,29 @@
         document.getElementById('panel-refresh').value = '30';
         document.getElementById('query-result').classList.add('hidden');
         document.getElementById('panel-modal').classList.remove('hidden');
+    }
+
+    function loadQueryExample() {
+        const exampleType = document.getElementById('query-examples').value;
+        const queryEditor = document.getElementById('query-editor');
+
+        const examples = {
+            'cpu': '100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)',
+            'memory': '(node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / 1024 / 1024 / 1024',
+            'disk': '100 - ((node_filesystem_avail_bytes{mountpoint="/",fstype!="rootfs"} * 100) / node_filesystem_size_bytes{mountpoint="/",fstype!="rootfs"})',
+            'network_rx': 'rate(node_network_receive_bytes_total[5m]) / 1024 / 1024',
+            'network_tx': 'rate(node_network_transmit_bytes_total[5m]) / 1024 / 1024',
+            'http_rate': 'sum(rate(http_requests_total[5m])) by (method, status)',
+            'http_errors': '(sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m]))) * 100',
+            'http_latency': 'histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))',
+            'alerts': 'ALERTS{alertstate="firing"}',
+            'up': 'up'
+        };
+
+        if (exampleType && examples[exampleType]) {
+            queryEditor.value = examples[exampleType];
+            document.getElementById('query-examples').value = ''; // Reset dropdown
+        }
     }
 
     function editPanel(id) {

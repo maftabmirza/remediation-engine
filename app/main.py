@@ -127,6 +127,10 @@ def init_db():
             db.commit()
             logger.info("Default Prometheus datasource created")
 
+        # Seed panel templates
+        from app.services.panel_template_seeder import seed_panel_templates
+        seed_panel_templates(db)
+
     finally:
         db.close()
 
