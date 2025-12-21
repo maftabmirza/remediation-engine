@@ -45,6 +45,8 @@ class ChangeEvent(Base):
     timestamp = Column(DateTime(timezone=True), nullable=False, index=True)
     start_time = Column(DateTime(timezone=True))  # When the change started
     end_time = Column(DateTime(timezone=True))    # When the change completed
+    associated_cis = Column(JSONB, default=[])    # Configuration Items affected (servers, databases, etc.)
+    application = Column(String(255), index=True) # Application affected by change
     source = Column(String(100), index=True)  # integration ID or 'webhook'
     change_metadata = Column(JSONB, default={})  # Renamed from 'metadata' which is reserved
     correlation_score = Column(Float, index=True)

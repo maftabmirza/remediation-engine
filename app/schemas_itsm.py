@@ -63,6 +63,8 @@ class ChangeEventBase(BaseModel):
     timestamp: datetime
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
+    associated_cis: Optional[List[str]] = []  # Configuration Items affected
+    application: Optional[str] = None          # Application affected by change
 
 
 class ChangeEventCreate(ChangeEventBase):
@@ -130,6 +132,8 @@ class ChangeTimelineEntry(BaseModel):
     timestamp: datetime
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
+    associated_cis: Optional[List[str]] = []
+    application: Optional[str] = None
     impact_level: Optional[str]
     incidents_after: int = 0
 

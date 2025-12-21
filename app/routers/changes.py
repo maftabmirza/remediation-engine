@@ -105,6 +105,8 @@ async def get_change_timeline(
             timestamp=datetime.fromisoformat(t['timestamp']),
             start_time=datetime.fromisoformat(t['start_time']) if t.get('start_time') else None,
             end_time=datetime.fromisoformat(t['end_time']) if t.get('end_time') else None,
+            associated_cis=t.get('associated_cis', []),
+            application=t.get('application'),
             impact_level=t.get('impact_level'),
             incidents_after=t.get('incidents_after', 0)
         )
@@ -280,6 +282,8 @@ async def receive_change_webhook(
         existing.timestamp = data.timestamp
         existing.start_time = data.start_time
         existing.end_time = data.end_time
+        existing.associated_cis = data.associated_cis or []
+        existing.application = data.application
         existing.change_metadata = data.metadata
         db.commit()
         
@@ -294,6 +298,8 @@ async def receive_change_webhook(
         timestamp=data.timestamp,
         start_time=data.start_time,
         end_time=data.end_time,
+        associated_cis=data.associated_cis or [],
+        application=data.application,
         source=data.source,
         change_metadata=data.metadata
     )

@@ -98,7 +98,8 @@
                     <tr class="text-left text-gray-400 border-b border-gray-700">
                         <th class="pb-3 pr-4">Change ID</th>
                         <th class="pb-3 pr-4">Type</th>
-                        <th class="pb-3 pr-4">Service</th>
+                        <th class="pb-3 pr-4">Application</th>
+                        <th class="pb-3 pr-4">CIs</th>
                         <th class="pb-3 pr-4">Description</th>
                         <th class="pb-3 pr-4">Start Time</th>
                         <th class="pb-3 pr-4">End Time</th>
@@ -108,7 +109,7 @@
                 </thead>
                 <tbody id="changeTableBody" class="divide-y divide-gray-800">
                     <tr>
-                        <td colspan="8" class="text-center py-8 text-gray-400">
+                        <td colspan="9" class="text-center py-8 text-gray-400">
                             <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
                             <p>Loading changes...</p>
                         </td>
@@ -434,10 +435,15 @@
                     <span class="text-xs bg-gray-700 px-2 py-1 rounded">${escapeHtml(entry.change_type || 'unknown')}</span>
                 </td>
                 <td class="py-3 pr-4 text-gray-300">
-                    ${escapeHtml(entry.service_name || '-')}
+                    ${escapeHtml(entry.application || entry.service_name || '-')}
+                </td>
+                <td class="py-3 pr-4 text-gray-400 text-xs">
+                    ${(entry.associated_cis && entry.associated_cis.length > 0)
+                ? entry.associated_cis.slice(0, 2).map(ci => `<span class="bg-gray-700 px-1 py-0.5 rounded mr-1">${escapeHtml(ci)}</span>`).join('') + (entry.associated_cis.length > 2 ? `<span class="text-gray-500">+${entry.associated_cis.length - 2}</span>` : '')
+                : '-'}
                 </td>
                 <td class="py-3 pr-4 text-gray-400 max-w-xs truncate" title="${escapeHtml(entry.description || '')}">
-                    ${escapeHtml((entry.description || 'No description').substring(0, 60))}${(entry.description || '').length > 60 ? '...' : ''}
+                    ${escapeHtml((entry.description || 'No description').substring(0, 50))}${(entry.description || '').length > 50 ? '...' : ''}
                 </td>
                 <td class="py-3 pr-4 text-gray-500 text-xs whitespace-nowrap">
                     ${entry.start_time ? formatDateTime(entry.start_time) : formatDateTime(entry.timestamp)}
