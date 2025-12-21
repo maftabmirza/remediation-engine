@@ -357,6 +357,76 @@ async def changes_page(
     })
 
 
+@app.get("/dashboards", response_class=HTMLResponse)
+async def dashboards_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    Dashboard Builder page
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    return templates.TemplateResponse("dashboards.html", {
+        "request": request,
+        "user": current_user
+    })
+
+
+@app.get("/datasources", response_class=HTMLResponse)
+async def datasources_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    Datasources management page
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    return templates.TemplateResponse("datasources.html", {
+        "request": request,
+        "user": current_user
+    })
+
+
+@app.get("/panels", response_class=HTMLResponse)
+async def panels_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    Panels library page
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    return templates.TemplateResponse("panels.html", {
+        "request": request,
+        "user": current_user
+    })
+
+
+@app.get("/dashboard-view/{dashboard_id}", response_class=HTMLResponse)
+async def dashboard_view_page(
+    request: Request,
+    dashboard_id: str,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    View a specific Prometheus dashboard with its panels
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    return templates.TemplateResponse("dashboard_view.html", {
+        "request": request,
+        "user": current_user,
+        "dashboard_id": dashboard_id
+    })
+
+
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(
     request: Request,

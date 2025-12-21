@@ -1,4 +1,5 @@
-{% extends "base.html" %}
+{% extends "layout.html" %}
+{% set active_page = 'panels' %}
 
 {% block title %}Prometheus Panels{% endblock %}
 
@@ -7,21 +8,43 @@
     .panel-card {
         transition: transform 0.2s, box-shadow 0.2s;
     }
+
     .panel-card:hover {
         transform: translateY(-2px);
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     }
+
     .badge {
         padding: 2px 8px;
         border-radius: 4px;
         font-size: 0.75rem;
         font-weight: 500;
     }
-    .badge-graph { background-color: #3b82f6; color: white; }
-    .badge-gauge { background-color: #10b981; color: white; }
-    .badge-stat { background-color: #f59e0b; color: white; }
-    .badge-table { background-color: #8b5cf6; color: white; }
-    .badge-template { background-color: #ec4899; color: white; }
+
+    .badge-graph {
+        background-color: #3b82f6;
+        color: white;
+    }
+
+    .badge-gauge {
+        background-color: #10b981;
+        color: white;
+    }
+
+    .badge-stat {
+        background-color: #f59e0b;
+        color: white;
+    }
+
+    .badge-table {
+        background-color: #8b5cf6;
+        color: white;
+    }
+
+    .badge-template {
+        background-color: #ec4899;
+        color: white;
+    }
 
     #query-editor {
         font-family: 'Courier New', monospace;
@@ -38,9 +61,10 @@
             <h1 class="text-2xl font-bold text-white">Prometheus Panels</h1>
             <p class="text-gray-400 text-sm">Create and manage custom PromQL panels</p>
         </div>
-        <button onclick="showCreateModal()" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded text-white flex items-center gap-2">
+        <button onclick="showCreateModal()"
+            class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded text-white flex items-center gap-2">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
             </svg>
             Create Panel
         </button>
@@ -49,16 +73,15 @@
     <!-- Filters -->
     <div class="bg-gray-800 rounded-lg p-4 mb-6 flex gap-4">
         <div class="flex-1">
-            <input type="text" id="search-input" placeholder="Search panels..."
-                   onkeyup="filterPanels()"
-                   class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+            <input type="text" id="search-input" placeholder="Search panels..." onkeyup="filterPanels()"
+                class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
         </div>
         <select id="datasource-filter" onchange="filterPanels()"
-                class="bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+            class="bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
             <option value="">All Datasources</option>
         </select>
         <select id="type-filter" onchange="filterPanels()"
-                class="bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+            class="bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
             <option value="">All Types</option>
             <option value="graph">Graph</option>
             <option value="gauge">Gauge</option>
@@ -88,7 +111,7 @@
             <h2 id="modal-title" class="text-xl font-bold text-white">Create Panel</h2>
             <button onclick="closeModal()" class="text-gray-400 hover:text-white">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                 </svg>
             </button>
         </div>
@@ -102,19 +125,19 @@
                     <div>
                         <label class="block text-sm font-medium text-gray-300 mb-1">Panel Name *</label>
                         <input type="text" id="panel-name" required
-                               class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
                     </div>
 
                     <div>
                         <label class="block text-sm font-medium text-gray-300 mb-1">Description</label>
                         <textarea id="panel-description" rows="2"
-                                  class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"></textarea>
+                            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"></textarea>
                     </div>
 
                     <div>
                         <label class="block text-sm font-medium text-gray-300 mb-1">Datasource *</label>
                         <select id="panel-datasource" required
-                                class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
                             <option value="">Select datasource...</option>
                         </select>
                     </div>
@@ -122,7 +145,7 @@
                     <div>
                         <label class="block text-sm font-medium text-gray-300 mb-1">Panel Type</label>
                         <select id="panel-type"
-                                class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
                             <option value="graph">Graph</option>
                             <option value="gauge">Gauge</option>
                             <option value="stat">Stat</option>
@@ -134,7 +157,7 @@
                         <div>
                             <label class="block text-sm font-medium text-gray-300 mb-1">Time Range</label>
                             <select id="panel-time-range"
-                                    class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                                class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
                                 <option value="5m">5 minutes</option>
                                 <option value="15m">15 minutes</option>
                                 <option value="30m">30 minutes</option>
@@ -150,7 +173,7 @@
                         <div>
                             <label class="block text-sm font-medium text-gray-300 mb-1">Refresh (s)</label>
                             <input type="number" id="panel-refresh" value="30" min="5" max="3600"
-                                   class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                                class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
                         </div>
                     </div>
 
@@ -171,13 +194,14 @@
                     <div>
                         <div class="flex justify-between items-center mb-1">
                             <label class="block text-sm font-medium text-gray-300">PromQL Query *</label>
-                            <button type="button" onclick="testQuery()" class="text-blue-400 hover:text-blue-300 text-sm">
+                            <button type="button" onclick="testQuery()"
+                                class="text-blue-400 hover:text-blue-300 text-sm">
                                 Test Query
                             </button>
                         </div>
                         <textarea id="query-editor" rows="8" required
-                                  placeholder="Example: rate(http_requests_total[5m])"
-                                  class="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"></textarea>
+                            placeholder="Example: rate(http_requests_total[5m])"
+                            class="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"></textarea>
                         <p class="text-xs text-gray-400 mt-1">Enter your PromQL query</p>
                     </div>
 
@@ -188,20 +212,21 @@
                     <div>
                         <label class="block text-sm font-medium text-gray-300 mb-1">Legend Format</label>
                         <input type="text" id="panel-legend" placeholder="{{instance}}"
-                               class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
                         <p class="text-xs text-gray-400 mt-1">Use {{label_name}} for label values</p>
                     </div>
 
                     <div>
                         <label class="block text-sm font-medium text-gray-300 mb-1">Tags (comma-separated)</label>
                         <input type="text" id="panel-tags" placeholder="infrastructure, cpu, monitoring"
-                               class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
                     </div>
                 </div>
             </div>
 
             <div class="flex justify-end gap-2 mt-6">
-                <button type="button" onclick="closeModal()" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded text-white">
+                <button type="button" onclick="closeModal()"
+                    class="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded text-white">
                     Cancel
                 </button>
                 <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white">
@@ -213,79 +238,79 @@
 </div>
 
 <script>
-let panels = [];
-let datasources = [];
-let filteredPanels = [];
+    let panels = [];
+    let datasources = [];
+    let filteredPanels = [];
 
-async function loadDatasources() {
-    try {
-        const response = await apiCall('/api/datasources/?enabled_only=true');
-        datasources = await response.json();
+    async function loadDatasources() {
+        try {
+            const response = await apiCall('/api/datasources/?enabled_only=true');
+            datasources = await response.json();
 
-        // Populate datasource selectors
-        const panelDatasource = document.getElementById('panel-datasource');
-        const datasourceFilter = document.getElementById('datasource-filter');
+            // Populate datasource selectors
+            const panelDatasource = document.getElementById('panel-datasource');
+            const datasourceFilter = document.getElementById('datasource-filter');
 
-        panelDatasource.innerHTML = '<option value="">Select datasource...</option>' +
-            datasources.map(ds => `<option value="${ds.id}">${escapeHtml(ds.name)}</option>`).join('');
+            panelDatasource.innerHTML = '<option value="">Select datasource...</option>' +
+                datasources.map(ds => `<option value="${ds.id}">${escapeHtml(ds.name)}</option>`).join('');
 
-        datasourceFilter.innerHTML = '<option value="">All Datasources</option>' +
-            datasources.map(ds => `<option value="${ds.id}">${escapeHtml(ds.name)}</option>`).join('');
-    } catch (error) {
-        console.error('Failed to load datasources:', error);
-    }
-}
-
-async function loadPanels() {
-    try {
-        const response = await apiCall('/api/panels/?limit=500');
-        panels = await response.json();
-        filterPanels();
-    } catch (error) {
-        console.error('Failed to load panels:', error);
-        showToast('Failed to load panels', 'error');
-    }
-}
-
-function filterPanels() {
-    const search = document.getElementById('search-input').value.toLowerCase();
-    const datasourceFilter = document.getElementById('datasource-filter').value;
-    const typeFilter = document.getElementById('type-filter').value;
-    const templatesOnly = document.getElementById('templates-only').checked;
-
-    filteredPanels = panels.filter(panel => {
-        const matchesSearch = !search ||
-            panel.name.toLowerCase().includes(search) ||
-            (panel.description && panel.description.toLowerCase().includes(search));
-
-        const matchesDatasource = !datasourceFilter || panel.datasource_id === datasourceFilter;
-        const matchesType = !typeFilter || panel.panel_type === typeFilter;
-        const matchesTemplate = !templatesOnly || panel.is_template;
-
-        return matchesSearch && matchesDatasource && matchesType && matchesTemplate;
-    });
-
-    renderPanels();
-}
-
-function renderPanels() {
-    const grid = document.getElementById('panels-grid');
-    const noPanel = document.getElementById('no-panels');
-
-    if (filteredPanels.length === 0) {
-        grid.classList.add('hidden');
-        noPanel.classList.remove('hidden');
-        return;
+            datasourceFilter.innerHTML = '<option value="">All Datasources</option>' +
+                datasources.map(ds => `<option value="${ds.id}">${escapeHtml(ds.name)}</option>`).join('');
+        } catch (error) {
+            console.error('Failed to load datasources:', error);
+        }
     }
 
-    grid.classList.remove('hidden');
-    noPanel.classList.add('hidden');
+    async function loadPanels() {
+        try {
+            const response = await apiCall('/api/panels/?limit=500');
+            panels = await response.json();
+            filterPanels();
+        } catch (error) {
+            console.error('Failed to load panels:', error);
+            showToast('Failed to load panels', 'error');
+        }
+    }
 
-    grid.innerHTML = filteredPanels.map(panel => {
-        const datasource = datasources.find(ds => ds.id === panel.datasource_id);
-        const badgeClass = `badge-${panel.panel_type}`;
+    function filterPanels() {
+        const search = document.getElementById('search-input').value.toLowerCase();
+        const datasourceFilter = document.getElementById('datasource-filter').value;
+        const typeFilter = document.getElementById('type-filter').value;
+        const templatesOnly = document.getElementById('templates-only').checked;
 
-        return `
+        filteredPanels = panels.filter(panel => {
+            const matchesSearch = !search ||
+                panel.name.toLowerCase().includes(search) ||
+                (panel.description && panel.description.toLowerCase().includes(search));
+
+            const matchesDatasource = !datasourceFilter || panel.datasource_id === datasourceFilter;
+            const matchesType = !typeFilter || panel.panel_type === typeFilter;
+            const matchesTemplate = !templatesOnly || panel.is_template;
+
+            return matchesSearch && matchesDatasource && matchesType && matchesTemplate;
+        });
+
+        renderPanels();
+    }
+
+    function renderPanels() {
+        const grid = document.getElementById('panels-grid');
+        const noPanel = document.getElementById('no-panels');
+
+        if (filteredPanels.length === 0) {
+            grid.classList.add('hidden');
+            noPanel.classList.remove('hidden');
+            return;
+        }
+
+        grid.classList.remove('hidden');
+        noPanel.classList.add('hidden');
+
+        grid.innerHTML = filteredPanels.map(panel => {
+            const datasource = datasources.find(ds => ds.id === panel.datasource_id);
+            const badgeClass = `badge-${panel.panel_type}`;
+
+            return `
             <div class="panel-card bg-gray-800 rounded-lg p-4 border border-gray-700">
                 <div class="flex justify-between items-start mb-2">
                     <h3 class="text-white font-medium">${escapeHtml(panel.name)}</h3>
@@ -320,166 +345,166 @@ function renderPanels() {
                 </div>
             </div>
         `;
-    }).join('');
-}
-
-function showCreateModal() {
-    document.getElementById('modal-title').textContent = 'Create Panel';
-    document.getElementById('panel-form').reset();
-    document.getElementById('panel-id').value = '';
-    document.getElementById('panel-time-range').value = '24h';
-    document.getElementById('panel-refresh').value = '30';
-    document.getElementById('query-result').classList.add('hidden');
-    document.getElementById('panel-modal').classList.remove('hidden');
-}
-
-function editPanel(id) {
-    const panel = panels.find(p => p.id === id);
-    if (!panel) return;
-
-    document.getElementById('modal-title').textContent = 'Edit Panel';
-    document.getElementById('panel-id').value = panel.id;
-    document.getElementById('panel-name').value = panel.name;
-    document.getElementById('panel-description').value = panel.description || '';
-    document.getElementById('panel-datasource').value = panel.datasource_id;
-    document.getElementById('panel-type').value = panel.panel_type;
-    document.getElementById('query-editor').value = panel.promql_query;
-    document.getElementById('panel-legend').value = panel.legend_format || '';
-    document.getElementById('panel-time-range').value = panel.time_range;
-    document.getElementById('panel-refresh').value = panel.refresh_interval;
-    document.getElementById('panel-is-template').checked = panel.is_template;
-    document.getElementById('panel-is-public').checked = panel.is_public;
-    document.getElementById('panel-tags').value = panel.tags ? panel.tags.join(', ') : '';
-    document.getElementById('query-result').classList.add('hidden');
-    document.getElementById('panel-modal').classList.remove('hidden');
-}
-
-function closeModal() {
-    document.getElementById('panel-modal').classList.add('hidden');
-}
-
-async function testQuery() {
-    const datasourceId = document.getElementById('panel-datasource').value;
-    const query = document.getElementById('query-editor').value;
-
-    if (!datasourceId || !query) {
-        showToast('Please select a datasource and enter a query', 'error');
-        return;
+        }).join('');
     }
 
-    const resultDiv = document.getElementById('query-result');
-    resultDiv.innerHTML = '<div class="text-gray-400">Testing query...</div>';
-    resultDiv.className = 'p-3 rounded text-sm bg-gray-900';
-    resultDiv.classList.remove('hidden');
+    function showCreateModal() {
+        document.getElementById('modal-title').textContent = 'Create Panel';
+        document.getElementById('panel-form').reset();
+        document.getElementById('panel-id').value = '';
+        document.getElementById('panel-time-range').value = '24h';
+        document.getElementById('panel-refresh').value = '30';
+        document.getElementById('query-result').classList.add('hidden');
+        document.getElementById('panel-modal').classList.remove('hidden');
+    }
 
-    try {
-        const response = await apiCall('/api/panels/test-query', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                datasource_id: datasourceId,
-                promql_query: query
-            })
-        });
+    function editPanel(id) {
+        const panel = panels.find(p => p.id === id);
+        if (!panel) return;
 
-        const result = await response.json();
+        document.getElementById('modal-title').textContent = 'Edit Panel';
+        document.getElementById('panel-id').value = panel.id;
+        document.getElementById('panel-name').value = panel.name;
+        document.getElementById('panel-description').value = panel.description || '';
+        document.getElementById('panel-datasource').value = panel.datasource_id;
+        document.getElementById('panel-type').value = panel.panel_type;
+        document.getElementById('query-editor').value = panel.promql_query;
+        document.getElementById('panel-legend').value = panel.legend_format || '';
+        document.getElementById('panel-time-range').value = panel.time_range;
+        document.getElementById('panel-refresh').value = panel.refresh_interval;
+        document.getElementById('panel-is-template').checked = panel.is_template;
+        document.getElementById('panel-is-public').checked = panel.is_public;
+        document.getElementById('panel-tags').value = panel.tags ? panel.tags.join(', ') : '';
+        document.getElementById('query-result').classList.add('hidden');
+        document.getElementById('panel-modal').classList.remove('hidden');
+    }
 
-        if (result.valid) {
-            resultDiv.className = 'p-3 rounded text-sm bg-green-900 border border-green-600';
-            resultDiv.innerHTML = `
+    function closeModal() {
+        document.getElementById('panel-modal').classList.add('hidden');
+    }
+
+    async function testQuery() {
+        const datasourceId = document.getElementById('panel-datasource').value;
+        const query = document.getElementById('query-editor').value;
+
+        if (!datasourceId || !query) {
+            showToast('Please select a datasource and enter a query', 'error');
+            return;
+        }
+
+        const resultDiv = document.getElementById('query-result');
+        resultDiv.innerHTML = '<div class="text-gray-400">Testing query...</div>';
+        resultDiv.className = 'p-3 rounded text-sm bg-gray-900';
+        resultDiv.classList.remove('hidden');
+
+        try {
+            const response = await apiCall('/api/panels/test-query', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    datasource_id: datasourceId,
+                    promql_query: query
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.valid) {
+                resultDiv.className = 'p-3 rounded text-sm bg-green-900 border border-green-600';
+                resultDiv.innerHTML = `
                 <div class="text-green-300 font-medium">✓ ${escapeHtml(result.message)}</div>
                 <div class="text-xs text-green-200 mt-1">Result Type: ${result.result_type}</div>
             `;
-        } else {
+            } else {
+                resultDiv.className = 'p-3 rounded text-sm bg-red-900 border border-red-600';
+                resultDiv.innerHTML = `<div class="text-red-300">✗ ${escapeHtml(result.message)}</div>`;
+            }
+        } catch (error) {
             resultDiv.className = 'p-3 rounded text-sm bg-red-900 border border-red-600';
-            resultDiv.innerHTML = `<div class="text-red-300">✗ ${escapeHtml(result.message)}</div>`;
+            resultDiv.innerHTML = `<div class="text-red-300">Error testing query</div>`;
         }
-    } catch (error) {
-        resultDiv.className = 'p-3 rounded text-sm bg-red-900 border border-red-600';
-        resultDiv.innerHTML = `<div class="text-red-300">Error testing query</div>`;
     }
-}
 
-async function savePanel(event) {
-    event.preventDefault();
+    async function savePanel(event) {
+        event.preventDefault();
 
-    const id = document.getElementById('panel-id').value;
-    const tags = document.getElementById('panel-tags').value
-        .split(',')
-        .map(t => t.trim())
-        .filter(t => t.length > 0);
+        const id = document.getElementById('panel-id').value;
+        const tags = document.getElementById('panel-tags').value
+            .split(',')
+            .map(t => t.trim())
+            .filter(t => t.length > 0);
 
-    const data = {
-        name: document.getElementById('panel-name').value,
-        description: document.getElementById('panel-description').value || null,
-        datasource_id: document.getElementById('panel-datasource').value,
-        promql_query: document.getElementById('query-editor').value,
-        legend_format: document.getElementById('panel-legend').value || null,
-        time_range: document.getElementById('panel-time-range').value,
-        refresh_interval: parseInt(document.getElementById('panel-refresh').value),
-        panel_type: document.getElementById('panel-type').value,
-        is_template: document.getElementById('panel-is-template').checked,
-        is_public: document.getElementById('panel-is-public').checked,
-        tags: tags.length > 0 ? tags : null
-    };
+        const data = {
+            name: document.getElementById('panel-name').value,
+            description: document.getElementById('panel-description').value || null,
+            datasource_id: document.getElementById('panel-datasource').value,
+            promql_query: document.getElementById('query-editor').value,
+            legend_format: document.getElementById('panel-legend').value || null,
+            time_range: document.getElementById('panel-time-range').value,
+            refresh_interval: parseInt(document.getElementById('panel-refresh').value),
+            panel_type: document.getElementById('panel-type').value,
+            is_template: document.getElementById('panel-is-template').checked,
+            is_public: document.getElementById('panel-is-public').checked,
+            tags: tags.length > 0 ? tags : null
+        };
 
-    try {
-        const url = id ? `/api/panels/${id}` : '/api/panels/';
-        const method = id ? 'PUT' : 'POST';
+        try {
+            const url = id ? `/api/panels/${id}` : '/api/panels/';
+            const method = id ? 'PUT' : 'POST';
 
-        const response = await apiCall(url, {
-            method: method,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        });
+            const response = await apiCall(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
 
-        if (response.ok) {
-            showToast(id ? 'Panel updated successfully' : 'Panel created successfully', 'success');
-            closeModal();
-            await loadPanels();
-        } else {
-            const error = await response.json();
-            showToast(error.detail || 'Failed to save panel', 'error');
+            if (response.ok) {
+                showToast(id ? 'Panel updated successfully' : 'Panel created successfully', 'success');
+                closeModal();
+                await loadPanels();
+            } else {
+                const error = await response.json();
+                showToast(error.detail || 'Failed to save panel', 'error');
+            }
+        } catch (error) {
+            console.error('Failed to save panel:', error);
+            showToast('Failed to save panel', 'error');
         }
-    } catch (error) {
-        console.error('Failed to save panel:', error);
-        showToast('Failed to save panel', 'error');
-    }
-}
-
-async function deletePanel(id, name) {
-    if (!confirm(`Are you sure you want to delete panel "${name}"?`)) {
-        return;
     }
 
-    try {
-        const response = await apiCall(`/api/panels/${id}`, {
-            method: 'DELETE'
-        });
-
-        if (response.ok) {
-            showToast('Panel deleted successfully', 'success');
-            await loadPanels();
-        } else {
-            const error = await response.json();
-            showToast(error.detail || 'Failed to delete panel', 'error');
+    async function deletePanel(id, name) {
+        if (!confirm(`Are you sure you want to delete panel "${name}"?`)) {
+            return;
         }
-    } catch (error) {
-        console.error('Failed to delete panel:', error);
-        showToast('Failed to delete panel', 'error');
+
+        try {
+            const response = await apiCall(`/api/panels/${id}`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                showToast('Panel deleted successfully', 'success');
+                await loadPanels();
+            } else {
+                const error = await response.json();
+                showToast(error.detail || 'Failed to delete panel', 'error');
+            }
+        } catch (error) {
+            console.error('Failed to delete panel:', error);
+            showToast('Failed to delete panel', 'error');
+        }
     }
-}
 
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
 
-// Load data on page load
-document.addEventListener('DOMContentLoaded', async () => {
-    await loadDatasources();
-    await loadPanels();
-});
+    // Load data on page load
+    document.addEventListener('DOMContentLoaded', async () => {
+        await loadDatasources();
+        await loadPanels();
+    });
 </script>
 {% endblock %}

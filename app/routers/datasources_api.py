@@ -12,7 +12,7 @@ import uuid
 
 from app.database import get_db
 from app.models_dashboards import PrometheusDatasource
-from app.auth import get_current_user
+from app.routers.auth import get_current_user
 from app.config import get_settings
 from cryptography.fernet import Fernet
 import base64
@@ -213,7 +213,7 @@ async def create_datasource(
         is_default=datasource.is_default,
         is_enabled=datasource.is_enabled,
         custom_headers=datasource.custom_headers,
-        created_by=current_user.get("username")
+        created_by=current_user.username
     )
 
     db.add(new_datasource)

@@ -176,14 +176,14 @@ class AlertResponse(AlertBase):
     annotations_json: Optional[Dict[str, Any]] = None
     matched_rule_id: Optional[UUID] = None
     action_taken: Optional[str] = None
-    analyzed: bool
+    analyzed: Optional[bool] = False
     analyzed_at: Optional[datetime] = None
     analyzed_by: Optional[UUID] = None
     llm_provider_id: Optional[UUID] = None
     ai_analysis: Optional[str] = None
     recommendations_json: Optional[List[str]] = None
-    analysis_count: int = 0
-    created_at: datetime
+    analysis_count: Optional[int] = 0
+    created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True

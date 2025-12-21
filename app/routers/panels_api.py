@@ -12,7 +12,7 @@ import uuid
 
 from app.database import get_db
 from app.models_dashboards import PrometheusPanel, PrometheusDatasource, PanelType
-from app.auth import get_current_user
+from app.routers.auth import get_current_user
 from app.routers.datasources_api import decrypt_password
 
 router = APIRouter(prefix="/api/panels", tags=["Panels"])
@@ -317,13 +317,13 @@ async def create_panel(
         time_range=panel.time_range,
         refresh_interval=panel.refresh_interval,
         step=panel.step,
-        panel_type=panel.panel_type,
+        panel_type=panel.panel_type.value if hasattr(panel.panel_type, 'value') else panel.panel_type,
         visualization_config=panel.visualization_config,
         thresholds=panel.thresholds,
         tags=panel.tags,
         is_public=panel.is_public,
         is_template=panel.is_template,
-        created_by=current_user.get("username")
+        created_by=current_user.username
     )
 
     db.add(new_panel)
@@ -605,7 +605,7 @@ async def clone_panel(
         tags=panel.tags,
         is_public=panel.is_public,
         is_template=False,  # Clones are not templates
-        created_by=current_user.get("username")
+        created_by=current_user.username
     )
 
     db.add(cloned_panel)

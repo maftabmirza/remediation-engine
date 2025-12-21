@@ -28,7 +28,7 @@ class PrometheusClient:
             timeout: HTTP request timeout in seconds
         """
         settings = get_settings()
-        self.base_url = (base_url or settings.PROMETHEUS_URL).rstrip('/')
+        self.base_url = (base_url or settings.prometheus_url).rstrip('/')
         self.timeout = timeout
         self.client = httpx.AsyncClient(timeout=timeout)
         logger.info(f"Initialized PrometheusClient with base_url: {self.base_url}")

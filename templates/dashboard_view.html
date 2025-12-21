@@ -1,0 +1,398 @@
+{% extends "layout.html" %}
+{% set active_page = 'dashboards' %}
+
+{% block title %}Dashboard View - AIOps Platform{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div class="flex items-center gap-4">
+            <a href="/dashboards" class="text-gray-400 hover:text-white transition-colors">
+                <i class="fas fa-arrow-left"></i>
+            </a>
+            <div>
+                <h1 id="dashboard-title" class="text-2xl font-bold">Loading Dashboard...</h1>
+                <p id="dashboard-description" class="text-gray-400 text-sm"></p>
+            </div>
+        </div>
+        <div class="flex items-center gap-3">
+            <select id="time-range" class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm">
+                <option value="15m">Last 15m</option>
+                <option value="1h">Last 1h</option>
+                <option value="6h">Last 6h</option>
+                <option value="24h" selected>Last 24h</option>
+                <option value="7d">Last 7d</option>
+                <option value="30d">Last 30d</option>
+            </select>
+            <button id="refresh-btn" class="btn-secondary px-4 py-2 rounded-lg text-sm flex items-center gap-2">
+                <i class="fas fa-sync-alt"></i>
+                Refresh
+            </button>
+            <a href="/dashboards" class="btn-secondary px-4 py-2 rounded-lg text-sm">
+                <i class="fas fa-edit mr-2"></i>
+                Edit
+            </a>
+        </div>
+    </div>
+
+    <!-- Dashboard Loading State -->
+    <div id="loading-state" class="flex items-center justify-center py-20">
+        <div class="text-center">
+            <i class="fas fa-spinner fa-spin text-4xl text-blue-400 mb-4"></i>
+            <p class="text-gray-400">Loading dashboard...</p>
+        </div>
+    </div>
+
+    <!-- Dashboard Error State -->
+    <div id="error-state" class="hidden">
+        <div class="bg-red-900/30 border border-red-700/50 rounded-lg p-6 text-center">
+            <i class="fas fa-exclamation-triangle text-4xl text-red-400 mb-4"></i>
+            <h3 class="text-lg font-semibold text-red-300 mb-2">Failed to load dashboard</h3>
+            <p id="error-message" class="text-red-200/70 mb-4"></p>
+            <button onclick="loadDashboard()" class="btn-primary px-4 py-2 rounded-lg">
+                <i class="fas fa-redo mr-2"></i>
+                Retry
+            </button>
+        </div>
+    </div>
+
+    <!-- Empty State -->
+    <div id="empty-state" class="hidden">
+        <div class="bg-gray-800/50 border border-gray-700/50 rounded-lg p-10 text-center">
+            <i class="fas fa-chart-bar text-5xl text-gray-600 mb-4"></i>
+            <h3 class="text-lg font-semibold text-gray-300 mb-2">No panels in this dashboard</h3>
+            <p class="text-gray-500 mb-6">Add some panels to visualize your metrics.</p>
+            <a href="/dashboards" class="btn-primary px-6 py-2 rounded-lg">
+                <i class="fas fa-plus mr-2"></i>
+                Add Panels
+            </a>
+        </div>
+    </div>
+
+    <!-- Panels Grid -->
+    <div id="panels-grid" class="hidden grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Panels will be dynamically inserted here -->
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<script>
+    const dashboardId = '{{ dashboard_id }}';
+    let dashboard = null;
+    let panels = [];
+    let charts = {};
+    let refreshInterval = null;
+
+    // Load dashboard on page load
+    document.addEventListener('DOMContentLoaded', loadDashboard);
+
+    // Time range change
+    document.getElementById('time-range').addEventListener('change', () => {
+        refreshAllPanels();
+    });
+
+    // Refresh button
+    document.getElementById('refresh-btn').addEventListener('click', () => {
+        refreshAllPanels();
+    });
+
+    async function loadDashboard() {
+        showLoading();
+
+        try {
+            // Fetch dashboard details
+            const dashboardRes = await fetch(`/api/dashboards/${dashboardId}`);
+            if (!dashboardRes.ok) {
+                throw new Error('Dashboard not found');
+            }
+            dashboard = await dashboardRes.json();
+
+            // Update header
+            document.getElementById('dashboard-title').textContent = dashboard.name;
+            document.getElementById('dashboard-description').textContent = dashboard.description || '';
+
+            // Set time range if dashboard has default
+            if (dashboard.time_range) {
+                const timeSelect = document.getElementById('time-range');
+                if ([...timeSelect.options].some(o => o.value === dashboard.time_range)) {
+                    timeSelect.value = dashboard.time_range;
+                }
+            }
+
+            // Use panels from dashboard response (they're already included)
+            panels = dashboard.panels || [];
+
+            if (panels.length === 0) {
+                showEmpty();
+            } else {
+                renderPanels();
+                showPanels();
+                // Load data for all panels
+                await refreshAllPanels();
+
+                // Set up auto-refresh if dashboard has refresh interval
+                if (dashboard.auto_refresh && dashboard.refresh_interval) {
+                    startAutoRefresh(dashboard.refresh_interval);
+                }
+            }
+
+        } catch (error) {
+            console.error('Error loading dashboard:', error);
+            showError(error.message);
+        }
+    }
+
+    function renderPanels() {
+        const grid = document.getElementById('panels-grid');
+        grid.innerHTML = '';
+
+        panels.forEach((panelItem, index) => {
+            // Handle DashboardPanelInfo (panel_id, panel_name) or direct panel objects
+            const panelId = panelItem.panel_id || panelItem.id;
+            const panelName = panelItem.panel_name || panelItem.name || 'Unnamed Panel';
+            const panelDescription = panelItem.description || '';
+            const panelQuery = panelItem.promql_query || 'No query';
+
+            const panelElement = document.createElement('div');
+            panelElement.className = 'card p-4';
+            panelElement.innerHTML = `
+            <div class="flex items-center justify-between mb-3">
+                <div>
+                    <h3 class="font-semibold text-white">${escapeHtml(panelName)}</h3>
+                    <p class="text-xs text-gray-500">${escapeHtml(panelDescription)}</p>
+                </div>
+                <div class="flex items-center gap-2 text-xs text-gray-500">
+                    <span id="panel-status-${panelId}" class="flex items-center gap-1">
+                        <i class="fas fa-circle text-green-400 text-xs"></i>
+                        Live
+                    </span>
+                </div>
+            </div>
+            <div id="chart-${panelId}" class="h-64 bg-gray-800/50 rounded-lg flex items-center justify-center">
+                <i class="fas fa-spinner fa-spin text-2xl text-gray-500"></i>
+            </div>
+            <div class="mt-2 text-xs text-gray-600 font-mono truncate" title="${escapeHtml(panelQuery)}">
+                ${escapeHtml(panelQuery)}
+            </div>
+        `;
+            grid.appendChild(panelElement);
+        });
+    }
+
+    async function refreshAllPanels() {
+        const timeRange = document.getElementById('time-range').value;
+
+        for (const panelItem of panels) {
+            const panelId = panelItem.panel_id || panelItem.id;
+            await loadPanelData(panelId, timeRange);
+        }
+    }
+
+    async function loadPanelData(panelId, timeRange) {
+        const chartContainer = document.getElementById(`chart-${panelId}`);
+        const statusEl = document.getElementById(`panel-status-${panelId}`);
+
+        if (!chartContainer) return;
+
+        try {
+            // Calculate time range
+            const end = new Date();
+            const duration = parseTimeRange(timeRange);
+            const start = new Date(end.getTime() - duration);
+
+            // Fetch panel data from API
+            const response = await fetch(`/api/panels/${panelId}/data?start=${start.toISOString()}&end=${end.toISOString()}`);
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            const result = await response.json();
+
+            // Render chart based on panel type
+            renderChart(panelId, result.data, chartContainer);
+
+            // Update status
+            if (statusEl) {
+                statusEl.innerHTML = `
+                <i class="fas fa-circle text-green-400 text-xs"></i>
+                <span>${result.metadata?.series_count || 0} series</span>
+            `;
+            }
+
+        } catch (error) {
+            console.error(`Error loading panel ${panelId}:`, error);
+            chartContainer.innerHTML = `
+            <div class="text-center text-red-400">
+                <i class="fas fa-exclamation-circle text-2xl mb-2"></i>
+                <p class="text-sm">Failed to load data</p>
+                <p class="text-xs text-gray-500">${error.message}</p>
+            </div>
+        `;
+
+            if (statusEl) {
+                statusEl.innerHTML = `
+                <i class="fas fa-circle text-red-400 text-xs"></i>
+                Error
+            `;
+            }
+        }
+    }
+
+    function renderChart(panelId, data, container) {
+        // Clear container if it has spinner
+        if (container.querySelector('.fa-spinner')) {
+            container.innerHTML = '';
+        }
+
+        // Initialize or get existing chart
+        if (!charts[panelId]) {
+            charts[panelId] = echarts.init(container);
+        }
+        const chart = charts[panelId];
+
+        // Build series from Prometheus data
+        const series = data.map((s, idx) => {
+            const name = formatLegend(null, s.metric) || `Series ${idx + 1}`;
+            const values = (s.values || []).map(v => [
+                new Date(v[0] * 1000),
+                parseFloat(v[1])
+            ]);
+
+            return {
+                name: name,
+                type: 'line',  // Default to line chart
+                data: values,
+                smooth: true,
+                showSymbol: false,
+                lineStyle: { width: 2 },
+                areaStyle: { opacity: 0.1 }  // Default area style
+            };
+        });
+
+        const option = {
+            backgroundColor: 'transparent',
+            grid: {
+                left: 50,
+                right: 20,
+                top: 30,
+                bottom: 30
+            },
+            tooltip: {
+                trigger: 'axis',
+                backgroundColor: 'rgba(30, 30, 30, 0.9)',
+                borderColor: '#444',
+                textStyle: { color: '#fff' }
+            },
+            legend: {
+                data: series.map(s => s.name),
+                textStyle: { color: '#888' },
+                type: 'scroll',
+                top: 0
+            },
+            xAxis: {
+                type: 'time',
+                axisLine: { lineStyle: { color: '#444' } },
+                axisLabel: { color: '#888' },
+                splitLine: { show: false }
+            },
+            yAxis: {
+                type: 'value',
+                axisLine: { lineStyle: { color: '#444' } },
+                axisLabel: { color: '#888' },
+                splitLine: { lineStyle: { color: '#333' } }
+            },
+            series: series
+        };
+
+        chart.setOption(option, true);
+        chart.resize();
+    }
+
+    function formatLegend(format, metric) {
+        if (!format || !metric) {
+            // Default: use instance or job label
+            return metric.instance || metric.job || Object.values(metric)[0] || 'Value';
+        }
+
+        let result = format;
+        for (const [key, value] of Object.entries(metric)) {
+            // Use string concat to avoid Jinja2 template conflict
+            result = result.replace('{% raw %}{{{% endraw %}' + key + '{% raw %}}}{% endraw %}', value);
+        }
+        return result;
+    }
+
+    function parseTimeRange(range) {
+        const units = {
+            'm': 60 * 1000,
+            'h': 60 * 60 * 1000,
+            'd': 24 * 60 * 60 * 1000
+        };
+        const match = range.match(/^(\d+)([mhd])$/);
+        if (match) {
+            return parseInt(match[1]) * units[match[2]];
+        }
+        return 24 * 60 * 60 * 1000; // Default 24h
+    }
+
+    function startAutoRefresh(intervalSeconds) {
+        if (refreshInterval) {
+            clearInterval(refreshInterval);
+        }
+        refreshInterval = setInterval(() => {
+            refreshAllPanels();
+        }, intervalSeconds * 1000);
+    }
+
+    function showLoading() {
+        document.getElementById('loading-state').classList.remove('hidden');
+        document.getElementById('error-state').classList.add('hidden');
+        document.getElementById('empty-state').classList.add('hidden');
+        document.getElementById('panels-grid').classList.add('hidden');
+    }
+
+    function showError(message) {
+        document.getElementById('loading-state').classList.add('hidden');
+        document.getElementById('error-state').classList.remove('hidden');
+        document.getElementById('empty-state').classList.add('hidden');
+        document.getElementById('panels-grid').classList.add('hidden');
+        document.getElementById('error-message').textContent = message;
+    }
+
+    function showEmpty() {
+        document.getElementById('loading-state').classList.add('hidden');
+        document.getElementById('error-state').classList.add('hidden');
+        document.getElementById('empty-state').classList.remove('hidden');
+        document.getElementById('panels-grid').classList.add('hidden');
+    }
+
+    function showPanels() {
+        document.getElementById('loading-state').classList.add('hidden');
+        document.getElementById('error-state').classList.add('hidden');
+        document.getElementById('empty-state').classList.add('hidden');
+        document.getElementById('panels-grid').classList.remove('hidden');
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // Handle window resize
+    window.addEventListener('resize', () => {
+        Object.values(charts).forEach(chart => chart.resize());
+    });
+
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', () => {
+        if (refreshInterval) {
+            clearInterval(refreshInterval);
+        }
+        Object.values(charts).forEach(chart => chart.dispose());
+    });
+</script>
+{% endblock %}

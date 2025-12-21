@@ -11,7 +11,7 @@ import uuid
 
 from app.database import get_db
 from app.models_dashboards import Dashboard, DashboardPanel, PrometheusPanel, PrometheusDatasource
-from app.auth import get_current_user
+from app.routers.auth import get_current_user
 
 router = APIRouter(prefix="/api/dashboards", tags=["Dashboards"])
 
@@ -212,7 +212,7 @@ async def get_dashboard(
             panel_infos.append(DashboardPanelInfo(
                 panel_id=dp.panel_id,
                 panel_name=panel.name,
-                panel_type=panel.panel_type.value,
+                panel_type=panel.panel_type,
                 grid_x=dp.grid_x,
                 grid_y=dp.grid_y,
                 grid_width=dp.grid_width,
@@ -278,7 +278,7 @@ async def create_dashboard(
         is_public=dashboard.is_public,
         is_favorite=dashboard.is_favorite,
         is_home=dashboard.is_home,
-        created_by=current_user.get("username")
+        created_by=current_user.username
     )
 
     db.add(new_dashboard)
@@ -579,7 +579,7 @@ async def clone_dashboard(
         is_public=dashboard.is_public,
         is_favorite=False,  # Clones are not favorites
         is_home=False,  # Clones are not home
-        created_by=current_user.get("username")
+        created_by=current_user.username
     )
 
     db.add(cloned_dashboard)
@@ -666,7 +666,7 @@ async def get_home_dashboard(
             panel_infos.append(DashboardPanelInfo(
                 panel_id=dp.panel_id,
                 panel_name=panel.name,
-                panel_type=panel.panel_type.value,
+                panel_type=panel.panel_type,
                 grid_x=dp.grid_x,
                 grid_y=dp.grid_y,
                 grid_width=dp.grid_width,

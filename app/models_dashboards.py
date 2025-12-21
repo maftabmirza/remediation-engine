@@ -89,7 +89,7 @@ class PrometheusPanel(Base):
     step = Column(String(20), default="auto")  # auto, 15s, 1m, 5m, 1h
 
     # Visualization
-    panel_type = Column(SQLEnum(PanelType), default=PanelType.GRAPH)
+    panel_type = Column(String(50), default="graph")  # graph, gauge, stat, table, heatmap, bar, pie
 
     # Panel options (JSON)
     # For GRAPH: {lineWidth, fillOpacity, showPoints, yAxisLabel, etc}

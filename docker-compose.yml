@@ -43,6 +43,10 @@ services:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - DEBUG=${DEBUG:-false}
+      # Prometheus Integration
+      - PROMETHEUS_URL=${PROMETHEUS_URL:-http://prometheus:9090}
+      - ENABLE_PROMETHEUS_QUERIES=${ENABLE_PROMETHEUS_QUERIES:-true}
+      - PROMETHEUS_TIMEOUT=${PROMETHEUS_TIMEOUT:-30}
     ports:
       - "8080:8080"
     volumes:
