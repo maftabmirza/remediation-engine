@@ -46,7 +46,11 @@ from app.routers import (
     knowledge,  # Phase 2: Knowledge Base
     feedback,  # Phase 3: Learning System
     troubleshooting,  # Phase 4: Troubleshooting Engine
-    clusters  # Week 1-2: Alert Clustering
+    troubleshooting,  # Phase 4: Troubleshooting Engine
+    clusters,  # Week 1-2: Alert Clustering
+    analytics,  # Phase 3-4: Analytics API
+    itsm,  # Week 5-6: Change Correlation
+    changes  # Week 5-6: Change Correlation
 )
 from app import api_credential_profiles
 from app.services.execution_worker import start_execution_worker, stop_execution_worker
@@ -148,6 +152,12 @@ async def lifespan(app: FastAPI):
     start_clustering_jobs(scheduler._scheduler)  # Pass APScheduler instance
     logger.info("✅ Alert clustering jobs started")
     
+    # Start ITSM sync background jobs
+    logger.info("Starting ITSM sync background jobs...")
+    from app.services.itsm_sync_worker import start_itsm_sync_jobs
+    start_itsm_sync_jobs(scheduler._scheduler)  # Pass APScheduler instance
+    logger.info("✅ ITSM sync jobs started")
+    
     logger.info("AIOps Platform started successfully")
     
     yield
@@ -226,6 +236,9 @@ app.include_router(knowledge.router)      # Phase 2: Knowledge Base
 app.include_router(feedback.router, prefix="/api/v1", tags=["learning"])  # Phase 3: Learning System
 app.include_router(troubleshooting.router, prefix="/api/v1", tags=["troubleshooting"])  # Phase 4: Troubleshooting Engine
 app.include_router(clusters.router)       # Week 1-2: Alert Clustering
+app.include_router(analytics.router)      # Phase 3-4: Analytics API
+app.include_router(itsm.router)           # Week 5-6: Change Correlation - ITSM
+app.include_router(changes.router)        # Week 5-6: Change Correlation - Changes
 
 
 @app.get("/profile", response_class=HTMLResponse)
@@ -276,6 +289,40 @@ async def index(
             "pending": pending,
             "critical": critical
         }
+    })
+
+
+@app.get("/analytics", response_class=HTMLResponse)
+async def analytics_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    Analytics dashboard page
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    return templates.TemplateResponse("analytics.html", {
+        "request": request,
+        "user": current_user
+    })
+
+
+@app.get("/changes", response_class=HTMLResponse)
+async def changes_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    Change Correlation dashboard page
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    return templates.TemplateResponse("changes.html", {
+        "request": request,
+        "user": current_user
     })
 
 

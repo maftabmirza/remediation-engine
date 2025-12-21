@@ -17,12 +17,60 @@
 
         <!-- Navigation -->
         <nav class="flex-1 p-4 space-y-2 overflow-hidden">
-            <a href="/"
-                class="sidebar-item flex items-center space-x-3 px-4 py-3 rounded-lg {% if active_page == 'dashboard' %}active{% endif %}"
-                data-tooltip="Dashboard">
-                <i class="fas fa-tachometer-alt w-5 flex-shrink-0 nav-icon text-blue-400"></i>
-                <span class="sidebar-text whitespace-nowrap hidden">Dashboard</span>
-            </a>
+            <!-- Dashboard with Submenu -->
+            <div class="nav-group relative" onmouseenter="showFlyout('dashboardFlyout')"
+                onmouseleave="hideFlyout('dashboardFlyout')">
+                <button onclick="toggleSubmenu('dashboardSubmenu')"
+                    class="sidebar-item flex items-center justify-between w-full px-4 py-3 rounded-lg {% if active_page == 'dashboard' or active_page == 'analytics' or active_page == 'changes' %}active{% endif %}"
+                    data-tooltip="Dashboard" data-has-submenu="true">
+                    <div class="flex items-center space-x-3">
+                        <i class="fas fa-tachometer-alt w-5 flex-shrink-0 nav-icon text-blue-400"></i>
+                        <span class="sidebar-text whitespace-nowrap hidden">Dashboard</span>
+                    </div>
+                    <i class="fas fa-chevron-down text-xs text-gray-500 sidebar-text hidden submenu-arrow"
+                        id="dashboardSubmenuArrow"></i>
+                </button>
+                <!-- Inline submenu (shown when sidebar expanded) -->
+                <div id="dashboardSubmenu"
+                    class="submenu ml-4 mt-1 space-y-1 sidebar-text hidden overflow-hidden transition-all duration-200">
+                    <a href="/"
+                        class="sidebar-subitem flex items-center space-x-3 px-4 py-2 rounded-lg text-sm {% if active_page == 'dashboard' %}bg-gray-800 text-white{% else %}text-gray-400 hover:text-white hover:bg-gray-800{% endif %}">
+                        <i class="fas fa-home w-4 text-blue-300"></i>
+                        <span>Overview</span>
+                    </a>
+                    <a href="/analytics"
+                        class="sidebar-subitem flex items-center space-x-3 px-4 py-2 rounded-lg text-sm {% if active_page == 'analytics' %}bg-gray-800 text-white{% else %}text-gray-400 hover:text-white hover:bg-gray-800{% endif %}">
+                        <i class="fas fa-chart-line w-4 text-teal-300"></i>
+                        <span>MTTR Analytics</span>
+                    </a>
+                    <a href="/changes"
+                        class="sidebar-subitem flex items-center space-x-3 px-4 py-2 rounded-lg text-sm {% if active_page == 'changes' %}bg-gray-800 text-white{% else %}text-gray-400 hover:text-white hover:bg-gray-800{% endif %}">
+                        <i class="fas fa-code-branch w-4 text-purple-300"></i>
+                        <span>Change Correlation</span>
+                    </a>
+                </div>
+                <!-- Flyout submenu (shown on hover when sidebar collapsed) -->
+                <div id="dashboardFlyout"
+                    class="flyout-menu fixed left-20 bg-gray-900 border border-gray-700 rounded-lg shadow-xl py-2 z-50 hidden min-w-48">
+                    <div class="px-3 py-2 text-xs text-gray-500 uppercase tracking-wider border-b border-gray-700 mb-1">
+                        Dashboard</div>
+                    <a href="/"
+                        class="flex items-center space-x-3 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">
+                        <i class="fas fa-home w-4 text-blue-300"></i>
+                        <span>Overview</span>
+                    </a>
+                    <a href="/analytics"
+                        class="flex items-center space-x-3 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">
+                        <i class="fas fa-chart-line w-4 text-teal-300"></i>
+                        <span>MTTR Analytics</span>
+                    </a>
+                    <a href="/changes"
+                        class="flex items-center space-x-3 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">
+                        <i class="fas fa-code-branch w-4 text-purple-300"></i>
+                        <span>Change Correlation</span>
+                    </a>
+                </div>
+            </div>
             <a href="/alerts"
                 class="sidebar-item flex items-center space-x-3 px-4 py-3 rounded-lg {% if active_page == 'alerts' %}active{% endif %}"
                 data-tooltip="Alerts">
@@ -504,6 +552,86 @@
         } catch (e) { }
         window.location.href = '/login';
     }
+
+    // Submenu toggle function
+    function toggleSubmenu(submenuId) {
+        const submenu = document.getElementById(submenuId);
+        const arrow = document.getElementById(submenuId + 'Arrow');
+
+        if (submenu.classList.contains('submenu-open')) {
+            submenu.classList.remove('submenu-open');
+            submenu.style.maxHeight = '0px';
+            if (arrow) arrow.classList.remove('rotate-180');
+        } else {
+            submenu.classList.add('submenu-open');
+            submenu.style.maxHeight = submenu.scrollHeight + 'px';
+            if (arrow) arrow.classList.add('rotate-180');
+        }
+    }
+
+    // Auto-expand submenus for active pages
+    document.addEventListener('DOMContentLoaded', function () {
+        // Check if Dashboard or Analytics is active
+        const dashboardSubmenu = document.getElementById('dashboardSubmenu');
+        if (dashboardSubmenu) {
+            const hasActiveChild = dashboardSubmenu.querySelector('.bg-gray-800');
+            if (hasActiveChild) {
+                dashboardSubmenu.classList.add('submenu-open');
+                dashboardSubmenu.style.maxHeight = dashboardSubmenu.scrollHeight + 'px';
+                const arrow = document.getElementById('dashboardSubmenuArrow');
+                if (arrow) arrow.classList.add('rotate-180');
+            }
+        }
+    });
+
+    // Flyout menu for collapsed sidebar
+    let flyoutTimeout = null;
+
+    function showFlyout(flyoutId) {
+        const sidebar = document.getElementById('sidebar');
+        // Only show flyout when sidebar is collapsed (width 20 = 80px)
+        if (sidebar.classList.contains('w-20')) {
+            // Clear any pending hide timeout
+            if (flyoutTimeout) {
+                clearTimeout(flyoutTimeout);
+                flyoutTimeout = null;
+            }
+
+            const flyout = document.getElementById(flyoutId);
+            const trigger = flyout.closest('.nav-group').querySelector('button');
+            if (flyout && trigger) {
+                const rect = trigger.getBoundingClientRect();
+                flyout.style.top = rect.top + 'px';
+                flyout.style.left = '80px'; // Match collapsed sidebar width
+                flyout.classList.remove('hidden');
+            }
+        }
+    }
+
+    function hideFlyout(flyoutId) {
+        // Add a small delay before hiding to allow mouse to move to flyout
+        flyoutTimeout = setTimeout(() => {
+            const flyout = document.getElementById(flyoutId);
+            if (flyout) {
+                flyout.classList.add('hidden');
+            }
+        }, 150);
+    }
+
+    // Keep flyout open when mouse is over it
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.flyout-menu').forEach(flyout => {
+            flyout.addEventListener('mouseenter', () => {
+                if (flyoutTimeout) {
+                    clearTimeout(flyoutTimeout);
+                    flyoutTimeout = null;
+                }
+            });
+            flyout.addEventListener('mouseleave', () => {
+                flyout.classList.add('hidden');
+            });
+        });
+    });
 </script>
 <script>
     // --- Command Palette Logic ---

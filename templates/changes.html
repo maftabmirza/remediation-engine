@@ -1,0 +1,759 @@
+{% extends "layout.html" %}
+{% set active_page = 'changes' %}
+
+{% block title %}Change Correlation - AIOps Platform{% endblock %}
+
+{% block head %}
+{{ super() }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex justify-between items-center">
+        <div>
+            <h1 class="text-2xl font-bold">Change Correlation</h1>
+            <p class="text-gray-400">Track deployments and their impact on incidents</p>
+        </div>
+
+        <div class="flex items-center space-x-4">
+            <select id="timeRange" class="input-field bg-gray-900 border-gray-700 rounded px-3 py-2"
+                onchange="loadAllData()">
+                <option value="24h">Last 24h</option>
+                <option value="7d" selected>Last 7 days</option>
+                <option value="30d">Last 30 days</option>
+            </select>
+            <button onclick="showITSMModal()" class="btn-secondary">
+                <i class="fas fa-plug mr-2"></i>Configure ITSM
+            </button>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <!-- Total Changes -->
+        <div class="card p-5">
+            <p class="text-gray-400 text-sm">Total Changes</p>
+            <p class="text-3xl font-bold mt-1" id="statTotalChanges">--</p>
+            <p class="text-xs text-gray-500 mt-1">In selected period</p>
+        </div>
+
+        <!-- High Impact -->
+        <div class="card p-5">
+            <p class="text-gray-400 text-sm">High Impact</p>
+            <p class="text-3xl font-bold mt-1 text-red-400" id="statHighImpact">--</p>
+            <p class="text-xs text-gray-500 mt-1">Changes with incidents</p>
+        </div>
+
+        <!-- Avg Correlation -->
+        <div class="card p-5">
+            <p class="text-gray-400 text-sm">Avg Correlation Score</p>
+            <p class="text-3xl font-bold mt-1" id="statAvgScore">--</p>
+            <p class="text-xs text-gray-500 mt-1">0-100 scale</p>
+        </div>
+
+        <!-- Critical Incidents -->
+        <div class="card p-5">
+            <p class="text-gray-400 text-sm">Critical Incidents</p>
+            <p class="text-3xl font-bold mt-1 text-yellow-400" id="statCritical">--</p>
+            <p class="text-xs text-gray-500 mt-1">After changes</p>
+        </div>
+    </div>
+
+    <!-- High Impact Changes -->
+    <div class="card p-6">
+        <h3 class="font-bold text-lg mb-4">
+            <i class="fas fa-exclamation-triangle text-red-400 mr-2"></i>High Impact Changes
+        </h3>
+        <div id="highImpactList" class="space-y-3">
+            <div class="text-center py-8 text-gray-400">
+                <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                <p>Loading...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Change Timeline -->
+    <div class="card p-6">
+        <h3 class="font-bold text-lg mb-4">
+            <i class="fas fa-stream text-blue-400 mr-2"></i>Change Timeline
+        </h3>
+        <div id="changeTimeline" class="space-y-2">
+            <div class="text-center py-8 text-gray-400">
+                <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                <p>Loading timeline...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Impact Distribution Chart -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="card p-6">
+            <h3 class="font-bold text-lg mb-4">Impact Distribution</h3>
+            <div style="height: 200px; position: relative;">
+                <canvas id="impactChart"></canvas>
+            </div>
+        </div>
+        <div class="card p-6">
+            <h3 class="font-bold text-lg mb-4">ITSM Integrations</h3>
+            <div id="itsmList" class="space-y-3">
+                <div class="text-center py-4 text-gray-400">Loading...</div>
+            </div>
+            <button onclick="showITSMModal()" class="btn-primary w-full mt-4">
+                <i class="fas fa-plus mr-2"></i>Add Integration
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ITSM Configuration Modal -->
+<div id="itsmModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+    <div class="bg-gray-900 rounded-xl p-6 w-full max-w-xl max-h-[80vh] overflow-y-auto">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-bold">Configure ITSM Integration</h3>
+            <button onclick="hideITSMModal()" class="text-gray-400 hover:text-white">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+
+        <form id="itsmForm" onsubmit="saveITSMIntegration(event)">
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">Name</label>
+                    <input type="text" id="itsmName" class="input-field w-full"
+                        placeholder="e.g., Production ServiceNow" required>
+                </div>
+
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">Template</label>
+                    <select id="itsmTemplate" class="input-field w-full" onchange="loadTemplate()">
+                        <option value="">-- Select Template --</option>
+                        <option value="servicenow">ServiceNow</option>
+                        <option value="remedy">BMC Remedy</option>
+                        <option value="jira">Jira</option>
+                        <option value="github">GitHub Deployments</option>
+                        <option value="custom">Custom API</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">API URL</label>
+                    <input type="url" id="itsmUrl" class="input-field w-full"
+                        placeholder="https://api.example.com/changes" required>
+                </div>
+
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">Authentication Type</label>
+                    <select id="itsmAuthType" class="input-field w-full">
+                        <option value="bearer_token">Bearer Token</option>
+                        <option value="basic">Basic Auth</option>
+                        <option value="api_key">API Key</option>
+                    </select>
+                </div>
+
+                <div id="authFields">
+                    <!-- Dynamic auth fields will be inserted here -->
+                </div>
+
+                <!-- JSONPath Field Mapping Section -->
+                <div class="pt-4 border-t border-gray-700">
+                    <div class="flex items-center justify-between mb-3">
+                        <h4 class="text-sm font-medium text-gray-300">
+                            <i class="fas fa-map-marker-alt text-purple-400 mr-2"></i>Field Mapping (JSONPath)
+                        </h4>
+                        <button type="button" onclick="toggleFieldHelp()"
+                            class="text-xs text-gray-500 hover:text-gray-300">
+                            <i class="fas fa-question-circle"></i> Help
+                        </button>
+                    </div>
+
+                    <div id="fieldMappingHelp" class="hidden mb-3 p-3 bg-gray-800 rounded-lg text-xs text-gray-400">
+                        <p class="mb-2"><strong>JSONPath expressions</strong> extract data from API responses:</p>
+                        <ul class="list-disc ml-4 space-y-1">
+                            <li><code>$.result[*].sys_id</code> - Array of values from "result" array</li>
+                            <li><code>$.data.changes[*].id</code> - Nested path</li>
+                            <li><code>$[*].number</code> - Direct array at root</li>
+                        </ul>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-3">
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">Change ID*</label>
+                            <input type="text" id="mapChangeId" class="input-field w-full text-sm"
+                                placeholder="$.result[*].sys_id" value="$[*].id" required>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">Change Type</label>
+                            <input type="text" id="mapChangeType" class="input-field w-full text-sm"
+                                placeholder="$.result[*].type" value="$[*].type">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">Service Name</label>
+                            <input type="text" id="mapServiceName" class="input-field w-full text-sm"
+                                placeholder="$.result[*].cmdb_ci" value="$[*].service">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">Impacted CI</label>
+                            <input type="text" id="mapImpactedCI" class="input-field w-full text-sm"
+                                placeholder="$.result[*].cmdb_ci.display_value" value="$[*].affected_ci">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">Description</label>
+                            <input type="text" id="mapDescription" class="input-field w-full text-sm"
+                                placeholder="$.result[*].short_description" value="$[*].description">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">Timestamp*</label>
+                            <input type="text" id="mapTimestamp" class="input-field w-full text-sm"
+                                placeholder="$.result[*].sys_created_on" value="$[*].created_at" required>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">Author/User</label>
+                            <input type="text" id="mapAuthor" class="input-field w-full text-sm"
+                                placeholder="$.result[*].opened_by" value="$[*].author">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">Environment</label>
+                            <input type="text" id="mapEnvironment" class="input-field w-full text-sm"
+                                placeholder="$.result[*].environment" value="$[*].environment">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex space-x-3 pt-4">
+                    <button type="button" onclick="testITSMConnection()" class="btn-secondary flex-1">
+                        <i class="fas fa-plug mr-2"></i>Test Connection
+                    </button>
+                    <button type="submit" class="btn-primary flex-1">
+                        <i class="fas fa-save mr-2"></i>Save
+                    </button>
+                </div>
+            </div>
+        </form>
+
+        <div id="testResult" class="mt-4 hidden"></div>
+    </div>
+</div>
+
+<script>
+    let charts = {};
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+        loadAllData();
+        updateAuthFields();
+        document.getElementById('itsmAuthType').addEventListener('change', updateAuthFields);
+    });
+
+    async function loadAllData() {
+        await Promise.all([
+            loadStatistics(),
+            loadHighImpactChanges(),
+            loadChangeTimeline(),
+            loadITSMIntegrations()
+        ]);
+    }
+
+    async function loadStatistics() {
+        try {
+            const res = await apiCall('/api/changes/statistics?days=30');
+            if (!res.ok) return;
+
+            const stats = await res.json();
+
+            document.getElementById('statTotalChanges').textContent = stats.total_changes;
+            document.getElementById('statHighImpact').textContent = stats.high_impact_count;
+            document.getElementById('statAvgScore').textContent = stats.average_correlation_score.toFixed(1);
+            document.getElementById('statCritical').textContent = stats.total_critical_incidents;
+
+            // Update chart
+            updateImpactChart(stats.impact_breakdown);
+        } catch (e) {
+            console.error('Failed to load statistics:', e);
+        }
+    }
+
+    async function loadHighImpactChanges() {
+        const container = document.getElementById('highImpactList');
+
+        try {
+            const res = await apiCall('/api/changes/high-impact?days=7&limit=5');
+            if (!res.ok) throw new Error('Failed to load');
+
+            const changes = await res.json();
+
+            if (changes.length === 0) {
+                container.innerHTML = `
+                <div class="text-center py-8 text-gray-400">
+                    <i class="fas fa-check-circle text-green-400 text-3xl mb-2"></i>
+                    <p>No high-impact changes detected</p>
+                </div>
+            `;
+                return;
+            }
+
+            container.innerHTML = changes.map(change => `
+            <div class="bg-gray-800 rounded-lg p-4 hover:bg-gray-750 transition-colors cursor-pointer"
+                 onclick="showChangeDetail('${change.change_id}')">
+                <div class="flex justify-between items-start">
+                    <div class="flex-grow">
+                        <div class="flex items-center space-x-3">
+                            <span class="font-mono text-blue-400">${escapeHtml(change.change_id)}</span>
+                            <span class="px-2 py-0.5 rounded text-xs ${getImpactClass(change.impact_level)}">
+                                ${change.impact_level.toUpperCase()}
+                            </span>
+                        </div>
+                        <p class="text-sm text-gray-300 mt-1">${escapeHtml(change.change_description || 'No description')}</p>
+                        <div class="flex items-center space-x-4 mt-2 text-xs text-gray-500">
+                            <span><i class="fas fa-clock mr-1"></i>${formatTimeAgo(change.timestamp)}</span>
+                            <span><i class="fas fa-bell mr-1"></i>${change.incidents_after} incidents</span>
+                            <span><i class="fas fa-chart-line mr-1"></i>Score: ${change.correlation_score.toFixed(1)}</span>
+                        </div>
+                    </div>
+                    <i class="fas fa-chevron-right text-gray-500"></i>
+                </div>
+            </div>
+        `).join('');
+        } catch (e) {
+            container.innerHTML = `
+            <div class="text-center py-8 text-red-400">
+                <i class="fas fa-exclamation-triangle text-2xl mb-2"></i>
+                <p>Failed to load changes</p>
+            </div>
+        `;
+        }
+    }
+
+    async function loadChangeTimeline() {
+        const container = document.getElementById('changeTimeline');
+        const timeRange = document.getElementById('timeRange').value;
+
+        try {
+            const res = await apiCall(`/api/changes/timeline?time_range=${timeRange}`);
+            if (!res.ok) throw new Error('Failed to load');
+
+            const data = await res.json();
+
+            if (data.entries.length === 0) {
+                container.innerHTML = `
+                <div class="text-center py-8 text-gray-400">
+                    <i class="fas fa-inbox text-3xl mb-2"></i>
+                    <p>No changes in this period</p>
+                </div>
+            `;
+                return;
+            }
+
+            container.innerHTML = data.entries.map(entry => `
+            <div class="flex items-center space-x-4 p-3 bg-gray-800 rounded-lg hover:bg-gray-750 transition-colors">
+                <div class="w-3 h-3 rounded-full ${getImpactDot(entry.impact_level)}"></div>
+                <div class="flex-grow">
+                    <div class="flex items-center space-x-2">
+                        <span class="font-mono text-sm text-blue-400">${escapeHtml(entry.change_id)}</span>
+                        <span class="text-xs text-gray-500">${entry.change_type}</span>
+                    </div>
+                    <p class="text-sm text-gray-400">${escapeHtml(entry.description || 'No description')}</p>
+                </div>
+                <div class="text-right text-xs text-gray-500">
+                    <div>${formatDateTime(entry.timestamp)}</div>
+                    <div>${entry.incidents_after} incidents</div>
+                </div>
+            </div>
+        `).join('');
+        } catch (e) {
+            container.innerHTML = `
+            <div class="text-center py-8 text-red-400">
+                <i class="fas fa-exclamation-triangle text-2xl mb-2"></i>
+                <p>Failed to load timeline</p>
+            </div>
+        `;
+        }
+    }
+
+    async function loadITSMIntegrations() {
+        const container = document.getElementById('itsmList');
+
+        try {
+            const res = await apiCall('/api/itsm/integrations');
+            if (!res.ok) throw new Error('Failed to load');
+
+            const integrations = await res.json();
+
+            if (integrations.length === 0) {
+                container.innerHTML = `
+                <div class="text-center py-4 text-gray-400">
+                    <p>No integrations configured</p>
+                </div>
+            `;
+                return;
+            }
+
+            container.innerHTML = integrations.map(int => `
+            <div class="flex items-center justify-between p-3 bg-gray-800 rounded-lg">
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <span class="font-medium">${escapeHtml(int.name)}</span>
+                        <span class="w-2 h-2 rounded-full ${int.is_enabled ? 'bg-green-400' : 'bg-gray-500'}"></span>
+                    </div>
+                    <div class="text-xs text-gray-500 mt-1">
+                        ${int.last_sync ? 'Last sync: ' + formatTimeAgo(int.last_sync) : 'Never synced'}
+                        ${int.last_sync_status ? ' (' + int.last_sync_status + ')' : ''}
+                    </div>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button onclick="syncITSM('${int.id}')" class="btn-secondary text-xs px-2 py-1">
+                        <i class="fas fa-sync"></i>
+                    </button>
+                    <button onclick="deleteITSM('${int.id}')" class="text-red-400 hover:text-red-300 px-2">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `).join('');
+        } catch (e) {
+            container.innerHTML = `
+            <div class="text-center py-4 text-red-400">Failed to load</div>
+        `;
+        }
+    }
+
+    function updateImpactChart(breakdown) {
+        const ctx = document.getElementById('impactChart');
+
+        if (charts.impact) {
+            charts.impact.destroy();
+        }
+
+        const labels = Object.keys(breakdown || {});
+        const values = Object.values(breakdown || {});
+
+        const colors = {
+            'high': 'rgba(239, 68, 68, 0.7)',
+            'medium': 'rgba(251, 191, 36, 0.7)',
+            'low': 'rgba(59, 130, 246, 0.7)',
+            'none': 'rgba(107, 114, 128, 0.7)'
+        };
+
+        charts.impact = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: labels.map(l => l.toUpperCase()),
+                datasets: [{
+                    data: values,
+                    backgroundColor: labels.map(l => colors[l] || 'rgba(107, 114, 128, 0.7)'),
+                    borderWidth: 2,
+                    borderColor: '#1f2937'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+    }
+
+    // ITSM Modal Functions
+    function showITSMModal() {
+        document.getElementById('itsmModal').classList.remove('hidden');
+    }
+
+    function hideITSMModal() {
+        document.getElementById('itsmModal').classList.add('hidden');
+        document.getElementById('itsmForm').reset();
+        document.getElementById('testResult').classList.add('hidden');
+    }
+
+    function updateAuthFields() {
+        const authType = document.getElementById('itsmAuthType').value;
+        const container = document.getElementById('authFields');
+
+        let html = '';
+        if (authType === 'bearer_token') {
+            html = `
+            <div>
+                <label class="block text-sm text-gray-400 mb-1">Token</label>
+                <input type="password" id="authToken" class="input-field w-full" placeholder="Bearer token" required>
+            </div>
+        `;
+        } else if (authType === 'basic') {
+            html = `
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">Username</label>
+                    <input type="text" id="authUsername" class="input-field w-full" required>
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">Password</label>
+                    <input type="password" id="authPassword" class="input-field w-full" required>
+                </div>
+            </div>
+        `;
+        } else if (authType === 'api_key') {
+            html = `
+            <div>
+                <label class="block text-sm text-gray-400 mb-1">API Key</label>
+                <input type="password" id="authKey" class="input-field w-full" required>
+            </div>
+        `;
+        }
+
+        container.innerHTML = html;
+    }
+
+    function toggleFieldHelp() {
+        const help = document.getElementById('fieldMappingHelp');
+        help.classList.toggle('hidden');
+    }
+
+    function loadTemplate() {
+        const template = document.getElementById('itsmTemplate').value;
+
+        // Template presets for popular ITSM systems
+        const templates = {
+            servicenow: {
+                url: 'https://YOUR_INSTANCE.service-now.com/api/now/table/change_request',
+                authType: 'basic',
+                mapping: {
+                    change_id: '$.result[*].sys_id',
+                    change_type: '$.result[*].type',
+                    service_name: '$.result[*].cmdb_ci.display_value',
+                    impacted_ci: '$.result[*].cmdb_ci.value',
+                    description: '$.result[*].short_description',
+                    timestamp: '$.result[*].sys_created_on',
+                    author: '$.result[*].opened_by.display_value',
+                    environment: '$.result[*].u_environment'
+                }
+            },
+            remedy: {
+                url: 'https://YOUR_SERVER/api/arsys/v1/entry/CHG:ChangeInterface',
+                authType: 'bearer_token',
+                mapping: {
+                    change_id: '$.entries[*].values.Infrastructure Change ID',
+                    change_type: '$.entries[*].values.Change Type',
+                    service_name: '$.entries[*].values.Service CI',
+                    impacted_ci: '$.entries[*].values.CI Name',
+                    description: '$.entries[*].values.Description',
+                    timestamp: '$.entries[*].values.Submit Date',
+                    author: '$.entries[*].values.Submitter',
+                    environment: '$.entries[*].values.Environment'
+                }
+            },
+            jira: {
+                url: 'https://YOUR_ORG.atlassian.net/rest/api/3/search?jql=project=OPS',
+                authType: 'basic',
+                mapping: {
+                    change_id: '$.issues[*].key',
+                    change_type: '$.issues[*].fields.issuetype.name',
+                    service_name: '$.issues[*].fields.components[0].name',
+                    impacted_ci: '$.issues[*].fields.customfield_10000',
+                    description: '$.issues[*].fields.summary',
+                    timestamp: '$.issues[*].fields.created',
+                    author: '$.issues[*].fields.creator.displayName',
+                    environment: '$.issues[*].fields.environment'
+                }
+            },
+            github: {
+                url: 'https://api.github.com/repos/OWNER/REPO/deployments',
+                authType: 'bearer_token',
+                mapping: {
+                    change_id: '$[*].id',
+                    change_type: '$[*].task',
+                    service_name: '$[*].ref',
+                    impacted_ci: '$[*].payload.target',
+                    description: '$[*].description',
+                    timestamp: '$[*].created_at',
+                    author: '$[*].creator.login',
+                    environment: '$[*].environment'
+                }
+            },
+            custom: {
+                url: '',
+                authType: 'bearer_token',
+                mapping: {
+                    change_id: '$[*].id',
+                    change_type: '$[*].type',
+                    service_name: '$[*].service',
+                    impacted_ci: '$[*].affected_ci',
+                    description: '$[*].description',
+                    timestamp: '$[*].created_at',
+                    author: '$[*].author',
+                    environment: '$[*].environment'
+                }
+            }
+        };
+
+        const preset = templates[template];
+        if (preset) {
+            // Set URL
+            if (preset.url) {
+                document.getElementById('itsmUrl').value = preset.url;
+            }
+
+            // Set auth type
+            document.getElementById('itsmAuthType').value = preset.authType;
+            updateAuthFields();
+
+            // Set field mappings
+            document.getElementById('mapChangeId').value = preset.mapping.change_id;
+            document.getElementById('mapChangeType').value = preset.mapping.change_type;
+            document.getElementById('mapServiceName').value = preset.mapping.service_name;
+            document.getElementById('mapImpactedCI').value = preset.mapping.impacted_ci;
+            document.getElementById('mapDescription').value = preset.mapping.description;
+            document.getElementById('mapTimestamp').value = preset.mapping.timestamp;
+            document.getElementById('mapAuthor').value = preset.mapping.author;
+            document.getElementById('mapEnvironment').value = preset.mapping.environment;
+        }
+    }
+
+    async function testITSMConnection() {
+        showToast('Testing connection...', 'info');
+        // Implementation depends on having an integration ID
+        // For new integrations, we'd need to create temporarily
+        showToast('Create the integration first, then test', 'warning');
+    }
+
+    async function saveITSMIntegration(event) {
+        event.preventDefault();
+
+        const authType = document.getElementById('itsmAuthType').value;
+        let auth = { type: authType };
+
+        if (authType === 'bearer_token') {
+            auth.token = document.getElementById('authToken').value;
+        } else if (authType === 'basic') {
+            auth.username = document.getElementById('authUsername').value;
+            auth.password = document.getElementById('authPassword').value;
+        } else if (authType === 'api_key') {
+            auth.key = document.getElementById('authKey').value;
+        }
+
+        const config = {
+            api_config: {
+                base_url: document.getElementById('itsmUrl').value,
+                method: 'GET',
+                headers: { 'Accept': 'application/json' }
+            },
+            auth: auth,
+            pagination: { type: 'none' },
+            field_mapping: {
+                change_id: document.getElementById('mapChangeId').value,
+                change_type: document.getElementById('mapChangeType').value,
+                service_name: document.getElementById('mapServiceName').value,
+                impacted_ci: document.getElementById('mapImpactedCI').value,
+                description: document.getElementById('mapDescription').value,
+                timestamp: document.getElementById('mapTimestamp').value,
+                author: document.getElementById('mapAuthor').value,
+                environment: document.getElementById('mapEnvironment').value
+            }
+        };
+
+        try {
+            const res = await apiCall('/api/itsm/integrations', {
+                method: 'POST',
+                body: JSON.stringify({
+                    name: document.getElementById('itsmName').value,
+                    connector_type: 'generic_api',
+                    config: config
+                })
+            });
+
+            if (!res.ok) throw new Error('Failed to save');
+
+            showToast('Integration saved!', 'success');
+            hideITSMModal();
+            loadITSMIntegrations();
+        } catch (e) {
+            showToast('Failed to save integration', 'error');
+        }
+    }
+
+    async function syncITSM(id) {
+        showToast('Starting sync...', 'info');
+
+        try {
+            const res = await apiCall(`/api/itsm/integrations/${id}/sync`, { method: 'POST' });
+            if (!res.ok) throw new Error('Sync failed');
+
+            const result = await res.json();
+            showToast(`Synced: ${result.created} new, ${result.updated} updated`, 'success');
+            loadAllData();
+        } catch (e) {
+            showToast('Sync failed', 'error');
+        }
+    }
+
+    async function deleteITSM(id) {
+        if (!confirm('Delete this integration?')) return;
+
+        try {
+            const res = await apiCall(`/api/itsm/integrations/${id}`, { method: 'DELETE' });
+            if (!res.ok) throw new Error('Delete failed');
+
+            showToast('Integration deleted', 'success');
+            loadITSMIntegrations();
+        } catch (e) {
+            showToast('Failed to delete', 'error');
+        }
+    }
+
+    function showChangeDetail(changeId) {
+        window.location.href = `/alerts?change=${changeId}`;
+    }
+
+    // Helper functions
+    function getImpactClass(level) {
+        const classes = {
+            'high': 'bg-red-900 text-red-300',
+            'medium': 'bg-yellow-900 text-yellow-300',
+            'low': 'bg-blue-900 text-blue-300',
+            'none': 'bg-gray-700 text-gray-300'
+        };
+        return classes[level] || classes['none'];
+    }
+
+    function getImpactDot(level) {
+        const classes = {
+            'high': 'bg-red-400',
+            'medium': 'bg-yellow-400',
+            'low': 'bg-blue-400',
+            'none': 'bg-gray-500'
+        };
+        return classes[level] || classes['none'];
+    }
+
+    function formatTimeAgo(timestamp) {
+        const now = new Date();
+        const then = new Date(timestamp);
+        const diffMs = now - then;
+        const diffMins = Math.floor(diffMs / 60000);
+
+        if (diffMins < 1) return 'just now';
+        if (diffMins < 60) return `${diffMins}m ago`;
+        if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h ago`;
+        return `${Math.floor(diffMins / 1440)}d ago`;
+    }
+
+    function formatDateTime(timestamp) {
+        const date = new Date(timestamp);
+        return date.toLocaleString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+</script>
+{% endblock %}
