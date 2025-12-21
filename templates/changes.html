@@ -658,9 +658,83 @@
 
     async function testITSMConnection() {
         showToast('Testing connection...', 'info');
-        // Implementation depends on having an integration ID
-        // For new integrations, we'd need to create temporarily
-        showToast('Create the integration first, then test', 'warning');
+
+        const testResult = document.getElementById('testResult');
+        testResult.classList.remove('hidden');
+        testResult.innerHTML = '<div class="flex items-center text-gray-400"><i class="fas fa-spinner fa-spin mr-2"></i>Testing...</div>';
+
+        // Build config from form
+        const authType = document.getElementById('itsmAuthType').value;
+        let auth = { type: authType };
+
+        if (authType === 'bearer_token') {
+            const tokenEl = document.getElementById('authToken');
+            auth.token = tokenEl ? tokenEl.value : '';
+        } else if (authType === 'basic') {
+            auth.username = document.getElementById('authUsername')?.value || '';
+            auth.password = document.getElementById('authPassword')?.value || '';
+        } else if (authType === 'api_key') {
+            auth.key = document.getElementById('authKey')?.value || '';
+        }
+
+        const config = {
+            api_config: {
+                base_url: document.getElementById('itsmUrl').value,
+                method: 'GET',
+                headers: { 'Accept': 'application/json' }
+            },
+            auth: auth,
+            pagination: { type: 'none' },
+            field_mapping: {
+                change_id: document.getElementById('mapChangeId').value,
+                timestamp: document.getElementById('mapTimestamp').value
+            }
+        };
+
+        try {
+            const res = await apiCall('/api/itsm/test-config', {
+                method: 'POST',
+                body: JSON.stringify({
+                    name: document.getElementById('itsmName').value || 'Test',
+                    connector_type: 'generic_api',
+                    config: config
+                })
+            });
+
+            const result = await res.json();
+
+            if (result.success) {
+                testResult.innerHTML = `
+                    <div class="p-3 bg-green-900/50 border border-green-500/30 rounded-lg">
+                        <div class="flex items-center text-green-400 mb-2">
+                            <i class="fas fa-check-circle mr-2"></i>
+                            <span class="font-medium">Connection successful!</span>
+                        </div>
+                        <p class="text-sm text-gray-400">${escapeHtml(result.message)}</p>
+                    </div>
+                `;
+            } else {
+                testResult.innerHTML = `
+                    <div class="p-3 bg-red-900/50 border border-red-500/30 rounded-lg">
+                        <div class="flex items-center text-red-400 mb-2">
+                            <i class="fas fa-times-circle mr-2"></i>
+                            <span class="font-medium">Connection failed</span>
+                        </div>
+                        <p class="text-sm text-gray-400">${escapeHtml(result.message)}</p>
+                    </div>
+                `;
+            }
+        } catch (e) {
+            console.error('Test error:', e);
+            testResult.innerHTML = `
+                <div class="p-3 bg-red-900/50 border border-red-500/30 rounded-lg">
+                    <div class="flex items-center text-red-400">
+                        <i class="fas fa-exclamation-triangle mr-2"></i>
+                        <span>Error: ${escapeHtml(e.message || 'Test failed')}</span>
+                    </div>
+                </div>
+            `;
+        }
     }
 
     async function saveITSMIntegration(event) {

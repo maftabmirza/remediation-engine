@@ -168,6 +168,32 @@ async def delete_integration(
     return {"message": "Integration deleted"}
 
 
+@router.post("/test-config", response_model=ITSMTestResult)
+async def test_config(
+    data: ITSMConfigCreate,
+    current_user: User = Depends(get_current_user)
+):
+    """Test an ITSM configuration before saving (no integration required)"""
+    try:
+        # Create connector with provided config
+        connector = GenericAPIConnector(data.config)
+        success, message, sample_data = connector.test_connection()
+        
+        return ITSMTestResult(
+            success=success,
+            message=message,
+            sample_data=sample_data
+        )
+        
+    except Exception as e:
+        logger.exception(f"Error testing config: {e}")
+        return ITSMTestResult(
+            success=False,
+            message=f"Error: {str(e)}",
+            sample_data=None
+        )
+
+
 @router.post("/integrations/{integration_id}/test", response_model=ITSMTestResult)
 async def test_integration(
     integration_id: UUID,
