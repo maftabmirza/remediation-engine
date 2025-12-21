@@ -50,7 +50,8 @@ from app.routers import (
     clusters,  # Week 1-2: Alert Clustering
     analytics,  # Phase 3-4: Analytics API
     itsm,  # Week 5-6: Change Correlation
-    changes  # Week 5-6: Change Correlation
+    changes,  # Week 5-6: Change Correlation
+    prometheus  # Prometheus Integration
 )
 from app import api_credential_profiles
 from app.services.execution_worker import start_execution_worker, stop_execution_worker
@@ -239,6 +240,7 @@ app.include_router(clusters.router)       # Week 1-2: Alert Clustering
 app.include_router(analytics.router)      # Phase 3-4: Analytics API
 app.include_router(itsm.router)           # Week 5-6: Change Correlation - ITSM
 app.include_router(changes.router)        # Week 5-6: Change Correlation - Changes
+app.include_router(prometheus.router)     # Prometheus Integration
 
 
 @app.get("/profile", response_class=HTMLResponse)

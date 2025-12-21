@@ -33,6 +33,10 @@ class Settings(BaseSettings):
     app_port: int = 8080
     recording_dir: str = "storage/recordings"
 
+    # Prometheus Integration
+    prometheus_url: str = "http://prometheus:9090"
+    enable_prometheus_queries: bool = True
+
     @property
     def database_url(self) -> str:
         return f"postgresql://{self.postgres_user}:{self.postgres_password}@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
