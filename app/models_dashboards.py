@@ -194,3 +194,64 @@ class DashboardPanel(Base):
 
     def __repr__(self):
         return f"<DashboardPanel dashboard={self.dashboard_id} panel={self.panel_id}>"
+
+
+class VariableType(str, enum.Enum):
+    """Dashboard variable types"""
+    QUERY = "query"  # Populated from Prometheus query
+    CUSTOM = "custom"  # Manual list of values
+    CONSTANT = "constant"  # Single constant value
+    TEXTBOX = "textbox"  # Free-text input
+    INTERVAL = "interval"  # Time interval selector
+
+
+class DashboardVariable(Base):
+    """
+    Dashboard variables for dynamic filtering
+
+    Enables template variables like $instance, $job, $namespace
+    that can be used in panel queries for dynamic dashboards.
+    """
+    __tablename__ = "dashboard_variables"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    dashboard_id = Column(String(36), ForeignKey("dashboards.id"), nullable=False)
+
+    # Variable identification
+    name = Column(String(100), nullable=False)  # e.g., "instance", "job"
+    label = Column(String(255), nullable=True)  # Display label, defaults to name
+
+    # Variable type and configuration
+    type = Column(String(50), nullable=False, default="query")  # query, custom, constant, textbox, interval
+
+    # For query type
+    query = Column(Text, nullable=True)  # PromQL query to fetch values
+    datasource_id = Column(String(36), ForeignKey("prometheus_datasources.id"), nullable=True)
+    regex = Column(String(255), nullable=True)  # Filter/transform query results
+
+    # For custom type
+    custom_values = Column(JSON, nullable=True)  # List of values: ["value1", "value2"]
+
+    # Default value
+    default_value = Column(Text, nullable=True)  # Can be single value or JSON array for multi-select
+    current_value = Column(Text, nullable=True)  # Currently selected value(s)
+
+    # Options
+    multi_select = Column(Boolean, default=False)  # Allow multiple selections
+    include_all = Column(Boolean, default=False)  # Include "All" option
+    all_value = Column(String(255), nullable=True)  # Value to use when "All" selected (e.g., ".*")
+
+    # Display
+    hide = Column(Integer, default=0)  # 0=visible, 1=label only, 2=hidden
+    sort = Column(Integer, default=0)  # Display order
+
+    # Metadata
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    # Relationships
+    dashboard = relationship("Dashboard", backref="variables")
+    datasource = relationship("PrometheusDatasource")
+
+    def __repr__(self):
+        return f"<DashboardVariable {self.name} ({self.type})>"
