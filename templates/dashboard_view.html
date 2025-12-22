@@ -82,17 +82,15 @@
                 <span id="edit-mode-text">Edit Layout</span>
             </button>
 
-            <select id="time-range" class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm">
-                <option value="15m">Last 15m</option>
-                <option value="1h">Last 1h</option>
-                <option value="6h">Last 6h</option>
-                <option value="24h" selected>Last 24h</option>
-                <option value="7d">Last 7d</option>
-                <option value="30d">Last 30d</option>
-            </select>
+            <button onclick="showTimePickerModal()" class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm hover:bg-gray-700 transition-colors flex items-center gap-2">
+                <i class="fas fa-clock text-blue-400"></i>
+                <span id="time-range-display">Last 24h</span>
+                <i class="fas fa-chevron-down text-xs text-gray-500"></i>
+            </button>
             <button id="refresh-btn" class="btn-secondary px-4 py-2 rounded-lg text-sm flex items-center gap-2">
                 <i class="fas fa-sync-alt"></i>
-                Refresh
+                <span id="refresh-text">Refresh</span>
+                <span id="refresh-countdown" class="text-xs text-gray-400 hidden"></span>
             </button>
             <button onclick="showVariablesModal()" class="btn-secondary px-4 py-2 rounded-lg text-sm">
                 <i class="fas fa-sliders-h mr-2"></i>
@@ -309,6 +307,220 @@
     </div>
 </div>
 
+<!-- Time Picker Modal -->
+<div id="time-picker-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-gray-800 rounded-lg p-6 w-full max-w-3xl">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-xl font-bold text-white">Time Range</h2>
+            <button onclick="closeTimePickerModal()" class="text-gray-400 hover:text-white">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+
+        <div class="grid grid-cols-3 gap-6">
+            <!-- Quick Ranges -->
+            <div class="col-span-1">
+                <h3 class="text-sm font-semibold text-gray-300 mb-3">Quick Ranges</h3>
+                <div class="space-y-1">
+                    <button onclick="selectQuickRange('5m')" class="quick-range-btn w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-700 transition-colors">Last 5 minutes</button>
+                    <button onclick="selectQuickRange('15m')" class="quick-range-btn w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-700 transition-colors">Last 15 minutes</button>
+                    <button onclick="selectQuickRange('30m')" class="quick-range-btn w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-700 transition-colors">Last 30 minutes</button>
+                    <button onclick="selectQuickRange('1h')" class="quick-range-btn w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-700 transition-colors">Last 1 hour</button>
+                    <button onclick="selectQuickRange('3h')" class="quick-range-btn w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-700 transition-colors">Last 3 hours</button>
+                    <button onclick="selectQuickRange('6h')" class="quick-range-btn w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-700 transition-colors">Last 6 hours</button>
+                    <button onclick="selectQuickRange('12h')" class="quick-range-btn w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-700 transition-colors">Last 12 hours</button>
+                    <button onclick="selectQuickRange('24h')" class="quick-range-btn w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-700 transition-colors bg-gray-700">Last 24 hours</button>
+                    <button onclick="selectQuickRange('2d')" class="quick-range-btn w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-700 transition-colors">Last 2 days</button>
+                    <button onclick="selectQuickRange('7d')" class="quick-range-btn w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-700 transition-colors">Last 7 days</button>
+                    <button onclick="selectQuickRange('30d')" class="quick-range-btn w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-700 transition-colors">Last 30 days</button>
+                    <button onclick="selectQuickRange('90d')" class="quick-range-btn w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-700 transition-colors">Last 90 days</button>
+                </div>
+            </div>
+
+            <!-- Absolute/Relative Time -->
+            <div class="col-span-2">
+                <div class="mb-4">
+                    <div class="flex gap-2 mb-4">
+                        <button id="tab-relative" onclick="switchTimeTab('relative')" class="px-4 py-2 rounded bg-blue-600 text-white text-sm">Relative</button>
+                        <button id="tab-absolute" onclick="switchTimeTab('absolute')" class="px-4 py-2 rounded bg-gray-700 text-gray-300 text-sm">Absolute</button>
+                    </div>
+                </div>
+
+                <!-- Relative Time Range -->
+                <div id="relative-time-panel" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">From</label>
+                        <input type="text" id="relative-from" value="now-24h" placeholder="now-24h"
+                            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500">
+                        <p class="text-xs text-gray-500 mt-1">Examples: now-1h, now-24h, now-7d</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">To</label>
+                        <input type="text" id="relative-to" value="now" placeholder="now"
+                            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500">
+                        <p class="text-xs text-gray-500 mt-1">Examples: now, now-1h</p>
+                    </div>
+                </div>
+
+                <!-- Absolute Time Range -->
+                <div id="absolute-time-panel" class="hidden space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">From</label>
+                        <input type="datetime-local" id="absolute-from"
+                            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">To</label>
+                        <input type="datetime-local" id="absolute-to"
+                            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500">
+                    </div>
+                </div>
+
+                <!-- Refresh Interval -->
+                <div class="mt-6 pt-4 border-t border-gray-700">
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Auto Refresh</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button onclick="selectRefreshInterval(0)" class="refresh-interval-btn px-3 py-2 rounded text-sm bg-gray-700 hover:bg-gray-600 transition-colors">Off</button>
+                        <button onclick="selectRefreshInterval(5)" class="refresh-interval-btn px-3 py-2 rounded text-sm bg-gray-700 hover:bg-gray-600 transition-colors">5s</button>
+                        <button onclick="selectRefreshInterval(10)" class="refresh-interval-btn px-3 py-2 rounded text-sm bg-gray-700 hover:bg-gray-600 transition-colors">10s</button>
+                        <button onclick="selectRefreshInterval(30)" class="refresh-interval-btn px-3 py-2 rounded text-sm bg-gray-700 hover:bg-gray-600 transition-colors">30s</button>
+                        <button onclick="selectRefreshInterval(60)" class="refresh-interval-btn px-3 py-2 rounded text-sm bg-gray-700 hover:bg-gray-600 transition-colors">1m</button>
+                        <button onclick="selectRefreshInterval(300)" class="refresh-interval-btn px-3 py-2 rounded text-sm bg-gray-700 hover:bg-gray-600 transition-colors">5m</button>
+                    </div>
+                    <div class="mt-2">
+                        <input type="number" id="custom-refresh-interval" placeholder="Custom (seconds)" min="1"
+                            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex justify-end gap-2 mt-6">
+            <button onclick="closeTimePickerModal()" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded text-white">
+                Cancel
+            </button>
+            <button onclick="applyTimeRange()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white">
+                <i class="fas fa-check mr-2"></i>
+                Apply
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Panel Inspector Modal -->
+<div id="panel-inspector-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-gray-800 rounded-lg p-6 w-full max-w-6xl max-h-[90vh] flex flex-col">
+        <div class="flex justify-between items-center mb-6 flex-shrink-0">
+            <h2 class="text-xl font-bold text-white">
+                <i class="fas fa-search text-purple-400 mr-2"></i>
+                Panel Inspector
+                <span id="inspector-panel-name" class="text-gray-400 text-sm ml-2"></span>
+            </h2>
+            <button onclick="closeInspectorModal()" class="text-gray-400 hover:text-white">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+
+        <!-- Inspector Tabs -->
+        <div class="flex gap-2 mb-4 border-b border-gray-700 flex-shrink-0">
+            <button id="inspector-tab-query" onclick="switchInspectorTab('query')" class="px-4 py-2 text-sm font-medium border-b-2 border-blue-500 text-blue-400">
+                <i class="fas fa-code mr-1"></i> Query
+            </button>
+            <button id="inspector-tab-stats" onclick="switchInspectorTab('stats')" class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-400 hover:text-white">
+                <i class="fas fa-chart-bar mr-1"></i> Stats
+            </button>
+            <button id="inspector-tab-json" onclick="switchInspectorTab('json')" class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-400 hover:text-white">
+                <i class="fas fa-file-code mr-1"></i> JSON
+            </button>
+            <button id="inspector-tab-data" onclick="switchInspectorTab('data')" class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-400 hover:text-white">
+                <i class="fas fa-table mr-1"></i> Data
+            </button>
+        </div>
+
+        <!-- Inspector Panels -->
+        <div class="flex-1 overflow-auto">
+            <!-- Query Panel -->
+            <div id="inspector-panel-query" class="space-y-4">
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="text-sm font-semibold text-gray-300">Original Query</h3>
+                        <button onclick="copyToClipboard('inspector-original-query')" class="text-xs text-blue-400 hover:text-blue-300">
+                            <i class="fas fa-copy mr-1"></i> Copy
+                        </button>
+                    </div>
+                    <pre id="inspector-original-query" class="bg-gray-900 p-4 rounded text-sm text-gray-300 font-mono overflow-x-auto"></pre>
+                </div>
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="text-sm font-semibold text-gray-300">Executed Query (with variables)</h3>
+                        <button onclick="copyToClipboard('inspector-executed-query')" class="text-xs text-blue-400 hover:text-blue-300">
+                            <i class="fas fa-copy mr-1"></i> Copy
+                        </button>
+                    </div>
+                    <pre id="inspector-executed-query" class="bg-gray-900 p-4 rounded text-sm text-green-400 font-mono overflow-x-auto"></pre>
+                </div>
+                <div>
+                    <h3 class="text-sm font-semibold text-gray-300 mb-2">Time Range</h3>
+                    <div class="bg-gray-900 p-4 rounded text-sm">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <span class="text-gray-500">From:</span>
+                                <span id="inspector-time-from" class="text-gray-300 ml-2"></span>
+                            </div>
+                            <div>
+                                <span class="text-gray-500">To:</span>
+                                <span id="inspector-time-to" class="text-gray-300 ml-2"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stats Panel -->
+            <div id="inspector-panel-stats" class="hidden">
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-gray-900 p-4 rounded">
+                        <div class="text-xs text-gray-500 mb-1">Execution Time</div>
+                        <div id="inspector-exec-time" class="text-2xl font-bold text-blue-400">-</div>
+                    </div>
+                    <div class="bg-gray-900 p-4 rounded">
+                        <div class="text-xs text-gray-500 mb-1">Data Points</div>
+                        <div id="inspector-data-points" class="text-2xl font-bold text-green-400">-</div>
+                    </div>
+                    <div class="bg-gray-900 p-4 rounded">
+                        <div class="text-xs text-gray-500 mb-1">Series Count</div>
+                        <div id="inspector-series-count" class="text-2xl font-bold text-purple-400">-</div>
+                    </div>
+                    <div class="bg-gray-900 p-4 rounded">
+                        <div class="text-xs text-gray-500 mb-1">Response Size</div>
+                        <div id="inspector-response-size" class="text-2xl font-bold text-orange-400">-</div>
+                    </div>
+                </div>
+                <div class="mt-4 bg-gray-900 p-4 rounded">
+                    <h3 class="text-sm font-semibold text-gray-300 mb-3">Series Details</h3>
+                    <div id="inspector-series-details" class="space-y-2 max-h-96 overflow-y-auto"></div>
+                </div>
+            </div>
+
+            <!-- JSON Panel -->
+            <div id="inspector-panel-json" class="hidden">
+                <div class="flex justify-between items-center mb-2">
+                    <h3 class="text-sm font-semibold text-gray-300">Raw Response</h3>
+                    <button onclick="copyToClipboard('inspector-json-content')" class="text-xs text-blue-400 hover:text-blue-300">
+                        <i class="fas fa-copy mr-1"></i> Copy
+                    </button>
+                </div>
+                <pre id="inspector-json-content" class="bg-gray-900 p-4 rounded text-xs text-gray-300 font-mono overflow-auto max-h-[600px]"></pre>
+            </div>
+
+            <!-- Data Panel -->
+            <div id="inspector-panel-data" class="hidden overflow-auto">
+                <div id="inspector-data-table" class="bg-gray-900 rounded overflow-auto"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- GridStack JS -->
 <script src="https://cdn.jsdelivr.net/npm/gridstack@8.4.0/dist/gridstack-all.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
@@ -327,11 +539,6 @@
     document.addEventListener('DOMContentLoaded', async () => {
         initializeGrid();  // Must initialize grid BEFORE loading dashboard (which calls renderPanels)
         await loadDashboard();
-    });
-
-    // Time range change
-    document.getElementById('time-range').addEventListener('change', () => {
-        refreshAllPanels();
     });
 
     // Refresh button
@@ -586,6 +793,9 @@
                             <span class="font-medium text-white">${escapeHtml(panelName)}</span>
                         </div>
                         <div class="panel-actions">
+                            <button onclick="inspectPanel('${panelId}')" class="text-purple-400 hover:text-purple-300" title="Inspect Panel">
+                                <i class="fas fa-search"></i>
+                            </button>
                             <button onclick="editPanel('${panelId}')" class="text-blue-400 hover:text-blue-300" title="Edit Panel">
                                 <i class="fas fa-pencil-alt"></i>
                             </button>
@@ -602,10 +812,15 @@
                             <div class="flex-1">
                                 <p class="text-xs text-gray-500">${escapeHtml(panelDescription)}</p>
                             </div>
-                            <span id="panel-status-${panelId}" class="flex items-center gap-1 text-xs text-gray-500">
-                                <i class="fas fa-circle text-green-400 text-xs"></i>
-                                Live
-                            </span>
+                            <div class="flex items-center gap-2">
+                                <button onclick="inspectPanel('${panelId}')" class="text-gray-500 hover:text-purple-400 transition-colors" title="Inspect">
+                                    <i class="fas fa-search text-xs"></i>
+                                </button>
+                                <span id="panel-status-${panelId}" class="flex items-center gap-1 text-xs text-gray-500">
+                                    <i class="fas fa-circle text-green-400 text-xs"></i>
+                                    Live
+                                </span>
+                            </div>
                         </div>
                         <div id="chart-${panelId}" style="width: 100%; height: 220px;" class="bg-gray-800/50 rounded-lg flex items-center justify-center">
                             <i class="fas fa-spinner fa-spin text-2xl text-gray-500"></i>
@@ -630,25 +845,24 @@
     }
 
     async function refreshAllPanels() {
-        const timeRange = document.getElementById('time-range').value;
-
         for (const panelItem of panels) {
             const panelId = panelItem.panel_id || panelItem.id;
-            await loadPanelData(panelId, timeRange, panelItem);
+            await loadPanelData(panelId, panelItem);
         }
     }
 
-    async function loadPanelData(panelId, timeRange, panelItem) {
+    async function loadPanelData(panelId, panelItem) {
         const chartContainer = document.getElementById(`chart-${panelId}`);
         const statusEl = document.getElementById(`panel-status-${panelId}`);
 
         if (!chartContainer) return;
 
         try {
-            // Calculate time range
-            const end = new Date();
-            const duration = parseTimeRange(timeRange);
-            const start = new Date(end.getTime() - duration);
+            // Get time range bounds
+            const { start, end } = getTimeRangeBounds();
+
+            // Track execution time
+            const execStartTime = performance.now();
 
             // Apply variable substitution to query
             const originalQuery = panelItem.promql_query || '';
@@ -690,6 +904,23 @@
 
                 result = await response.json();
             }
+
+            const execEndTime = performance.now();
+            const executionTime = Math.round(execEndTime - execStartTime);
+
+            // Store inspection data
+            const responseText = JSON.stringify(result);
+            const responseSize = formatBytes(new Blob([responseText]).size);
+
+            panelInspectorData[panelId] = {
+                executedQuery: substitutedQuery,
+                originalQuery: originalQuery,
+                timeRange: { start, end },
+                rawResponse: result,
+                executionTime: executionTime,
+                responseSize: responseSize,
+                timestamp: new Date().toISOString()
+            };
 
             // Render chart based on panel type
             renderChart(panelId, result.data, chartContainer, panelItem);
@@ -1158,6 +1389,29 @@
         return div.innerHTML;
     }
 
+    function formatBytes(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+    }
+
+    // Time Range and Refresh State
+    let currentTimeRange = {
+        mode: 'quick', // 'quick', 'relative', 'absolute'
+        value: '24h',
+        from: 'now-24h',
+        to: 'now',
+        display: 'Last 24 hours'
+    };
+    let customRefreshIntervalSeconds = 0;
+    let refreshCountdownTimer = null;
+    let refreshCountdownSeconds = 0;
+
+    // Panel Inspector State
+    let panelInspectorData = {}; // Stores inspection data for each panel
+
     // Variables Management UI Functions
     let datasources = [];
     let editingVariable = null;
@@ -1427,6 +1681,364 @@
             console.error('Error deleting variable:', error);
             showToast('Failed to delete variable', 'error');
         }
+    }
+
+    // Time Picker Functions
+    function showTimePickerModal() {
+        document.getElementById('time-picker-modal').classList.remove('hidden');
+    }
+
+    function closeTimePickerModal() {
+        document.getElementById('time-picker-modal').classList.add('hidden');
+    }
+
+    function switchTimeTab(tab) {
+        const relativePanel = document.getElementById('relative-time-panel');
+        const absolutePanel = document.getElementById('absolute-time-panel');
+        const relativeTab = document.getElementById('tab-relative');
+        const absoluteTab = document.getElementById('tab-absolute');
+
+        if (tab === 'relative') {
+            relativePanel.classList.remove('hidden');
+            absolutePanel.classList.add('hidden');
+            relativeTab.classList.add('bg-blue-600', 'text-white');
+            relativeTab.classList.remove('bg-gray-700', 'text-gray-300');
+            absoluteTab.classList.remove('bg-blue-600', 'text-white');
+            absoluteTab.classList.add('bg-gray-700', 'text-gray-300');
+            currentTimeRange.mode = 'relative';
+        } else {
+            relativePanel.classList.add('hidden');
+            absolutePanel.classList.remove('hidden');
+            absoluteTab.classList.add('bg-blue-600', 'text-white');
+            absoluteTab.classList.remove('bg-gray-700', 'text-gray-300');
+            relativeTab.classList.remove('bg-blue-600', 'text-white');
+            relativeTab.classList.add('bg-gray-700', 'text-gray-300');
+            currentTimeRange.mode = 'absolute';
+        }
+    }
+
+    function selectQuickRange(range) {
+        currentTimeRange.mode = 'quick';
+        currentTimeRange.value = range;
+
+        // Update display
+        const rangeMap = {
+            '5m': 'Last 5 minutes',
+            '15m': 'Last 15 minutes',
+            '30m': 'Last 30 minutes',
+            '1h': 'Last 1 hour',
+            '3h': 'Last 3 hours',
+            '6h': 'Last 6 hours',
+            '12h': 'Last 12 hours',
+            '24h': 'Last 24 hours',
+            '2d': 'Last 2 days',
+            '7d': 'Last 7 days',
+            '30d': 'Last 30 days',
+            '90d': 'Last 90 days'
+        };
+        currentTimeRange.display = rangeMap[range] || range;
+
+        // Update relative inputs
+        document.getElementById('relative-from').value = `now-${range}`;
+        document.getElementById('relative-to').value = 'now';
+
+        // Highlight selected button
+        document.querySelectorAll('.quick-range-btn').forEach(btn => {
+            btn.classList.remove('bg-gray-700');
+        });
+        event.target.classList.add('bg-gray-700');
+    }
+
+    function selectRefreshInterval(seconds) {
+        customRefreshIntervalSeconds = seconds;
+
+        // Highlight selected button
+        document.querySelectorAll('.refresh-interval-btn').forEach(btn => {
+            btn.classList.remove('bg-blue-600', 'text-white');
+            btn.classList.add('bg-gray-700');
+        });
+        event.target.classList.remove('bg-gray-700');
+        event.target.classList.add('bg-blue-600', 'text-white');
+
+        // Clear custom input if preset is selected
+        if (seconds > 0) {
+            document.getElementById('custom-refresh-interval').value = '';
+        }
+    }
+
+    function applyTimeRange() {
+        // Get values based on mode
+        if (currentTimeRange.mode === 'relative') {
+            currentTimeRange.from = document.getElementById('relative-from').value;
+            currentTimeRange.to = document.getElementById('relative-to').value;
+            currentTimeRange.display = `${currentTimeRange.from} to ${currentTimeRange.to}`;
+        } else if (currentTimeRange.mode === 'absolute') {
+            const fromInput = document.getElementById('absolute-from').value;
+            const toInput = document.getElementById('absolute-to').value;
+            if (fromInput && toInput) {
+                currentTimeRange.from = new Date(fromInput).toISOString();
+                currentTimeRange.to = new Date(toInput).toISOString();
+                currentTimeRange.display = `${new Date(fromInput).toLocaleString()} to ${new Date(toInput).toLocaleString()}`;
+            }
+        }
+
+        // Apply custom refresh interval if specified
+        const customInterval = document.getElementById('custom-refresh-interval').value;
+        if (customInterval && parseInt(customInterval) > 0) {
+            customRefreshIntervalSeconds = parseInt(customInterval);
+        }
+
+        // Update display
+        document.getElementById('time-range-display').textContent = currentTimeRange.display;
+
+        // Start auto-refresh if enabled
+        startCustomAutoRefresh();
+
+        // Refresh panels
+        refreshAllPanels();
+
+        // Close modal
+        closeTimePickerModal();
+    }
+
+    function startCustomAutoRefresh() {
+        // Clear existing countdown timer
+        if (refreshCountdownTimer) {
+            clearInterval(refreshCountdownTimer);
+            refreshCountdownTimer = null;
+        }
+
+        // Clear existing auto-refresh
+        if (refreshInterval) {
+            clearInterval(refreshInterval);
+            refreshInterval = null;
+        }
+
+        const countdownEl = document.getElementById('refresh-countdown');
+        const refreshTextEl = document.getElementById('refresh-text');
+
+        if (customRefreshIntervalSeconds > 0) {
+            // Show countdown
+            countdownEl.classList.remove('hidden');
+            refreshCountdownSeconds = customRefreshIntervalSeconds;
+
+            // Start countdown timer
+            refreshCountdownTimer = setInterval(() => {
+                refreshCountdownSeconds--;
+                countdownEl.textContent = `(${refreshCountdownSeconds}s)`;
+
+                if (refreshCountdownSeconds <= 0) {
+                    refreshCountdownSeconds = customRefreshIntervalSeconds;
+                    refreshAllPanels();
+                }
+            }, 1000);
+
+            // Initial countdown display
+            countdownEl.textContent = `(${refreshCountdownSeconds}s)`;
+        } else {
+            // Hide countdown
+            countdownEl.classList.add('hidden');
+        }
+    }
+
+    function getTimeRangeBounds() {
+        const now = new Date();
+
+        if (currentTimeRange.mode === 'quick') {
+            const duration = parseTimeRange(currentTimeRange.value);
+            return {
+                start: new Date(now.getTime() - duration),
+                end: now
+            };
+        } else if (currentTimeRange.mode === 'relative') {
+            return {
+                start: parseRelativeTime(currentTimeRange.from),
+                end: parseRelativeTime(currentTimeRange.to)
+            };
+        } else if (currentTimeRange.mode === 'absolute') {
+            return {
+                start: new Date(currentTimeRange.from),
+                end: new Date(currentTimeRange.to)
+            };
+        }
+
+        // Default fallback
+        return {
+            start: new Date(now.getTime() - 24 * 60 * 60 * 1000),
+            end: now
+        };
+    }
+
+    function parseRelativeTime(relativeString) {
+        if (relativeString === 'now') {
+            return new Date();
+        }
+
+        // Match pattern like "now-24h", "now-7d", "now-30m"
+        const match = relativeString.match(/^now-(\d+)([mhd])$/);
+        if (!match) {
+            return new Date();
+        }
+
+        const value = parseInt(match[1]);
+        const unit = match[2];
+        const now = new Date();
+
+        const units = {
+            'm': 60 * 1000,
+            'h': 60 * 60 * 1000,
+            'd': 24 * 60 * 60 * 1000
+        };
+
+        return new Date(now.getTime() - value * units[unit]);
+    }
+
+    // Panel Inspector Functions
+    function inspectPanel(panelId) {
+        const panelData = panelInspectorData[panelId];
+        const panelItem = panels.find(p => (p.panel_id || p.id) === panelId);
+
+        if (!panelData || !panelItem) {
+            showToast('No data available for inspection', 'error');
+            return;
+        }
+
+        // Set panel name
+        const panelName = panelItem.panel_name || panelItem.name || 'Unnamed Panel';
+        document.getElementById('inspector-panel-name').textContent = `- ${panelName}`;
+
+        // Populate Query tab
+        const originalQuery = panelItem.promql_query || '';
+        const executedQuery = panelData.executedQuery || originalQuery;
+        document.getElementById('inspector-original-query').textContent = originalQuery;
+        document.getElementById('inspector-executed-query').textContent = executedQuery;
+
+        const { start, end } = panelData.timeRange || {};
+        document.getElementById('inspector-time-from').textContent = start ? new Date(start).toLocaleString() : '-';
+        document.getElementById('inspector-time-to').textContent = end ? new Date(end).toLocaleString() : '-';
+
+        // Populate Stats tab
+        const data = panelData.rawResponse?.data || [];
+        let totalDataPoints = 0;
+        data.forEach(series => {
+            totalDataPoints += (series.values || []).length;
+        });
+
+        document.getElementById('inspector-exec-time').textContent = panelData.executionTime ? `${panelData.executionTime}ms` : '-';
+        document.getElementById('inspector-data-points').textContent = totalDataPoints.toLocaleString();
+        document.getElementById('inspector-series-count').textContent = data.length;
+        document.getElementById('inspector-response-size').textContent = panelData.responseSize || '-';
+
+        // Populate series details
+        const seriesDetails = document.getElementById('inspector-series-details');
+        seriesDetails.innerHTML = '';
+        data.forEach((series, idx) => {
+            const metricLabels = Object.entries(series.metric || {})
+                .map(([key, value]) => `${key}="${value}"`)
+                .join(', ');
+            const dataPointCount = (series.values || []).length;
+
+            seriesDetails.innerHTML += `
+                <div class="bg-gray-800 p-3 rounded text-xs">
+                    <div class="text-gray-400 mb-1">Series ${idx + 1}</div>
+                    <div class="text-white font-mono">{${metricLabels}}</div>
+                    <div class="text-gray-500 mt-1">${dataPointCount} data points</div>
+                </div>
+            `;
+        });
+
+        // Populate JSON tab
+        const jsonContent = JSON.stringify(panelData.rawResponse, null, 2);
+        document.getElementById('inspector-json-content').textContent = jsonContent;
+
+        // Populate Data table
+        renderInspectorDataTable(data);
+
+        // Show modal
+        document.getElementById('panel-inspector-modal').classList.remove('hidden');
+        switchInspectorTab('query');
+    }
+
+    function closeInspectorModal() {
+        document.getElementById('panel-inspector-modal').classList.add('hidden');
+    }
+
+    function switchInspectorTab(tab) {
+        // Update tab buttons
+        const tabs = ['query', 'stats', 'json', 'data'];
+        tabs.forEach(t => {
+            const btn = document.getElementById(`inspector-tab-${t}`);
+            const panel = document.getElementById(`inspector-panel-${t}`);
+
+            if (t === tab) {
+                btn.classList.add('border-blue-500', 'text-blue-400');
+                btn.classList.remove('border-transparent', 'text-gray-400');
+                panel.classList.remove('hidden');
+            } else {
+                btn.classList.remove('border-blue-500', 'text-blue-400');
+                btn.classList.add('border-transparent', 'text-gray-400');
+                panel.classList.add('hidden');
+            }
+        });
+    }
+
+    function renderInspectorDataTable(data) {
+        const container = document.getElementById('inspector-data-table');
+
+        if (!data || data.length === 0) {
+            container.innerHTML = '<div class="p-8 text-center text-gray-400">No data available</div>';
+            return;
+        }
+
+        let html = '<table class="w-full text-xs"><thead class="bg-gray-800 sticky top-0"><tr>';
+        html += '<th class="px-3 py-2 text-left text-gray-300">Time</th>';
+
+        // Create column for each series
+        data.forEach((series, idx) => {
+            const labels = Object.entries(series.metric || {})
+                .map(([k, v]) => `${k}="${v}"`)
+                .join(', ');
+            html += `<th class="px-3 py-2 text-left text-gray-300">Series ${idx + 1}<br/><span class="text-gray-500 font-normal">{${labels}}</span></th>`;
+        });
+
+        html += '</tr></thead><tbody class="divide-y divide-gray-800">';
+
+        // Collect all unique timestamps
+        const timestamps = new Set();
+        data.forEach(series => {
+            (series.values || []).forEach(([ts]) => timestamps.add(ts));
+        });
+
+        const sortedTimestamps = Array.from(timestamps).sort((a, b) => b - a); // Descending
+
+        // Render rows
+        sortedTimestamps.slice(0, 1000).forEach(ts => { // Limit to 1000 rows
+            html += '<tr class="hover:bg-gray-800/50">';
+            html += `<td class="px-3 py-2 text-gray-400">${new Date(ts * 1000).toLocaleString()}</td>`;
+
+            data.forEach(series => {
+                const value = (series.values || []).find(([t]) => t === ts);
+                const displayValue = value ? parseFloat(value[1]).toFixed(4) : '-';
+                html += `<td class="px-3 py-2 text-gray-300 font-mono">${displayValue}</td>`;
+            });
+
+            html += '</tr>';
+        });
+
+        html += '</tbody></table>';
+        container.innerHTML = html;
+    }
+
+    function copyToClipboard(elementId) {
+        const element = document.getElementById(elementId);
+        const text = element.textContent;
+
+        navigator.clipboard.writeText(text).then(() => {
+            showToast('Copied to clipboard', 'success');
+        }).catch(err => {
+            console.error('Failed to copy:', err);
+            showToast('Failed to copy to clipboard', 'error');
+        });
     }
 
     // Handle window resize
