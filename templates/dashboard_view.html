@@ -94,10 +94,23 @@
                 <i class="fas fa-sync-alt"></i>
                 Refresh
             </button>
+            <button onclick="showVariablesModal()" class="btn-secondary px-4 py-2 rounded-lg text-sm">
+                <i class="fas fa-sliders-h mr-2"></i>
+                Variables
+            </button>
             <a href="/dashboards" class="btn-secondary px-4 py-2 rounded-lg text-sm">
                 <i class="fas fa-cog mr-2"></i>
                 Settings
             </a>
+        </div>
+    </div>
+
+    <!-- Dashboard Variables -->
+    <div id="variables-container" class="hidden">
+        <div class="bg-gray-800/50 border border-gray-700/50 rounded-lg p-4 mb-6">
+            <div class="flex items-center gap-3 flex-wrap" id="variables-list">
+                <!-- Variables will be populated here -->
+            </div>
         </div>
     </div>
 
@@ -141,6 +154,161 @@
     </div>
 </div>
 
+<!-- Variables Management Modal -->
+<div id="variables-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-gray-800 rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-xl font-bold text-white">Dashboard Variables</h2>
+            <button onclick="closeVariablesModal()" class="text-gray-400 hover:text-white">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+
+        <!-- Variables List -->
+        <div class="mb-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold text-white">Variables</h3>
+                <button onclick="showVariableEditor()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white text-sm">
+                    <i class="fas fa-plus mr-2"></i>
+                    Add Variable
+                </button>
+            </div>
+
+            <div id="variables-table" class="bg-gray-900 rounded-lg overflow-hidden">
+                <!-- Will be populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Variable Editor Modal -->
+<div id="variable-editor-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-gray-800 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div class="flex justify-between items-center mb-6">
+            <h2 id="variable-editor-title" class="text-xl font-bold text-white">New Variable</h2>
+            <button onclick="closeVariableEditor()" class="text-gray-400 hover:text-white">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+
+        <form id="variable-form" onsubmit="saveVariable(event)">
+            <input type="hidden" id="variable-id">
+
+            <div class="space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Variable Name *</label>
+                        <input type="text" id="variable-name" required placeholder="e.g., instance, job"
+                            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                        <p class="text-xs text-gray-500 mt-1">Used as $name in queries</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Label</label>
+                        <input type="text" id="variable-label" placeholder="Display name"
+                            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-1">Type *</label>
+                    <select id="variable-type" onchange="handleVariableTypeChange()"
+                        class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                        <option value="query">Query - Values from Prometheus query</option>
+                        <option value="custom">Custom - Manual list of values</option>
+                        <option value="constant">Constant - Single fixed value</option>
+                        <option value="textbox">Textbox - Free text input</option>
+                        <option value="interval">Interval - Time intervals</option>
+                    </select>
+                </div>
+
+                <!-- Query Type Fields -->
+                <div id="query-fields" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Datasource *</label>
+                        <select id="variable-datasource"
+                            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                            <option value="">Select datasource...</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Query *</label>
+                        <textarea id="variable-query" rows="3" placeholder="label_values(instance)"
+                            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white font-mono text-sm focus:outline-none focus:border-blue-500"></textarea>
+                        <p class="text-xs text-gray-500 mt-1">PromQL query to get variable values</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Regex Filter</label>
+                        <input type="text" id="variable-regex" placeholder="/.*prod.*/"
+                            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white font-mono text-sm focus:outline-none focus:border-blue-500">
+                        <p class="text-xs text-gray-500 mt-1">Optional regex to filter results</p>
+                    </div>
+                </div>
+
+                <!-- Custom Type Fields -->
+                <div id="custom-fields" class="hidden">
+                    <label class="block text-sm font-medium text-gray-300 mb-1">Custom Values *</label>
+                    <textarea id="variable-custom-values" rows="3" placeholder="value1&#10;value2&#10;value3"
+                        class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"></textarea>
+                    <p class="text-xs text-gray-500 mt-1">One value per line</p>
+                </div>
+
+                <!-- Constant/Textbox Type Fields -->
+                <div id="default-value-field">
+                    <label class="block text-sm font-medium text-gray-300 mb-1">Default Value</label>
+                    <input type="text" id="variable-default-value"
+                        class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <label class="flex items-center text-gray-300">
+                        <input type="checkbox" id="variable-multi-select" class="mr-2">
+                        Multi-select
+                    </label>
+                    <label class="flex items-center text-gray-300">
+                        <input type="checkbox" id="variable-include-all" onchange="handleIncludeAllChange()" class="mr-2">
+                        Include "All" option
+                    </label>
+                </div>
+
+                <div id="all-value-field" class="hidden">
+                    <label class="block text-sm font-medium text-gray-300 mb-1">All Value</label>
+                    <input type="text" id="variable-all-value" value=".*" placeholder=".*"
+                        class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                    <p class="text-xs text-gray-500 mt-1">Value to use when "All" is selected (e.g., .* for regex)</p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Hide</label>
+                        <select id="variable-hide"
+                            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                            <option value="0">Visible</option>
+                            <option value="1">Label only</option>
+                            <option value="2">Hidden</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Sort Order</label>
+                        <input type="number" id="variable-sort" value="0" min="0"
+                            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 mt-6">
+                <button type="button" onclick="closeVariableEditor()"
+                    class="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded text-white">
+                    Cancel
+                </button>
+                <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white">
+                    <i class="fas fa-save mr-2"></i>
+                    Save Variable
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- GridStack JS -->
 <script src="https://cdn.jsdelivr.net/npm/gridstack@8.4.0/dist/gridstack-all.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
@@ -152,6 +320,8 @@
     let refreshInterval = null;
     let grid = null;
     let editMode = false;
+    let variables = [];
+    let variableValues = {}; // Store selected values for each variable
 
     // Load dashboard on page load
     document.addEventListener('DOMContentLoaded', async () => {
@@ -195,6 +365,9 @@
             // Use panels from dashboard response (they're already included)
             panels = dashboard.panels || [];
 
+            // Load variables
+            await loadVariables();
+
             if (panels.length === 0) {
                 showEmpty();
             } else {
@@ -213,6 +386,144 @@
             console.error('Error loading dashboard:', error);
             showError(error.message);
         }
+    }
+
+    async function loadVariables() {
+        try {
+            const response = await fetch(`/api/dashboards/${dashboardId}/variables`);
+            if (!response.ok) {
+                console.warn('Failed to load variables');
+                return;
+            }
+
+            variables = await response.json();
+
+            // Initialize variable values with defaults
+            variables.forEach(variable => {
+                variableValues[variable.name] = variable.current_value || variable.default_value || (variable.options && variable.options[0]) || '';
+            });
+
+            // Render variables if any exist
+            if (variables.length > 0) {
+                renderVariables();
+            }
+        } catch (error) {
+            console.error('Error loading variables:', error);
+        }
+    }
+
+    function renderVariables() {
+        const container = document.getElementById('variables-list');
+        const variablesContainer = document.getElementById('variables-container');
+
+        if (!variables || variables.length === 0) {
+            variablesContainer.classList.add('hidden');
+            return;
+        }
+
+        // Filter out hidden variables (hide=2)
+        const visibleVariables = variables.filter(v => v.hide !== 2);
+
+        if (visibleVariables.length === 0) {
+            variablesContainer.classList.add('hidden');
+            return;
+        }
+
+        container.innerHTML = '';
+        variablesContainer.classList.remove('hidden');
+
+        visibleVariables.forEach(variable => {
+            const varDiv = document.createElement('div');
+            varDiv.className = 'flex items-center gap-2';
+
+            // Show label only if hide !== 1
+            if (variable.hide !== 1) {
+                const label = document.createElement('label');
+                label.className = 'text-sm text-gray-400';
+                label.textContent = variable.label || variable.name;
+                varDiv.appendChild(label);
+            }
+
+            // Create select element
+            const select = document.createElement('select');
+            select.id = `var-${variable.name}`;
+            select.className = 'bg-gray-700 border border-gray-600 rounded px-3 py-1.5 text-sm min-w-[150px]';
+            select.multiple = variable.multi_select;
+
+            if (variable.multi_select) {
+                select.size = Math.min(variable.options?.length || 3, 5);
+            }
+
+            // Populate options
+            (variable.options || []).forEach(option => {
+                const opt = document.createElement('option');
+                opt.value = option;
+                opt.textContent = option;
+                opt.selected = option === variableValues[variable.name];
+                select.appendChild(opt);
+            });
+
+            // Add change handler
+            select.addEventListener('change', () => handleVariableChange(variable.name, select));
+
+            varDiv.appendChild(select);
+            container.appendChild(varDiv);
+        });
+    }
+
+    async function handleVariableChange(variableName, selectElement) {
+        const variable = variables.find(v => v.name === variableName);
+        if (!variable) return;
+
+        if (variable.multi_select) {
+            // Get all selected options
+            const selectedOptions = Array.from(selectElement.selectedOptions).map(opt => opt.value);
+            variableValues[variableName] = selectedOptions.join(',');
+        } else {
+            variableValues[variableName] = selectElement.value;
+        }
+
+        // Update current value on server
+        try {
+            await fetch(`/api/dashboards/${dashboardId}/variables/${variable.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ current_value: variableValues[variableName] })
+            });
+        } catch (error) {
+            console.error('Failed to update variable value:', error);
+        }
+
+        // Refresh all panels with new variable value
+        await refreshAllPanels();
+    }
+
+    function substituteVariables(query) {
+        if (!query) return query;
+
+        let result = query;
+
+        // Replace each variable with its current value
+        variables.forEach(variable => {
+            const value = variableValues[variable.name];
+            if (value === undefined || value === null) return;
+
+            // Handle "All" option
+            let substitutionValue = value;
+            if (value === 'All' && variable.include_all) {
+                substitutionValue = variable.all_value || '.*';
+            }
+
+            // Replace $variableName with value
+            const regex = new RegExp(`\\$${variable.name}\\b`, 'g');
+            result = result.replace(regex, substitutionValue);
+
+            // Also support ${variableName} syntax
+            const bracketRegex = new RegExp(`\\$\\{${variable.name}\\}`, 'g');
+            result = result.replace(bracketRegex, substitutionValue);
+        });
+
+        return result;
     }
 
     function initializeGrid() {
@@ -339,14 +650,46 @@
             const duration = parseTimeRange(timeRange);
             const start = new Date(end.getTime() - duration);
 
-            // Fetch panel data from API
-            const response = await fetch(`/api/panels/${panelId}/data?start=${start.toISOString()}&end=${end.toISOString()}`);
+            // Apply variable substitution to query
+            const originalQuery = panelItem.promql_query || '';
+            const substitutedQuery = substituteVariables(originalQuery);
 
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
+            // If query has variables, use test-query endpoint with substituted query
+            // Otherwise, use the normal panel data endpoint
+            let response, result;
+
+            if (substitutedQuery !== originalQuery || variables.length > 0) {
+                // Use test-query endpoint with substituted query
+                response = await fetch(`/api/panels/test-query`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        datasource_id: panelItem.datasource_id,
+                        promql_query: substitutedQuery,
+                        start: start.toISOString(),
+                        end: end.toISOString()
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const testResult = await response.json();
+                result = {
+                    data: testResult.data || [],
+                    metadata: testResult.metadata || {}
+                };
+            } else {
+                // Use normal panel data endpoint
+                response = await fetch(`/api/panels/${panelId}/data?start=${start.toISOString()}&end=${end.toISOString()}`);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                result = await response.json();
             }
-
-            const result = await response.json();
 
             // Render chart based on panel type
             renderChart(panelId, result.data, chartContainer, panelItem);
@@ -813,6 +1156,277 @@
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    // Variables Management UI Functions
+    let datasources = [];
+    let editingVariable = null;
+
+    async function loadDatasources() {
+        try {
+            const response = await fetch('/api/datasources/');
+            if (response.ok) {
+                datasources = await response.json();
+            }
+        } catch (error) {
+            console.error('Error loading datasources:', error);
+        }
+    }
+
+    async function showVariablesModal() {
+        await loadDatasources();
+        await loadVariables(); // Refresh variables list
+        renderVariablesTable();
+        document.getElementById('variables-modal').classList.remove('hidden');
+    }
+
+    function closeVariablesModal() {
+        document.getElementById('variables-modal').classList.add('hidden');
+    }
+
+    function renderVariablesTable() {
+        const container = document.getElementById('variables-table');
+
+        if (!variables || variables.length === 0) {
+            container.innerHTML = `
+                <div class="p-8 text-center text-gray-400">
+                    <i class="fas fa-sliders-h text-4xl mb-3"></i>
+                    <p>No variables defined yet.</p>
+                    <p class="text-sm mt-1">Variables allow dynamic filtering of dashboard data.</p>
+                </div>
+            `;
+            return;
+        }
+
+        let html = `
+            <table class="w-full text-sm">
+                <thead class="bg-gray-800">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-gray-300">Name</th>
+                        <th class="px-4 py-3 text-left text-gray-300">Label</th>
+                        <th class="px-4 py-3 text-left text-gray-300">Type</th>
+                        <th class="px-4 py-3 text-left text-gray-300">Options</th>
+                        <th class="px-4 py-3 text-left text-gray-300">Hide</th>
+                        <th class="px-4 py-3 text-right text-gray-300">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-800">
+        `;
+
+        variables.forEach(variable => {
+            const optionsCount = variable.options?.length || 0;
+            const hideText = variable.hide === 2 ? 'Hidden' : variable.hide === 1 ? 'Label only' : 'Visible';
+
+            html += `
+                <tr class="hover:bg-gray-800/50">
+                    <td class="px-4 py-3">
+                        <code class="text-blue-400">$${escapeHtml(variable.name)}</code>
+                    </td>
+                    <td class="px-4 py-3 text-gray-300">${escapeHtml(variable.label || variable.name)}</td>
+                    <td class="px-4 py-3">
+                        <span class="px-2 py-1 rounded text-xs bg-gray-700 text-gray-300">${escapeHtml(variable.type)}</span>
+                    </td>
+                    <td class="px-4 py-3 text-gray-400">${optionsCount} options</td>
+                    <td class="px-4 py-3 text-gray-400">${hideText}</td>
+                    <td class="px-4 py-3 text-right">
+                        <button onclick="editVariable('${variable.id}')" class="text-blue-400 hover:text-blue-300 mr-3" title="Edit">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button onclick="deleteVariable('${variable.id}')" class="text-red-400 hover:text-red-300" title="Delete">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        html += `
+                </tbody>
+            </table>
+        `;
+
+        container.innerHTML = html;
+    }
+
+    function showVariableEditor(variableId = null) {
+        editingVariable = variableId ? variables.find(v => v.id === variableId) : null;
+
+        // Reset form
+        document.getElementById('variable-form').reset();
+        document.getElementById('variable-id').value = '';
+
+        // Set title
+        document.getElementById('variable-editor-title').textContent = editingVariable ? 'Edit Variable' : 'New Variable';
+
+        // Populate datasources dropdown
+        const datasourceSelect = document.getElementById('variable-datasource');
+        datasourceSelect.innerHTML = '<option value="">Select datasource...</option>';
+        datasources.forEach(ds => {
+            datasourceSelect.innerHTML += `<option value="${ds.id}">${escapeHtml(ds.name)}</option>`;
+        });
+
+        // If editing, populate form
+        if (editingVariable) {
+            document.getElementById('variable-id').value = editingVariable.id;
+            document.getElementById('variable-name').value = editingVariable.name;
+            document.getElementById('variable-label').value = editingVariable.label || '';
+            document.getElementById('variable-type').value = editingVariable.type;
+            document.getElementById('variable-datasource').value = editingVariable.datasource_id || '';
+            document.getElementById('variable-query').value = editingVariable.query || '';
+            document.getElementById('variable-regex').value = editingVariable.regex || '';
+            document.getElementById('variable-custom-values').value = (editingVariable.custom_values || []).join('\n');
+            document.getElementById('variable-default-value').value = editingVariable.default_value || '';
+            document.getElementById('variable-multi-select').checked = editingVariable.multi_select || false;
+            document.getElementById('variable-include-all').checked = editingVariable.include_all || false;
+            document.getElementById('variable-all-value').value = editingVariable.all_value || '.*';
+            document.getElementById('variable-hide').value = editingVariable.hide || 0;
+            document.getElementById('variable-sort').value = editingVariable.sort || 0;
+        }
+
+        // Show/hide fields based on type
+        handleVariableTypeChange();
+        handleIncludeAllChange();
+
+        // Show modal
+        document.getElementById('variable-editor-modal').classList.remove('hidden');
+    }
+
+    function closeVariableEditor() {
+        document.getElementById('variable-editor-modal').classList.add('hidden');
+        editingVariable = null;
+    }
+
+    function handleVariableTypeChange() {
+        const type = document.getElementById('variable-type').value;
+        const queryFields = document.getElementById('query-fields');
+        const customFields = document.getElementById('custom-fields');
+        const defaultValueField = document.getElementById('default-value-field');
+
+        // Hide all conditional fields first
+        queryFields.classList.add('hidden');
+        customFields.classList.add('hidden');
+        defaultValueField.classList.add('hidden');
+
+        // Show relevant fields based on type
+        if (type === 'query') {
+            queryFields.classList.remove('hidden');
+        } else if (type === 'custom') {
+            customFields.classList.remove('hidden');
+            defaultValueField.classList.remove('hidden');
+        } else if (type === 'constant' || type === 'textbox') {
+            defaultValueField.classList.remove('hidden');
+        }
+    }
+
+    function handleIncludeAllChange() {
+        const includeAll = document.getElementById('variable-include-all').checked;
+        const allValueField = document.getElementById('all-value-field');
+
+        if (includeAll) {
+            allValueField.classList.remove('hidden');
+        } else {
+            allValueField.classList.add('hidden');
+        }
+    }
+
+    async function saveVariable(event) {
+        event.preventDefault();
+
+        const variableId = document.getElementById('variable-id').value;
+        const type = document.getElementById('variable-type').value;
+
+        // Build request data
+        const data = {
+            name: document.getElementById('variable-name').value,
+            label: document.getElementById('variable-label').value || document.getElementById('variable-name').value,
+            type: type,
+            multi_select: document.getElementById('variable-multi-select').checked,
+            include_all: document.getElementById('variable-include-all').checked,
+            hide: parseInt(document.getElementById('variable-hide').value),
+            sort: parseInt(document.getElementById('variable-sort').value)
+        };
+
+        // Add type-specific fields
+        if (type === 'query') {
+            data.datasource_id = document.getElementById('variable-datasource').value;
+            data.query = document.getElementById('variable-query').value;
+            data.regex = document.getElementById('variable-regex').value || null;
+        } else if (type === 'custom') {
+            const customValues = document.getElementById('variable-custom-values').value
+                .split('\n')
+                .map(v => v.trim())
+                .filter(v => v.length > 0);
+            data.custom_values = customValues;
+            data.default_value = document.getElementById('variable-default-value').value || null;
+        } else if (type === 'constant' || type === 'textbox') {
+            data.default_value = document.getElementById('variable-default-value').value || null;
+        }
+
+        if (data.include_all) {
+            data.all_value = document.getElementById('variable-all-value').value || '.*';
+        }
+
+        try {
+            let response;
+            if (variableId) {
+                // Update existing variable
+                response = await fetch(`/api/dashboards/${dashboardId}/variables/${variableId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+            } else {
+                // Create new variable
+                response = await fetch(`/api/dashboards/${dashboardId}/variables`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+            }
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Failed to save variable');
+            }
+
+            showToast(variableId ? 'Variable updated successfully' : 'Variable created successfully', 'success');
+            closeVariableEditor();
+            await loadVariables();
+            renderVariablesTable();
+            renderVariables(); // Update header dropdowns
+        } catch (error) {
+            console.error('Error saving variable:', error);
+            showToast(error.message || 'Failed to save variable', 'error');
+        }
+    }
+
+    function editVariable(variableId) {
+        showVariableEditor(variableId);
+    }
+
+    async function deleteVariable(variableId) {
+        const variable = variables.find(v => v.id === variableId);
+        if (!variable) return;
+
+        if (!confirm(`Delete variable "${variable.name}"?`)) return;
+
+        try {
+            const response = await fetch(`/api/dashboards/${dashboardId}/variables/${variableId}`, {
+                method: 'DELETE'
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to delete variable');
+            }
+
+            showToast('Variable deleted successfully', 'success');
+            await loadVariables();
+            renderVariablesTable();
+            renderVariables(); // Update header dropdowns
+        } catch (error) {
+            console.error('Error deleting variable:', error);
+            showToast('Failed to delete variable', 'error');
+        }
     }
 
     // Handle window resize
