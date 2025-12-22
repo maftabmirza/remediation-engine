@@ -915,11 +915,14 @@
             const originalQuery = panelItem.promql_query || '';
             const substitutedQuery = substituteVariables(originalQuery);
 
-            // If query has variables, use test-query endpoint with substituted query
-            // Otherwise, use the normal panel data endpoint
+            // If query has variable substitutions AND we have datasource_id, use test-query endpoint
+            // Otherwise, use the normal panel data endpoint (which handles everything server-side)
             let response, result;
 
-            if (substitutedQuery !== originalQuery || variables.length > 0) {
+            const hasSubstitutions = substitutedQuery !== originalQuery;
+            const hasDatasourceId = panelItem.datasource_id;
+
+            if (hasSubstitutions && hasDatasourceId) {
                 // Use test-query endpoint with substituted query
                 response = await fetch(`/api/panels/test-query`, {
                     method: 'POST',
@@ -927,8 +930,7 @@
                     body: JSON.stringify({
                         datasource_id: panelItem.datasource_id,
                         promql_query: substitutedQuery,
-                        start: start.toISOString(),
-                        end: end.toISOString()
+                        time_range: '1h'  // test-query uses time_range, not start/end
                     })
                 });
 
@@ -938,11 +940,11 @@
 
                 const testResult = await response.json();
                 result = {
-                    data: testResult.data || [],
-                    metadata: testResult.metadata || {}
+                    data: testResult.sample_data || [],
+                    metadata: { series_count: testResult.series_count || 0 }
                 };
             } else {
-                // Use normal panel data endpoint
+                // Use normal panel data endpoint (handles datasource lookup via panel ID)
                 response = await fetch(`/api/panels/${panelId}/data?start=${start.toISOString()}&end=${end.toISOString()}`);
 
                 if (!response.ok) {
