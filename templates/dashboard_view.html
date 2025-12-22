@@ -58,6 +58,34 @@
     .panel-actions button:hover {
         transform: scale(1.1);
     }
+
+    /* Kiosk Mode Styles */
+    .kiosk-mode .dashboard-header,
+    .kiosk-mode #variables-container {
+        display: none !important;
+    }
+
+    .kiosk-mode .grid-stack {
+        margin-top: 0 !important;
+    }
+
+    /* Kiosk mode exit button - always visible */
+    #kiosk-exit-btn {
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        z-index: 1000;
+        opacity: 0.3;
+        transition: opacity 0.2s;
+    }
+
+    #kiosk-exit-btn:hover {
+        opacity: 1;
+    }
+
+    body:not(.kiosk-mode) #kiosk-exit-btn {
+        display: none;
+    }
 </style>
 {% endblock %}
 
@@ -93,6 +121,18 @@
                 <span id="refresh-text">Refresh</span>
                 <span id="refresh-countdown" class="text-xs text-gray-400 hidden"></span>
             </button>
+            <div id="links-dropdown" class="relative hidden">
+                <button onclick="toggleLinksDropdown()" class="btn-secondary px-4 py-2 rounded-lg text-sm flex items-center gap-2">
+                    <i class="fas fa-link mr-2"></i>
+                    Links
+                    <i class="fas fa-chevron-down text-xs"></i>
+                </button>
+                <div id="links-menu" class="hidden absolute right-0 mt-2 w-56 bg-gray-800 border border-gray-700 rounded-lg shadow-lg z-50">
+                    <div class="p-2" id="links-list">
+                        <!-- Links will be populated here -->
+                    </div>
+                </div>
+            </div>
             <button onclick="showVariablesModal()" class="btn-secondary px-4 py-2 rounded-lg text-sm">
                 <i class="fas fa-sliders-h mr-2"></i>
                 Variables
@@ -105,6 +145,18 @@
             <button onclick="showAnnotationsModal()" class="btn-secondary px-4 py-2 rounded-lg text-sm">
                 <i class="fas fa-bookmark mr-2"></i>
                 Annotations
+            </button>
+            <button onclick="exportDashboard()" class="btn-secondary px-4 py-2 rounded-lg text-sm">
+                <i class="fas fa-download mr-2"></i>
+                Export
+            </button>
+            <button onclick="showImportModal()" class="btn-secondary px-4 py-2 rounded-lg text-sm">
+                <i class="fas fa-upload mr-2"></i>
+                Import
+            </button>
+            <button onclick="toggleKioskMode()" class="btn-secondary px-4 py-2 rounded-lg text-sm">
+                <i class="fas fa-tv mr-2"></i>
+                Kiosk Mode
             </button>
             <a href="/dashboards" class="btn-secondary px-4 py-2 rounded-lg text-sm">
                 <i class="fas fa-cog mr-2"></i>
@@ -731,6 +783,55 @@
         </div>
     </div>
 </div>
+
+<!-- Import Dashboard Modal -->
+<div id="import-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-gray-800 rounded-lg w-full max-w-2xl m-4">
+        <div class="border-b border-gray-700 p-6">
+            <div class="flex justify-between items-center">
+                <h2 class="text-2xl font-bold flex items-center gap-3">
+                    <i class="fas fa-upload text-indigo-400"></i>
+                    Import Dashboard
+                </h2>
+                <button onclick="hideImportModal()" class="text-gray-400 hover:text-white transition">
+                    <i class="fas fa-times text-2xl"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="p-6">
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-300 mb-2">Upload JSON File</label>
+                <input type="file" id="import-file" accept=".json" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-indigo-600 file:text-white hover:file:bg-indigo-500">
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-300 mb-2">Or Paste JSON</label>
+                <textarea id="import-json" rows="10" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white font-mono text-sm" placeholder='{"dashboard": {...}, "panels": [...], "variables": [...]}'>
+</textarea>
+            </div>
+
+            <div id="import-error" class="hidden mb-4 p-4 bg-red-900/30 border border-red-700 rounded text-red-300 text-sm"></div>
+            <div id="import-success" class="hidden mb-4 p-4 bg-green-900/30 border border-green-700 rounded text-green-300 text-sm"></div>
+
+            <div class="flex gap-2">
+                <button onclick="importDashboard()" class="btn-primary px-4 py-2 rounded-lg">
+                    <i class="fas fa-upload mr-2"></i>
+                    Import Dashboard
+                </button>
+                <button onclick="hideImportModal()" class="btn-secondary px-4 py-2 rounded-lg">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Kiosk Mode Exit Button -->
+<button id="kiosk-exit-btn" onclick="toggleKioskMode()" class="bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-lg shadow-lg border border-gray-600">
+    <i class="fas fa-times mr-2"></i>
+    Exit Kiosk Mode
+</button>
 
 <!-- GridStack JS -->
 <script src="https://cdn.jsdelivr.net/npm/gridstack@8.4.0/dist/gridstack-all.js"></script>
@@ -2773,9 +2874,208 @@ ${Object.entries(alert.annotations).map(([k, v]) => `  ${k}: ${v}`).join('\n')}`
         await loadAnnotations();
     });
 
+    // ===== EXPORT/IMPORT FUNCTIONS =====
+
+    async function exportDashboard() {
+        try {
+            const response = await fetch(`/api/dashboards/${dashboardId}/export`);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            const data = await response.json();
+
+            // Download as JSON file
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `dashboard-${dashboardId}-${new Date().toISOString().slice(0, 10)}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+        } catch (error) {
+            console.error('Error exporting dashboard:', error);
+            alert('Failed to export dashboard');
+        }
+    }
+
+    function showImportModal() {
+        document.getElementById('import-modal').classList.remove('hidden');
+        document.getElementById('import-json').value = '';
+        document.getElementById('import-file').value = '';
+        document.getElementById('import-error').classList.add('hidden');
+        document.getElementById('import-success').classList.add('hidden');
+    }
+
+    function hideImportModal() {
+        document.getElementById('import-modal').classList.add('hidden');
+    }
+
+    // Handle file upload
+    document.addEventListener('DOMContentLoaded', () => {
+        const fileInput = document.getElementById('import-file');
+        if (fileInput) {
+            fileInput.addEventListener('change', async (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        document.getElementById('import-json').value = event.target.result;
+                    };
+                    reader.readAsText(file);
+                }
+            });
+        }
+    });
+
+    async function importDashboard() {
+        const jsonText = document.getElementById('import-json').value.trim();
+        const errorDiv = document.getElementById('import-error');
+        const successDiv = document.getElementById('import-success');
+
+        errorDiv.classList.add('hidden');
+        successDiv.classList.add('hidden');
+
+        if (!jsonText) {
+            errorDiv.textContent = 'Please provide JSON data to import';
+            errorDiv.classList.remove('hidden');
+            return;
+        }
+
+        try {
+            const importData = JSON.parse(jsonText);
+
+            const response = await fetch('/api/dashboards/import', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(importData)
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Import failed');
+            }
+
+            const newDashboard = await response.json();
+
+            successDiv.textContent = `Dashboard imported successfully! Redirecting...`;
+            successDiv.classList.remove('hidden');
+
+            // Redirect to new dashboard after 2 seconds
+            setTimeout(() => {
+                window.location.href = `/dashboards/${newDashboard.id}`;
+            }, 2000);
+
+        } catch (error) {
+            console.error('Error importing dashboard:', error);
+            errorDiv.textContent = `Import failed: ${error.message}`;
+            errorDiv.classList.remove('hidden');
+        }
+    }
+
+    // ===== KIOSK MODE FUNCTIONS =====
+
+    // Check for kiosk mode on load
+    const urlParams = new URLSearchParams(window.location.search);
+    const isKioskMode = urlParams.get('kiosk') === 'true' || urlParams.get('kiosk') === '1';
+
+    function initKioskMode() {
+        if (isKioskMode) {
+            document.body.classList.add('kiosk-mode');
+        }
+    }
+
+    function toggleKioskMode() {
+        const url = new URL(window.location.href);
+        if (isKioskMode || document.body.classList.contains('kiosk-mode')) {
+            // Exit kiosk mode
+            url.searchParams.delete('kiosk');
+            window.location.href = url.toString();
+        } else {
+            // Enter kiosk mode
+            url.searchParams.set('kiosk', 'true');
+            window.location.href = url.toString();
+        }
+    }
+
     // Handle window resize
     window.addEventListener('resize', () => {
         Object.values(charts).forEach(chart => chart.resize());
+    });
+
+    // Initialize kiosk mode
+    initKioskMode();
+
+    // ===== DASHBOARD LINKS FUNCTIONS =====
+
+    let dashboardLinks = [];
+
+    async function loadDashboardLinks() {
+        try {
+            const response = await fetch(`/api/dashboards/${dashboardId}/links`);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            dashboardLinks = await response.json();
+            renderDashboardLinks();
+        } catch (error) {
+            console.error('Error loading dashboard links:', error);
+        }
+    }
+
+    function renderDashboardLinks() {
+        const linksDropdown = document.getElementById('links-dropdown');
+        const linksList = document.getElementById('links-list');
+
+        if (dashboardLinks.length === 0) {
+            linksDropdown.classList.add('hidden');
+            return;
+        }
+
+        linksDropdown.classList.remove('hidden');
+        linksList.innerHTML = '';
+
+        dashboardLinks.forEach(link => {
+            const linkElement = document.createElement('a');
+            linkElement.href = link.url;
+            if (link.open_in_new_tab) {
+                linkElement.target = '_blank';
+                linkElement.rel = 'noopener noreferrer';
+            }
+            linkElement.className = 'block px-3 py-2 hover:bg-gray-700 rounded text-white text-sm flex items-center gap-2';
+
+            const icon = link.icon || 'link';
+            linkElement.innerHTML = `
+                <i class="fas fa-${icon}"></i>
+                <span>${link.title}</span>
+                ${link.open_in_new_tab ? '<i class="fas fa-external-link-alt text-xs ml-auto"></i>' : ''}
+            `;
+
+            linksList.appendChild(linkElement);
+        });
+    }
+
+    function toggleLinksDropdown() {
+        const menu = document.getElementById('links-menu');
+        menu.classList.toggle('hidden');
+    }
+
+    // Close links dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+        const linksDropdown = document.getElementById('links-dropdown');
+        const linksMenu = document.getElementById('links-menu');
+        if (linksDropdown && !linksDropdown.contains(e.target)) {
+            linksMenu.classList.add('hidden');
+        }
+    });
+
+    // Load dashboard links on page load
+    document.addEventListener('DOMContentLoaded', async () => {
+        await loadDashboardLinks();
     });
 
     // Cleanup on page unload

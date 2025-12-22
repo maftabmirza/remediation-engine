@@ -296,3 +296,35 @@ class DashboardAnnotation(Base):
 
     def __repr__(self):
         return f"<DashboardAnnotation {self.title or self.text[:30]}>"
+
+
+class DashboardLink(Base):
+    """
+    Dashboard navigation links
+
+    Provides quick navigation to related dashboards or external resources
+    """
+    __tablename__ = "dashboard_links"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    dashboard_id = Column(String(36), ForeignKey("dashboards.id"), nullable=False)
+
+    # Link information
+    title = Column(String(255), nullable=False)
+    url = Column(String(512), nullable=False)  # Can be relative (/dashboards/123) or absolute (https://...)
+    icon = Column(String(50), nullable=True)  # Optional icon name
+    type = Column(String(50), default="link")  # link, dashboard, external
+
+    # Display
+    sort_order = Column(Integer, default=0)
+    open_in_new_tab = Column(Boolean, default=False)
+
+    # Metadata
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    # Relationships
+    dashboard = relationship("Dashboard", backref="links")
+
+    def __repr__(self):
+        return f"<DashboardLink {self.title}>"

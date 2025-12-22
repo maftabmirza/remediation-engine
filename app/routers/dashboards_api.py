@@ -697,3 +697,365 @@ async def get_home_dashboard(
         panel_count=len(panel_infos),
         panels=panel_infos
     )
+
+
+@router.get("/{dashboard_id}/export")
+async def export_dashboard(
+    dashboard_id: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Export dashboard as JSON.
+
+    Returns complete dashboard configuration including all panels,
+    variables, and annotations for backup or sharing.
+    """
+    dashboard = db.query(Dashboard).filter(Dashboard.id == dashboard_id).first()
+    if not dashboard:
+        raise HTTPException(status_code=404, detail="Dashboard not found")
+
+    # Get dashboard panels with their configurations
+    dashboard_panels = db.query(DashboardPanel).filter(
+        DashboardPanel.dashboard_id == dashboard_id
+    ).all()
+
+    panels_data = []
+    for dp in dashboard_panels:
+        panel = db.query(PrometheusPanel).filter(PrometheusPanel.id == dp.panel_id).first()
+        if panel:
+            panels_data.append({
+                "panel": {
+                    "name": panel.name,
+                    "description": panel.description,
+                    "promql_query": panel.promql_query,
+                    "legend_format": panel.legend_format,
+                    "time_range": panel.time_range,
+                    "refresh_interval": panel.refresh_interval,
+                    "step": panel.step,
+                    "panel_type": panel.panel_type,
+                    "visualization_config": panel.visualization_config,
+                    "thresholds": panel.thresholds,
+                    "tags": panel.tags,
+                    "datasource_name": panel.datasource.name if panel.datasource else None
+                },
+                "position": {
+                    "grid_x": dp.grid_x,
+                    "grid_y": dp.grid_y,
+                    "grid_width": dp.grid_width,
+                    "grid_height": dp.grid_height,
+                    "display_order": dp.display_order,
+                    "override_time_range": dp.override_time_range,
+                    "override_refresh_interval": dp.override_refresh_interval
+                }
+            })
+
+    # Get dashboard variables
+    from app.models_dashboards import DashboardVariable
+    variables = db.query(DashboardVariable).filter(
+        DashboardVariable.dashboard_id == dashboard_id
+    ).all()
+
+    variables_data = []
+    for var in variables:
+        variables_data.append({
+            "name": var.name,
+            "label": var.label,
+            "type": var.type,
+            "query": var.query,
+            "datasource_name": var.datasource.name if var.datasource else None,
+            "regex": var.regex,
+            "custom_values": var.custom_values,
+            "default_value": var.default_value,
+            "multi_select": var.multi_select,
+            "include_all": var.include_all,
+            "all_value": var.all_value,
+            "hide": var.hide,
+            "sort": var.sort
+        })
+
+    # Get dashboard annotations
+    from app.models_dashboards import DashboardAnnotation
+    annotations = db.query(DashboardAnnotation).filter(
+        DashboardAnnotation.dashboard_id == dashboard_id
+    ).all()
+
+    annotations_data = []
+    for ann in annotations:
+        annotations_data.append({
+            "time": ann.time.isoformat() if ann.time else None,
+            "time_end": ann.time_end.isoformat() if ann.time_end else None,
+            "text": ann.text,
+            "title": ann.title,
+            "tags": ann.tags,
+            "color": ann.color,
+            "icon": ann.icon
+        })
+
+    # Build export JSON
+    export_data = {
+        "dashboard": {
+            "name": dashboard.name,
+            "description": dashboard.description,
+            "layout": dashboard.layout,
+            "time_range": dashboard.time_range,
+            "refresh_interval": dashboard.refresh_interval,
+            "auto_refresh": dashboard.auto_refresh,
+            "tags": dashboard.tags,
+            "folder": dashboard.folder,
+            "is_public": dashboard.is_public,
+            "is_favorite": dashboard.is_favorite,
+            "is_home": dashboard.is_home
+        },
+        "panels": panels_data,
+        "variables": variables_data,
+        "annotations": annotations_data,
+        "export_version": "1.0",
+        "exported_at": datetime.utcnow().isoformat()
+    }
+
+    return export_data
+
+
+@router.post("/import", response_model=DashboardResponse, status_code=status.HTTP_201_CREATED)
+async def import_dashboard(
+    import_data: Dict[str, Any],
+    db: Session = Depends(get_db)
+):
+    """
+    Import dashboard from JSON.
+
+    Creates a new dashboard from exported JSON data, including all
+    panels, variables, and annotations.
+    """
+    # Validate import data
+    if "dashboard" not in import_data:
+        raise HTTPException(status_code=400, detail="Invalid import data: missing 'dashboard' key")
+
+    dashboard_data = import_data["dashboard"]
+
+    # Create new dashboard
+    new_dashboard = Dashboard(
+        id=str(uuid.uuid4()),
+        name=dashboard_data.get("name", "Imported Dashboard"),
+        description=dashboard_data.get("description"),
+        layout=dashboard_data.get("layout"),
+        time_range=dashboard_data.get("time_range", "24h"),
+        refresh_interval=dashboard_data.get("refresh_interval", 60),
+        auto_refresh=dashboard_data.get("auto_refresh", True),
+        tags=dashboard_data.get("tags"),
+        folder=dashboard_data.get("folder"),
+        is_public=dashboard_data.get("is_public", False),
+        is_favorite=False,
+        is_home=False
+    )
+
+    db.add(new_dashboard)
+    db.flush()
+
+    # Import variables
+    if "variables" in import_data:
+        from app.models_dashboards import DashboardVariable
+        for var_data in import_data["variables"]:
+            # Find datasource by name if specified
+            datasource_id = None
+            if var_data.get("datasource_name"):
+                datasource = db.query(PrometheusDatasource).filter(
+                    PrometheusDatasource.name == var_data["datasource_name"]
+                ).first()
+                if datasource:
+                    datasource_id = datasource.id
+
+            new_var = DashboardVariable(
+                id=str(uuid.uuid4()),
+                dashboard_id=new_dashboard.id,
+                name=var_data["name"],
+                label=var_data.get("label"),
+                type=var_data.get("type", "query"),
+                query=var_data.get("query"),
+                datasource_id=datasource_id,
+                regex=var_data.get("regex"),
+                custom_values=var_data.get("custom_values"),
+                default_value=var_data.get("default_value"),
+                multi_select=var_data.get("multi_select", False),
+                include_all=var_data.get("include_all", False),
+                all_value=var_data.get("all_value"),
+                hide=var_data.get("hide", 0),
+                sort=var_data.get("sort", 0)
+            )
+            db.add(new_var)
+
+    # Import panels
+    if "panels" in import_data:
+        for panel_data in import_data["panels"]:
+            panel_info = panel_data["panel"]
+            position_info = panel_data["position"]
+
+            # Find datasource by name
+            datasource = db.query(PrometheusDatasource).filter(
+                PrometheusDatasource.name == panel_info.get("datasource_name")
+            ).first()
+
+            if not datasource:
+                # Use first available datasource as fallback
+                datasource = db.query(PrometheusDatasource).first()
+
+            if datasource:
+                # Create new panel
+                new_panel = PrometheusPanel(
+                    id=str(uuid.uuid4()),
+                    name=panel_info["name"],
+                    description=panel_info.get("description"),
+                    datasource_id=datasource.id,
+                    promql_query=panel_info["promql_query"],
+                    legend_format=panel_info.get("legend_format"),
+                    time_range=panel_info.get("time_range", "24h"),
+                    refresh_interval=panel_info.get("refresh_interval", 30),
+                    step=panel_info.get("step", "auto"),
+                    panel_type=panel_info.get("panel_type", "graph"),
+                    visualization_config=panel_info.get("visualization_config"),
+                    thresholds=panel_info.get("thresholds"),
+                    tags=panel_info.get("tags")
+                )
+                db.add(new_panel)
+                db.flush()
+
+                # Link panel to dashboard
+                dashboard_panel = DashboardPanel(
+                    id=str(uuid.uuid4()),
+                    dashboard_id=new_dashboard.id,
+                    panel_id=new_panel.id,
+                    grid_x=position_info.get("grid_x", 0),
+                    grid_y=position_info.get("grid_y", 0),
+                    grid_width=position_info.get("grid_width", 6),
+                    grid_height=position_info.get("grid_height", 4),
+                    display_order=position_info.get("display_order", 0),
+                    override_time_range=position_info.get("override_time_range"),
+                    override_refresh_interval=position_info.get("override_refresh_interval")
+                )
+                db.add(dashboard_panel)
+
+    # Import annotations
+    if "annotations" in import_data:
+        from app.models_dashboards import DashboardAnnotation
+        for ann_data in import_data["annotations"]:
+            new_ann = DashboardAnnotation(
+                id=str(uuid.uuid4()),
+                dashboard_id=new_dashboard.id,
+                time=datetime.fromisoformat(ann_data["time"]) if ann_data.get("time") else datetime.utcnow(),
+                time_end=datetime.fromisoformat(ann_data["time_end"]) if ann_data.get("time_end") else None,
+                text=ann_data["text"],
+                title=ann_data.get("title"),
+                tags=ann_data.get("tags"),
+                color=ann_data.get("color", "#FF6B6B"),
+                icon=ann_data.get("icon")
+            )
+            db.add(new_ann)
+
+    db.commit()
+    db.refresh(new_dashboard)
+
+    return DashboardResponse(
+        id=new_dashboard.id,
+        name=new_dashboard.name,
+        description=new_dashboard.description,
+        layout=new_dashboard.layout,
+        time_range=new_dashboard.time_range,
+        refresh_interval=new_dashboard.refresh_interval,
+        auto_refresh=new_dashboard.auto_refresh,
+        tags=new_dashboard.tags,
+        folder=new_dashboard.folder,
+        is_public=new_dashboard.is_public,
+        is_favorite=new_dashboard.is_favorite,
+        is_home=new_dashboard.is_home,
+        created_at=new_dashboard.created_at,
+        updated_at=new_dashboard.updated_at,
+        created_by=new_dashboard.created_by,
+        panel_count=len(import_data.get("panels", []))
+    )
+
+
+# ===== DASHBOARD LINKS ENDPOINTS =====
+
+@router.get("/{dashboard_id}/links")
+async def get_dashboard_links(
+    dashboard_id: str,
+    db: Session = Depends(get_db)
+):
+    """Get all links for a dashboard."""
+    from app.models_dashboards import DashboardLink
+
+    links = db.query(DashboardLink).filter(
+        DashboardLink.dashboard_id == dashboard_id
+    ).order_by(DashboardLink.sort_order).all()
+
+    return [{
+        "id": link.id,
+        "title": link.title,
+        "url": link.url,
+        "icon": link.icon,
+        "type": link.type,
+        "open_in_new_tab": link.open_in_new_tab,
+        "sort_order": link.sort_order
+    } for link in links]
+
+
+@router.post("/{dashboard_id}/links")
+async def create_dashboard_link(
+    dashboard_id: str,
+    link_data: Dict[str, Any],
+    db: Session = Depends(get_db)
+):
+    """Create a new dashboard link."""
+    from app.models_dashboards import DashboardLink
+
+    dashboard = db.query(Dashboard).filter(Dashboard.id == dashboard_id).first()
+    if not dashboard:
+        raise HTTPException(status_code=404, detail="Dashboard not found")
+
+    new_link = DashboardLink(
+        id=str(uuid.uuid4()),
+        dashboard_id=dashboard_id,
+        title=link_data["title"],
+        url=link_data["url"],
+        icon=link_data.get("icon"),
+        type=link_data.get("type", "link"),
+        open_in_new_tab=link_data.get("open_in_new_tab", False),
+        sort_order=link_data.get("sort_order", 0)
+    )
+
+    db.add(new_link)
+    db.commit()
+    db.refresh(new_link)
+
+    return {
+        "id": new_link.id,
+        "title": new_link.title,
+        "url": new_link.url,
+        "icon": new_link.icon,
+        "type": new_link.type,
+        "open_in_new_tab": new_link.open_in_new_tab,
+        "sort_order": new_link.sort_order
+    }
+
+
+@router.delete("/{dashboard_id}/links/{link_id}")
+async def delete_dashboard_link(
+    dashboard_id: str,
+    link_id: str,
+    db: Session = Depends(get_db)
+):
+    """Delete a dashboard link."""
+    from app.models_dashboards import DashboardLink
+
+    link = db.query(DashboardLink).filter(
+        DashboardLink.id == link_id,
+        DashboardLink.dashboard_id == dashboard_id
+    ).first()
+
+    if not link:
+        raise HTTPException(status_code=404, detail="Link not found")
+
+    db.delete(link)
+    db.commit()
+
+    return {"message": "Link deleted successfully"}
