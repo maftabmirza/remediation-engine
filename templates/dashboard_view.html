@@ -82,7 +82,8 @@
                 <span id="edit-mode-text">Edit Layout</span>
             </button>
 
-            <button onclick="showTimePickerModal()" class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm hover:bg-gray-700 transition-colors flex items-center gap-2">
+            <button onclick="showTimePickerModal()"
+                class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm hover:bg-gray-700 transition-colors flex items-center gap-2">
                 <i class="fas fa-clock text-blue-400"></i>
                 <span id="time-range-display">Last 24h</span>
                 <i class="fas fa-chevron-down text-xs text-gray-500"></i>
@@ -166,7 +167,8 @@
         <div class="mb-6">
             <div class="flex justify-between items-center mb-4">
                 <h3 class="text-lg font-semibold text-white">Variables</h3>
-                <button onclick="showVariableEditor()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white text-sm">
+                <button onclick="showVariableEditor()"
+                    class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white text-sm">
                     <i class="fas fa-plus mr-2"></i>
                     Add Variable
                 </button>
@@ -180,7 +182,8 @@
 </div>
 
 <!-- Variable Editor Modal -->
-<div id="variable-editor-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+<div id="variable-editor-modal"
+    class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
     <div class="bg-gray-800 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div class="flex justify-between items-center mb-6">
             <h2 id="variable-editor-title" class="text-xl font-bold text-white">New Variable</h2>
@@ -263,7 +266,8 @@
                         Multi-select
                     </label>
                     <label class="flex items-center text-gray-300">
-                        <input type="checkbox" id="variable-include-all" onchange="handleIncludeAllChange()" class="mr-2">
+                        <input type="checkbox" id="variable-include-all" onchange="handleIncludeAllChange()"
+                            class="mr-2">
                         Include "All" option
                     </label>
                 </div>
@@ -322,18 +326,42 @@
             <div class="col-span-1">
                 <h3 class="text-sm font-semibold text-gray-300 mb-3">Quick Ranges</h3>
                 <div class="space-y-1">
-                    <button onclick="selectQuickRange('5m')" class="quick-range-btn w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-700 transition-colors">Last 5 minutes</button>
-                    <button onclick="selectQuickRange('15m')" class="quick-range-btn w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-700 transition-colors">Last 15 minutes</button>
-                    <button onclick="selectQuickRange('30m')" class="quick-range-btn w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-700 transition-colors">Last 30 minutes</button>
-                    <button onclick="selectQuickRange('1h')" class="quick-range-btn w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-700 transition-colors">Last 1 hour</button>
-                    <button onclick="selectQuickRange('3h')" class="quick-range-btn w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-700 transition-colors">Last 3 hours</button>
-                    <button onclick="selectQuickRange('6h')" class="quick-range-btn w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-700 transition-colors">Last 6 hours</button>
-                    <button onclick="selectQuickRange('12h')" class="quick-range-btn w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-700 transition-colors">Last 12 hours</button>
-                    <button onclick="selectQuickRange('24h')" class="quick-range-btn w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-700 transition-colors bg-gray-700">Last 24 hours</button>
-                    <button onclick="selectQuickRange('2d')" class="quick-range-btn w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-700 transition-colors">Last 2 days</button>
-                    <button onclick="selectQuickRange('7d')" class="quick-range-btn w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-700 transition-colors">Last 7 days</button>
-                    <button onclick="selectQuickRange('30d')" class="quick-range-btn w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-700 transition-colors">Last 30 days</button>
-                    <button onclick="selectQuickRange('90d')" class="quick-range-btn w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-700 transition-colors">Last 90 days</button>
+                    <button onclick="selectQuickRange('5m')"
+                        class="quick-range-btn w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-700 transition-colors">Last
+                        5 minutes</button>
+                    <button onclick="selectQuickRange('15m')"
+                        class="quick-range-btn w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-700 transition-colors">Last
+                        15 minutes</button>
+                    <button onclick="selectQuickRange('30m')"
+                        class="quick-range-btn w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-700 transition-colors">Last
+                        30 minutes</button>
+                    <button onclick="selectQuickRange('1h')"
+                        class="quick-range-btn w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-700 transition-colors">Last
+                        1 hour</button>
+                    <button onclick="selectQuickRange('3h')"
+                        class="quick-range-btn w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-700 transition-colors">Last
+                        3 hours</button>
+                    <button onclick="selectQuickRange('6h')"
+                        class="quick-range-btn w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-700 transition-colors">Last
+                        6 hours</button>
+                    <button onclick="selectQuickRange('12h')"
+                        class="quick-range-btn w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-700 transition-colors">Last
+                        12 hours</button>
+                    <button onclick="selectQuickRange('24h')"
+                        class="quick-range-btn w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-700 transition-colors bg-gray-700">Last
+                        24 hours</button>
+                    <button onclick="selectQuickRange('2d')"
+                        class="quick-range-btn w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-700 transition-colors">Last
+                        2 days</button>
+                    <button onclick="selectQuickRange('7d')"
+                        class="quick-range-btn w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-700 transition-colors">Last
+                        7 days</button>
+                    <button onclick="selectQuickRange('30d')"
+                        class="quick-range-btn w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-700 transition-colors">Last
+                        30 days</button>
+                    <button onclick="selectQuickRange('90d')"
+                        class="quick-range-btn w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-700 transition-colors">Last
+                        90 days</button>
                 </div>
             </div>
 
@@ -341,8 +369,10 @@
             <div class="col-span-2">
                 <div class="mb-4">
                     <div class="flex gap-2 mb-4">
-                        <button id="tab-relative" onclick="switchTimeTab('relative')" class="px-4 py-2 rounded bg-blue-600 text-white text-sm">Relative</button>
-                        <button id="tab-absolute" onclick="switchTimeTab('absolute')" class="px-4 py-2 rounded bg-gray-700 text-gray-300 text-sm">Absolute</button>
+                        <button id="tab-relative" onclick="switchTimeTab('relative')"
+                            class="px-4 py-2 rounded bg-blue-600 text-white text-sm">Relative</button>
+                        <button id="tab-absolute" onclick="switchTimeTab('absolute')"
+                            class="px-4 py-2 rounded bg-gray-700 text-gray-300 text-sm">Absolute</button>
                     </div>
                 </div>
 
@@ -380,12 +410,18 @@
                 <div class="mt-6 pt-4 border-t border-gray-700">
                     <label class="block text-sm font-medium text-gray-300 mb-2">Auto Refresh</label>
                     <div class="grid grid-cols-3 gap-2">
-                        <button onclick="selectRefreshInterval(0)" class="refresh-interval-btn px-3 py-2 rounded text-sm bg-gray-700 hover:bg-gray-600 transition-colors">Off</button>
-                        <button onclick="selectRefreshInterval(5)" class="refresh-interval-btn px-3 py-2 rounded text-sm bg-gray-700 hover:bg-gray-600 transition-colors">5s</button>
-                        <button onclick="selectRefreshInterval(10)" class="refresh-interval-btn px-3 py-2 rounded text-sm bg-gray-700 hover:bg-gray-600 transition-colors">10s</button>
-                        <button onclick="selectRefreshInterval(30)" class="refresh-interval-btn px-3 py-2 rounded text-sm bg-gray-700 hover:bg-gray-600 transition-colors">30s</button>
-                        <button onclick="selectRefreshInterval(60)" class="refresh-interval-btn px-3 py-2 rounded text-sm bg-gray-700 hover:bg-gray-600 transition-colors">1m</button>
-                        <button onclick="selectRefreshInterval(300)" class="refresh-interval-btn px-3 py-2 rounded text-sm bg-gray-700 hover:bg-gray-600 transition-colors">5m</button>
+                        <button onclick="selectRefreshInterval(0)"
+                            class="refresh-interval-btn px-3 py-2 rounded text-sm bg-gray-700 hover:bg-gray-600 transition-colors">Off</button>
+                        <button onclick="selectRefreshInterval(5)"
+                            class="refresh-interval-btn px-3 py-2 rounded text-sm bg-gray-700 hover:bg-gray-600 transition-colors">5s</button>
+                        <button onclick="selectRefreshInterval(10)"
+                            class="refresh-interval-btn px-3 py-2 rounded text-sm bg-gray-700 hover:bg-gray-600 transition-colors">10s</button>
+                        <button onclick="selectRefreshInterval(30)"
+                            class="refresh-interval-btn px-3 py-2 rounded text-sm bg-gray-700 hover:bg-gray-600 transition-colors">30s</button>
+                        <button onclick="selectRefreshInterval(60)"
+                            class="refresh-interval-btn px-3 py-2 rounded text-sm bg-gray-700 hover:bg-gray-600 transition-colors">1m</button>
+                        <button onclick="selectRefreshInterval(300)"
+                            class="refresh-interval-btn px-3 py-2 rounded text-sm bg-gray-700 hover:bg-gray-600 transition-colors">5m</button>
                     </div>
                     <div class="mt-2">
                         <input type="number" id="custom-refresh-interval" placeholder="Custom (seconds)" min="1"
@@ -408,7 +444,8 @@
 </div>
 
 <!-- Panel Inspector Modal -->
-<div id="panel-inspector-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+<div id="panel-inspector-modal"
+    class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
     <div class="bg-gray-800 rounded-lg p-6 w-full max-w-6xl max-h-[90vh] flex flex-col">
         <div class="flex justify-between items-center mb-6 flex-shrink-0">
             <h2 class="text-xl font-bold text-white">
@@ -423,16 +460,20 @@
 
         <!-- Inspector Tabs -->
         <div class="flex gap-2 mb-4 border-b border-gray-700 flex-shrink-0">
-            <button id="inspector-tab-query" onclick="switchInspectorTab('query')" class="px-4 py-2 text-sm font-medium border-b-2 border-blue-500 text-blue-400">
+            <button id="inspector-tab-query" onclick="switchInspectorTab('query')"
+                class="px-4 py-2 text-sm font-medium border-b-2 border-blue-500 text-blue-400">
                 <i class="fas fa-code mr-1"></i> Query
             </button>
-            <button id="inspector-tab-stats" onclick="switchInspectorTab('stats')" class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-400 hover:text-white">
+            <button id="inspector-tab-stats" onclick="switchInspectorTab('stats')"
+                class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-400 hover:text-white">
                 <i class="fas fa-chart-bar mr-1"></i> Stats
             </button>
-            <button id="inspector-tab-json" onclick="switchInspectorTab('json')" class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-400 hover:text-white">
+            <button id="inspector-tab-json" onclick="switchInspectorTab('json')"
+                class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-400 hover:text-white">
                 <i class="fas fa-file-code mr-1"></i> JSON
             </button>
-            <button id="inspector-tab-data" onclick="switchInspectorTab('data')" class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-400 hover:text-white">
+            <button id="inspector-tab-data" onclick="switchInspectorTab('data')"
+                class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-400 hover:text-white">
                 <i class="fas fa-table mr-1"></i> Data
             </button>
         </div>
@@ -444,20 +485,24 @@
                 <div>
                     <div class="flex justify-between items-center mb-2">
                         <h3 class="text-sm font-semibold text-gray-300">Original Query</h3>
-                        <button onclick="copyToClipboard('inspector-original-query')" class="text-xs text-blue-400 hover:text-blue-300">
+                        <button onclick="copyToClipboard('inspector-original-query')"
+                            class="text-xs text-blue-400 hover:text-blue-300">
                             <i class="fas fa-copy mr-1"></i> Copy
                         </button>
                     </div>
-                    <pre id="inspector-original-query" class="bg-gray-900 p-4 rounded text-sm text-gray-300 font-mono overflow-x-auto"></pre>
+                    <pre id="inspector-original-query"
+                        class="bg-gray-900 p-4 rounded text-sm text-gray-300 font-mono overflow-x-auto"></pre>
                 </div>
                 <div>
                     <div class="flex justify-between items-center mb-2">
                         <h3 class="text-sm font-semibold text-gray-300">Executed Query (with variables)</h3>
-                        <button onclick="copyToClipboard('inspector-executed-query')" class="text-xs text-blue-400 hover:text-blue-300">
+                        <button onclick="copyToClipboard('inspector-executed-query')"
+                            class="text-xs text-blue-400 hover:text-blue-300">
                             <i class="fas fa-copy mr-1"></i> Copy
                         </button>
                     </div>
-                    <pre id="inspector-executed-query" class="bg-gray-900 p-4 rounded text-sm text-green-400 font-mono overflow-x-auto"></pre>
+                    <pre id="inspector-executed-query"
+                        class="bg-gray-900 p-4 rounded text-sm text-green-400 font-mono overflow-x-auto"></pre>
                 </div>
                 <div>
                     <h3 class="text-sm font-semibold text-gray-300 mb-2">Time Range</h3>
@@ -506,11 +551,13 @@
             <div id="inspector-panel-json" class="hidden">
                 <div class="flex justify-between items-center mb-2">
                     <h3 class="text-sm font-semibold text-gray-300">Raw Response</h3>
-                    <button onclick="copyToClipboard('inspector-json-content')" class="text-xs text-blue-400 hover:text-blue-300">
+                    <button onclick="copyToClipboard('inspector-json-content')"
+                        class="text-xs text-blue-400 hover:text-blue-300">
                         <i class="fas fa-copy mr-1"></i> Copy
                     </button>
                 </div>
-                <pre id="inspector-json-content" class="bg-gray-900 p-4 rounded text-xs text-gray-300 font-mono overflow-auto max-h-[600px]"></pre>
+                <pre id="inspector-json-content"
+                    class="bg-gray-900 p-4 rounded text-xs text-gray-300 font-mono overflow-auto max-h-[600px]"></pre>
             </div>
 
             <!-- Data Panel -->
@@ -564,7 +611,7 @@
             // Set time range if dashboard has default
             if (dashboard.time_range) {
                 const timeSelect = document.getElementById('time-range');
-                if ([...timeSelect.options].some(o => o.value === dashboard.time_range)) {
+                if (timeSelect && timeSelect.options && [...timeSelect.options].some(o => o.value === dashboard.time_range)) {
                     timeSelect.value = dashboard.time_range;
                 }
             }
@@ -1341,8 +1388,8 @@
         // Create toast element
         const toast = document.createElement('div');
         toast.className = `fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 ${type === 'success' ? 'bg-green-600' :
-                type === 'error' ? 'bg-red-600' :
-                    'bg-blue-600'
+            type === 'error' ? 'bg-red-600' :
+                'bg-blue-600'
             } text-white`;
         toast.textContent = message;
         document.body.appendChild(toast);
