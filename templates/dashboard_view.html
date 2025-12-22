@@ -97,6 +97,11 @@
                 <i class="fas fa-sliders-h mr-2"></i>
                 Variables
             </button>
+            <button onclick="showAlertsModal()" class="btn-secondary px-4 py-2 rounded-lg text-sm flex items-center gap-2 relative">
+                <i class="fas fa-bell mr-2"></i>
+                Alerts
+                <span id="alerts-badge" class="hidden absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">0</span>
+            </button>
             <a href="/dashboards" class="btn-secondary px-4 py-2 rounded-lg text-sm">
                 <i class="fas fa-cog mr-2"></i>
                 Settings
@@ -563,6 +568,70 @@
             <!-- Data Panel -->
             <div id="inspector-panel-data" class="hidden overflow-auto">
                 <div id="inspector-data-table" class="bg-gray-900 rounded overflow-auto"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Alerts Modal -->
+<div id="alerts-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-gray-800 rounded-lg p-6 w-full max-w-5xl max-h-[90vh] flex flex-col">
+        <div class="flex justify-between items-center mb-6 flex-shrink-0">
+            <h2 class="text-xl font-bold text-white">
+                <i class="fas fa-bell text-red-400 mr-2"></i>
+                Prometheus Alerts
+            </h2>
+            <button onclick="closeAlertsModal()" class="text-gray-400 hover:text-white">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+
+        <!-- Alert Stats -->
+        <div class="grid grid-cols-3 gap-4 mb-6 flex-shrink-0">
+            <div class="bg-red-900/30 border border-red-700/50 rounded-lg p-4">
+                <div class="text-xs text-red-300 mb-1">Firing</div>
+                <div id="alert-count-firing" class="text-3xl font-bold text-red-400">0</div>
+            </div>
+            <div class="bg-yellow-900/30 border border-yellow-700/50 rounded-lg p-4">
+                <div class="text-xs text-yellow-300 mb-1">Pending</div>
+                <div id="alert-count-pending" class="text-3xl font-bold text-yellow-400">0</div>
+            </div>
+            <div class="bg-gray-700/30 border border-gray-600/50 rounded-lg p-4">
+                <div class="text-xs text-gray-300 mb-1">Silenced</div>
+                <div id="alert-count-silenced" class="text-3xl font-bold text-gray-400">0</div>
+            </div>
+        </div>
+
+        <!-- Filter and Search -->
+        <div class="flex gap-3 mb-4 flex-shrink-0">
+            <input type="text" id="alert-search" placeholder="Search alerts..." onkeyup="filterAlerts()"
+                class="flex-1 bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500">
+            <select id="alert-status-filter" onchange="filterAlerts()"
+                class="bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-sm">
+                <option value="all">All States</option>
+                <option value="firing">Firing</option>
+                <option value="pending">Pending</option>
+                <option value="silenced">Silenced</option>
+            </select>
+        </div>
+
+        <!-- Alerts List -->
+        <div class="flex-1 overflow-auto">
+            <div id="alerts-list" class="space-y-2">
+                <!-- Will be populated by JavaScript -->
+            </div>
+            <div id="alerts-empty" class="hidden p-8 text-center text-gray-400">
+                <i class="fas fa-check-circle text-5xl text-green-400 mb-3"></i>
+                <p class="text-lg">No active alerts</p>
+                <p class="text-sm mt-1">All systems operational</p>
+            </div>
+            <div id="alerts-loading" class="p-8 text-center">
+                <i class="fas fa-spinner fa-spin text-3xl text-blue-400 mb-3"></i>
+                <p class="text-gray-400">Loading alerts...</p>
+            </div>
+            <div id="alerts-error" class="hidden p-8 text-center">
+                <i class="fas fa-exclamation-triangle text-3xl text-red-400 mb-3"></i>
+                <p class="text-red-300" id="alerts-error-message">Failed to load alerts</p>
             </div>
         </div>
     </div>
@@ -1464,6 +1533,11 @@
     // Panel Inspector State
     let panelInspectorData = {}; // Stores inspection data for each panel
 
+    // Alerts State
+    let alerts = [];
+    let allAlerts = [];
+    let alertsRefreshTimer = null;
+
     // Variables Management UI Functions
     let datasources = [];
     let editingVariable = null;
@@ -2092,6 +2166,248 @@
             showToast('Failed to copy to clipboard', 'error');
         });
     }
+
+    // Alerts Functions
+    async function loadAlerts() {
+        try {
+            // Fetch alerts from Prometheus AlertManager via our API
+            const response = await fetch('/api/alerts');
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            const data = await response.json();
+            allAlerts = data.alerts || [];
+            alerts = allAlerts;
+
+            // Update badge count
+            updateAlertsBadge();
+
+            return alerts;
+        } catch (error) {
+            console.error('Error loading alerts:', error);
+            return [];
+        }
+    }
+
+    async function showAlertsModal() {
+        document.getElementById('alerts-modal').classList.remove('hidden');
+        document.getElementById('alerts-loading').classList.remove('hidden');
+        document.getElementById('alerts-list').classList.add('hidden');
+        document.getElementById('alerts-empty').classList.add('hidden');
+        document.getElementById('alerts-error').classList.add('hidden');
+
+        try {
+            await loadAlerts();
+            renderAlerts();
+
+            // Auto-refresh alerts every 30 seconds
+            if (alertsRefreshTimer) {
+                clearInterval(alertsRefreshTimer);
+            }
+            alertsRefreshTimer = setInterval(async () => {
+                await loadAlerts();
+                renderAlerts();
+            }, 30000);
+        } catch (error) {
+            document.getElementById('alerts-loading').classList.add('hidden');
+            document.getElementById('alerts-error').classList.remove('hidden');
+            document.getElementById('alerts-error-message').textContent = error.message;
+        }
+    }
+
+    function closeAlertsModal() {
+        document.getElementById('alerts-modal').classList.add('hidden');
+
+        // Stop auto-refresh
+        if (alertsRefreshTimer) {
+            clearInterval(alertsRefreshTimer);
+            alertsRefreshTimer = null;
+        }
+    }
+
+    function renderAlerts() {
+        document.getElementById('alerts-loading').classList.add('hidden');
+
+        // Count alerts by state
+        let firingCount = 0;
+        let pendingCount = 0;
+        let silencedCount = 0;
+
+        alerts.forEach(alert => {
+            if (alert.status?.state === 'firing') {
+                firingCount++;
+            } else if (alert.status?.state === 'pending') {
+                pendingCount++;
+            }
+            if (alert.status?.silencedBy?.length > 0 || alert.status?.inhibitedBy?.length > 0) {
+                silencedCount++;
+            }
+        });
+
+        document.getElementById('alert-count-firing').textContent = firingCount;
+        document.getElementById('alert-count-pending').textContent = pendingCount;
+        document.getElementById('alert-count-silenced').textContent = silencedCount;
+
+        const container = document.getElementById('alerts-list');
+
+        if (alerts.length === 0) {
+            document.getElementById('alerts-list').classList.add('hidden');
+            document.getElementById('alerts-empty').classList.remove('hidden');
+            return;
+        }
+
+        document.getElementById('alerts-list').classList.remove('hidden');
+        document.getElementById('alerts-empty').classList.add('hidden');
+
+        container.innerHTML = '';
+
+        alerts.forEach(alert => {
+            const alertEl = createAlertElement(alert);
+            container.appendChild(alertEl);
+        });
+    }
+
+    function createAlertElement(alert) {
+        const div = document.createElement('div');
+        const state = alert.status?.state || 'unknown';
+        const isSilenced = (alert.status?.silencedBy?.length > 0 || alert.status?.inhibitedBy?.length > 0);
+
+        let stateColor = 'gray';
+        let stateIcon = 'question-circle';
+
+        if (state === 'firing') {
+            stateColor = 'red';
+            stateIcon = 'exclamation-circle';
+        } else if (state === 'pending') {
+            stateColor = 'yellow';
+            stateIcon = 'clock';
+        }
+
+        if (isSilenced) {
+            stateColor = 'gray';
+            stateIcon = 'bell-slash';
+        }
+
+        div.className = `bg-gray-700/50 border-l-4 border-${stateColor}-500 rounded p-4 hover:bg-gray-700 transition-colors`;
+
+        const alertName = alert.labels?.alertname || 'Unknown Alert';
+        const severity = alert.labels?.severity || 'unknown';
+        const instance = alert.labels?.instance || alert.labels?.job || 'N/A';
+        const description = alert.annotations?.description || alert.annotations?.summary || 'No description available';
+        const startsAt = new Date(alert.startsAt).toLocaleString();
+
+        div.innerHTML = `
+            <div class="flex items-start justify-between">
+                <div class="flex-1">
+                    <div class="flex items-center gap-2 mb-1">
+                        <i class="fas fa-${stateIcon} text-${stateColor}-400"></i>
+                        <span class="font-semibold text-white">${escapeHtml(alertName)}</span>
+                        <span class="px-2 py-0.5 rounded text-xs ${severity === 'critical' ? 'bg-red-700' : severity === 'warning' ? 'bg-yellow-700' : 'bg-gray-600'} text-white">
+                            ${escapeHtml(severity)}
+                        </span>
+                        <span class="text-xs text-gray-400">${state.toUpperCase()}</span>
+                        ${isSilenced ? '<span class="text-xs text-gray-400"><i class="fas fa-bell-slash"></i> Silenced</span>' : ''}
+                    </div>
+                    <p class="text-sm text-gray-300 mb-2">${escapeHtml(description)}</p>
+                    <div class="flex gap-4 text-xs text-gray-400">
+                        <span><i class="fas fa-server mr-1"></i>${escapeHtml(instance)}</span>
+                        <span><i class="fas fa-clock mr-1"></i>${startsAt}</span>
+                    </div>
+                </div>
+                <button onclick="showAlertDetails('${alert.fingerprint}')" class="text-blue-400 hover:text-blue-300 text-sm ml-4">
+                    Details
+                </button>
+            </div>
+            ${alert.labels ? `
+                <div class="mt-3 pt-3 border-t border-gray-600">
+                    <details class="text-xs">
+                        <summary class="cursor-pointer text-gray-400 hover:text-gray-300">Labels & Annotations</summary>
+                        <div class="mt-2 space-y-1">
+                            ${Object.entries(alert.labels).map(([key, value]) =>
+                                `<div><span class="text-gray-500">${escapeHtml(key)}:</span> <span class="text-gray-300">${escapeHtml(value)}</span></div>`
+                            ).join('')}
+                        </div>
+                    </details>
+                </div>
+            ` : ''}
+        `;
+
+        return div;
+    }
+
+    function filterAlerts() {
+        const searchTerm = document.getElementById('alert-search').value.toLowerCase();
+        const statusFilter = document.getElementById('alert-status-filter').value;
+
+        alerts = allAlerts.filter(alert => {
+            // Search filter
+            const matchesSearch = !searchTerm ||
+                (alert.labels?.alertname || '').toLowerCase().includes(searchTerm) ||
+                (alert.labels?.instance || '').toLowerCase().includes(searchTerm) ||
+                (alert.annotations?.description || '').toLowerCase().includes(searchTerm);
+
+            // Status filter
+            const state = alert.status?.state || 'unknown';
+            const isSilenced = (alert.status?.silencedBy?.length > 0 || alert.status?.inhibitedBy?.length > 0);
+
+            let matchesStatus = statusFilter === 'all';
+            if (statusFilter === 'firing') matchesStatus = state === 'firing' && !isSilenced;
+            if (statusFilter === 'pending') matchesStatus = state === 'pending' && !isSilenced;
+            if (statusFilter === 'silenced') matchesStatus = isSilenced;
+
+            return matchesSearch && matchesStatus;
+        });
+
+        renderAlerts();
+    }
+
+    function showAlertDetails(fingerprint) {
+        const alert = allAlerts.find(a => a.fingerprint === fingerprint);
+        if (!alert) return;
+
+        const details = `
+Alert: ${alert.labels?.alertname || 'Unknown'}
+State: ${alert.status?.state || 'unknown'}
+Severity: ${alert.labels?.severity || 'unknown'}
+Instance: ${alert.labels?.instance || 'N/A'}
+
+Description:
+${alert.annotations?.description || alert.annotations?.summary || 'No description'}
+
+Started: ${new Date(alert.startsAt).toLocaleString()}
+${alert.endsAt ? `Ended: ${new Date(alert.endsAt).toLocaleString()}` : ''}
+
+Labels:
+${Object.entries(alert.labels || {}).map(([k, v]) => `  ${k}: ${v}`).join('\n')}
+
+${alert.annotations ? `Annotations:
+${Object.entries(alert.annotations).map(([k, v]) => `  ${k}: ${v}`).join('\n')}` : ''}
+        `;
+
+        alert(details);
+    }
+
+    function updateAlertsBadge() {
+        const firingAlerts = allAlerts.filter(a =>
+            a.status?.state === 'firing' &&
+            !(a.status?.silencedBy?.length > 0 || a.status?.inhibitedBy?.length > 0)
+        );
+
+        const badge = document.getElementById('alerts-badge');
+        if (firingAlerts.length > 0) {
+            badge.textContent = firingAlerts.length;
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+    }
+
+    // Load alerts on dashboard load
+    document.addEventListener('DOMContentLoaded', async () => {
+        await loadAlerts();
+    });
 
     // Handle window resize
     window.addEventListener('resize', () => {
