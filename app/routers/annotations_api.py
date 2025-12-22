@@ -154,9 +154,10 @@ async def get_annotations(
     # Filter by tags
     if tags:
         tag_list = [tag.strip() for tag in tags.split(',')]
-        # This is a simple containment check - in production you might want more sophisticated tag matching
+        # Cast JSON to text and use LIKE for matching since PostgreSQL JSON doesn't support direct contains
+        from sqlalchemy import cast, String
         for tag in tag_list:
-            query = query.filter(DashboardAnnotation.tags.contains([tag]))
+            query = query.filter(cast(DashboardAnnotation.tags, String).like(f'%"{tag}"%'))
 
     # Order by time descending
     annotations = query.order_by(DashboardAnnotation.time.desc()).all()
