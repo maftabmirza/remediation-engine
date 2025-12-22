@@ -13,7 +13,7 @@ import re
 
 from app.database import get_db
 from app.models_dashboards import DashboardVariable, Dashboard, PrometheusDatasource, VariableType
-from app.services.prometheus_service import PrometheusService
+from app.services.prometheus_service import PrometheusClient
 
 router = APIRouter(prefix="/api/dashboards/{dashboard_id}/variables", tags=["variables"])
 
@@ -365,9 +365,9 @@ async def evaluate_query_variable(variable: DashboardVariable, db: Session) -> L
         if not datasource:
             return []
 
-        # Use PrometheusService to execute query
-        prom_service = PrometheusService(datasource)
-        result = await prom_service.query(variable.query)
+        # Use PrometheusClient to execute query
+        prom_client = PrometheusClient(base_url=datasource.url)
+        result = await prom_client.query(variable.query)
 
         # Extract values from result
         values = set()
