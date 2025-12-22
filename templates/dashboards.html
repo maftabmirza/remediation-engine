@@ -8,27 +8,43 @@
     .dashboard-card {
         transition: transform 0.2s, box-shadow 0.2s;
     }
+
     .dashboard-card:hover {
         transform: translateY(-2px);
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     }
+
     .badge {
         padding: 2px 8px;
         border-radius: 4px;
         font-size: 0.75rem;
         font-weight: 500;
     }
-    .badge-home { background-color: #3b82f6; color: white; }
-    .badge-favorite { background-color: #f59e0b; color: white; }
-    .badge-public { background-color: #10b981; color: white; }
+
+    .badge-home {
+        background-color: #3b82f6;
+        color: white;
+    }
+
+    .badge-favorite {
+        background-color: #f59e0b;
+        color: white;
+    }
+
+    .badge-public {
+        background-color: #10b981;
+        color: white;
+    }
 
     .panel-item {
         cursor: pointer;
         transition: background-color 0.2s;
     }
+
     .panel-item:hover {
         background-color: rgba(59, 130, 246, 0.1);
     }
+
     .panel-item.selected {
         background-color: rgba(59, 130, 246, 0.2);
         border-color: #3b82f6;
@@ -44,9 +60,10 @@
             <h1 class="text-2xl font-bold text-white">Dashboards</h1>
             <p class="text-gray-400 text-sm">Build custom dashboards with your panels</p>
         </div>
-        <button onclick="showCreateDashboardModal()" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded text-white flex items-center gap-2">
+        <button onclick="showCreateDashboardModal()"
+            class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded text-white flex items-center gap-2">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
             </svg>
             New Dashboard
         </button>
@@ -54,9 +71,8 @@
 
     <!-- Filters -->
     <div class="bg-gray-800 rounded-lg p-4 mb-6 flex gap-4">
-        <input type="text" id="search-dashboards" placeholder="Search dashboards..."
-               onkeyup="filterDashboards()"
-               class="flex-1 bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+        <input type="text" id="search-dashboards" placeholder="Search dashboards..." onkeyup="filterDashboards()"
+            class="flex-1 bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
         <label class="flex items-center text-gray-300">
             <input type="checkbox" id="favorites-only" onchange="filterDashboards()" class="mr-2">
             Favorites Only
@@ -80,7 +96,7 @@
             <h2 id="dashboard-modal-title" class="text-xl font-bold text-white">New Dashboard</h2>
             <button onclick="closeDashboardModal()" class="text-gray-400 hover:text-white">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                 </svg>
             </button>
         </div>
@@ -92,20 +108,20 @@
                 <div>
                     <label class="block text-sm font-medium text-gray-300 mb-1">Dashboard Name *</label>
                     <input type="text" id="dashboard-name" required
-                           class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                        class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
                 </div>
 
                 <div>
                     <label class="block text-sm font-medium text-gray-300 mb-1">Description</label>
                     <textarea id="dashboard-description" rows="2"
-                              class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"></textarea>
+                        class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"></textarea>
                 </div>
 
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-300 mb-1">Time Range</label>
                         <select id="dashboard-time-range"
-                                class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
                             <option value="5m">5 minutes</option>
                             <option value="15m">15 minutes</option>
                             <option value="1h">1 hour</option>
@@ -118,14 +134,14 @@
                     <div>
                         <label class="block text-sm font-medium text-gray-300 mb-1">Refresh Interval (s)</label>
                         <input type="number" id="dashboard-refresh" value="60" min="5" max="3600"
-                               class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
                     </div>
                 </div>
 
                 <div>
                     <label class="block text-sm font-medium text-gray-300 mb-1">Folder</label>
                     <input type="text" id="dashboard-folder" placeholder="Optional folder name"
-                           class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                        class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
                 </div>
 
                 <div class="flex gap-4">
@@ -149,7 +165,8 @@
             </div>
 
             <div class="flex justify-end gap-2 mt-6">
-                <button type="button" onclick="closeDashboardModal()" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded text-white">
+                <button type="button" onclick="closeDashboardModal()"
+                    class="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded text-white">
                     Cancel
                 </button>
                 <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white">
@@ -162,25 +179,24 @@
 
 <!-- Add Panels Modal -->
 <div id="panels-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
-    <div class="bg-gray-800 rounded-lg p-6 w-full max-w-4xl max-h-[90vh] flex flex-col">
-        <div class="flex justify-between items-center mb-4">
+    <div class="bg-gray-800 rounded-lg p-6 w-full max-w-4xl max-h-[80vh] flex flex-col">
+        <div class="flex justify-between items-center mb-4 flex-shrink-0">
             <h2 class="text-xl font-bold text-white">Add Panels to Dashboard</h2>
             <button onclick="closePanelsModal()" class="text-gray-400 hover:text-white">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                 </svg>
             </button>
         </div>
 
-        <input type="text" id="panel-search" placeholder="Search panels..."
-               onkeyup="filterAvailablePanels()"
-               class="mb-4 bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+        <input type="text" id="panel-search" placeholder="Search panels..." onkeyup="filterAvailablePanels()"
+            class="mb-4 bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500 flex-shrink-0">
 
-        <div id="available-panels" class="flex-1 overflow-y-auto space-y-2 mb-4">
+        <div id="available-panels" class="overflow-y-auto space-y-2 mb-4" style="max-height: 50vh; min-height: 100px;">
             <!-- Populated by JavaScript -->
         </div>
 
-        <div class="flex justify-end gap-2">
+        <div class="flex justify-end gap-2 flex-shrink-0 pt-4 border-t border-gray-700">
             <button onclick="closePanelsModal()" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded text-white">
                 Cancel
             </button>
@@ -192,62 +208,62 @@
 </div>
 
 <script>
-let dashboards = [];
-let allPanels = [];
-let filteredDashboards = [];
-let currentDashboard = null;
-let selectedPanels = new Set();
+    let dashboards = [];
+    let allPanels = [];
+    let filteredDashboards = [];
+    let currentDashboard = null;
+    let selectedPanels = new Set();
 
-async function loadDashboards() {
-    try {
-        const response = await apiCall('/api/dashboards/?limit=500');
-        dashboards = await response.json();
-        filterDashboards();
-    } catch (error) {
-        console.error('Failed to load dashboards:', error);
-        showToast('Failed to load dashboards', 'error');
-    }
-}
-
-async function loadPanels() {
-    try {
-        const response = await apiCall('/api/panels/?limit=500');
-        allPanels = await response.json();
-    } catch (error) {
-        console.error('Failed to load panels:', error);
-    }
-}
-
-function filterDashboards() {
-    const search = document.getElementById('search-dashboards').value.toLowerCase();
-    const favoritesOnly = document.getElementById('favorites-only').checked;
-
-    filteredDashboards = dashboards.filter(dash => {
-        const matchesSearch = !search ||
-            dash.name.toLowerCase().includes(search) ||
-            (dash.description && dash.description.toLowerCase().includes(search));
-        const matchesFavorites = !favoritesOnly || dash.is_favorite;
-
-        return matchesSearch && matchesFavorites;
-    });
-
-    renderDashboards();
-}
-
-function renderDashboards() {
-    const grid = document.getElementById('dashboards-grid');
-    const noDash = document.getElementById('no-dashboards');
-
-    if (filteredDashboards.length === 0) {
-        grid.classList.add('hidden');
-        noDash.classList.remove('hidden');
-        return;
+    async function loadDashboards() {
+        try {
+            const response = await apiCall('/api/dashboards/?limit=500');
+            dashboards = await response.json();
+            filterDashboards();
+        } catch (error) {
+            console.error('Failed to load dashboards:', error);
+            showToast('Failed to load dashboards', 'error');
+        }
     }
 
-    grid.classList.remove('hidden');
-    noDash.classList.add('hidden');
+    async function loadPanels() {
+        try {
+            const response = await apiCall('/api/panels/?limit=500');
+            allPanels = await response.json();
+        } catch (error) {
+            console.error('Failed to load panels:', error);
+        }
+    }
 
-    grid.innerHTML = filteredDashboards.map(dash => `
+    function filterDashboards() {
+        const search = document.getElementById('search-dashboards').value.toLowerCase();
+        const favoritesOnly = document.getElementById('favorites-only').checked;
+
+        filteredDashboards = dashboards.filter(dash => {
+            const matchesSearch = !search ||
+                dash.name.toLowerCase().includes(search) ||
+                (dash.description && dash.description.toLowerCase().includes(search));
+            const matchesFavorites = !favoritesOnly || dash.is_favorite;
+
+            return matchesSearch && matchesFavorites;
+        });
+
+        renderDashboards();
+    }
+
+    function renderDashboards() {
+        const grid = document.getElementById('dashboards-grid');
+        const noDash = document.getElementById('no-dashboards');
+
+        if (filteredDashboards.length === 0) {
+            grid.classList.add('hidden');
+            noDash.classList.remove('hidden');
+            return;
+        }
+
+        grid.classList.remove('hidden');
+        noDash.classList.add('hidden');
+
+        grid.innerHTML = filteredDashboards.map(dash => `
         <div class="dashboard-card bg-gray-800 rounded-lg p-4 border border-gray-700">
             <div class="flex justify-between items-start mb-2">
                 <h3 class="text-white font-medium text-lg">${escapeHtml(dash.name)}</h3>
@@ -292,128 +308,128 @@ function renderDashboards() {
             </div>
         </div>
     `).join('');
-}
+    }
 
-function showCreateDashboardModal() {
-    document.getElementById('dashboard-modal-title').textContent = 'New Dashboard';
-    document.getElementById('dashboard-form').reset();
-    document.getElementById('dashboard-id').value = '';
-    document.getElementById('dashboard-time-range').value = '24h';
-    document.getElementById('dashboard-refresh').value = '60';
-    document.getElementById('dashboard-auto-refresh').checked = true;
-    document.getElementById('dashboard-modal').classList.remove('hidden');
-}
+    function showCreateDashboardModal() {
+        document.getElementById('dashboard-modal-title').textContent = 'New Dashboard';
+        document.getElementById('dashboard-form').reset();
+        document.getElementById('dashboard-id').value = '';
+        document.getElementById('dashboard-time-range').value = '24h';
+        document.getElementById('dashboard-refresh').value = '60';
+        document.getElementById('dashboard-auto-refresh').checked = true;
+        document.getElementById('dashboard-modal').classList.remove('hidden');
+    }
 
-function editDashboard(id) {
-    const dash = dashboards.find(d => d.id === id);
-    if (!dash) return;
+    function editDashboard(id) {
+        const dash = dashboards.find(d => d.id === id);
+        if (!dash) return;
 
-    document.getElementById('dashboard-modal-title').textContent = 'Edit Dashboard';
-    document.getElementById('dashboard-id').value = dash.id;
-    document.getElementById('dashboard-name').value = dash.name;
-    document.getElementById('dashboard-description').value = dash.description || '';
-    document.getElementById('dashboard-time-range').value = dash.time_range;
-    document.getElementById('dashboard-refresh').value = dash.refresh_interval;
-    document.getElementById('dashboard-folder').value = dash.folder || '';
-    document.getElementById('dashboard-auto-refresh').checked = dash.auto_refresh;
-    document.getElementById('dashboard-is-public').checked = dash.is_public;
-    document.getElementById('dashboard-is-favorite').checked = dash.is_favorite;
-    document.getElementById('dashboard-is-home').checked = dash.is_home;
-    document.getElementById('dashboard-modal').classList.remove('hidden');
-}
+        document.getElementById('dashboard-modal-title').textContent = 'Edit Dashboard';
+        document.getElementById('dashboard-id').value = dash.id;
+        document.getElementById('dashboard-name').value = dash.name;
+        document.getElementById('dashboard-description').value = dash.description || '';
+        document.getElementById('dashboard-time-range').value = dash.time_range;
+        document.getElementById('dashboard-refresh').value = dash.refresh_interval;
+        document.getElementById('dashboard-folder').value = dash.folder || '';
+        document.getElementById('dashboard-auto-refresh').checked = dash.auto_refresh;
+        document.getElementById('dashboard-is-public').checked = dash.is_public;
+        document.getElementById('dashboard-is-favorite').checked = dash.is_favorite;
+        document.getElementById('dashboard-is-home').checked = dash.is_home;
+        document.getElementById('dashboard-modal').classList.remove('hidden');
+    }
 
-function closeDashboardModal() {
-    document.getElementById('dashboard-modal').classList.add('hidden');
-}
+    function closeDashboardModal() {
+        document.getElementById('dashboard-modal').classList.add('hidden');
+    }
 
-async function saveDashboard(event) {
-    event.preventDefault();
+    async function saveDashboard(event) {
+        event.preventDefault();
 
-    const id = document.getElementById('dashboard-id').value;
-    const data = {
-        name: document.getElementById('dashboard-name').value,
-        description: document.getElementById('dashboard-description').value || null,
-        time_range: document.getElementById('dashboard-time-range').value,
-        refresh_interval: parseInt(document.getElementById('dashboard-refresh').value),
-        folder: document.getElementById('dashboard-folder').value || null,
-        auto_refresh: document.getElementById('dashboard-auto-refresh').checked,
-        is_public: document.getElementById('dashboard-is-public').checked,
-        is_favorite: document.getElementById('dashboard-is-favorite').checked,
-        is_home: document.getElementById('dashboard-is-home').checked
-    };
+        const id = document.getElementById('dashboard-id').value;
+        const data = {
+            name: document.getElementById('dashboard-name').value,
+            description: document.getElementById('dashboard-description').value || null,
+            time_range: document.getElementById('dashboard-time-range').value,
+            refresh_interval: parseInt(document.getElementById('dashboard-refresh').value),
+            folder: document.getElementById('dashboard-folder').value || null,
+            auto_refresh: document.getElementById('dashboard-auto-refresh').checked,
+            is_public: document.getElementById('dashboard-is-public').checked,
+            is_favorite: document.getElementById('dashboard-is-favorite').checked,
+            is_home: document.getElementById('dashboard-is-home').checked
+        };
 
-    try {
-        const url = id ? `/api/dashboards/${id}` : '/api/dashboards/';
-        const method = id ? 'PUT' : 'POST';
+        try {
+            const url = id ? `/api/dashboards/${id}` : '/api/dashboards/';
+            const method = id ? 'PUT' : 'POST';
 
-        const response = await apiCall(url, {
-            method: method,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        });
+            const response = await apiCall(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
 
-        if (response.ok) {
-            showToast(id ? 'Dashboard updated' : 'Dashboard created', 'success');
-            closeDashboardModal();
-            await loadDashboards();
-        } else {
-            const error = await response.json();
-            showToast(error.detail || 'Failed to save dashboard', 'error');
+            if (response.ok) {
+                showToast(id ? 'Dashboard updated' : 'Dashboard created', 'success');
+                closeDashboardModal();
+                await loadDashboards();
+            } else {
+                const error = await response.json();
+                showToast(error.detail || 'Failed to save dashboard', 'error');
+            }
+        } catch (error) {
+            console.error('Failed to save dashboard:', error);
+            showToast('Failed to save dashboard', 'error');
         }
-    } catch (error) {
-        console.error('Failed to save dashboard:', error);
-        showToast('Failed to save dashboard', 'error');
-    }
-}
-
-async function deleteDashboard(id, name) {
-    if (!confirm(`Are you sure you want to delete dashboard "${name}"?`)) {
-        return;
     }
 
-    try {
-        const response = await apiCall(`/api/dashboards/${id}`, {
-            method: 'DELETE'
-        });
-
-        if (response.ok) {
-            showToast('Dashboard deleted', 'success');
-            await loadDashboards();
-        } else {
-            const error = await response.json();
-            showToast(error.detail || 'Failed to delete dashboard', 'error');
+    async function deleteDashboard(id, name) {
+        if (!confirm(`Are you sure you want to delete dashboard "${name}"?`)) {
+            return;
         }
-    } catch (error) {
-        console.error('Failed to delete dashboard:', error);
-        showToast('Failed to delete dashboard', 'error');
+
+        try {
+            const response = await apiCall(`/api/dashboards/${id}`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                showToast('Dashboard deleted', 'success');
+                await loadDashboards();
+            } else {
+                const error = await response.json();
+                showToast(error.detail || 'Failed to delete dashboard', 'error');
+            }
+        } catch (error) {
+            console.error('Failed to delete dashboard:', error);
+            showToast('Failed to delete dashboard', 'error');
+        }
     }
-}
 
-function showAddPanelsModal(dashboardId) {
-    currentDashboard = dashboardId;
-    selectedPanels.clear();
-    renderAvailablePanels();
-    document.getElementById('panels-modal').classList.remove('hidden');
-}
+    function showAddPanelsModal(dashboardId) {
+        currentDashboard = dashboardId;
+        selectedPanels.clear();
+        renderAvailablePanels();
+        document.getElementById('panels-modal').classList.remove('hidden');
+    }
 
-function closePanelsModal() {
-    document.getElementById('panels-modal').classList.add('hidden');
-    currentDashboard = null;
-}
+    function closePanelsModal() {
+        document.getElementById('panels-modal').classList.add('hidden');
+        currentDashboard = null;
+    }
 
-function filterAvailablePanels() {
-    renderAvailablePanels();
-}
+    function filterAvailablePanels() {
+        renderAvailablePanels();
+    }
 
-function renderAvailablePanels() {
-    const search = document.getElementById('panel-search').value.toLowerCase();
-    const container = document.getElementById('available-panels');
+    function renderAvailablePanels() {
+        const search = document.getElementById('panel-search').value.toLowerCase();
+        const container = document.getElementById('available-panels');
 
-    const filtered = allPanels.filter(panel =>
-        !search || panel.name.toLowerCase().includes(search)
-    );
+        const filtered = allPanels.filter(panel =>
+            !search || panel.name.toLowerCase().includes(search)
+        );
 
-    container.innerHTML = filtered.map(panel => `
+        container.innerHTML = filtered.map(panel => `
         <div class="panel-item p-3 border border-gray-700 rounded ${selectedPanels.has(panel.id) ? 'selected' : ''}"
              onclick="togglePanelSelection('${panel.id}')">
             <div class="flex justify-between items-start">
@@ -429,63 +445,63 @@ function renderAvailablePanels() {
             </div>
         </div>
     `).join('');
-}
-
-function togglePanelSelection(panelId) {
-    if (selectedPanels.has(panelId)) {
-        selectedPanels.delete(panelId);
-    } else {
-        selectedPanels.add(panelId);
-    }
-    renderAvailablePanels();
-}
-
-async function addSelectedPanels() {
-    if (selectedPanels.size === 0) {
-        showToast('No panels selected', 'error');
-        return;
     }
 
-    try {
-        let y = 0;
-        for (const panelId of selectedPanels) {
-            await apiCall(`/api/dashboards/${currentDashboard}/panels`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    panel_id: panelId,
-                    grid_x: 0,
-                    grid_y: y,
-                    grid_width: 12,
-                    grid_height: 4
-                })
-            });
-            y += 4;
+    function togglePanelSelection(panelId) {
+        if (selectedPanels.has(panelId)) {
+            selectedPanels.delete(panelId);
+        } else {
+            selectedPanels.add(panelId);
+        }
+        renderAvailablePanels();
+    }
+
+    async function addSelectedPanels() {
+        if (selectedPanels.size === 0) {
+            showToast('No panels selected', 'error');
+            return;
         }
 
-        showToast(`Added ${selectedPanels.size} panel(s) to dashboard`, 'success');
-        closePanelsModal();
-        await loadDashboards();
-    } catch (error) {
-        console.error('Failed to add panels:', error);
-        showToast('Failed to add panels', 'error');
+        try {
+            let y = 0;
+            for (const panelId of selectedPanels) {
+                await apiCall(`/api/dashboards/${currentDashboard}/panels`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        panel_id: panelId,
+                        grid_x: 0,
+                        grid_y: y,
+                        grid_width: 12,
+                        grid_height: 4
+                    })
+                });
+                y += 4;
+            }
+
+            showToast(`Added ${selectedPanels.size} panel(s) to dashboard`, 'success');
+            closePanelsModal();
+            await loadDashboards();
+        } catch (error) {
+            console.error('Failed to add panels:', error);
+            showToast('Failed to add panels', 'error');
+        }
     }
-}
 
-function viewDashboard(id) {
-    window.location.href = `/dashboard-view/${id}`;
-}
+    function viewDashboard(id) {
+        window.location.href = `/dashboard-view/${id}`;
+    }
 
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
 
-// Load data on page load
-document.addEventListener('DOMContentLoaded', async () => {
-    await loadPanels();
-    await loadDashboards();
-});
+    // Load data on page load
+    document.addEventListener('DOMContentLoaded', async () => {
+        await loadPanels();
+        await loadDashboards();
+    });
 </script>
 {% endblock %}
