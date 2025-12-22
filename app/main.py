@@ -447,8 +447,22 @@ async def login_page(
     """
     if current_user:
         return RedirectResponse(url="/", status_code=302)
-    
+
     return templates.TemplateResponse("login.html", {"request": request})
+
+
+@app.get("/register", response_class=HTMLResponse)
+async def register_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    Registration page
+    """
+    if current_user:
+        return RedirectResponse(url="/", status_code=302)
+
+    return templates.TemplateResponse("register.html", {"request": request})
 
 
 @app.get("/alerts", response_class=HTMLResponse)
