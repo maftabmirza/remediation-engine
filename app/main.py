@@ -22,7 +22,8 @@ from app.services.auth_service import (
     get_current_user_optional,
     create_user,
     get_user_by_username,
-    get_permissions_for_role
+    get_permissions_for_role,
+    get_permissions_for_user
 )
 from app.routers import (
     auth,
@@ -58,7 +59,9 @@ from app.routers import (
     dashboards_api,  # Prometheus Dashboard Builder - Dashboards
     variables_api,  # Prometheus Dashboard Builder - Variables
     alerts_api,  # Prometheus Dashboard Builder - Alerts Integration
-    annotations_api  # Prometheus Dashboard Builder - Annotations
+    annotations_api,  # Prometheus Dashboard Builder - Annotations
+    groups_api,  # Group-based RBAC
+    runbook_acl_api  # Runbook ACL - resource level permissions
 )
 from app import api_credential_profiles
 from app.services.execution_worker import start_execution_worker, stop_execution_worker
@@ -280,6 +283,8 @@ app.include_router(dashboards_api.router)   # Prometheus Dashboard Builder - Das
 app.include_router(variables_api.router)    # Prometheus Dashboard Builder - Variables
 app.include_router(alerts_api.router)       # Prometheus Dashboard Builder - Alerts Integration
 app.include_router(annotations_api.router)  # Prometheus Dashboard Builder - Annotations
+app.include_router(groups_api.router)        # Group-based RBAC
+app.include_router(runbook_acl_api.router)   # Runbook ACL - resource permissions
 
 
 @app.get("/profile", response_class=HTMLResponse)
@@ -550,7 +555,7 @@ async def settings_page(
     return templates.TemplateResponse("settings.html", {
         "request": request,
         "user": current_user,
-        "permissions": list(get_permissions_for_role(db, current_user.role)),
+        "permissions": list(get_permissions_for_user(db, current_user)),
     })
 
 

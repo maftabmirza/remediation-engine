@@ -199,6 +199,10 @@
                     <i class="fas fa-cog"></i>
                     <span>Settings</span>
                 </a>
+                <a href="#section-permissions" onclick="scrollToSection(event, 'section-permissions')">
+                    <i class="fas fa-shield-alt"></i>
+                    <span>Permissions</span>
+                </a>
             </nav>
 
             <!-- Quick Actions -->
@@ -513,6 +517,34 @@
                         </div>
                     </div>
                 </section>
+
+                <!-- Section: Permissions -->
+                <section id="section-permissions" class="form-section card p-6">
+                    <h2 class="text-lg font-semibold text-primary mb-4 flex items-center gap-2">
+                        <i class="fas fa-shield-alt text-purple-400"></i>
+                        Permissions
+                    </h2>
+
+                    <p class="text-secondary text-sm mb-4">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        Grant specific groups access to this runbook. This is <strong>additive</strong> to global role
+                        permissions.
+                    </p>
+
+                    <div id="aclContainer" class="space-y-3">
+                        <div class="text-center py-4 text-secondary">
+                            <i class="fas fa-spinner fa-spin mr-2"></i>Loading groups...
+                        </div>
+                    </div>
+
+                    <div class="mt-4 pt-4 border-t border-gray-700">
+                        <button type="button" onclick="addAclEntry()"
+                            class="btn-secondary px-4 py-2 rounded text-sm flex items-center gap-2">
+                            <i class="fas fa-plus"></i>
+                            Add Group Permission
+                        </button>
+                    </div>
+                </section>
             </form>
         </div>
     </div>
@@ -580,6 +612,8 @@
     let codeMirrorInstances = {};
     let servers = [];
     let apiProfiles = [];
+    let groups = [];
+    let aclEntries = [];
     const mode = '{{ mode }}';
     const runbookId = '{{ runbook_id or "" }}';
 
@@ -587,9 +621,13 @@
     document.addEventListener('DOMContentLoaded', async function () {
         await loadServers();
         await loadApiProfiles();
+        await loadGroups();
 
         if (mode === 'edit' && runbookId) {
             await loadRunbook(runbookId);
+            await loadRunbookAcl(runbookId);
+        } else {
+            renderAclEntries();
         }
 
         // Initialize sortable for steps
@@ -648,6 +686,172 @@
             option.textContent = `${server.name} (${server.hostname})`;
             select.appendChild(option);
         });
+    }
+
+    // --- ACL Management ---
+    async function loadGroups() {
+        try {
+            const response = await fetch('/api/groups');
+            if (response.ok) {
+                groups = await response.json();
+            }
+        } catch (error) {
+            console.error('Error loading groups:', error);
+        }
+    }
+
+    async function loadRunbookAcl(id) {
+        try {
+            const response = await fetch(`/api/runbooks/${id}/acl`);
+            if (response.ok) {
+                aclEntries = await response.json();
+            }
+        } catch (error) {
+            console.error('Error loading ACL:', error);
+        }
+        renderAclEntries();
+    }
+
+    function renderAclEntries() {
+        const container = document.getElementById('aclContainer');
+
+        if (!groups || groups.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-4 text-secondary">
+                    <i class="fas fa-info-circle mr-2"></i>No groups available. Create groups in Settings first.
+                </div>
+            `;
+            return;
+        }
+
+        if (aclEntries.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-4 text-secondary">
+                    <i class="fas fa-globe mr-2"></i>Using global role permissions only.
+                    <br><span class="text-xs">Add group permissions for fine-grained access control.</span>
+                </div>
+            `;
+            return;
+        }
+
+        let html = `
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-secondary text-xs uppercase">
+                        <th class="text-left py-2 px-3">Group</th>
+                        <th class="text-center py-2 px-2">View</th>
+                        <th class="text-center py-2 px-2">Edit</th>
+                        <th class="text-center py-2 px-2">Execute</th>
+                        <th class="text-right py-2 px-3"></th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        aclEntries.forEach((entry, index) => {
+            const group = groups.find(g => g.id === entry.group_id) || { name: entry.group_name || 'Unknown' };
+            html += `
+                <tr class="border-t border-gray-700" data-acl-index="${index}">
+                    <td class="py-2 px-3 text-primary">${escapeHtml(group.name)}</td>
+                    <td class="text-center py-2 px-2">
+                        <input type="checkbox" ${entry.can_view ? 'checked' : ''} 
+                            onchange="updateAclEntry(${index}, 'can_view', this.checked)"
+                            class="form-checkbox text-blue-500 rounded">
+                    </td>
+                    <td class="text-center py-2 px-2">
+                        <input type="checkbox" ${entry.can_edit ? 'checked' : ''} 
+                            onchange="updateAclEntry(${index}, 'can_edit', this.checked)"
+                            class="form-checkbox text-green-500 rounded">
+                    </td>
+                    <td class="text-center py-2 px-2">
+                        <input type="checkbox" ${entry.can_execute ? 'checked' : ''} 
+                            onchange="updateAclEntry(${index}, 'can_execute', this.checked)"
+                            class="form-checkbox text-purple-500 rounded">
+                    </td>
+                    <td class="text-right py-2 px-3">
+                        <button type="button" onclick="removeAclEntry(${index})" 
+                            class="text-red-400 hover:text-red-300" title="Remove">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        html += '</tbody></table>';
+        container.innerHTML = html;
+    }
+
+    function addAclEntry() {
+        // Get groups not already added
+        const existingGroupIds = aclEntries.map(e => e.group_id);
+        const availableGroups = groups.filter(g => !existingGroupIds.includes(g.id));
+
+        if (availableGroups.length === 0) {
+            showToast('All groups already have permissions', 'warning');
+            return;
+        }
+
+        // Show a simple dropdown to select group
+        const groupOptions = availableGroups.map(g =>
+            `<option value="${g.id}">${escapeHtml(g.name)}</option>`
+        ).join('');
+
+        const container = document.getElementById('aclContainer');
+        const addRow = document.createElement('div');
+        addRow.className = 'flex items-center gap-3 p-3 bg-gray-800 rounded border border-gray-600';
+        addRow.innerHTML = `
+            <select id="newAclGroup" class="input-field flex-1 px-3 py-2 rounded text-sm">
+                <option value="">-- Select Group --</option>
+                ${groupOptions}
+            </select>
+            <button type="button" onclick="confirmAddAclEntry()" class="btn-primary px-3 py-2 rounded text-sm">Add</button>
+            <button type="button" onclick="cancelAddAclEntry()" class="btn-secondary px-3 py-2 rounded text-sm">Cancel</button>
+        `;
+        container.appendChild(addRow);
+    }
+
+    function confirmAddAclEntry() {
+        const select = document.getElementById('newAclGroup');
+        const groupId = select.value;
+        if (!groupId) {
+            showToast('Please select a group', 'warning');
+            return;
+        }
+
+        const group = groups.find(g => g.id === groupId);
+        aclEntries.push({
+            group_id: groupId,
+            group_name: group?.name,
+            can_view: true,
+            can_edit: false,
+            can_execute: false
+        });
+        renderAclEntries();
+    }
+
+    function cancelAddAclEntry() {
+        renderAclEntries();
+    }
+
+    function updateAclEntry(index, field, value) {
+        if (aclEntries[index]) {
+            aclEntries[index][field] = value;
+        }
+    }
+
+    function removeAclEntry(index) {
+        aclEntries.splice(index, 1);
+        renderAclEntries();
+    }
+
+    function collectAclEntries() {
+        return aclEntries.map(e => ({
+            group_id: e.group_id,
+            can_view: e.can_view === true,
+            can_edit: e.can_edit === true,
+            can_execute: e.can_execute === true
+        }));
     }
 
     async function loadRunbook(id) {
