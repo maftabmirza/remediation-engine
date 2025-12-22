@@ -3,6 +3,64 @@
 
 {% block title %}Dashboard View - AIOps Platform{% endblock %}
 
+{% block head %}
+<!-- GridStack CSS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gridstack@8.4.0/dist/gridstack.min.css" />
+<style>
+    .grid-stack-item-content {
+        background: rgb(31, 41, 55);
+        border: 1px solid rgb(55, 65, 81);
+        border-radius: 0.5rem;
+        overflow: hidden;
+    }
+
+    .panel-drag-handle {
+        cursor: move;
+        padding: 0.75rem 1rem;
+        background: rgb(55, 65, 81);
+        border-bottom: 1px solid rgb(75, 85, 99);
+        display: none;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .panel-drag-handle:hover {
+        background: rgb(75, 85, 99);
+    }
+
+    .grid-stack-item.editing .panel-drag-handle {
+        display: flex;
+    }
+
+    .edit-mode-active .grid-stack {
+        border: 2px dashed #3b82f6;
+        border-radius: 0.5rem;
+        padding: 0.5rem;
+    }
+
+    .panel-content {
+        padding: 1rem;
+    }
+
+    .panel-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .panel-actions button {
+        padding: 0.25rem 0.5rem;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .panel-actions button:hover {
+        transform: scale(1.1);
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="space-y-6">
     <!-- Header -->
@@ -17,6 +75,12 @@
             </div>
         </div>
         <div class="flex items-center gap-3">
+            <!-- Edit Layout Toggle -->
+            <button id="edit-mode-btn" onclick="toggleEditMode()" class="px-4 py-2 rounded-lg border border-gray-600 hover:bg-gray-700 text-sm transition-colors">
+                <i class="fas fa-edit mr-2"></i>
+                <span id="edit-mode-text">Edit Layout</span>
+            </button>
+
             <select id="time-range" class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm">
                 <option value="15m">Last 15m</option>
                 <option value="1h">Last 1h</option>
@@ -30,8 +94,8 @@
                 Refresh
             </button>
             <a href="/dashboards" class="btn-secondary px-4 py-2 rounded-lg text-sm">
-                <i class="fas fa-edit mr-2"></i>
-                Edit
+                <i class="fas fa-cog mr-2"></i>
+                Settings
             </a>
         </div>
     </div>
@@ -70,12 +134,14 @@
         </div>
     </div>
 
-    <!-- Panels Grid -->
-    <div id="panels-grid" class="hidden grid grid-cols-1 md:grid-cols-2 gap-6">
-        <!-- Panels will be dynamically inserted here -->
+    <!-- GridStack Container -->
+    <div id="panels-container" class="hidden">
+        <div class="grid-stack"></div>
     </div>
 </div>
 
+<!-- GridStack JS -->
+<script src="https://cdn.jsdelivr.net/npm/gridstack@8.4.0/dist/gridstack-all.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
 <script>
     const dashboardId = '{{ dashboard_id }}';
@@ -83,9 +149,14 @@
     let panels = [];
     let charts = {};
     let refreshInterval = null;
+    let grid = null;
+    let editMode = false;
 
     // Load dashboard on page load
-    document.addEventListener('DOMContentLoaded', loadDashboard);
+    document.addEventListener('DOMContentLoaded', async () => {
+        await loadDashboard();
+        initializeGrid();
+    });
 
     // Time range change
     document.getElementById('time-range').addEventListener('change', () => {
@@ -143,9 +214,43 @@
         }
     }
 
+    function initializeGrid() {
+        if (!grid) {
+            grid = GridStack.init({
+                cellHeight: 80,
+                margin: 10,
+                resizable: {
+                    handles: 'e, se, s, sw, w'
+                },
+                draggable: {
+                    handle: '.panel-drag-handle'
+                },
+                disableDrag: true,  // Disabled by default
+                disableResize: true  // Disabled by default
+            });
+
+            // Save layout on change
+            grid.on('change', (event, items) => {
+                if (!editMode) return;  // Only save in edit mode
+
+                items.forEach(item => {
+                    const panelId = item.id;
+                    savePanelPosition(panelId, {
+                        grid_x: item.x,
+                        grid_y: item.y,
+                        grid_width: item.w,
+                        grid_height: item.h
+                    });
+                });
+            });
+        }
+    }
+
     function renderPanels() {
-        const grid = document.getElementById('panels-grid');
-        grid.innerHTML = '';
+        if (!grid) return;
+
+        // Clear existing widgets
+        grid.removeAll();
 
         panels.forEach((panelItem, index) => {
             // Handle DashboardPanelInfo (panel_id, panel_name) or direct panel objects
@@ -154,29 +259,61 @@
             const panelDescription = panelItem.description || '';
             const panelQuery = panelItem.promql_query || 'No query';
 
-            const panelElement = document.createElement('div');
-            panelElement.className = 'card p-4';
-            panelElement.innerHTML = `
-            <div class="flex items-center justify-between mb-3">
-                <div>
-                    <h3 class="font-semibold text-white">${escapeHtml(panelName)}</h3>
-                    <p class="text-xs text-gray-500">${escapeHtml(panelDescription)}</p>
+            // Use saved grid position or default
+            const gridX = panelItem.grid_x !== undefined ? panelItem.grid_x : (index % 2) * 6;
+            const gridY = panelItem.grid_y !== undefined ? panelItem.grid_y : Math.floor(index / 2) * 4;
+            const gridWidth = panelItem.grid_width || 6;
+            const gridHeight = panelItem.grid_height || 4;
+
+            // Create panel HTML
+            const panelHtml = `
+                <div class="grid-stack-item-content">
+                    <div class="panel-drag-handle">
+                        <div>
+                            <i class="fas fa-grip-vertical mr-2"></i>
+                            <span class="font-medium text-white">${escapeHtml(panelName)}</span>
+                        </div>
+                        <div class="panel-actions">
+                            <button onclick="editPanel('${panelId}')" class="text-blue-400 hover:text-blue-300" title="Edit Panel">
+                                <i class="fas fa-pencil-alt"></i>
+                            </button>
+                            <button onclick="duplicatePanel('${panelId}')" class="text-green-400 hover:text-green-300" title="Duplicate Panel">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                            <button onclick="removePanel('${panelId}')" class="text-red-400 hover:text-red-300" title="Remove Panel">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="panel-content">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="flex-1">
+                                <p class="text-xs text-gray-500">${escapeHtml(panelDescription)}</p>
+                            </div>
+                            <span id="panel-status-${panelId}" class="flex items-center gap-1 text-xs text-gray-500">
+                                <i class="fas fa-circle text-green-400 text-xs"></i>
+                                Live
+                            </span>
+                        </div>
+                        <div id="chart-${panelId}" style="width: 100%; height: 220px;" class="bg-gray-800/50 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-spinner fa-spin text-2xl text-gray-500"></i>
+                        </div>
+                        <div class="mt-2 text-xs text-gray-600 font-mono truncate" title="${escapeHtml(panelQuery)}">
+                            ${escapeHtml(panelQuery)}
+                        </div>
+                    </div>
                 </div>
-                <div class="flex items-center gap-2 text-xs text-gray-500">
-                    <span id="panel-status-${panelId}" class="flex items-center gap-1">
-                        <i class="fas fa-circle text-green-400 text-xs"></i>
-                        Live
-                    </span>
-                </div>
-            </div>
-            <div id="chart-${panelId}" class="h-64 bg-gray-800/50 rounded-lg flex items-center justify-center">
-                <i class="fas fa-spinner fa-spin text-2xl text-gray-500"></i>
-            </div>
-            <div class="mt-2 text-xs text-gray-600 font-mono truncate" title="${escapeHtml(panelQuery)}">
-                ${escapeHtml(panelQuery)}
-            </div>
-        `;
-            grid.appendChild(panelElement);
+            `;
+
+            // Add to grid
+            grid.addWidget({
+                x: gridX,
+                y: gridY,
+                w: gridWidth,
+                h: gridHeight,
+                content: panelHtml,
+                id: panelId
+            });
         });
     }
 
@@ -346,18 +483,135 @@
         }, intervalSeconds * 1000);
     }
 
+    function toggleEditMode() {
+        editMode = !editMode;
+
+        const btn = document.getElementById('edit-mode-btn');
+        const text = document.getElementById('edit-mode-text');
+        const container = document.getElementById('panels-container');
+
+        if (editMode) {
+            // Enable editing
+            grid.enable();
+            text.textContent = 'Save Layout';
+            btn.classList.add('bg-blue-600', 'text-white', 'border-blue-600');
+            btn.classList.remove('border-gray-600');
+            container.classList.add('edit-mode-active');
+            document.querySelectorAll('.grid-stack-item').forEach(item => {
+                item.classList.add('editing');
+            });
+        } else {
+            // Disable editing
+            grid.disable();
+            text.textContent = 'Edit Layout';
+            btn.classList.remove('bg-blue-600', 'text-white', 'border-blue-600');
+            btn.classList.add('border-gray-600');
+            container.classList.remove('edit-mode-active');
+            document.querySelectorAll('.grid-stack-item').forEach(item => {
+                item.classList.remove('editing');
+            });
+            showToast('Layout saved successfully', 'success');
+        }
+    }
+
+    async function savePanelPosition(panelId, position) {
+        try {
+            const response = await fetch(`/api/dashboards/${dashboardId}/panels/${panelId}/position`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(position)
+            });
+
+            if (!response.ok) {
+                console.error('Failed to save panel position:', await response.text());
+            }
+        } catch (error) {
+            console.error('Failed to save panel position:', error);
+        }
+    }
+
+    function editPanel(panelId) {
+        // Redirect to panels page with edit mode
+        window.location.href = `/panels?edit=${panelId}`;
+    }
+
+    async function duplicatePanel(panelId) {
+        if (!confirm('Duplicate this panel?')) return;
+
+        try {
+            const response = await fetch(`/api/panels/${panelId}/clone`, {
+                method: 'POST'
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to duplicate panel');
+            }
+
+            showToast('Panel duplicated successfully', 'success');
+            setTimeout(() => location.reload(), 1000);
+        } catch (error) {
+            console.error('Error duplicating panel:', error);
+            showToast('Failed to duplicate panel', 'error');
+        }
+    }
+
+    async function removePanel(panelId) {
+        if (!confirm('Remove this panel from the dashboard?')) return;
+
+        try {
+            const response = await fetch(`/api/dashboards/${dashboardId}/panels/${panelId}`, {
+                method: 'DELETE'
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to remove panel');
+            }
+
+            // Remove from grid
+            const widget = document.querySelector(`[gs-id="${panelId}"]`);
+            if (widget) {
+                grid.removeWidget(widget);
+            }
+
+            // Remove from panels array
+            panels = panels.filter(p => (p.panel_id || p.id) !== panelId);
+
+            showToast('Panel removed successfully', 'success');
+        } catch (error) {
+            console.error('Error removing panel:', error);
+            showToast('Failed to remove panel', 'error');
+        }
+    }
+
+    function showToast(message, type = 'info') {
+        // Create toast element
+        const toast = document.createElement('div');
+        toast.className = `fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 ${
+            type === 'success' ? 'bg-green-600' :
+            type === 'error' ? 'bg-red-600' :
+            'bg-blue-600'
+        } text-white`;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        // Remove after 3 seconds
+        setTimeout(() => {
+            toast.remove();
+        }, 3000);
+    }
+
     function showLoading() {
         document.getElementById('loading-state').classList.remove('hidden');
         document.getElementById('error-state').classList.add('hidden');
         document.getElementById('empty-state').classList.add('hidden');
-        document.getElementById('panels-grid').classList.add('hidden');
+        document.getElementById('panels-container').classList.add('hidden');
     }
 
     function showError(message) {
         document.getElementById('loading-state').classList.add('hidden');
         document.getElementById('error-state').classList.remove('hidden');
         document.getElementById('empty-state').classList.add('hidden');
-        document.getElementById('panels-grid').classList.add('hidden');
+        document.getElementById('panels-container').classList.add('hidden');
         document.getElementById('error-message').textContent = message;
     }
 
@@ -365,14 +619,14 @@
         document.getElementById('loading-state').classList.add('hidden');
         document.getElementById('error-state').classList.add('hidden');
         document.getElementById('empty-state').classList.remove('hidden');
-        document.getElementById('panels-grid').classList.add('hidden');
+        document.getElementById('panels-container').classList.add('hidden');
     }
 
     function showPanels() {
         document.getElementById('loading-state').classList.add('hidden');
         document.getElementById('error-state').classList.add('hidden');
         document.getElementById('empty-state').classList.add('hidden');
-        document.getElementById('panels-grid').classList.remove('hidden');
+        document.getElementById('panels-container').classList.remove('hidden');
     }
 
     function escapeHtml(text) {
