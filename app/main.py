@@ -57,7 +57,8 @@ from app.routers import (
     panels_api,  # Prometheus Dashboard Builder - Panels
     dashboards_api,  # Prometheus Dashboard Builder - Dashboards
     variables_api,  # Prometheus Dashboard Builder - Variables
-    alerts_api  # Prometheus Dashboard Builder - Alerts Integration
+    alerts_api,  # Prometheus Dashboard Builder - Alerts Integration
+    annotations_api  # Prometheus Dashboard Builder - Annotations
 )
 from app import api_credential_profiles
 from app.services.execution_worker import start_execution_worker, stop_execution_worker
@@ -278,6 +279,7 @@ app.include_router(panels_api.router)       # Prometheus Dashboard Builder - Pan
 app.include_router(dashboards_api.router)   # Prometheus Dashboard Builder - Dashboards
 app.include_router(variables_api.router)    # Prometheus Dashboard Builder - Variables
 app.include_router(alerts_api.router)       # Prometheus Dashboard Builder - Alerts Integration
+app.include_router(annotations_api.router)  # Prometheus Dashboard Builder - Annotations
 
 
 @app.get("/profile", response_class=HTMLResponse)

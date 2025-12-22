@@ -255,3 +255,44 @@ class DashboardVariable(Base):
 
     def __repr__(self):
         return f"<DashboardVariable {self.name} ({self.type})>"
+
+
+class DashboardAnnotation(Base):
+    """
+    Dashboard annotations for marking events
+
+    Annotations are visual markers on charts that mark important events
+    like deployments, incidents, maintenance windows, etc.
+    """
+    __tablename__ = "dashboard_annotations"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    dashboard_id = Column(String(36), ForeignKey("dashboards.id"), nullable=True)  # Null for global annotations
+    panel_id = Column(String(36), ForeignKey("prometheus_panels.id"), nullable=True)  # Null for dashboard-wide
+
+    # Time information
+    time = Column(DateTime, nullable=False, index=True)  # When the event occurred
+    time_end = Column(DateTime, nullable=True)  # For time range annotations
+
+    # Content
+    text = Column(Text, nullable=False)  # Annotation text/description
+    title = Column(String(255), nullable=True)  # Optional title
+
+    # Tags for filtering and categorization
+    tags = Column(JSON, nullable=True)  # ["deployment", "production", "backend"]
+
+    # Visual styling
+    color = Column(String(50), default="#FF6B6B")  # Hex color for marker
+    icon = Column(String(50), nullable=True)  # Optional icon name
+
+    # Metadata
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+    created_by = Column(String(255), nullable=True)
+
+    # Relationships
+    dashboard = relationship("Dashboard", backref="annotations")
+    panel = relationship("PrometheusPanel", backref="annotations")
+
+    def __repr__(self):
+        return f"<DashboardAnnotation {self.title or self.text[:30]}>"

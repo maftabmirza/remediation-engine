@@ -102,6 +102,10 @@
                 Alerts
                 <span id="alerts-badge" class="hidden absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">0</span>
             </button>
+            <button onclick="showAnnotationsModal()" class="btn-secondary px-4 py-2 rounded-lg text-sm">
+                <i class="fas fa-bookmark mr-2"></i>
+                Annotations
+            </button>
             <a href="/dashboards" class="btn-secondary px-4 py-2 rounded-lg text-sm">
                 <i class="fas fa-cog mr-2"></i>
                 Settings
@@ -632,6 +636,97 @@
             <div id="alerts-error" class="hidden p-8 text-center">
                 <i class="fas fa-exclamation-triangle text-3xl text-red-400 mb-3"></i>
                 <p class="text-red-300" id="alerts-error-message">Failed to load alerts</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Annotations Modal -->
+<div id="annotations-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-gray-800 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto m-4">
+        <div class="sticky top-0 bg-gray-800 border-b border-gray-700 p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold flex items-center gap-3">
+                    <i class="fas fa-bookmark text-indigo-400"></i>
+                    Dashboard Annotations
+                </h2>
+                <button onclick="hideAnnotationsModal()" class="text-gray-400 hover:text-white transition">
+                    <i class="fas fa-times text-2xl"></i>
+                </button>
+            </div>
+            <button onclick="showCreateAnnotationForm()" class="btn-primary px-4 py-2 rounded-lg text-sm">
+                <i class="fas fa-plus mr-2"></i>
+                Create Annotation
+            </button>
+        </div>
+
+        <div class="p-6">
+            <!-- Create/Edit Annotation Form -->
+            <div id="annotation-form" class="hidden mb-6 bg-gray-700 rounded-lg p-6">
+                <h3 class="text-lg font-bold mb-4" id="annotation-form-title">Create Annotation</h3>
+                <form id="annotation-form-element" onsubmit="saveAnnotation(event)">
+                    <input type="hidden" id="annotation-id" value="">
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">Title</label>
+                            <input type="text" id="annotation-title" class="w-full bg-gray-600 border border-gray-500 rounded px-3 py-2 text-white" placeholder="Optional title">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">Time *</label>
+                            <input type="datetime-local" id="annotation-time" required class="w-full bg-gray-600 border border-gray-500 rounded px-3 py-2 text-white">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">End Time (Optional)</label>
+                            <input type="datetime-local" id="annotation-time-end" class="w-full bg-gray-600 border border-gray-500 rounded px-3 py-2 text-white">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">Color</label>
+                            <input type="color" id="annotation-color" value="#FF6B6B" class="w-full h-10 bg-gray-600 border border-gray-500 rounded px-3 py-2">
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Description *</label>
+                        <textarea id="annotation-text" required rows="3" class="w-full bg-gray-600 border border-gray-500 rounded px-3 py-2 text-white" placeholder="Describe the event (e.g., deployment, incident, maintenance)"></textarea>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Tags (comma-separated)</label>
+                        <input type="text" id="annotation-tags" class="w-full bg-gray-600 border border-gray-500 rounded px-3 py-2 text-white" placeholder="deployment, production, backend">
+                    </div>
+
+                    <div class="flex gap-2">
+                        <button type="submit" class="btn-primary px-4 py-2 rounded-lg">
+                            <i class="fas fa-save mr-2"></i>
+                            Save Annotation
+                        </button>
+                        <button type="button" onclick="hideAnnotationForm()" class="btn-secondary px-4 py-2 rounded-lg">
+                            Cancel
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Annotations List -->
+            <div id="annotations-list" class="space-y-3">
+                <!-- Annotations will be rendered here -->
+            </div>
+
+            <!-- Empty State -->
+            <div id="annotations-empty" class="hidden p-8 text-center">
+                <i class="fas fa-bookmark text-4xl text-gray-600 mb-3"></i>
+                <p class="text-gray-400">No annotations yet</p>
+                <p class="text-gray-500 text-sm mt-2">Create annotations to mark important events on your dashboards</p>
+            </div>
+
+            <!-- Loading State -->
+            <div id="annotations-loading" class="hidden p-8 text-center">
+                <i class="fas fa-spinner fa-spin text-3xl text-indigo-400 mb-3"></i>
+                <p class="text-gray-400">Loading annotations...</p>
             </div>
         </div>
     </div>
@@ -1297,6 +1392,52 @@
             }
         }
 
+        // Add annotation markers
+        const annotationMarkLines = [];
+        if (annotations && annotations.length > 0 && data.length > 0 && data[0].values && data[0].values.length > 0) {
+            // Get time range from chart data
+            const chartStartTime = new Date(data[0].values[0][0] * 1000);
+            const chartEndTime = new Date(data[0].values[data[0].values.length - 1][0] * 1000);
+
+            // Filter annotations within chart time range
+            annotations.forEach(annotation => {
+                const annotationTime = new Date(annotation.time);
+                if (annotationTime >= chartStartTime && annotationTime <= chartEndTime) {
+                    annotationMarkLines.push({
+                        xAxis: annotationTime,
+                        lineStyle: {
+                            color: annotation.color || '#FF6B6B',
+                            type: 'solid',
+                            width: 2,
+                            opacity: 0.8
+                        },
+                        label: {
+                            formatter: annotation.title || annotation.text.substring(0, 20),
+                            position: 'insideEndTop',
+                            color: annotation.color || '#FF6B6B',
+                            fontSize: 10,
+                            backgroundColor: 'rgba(0,0,0,0.7)',
+                            padding: [4, 6],
+                            borderRadius: 3
+                        }
+                    });
+                }
+            });
+
+            // Add annotation mark lines to first series
+            if (annotationMarkLines.length > 0 && series.length > 0) {
+                if (series[0].markLine) {
+                    series[0].markLine.data.push(...annotationMarkLines);
+                } else {
+                    series[0].markLine = {
+                        silent: false,
+                        data: annotationMarkLines,
+                        symbol: 'none'
+                    };
+                }
+            }
+        }
+
         const option = {
             backgroundColor: 'transparent',
             color: colors,
@@ -1537,6 +1678,10 @@
     let alerts = [];
     let allAlerts = [];
     let alertsRefreshTimer = null;
+
+    // Annotations State
+    let annotations = [];
+    let editingAnnotation = null;
 
     // Variables Management UI Functions
     let datasources = [];
@@ -2407,6 +2552,225 @@ ${Object.entries(alert.annotations).map(([k, v]) => `  ${k}: ${v}`).join('\n')}`
     // Load alerts on dashboard load
     document.addEventListener('DOMContentLoaded', async () => {
         await loadAlerts();
+    });
+
+    // ===== ANNOTATIONS FUNCTIONS =====
+
+    async function loadAnnotations() {
+        try {
+            const response = await fetch(`/api/annotations?dashboard_id=${dashboardId}`);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            const data = await response.json();
+            annotations = data || [];
+            return annotations;
+        } catch (error) {
+            console.error('Error loading annotations:', error);
+            return [];
+        }
+    }
+
+    async function showAnnotationsModal() {
+        document.getElementById('annotations-modal').classList.remove('hidden');
+        document.getElementById('annotations-loading').classList.remove('hidden');
+        document.getElementById('annotations-list').classList.add('hidden');
+        document.getElementById('annotations-empty').classList.add('hidden');
+
+        try {
+            await loadAnnotations();
+            renderAnnotations();
+        } catch (error) {
+            console.error('Error loading annotations:', error);
+        }
+    }
+
+    function hideAnnotationsModal() {
+        document.getElementById('annotations-modal').classList.add('hidden');
+        hideAnnotationForm();
+    }
+
+    function showCreateAnnotationForm() {
+        editingAnnotation = null;
+        document.getElementById('annotation-form-title').textContent = 'Create Annotation';
+        document.getElementById('annotation-id').value = '';
+        document.getElementById('annotation-title').value = '';
+        document.getElementById('annotation-time').value = new Date().toISOString().slice(0, 16);
+        document.getElementById('annotation-time-end').value = '';
+        document.getElementById('annotation-text').value = '';
+        document.getElementById('annotation-tags').value = '';
+        document.getElementById('annotation-color').value = '#FF6B6B';
+        document.getElementById('annotation-form').classList.remove('hidden');
+    }
+
+    function hideAnnotationForm() {
+        document.getElementById('annotation-form').classList.add('hidden');
+        editingAnnotation = null;
+    }
+
+    function editAnnotation(annotation) {
+        editingAnnotation = annotation;
+        document.getElementById('annotation-form-title').textContent = 'Edit Annotation';
+        document.getElementById('annotation-id').value = annotation.id;
+        document.getElementById('annotation-title').value = annotation.title || '';
+        document.getElementById('annotation-time').value = new Date(annotation.time).toISOString().slice(0, 16);
+        document.getElementById('annotation-time-end').value = annotation.time_end ? new Date(annotation.time_end).toISOString().slice(0, 16) : '';
+        document.getElementById('annotation-text').value = annotation.text;
+        document.getElementById('annotation-tags').value = (annotation.tags || []).join(', ');
+        document.getElementById('annotation-color').value = annotation.color || '#FF6B6B';
+        document.getElementById('annotation-form').classList.remove('hidden');
+        document.getElementById('annotation-form').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    async function saveAnnotation(event) {
+        event.preventDefault();
+
+        const annotationId = document.getElementById('annotation-id').value;
+        const title = document.getElementById('annotation-title').value.trim();
+        const time = document.getElementById('annotation-time').value;
+        const timeEnd = document.getElementById('annotation-time-end').value;
+        const text = document.getElementById('annotation-text').value.trim();
+        const tagsInput = document.getElementById('annotation-tags').value.trim();
+        const color = document.getElementById('annotation-color').value;
+
+        const tags = tagsInput ? tagsInput.split(',').map(t => t.trim()).filter(t => t) : [];
+
+        const annotationData = {
+            dashboard_id: dashboardId,
+            time: new Date(time).toISOString(),
+            time_end: timeEnd ? new Date(timeEnd).toISOString() : null,
+            text: text,
+            title: title || null,
+            tags: tags,
+            color: color
+        };
+
+        try {
+            let response;
+            if (annotationId) {
+                // Update existing annotation
+                response = await fetch(`/api/annotations/${annotationId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(annotationData)
+                });
+            } else {
+                // Create new annotation
+                response = await fetch('/api/annotations', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(annotationData)
+                });
+            }
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            await loadAnnotations();
+            renderAnnotations();
+            hideAnnotationForm();
+
+            // Refresh charts to show new annotation
+            await refreshAllCharts();
+
+        } catch (error) {
+            console.error('Error saving annotation:', error);
+            alert('Failed to save annotation');
+        }
+    }
+
+    async function deleteAnnotation(annotationId) {
+        if (!confirm('Are you sure you want to delete this annotation?')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/annotations/${annotationId}`, {
+                method: 'DELETE'
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            await loadAnnotations();
+            renderAnnotations();
+
+            // Refresh charts to remove annotation
+            await refreshAllCharts();
+
+        } catch (error) {
+            console.error('Error deleting annotation:', error);
+            alert('Failed to delete annotation');
+        }
+    }
+
+    function renderAnnotations() {
+        document.getElementById('annotations-loading').classList.add('hidden');
+
+        if (annotations.length === 0) {
+            document.getElementById('annotations-empty').classList.remove('hidden');
+            document.getElementById('annotations-list').classList.add('hidden');
+            return;
+        }
+
+        document.getElementById('annotations-empty').classList.add('hidden');
+        document.getElementById('annotations-list').classList.remove('hidden');
+
+        const container = document.getElementById('annotations-list');
+        container.innerHTML = '';
+
+        annotations.forEach(annotation => {
+            const card = createAnnotationCard(annotation);
+            container.appendChild(card);
+        });
+    }
+
+    function createAnnotationCard(annotation) {
+        const div = document.createElement('div');
+        div.className = 'bg-gray-700 rounded-lg p-4 border-l-4';
+        div.style.borderLeftColor = annotation.color || '#FF6B6B';
+
+        const time = new Date(annotation.time).toLocaleString();
+        const timeEnd = annotation.time_end ? ` - ${new Date(annotation.time_end).toLocaleString()}` : '';
+
+        const tagsHtml = annotation.tags && annotation.tags.length > 0
+            ? `<div class="flex flex-wrap gap-2 mt-2">
+                ${annotation.tags.map(tag => `<span class="px-2 py-1 bg-gray-600 rounded text-xs">${tag}</span>`).join('')}
+               </div>`
+            : '';
+
+        div.innerHTML = `
+            <div class="flex justify-between items-start mb-2">
+                <div class="flex-1">
+                    ${annotation.title ? `<h4 class="font-bold text-white mb-1">${annotation.title}</h4>` : ''}
+                    <p class="text-gray-300">${annotation.text}</p>
+                </div>
+                <div class="flex gap-2 ml-4">
+                    <button onclick="editAnnotation(${JSON.stringify(annotation).replace(/"/g, '&quot;')})"
+                            class="text-blue-400 hover:text-blue-300 transition">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button onclick="deleteAnnotation('${annotation.id}')"
+                            class="text-red-400 hover:text-red-300 transition">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="text-sm text-gray-400">
+                <i class="fas fa-clock mr-1"></i>
+                ${time}${timeEnd}
+            </div>
+            ${tagsHtml}
+        `;
+
+        return div;
+    }
+
+    // Load annotations on dashboard load
+    document.addEventListener('DOMContentLoaded', async () => {
+        await loadAnnotations();
     });
 
     // Handle window resize
