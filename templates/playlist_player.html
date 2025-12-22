@@ -1,0 +1,336 @@
+{% extends "layout.html" %}
+{% set active_page = 'playlists' %}
+
+{% block title %}Playlist Player{% endblock %}
+
+{% block head %}
+<style>
+    body {
+        overflow: hidden;
+    }
+
+    .player-controls {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: linear-gradient(to top, rgba(0, 0, 0, 0.9), transparent);
+        padding: 20px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 20px;
+        z-index: 1000;
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
+
+    body:hover .player-controls {
+        opacity: 1;
+    }
+
+    .progress-bar {
+        flex: 1;
+        max-width: 600px;
+        height: 4px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 2px;
+        overflow: hidden;
+    }
+
+    .progress-fill {
+        height: 100%;
+        background: #3b82f6;
+        width: 0%;
+        transition: width 0.1s linear;
+    }
+
+    .control-button {
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        color: white;
+        padding: 10px 20px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .control-button:hover {
+        background: rgba(255, 255, 255, 0.2);
+    }
+
+    .control-button.active {
+        background: #3b82f6;
+        border-color: #3b82f6;
+    }
+
+    .dashboard-container {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 80px;
+        overflow: hidden;
+    }
+
+    .dashboard-frame {
+        width: 100%;
+        height: 100%;
+        border: none;
+    }
+
+    .playlist-info {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        background: rgba(0, 0, 0, 0.7);
+        padding: 15px 20px;
+        border-radius: 8px;
+        z-index: 999;
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
+
+    body:hover .playlist-info {
+        opacity: 1;
+    }
+
+    .fade-in {
+        animation: fadeIn 0.5s;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Playlist Info -->
+<div class="playlist-info">
+    <div class="text-white font-semibold" id="playlist-name">Loading...</div>
+    <div class="text-gray-400 text-sm">
+        <span id="current-index">0</span> / <span id="total-dashboards">0</span>
+        <span id="current-dashboard-name" class="ml-2"></span>
+    </div>
+</div>
+
+<!-- Dashboard Container -->
+<div class="dashboard-container">
+    <iframe id="dashboard-frame" class="dashboard-frame fade-in"></iframe>
+</div>
+
+<!-- Player Controls -->
+<div class="player-controls">
+    <button class="control-button" onclick="previousDashboard()" title="Previous">
+        <i class="fas fa-step-backward"></i>
+    </button>
+
+    <button id="play-pause-btn" class="control-button active" onclick="togglePlayPause()" title="Pause">
+        <i class="fas fa-pause"></i>
+    </button>
+
+    <button class="control-button" onclick="nextDashboard()" title="Next">
+        <i class="fas fa-step-forward"></i>
+    </button>
+
+    <div class="progress-bar">
+        <div id="progress-fill" class="progress-fill"></div>
+    </div>
+
+    <div class="text-white text-sm" id="timer">
+        <span id="remaining-time">--</span>s
+    </div>
+
+    <button class="control-button" onclick="exitPlayer()" title="Exit">
+        <i class="fas fa-times"></i>
+    </button>
+</div>
+
+<script>
+const playlistId = '{{ playlist_id }}';
+let playlist = null;
+let dashboards = [];
+let currentIndex = 0;
+let isPlaying = true;
+let interval = 30;
+let remainingTime = 0;
+let timerInterval = null;
+
+// Load playlist on page load
+document.addEventListener('DOMContentLoaded', async () => {
+    await loadPlaylist();
+    if (dashboards.length > 0) {
+        showDashboard(0);
+        startTimer();
+    } else {
+        alert('No dashboards in this playlist');
+        window.close();
+    }
+});
+
+async function loadPlaylist() {
+    try {
+        const response = await fetch(`/api/playlists/${playlistId}`);
+        playlist = await response.json();
+
+        document.getElementById('playlist-name').textContent = playlist.name;
+        document.getElementById('total-dashboards').textContent = playlist.items.length;
+
+        dashboards = playlist.items.sort((a, b) => a.order - b.order);
+        interval = playlist.interval;
+    } catch (error) {
+        console.error('Error loading playlist:', error);
+        alert('Failed to load playlist');
+        window.close();
+    }
+}
+
+function showDashboard(index) {
+    if (index < 0 || index >= dashboards.length) return;
+
+    currentIndex = index;
+    const item = dashboards[currentIndex];
+
+    // Update display
+    document.getElementById('current-index').textContent = currentIndex + 1;
+    document.getElementById('current-dashboard-name').textContent = item.dashboard_name;
+
+    // Load dashboard in iframe with kiosk mode
+    const frame = document.getElementById('dashboard-frame');
+    frame.src = `/dashboard-view/${item.dashboard_id}?kiosk=true`;
+
+    // Add fade-in animation
+    frame.classList.remove('fade-in');
+    void frame.offsetWidth; // Trigger reflow
+    frame.classList.add('fade-in');
+
+    // Use custom interval if set, otherwise use playlist default
+    const displayTime = item.custom_interval || interval;
+    remainingTime = displayTime;
+
+    // Reset timer
+    if (isPlaying) {
+        resetTimer();
+    }
+}
+
+function startTimer() {
+    if (timerInterval) {
+        clearInterval(timerInterval);
+    }
+
+    timerInterval = setInterval(() => {
+        if (isPlaying) {
+            remainingTime--;
+            updateProgress();
+
+            if (remainingTime <= 0) {
+                nextDashboard();
+            }
+        }
+    }, 1000);
+}
+
+function resetTimer() {
+    const displayTime = dashboards[currentIndex]?.custom_interval || interval;
+    remainingTime = displayTime;
+    updateProgress();
+}
+
+function updateProgress() {
+    const displayTime = dashboards[currentIndex]?.custom_interval || interval;
+    const percentage = ((displayTime - remainingTime) / displayTime) * 100;
+
+    document.getElementById('progress-fill').style.width = `${percentage}%`;
+    document.getElementById('remaining-time').textContent = remainingTime;
+}
+
+function togglePlayPause() {
+    isPlaying = !isPlaying;
+
+    const btn = document.getElementById('play-pause-btn');
+    const icon = btn.querySelector('i');
+
+    if (isPlaying) {
+        icon.className = 'fas fa-pause';
+        btn.title = 'Pause';
+        btn.classList.add('active');
+    } else {
+        icon.className = 'fas fa-play';
+        btn.title = 'Play';
+        btn.classList.remove('active');
+    }
+}
+
+function nextDashboard() {
+    let nextIndex = currentIndex + 1;
+
+    if (nextIndex >= dashboards.length) {
+        if (playlist.loop) {
+            nextIndex = 0; // Loop back to start
+        } else {
+            // Playlist finished
+            alert('Playlist finished!');
+            exitPlayer();
+            return;
+        }
+    }
+
+    showDashboard(nextIndex);
+}
+
+function previousDashboard() {
+    let prevIndex = currentIndex - 1;
+
+    if (prevIndex < 0) {
+        if (playlist.loop) {
+            prevIndex = dashboards.length - 1; // Loop to end
+        } else {
+            prevIndex = 0; // Stay at first
+        }
+    }
+
+    showDashboard(prevIndex);
+}
+
+function exitPlayer() {
+    if (confirm('Exit playlist player?')) {
+        window.close();
+        // If window.close() doesn't work (some browsers block it), redirect
+        setTimeout(() => {
+            window.location.href = '/playlists';
+        }, 100);
+    }
+}
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', () => {
+    if (timerInterval) {
+        clearInterval(timerInterval);
+    }
+});
+
+// Keyboard shortcuts
+document.addEventListener('keydown', (e) => {
+    switch(e.key) {
+        case 'ArrowLeft':
+            previousDashboard();
+            break;
+        case 'ArrowRight':
+        case ' ':
+            e.preventDefault();
+            if (e.key === ' ') {
+                togglePlayPause();
+            } else {
+                nextDashboard();
+            }
+            break;
+        case 'Escape':
+            exitPlayer();
+            break;
+    }
+});
+</script>
+{% endblock %}

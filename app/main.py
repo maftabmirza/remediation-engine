@@ -63,7 +63,8 @@ from app.routers import (
     groups_api,  # Group-based RBAC
     runbook_acl_api,  # Runbook ACL - resource level permissions
     snapshots_api,  # Prometheus Dashboard Builder - Snapshots
-    playlists_api  # Prometheus Dashboard Builder - Playlists
+    playlists_api,  # Prometheus Dashboard Builder - Playlists
+    rows_api  # Prometheus Dashboard Builder - Panel Rows
 )
 from app import api_credential_profiles
 from app.services.execution_worker import start_execution_worker, stop_execution_worker
@@ -289,6 +290,7 @@ app.include_router(groups_api.router)        # Group-based RBAC
 app.include_router(runbook_acl_api.router)   # Runbook ACL - resource permissions
 app.include_router(snapshots_api.router)    # Prometheus Dashboard Builder - Snapshots
 app.include_router(playlists_api.router)    # Prometheus Dashboard Builder - Playlists
+app.include_router(rows_api.router)         # Prometheus Dashboard Builder - Panel Rows
 
 
 @app.get("/profile", response_class=HTMLResponse)
@@ -791,6 +793,42 @@ async def dashboards_builder_page(
     return templates.TemplateResponse("dashboards.html", {
         "request": request,
         "user": current_user
+    })
+
+
+@app.get("/playlists", response_class=HTMLResponse)
+async def playlists_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    Playlists management page
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    return templates.TemplateResponse("playlists.html", {
+        "request": request,
+        "user": current_user
+    })
+
+
+@app.get("/playlists/{playlist_id}/play", response_class=HTMLResponse)
+async def playlist_player_page(
+    request: Request,
+    playlist_id: str,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    Playlist player page with auto-rotation
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    return templates.TemplateResponse("playlist_player.html", {
+        "request": request,
+        "user": current_user,
+        "playlist_id": playlist_id
     })
 
 
