@@ -256,6 +256,128 @@
                 </div>
             </div>
 
+            <!-- Advanced Chart Configuration -->
+            <div class="mt-6 border-t border-gray-700 pt-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-white">Chart Configuration</h3>
+                    <button type="button" onclick="toggleChartConfig()" class="text-sm text-blue-400 hover:text-blue-300">
+                        <i id="chart-config-icon" class="fas fa-chevron-down"></i>
+                        <span id="chart-config-text">Show</span>
+                    </button>
+                </div>
+
+                <div id="chart-config-section" class="hidden space-y-4">
+                    <!-- Y-Axis Configuration -->
+                    <div class="bg-gray-800/50 rounded-lg p-4 space-y-3">
+                        <h4 class="text-sm font-medium text-gray-300 mb-3">Y-Axis</h4>
+                        <div class="grid grid-cols-3 gap-3">
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Min Value</label>
+                                <input type="number" id="y-axis-min" step="any" placeholder="Auto"
+                                    class="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Max Value</label>
+                                <input type="number" id="y-axis-max" step="any" placeholder="Auto"
+                                    class="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Label</label>
+                                <input type="text" id="y-axis-label" placeholder="Value"
+                                    class="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Units & Formatting -->
+                    <div class="bg-gray-800/50 rounded-lg p-4 space-y-3">
+                        <h4 class="text-sm font-medium text-gray-300 mb-3">Units & Formatting</h4>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Unit Format</label>
+                                <select id="unit-format"
+                                    class="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500">
+                                    <option value="">None (Number)</option>
+                                    <option value="percent">Percent (%)</option>
+                                    <option value="bytes">Bytes (B, KB, MB, GB)</option>
+                                    <option value="seconds">Time (s, m, h, d)</option>
+                                    <option value="milliseconds">Milliseconds (ms)</option>
+                                    <option value="requests">Requests/sec</option>
+                                    <option value="ops">Ops/sec</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Decimals</label>
+                                <input type="number" id="decimals" min="0" max="5" value="2"
+                                    class="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Color Scheme -->
+                    <div class="bg-gray-800/50 rounded-lg p-4 space-y-3">
+                        <h4 class="text-sm font-medium text-gray-300 mb-3">Colors</h4>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Color Scheme</label>
+                                <select id="color-scheme"
+                                    class="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500">
+                                    <option value="default">Default (Blue)</option>
+                                    <option value="green">Green</option>
+                                    <option value="red">Red</option>
+                                    <option value="purple">Purple</option>
+                                    <option value="rainbow">Rainbow (Multi-color)</option>
+                                    <option value="cool">Cool (Blue-Green)</option>
+                                    <option value="warm">Warm (Orange-Red)</option>
+                                </select>
+                            </div>
+                            <div class="flex items-end">
+                                <label class="flex items-center text-gray-300 text-sm">
+                                    <input type="checkbox" id="use-gradient" class="mr-2">
+                                    Use Gradient Fill
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Thresholds -->
+                    <div class="bg-gray-800/50 rounded-lg p-4 space-y-3">
+                        <div class="flex items-center justify-between mb-3">
+                            <h4 class="text-sm font-medium text-gray-300">Thresholds</h4>
+                            <button type="button" onclick="addThreshold()" class="text-xs text-green-400 hover:text-green-300">
+                                <i class="fas fa-plus mr-1"></i>Add Threshold
+                            </button>
+                        </div>
+                        <div id="thresholds-container" class="space-y-2">
+                            <!-- Thresholds will be added here dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Legend -->
+                    <div class="bg-gray-800/50 rounded-lg p-4 space-y-3">
+                        <h4 class="text-sm font-medium text-gray-300 mb-3">Legend</h4>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Position</label>
+                                <select id="legend-position"
+                                    class="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500">
+                                    <option value="bottom">Bottom</option>
+                                    <option value="top">Top</option>
+                                    <option value="left">Left</option>
+                                    <option value="right">Right</option>
+                                </select>
+                            </div>
+                            <div class="flex items-end">
+                                <label class="flex items-center text-gray-300 text-sm">
+                                    <input type="checkbox" id="show-legend" checked class="mr-2">
+                                    Show Legend
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="flex justify-end gap-2 mt-6">
                 <button type="button" onclick="closeModal()"
                     class="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded text-white">
@@ -281,6 +403,7 @@
     let datasources = [];
     let filteredPanels = [];
     let queryEditor = null;  // CodeMirror instance
+    let thresholdCounter = 0;  // Counter for threshold IDs
 
     async function loadDatasources() {
         try {
@@ -472,6 +595,46 @@
             });
         }
         queryEditor.setValue(panel.promql_query || '');
+
+        // Load visualization config
+        const config = panel.visualization_config || {};
+        document.getElementById('y-axis-min').value = config.axis?.y_min || '';
+        document.getElementById('y-axis-max').value = config.axis?.y_max || '';
+        document.getElementById('y-axis-label').value = config.axis?.y_label || '';
+        document.getElementById('unit-format').value = config.units || '';
+        document.getElementById('decimals').value = config.decimals || 2;
+        document.getElementById('color-scheme').value = config.color_scheme || 'default';
+        document.getElementById('use-gradient').checked = config.gradient || false;
+        document.getElementById('legend-position').value = config.legend?.position || 'bottom';
+        document.getElementById('show-legend').checked = config.legend?.show !== false;
+
+        // Load thresholds
+        const thresholdsContainer = document.getElementById('thresholds-container');
+        thresholdsContainer.innerHTML = '';
+        thresholdCounter = 0;
+        if (config.thresholds && config.thresholds.length > 0) {
+            config.thresholds.forEach(threshold => {
+                const thresholdId = `threshold-${thresholdCounter++}`;
+                const thresholdHtml = `
+                    <div id="${thresholdId}" class="flex items-center gap-2 bg-gray-700/50 p-2 rounded">
+                        <input type="number" step="any" placeholder="Value" value="${threshold.value}"
+                            class="flex-1 bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm text-white threshold-value"
+                            data-threshold-id="${thresholdId}">
+                        <input type="text" placeholder="Label" value="${threshold.label || ''}"
+                            class="flex-1 bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm text-white threshold-label"
+                            data-threshold-id="${thresholdId}">
+                        <input type="color" value="${threshold.color || '#fac858'}"
+                            class="w-12 h-8 bg-gray-700 border border-gray-600 rounded cursor-pointer threshold-color"
+                            data-threshold-id="${thresholdId}">
+                        <button type="button" onclick="removeThreshold('${thresholdId}')"
+                            class="text-red-400 hover:text-red-300 px-2">
+                            <i class="fas fa-trash text-sm"></i>
+                        </button>
+                    </div>
+                `;
+                thresholdsContainer.insertAdjacentHTML('beforeend', thresholdHtml);
+            });
+        }
     }
 
     function closeModal() {
@@ -540,7 +703,8 @@
             panel_type: document.getElementById('panel-type').value,
             is_template: document.getElementById('panel-is-template').checked,
             is_public: document.getElementById('panel-is-public').checked,
-            tags: tags.length > 0 ? tags : null
+            tags: tags.length > 0 ? tags : null,
+            visualization_config: collectChartConfig()  // Add chart configuration
         };
 
         try {
@@ -588,6 +752,109 @@
             console.error('Failed to delete panel:', error);
             showToast('Failed to delete panel', 'error');
         }
+    }
+
+    // Chart Configuration Functions
+    function toggleChartConfig() {
+        const section = document.getElementById('chart-config-section');
+        const icon = document.getElementById('chart-config-icon');
+        const text = document.getElementById('chart-config-text');
+
+        if (section.classList.contains('hidden')) {
+            section.classList.remove('hidden');
+            icon.classList.remove('fa-chevron-down');
+            icon.classList.add('fa-chevron-up');
+            text.textContent = 'Hide';
+        } else {
+            section.classList.add('hidden');
+            icon.classList.remove('fa-chevron-up');
+            icon.classList.add('fa-chevron-down');
+            text.textContent = 'Show';
+        }
+    }
+
+    function addThreshold() {
+        const container = document.getElementById('thresholds-container');
+        const thresholdId = `threshold-${thresholdCounter++}`;
+
+        const thresholdHtml = `
+            <div id="${thresholdId}" class="flex items-center gap-2 bg-gray-700/50 p-2 rounded">
+                <input type="number" step="any" placeholder="Value"
+                    class="flex-1 bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm text-white threshold-value"
+                    data-threshold-id="${thresholdId}">
+                <input type="text" placeholder="Label (e.g., Warning)"
+                    class="flex-1 bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm text-white threshold-label"
+                    data-threshold-id="${thresholdId}">
+                <input type="color" value="#fac858"
+                    class="w-12 h-8 bg-gray-700 border border-gray-600 rounded cursor-pointer threshold-color"
+                    data-threshold-id="${thresholdId}">
+                <button type="button" onclick="removeThreshold('${thresholdId}')"
+                    class="text-red-400 hover:text-red-300 px-2">
+                    <i class="fas fa-trash text-sm"></i>
+                </button>
+            </div>
+        `;
+
+        container.insertAdjacentHTML('beforeend', thresholdHtml);
+    }
+
+    function removeThreshold(thresholdId) {
+        const element = document.getElementById(thresholdId);
+        if (element) {
+            element.remove();
+        }
+    }
+
+    function collectChartConfig() {
+        // Collect Y-axis configuration
+        const yAxisMin = document.getElementById('y-axis-min').value;
+        const yAxisMax = document.getElementById('y-axis-max').value;
+        const yAxisLabel = document.getElementById('y-axis-label').value;
+
+        // Collect units and formatting
+        const unitFormat = document.getElementById('unit-format').value;
+        const decimals = parseInt(document.getElementById('decimals').value) || 2;
+
+        // Collect color scheme
+        const colorScheme = document.getElementById('color-scheme').value;
+        const useGradient = document.getElementById('use-gradient').checked;
+
+        // Collect thresholds
+        const thresholds = [];
+        document.querySelectorAll('.threshold-value').forEach(input => {
+            const thresholdId = input.getAttribute('data-threshold-id');
+            const value = parseFloat(input.value);
+            const label = document.querySelector(`.threshold-label[data-threshold-id="${thresholdId}"]`).value;
+            const color = document.querySelector(`.threshold-color[data-threshold-id="${thresholdId}"]`).value;
+
+            if (!isNaN(value)) {
+                thresholds.push({ value, label, color });
+            }
+        });
+
+        // Collect legend options
+        const legendPosition = document.getElementById('legend-position').value;
+        const showLegend = document.getElementById('show-legend').checked;
+
+        // Build visualization_config object
+        const config = {
+            axis: {
+                y_min: yAxisMin ? parseFloat(yAxisMin) : null,
+                y_max: yAxisMax ? parseFloat(yAxisMax) : null,
+                y_label: yAxisLabel || null
+            },
+            units: unitFormat || null,
+            decimals: decimals,
+            color_scheme: colorScheme,
+            gradient: useGradient,
+            thresholds: thresholds.length > 0 ? thresholds : null,
+            legend: {
+                show: showLegend,
+                position: legendPosition
+            }
+        };
+
+        return config;
     }
 
     function escapeHtml(text) {

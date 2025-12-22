@@ -323,11 +323,11 @@
 
         for (const panelItem of panels) {
             const panelId = panelItem.panel_id || panelItem.id;
-            await loadPanelData(panelId, timeRange);
+            await loadPanelData(panelId, timeRange, panelItem);
         }
     }
 
-    async function loadPanelData(panelId, timeRange) {
+    async function loadPanelData(panelId, timeRange, panelItem) {
         const chartContainer = document.getElementById(`chart-${panelId}`);
         const statusEl = document.getElementById(`panel-status-${panelId}`);
 
@@ -349,7 +349,7 @@
             const result = await response.json();
 
             // Render chart based on panel type
-            renderChart(panelId, result.data, chartContainer);
+            renderChart(panelId, result.data, chartContainer, panelItem);
 
             // Update status
             if (statusEl) {
@@ -378,7 +378,61 @@
         }
     }
 
-    function renderChart(panelId, data, container) {
+    // Unit Formatting Helper
+    function formatUnit(value, unit, decimals = 2) {
+        if (value === null || value === undefined) return '-';
+
+        const num = parseFloat(value);
+        if (isNaN(num)) return value;
+
+        switch (unit) {
+            case 'percent':
+                return `${num.toFixed(decimals)}%`;
+
+            case 'bytes':
+                const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+                if (num === 0) return '0 B';
+                const i = Math.floor(Math.log(num) / Math.log(1024));
+                return `${(num / Math.pow(1024, i)).toFixed(decimals)} ${sizes[i]}`;
+
+            case 'seconds':
+                if (num < 60) return `${num.toFixed(decimals)}s`;
+                if (num < 3600) return `${(num / 60).toFixed(decimals)}m`;
+                if (num < 86400) return `${(num / 3600).toFixed(decimals)}h`;
+                return `${(num / 86400).toFixed(decimals)}d`;
+
+            case 'milliseconds':
+                return `${num.toFixed(decimals)}ms`;
+
+            case 'requests':
+                return `${num.toFixed(decimals)} req/s`;
+
+            case 'ops':
+                return `${num.toFixed(decimals)} ops/s`;
+
+            default:
+                return num.toFixed(decimals);
+        }
+    }
+
+    // Color Scheme Maps
+    const colorSchemes = {
+        'default': ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3ba272'],
+        'green': ['#10b981', '#059669', '#047857', '#065f46', '#064e3b'],
+        'red': ['#ef4444', '#dc2626', '#b91c1c', '#991b1b', '#7f1d1d'],
+        'purple': ['#8b5cf6', '#7c3aed', '#6d28d9', '#5b21b6', '#4c1d95'],
+        'rainbow': ['#ef4444', '#f97316', '#eab308', '#10b981', '#3b82f6', '#8b5cf6'],
+        'cool': ['#06b6d4', '#0891b2', '#0e7490', '#155e75', '#164e63'],
+        'warm': ['#f97316', '#ea580c', '#c2410c', '#9a3412', '#7c2d12']
+    };
+
+    function getColors(scheme, count) {
+        const colors = colorSchemes[scheme] || colorSchemes['default'];
+        // Repeat colors if needed
+        return Array.from({ length: count }, (_, i) => colors[i % colors.length]);
+    }
+
+    function renderChart(panelId, data, container, panelItem = {}) {
         // Clear container if it has spinner
         if (container.querySelector('.fa-spinner')) {
             container.innerHTML = '';
@@ -390,6 +444,14 @@
         }
         const chart = charts[panelId];
 
+        // Get visualization config
+        const config = panelItem.visualization_config || {};
+        const colorScheme = config.color_scheme || 'default';
+        const colors = getColors(colorScheme, data.length);
+        const useGradient = config.gradient || false;
+        const decimals = config.decimals !== undefined ? config.decimals : 2;
+        const unit = config.units || '';
+
         // Build series from Prometheus data
         const series = data.map((s, idx) => {
             const name = formatLegend(null, s.metric) || `Series ${idx + 1}`;
@@ -398,49 +460,166 @@
                 parseFloat(v[1])
             ]);
 
-            return {
+            const seriesConfig = {
                 name: name,
-                type: 'line',  // Default to line chart
+                type: 'line',
                 data: values,
                 smooth: true,
                 showSymbol: false,
-                lineStyle: { width: 2 },
-                areaStyle: { opacity: 0.1 }  // Default area style
+                lineStyle: {
+                    width: 2,
+                    color: colors[idx]
+                },
+                itemStyle: {
+                    color: colors[idx]
+                }
             };
+
+            // Add gradient fill if enabled
+            if (useGradient) {
+                seriesConfig.areaStyle = {
+                    opacity: 0.3,
+                    color: {
+                        type: 'linear',
+                        x: 0,
+                        y: 0,
+                        x2: 0,
+                        y2: 1,
+                        colorStops: [
+                            { offset: 0, color: colors[idx] },
+                            { offset: 1, color: 'transparent' }
+                        ]
+                    }
+                };
+            } else {
+                seriesConfig.areaStyle = { opacity: 0.1 };
+            }
+
+            return seriesConfig;
         });
+
+        // Y-Axis configuration
+        const yAxisConfig = {
+            type: 'value',
+            axisLine: { lineStyle: { color: '#444' } },
+            axisLabel: {
+                color: '#888',
+                formatter: (value) => formatUnit(value, unit, decimals)
+            },
+            splitLine: { lineStyle: { color: '#333' } }
+        };
+
+        // Apply custom Y-axis settings from config
+        if (config.axis) {
+            if (config.axis.y_min !== null && config.axis.y_min !== undefined) {
+                yAxisConfig.min = config.axis.y_min;
+            }
+            if (config.axis.y_max !== null && config.axis.y_max !== undefined) {
+                yAxisConfig.max = config.axis.y_max;
+            }
+            if (config.axis.y_label) {
+                yAxisConfig.name = config.axis.y_label;
+                yAxisConfig.nameTextStyle = { color: '#888' };
+            }
+        }
+
+        // Legend configuration
+        const legendConfig = {
+            data: series.map(s => s.name),
+            textStyle: { color: '#888' },
+            type: 'scroll'
+        };
+
+        if (config.legend) {
+            legendConfig.show = config.legend.show !== false;
+            const position = config.legend.position || 'bottom';
+            switch (position) {
+                case 'top':
+                    legendConfig.top = 0;
+                    legendConfig.left = 'center';
+                    break;
+                case 'bottom':
+                    legendConfig.bottom = 0;
+                    legendConfig.left = 'center';
+                    break;
+                case 'left':
+                    legendConfig.left = 0;
+                    legendConfig.top = 'middle';
+                    legendConfig.orient = 'vertical';
+                    break;
+                case 'right':
+                    legendConfig.right = 0;
+                    legendConfig.top = 'middle';
+                    legendConfig.orient = 'vertical';
+                    break;
+            }
+        }
+
+        // Tooltip configuration
+        const tooltipConfig = {
+            trigger: 'axis',
+            backgroundColor: 'rgba(30, 30, 30, 0.9)',
+            borderColor: '#444',
+            textStyle: { color: '#fff' },
+            formatter: (params) => {
+                let result = `<div style="font-size: 12px;">${new Date(params[0].value[0]).toLocaleString()}</div>`;
+                params.forEach(param => {
+                    const value = formatUnit(param.value[1], unit, decimals);
+                    result += `<div style="margin-top: 4px;">
+                        <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${param.color};margin-right:5px;"></span>
+                        ${param.seriesName}: <strong>${value}</strong>
+                    </div>`;
+                });
+                return result;
+            }
+        };
+
+        // Build threshold mark lines
+        const markLines = [];
+        if (config.thresholds && config.thresholds.length > 0) {
+            config.thresholds.forEach(threshold => {
+                markLines.push({
+                    yAxis: threshold.value,
+                    lineStyle: {
+                        color: threshold.color || '#fac858',
+                        type: 'dashed',
+                        width: 2
+                    },
+                    label: {
+                        formatter: threshold.label || `${threshold.value}`,
+                        position: 'end',
+                        color: threshold.color || '#fac858'
+                    }
+                });
+            });
+
+            // Add mark lines to first series
+            if (series.length > 0) {
+                series[0].markLine = {
+                    silent: true,
+                    data: markLines
+                };
+            }
+        }
 
         const option = {
             backgroundColor: 'transparent',
+            color: colors,
             grid: {
-                left: 50,
+                left: 60,
                 right: 20,
-                top: 30,
-                bottom: 30
+                top: legendConfig.top === 0 ? 40 : 30,
+                bottom: legendConfig.bottom === 0 ? 40 : 30
             },
-            tooltip: {
-                trigger: 'axis',
-                backgroundColor: 'rgba(30, 30, 30, 0.9)',
-                borderColor: '#444',
-                textStyle: { color: '#fff' }
-            },
-            legend: {
-                data: series.map(s => s.name),
-                textStyle: { color: '#888' },
-                type: 'scroll',
-                top: 0
-            },
+            tooltip: tooltipConfig,
+            legend: legendConfig,
             xAxis: {
                 type: 'time',
                 axisLine: { lineStyle: { color: '#444' } },
                 axisLabel: { color: '#888' },
                 splitLine: { show: false }
             },
-            yAxis: {
-                type: 'value',
-                axisLine: { lineStyle: { color: '#444' } },
-                axisLabel: { color: '#888' },
-                splitLine: { lineStyle: { color: '#333' } }
-            },
+            yAxis: yAxisConfig,
             series: series
         };
 
