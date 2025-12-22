@@ -146,6 +146,10 @@
                 <i class="fas fa-bookmark mr-2"></i>
                 Annotations
             </button>
+            <button onclick="showRowsModal()" class="btn-secondary px-4 py-2 rounded-lg text-sm">
+                <i class="fas fa-bars mr-2"></i>
+                Rows
+            </button>
             <button onclick="exportDashboard()" class="btn-secondary px-4 py-2 rounded-lg text-sm">
                 <i class="fas fa-download mr-2"></i>
                 Export
@@ -1082,6 +1086,11 @@
                 });
             });
         }
+    }
+
+    // Wrapper function for reloading panels (called by row management)
+    async function loadDashboardPanels() {
+        await loadDashboard();
     }
 
     function renderPanels() {
@@ -3204,6 +3213,180 @@ ${Object.entries(alert.annotations).map(([k, v]) => `  ${k}: ${v}`).join('\n')}`
         }
     }
 
+    // ==== Panel Rows Management ====
+    let dashboardRows = [];
+
+    async function loadRows() {
+        try {
+            document.getElementById('rows-loading').classList.remove('hidden');
+            document.getElementById('rows-list').classList.add('hidden');
+            document.getElementById('rows-empty').classList.add('hidden');
+
+            const response = await fetch(`/api/dashboards/${dashboardId}/rows`);
+            dashboardRows = await response.json();
+            renderRows();
+        } catch (error) {
+            console.error('Error loading rows:', error);
+            document.getElementById('rows-loading').classList.add('hidden');
+            document.getElementById('rows-empty').classList.remove('hidden');
+        }
+    }
+
+    function renderRows() {
+        const container = document.getElementById('rows-list');
+        const empty = document.getElementById('rows-empty');
+        const loading = document.getElementById('rows-loading');
+
+        loading.classList.add('hidden');
+
+        if (dashboardRows.length === 0) {
+            container.classList.add('hidden');
+            empty.classList.remove('hidden');
+            return;
+        }
+
+        container.classList.remove('hidden');
+        empty.classList.add('hidden');
+
+        // Sort by order
+        dashboardRows.sort((a, b) => a.order - b.order);
+
+        container.innerHTML = dashboardRows.map(row => `
+            <div class="bg-gray-700 rounded-lg p-4 border-l-4 ${row.is_collapsed ? 'border-gray-500' : 'border-indigo-500'}">
+                <div class="flex items-start justify-between">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2">
+                            <i class="fas fa-grip-vertical text-gray-500"></i>
+                            <h4 class="font-bold text-white">${row.title}</h4>
+                            ${row.is_collapsed ? '<span class="text-xs bg-gray-600 px-2 py-1 rounded">Collapsed</span>' : ''}
+                        </div>
+                        ${row.description ? `<p class="text-gray-400 text-sm mt-1 ml-6">${row.description}</p>` : ''}
+                        <p class="text-gray-500 text-xs mt-1 ml-6">Order: ${row.order}</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="editRow('${row.id}')"
+                            class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm"
+                            title="Edit">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button onclick="deleteRow('${row.id}')"
+                            class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm"
+                            title="Delete">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function showRowsModal() {
+        document.getElementById('rows-modal').classList.remove('hidden');
+        loadRows();
+    }
+
+    function hideRowsModal() {
+        document.getElementById('rows-modal').classList.add('hidden');
+        hideRowForm();
+    }
+
+    function showCreateRowForm() {
+        document.getElementById('row-form-title').textContent = 'Create New Row';
+        document.getElementById('row-form').classList.remove('hidden');
+        document.getElementById('row-id').value = '';
+        document.getElementById('row-title').value = '';
+        document.getElementById('row-description').value = '';
+        document.getElementById('row-order').value = dashboardRows.length;
+        document.getElementById('row-collapsed').checked = false;
+        document.getElementById('row-title').focus();
+    }
+
+    function hideRowForm() {
+        document.getElementById('row-form').classList.add('hidden');
+    }
+
+    async function saveRow(event) {
+        event.preventDefault();
+
+        const rowId = document.getElementById('row-id').value;
+        const data = {
+            title: document.getElementById('row-title').value,
+            description: document.getElementById('row-description').value || null,
+            order: parseInt(document.getElementById('row-order').value),
+            is_collapsed: document.getElementById('row-collapsed').checked
+        };
+
+        try {
+            let response;
+            if (rowId) {
+                // Update existing row
+                response = await fetch(`/api/dashboards/${dashboardId}/rows/${rowId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+            } else {
+                // Create new row
+                response = await fetch(`/api/dashboards/${dashboardId}/rows`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+            }
+
+            if (response.ok) {
+                hideRowForm();
+                await loadRows();
+                await loadDashboardPanels(); // Reload panels to reflect row changes
+            } else {
+                const error = await response.json();
+                alert(`Error: ${error.detail || 'Failed to save row'}`);
+            }
+        } catch (error) {
+            console.error('Error saving row:', error);
+            alert('Failed to save row');
+        }
+    }
+
+    async function editRow(rowId) {
+        try {
+            const response = await fetch(`/api/dashboards/${dashboardId}/rows/${rowId}`);
+            const row = await response.json();
+
+            document.getElementById('row-form-title').textContent = 'Edit Row';
+            document.getElementById('row-id').value = row.id;
+            document.getElementById('row-title').value = row.title;
+            document.getElementById('row-description').value = row.description || '';
+            document.getElementById('row-order').value = row.order;
+            document.getElementById('row-collapsed').checked = row.is_collapsed;
+            document.getElementById('row-form').classList.remove('hidden');
+            document.getElementById('row-title').focus();
+        } catch (error) {
+            console.error('Error loading row:', error);
+            alert('Failed to load row');
+        }
+    }
+
+    async function deleteRow(rowId) {
+        if (!confirm('Delete this row? Panels in this row will be unassigned.')) return;
+
+        try {
+            const response = await fetch(`/api/dashboards/${dashboardId}/rows/${rowId}`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                await loadRows();
+                await loadDashboardPanels(); // Reload panels to reflect changes
+            } else {
+                alert('Failed to delete row');
+            }
+        } catch (error) {
+            console.error('Error deleting row:', error);
+            alert('Failed to delete row');
+        }
+    }
+
     // Cleanup on page unload
     window.addEventListener('beforeunload', () => {
         if (refreshInterval) {
@@ -3285,3 +3468,91 @@ ${Object.entries(alert.annotations).map(([k, v]) => `  ${k}: ${v}`).join('\n')}`
     </div>
 </div>
 
+
+<!-- Rows Management Modal -->
+<div id="rows-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-gray-800 rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto m-4">
+        <div class="sticky top-0 bg-gray-800 border-b border-gray-700 p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold flex items-center gap-3">
+                    <i class="fas fa-bars text-indigo-400"></i>
+                    Panel Rows
+                </h2>
+                <button onclick="hideRowsModal()" class="text-gray-400 hover:text-white transition">
+                    <i class="fas fa-times text-2xl"></i>
+                </button>
+            </div>
+            <p class="text-gray-400 text-sm mb-4">Organize panels into collapsible row groups</p>
+            <button onclick="showCreateRowForm()" class="btn-primary px-4 py-2 rounded-lg text-sm">
+                <i class="fas fa-plus mr-2"></i>
+                Create Row
+            </button>
+        </div>
+
+        <div class="p-6">
+            <!-- Create/Edit Row Form -->
+            <div id="row-form" class="hidden mb-6 bg-gray-700 rounded-lg p-6">
+                <h3 class="text-lg font-bold mb-4" id="row-form-title">Create New Row</h3>
+                <form onsubmit="saveRow(event)">
+                    <input type="hidden" id="row-id" value="">
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Row Title *</label>
+                        <input type="text" id="row-title" required 
+                            class="w-full bg-gray-600 border border-gray-500 rounded px-3 py-2 text-white" 
+                            placeholder="e.g., System Metrics">
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Description</label>
+                        <textarea id="row-description" rows="2"
+                            class="w-full bg-gray-600 border border-gray-500 rounded px-3 py-2 text-white"
+                            placeholder="Optional description"></textarea>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Order</label>
+                        <input type="number" id="row-order" value="0" min="0"
+                            class="w-full bg-gray-600 border border-gray-500 rounded px-3 py-2 text-white">
+                        <p class="text-xs text-gray-500 mt-1">Lower numbers appear first</p>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="flex items-center text-gray-300">
+                            <input type="checkbox" id="row-collapsed" class="mr-2">
+                            Start collapsed
+                        </label>
+                    </div>
+                    
+                    <div class="flex gap-2">
+                        <button type="submit" class="btn-primary px-4 py-2 rounded-lg">
+                            <i class="fas fa-save mr-2"></i>
+                            Save Row
+                        </button>
+                        <button type="button" onclick="hideRowForm()" class="btn-secondary px-4 py-2 rounded-lg">
+                            Cancel
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Rows List -->
+            <div id="rows-list" class="space-y-3">
+                <!-- Rows will be rendered here -->
+            </div>
+
+            <!-- Empty State -->
+            <div id="rows-empty" class="hidden p-8 text-center">
+                <i class="fas fa-bars text-4xl text-gray-600 mb-3"></i>
+                <p class="text-gray-400">No rows yet</p>
+                <p class="text-gray-500 text-sm mt-2">Create rows to organize your panels</p>
+            </div>
+
+            <!-- Loading State -->
+            <div id="rows-loading" class="hidden p-8 text-center">
+                <i class="fas fa-spinner fa-spin text-3xl text-indigo-400 mb-3"></i>
+                <p class="text-gray-400">Loading rows...</p>
+            </div>
+        </div>
+    </div>
+</div>
