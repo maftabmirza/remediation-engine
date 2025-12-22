@@ -174,6 +174,7 @@ class DashboardPanel(Base):
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     dashboard_id = Column(String(36), ForeignKey("dashboards.id"), nullable=False)
     panel_id = Column(String(36), ForeignKey("prometheus_panels.id"), nullable=False)
+    row_id = Column(String(36), ForeignKey("panel_rows.id"), nullable=True)  # Optional row grouping
 
     # Grid position (0-indexed)
     grid_x = Column(Integer, default=0)
@@ -328,3 +329,124 @@ class DashboardLink(Base):
 
     def __repr__(self):
         return f"<DashboardLink {self.title}>"
+
+
+class DashboardSnapshot(Base):
+    """
+    Dashboard snapshots for sharing
+
+    Captures a point-in-time frozen copy of a dashboard that can be
+    shared publicly without requiring authentication.
+    """
+    __tablename__ = "dashboard_snapshots"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    dashboard_id = Column(String(36), ForeignKey("dashboards.id"), nullable=False)
+
+    # Snapshot metadata
+    name = Column(String(255), nullable=False)
+    key = Column(String(64), unique=True, nullable=False, index=True)  # Random shareable key
+
+    # Frozen dashboard data (complete JSON snapshot)
+    snapshot_data = Column(JSON, nullable=False)
+
+    # Access control
+    is_public = Column(Boolean, default=True)
+    expires_at = Column(DateTime, nullable=True)  # Null = never expires
+
+    # Metadata
+    created_at = Column(DateTime, default=func.now())
+    created_by = Column(String(255), nullable=True)
+
+    # Relationships
+    dashboard = relationship("Dashboard", backref="snapshots")
+
+    def __repr__(self):
+        return f"<DashboardSnapshot {self.name}>"
+
+
+class Playlist(Base):
+    """
+    Dashboard playlists for auto-rotation
+
+    Groups multiple dashboards that can be displayed in sequence
+    with automatic rotation for monitoring walls and displays.
+    """
+    __tablename__ = "playlists"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Playlist information
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+
+    # Playback settings
+    interval = Column(Integer, default=30)  # Default display time per dashboard (seconds)
+    loop = Column(Boolean, default=True)  # Loop continuously or stop after one cycle
+
+    # Metadata
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+    created_by = Column(String(255), nullable=True)
+
+    # Relationships
+    items = relationship("PlaylistItem", back_populates="playlist", cascade="all, delete-orphan", order_by="PlaylistItem.order")
+
+    def __repr__(self):
+        return f"<Playlist {self.name}>"
+
+
+class PlaylistItem(Base):
+    """
+    Individual dashboard in a playlist
+
+    Links dashboards to playlists with display order and optional
+    custom interval override.
+    """
+    __tablename__ = "playlist_items"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    playlist_id = Column(String(36), ForeignKey("playlists.id"), nullable=False)
+    dashboard_id = Column(String(36), ForeignKey("dashboards.id"), nullable=False)
+
+    # Display settings
+    order = Column(Integer, default=0)  # Display order in playlist
+    custom_interval = Column(Integer, nullable=True)  # Override default interval
+
+    # Relationships
+    playlist = relationship("Playlist", back_populates="items")
+    dashboard = relationship("Dashboard")
+
+    def __repr__(self):
+        return f"<PlaylistItem playlist={self.playlist_id} dashboard={self.dashboard_id}>"
+
+
+class PanelRow(Base):
+    """
+    Collapsible row container for panels
+
+    Groups related panels together in a collapsible row for better
+    dashboard organization.
+    """
+    __tablename__ = "panel_rows"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    dashboard_id = Column(String(36), ForeignKey("dashboards.id"), nullable=False)
+
+    # Row information
+    title = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+
+    # Display
+    order = Column(Integer, default=0)
+    is_collapsed = Column(Boolean, default=False)
+
+    # Metadata
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    # Relationships
+    dashboard = relationship("Dashboard", backref="rows")
+
+    def __repr__(self):
+        return f"<PanelRow {self.title}>"

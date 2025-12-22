@@ -61,7 +61,9 @@ from app.routers import (
     alerts_api,  # Prometheus Dashboard Builder - Alerts Integration
     annotations_api,  # Prometheus Dashboard Builder - Annotations
     groups_api,  # Group-based RBAC
-    runbook_acl_api  # Runbook ACL - resource level permissions
+    runbook_acl_api,  # Runbook ACL - resource level permissions
+    snapshots_api,  # Prometheus Dashboard Builder - Snapshots
+    playlists_api  # Prometheus Dashboard Builder - Playlists
 )
 from app import api_credential_profiles
 from app.services.execution_worker import start_execution_worker, stop_execution_worker
@@ -285,6 +287,8 @@ app.include_router(alerts_api.router)       # Prometheus Dashboard Builder - Ale
 app.include_router(annotations_api.router)  # Prometheus Dashboard Builder - Annotations
 app.include_router(groups_api.router)        # Group-based RBAC
 app.include_router(runbook_acl_api.router)   # Runbook ACL - resource permissions
+app.include_router(snapshots_api.router)    # Prometheus Dashboard Builder - Snapshots
+app.include_router(playlists_api.router)    # Prometheus Dashboard Builder - Playlists
 
 
 @app.get("/profile", response_class=HTMLResponse)
