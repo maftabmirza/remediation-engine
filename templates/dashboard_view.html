@@ -701,11 +701,14 @@
             // Create select element
             const select = document.createElement('select');
             select.id = `var-${variable.name}`;
-            select.className = 'bg-gray-700 border border-gray-600 rounded px-3 py-1.5 text-sm min-w-[150px]';
-            select.multiple = variable.multi_select;
+            select.className = 'bg-gray-700 border border-gray-600 rounded px-3 py-1.5 text-sm min-w-[150px] cursor-pointer';
 
+
+            // Only set multiple attribute for multi-select variables
+            // But don't set size - let it be a regular dropdown
             if (variable.multi_select) {
-                select.size = Math.min(variable.options?.length || 3, 5);
+                // Mark as multi-select but don't expand it
+                select.setAttribute('data-multiselect', 'true');
             }
 
             // Populate options
