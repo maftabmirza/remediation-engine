@@ -450,3 +450,42 @@ class PanelRow(Base):
 
     def __repr__(self):
         return f"<PanelRow {self.title}>"
+
+
+class QueryHistory(Base):
+    """
+    Query History tracking
+    
+    Tracks executed PromQL queries for replay and analysis.
+    """
+    __tablename__ = "query_history"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    
+    # Query information
+    query = Column(Text, nullable=False)
+    datasource_id = Column(String(36), ForeignKey("prometheus_datasources.id"), nullable=True)
+    dashboard_id = Column(String(36), ForeignKey("dashboards.id"), nullable=True)
+    panel_id = Column(String(36), ForeignKey("prometheus_panels.id"), nullable=True)
+    
+    # Execution details
+    time_range = Column(String(50), nullable=True)
+    execution_time_ms = Column(Integer, nullable=True)
+    series_count = Column(Integer, nullable=True)
+    status = Column(String(20), default="success")  # success, error
+    error_message = Column(Text, nullable=True)
+    
+    # User tracking
+    executed_by = Column(String(255), nullable=True)
+    is_favorite = Column(Boolean, default=False)
+    
+    # Metadata
+    executed_at = Column(DateTime, default=func.now(), index=True)
+    
+    # Relationships
+    datasource = relationship("PrometheusDatasource")
+    dashboard = relationship("Dashboard")
+    panel = relationship("PrometheusPanel")
+    
+    def __repr__(self):
+        return f"<QueryHistory {self.query[:50]}... at {self.executed_at}>"

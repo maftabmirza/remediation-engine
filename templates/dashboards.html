@@ -49,6 +49,30 @@
         background-color: rgba(59, 130, 246, 0.2);
         border-color: #3b82f6;
     }
+
+    .tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 8px;
+        background-color: #4b5563;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        color: #e5e7eb;
+    }
+
+    .tag button {
+        background: none;
+        border: none;
+        color: #9ca3af;
+        cursor: pointer;
+        padding: 0;
+        margin-left: 4px;
+    }
+
+    .tag button:hover {
+        color: #ef4444;
+    }
 </style>
 {% endblock %}
 
@@ -70,13 +94,23 @@
     </div>
 
     <!-- Filters -->
-    <div class="bg-gray-800 rounded-lg p-4 mb-6 flex gap-4">
-        <input type="text" id="search-dashboards" placeholder="Search dashboards..." onkeyup="filterDashboards()"
-            class="flex-1 bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
-        <label class="flex items-center text-gray-300">
-            <input type="checkbox" id="favorites-only" onchange="filterDashboards()" class="mr-2">
-            Favorites Only
-        </label>
+    <div class="bg-gray-800 rounded-lg p-4 mb-6">
+        <div class="flex gap-4 mb-3">
+            <input type="text" id="search-dashboards" placeholder="Search dashboards..." onkeyup="filterDashboards()"
+                class="flex-1 bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+            <select id="tag-filter" onchange="filterDashboards()"
+                class="bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                <option value="">All Tags</option>
+                <!-- Populated dynamically -->
+            </select>
+            <label class="flex items-center text-gray-300">
+                <input type="checkbox" id="favorites-only" onchange="filterDashboards()" class="mr-2">
+                Favorites Only
+            </label>
+        </div>
+        <div id="active-tag-filters" class="flex flex-wrap gap-2 hidden">
+            <!-- Active tag filters shown here -->
+        </div>
     </div>
 
     <!-- Dashboards Grid -->
@@ -142,6 +176,21 @@
                     <label class="block text-sm font-medium text-gray-300 mb-1">Folder</label>
                     <input type="text" id="dashboard-folder" placeholder="Optional folder name"
                         class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-1">Tags</label>
+                    <div class="flex gap-2 mb-2">
+                        <input type="text" id="tag-input" placeholder="Add tag and press Enter"
+                            class="flex-1 bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                            onkeypress="handleTagInput(event)">
+                        <button type="button" onclick="addTag()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                    <div id="tags-container" class="flex flex-wrap gap-2">
+                        <!-- Tags will be added here -->
+                    </div>
                 </div>
 
                 <div class="flex gap-4">
@@ -237,17 +286,43 @@
     function filterDashboards() {
         const search = document.getElementById('search-dashboards').value.toLowerCase();
         const favoritesOnly = document.getElementById('favorites-only').checked;
+        const selectedTag = document.getElementById('tag-filter').value;
 
         filteredDashboards = dashboards.filter(dash => {
             const matchesSearch = !search ||
                 dash.name.toLowerCase().includes(search) ||
                 (dash.description && dash.description.toLowerCase().includes(search));
             const matchesFavorites = !favoritesOnly || dash.is_favorite;
+            const matchesTag = !selectedTag || (dash.tags && dash.tags.includes(selectedTag));
 
-            return matchesSearch && matchesFavorites;
+            return matchesSearch && matchesFavorites && matchesTag;
         });
 
         renderDashboards();
+        updateTagFilter();
+    }
+
+    function updateTagFilter() {
+        // Collect all unique tags
+        const allTags = new Set();
+        dashboards.forEach(dash => {
+            if (dash.tags && Array.isArray(dash.tags)) {
+                dash.tags.forEach(tag => allTags.add(tag));
+            }
+        });
+
+        const tagFilter = document.getElementById('tag-filter');
+        const currentValue = tagFilter.value;
+
+        // Rebuild options
+        tagFilter.innerHTML = '<option value="">All Tags</option>';
+        Array.from(allTags).sort().forEach(tag => {
+            const option = document.createElement('option');
+            option.value = tag;
+            option.textContent = tag;
+            if (tag === currentValue) option.selected = true;
+            tagFilter.appendChild(option);
+        });
     }
 
     function renderDashboards() {
@@ -295,6 +370,12 @@
                 ${dash.is_public ? '<span class="badge badge-public">PUBLIC</span>' : ''}
             </div>
 
+            ${dash.tags && dash.tags.length > 0 ? `
+            <div class="flex flex-wrap gap-2 mb-3">
+                ${dash.tags.map(tag => `<span class="tag"><i class="fas fa-tag text-xs"></i> ${escapeHtml(tag)}</span>`).join('')}
+            </div>
+            ` : ''}
+
             <div class="flex justify-between items-center text-xs text-gray-400">
                 <div>${dash.panel_count || 0} panel(s)</div>
                 <div>${dash.time_range} | ${dash.refresh_interval}s</div>
@@ -317,6 +398,8 @@
         document.getElementById('dashboard-time-range').value = '24h';
         document.getElementById('dashboard-refresh').value = '60';
         document.getElementById('dashboard-auto-refresh').checked = true;
+        currentTags = [];
+        renderTags();
         document.getElementById('dashboard-modal').classList.remove('hidden');
     }
 
@@ -335,11 +418,52 @@
         document.getElementById('dashboard-is-public').checked = dash.is_public;
         document.getElementById('dashboard-is-favorite').checked = dash.is_favorite;
         document.getElementById('dashboard-is-home').checked = dash.is_home;
+        currentTags = dash.tags || [];
+        renderTags();
         document.getElementById('dashboard-modal').classList.remove('hidden');
     }
 
     function closeDashboardModal() {
         document.getElementById('dashboard-modal').classList.add('hidden');
+    }
+
+    // Tag management
+    let currentTags = [];
+
+    function handleTagInput(event) {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            addTag();
+        }
+    }
+
+    function addTag() {
+        const input = document.getElementById('tag-input');
+        const tag = input.value.trim();
+
+        if (tag && !currentTags.includes(tag)) {
+            currentTags.push(tag);
+            renderTags();
+            input.value = '';
+        }
+    }
+
+    function removeTag(tag) {
+        currentTags = currentTags.filter(t => t !== tag);
+        renderTags();
+    }
+
+    function renderTags() {
+        const container = document.getElementById('tags-container');
+        container.innerHTML = currentTags.map(tag => `
+            <span class="tag">
+                <i class="fas fa-tag text-xs"></i>
+                ${escapeHtml(tag)}
+                <button type="button" onclick="removeTag('${escapeHtml(tag)}')" title="Remove tag">
+                    <i class="fas fa-times"></i>
+                </button>
+            </span>
+        `).join('');
     }
 
     async function saveDashboard(event) {
@@ -352,6 +476,7 @@
             time_range: document.getElementById('dashboard-time-range').value,
             refresh_interval: parseInt(document.getElementById('dashboard-refresh').value),
             folder: document.getElementById('dashboard-folder').value || null,
+            tags: currentTags.length > 0 ? currentTags : null,
             auto_refresh: document.getElementById('dashboard-auto-refresh').checked,
             is_public: document.getElementById('dashboard-is-public').checked,
             is_favorite: document.getElementById('dashboard-is-favorite').checked,

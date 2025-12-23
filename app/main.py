@@ -64,7 +64,8 @@ from app.routers import (
     runbook_acl_api,  # Runbook ACL - resource level permissions
     snapshots_api,  # Prometheus Dashboard Builder - Snapshots
     playlists_api,  # Prometheus Dashboard Builder - Playlists
-    rows_api  # Prometheus Dashboard Builder - Panel Rows
+    rows_api,  # Prometheus Dashboard Builder - Panel Rows
+    query_history_api  # Prometheus Dashboard Builder - Query History
 )
 from app import api_credential_profiles
 from app.services.execution_worker import start_execution_worker, stop_execution_worker
@@ -291,6 +292,7 @@ app.include_router(runbook_acl_api.router)   # Runbook ACL - resource permission
 app.include_router(snapshots_api.router)    # Prometheus Dashboard Builder - Snapshots
 app.include_router(playlists_api.router)    # Prometheus Dashboard Builder - Playlists
 app.include_router(rows_api.router)         # Prometheus Dashboard Builder - Panel Rows
+app.include_router(query_history_api.router) # Prometheus Dashboard Builder - Query History
 
 
 @app.get("/profile", response_class=HTMLResponse)
