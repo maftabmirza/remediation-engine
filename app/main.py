@@ -65,7 +65,8 @@ from app.routers import (
     snapshots_api,  # Prometheus Dashboard Builder - Snapshots
     playlists_api,  # Prometheus Dashboard Builder - Playlists
     rows_api,  # Prometheus Dashboard Builder - Panel Rows
-    query_history_api  # Prometheus Dashboard Builder - Query History
+    query_history_api,  # Prometheus Dashboard Builder - Query History
+    dashboard_permissions_api  # Dashboard Permissions
 )
 from app import api_credential_profiles
 from app.services.execution_worker import start_execution_worker, stop_execution_worker
@@ -293,6 +294,7 @@ app.include_router(snapshots_api.router)    # Prometheus Dashboard Builder - Sna
 app.include_router(playlists_api.router)    # Prometheus Dashboard Builder - Playlists
 app.include_router(rows_api.router)         # Prometheus Dashboard Builder - Panel Rows
 app.include_router(query_history_api.router) # Prometheus Dashboard Builder - Query History
+app.include_router(dashboard_permissions_api.router) # Dashboard Permissions
 
 
 @app.get("/profile", response_class=HTMLResponse)

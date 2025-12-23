@@ -242,6 +242,9 @@ class DashboardVariable(Base):
     include_all = Column(Boolean, default=False)  # Include "All" option
     all_value = Column(String(255), nullable=True)  # Value to use when "All" selected (e.g., ".*")
 
+    # Variable Chaining
+    depends_on = Column(JSON, nullable=True)  # Array of variable names this variable depends on
+
     # Display
     hide = Column(Integer, default=0)  # 0=visible, 1=label only, 2=hidden
     sort = Column(Integer, default=0)  # Display order
@@ -489,3 +492,34 @@ class QueryHistory(Base):
     
     def __repr__(self):
         return f"<QueryHistory {self.query[:50]}... at {self.executed_at}>"
+
+
+class DashboardPermission(Base):
+    """
+    Dashboard Permissions
+    
+    Fine-grained access control for dashboards.
+    Supports per-user and per-role permissions.
+    """
+    __tablename__ = "dashboard_permissions"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    dashboard_id = Column(String(36), ForeignKey("dashboards.id"), nullable=False)
+    
+    # Permission target (either user or role)
+    user_id = Column(String(36), nullable=True)  # Specific user
+    role = Column(String(50), nullable=True)  # Or role (admin, editor, viewer)
+    
+    # Permission level
+    permission = Column(String(20), nullable=False)  # view, edit, admin
+    
+    # Metadata
+    created_at = Column(DateTime, default=func.now())
+    created_by = Column(String(255), nullable=True)
+    
+    # Relationships
+    dashboard = relationship("Dashboard", backref="permissions")
+    
+    def __repr__(self):
+        target = f"user={self.user_id}" if self.user_id else f"role={self.role}"
+        return f"<DashboardPermission {target} {self.permission}>"
