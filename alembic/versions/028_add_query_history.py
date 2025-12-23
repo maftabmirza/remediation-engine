@@ -1,7 +1,7 @@
 """add query history
 
 Revision ID: 028_add_query_history
-Revises: 027_add_snapshots_playlists_rows
+Revises: 027
 Create Date: 2025-01-01 00:00:00.000000
 
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '028_add_query_history'
-down_revision = '027_add_snapshots_playlists_rows'
+down_revision = '027'
 branch_labels = None
 depends_on = None
 

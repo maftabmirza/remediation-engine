@@ -1,7 +1,7 @@
 """add runbook ACLs
 
-Revision ID: 028
-Revises: 027
+Revision ID: 031
+Revises: 030_add_dashboard_permissions
 Create Date: 2025-12-22
 
 """
@@ -10,8 +10,8 @@ import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID
 
 # revision identifiers, used by Alembic.
-revision = '028'
-down_revision = '027'
+revision = '031'
+down_revision = '030_add_dashboard_permissions'
 branch_labels = None
 depends_on = None
 

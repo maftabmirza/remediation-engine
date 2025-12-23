@@ -21,7 +21,7 @@
             <div class="nav-group relative" onmouseenter="showFlyout('dashboardFlyout')"
                 onmouseleave="hideFlyout('dashboardFlyout')">
                 <button onclick="toggleSubmenu('dashboardSubmenu')"
-                    class="sidebar-item flex items-center justify-between w-full px-4 py-3 rounded-lg {% if active_page == 'dashboard' or active_page == 'analytics' or active_page == 'changes' or active_page == 'dashboards' or active_page == 'datasources' or active_page == 'panels' %}active{% endif %}"
+                    class="sidebar-item flex items-center justify-between w-full px-4 py-3 rounded-lg {% if active_page == 'dashboard' or active_page == 'analytics' or active_page == 'changes' or active_page == 'dashboards' or active_page == 'datasources' or active_page == 'panels' or active_page == 'playlists' %}active{% endif %}"
                     data-tooltip="Dashboard" data-has-submenu="true">
                     <div class="flex items-center space-x-3">
                         <i class="fas fa-tachometer-alt w-5 flex-shrink-0 nav-icon text-blue-400"></i>
@@ -66,6 +66,11 @@
                         <i class="fas fa-chart-bar w-4 text-green-300"></i>
                         <span>Panels</span>
                     </a>
+                    <a href="/playlists"
+                        class="sidebar-subitem flex items-center space-x-3 px-4 py-2 rounded-lg text-sm {% if active_page == 'playlists' %}bg-gray-800 text-white{% else %}text-gray-400 hover:text-white hover:bg-gray-800{% endif %}">
+                        <i class="fas fa-play-circle w-4 text-cyan-300"></i>
+                        <span>Playlists</span>
+                    </a>
                 </div>
                 <!-- Flyout submenu (shown on hover when sidebar collapsed) -->
                 <div id="dashboardFlyout"
@@ -103,6 +108,11 @@
                         class="flex items-center space-x-3 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">
                         <i class="fas fa-chart-bar w-4 text-green-300"></i>
                         <span>Panels</span>
+                    </a>
+                    <a href="/playlists"
+                        class="flex items-center space-x-3 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">
+                        <i class="fas fa-play-circle w-4 text-cyan-300"></i>
+                        <span>Playlists</span>
                     </a>
                 </div>
             </div>

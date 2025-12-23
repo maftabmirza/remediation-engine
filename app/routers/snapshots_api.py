@@ -252,3 +252,80 @@ async def delete_snapshot(
     db.commit()
 
     return {"message": "Snapshot deleted successfully"}
+
+
+@router.get("/query/data")
+async def query_snapshot_data(
+    promql_query: str,
+    time_range: str = "1h",
+    db: Session = Depends(get_db)
+):
+    """
+    Query Prometheus data for snapshot panels.
+    
+    This is a public endpoint (no auth required) to allow snapshot pages
+    to display live chart data.
+    """
+    import httpx
+    from datetime import timedelta
+    
+    # Get the default datasource
+    from app.models_dashboards import PrometheusDatasource
+    datasource = db.query(PrometheusDatasource).filter(
+        PrometheusDatasource.is_default == True
+    ).first()
+    
+    if not datasource:
+        datasource = db.query(PrometheusDatasource).first()
+    
+    if not datasource:
+        return {"data": [], "error": "No datasource configured"}
+    
+    # Parse time range
+    time_map = {
+        '5m': timedelta(minutes=5),
+        '15m': timedelta(minutes=15),
+        '30m': timedelta(minutes=30),
+        '1h': timedelta(hours=1),
+        '3h': timedelta(hours=3),
+        '6h': timedelta(hours=6),
+        '12h': timedelta(hours=12),
+        '24h': timedelta(hours=24),
+        '7d': timedelta(days=7),
+    }
+    duration = time_map.get(time_range, timedelta(hours=1))
+    
+    end = datetime.utcnow()
+    start = end - duration
+    
+    # Calculate step (aim for ~100 data points)
+    step_seconds = max(15, int(duration.total_seconds() / 100))
+    if step_seconds < 60:
+        step = f"{step_seconds}s"
+    elif step_seconds < 3600:
+        step = f"{step_seconds // 60}m"
+    else:
+        step = f"{step_seconds // 3600}h"
+    
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            response = await client.get(
+                f"{datasource.url}/api/v1/query_range",
+                params={
+                    "query": promql_query,
+                    "start": start.timestamp(),
+                    "end": end.timestamp(),
+                    "step": step
+                }
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("status") == "success":
+                    return {"data": data.get("data", {}).get("result", [])}
+                else:
+                    return {"data": [], "error": data.get("error", "Query failed")}
+            else:
+                return {"data": [], "error": f"HTTP {response.status_code}"}
+    except Exception as e:
+        return {"data": [], "error": str(e)}

@@ -60,6 +60,7 @@ class DashboardPanelInfo(BaseModel):
     override_time_range: Optional[str]
     override_refresh_interval: Optional[int]
     display_order: int
+    row_id: Optional[str] = None  # Panel row for grouping
 
     class Config:
         from_attributes = True
@@ -110,6 +111,7 @@ class UpdatePanelPositionRequest(BaseModel):
     override_time_range: Optional[str] = None
     override_refresh_interval: Optional[int] = None
     display_order: Optional[int] = None
+    row_id: Optional[str] = None  # Panel row for grouping
 
 
 # API Endpoints
@@ -219,7 +221,8 @@ async def get_dashboard(
                 grid_height=dp.grid_height,
                 override_time_range=dp.override_time_range,
                 override_refresh_interval=dp.override_refresh_interval,
-                display_order=dp.display_order
+                display_order=dp.display_order,
+                row_id=dp.row_id
             ))
 
     # Sort by display order
@@ -673,7 +676,8 @@ async def get_home_dashboard(
                 grid_height=dp.grid_height,
                 override_time_range=dp.override_time_range,
                 override_refresh_interval=dp.override_refresh_interval,
-                display_order=dp.display_order
+                display_order=dp.display_order,
+                row_id=dp.row_id
             ))
 
     panel_infos.sort(key=lambda p: p.display_order)

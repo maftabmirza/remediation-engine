@@ -836,6 +836,21 @@ async def playlist_player_page(
     })
 
 
+@app.get("/snapshots/{snapshot_key}", response_class=HTMLResponse)
+async def snapshot_view_page(
+    request: Request,
+    snapshot_key: str
+):
+    """
+    Dashboard snapshot view page (public, no auth required)
+    Renders a frozen dashboard from a snapshot
+    """
+    return templates.TemplateResponse("snapshot_view.html", {
+        "request": request,
+        "snapshot_key": snapshot_key
+    })
+
+
 # ============== Health Check ==============
 
 @app.get("/health")

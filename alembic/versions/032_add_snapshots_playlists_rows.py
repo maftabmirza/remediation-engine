@@ -1,7 +1,7 @@
 """add snapshots, playlists, and panel rows
 
-Revision ID: 027
-Revises: 026
+Revision ID: 032
+Revises: 031
 Create Date: 2025-12-22 00:00:00.000000
 
 """
@@ -9,8 +9,8 @@ from alembic import op
 import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
-revision = '027'
-down_revision = '026'
+revision = '032'
+down_revision = '031'
 branch_labels = None
 depends_on = None
 
