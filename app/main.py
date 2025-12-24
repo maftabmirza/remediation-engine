@@ -66,7 +66,8 @@ from app.routers import (
     playlists_api,  # Prometheus Dashboard Builder - Playlists
     rows_api,  # Prometheus Dashboard Builder - Panel Rows
     query_history_api,  # Prometheus Dashboard Builder - Query History
-    dashboard_permissions_api  # Dashboard Permissions
+    dashboard_permissions_api,  # Dashboard Permissions
+    grafana_proxy  # Grafana Integration - SSO Proxy
 )
 from app import api_credential_profiles
 from app.services.execution_worker import start_execution_worker, stop_execution_worker
@@ -295,6 +296,7 @@ app.include_router(playlists_api.router)    # Prometheus Dashboard Builder - Pla
 app.include_router(rows_api.router)         # Prometheus Dashboard Builder - Panel Rows
 app.include_router(query_history_api.router) # Prometheus Dashboard Builder - Query History
 app.include_router(dashboard_permissions_api.router) # Dashboard Permissions
+app.include_router(grafana_proxy.router)    # Grafana Integration - SSO Proxy
 
 
 @app.get("/profile", response_class=HTMLResponse)
@@ -848,6 +850,85 @@ async def snapshot_view_page(
     return templates.TemplateResponse("snapshot_view.html", {
         "request": request,
         "snapshot_key": snapshot_key
+    })
+
+
+# ============== Grafana Integration Pages ==============
+
+@app.get("/logs", response_class=HTMLResponse)
+async def logs_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    Logs page powered by Loki (via Grafana iframe)
+    Provides seamless log exploration with LogQL queries
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    return templates.TemplateResponse("grafana_logs.html", {
+        "request": request,
+        "user": current_user,
+        "active_page": "logs"
+    })
+
+
+@app.get("/traces", response_class=HTMLResponse)
+async def traces_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    Traces page powered by Tempo (via Grafana iframe)
+    Provides distributed tracing with TraceQL queries
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    return templates.TemplateResponse("grafana_traces.html", {
+        "request": request,
+        "user": current_user,
+        "active_page": "traces"
+    })
+
+
+@app.get("/grafana-alerts", response_class=HTMLResponse)
+async def grafana_alerts_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    Alert Manager page (via Grafana iframe)
+    Provides alert visualization, grouping, and silencing
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    return templates.TemplateResponse("grafana_alerts.html", {
+        "request": request,
+        "user": current_user,
+        "active_page": "grafana-alerts"
+    })
+
+
+@app.get("/grafana-advanced", response_class=HTMLResponse)
+async def grafana_advanced_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    Advanced Grafana dashboards page
+    Provides access to full Grafana functionality including SQL datasources,
+    advanced visualizations, and community dashboards
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    return templates.TemplateResponse("grafana_advanced.html", {
+        "request": request,
+        "user": current_user,
+        "active_page": "grafana-advanced"
     })
 
 

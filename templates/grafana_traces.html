@@ -1,0 +1,90 @@
+{% extends "layout.html" %}
+
+{% block title %}Traces - Tempo{% endblock %}
+
+{% block extra_css %}
+<style>
+.grafana-container {
+    position: fixed;
+    top: 60px; /* Account for navbar */
+    left: 250px; /* Account for sidebar */
+    right: 0;
+    bottom: 0;
+    overflow: hidden;
+    background: #111;
+}
+
+.grafana-container iframe {
+    border: none;
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.grafana-loading {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #aaa;
+    font-size: 18px;
+    text-align: center;
+}
+
+.grafana-loading .spinner {
+    width: 50px;
+    height: 50px;
+    border: 4px solid #333;
+    border-top-color: #1f77b4;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 20px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Responsive: collapse sidebar on mobile */
+@media (max-width: 768px) {
+    .grafana-container {
+        left: 0;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="grafana-container">
+    <div class="grafana-loading" id="loading">
+        <div class="spinner"></div>
+        <div>Loading Tempo Traces...</div>
+    </div>
+    <iframe
+        id="grafana-iframe"
+        src="/grafana/explore?orgId=1&left=%7B%22datasource%22:%22Tempo%22,%22queries%22:%5B%7B%22refId%22:%22A%22,%22queryType%22:%22search%22%7D%5D,%22range%22:%7B%22from%22:%22now-1h%22,%22to%22:%22now%22%7D%7D"
+        onload="document.getElementById('loading').style.display='none';">
+    </iframe>
+</div>
+
+<script>
+// Handle iframe loading errors
+const iframe = document.getElementById('grafana-iframe');
+iframe.onerror = function() {
+    const loading = document.getElementById('loading');
+    loading.innerHTML = '<div style="color: #f44;">Failed to load Grafana. Please check if the service is running.</div>';
+};
+
+// Refresh page on visibility change (helps with SSO session)
+document.addEventListener('visibilitychange', function() {
+    if (!document.hidden && iframe.src) {
+        // Refresh iframe if page becomes visible and has been hidden for a while
+        const lastRefresh = sessionStorage.getItem('grafanaLastRefresh');
+        const now = Date.now();
+        if (!lastRefresh || (now - parseInt(lastRefresh)) > 300000) { // 5 minutes
+            sessionStorage.setItem('grafanaLastRefresh', now.toString());
+        }
+    }
+});
+</script>
+{% endblock %}

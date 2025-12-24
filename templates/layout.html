@@ -116,6 +116,36 @@
                     </a>
                 </div>
             </div>
+
+            <!-- Observability Section -->
+            <div class="mt-4 mb-2 px-4 sidebar-text hidden">
+                <span class="text-xs text-gray-500 uppercase tracking-wider">Observability</span>
+            </div>
+            <a href="/logs"
+                class="sidebar-item flex items-center space-x-3 px-4 py-3 rounded-lg {% if active_page == 'logs' %}active{% endif %}"
+                data-tooltip="Logs (Loki)">
+                <i class="fas fa-file-alt w-5 flex-shrink-0 nav-icon text-emerald-400"></i>
+                <span class="sidebar-text whitespace-nowrap hidden">Logs</span>
+            </a>
+            <a href="/traces"
+                class="sidebar-item flex items-center space-x-3 px-4 py-3 rounded-lg {% if active_page == 'traces' %}active{% endif %}"
+                data-tooltip="Traces (Tempo)">
+                <i class="fas fa-project-diagram w-5 flex-shrink-0 nav-icon text-violet-400"></i>
+                <span class="sidebar-text whitespace-nowrap hidden">Traces</span>
+            </a>
+            <a href="/grafana-alerts"
+                class="sidebar-item flex items-center space-x-3 px-4 py-3 rounded-lg {% if active_page == 'grafana-alerts' %}active{% endif %}"
+                data-tooltip="Alert Manager">
+                <i class="fas fa-exclamation-triangle w-5 flex-shrink-0 nav-icon text-amber-400"></i>
+                <span class="sidebar-text whitespace-nowrap hidden">Alert Manager</span>
+            </a>
+            <a href="/grafana-advanced"
+                class="sidebar-item flex items-center space-x-3 px-4 py-3 rounded-lg {% if active_page == 'grafana-advanced' %}active{% endif %}"
+                data-tooltip="Advanced Dashboards">
+                <i class="fas fa-chart-area w-5 flex-shrink-0 nav-icon text-fuchsia-400"></i>
+                <span class="sidebar-text whitespace-nowrap hidden">Advanced</span>
+            </a>
+
             <a href="/alerts"
                 class="sidebar-item flex items-center space-x-3 px-4 py-3 rounded-lg {% if active_page == 'alerts' %}active{% endif %}"
                 data-tooltip="Alerts">
@@ -682,6 +712,11 @@
     // --- Command Palette Logic ---
     const commands = [
         { id: 'dash', name: 'Go to Dashboard', icon: 'fa-tachometer-alt', action: () => window.location.href = '/' },
+        { id: 'dashboards', name: 'Go to Dashboard Builder', icon: 'fa-th-large', action: () => window.location.href = '/dashboards' },
+        { id: 'logs', name: 'Go to Logs (Loki)', icon: 'fa-file-alt', action: () => window.location.href = '/logs' },
+        { id: 'traces', name: 'Go to Traces (Tempo)', icon: 'fa-project-diagram', action: () => window.location.href = '/traces' },
+        { id: 'grafana-alerts', name: 'Go to Alert Manager', icon: 'fa-exclamation-triangle', action: () => window.location.href = '/grafana-alerts' },
+        { id: 'grafana-advanced', name: 'Go to Advanced Dashboards', icon: 'fa-chart-area', action: () => window.location.href = '/grafana-advanced' },
         { id: 'alerts', name: 'Go to Alerts', icon: 'fa-bell', action: () => window.location.href = '/alerts' },
         { id: 'ai', name: 'Go to AI Assistant', icon: 'fa-robot', action: () => window.location.href = '/ai' },
         { id: 'rules', name: 'Go to Rules', icon: 'fa-cogs', action: () => window.location.href = '/rules' },

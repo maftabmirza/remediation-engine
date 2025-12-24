@@ -47,6 +47,8 @@ services:
       - PROMETHEUS_URL=${PROMETHEUS_URL:-http://prometheus:9090}
       - ENABLE_PROMETHEUS_QUERIES=${ENABLE_PROMETHEUS_QUERIES:-true}
       - PROMETHEUS_TIMEOUT=${PROMETHEUS_TIMEOUT:-30}
+      # Grafana Integration
+      - GRAFANA_URL=${GRAFANA_URL:-http://grafana:3000}
     ports:
       - "8080:8080"
     volumes:
@@ -61,8 +63,148 @@ services:
       - aiops-network
       - aiops_aiops-network
 
+  # Prometheus for metrics collection
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: aiops-prometheus
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.enable-lifecycle'
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - aiops-network
+
+  # Grafana for visualization with SSO
+  grafana:
+    image: grafana/grafana-enterprise:latest
+    container_name: aiops-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      # SSO Authentication via Auth Proxy
+      - GF_AUTH_PROXY_ENABLED=true
+      - GF_AUTH_PROXY_HEADER_NAME=X-WEBAUTH-USER
+      - GF_AUTH_PROXY_HEADER_PROPERTY=username
+      - GF_AUTH_PROXY_AUTO_SIGN_UP=true
+      - GF_AUTH_PROXY_ENABLE_LOGIN_TOKEN=false
+
+      # Server Configuration
+      - GF_SERVER_ROOT_URL=http://localhost:8080/grafana
+      - GF_SERVER_SERVE_FROM_SUB_PATH=true
+      - GF_SERVER_DOMAIN=localhost
+
+      # Security
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_SECURITY_SECRET_KEY=${GF_SECRET_KEY:-grafana-secret-key-change-me}
+      - GF_SECURITY_ALLOW_EMBEDDING=true
+      - GF_SECURITY_COOKIE_SAMESITE=lax
+
+      # Disable Grafana's own login (SSO only)
+      - GF_AUTH_DISABLE_LOGIN_FORM=true
+      - GF_AUTH_DISABLE_SIGNOUT_MENU=true
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+
+      # Theme
+      - GF_DEFAULT_THEME=dark
+
+      # Users
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_USERS_AUTO_ASSIGN_ORG=true
+      - GF_USERS_AUTO_ASSIGN_ORG_ROLE=Viewer
+
+      # Logging
+      - GF_LOG_LEVEL=info
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    networks:
+      - aiops-network
+    depends_on:
+      - prometheus
+      - loki
+      - tempo
+      - mimir
+
+  # Loki for log aggregation
+  loki:
+    image: grafana/loki:latest
+    container_name: aiops-loki
+    restart: unless-stopped
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - loki-data:/loki
+      - ./loki/loki-config.yaml:/etc/loki/local-config.yaml:ro
+    networks:
+      - aiops-network
+
+  # Tempo for distributed tracing
+  tempo:
+    image: grafana/tempo:latest
+    container_name: aiops-tempo
+    restart: unless-stopped
+    ports:
+      - "3200:3200"   # Tempo HTTP
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+      - "9411:9411"   # Zipkin
+    command: -config.file=/etc/tempo/tempo.yaml
+    volumes:
+      - tempo-data:/var/tempo
+      - ./tempo/tempo.yaml:/etc/tempo/tempo.yaml:ro
+    networks:
+      - aiops-network
+
+  # Mimir for long-term Prometheus metrics storage
+  mimir:
+    image: grafana/mimir:latest
+    container_name: aiops-mimir
+    restart: unless-stopped
+    ports:
+      - "9009:9009"
+    command: -config.file=/etc/mimir/mimir.yaml
+    volumes:
+      - mimir-data:/data
+      - ./mimir/mimir.yaml:/etc/mimir/mimir.yaml:ro
+    networks:
+      - aiops-network
+
+  # Alertmanager for alert management
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: aiops-alertmanager
+    restart: unless-stopped
+    ports:
+      - "9093:9093"
+    command:
+      - '--config.file=/etc/alertmanager/config.yml'
+      - '--storage.path=/alertmanager'
+    volumes:
+      - alertmanager-data:/alertmanager
+      - ./alertmanager/config.yml:/etc/alertmanager/config.yml:ro
+    networks:
+      - aiops-network
+
 volumes:
   postgres_data:
+  prometheus-data:
+  grafana-data:
+  loki-data:
+  tempo-data:
+  mimir-data:
+  alertmanager-data:
 
 
 networks:
