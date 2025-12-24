@@ -60,6 +60,21 @@ left: 0 !important;
         <div class="spinner"></div>
         <div>Loading Loki Logs...</div>
     </div>
+    <!-- 
+        Sandbox Attributes Explanation:
+        - allow-same-origin: Required for SSO authentication via X-WEBAUTH-USER header
+        - allow-scripts: Required for Grafana's interactive dashboards and visualizations
+        - allow-forms: Required for Grafana's search and filter forms
+        - allow-popups: Required for opening panels and external links
+        - allow-popups-to-escape-sandbox: Required for external documentation links
+        
+        Security Note: The combination of allow-same-origin and allow-scripts technically
+        allows the iframe to escape sandboxing. However, this is acceptable because:
+        1. We control the Grafana instance (it's our own service, not 3rd party)
+        2. SSO authentication requires same-origin access
+        3. Grafana requires scripts for core functionality
+        4. The proxy strips dangerous headers (X-Frame-Options, CSP)
+    -->
     <iframe
         id="grafana-iframe"
         src="/grafana/explore?orgId=1&left=%7B%22datasource%22:%22Loki%22,%22queries%22:%5B%7B%22refId%22:%22A%22,%22expr%22:%22%7Bjob%3D~%5C%22.%2B%5C%22%7D%22%7D%5D,%22range%22:%7B%22from%22:%22now-1h%22,%22to%22:%22now%22%7D%7D&kiosk"
