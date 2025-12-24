@@ -63,6 +63,7 @@
     <iframe
         id="grafana-iframe"
         src="/grafana/alerting/list?alertState=all&dataSource=Alertmanager"
+        sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox"
         onload="document.getElementById('loading').style.display='none';">
     </iframe>
 </div>
