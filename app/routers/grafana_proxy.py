@@ -71,7 +71,9 @@ async def grafana_proxy(
         body = await request.body()
 
     # Proxy the request to Grafana
-    async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+    # IMPORTANT: Do NOT follow redirects - let the browser handle them
+    # This preserves authentication when Grafana redirects (e.g., / -> /login)
+    async with httpx.AsyncClient(timeout=30.0, follow_redirects=False) as client:
         try:
             response = await client.request(
                 method=request.method,
@@ -85,6 +87,23 @@ async def grafana_proxy(
             for header_name, header_value in response.headers.items():
                 # Skip headers that cause issues with proxying
                 if header_name.lower() not in ['content-encoding', 'content-length', 'transfer-encoding']:
+                    # Rewrite Location headers to go through our proxy
+                    if header_name.lower() == 'location':
+                        # Grafana returns URLs with its configured root URL
+                        # e.g., http://localhost:8080/grafana/ or http://grafana:3000/...
+                        # We need to extract just the path and keep it relative to /grafana
+                        
+                        # Check if URL contains /grafana (Grafana's external URL pattern)
+                        if '/grafana' in header_value:
+                            # Extract everything after /grafana
+                            idx = header_value.find('/grafana')
+                            header_value = header_value[idx:]  # Keeps /grafana/...
+                        elif header_value.startswith(GRAFANA_URL):
+                            # Internal Grafana URL - rewrite to external
+                            header_value = header_value.replace(GRAFANA_URL, '/grafana')
+                        elif header_value.startswith('/'):
+                            # Relative redirect - prefix with /grafana
+                            header_value = f'/grafana{header_value}'
                     response_headers[header_name] = header_value
 
             # Return proxied response
