@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Grafana Integration Diagnostic</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #1e1e2e;
+            color: #fff;
+        }
+        .test-section {
+            background: #2a2a3a;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border-left: 4px solid #1f77b4;
+        }
+        .pass { border-left-color: #4caf50; }
+        .fail { border-left-color: #f44336; }
+        .warning { border-left-color: #ff9800; }
+        iframe {
+            border: 2px solid #1f77b4;
+            width: 100%;
+            height: 400px;
+            margin-top: 10px;
+        }
+        button {
+            background: #1f77b4;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #1565c0;
+        }
+        pre {
+            background: #1a1a2a;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Grafana Integration Diagnostic Tool</h1>
+    <p>This page helps diagnose iframe embedding issues.</p>
+
+    <div class="test-section">
+        <h2>1. Current Page Info</h2>
+        <pre id="page-info"></pre>
+    </div>
+
+    <div class="test-section">
+        <h2>2. Test Grafana Proxy</h2>
+        <button onclick="testProxy()">Test Proxy Connection</button>
+        <pre id="proxy-result">Click button to test...</pre>
+    </div>
+
+    <div class="test-section">
+        <h2>3. Test iframe Embedding</h2>
+        <button onclick="loadIframe()">Load Grafana in iframe</button>
+        <button onclick="checkFrameOptions()">Check Frame Options</button>
+        <pre id="iframe-status">Click button to load iframe...</pre>
+        <div id="iframe-container"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>4. Console Checks</h2>
+        <ul id="console-checks"></ul>
+    </div>
+
+    <script>
+        // Display current page info
+        document.getElementById('page-info').textContent = `
+URL: ${window.location.href}
+User Agent: ${navigator.userAgent}
+Cookies: ${document.cookie ? 'Present' : 'None'}
+Referrer: ${document.referrer || 'None'}
+        `.trim();
+
+        // Test proxy connection
+        async function testProxy() {
+            const result = document.getElementById('proxy-result');
+            result.textContent = 'Testing...';
+
+            try {
+                const response = await fetch('/grafana/api/health');
+                const headers = {};
+                response.headers.forEach((value, key) => {
+                    headers[key] = value;
+                });
+
+                result.textContent = `
+Status: ${response.status} ${response.statusText}
+Headers:
+${JSON.stringify(headers, null, 2)}
+
+Response:
+${await response.text()}
+                `.trim();
+
+                if (response.ok) {
+                    document.querySelector('#proxy-result').parentElement.classList.add('pass');
+                } else {
+                    document.querySelector('#proxy-result').parentElement.classList.add('fail');
+                }
+            } catch (error) {
+                result.textContent = `Error: ${error.message}`;
+                document.querySelector('#proxy-result').parentElement.classList.add('fail');
+            }
+        }
+
+        // Load iframe
+        function loadIframe() {
+            const container = document.getElementById('iframe-container');
+            const status = document.getElementById('iframe-status');
+
+            status.textContent = 'Loading iframe...';
+
+            container.innerHTML = '<iframe id="test-iframe" src="/grafana/?orgId=1"></iframe>';
+
+            const iframe = document.getElementById('test-iframe');
+
+            iframe.onload = function() {
+                status.textContent = '✓ iframe loaded successfully!';
+                document.querySelector('#iframe-status').parentElement.classList.add('pass');
+
+                // Try to detect if iframe content is accessible
+                try {
+                    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                    if (iframeDoc) {
+                        status.textContent += '\n✓ iframe content is accessible (same-origin)';
+                    }
+                } catch (e) {
+                    status.textContent += '\n⚠ iframe content not accessible (cross-origin or blocked)';
+                }
+            };
+
+            iframe.onerror = function() {
+                status.textContent = '✗ iframe failed to load!';
+                document.querySelector('#iframe-status').parentElement.classList.add('fail');
+            };
+
+            // Timeout check
+            setTimeout(() => {
+                if (status.textContent === 'Loading iframe...') {
+                    status.textContent = '⚠ iframe taking too long to load (>5s)';
+                    document.querySelector('#iframe-status').parentElement.classList.add('warning');
+                }
+            }, 5000);
+        }
+
+        // Check frame options via fetch
+        async function checkFrameOptions() {
+            const status = document.getElementById('iframe-status');
+            status.textContent = 'Checking security headers...';
+
+            try {
+                const response = await fetch('/grafana/', { method: 'HEAD' });
+                const headers = {};
+                response.headers.forEach((value, key) => {
+                    if (key.toLowerCase().includes('frame') ||
+                        key.toLowerCase().includes('security') ||
+                        key.toLowerCase() === 'content-security-policy') {
+                        headers[key] = value;
+                    }
+                });
+
+                let result = 'Security Headers:\n';
+                if (Object.keys(headers).length === 0) {
+                    result += '✓ No frame-blocking headers found!\n';
+                    document.querySelector('#iframe-status').parentElement.classList.add('pass');
+                } else {
+                    result += '⚠ Found security headers that might block iframes:\n';
+                    result += JSON.stringify(headers, null, 2);
+                    document.querySelector('#iframe-status').parentElement.classList.add('warning');
+                }
+
+                status.textContent = result;
+            } catch (error) {
+                status.textContent = `Error checking headers: ${error.message}`;
+                document.querySelector('#iframe-status').parentElement.classList.add('fail');
+            }
+        }
+
+        // Console checks
+        const checks = document.getElementById('console-checks');
+        checks.innerHTML = `
+            <li>✓ JavaScript is working</li>
+            <li>✓ DOM is accessible</li>
+            <li id="storage-check">Checking localStorage...</li>
+        `;
+
+        try {
+            localStorage.setItem('test', '1');
+            localStorage.removeItem('test');
+            document.getElementById('storage-check').textContent = '✓ localStorage is working';
+        } catch (e) {
+            document.getElementById('storage-check').textContent = '✗ localStorage blocked: ' + e.message;
+        }
+
+        // Auto-run basic tests on load
+        window.addEventListener('load', () => {
+            console.log('Diagnostic page loaded');
+            console.log('URL:', window.location.href);
+            console.log('Run testProxy() and loadIframe() to test Grafana connection');
+        });
+    </script>
+</body>
+</html>

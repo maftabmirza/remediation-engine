@@ -948,6 +948,17 @@ async def grafana_advanced_page(
     return response
 
 
+@app.get("/grafana-diagnostic", response_class=HTMLResponse)
+async def grafana_diagnostic_page(request: Request):
+    """
+    Diagnostic page to test Grafana iframe embedding
+    Helps debug frame-busting and proxy issues
+    """
+    return templates.TemplateResponse("grafana_diagnostic.html", {
+        "request": request
+    })
+
+
 # ============== Health Check ==============
 
 @app.get("/health")
