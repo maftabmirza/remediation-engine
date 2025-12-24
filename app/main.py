@@ -867,11 +867,15 @@ async def logs_page(
     if not current_user:
         return RedirectResponse(url="/login", status_code=302)
 
-    return templates.TemplateResponse("grafana_logs.html", {
+    response = templates.TemplateResponse("grafana_logs.html", {
         "request": request,
         "user": current_user,
         "active_page": "logs"
     })
+    # Allow iframe embedding from same origin
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    response.headers["Content-Security-Policy"] = "frame-src 'self' http://localhost:8080 http://grafana:3000"
+    return response
 
 
 @app.get("/traces", response_class=HTMLResponse)
@@ -886,11 +890,15 @@ async def traces_page(
     if not current_user:
         return RedirectResponse(url="/login", status_code=302)
 
-    return templates.TemplateResponse("grafana_traces.html", {
+    response = templates.TemplateResponse("grafana_traces.html", {
         "request": request,
         "user": current_user,
         "active_page": "traces"
     })
+    # Allow iframe embedding from same origin
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    response.headers["Content-Security-Policy"] = "frame-src 'self' http://localhost:8080 http://grafana:3000"
+    return response
 
 
 @app.get("/grafana-alerts", response_class=HTMLResponse)
@@ -905,11 +913,15 @@ async def grafana_alerts_page(
     if not current_user:
         return RedirectResponse(url="/login", status_code=302)
 
-    return templates.TemplateResponse("grafana_alerts.html", {
+    response = templates.TemplateResponse("grafana_alerts.html", {
         "request": request,
         "user": current_user,
         "active_page": "grafana-alerts"
     })
+    # Allow iframe embedding from same origin
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    response.headers["Content-Security-Policy"] = "frame-src 'self' http://localhost:8080 http://grafana:3000"
+    return response
 
 
 @app.get("/grafana-advanced", response_class=HTMLResponse)
@@ -925,11 +937,15 @@ async def grafana_advanced_page(
     if not current_user:
         return RedirectResponse(url="/login", status_code=302)
 
-    return templates.TemplateResponse("grafana_advanced.html", {
+    response = templates.TemplateResponse("grafana_advanced.html", {
         "request": request,
         "user": current_user,
         "active_page": "grafana-advanced"
     })
+    # Allow iframe embedding from same origin
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    response.headers["Content-Security-Policy"] = "frame-src 'self' http://localhost:8080 http://grafana:3000"
+    return response
 
 
 # ============== Health Check ==============

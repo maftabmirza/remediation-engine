@@ -85,8 +85,16 @@ async def grafana_proxy(
             # Prepare response headers
             response_headers = {}
             for header_name, header_value in response.headers.items():
-                # Skip headers that cause issues with proxying
-                if header_name.lower() not in ['content-encoding', 'content-length', 'transfer-encoding']:
+                # Skip headers that cause issues with proxying or iframe embedding
+                if header_name.lower() not in [
+                    'content-encoding',
+                    'content-length',
+                    'transfer-encoding',
+                    'x-frame-options',  # Remove frame-busting header
+                    'content-security-policy',  # Remove CSP that restricts iframes
+                    'x-content-security-policy',  # Legacy CSP header
+                    'x-webkit-csp'  # WebKit CSP header
+                ]:
                     # Rewrite Location headers to go through our proxy
                     if header_name.lower() == 'location':
                         # Grafana returns URLs with its configured root URL
