@@ -1,7 +1,7 @@
 {% extends "layout.html" %}
 {% set active_page = 'dashboards' %}
 
-{% block title %}Dashboard View - AIOps Platform{% endblock %}
+{% block title %}Dashboard View - AIOps Platform (v6){% endblock %}
 
 {% block head %}
 <!-- GridStack CSS -->
@@ -12,6 +12,29 @@
         border: 1px solid rgb(55, 65, 81);
         border-radius: 0.5rem;
         overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        /* Force 16px gap (8px on each side) */
+        top: 8px !important;
+        right: 8px !important;
+        bottom: 8px !important;
+        left: 8px !important;
+        width: auto !important;
+        height: auto !important;
+    }
+
+    /* Enforce GridStack gaps using CSS variables (GridStack v8+) */
+    .grid-stack {
+        --gs-column-gap: 16px;
+        --gs-row-gap: 16px;
+        background: transparent;
+        /* Visual debug: encourage transparency */
+    }
+
+
+
+    .panel-row-section {
+        margin-bottom: 1.5rem;
     }
 
     .panel-drag-handle {
@@ -40,6 +63,18 @@
 
     .panel-content {
         padding: 1rem;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+    }
+
+    .panel-chart-container {
+        flex: 1;
+        min-height: 120px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
     .panel-actions {
@@ -155,94 +190,207 @@
         font-size: 0.75rem;
         font-weight: 500;
     }
+
+    /* Grafana-style Toolbar Buttons */
+    .toolbar-btn {
+        color: rgb(156, 163, 175);
+        transition: all 0.15s ease;
+    }
+
+    .toolbar-btn:hover {
+        color: white;
+        background: rgb(55, 65, 81);
+    }
+
+    .toolbar-btn:active {
+        transform: scale(0.95);
+    }
+
+    .toolbar-btn i {
+        font-size: 0.875rem;
+    }
+
+    /* Toolbar divider */
+    .toolbar-divider {
+        width: 1px;
+        height: 24px;
+        background: rgb(75, 85, 99);
+        margin: 0 4px;
+    }
+
+    /* Query editor textarea styling */
+    #query-editor {
+        font-family: 'Courier New', monospace;
+        font-size: 14px;
+        background-color: rgb(17, 24, 39);
+        color: #f8f8f2;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="space-y-6">
-    <!-- Header -->
-    <div class="dashboard-header flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div class="flex items-center gap-4">
-            <a href="/dashboards" class="text-gray-400 hover:text-white transition-colors">
-                <i class="fas fa-arrow-left"></i>
-            </a>
-            <div>
-                <h1 id="dashboard-title" class="text-2xl font-bold">Loading Dashboard...</h1>
-                <p id="dashboard-description" class="text-gray-400 text-sm"></p>
+<div class="space-y-4">
+    <!-- Grafana-style Toolbar -->
+    <div class="dashboard-header bg-gray-900/80 backdrop-blur border border-gray-800 rounded-lg p-3">
+        <div class="flex items-center justify-between gap-4">
+            <!-- Left: Back + Title -->
+            <div class="flex items-center gap-3 min-w-0">
+                <a href="/dashboards"
+                    class="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors"
+                    title="Back to Dashboards">
+                    <i class="fas fa-arrow-left"></i>
+                </a>
+                <div class="min-w-0">
+                    <h1 id="dashboard-title" class="text-lg font-semibold truncate">Loading Dashboard...</h1>
+                    <p id="dashboard-description" class="text-gray-500 text-xs truncate"></p>
+                </div>
             </div>
-        </div>
-        <div class="flex items-center gap-3">
-            <!-- Edit Layout Toggle -->
-            <button id="edit-mode-btn" onclick="toggleEditMode()"
-                class="px-4 py-2 rounded-lg border border-gray-600 hover:bg-gray-700 text-sm transition-colors">
-                <i class="fas fa-edit mr-2"></i>
-                <span id="edit-mode-text">Edit Layout</span>
-            </button>
 
-            <button onclick="showTimePickerModal()"
-                class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm hover:bg-gray-700 transition-colors flex items-center gap-2">
-                <i class="fas fa-clock text-blue-400"></i>
-                <span id="time-range-display">Last 24h</span>
-                <i class="fas fa-chevron-down text-xs text-gray-500"></i>
-            </button>
-            <button id="refresh-btn" class="btn-secondary px-4 py-2 rounded-lg text-sm flex items-center gap-2">
-                <i class="fas fa-sync-alt"></i>
-                <span id="refresh-text">Refresh</span>
-                <span id="refresh-countdown" class="text-xs text-gray-400 hidden"></span>
-            </button>
-            <div id="links-dropdown" class="relative hidden">
-                <button onclick="toggleLinksDropdown()"
-                    class="btn-secondary px-4 py-2 rounded-lg text-sm flex items-center gap-2">
-                    <i class="fas fa-link mr-2"></i>
-                    Links
-                    <i class="fas fa-chevron-down text-xs"></i>
+            <!-- Center: Main Toolbar -->
+            <div class="flex items-center gap-1 flex-wrap justify-center">
+                <!-- Edit Mode Toggle -->
+                <button id="edit-mode-btn" onclick="toggleEditMode()"
+                    class="toolbar-btn px-3 py-1.5 rounded border border-gray-700 hover:bg-gray-700 text-sm transition-colors flex items-center gap-2"
+                    title="Edit Dashboard Layout">
+                    <i class="fas fa-edit text-blue-400"></i>
+                    <span id="edit-mode-text" class="hidden sm:inline">Edit</span>
                 </button>
-                <div id="links-menu"
-                    class="hidden absolute right-0 mt-2 w-56 bg-gray-800 border border-gray-700 rounded-lg shadow-lg z-50">
-                    <div class="p-2" id="links-list">
-                        <!-- Links will be populated here -->
+
+                <!-- Cancel Edit Mode Button (hidden by default) -->
+                <button id="cancel-edit-btn" onclick="cancelEditMode()"
+                    class="hidden toolbar-btn px-3 py-1.5 rounded border border-red-600 bg-red-900/30 hover:bg-red-800/50 text-sm transition-colors flex items-center gap-2 text-red-400"
+                    title="Cancel Layout Changes">
+                    <i class="fas fa-times"></i>
+                    <span class="hidden sm:inline">Cancel</span>
+                </button>
+
+                <!-- Save Layout Button (hidden by default) -->
+                <button id="save-layout-btn" onclick="saveLayoutChanges()"
+                    class="hidden toolbar-btn px-3 py-1.5 rounded border border-green-600 bg-green-900/30 hover:bg-green-800/50 text-sm transition-colors flex items-center gap-2 text-green-400"
+                    title="Save Layout Changes">
+                    <i class="fas fa-save"></i>
+                    <span class="hidden sm:inline">Save</span>
+                </button>
+
+                <!-- Divider -->
+                <div class="w-px h-6 bg-gray-700 mx-1"></div>
+
+                <!-- Variables (icon only on small screens) -->
+                <button onclick="showVariablesModal()"
+                    class="toolbar-btn p-2 rounded hover:bg-gray-700 transition-colors" title="Dashboard Variables">
+                    <i class="fas fa-sliders-h text-purple-400"></i>
+                </button>
+
+                <!-- Rows -->
+                <button onclick="showRowsModal()" class="toolbar-btn p-2 rounded hover:bg-gray-700 transition-colors"
+                    title="Manage Rows">
+                    <i class="fas fa-layer-group text-indigo-400"></i>
+                </button>
+
+                <!-- Annotations -->
+                <button onclick="showAnnotationsModal()"
+                    class="toolbar-btn p-2 rounded hover:bg-gray-700 transition-colors" title="Annotations">
+                    <i class="fas fa-bookmark text-yellow-400"></i>
+                </button>
+
+                <!-- Alerts -->
+                <button onclick="showAlertsModal()"
+                    class="toolbar-btn p-2 rounded hover:bg-gray-700 transition-colors relative"
+                    title="Prometheus Alerts">
+                    <i class="fas fa-bell text-red-400"></i>
+                    <span id="alerts-badge"
+                        class="hidden absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center text-[10px]">0</span>
+                </button>
+
+                <!-- Links Dropdown -->
+                <div id="links-dropdown" class="relative hidden">
+                    <button onclick="toggleLinksDropdown()"
+                        class="toolbar-btn p-2 rounded hover:bg-gray-700 transition-colors" title="Dashboard Links">
+                        <i class="fas fa-link text-cyan-400"></i>
+                    </button>
+                    <div id="links-menu"
+                        class="hidden absolute right-0 mt-2 w-56 bg-gray-800 border border-gray-700 rounded-lg shadow-lg z-50">
+                        <div class="p-2" id="links-list"></div>
+                    </div>
+                </div>
+
+                <!-- Divider -->
+                <div class="w-px h-6 bg-gray-700 mx-1"></div>
+
+                <!-- Time Picker -->
+                <button onclick="showTimePickerModal()"
+                    class="toolbar-btn bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm hover:bg-gray-700 transition-colors flex items-center gap-2"
+                    title="Time Range">
+                    <i class="fas fa-clock text-blue-400"></i>
+                    <span id="time-range-display" class="text-gray-300">Last 24h</span>
+                    <i class="fas fa-chevron-down text-xs text-gray-500"></i>
+                </button>
+
+                <!-- Refresh -->
+                <button id="refresh-btn" onclick="refreshAllPanels()"
+                    class="toolbar-btn p-2 rounded hover:bg-gray-700 transition-colors" title="Refresh Dashboard">
+                    <i class="fas fa-sync-alt text-green-400"></i>
+                </button>
+                <span id="refresh-countdown" class="text-xs text-gray-500 hidden"></span>
+            </div>
+
+            <!-- Right: Actions Menu -->
+            <div class="flex items-center gap-1">
+                <!-- Export -->
+                <button onclick="exportDashboard()" class="toolbar-btn p-2 rounded hover:bg-gray-700 transition-colors"
+                    title="Export Dashboard">
+                    <i class="fas fa-download text-gray-400"></i>
+                </button>
+
+                <!-- Import -->
+                <button onclick="showImportModal()" class="toolbar-btn p-2 rounded hover:bg-gray-700 transition-colors"
+                    title="Import Dashboard">
+                    <i class="fas fa-upload text-gray-400"></i>
+                </button>
+
+                <!-- Snapshot -->
+                <button onclick="showSnapshotModal()"
+                    class="toolbar-btn p-2 rounded hover:bg-gray-700 transition-colors" title="Create Snapshot">
+                    <i class="fas fa-camera text-gray-400"></i>
+                </button>
+
+                <!-- Divider -->
+                <div class="w-px h-6 bg-gray-700 mx-1"></div>
+
+                <!-- Kiosk Mode -->
+                <button onclick="toggleKioskMode()" class="toolbar-btn p-2 rounded hover:bg-gray-700 transition-colors"
+                    title="Kiosk Mode (Full Screen)">
+                    <i class="fas fa-tv text-orange-400"></i>
+                </button>
+
+                <!-- Settings Dropdown -->
+                <div class="relative">
+                    <button onclick="toggleSettingsMenu()"
+                        class="toolbar-btn p-2 rounded hover:bg-gray-700 transition-colors" title="Dashboard Settings">
+                        <i class="fas fa-cog text-gray-400"></i>
+                    </button>
+                    <div id="settings-menu"
+                        class="hidden absolute right-0 mt-2 w-48 bg-gray-800 border border-gray-700 rounded-lg shadow-lg z-50">
+                        <div class="p-2">
+                            <a href="/dashboards"
+                                class="flex items-center gap-2 px-3 py-2 text-sm text-gray-300 hover:bg-gray-700 rounded transition-colors">
+                                <i class="fas fa-cog w-4"></i>
+                                Dashboard Settings
+                            </a>
+                            <button onclick="showShareModal()"
+                                class="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-300 hover:bg-gray-700 rounded transition-colors text-left">
+                                <i class="fas fa-share-alt w-4"></i>
+                                Share Dashboard
+                            </button>
+                            <button onclick="duplicateDashboard()"
+                                class="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-300 hover:bg-gray-700 rounded transition-colors text-left">
+                                <i class="fas fa-copy w-4"></i>
+                                Duplicate
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
-            <button onclick="showVariablesModal()" class="btn-secondary px-4 py-2 rounded-lg text-sm">
-                <i class="fas fa-sliders-h mr-2"></i>
-                Variables
-            </button>
-            <button onclick="showAlertsModal()"
-                class="btn-secondary px-4 py-2 rounded-lg text-sm flex items-center gap-2 relative">
-                <i class="fas fa-bell mr-2"></i>
-                Alerts
-                <span id="alerts-badge"
-                    class="hidden absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">0</span>
-            </button>
-            <button onclick="showAnnotationsModal()" class="btn-secondary px-4 py-2 rounded-lg text-sm">
-                <i class="fas fa-bookmark mr-2"></i>
-                Annotations
-            </button>
-            <button onclick="showRowsModal()" class="btn-secondary px-4 py-2 rounded-lg text-sm">
-                <i class="fas fa-bars mr-2"></i>
-                Rows
-            </button>
-            <button onclick="exportDashboard()" class="btn-secondary px-4 py-2 rounded-lg text-sm">
-                <i class="fas fa-download mr-2"></i>
-                Export
-            </button>
-            <button onclick="showImportModal()" class="btn-secondary px-4 py-2 rounded-lg text-sm">
-                <i class="fas fa-upload mr-2"></i>
-                Import
-            </button>
-            <button onclick="showSnapshotModal()" class="btn-secondary px-4 py-2 rounded-lg text-sm">
-                <i class="fas fa-camera mr-2"></i>
-                Snapshot
-            </button>
-            <button onclick="toggleKioskMode()" class="btn-secondary px-4 py-2 rounded-lg text-sm">
-                <i class="fas fa-tv mr-2"></i>
-                Kiosk Mode
-            </button>
-            <a href="/dashboards" class="btn-secondary px-4 py-2 rounded-lg text-sm">
-                <i class="fas fa-cog mr-2"></i>
-                Settings
-            </a>
         </div>
     </div>
 
@@ -935,9 +1083,312 @@
     Exit Kiosk Mode
 </button>
 
+<!-- Create/Edit Panel Modal -->
+<div id="panel-modal"
+    class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-start justify-center z-50 overflow-y-auto py-8">
+    <div class="bg-gray-800 rounded-lg p-6 my-auto" style="width: 80vw; max-height: 85vh; overflow-y: auto;">
+        <div class="flex justify-between items-center mb-4">
+            <h2 id="modal-title" class="text-xl font-bold text-white">Create Panel</h2>
+            <button onclick="closePanelModal()" class="text-gray-400 hover:text-white">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+
+        <form id="panel-form" onsubmit="savePanel(event)">
+            <input type="hidden" id="panel-id">
+
+            <div class="grid grid-cols-2 gap-4">
+                <!-- Left Column -->
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Panel Name *</label>
+                        <input type="text" id="panel-name" required
+                            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Description</label>
+                        <textarea id="panel-description" rows="2"
+                            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"></textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Datasource *</label>
+                        <select id="panel-datasource" required
+                            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                            <option value="">Select datasource...</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Panel Type</label>
+                        <select id="panel-type"
+                            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                            <optgroup label="Time Series">
+                                <option value="graph">Line Chart</option>
+                                <option value="area">Area Chart</option>
+                                <option value="stacked_area">Stacked Area</option>
+                                <option value="bar">Bar Chart</option>
+                                <option value="stacked_bar">Stacked Bar</option>
+                            </optgroup>
+                            <optgroup label="Single Value">
+                                <option value="stat">Stat (Big Number)</option>
+                                <option value="gauge">Gauge</option>
+                                <option value="sparkline">Sparkline</option>
+                            </optgroup>
+                            <optgroup label="Distribution">
+                                <option value="pie">Pie Chart</option>
+                                <option value="doughnut">Doughnut Chart</option>
+                                <option value="heatmap">Heatmap</option>
+                            </optgroup>
+                            <optgroup label="Data">
+                                <option value="table">Table</option>
+                            </optgroup>
+                        </select>
+                    </div>
+
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-1">Time Range</label>
+                            <select id="panel-time-range"
+                                class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                                <option value="5m">5 minutes</option>
+                                <option value="15m">15 minutes</option>
+                                <option value="30m">30 minutes</option>
+                                <option value="1h">1 hour</option>
+                                <option value="3h">3 hours</option>
+                                <option value="6h">6 hours</option>
+                                <option value="12h">12 hours</option>
+                                <option value="24h" selected>24 hours</option>
+                                <option value="7d">7 days</option>
+                                <option value="30d">30 days</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-1">Refresh (s)</label>
+                            <input type="number" id="panel-refresh" value="30" min="5" max="3600"
+                                class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                        </div>
+                    </div>
+
+                    <div class="flex gap-4">
+                        <label class="flex items-center text-gray-300">
+                            <input type="checkbox" id="panel-is-template" class="mr-2">
+                            Save as Template
+                        </label>
+                        <label class="flex items-center text-gray-300">
+                            <input type="checkbox" id="panel-is-public" class="mr-2">
+                            Public
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Right Column - Query Editor -->
+                <div class="space-y-4">
+                    <!-- Query Examples -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Query Examples</label>
+                        <select id="query-examples" onchange="loadQueryExample()"
+                            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                            <option value="">Select an example...</option>
+                            <option value="cpu">CPU Usage (%)</option>
+                            <option value="memory">Memory Usage (GB)</option>
+                            <option value="disk">Disk Usage (%)</option>
+                            <option value="network_rx">Network Received (MB/s)</option>
+                            <option value="network_tx">Network Transmitted (MB/s)</option>
+                            <option value="http_rate">HTTP Request Rate</option>
+                            <option value="http_errors">HTTP Error Rate (%)</option>
+                            <option value="http_latency">HTTP Request Duration p95</option>
+                            <option value="alerts">Active Alerts</option>
+                            <option value="up">Target Up/Down</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="block text-sm font-medium text-gray-300">PromQL Query *</label>
+                            <button type="button" onclick="testQuery()"
+                                class="text-blue-400 hover:text-blue-300 text-sm">
+                                Test Query
+                            </button>
+                        </div>
+                        <textarea id="query-editor" rows="8" required
+                            placeholder="Example: rate(http_requests_total[5m])"
+                            class="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"></textarea>
+                        <p class="text-xs text-gray-400 mt-1">Enter your PromQL query or select an example above</p>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Legend Format</label>
+                        <input type="text" id="panel-legend" placeholder="{{instance}}"
+                            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                        <p class="text-xs text-gray-400 mt-1">Use {{label_name}} for label values</p>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Tags (comma-separated)</label>
+                        <input type="text" id="panel-tags" placeholder="infrastructure, cpu, monitoring"
+                            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Query Preview Section - Full Width (outside the 2-column grid) -->
+            <div id="query-result" class="hidden mt-6 border-t border-gray-700 pt-6">
+                <h3 class="text-lg font-semibold text-white mb-4">Query Preview</h3>
+                <div id="query-status" class="p-3 rounded text-sm mb-4"></div>
+                <div id="query-preview-chart" class="hidden bg-gray-900 rounded-lg p-4 mb-4"
+                    style="height: 280px; width: 100%;"></div>
+                <div id="query-data-preview" class="hidden bg-gray-900 rounded-lg p-4 max-h-48 overflow-auto">
+                    <div class="text-xs text-gray-400 mb-2 font-medium">Raw Data (first 3 series):</div>
+                    <pre id="query-data-json" class="text-xs text-green-400 font-mono whitespace-pre-wrap"></pre>
+                </div>
+            </div>
+
+            <!-- Advanced Chart Configuration -->
+            <div class="mt-6 border-t border-gray-700 pt-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-white">Chart Configuration</h3>
+                    <button type="button" onclick="toggleChartConfig()"
+                        class="text-sm text-blue-400 hover:text-blue-300">
+                        <i id="chart-config-icon" class="fas fa-chevron-down"></i>
+                        <span id="chart-config-text">Show</span>
+                    </button>
+                </div>
+
+                <div id="chart-config-section" class="hidden space-y-4">
+                    <!-- Y-Axis Configuration -->
+                    <div class="bg-gray-800/50 rounded-lg p-4 space-y-3">
+                        <h4 class="text-sm font-medium text-gray-300 mb-3">Y-Axis</h4>
+                        <div class="grid grid-cols-3 gap-3">
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Min Value</label>
+                                <input type="number" id="y-axis-min" step="any" placeholder="Auto"
+                                    class="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Max Value</label>
+                                <input type="number" id="y-axis-max" step="any" placeholder="Auto"
+                                    class="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Label</label>
+                                <input type="text" id="y-axis-label" placeholder="Value"
+                                    class="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Units & Formatting -->
+                    <div class="bg-gray-800/50 rounded-lg p-4 space-y-3">
+                        <h4 class="text-sm font-medium text-gray-300 mb-3">Units & Formatting</h4>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Unit Format</label>
+                                <select id="unit-format"
+                                    class="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500">
+                                    <option value="">None (Number)</option>
+                                    <option value="percent">Percent (%)</option>
+                                    <option value="bytes">Bytes (B, KB, MB, GB)</option>
+                                    <option value="seconds">Time (s, m, h, d)</option>
+                                    <option value="milliseconds">Milliseconds (ms)</option>
+                                    <option value="requests">Requests/sec</option>
+                                    <option value="ops">Ops/sec</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Decimals</label>
+                                <input type="number" id="decimals" min="0" max="5" value="2"
+                                    class="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Color Scheme -->
+                    <div class="bg-gray-800/50 rounded-lg p-4 space-y-3">
+                        <h4 class="text-sm font-medium text-gray-300 mb-3">Colors</h4>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Color Scheme</label>
+                                <select id="color-scheme"
+                                    class="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500">
+                                    <option value="default">Default (Blue)</option>
+                                    <option value="green">Green</option>
+                                    <option value="red">Red</option>
+                                    <option value="purple">Purple</option>
+                                    <option value="rainbow">Rainbow (Multi-color)</option>
+                                    <option value="cool">Cool (Blue-Green)</option>
+                                    <option value="warm">Warm (Orange-Red)</option>
+                                </select>
+                            </div>
+                            <div class="flex items-end">
+                                <label class="flex items-center text-gray-300 text-sm">
+                                    <input type="checkbox" id="use-gradient" class="mr-2">
+                                    Use Gradient Fill
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Thresholds -->
+                    <div class="bg-gray-800/50 rounded-lg p-4 space-y-3">
+                        <div class="flex items-center justify-between mb-3">
+                            <h4 class="text-sm font-medium text-gray-300">Thresholds</h4>
+                            <button type="button" onclick="addThreshold()"
+                                class="text-xs text-green-400 hover:text-green-300">
+                                <i class="fas fa-plus mr-1"></i>Add Threshold
+                            </button>
+                        </div>
+                        <div id="thresholds-container" class="space-y-2">
+                            <!-- Thresholds will be added here dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Legend -->
+                    <div class="bg-gray-800/50 rounded-lg p-4 space-y-3">
+                        <h4 class="text-sm font-medium text-gray-300 mb-3">Legend</h4>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Position</label>
+                                <select id="legend-position"
+                                    class="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500">
+                                    <option value="bottom">Bottom</option>
+                                    <option value="top">Top</option>
+                                    <option value="left">Left</option>
+                                    <option value="right">Right</option>
+                                </select>
+                            </div>
+                            <div class="flex items-end">
+                                <label class="flex items-center text-gray-300 text-sm">
+                                    <input type="checkbox" id="show-legend" checked class="mr-2">
+                                    Show Legend
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 mt-6">
+                <button type="button" onclick="closePanelModal()"
+                    class="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded text-white">
+                    Cancel
+                </button>
+                <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white">
+                    Save Panel
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- GridStack JS -->
 <script src="https://cdn.jsdelivr.net/npm/gridstack@8.4.0/dist/gridstack-all.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<!-- Panel Editor Shared JS -->
+<script src="/static/js/panel-editor.js"></script>
+
 <script>
     const dashboardId = '{{ dashboard_id }}';
     let dashboard = null;
@@ -950,6 +1401,148 @@
     let variables = [];
     let variableValues = {}; // Store selected values for each variable
     let panelRows = []; // Store panel rows for grouping
+
+    // Settings menu toggle
+    function toggleSettingsMenu() {
+        const menu = document.getElementById('settings-menu');
+        menu.classList.toggle('hidden');
+    }
+
+    // Close settings menu when clicking outside
+    document.addEventListener('click', (e) => {
+        const settingsMenu = document.getElementById('settings-menu');
+        const settingsBtn = e.target.closest('[onclick="toggleSettingsMenu()"]');
+        if (!settingsBtn && settingsMenu && !settingsMenu.contains(e.target)) {
+            settingsMenu.classList.add('hidden');
+        }
+    });
+
+    // Links dropdown toggle
+    function toggleLinksDropdown() {
+        const menu = document.getElementById('links-menu');
+        menu.classList.toggle('hidden');
+    }
+
+    // Edit Mode Functions
+    let originalLayoutState = null; // Store original layout for cancel functionality
+
+    function toggleEditMode() {
+        editMode = !editMode;
+        const editBtn = document.getElementById('edit-mode-btn');
+        const editText = document.getElementById('edit-mode-text');
+        const cancelBtn = document.getElementById('cancel-edit-btn');
+        const saveBtn = document.getElementById('save-layout-btn');
+
+        if (editMode) {
+            // Entering edit mode - save current state for potential cancel
+            originalLayoutState = saveCurrentLayoutState();
+
+            editBtn.classList.add('bg-blue-600', 'border-blue-500');
+            editText.textContent = 'Editing';
+            cancelBtn.classList.remove('hidden');
+            saveBtn.classList.remove('hidden');
+
+            // Enable grid dragging and resizing
+            Object.values(grids).forEach(g => {
+                if (g) {
+                    g.enable();
+                }
+            });
+            showToast('Edit mode enabled. Drag panels to rearrange.', 'info');
+        } else {
+            exitEditMode();
+        }
+    }
+
+    function exitEditMode() {
+        editMode = false;
+        const editBtn = document.getElementById('edit-mode-btn');
+        const editText = document.getElementById('edit-mode-text');
+        const cancelBtn = document.getElementById('cancel-edit-btn');
+        const saveBtn = document.getElementById('save-layout-btn');
+
+        editBtn.classList.remove('bg-blue-600', 'border-blue-500');
+        editText.textContent = 'Edit';
+        cancelBtn.classList.add('hidden');
+        saveBtn.classList.add('hidden');
+
+        // Disable grid dragging and resizing
+        Object.values(grids).forEach(g => {
+            if (g) {
+                g.disable();
+            }
+        });
+        originalLayoutState = null;
+    }
+
+    function cancelEditMode() {
+        if (originalLayoutState) {
+            // Restore original layout
+            restoreLayoutState(originalLayoutState);
+            showToast('Layout changes cancelled', 'info');
+        }
+        exitEditMode();
+    }
+
+    async function saveLayoutChanges() {
+        try {
+            // Save layout for each grid
+            for (const [gridId, gridInstance] of Object.entries(grids)) {
+                if (gridInstance) {
+                    const items = gridInstance.getGridItems();
+                    for (const item of items) {
+                        const panelId = item.getAttribute('gs-id');
+                        const x = parseInt(item.getAttribute('gs-x')) || 0;
+                        const y = parseInt(item.getAttribute('gs-y')) || 0;
+                        const w = parseInt(item.getAttribute('gs-w')) || 6;
+                        const h = parseInt(item.getAttribute('gs-h')) || 4;
+
+                        // Update panel position
+                        await fetch(`/api/dashboards/${dashboardId}/panels/${panelId}/position`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ grid_x: x, grid_y: y, grid_width: w, grid_height: h })
+                        });
+                    }
+                }
+            }
+            showToast('Layout saved successfully!', 'success');
+        } catch (error) {
+            console.error('Error saving layout:', error);
+            showToast('Failed to save layout', 'error');
+        }
+        exitEditMode();
+    }
+
+    function saveCurrentLayoutState() {
+        const state = {};
+        Object.entries(grids).forEach(([gridId, gridInstance]) => {
+            if (gridInstance) {
+                state[gridId] = gridInstance.save(false);
+            }
+        });
+        return state;
+    }
+
+    function restoreLayoutState(state) {
+        Object.entries(state).forEach(([gridId, items]) => {
+            const gridInstance = grids[gridId];
+            if (gridInstance && items) {
+                gridInstance.load(items, true);
+            }
+        });
+    }
+
+    // Placeholder functions for settings menu actions
+    function showShareModal() {
+        showToast('Share functionality coming soon!', 'info');
+        document.getElementById('settings-menu').classList.add('hidden');
+    }
+
+    function duplicateDashboard() {
+        showToast('Duplicate functionality coming soon!', 'info');
+        document.getElementById('settings-menu').classList.add('hidden');
+    }
 
     // Load dashboard on page load
     document.addEventListener('DOMContentLoaded', async () => {
@@ -1163,12 +1756,13 @@
     }
 
     function initializeGridFor(elementId) {
+        console.log('Initializing GridStack (Row Spacing Fix v6 - Forced CSS Inset)');
         const element = document.getElementById(elementId);
         if (!element) return null;
 
         const gridInstance = GridStack.init({
             cellHeight: 80,
-            margin: 10,
+            // margin: 16, // Handled by CSS in v6
             resizable: {
                 handles: 'e, se, s, sw, w'
             },
@@ -1191,7 +1785,24 @@
                     grid_width: item.w,
                     grid_height: item.h
                 });
+
+                // Resize chart when panel is resized
+                if (charts[panelId]) {
+                    setTimeout(() => {
+                        charts[panelId].resize();
+                    }, 100);
+                }
             });
+        });
+
+        // Handle resize stop to ensure charts resize properly
+        gridInstance.on('resizestop', (event, el) => {
+            const panelId = el.getAttribute('gs-id');
+            if (panelId && charts[panelId]) {
+                setTimeout(() => {
+                    charts[panelId].resize();
+                }, 50);
+            }
         });
 
         grids[elementId] = gridInstance;
@@ -1347,7 +1958,7 @@
 
         // Create panel HTML
         const panelHtml = `
-            <div class="grid-stack-item-content">
+            <div class="h-full flex flex-col">
                 <div class="panel-drag-handle">
                     <div>
                         <i class="fas fa-grip-vertical mr-2"></i>
@@ -1386,7 +1997,7 @@
                             </span>
                         </div>
                     </div>
-                    <div id="chart-${panelId}" style="width: 100%; height: 220px;" class="bg-gray-800/50 rounded-lg flex items-center justify-center">
+                    <div id="chart-${panelId}" class="panel-chart-container bg-gray-800/50 rounded-lg">
                         <i class="fas fa-spinner fa-spin text-2xl text-gray-500"></i>
                     </div>
                     <div class="mt-2 text-xs text-gray-600 font-mono truncate" title="${escapeHtml(panelQuery)}">
@@ -1580,6 +2191,14 @@
         // Initialize or get existing chart
         if (!charts[panelId]) {
             charts[panelId] = echarts.init(container);
+
+            // Add ResizeObserver to automatically resize chart when container size changes
+            const resizeObserver = new ResizeObserver(() => {
+                if (charts[panelId]) {
+                    charts[panelId].resize();
+                }
+            });
+            resizeObserver.observe(container);
         }
         const chart = charts[panelId];
 
@@ -1848,36 +2467,8 @@
         }, intervalSeconds * 1000);
     }
 
-    function toggleEditMode() {
-        editMode = !editMode;
-
-        const btn = document.getElementById('edit-mode-btn');
-        const text = document.getElementById('edit-mode-text');
-        const container = document.getElementById('panels-container');
-
-        if (editMode) {
-            // Enable editing
-            grid.enable();
-            text.textContent = 'Save Layout';
-            btn.classList.add('bg-blue-600', 'text-white', 'border-blue-600');
-            btn.classList.remove('border-gray-600');
-            container.classList.add('edit-mode-active');
-            document.querySelectorAll('.grid-stack-item').forEach(item => {
-                item.classList.add('editing');
-            });
-        } else {
-            // Disable editing
-            grid.disable();
-            text.textContent = 'Edit Layout';
-            btn.classList.remove('bg-blue-600', 'text-white', 'border-blue-600');
-            btn.classList.add('border-gray-600');
-            container.classList.remove('edit-mode-active');
-            document.querySelectorAll('.grid-stack-item').forEach(item => {
-                item.classList.remove('editing');
-            });
-            showToast('Layout saved successfully', 'success');
-        }
-    }
+    // toggleEditMode is defined earlier in the file (around line 1429)
+    // with proper Cancel/Save button handling
 
     async function savePanelPosition(panelId, position) {
         try {
@@ -1895,10 +2486,139 @@
         }
     }
 
+    // --- Panel Edit Modal Logic ---
+
+    let queryEditor = null;
+    let thresholdCounter = 0;
+    let previewChart = null;
+
     function editPanel(panelId) {
-        // Redirect to panels page with edit mode
-        window.location.href = `/panels?edit=${panelId}`;
+        // Find panel in the local panels array (populated from templating or API)
+        // Since we don't have a global panels array here yet, we might need to fetch it or rely on what's available.
+        // The dashboard view renders panels server-side.
+        // We can fetch the panel details via API to ensure we have the latest.
+
+        fetch(`/api/panels/${panelId}`)
+            .then(response => response.json())
+            .then(panel => {
+                openEditModal(panel);
+            })
+            .catch(error => {
+                console.error('Error fetching panel details:', error);
+                showToast('Failed to load panel details', 'error');
+            });
     }
+
+    function openEditModal(panel) {
+        document.getElementById('modal-title').textContent = 'Edit Panel';
+        document.getElementById('panel-id').value = panel.id;
+        document.getElementById('panel-name').value = panel.name;
+        document.getElementById('panel-description').value = panel.description || '';
+
+        // Populate Datasource Dropdown if empty (might need to fetch datasources)
+        ensureDatasourcesLoaded().then(() => {
+            document.getElementById('panel-datasource').value = panel.datasource_id;
+        });
+
+        document.getElementById('panel-type').value = panel.panel_type;
+        document.getElementById('panel-legend').value = panel.legend_format || '';
+        document.getElementById('panel-time-range').value = panel.time_range;
+        document.getElementById('panel-refresh').value = panel.refresh_interval;
+        document.getElementById('panel-is-template').checked = panel.is_template;
+        document.getElementById('panel-is-public').checked = panel.is_public;
+        document.getElementById('panel-tags').value = panel.tags ? panel.tags.join(', ') : '';
+        document.getElementById('query-result').classList.add('hidden');
+        document.getElementById('panel-modal').classList.remove('hidden');
+
+        // Set query editor value directly (no CodeMirror - it has rendering issues in modals)
+        const queryTextarea = document.getElementById('query-editor');
+        queryTextarea.value = panel.promql_query || '';
+        queryTextarea.style.display = 'block'; // Ensure textarea is visible
+
+        // Load visualization config using shared function
+        PanelEditor.loadVisualizationConfig(panel.visualization_config);
+    }
+
+    function closePanelModal() {
+        document.getElementById('panel-modal').classList.add('hidden');
+    }
+
+    async function savePanel(event) {
+        event.preventDefault();
+        const id = document.getElementById('panel-id').value;
+        const tags = document.getElementById('panel-tags').value
+            .split(',')
+            .map(t => t.trim())
+            .filter(t => t.length > 0);
+
+        const data = {
+            name: document.getElementById('panel-name').value,
+            description: document.getElementById('panel-description').value || null,
+            datasource_id: document.getElementById('panel-datasource').value,
+            promql_query: document.getElementById('query-editor').value,
+            legend_format: document.getElementById('panel-legend').value || null,
+            time_range: document.getElementById('panel-time-range').value,
+            refresh_interval: parseInt(document.getElementById('panel-refresh').value),
+            panel_type: document.getElementById('panel-type').value,
+            is_template: document.getElementById('panel-is-template').checked,
+            is_public: document.getElementById('panel-is-public').checked,
+            tags: tags.length > 0 ? tags : null,
+            visualization_config: collectChartConfig()
+        };
+
+        try {
+            const response = await fetch(`/api/panels/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            if (response.ok) {
+                showToast('Panel updated successfully', 'success');
+                closePanelModal();
+                // Reload the specific panel or the whole page
+                setTimeout(() => location.reload(), 500); // Simple reload for now to reflect changes matches existing behavior
+            } else {
+                const error = await response.json();
+                showToast(error.detail || 'Failed to save panel', 'error');
+            }
+        } catch (error) {
+            console.error('Failed to save panel:', error);
+            showToast('Failed to save panel', 'error');
+        }
+    }
+
+    // --- Helper Functions for Modal ---
+
+    let datasourcesLoaded = false;
+    async function ensureDatasourcesLoaded() {
+        if (datasourcesLoaded) return;
+        try {
+            const response = await fetch('/api/datasources/?enabled_only=true');
+            const datasources = await response.json();
+            const select = document.getElementById('panel-datasource');
+            // Keep the default option
+            const defaultOption = select.options[0];
+            select.innerHTML = '';
+            select.appendChild(defaultOption);
+
+            datasources.forEach(ds => {
+                const option = document.createElement('option');
+                option.value = ds.id;
+                option.textContent = ds.name;
+                select.appendChild(option);
+            });
+            datasourcesLoaded = true;
+        } catch (error) {
+            console.error('Failed to load datasources:', error);
+        }
+    }
+
+    // Note: toggleChartConfig, addThreshold, removeThreshold, collectChartConfig, 
+    // testQuery, renderModalPreviewChart, getPreviewMetricLabel, loadQueryExample
+    // are now provided by the shared panel-editor.js file
+
+
 
     async function duplicatePanel(panelId) {
         if (!confirm('Duplicate this panel?')) return;
