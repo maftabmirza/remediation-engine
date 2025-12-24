@@ -114,9 +114,29 @@ async def grafana_proxy(
                             header_value = f'/grafana{header_value}'
                     response_headers[header_name] = header_value
 
+            # Process HTML responses for branding injection
+            response_content = response.content
+            if 'text/html' in response.headers.get('content-type', ''):
+                try:
+                    html_content = response.content.decode('utf-8')
+                    
+                    # Inject custom CSS
+                    custom_css = '<link rel="stylesheet" href="/grafana/public/css/aiops-custom.css">'
+                    if '</head>' in html_content:
+                        html_content = html_content.replace('</head>', f'{custom_css}</head>')
+                    
+                    # Replace "Grafana" text with "AIOps" in title and visible text
+                    html_content = html_content.replace('<title>Grafana</title>', '<title>AIOps Observability</title>')
+                    html_content = html_content.replace('>Grafana<', '>AIOps<')
+                    
+                    response_content = html_content.encode('utf-8')
+                except (UnicodeDecodeError, AttributeError):
+                    # If decoding fails, use original content
+                    response_content = response.content
+
             # Return proxied response
             return Response(
-                content=response.content,
+                content=response_content,
                 status_code=response.status_code,
                 headers=response_headers
             )
