@@ -57,9 +57,19 @@ a {
     display: none;
 }
 
+/* Hide original preloader text and show custom text */
+.preloader__text {
+    visibility: hidden;
+    position: relative;
+}
+
 .preloader__text::after {
     content: "Loading AIOps...";
     color: var(--primary-color);
+    visibility: visible;
+    position: absolute;
+    left: 0;
+    top: 0;
 }
 
 /* Hide help/docs links that reference Grafana */

@@ -135,7 +135,9 @@ services:
       # Footer customization
       - GF_SERVER_FOOTER_LINKS=[]
 
-      # Enterprise white-labeling (if licensed)
+      # Enterprise white-labeling (requires Grafana Enterprise license)
+      # These settings provide advanced branding capabilities
+      # For OSS Grafana, basic branding is achieved through custom CSS and grafana.ini
       - GF_ENTERPRISE_WHITELABELING_ENABLED=true
       - GF_ENTERPRISE_WHITELABELING_APP_TITLE=AIOps Observability
       - GF_ENTERPRISE_WHITELABELING_LOGIN_TITLE=AIOps Platform

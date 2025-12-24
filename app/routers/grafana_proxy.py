@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import StreamingResponse
 import httpx
 import os
+import re
 from app.routers.auth import get_current_user
 from app.models import User
 
@@ -125,9 +126,16 @@ async def grafana_proxy(
                     if '</head>' in html_content:
                         html_content = html_content.replace('</head>', f'{custom_css}</head>')
                     
-                    # Replace "Grafana" text with "AIOps" in title and visible text
-                    html_content = html_content.replace('<title>Grafana</title>', '<title>AIOps Observability</title>')
-                    html_content = html_content.replace('>Grafana<', '>AIOps<')
+                    # Replace "Grafana" text with "AIOps" in specific contexts only
+                    # Target title tags specifically to avoid unintended replacements
+                    # Replace in title tags
+                    html_content = re.sub(r'<title>([^<]*?)Grafana([^<]*?)</title>', 
+                                         r'<title>\1AIOps\2</title>', 
+                                         html_content, flags=re.IGNORECASE)
+                    # Replace in visible text (between tags) but not in attributes or scripts
+                    html_content = re.sub(r'>(\s*)Grafana(\s*)<', 
+                                         r'>\1AIOps\2<', 
+                                         html_content)
                     
                     response_content = html_content.encode('utf-8')
                 except (UnicodeDecodeError, AttributeError):
