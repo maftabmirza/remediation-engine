@@ -60,7 +60,9 @@ left: 0 !important;
         <div class="spinner"></div>
         <div>Loading Alertmanager...</div>
     </div>
-    <iframe id="grafana-iframe" src="/grafana/alerting/list?alertState=all&dataSource=Alertmanager"
+    <iframe
+        id="grafana-iframe"
+        src="/grafana/alerting/list?alertState=all&dataSource=Alertmanager&kiosk"
         sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox"
         onload="document.getElementById('loading').style.display='none';">
     </iframe>

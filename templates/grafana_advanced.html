@@ -60,7 +60,9 @@ left: 0 !important;
         <div class="spinner"></div>
         <div>Loading Grafana Dashboards...</div>
     </div>
-    <iframe id="grafana-iframe" src="/grafana/?orgId=1"
+    <iframe
+        id="grafana-iframe"
+        src="/grafana/?orgId=1&kiosk=tv"
         sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox"
         onload="document.getElementById('loading').style.display='none';">
     </iframe>
