@@ -33,6 +33,32 @@ Enhanced Chat Service:
 Response to User (with facts, not assumptions)
 ```
 
+## Leveraging Existing AIOps Data
+
+**IMPORTANT**: This enhancement will **use and enrich** existing AIOps data, not replace it:
+
+### Existing Data Assets
+1. **Alert History** - All alerts from Alertmanager with AI analysis results
+2. **Chat History** - Previous conversations, troubleshooting patterns
+3. **Server Metadata** - Connection credentials, API profiles
+4. **Auto-Analyze Rules** - Alert matching patterns
+
+### How Existing Data is Used
+- **Alert Correlation**: Match Grafana metrics with alert timestamps
+- **Historical Context**: Reference past AI analysis for similar incidents
+- **Chat Continuity**: Build on previous conversations about same issues
+- **Knowledge Base**: Use past resolutions to inform current analysis
+
+### Data Flow Example
+```
+User asks about incident
+    ↓
+1. Query existing alerts table → Get incident details + past AI analysis
+2. Query chat history → See what user already investigated
+3. Query Prometheus → Get actual metrics during incident
+4. Combine all data → Generate comprehensive, context-aware response
+```
+
 ## Key Components to Build
 
 ### 1. Grafana Datasource Connector
@@ -51,9 +77,13 @@ Response to User (with facts, not assumptions)
 **How**: Use LLM (same one as chat) to translate natural language to query syntax  
 
 ### 4. Context Builder
-**What**: Gather relevant historical data before AI responds  
-**Why**: AI needs facts (actual metrics) not just alert info  
-**How**: Fetch recent metrics, events, health status and add to AI prompt  
+**What**: Gather relevant data before AI responds  
+**Why**: AI needs complete picture (existing AIOps data + new monitoring data)  
+**How**: 
+- Fetch alert history and past AI analysis from database
+- Retrieve chat history for context continuity
+- Query Prometheus/Loki for real-time metrics
+- Combine everything into enriched AI prompt  
 
 ### 5. Enhanced Chat Flow
 **What**: Modified chat pipeline that can query data sources  
@@ -95,22 +125,39 @@ Behind the scenes:
    increased to 850ms (above 500ms SLO). Issue self-resolved."
 ```
 
-### Example 3: Impact Analysis
+### Example 3: Impact Analysis (Using Existing + New Data)
 ```
 User: "Was the server impacted during the last incident?"
 
 Behind the scenes:
-1. Detect: Impact query + find last incident
-2. Get incident time: Query alert history
-3. Query infrastructure metrics at that time:
+1. EXISTING DATA: Query alerts table for last incident
+   - Get alert details, timestamp, instance
+   - Retrieve past AI analysis hypothesis
+2. EXISTING DATA: Check chat history
+   - What did user already investigate?
+   - What commands did they run?
+3. NEW DATA: Get incident time window from alert timestamp
+4. NEW DATA: Query infrastructure metrics from Prometheus at that time:
    - CPU, Memory, Disk I/O, Network
-4. Compare with baseline
-5. AI Response: "Yes, significant impact. During incident 
-   (10:15-10:45 UTC):
-   - CPU spiked to 95% (baseline: 45%)
-   - Memory hit 92% (baseline: 65%)
-   - Network traffic 3x normal
-   Root cause: Database connection pool exhaustion"
+5. Compare with baseline metrics
+6. AI Response (combining existing + new data): 
+   
+   "Yes, significant impact during the incident.
+   
+   FROM EXISTING AIOPS DATA:
+   - Alert 'High CPU' fired at 10:15 UTC
+   - Previous analysis: Database connection pool exhaustion
+   - You checked: database logs (in chat history)
+   
+   FROM GRAFANA/PROMETHEUS:
+   During incident (10:15-10:45 UTC):
+   - CPU: 95% (baseline 45%)
+   - Memory: 92% (baseline 65%)
+   - Network: 3x normal
+   
+   COMBINED INSIGHT:
+   Metrics confirm the database pool exhaustion hypothesis from
+   earlier AI analysis. The spike pattern matches."
 ```
 
 ## Implementation Approach

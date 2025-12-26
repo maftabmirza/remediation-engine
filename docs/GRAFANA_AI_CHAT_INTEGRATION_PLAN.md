@@ -48,6 +48,34 @@ Currently, the system has:
 3. **Limited Context**: AI lacks application architecture information
 4. **No Query Translation**: Cannot convert natural language to PromQL/LogQL
 
+### Existing AIOps Data Assets
+
+The system already has valuable data that will be leveraged in the Grafana integration:
+
+1. **Alert History**
+   - Complete history of all alerts received from Alertmanager
+   - AI analysis results stored in `alerts.ai_analysis`
+   - Alert metadata: severity, instance, job, labels, annotations
+   - Correlation with auto-analyze rules
+
+2. **Chat History**
+   - All chat sessions and messages stored in database
+   - Context from previous conversations about alerts
+   - Historical troubleshooting patterns
+   - User questions and AI responses
+
+3. **Server/Application Metadata**
+   - Server credentials and connection info in `server_credentials`
+   - API credential profiles for external integrations
+   - User preferences and default LLM providers
+
+**Integration Strategy**: The new Grafana integration will **enhance** (not replace) this existing data by:
+- Correlating alert history with actual metrics from Prometheus
+- Enriching chat context with historical monitoring data
+- Using past AI analysis as additional context for new queries
+- Referencing similar past incidents when analyzing current issues
+- Combining application metadata with Grafana datasource mappings
+
 ## Proposed Solution Architecture
 
 ### High-Level Design
@@ -235,11 +263,27 @@ class AIContextBuilder:
     ) -> dict:
         """
         Build comprehensive context including:
-        1. Alert history for the session
-        2. Application profile if linked
-        3. Recent metrics (last 1h, 24h, 7d summaries)
-        4. Recent similar incidents
-        5. Available query capabilities
+        
+        EXISTING AIOPS DATA:
+        1. Alert history for the session (from alerts table)
+        2. Previous AI analysis results (alerts.ai_analysis)
+        3. Chat history from this session (chat_messages)
+        4. Related chat sessions about similar alerts
+        5. Server/application metadata (server_credentials, api_credential_profiles)
+        6. Auto-analyze rules that matched this alert
+        
+        NEW GRAFANA DATA:
+        7. Application profile if linked (new application_profiles table)
+        8. Recent metrics from Prometheus (last 1h, 24h, 7d summaries)
+        9. Recent logs from Loki
+        10. Similar incidents correlation with metrics
+        11. Available query capabilities from datasources
+        
+        COMBINED INTELLIGENCE:
+        - Correlate alert timestamps with metric anomalies
+        - Reference past AI analysis for similar patterns
+        - Use chat history to understand user's investigation flow
+        - Enrich with real-time monitoring data
         """
 ```
 
@@ -349,29 +393,46 @@ System Actions:
    The issue self-resolved after 15 minutes."
 ```
 
-**Flow 3: Impact Analysis**
+**Flow 3: Impact Analysis (Leveraging Existing AIOps Data)**
 ```
 User: "Was the server impacted during the last incident?"
 
 System Actions:
 1. Detect intent: Impact analysis
-2. Find last incident: Query alert history
-3. Get incident time window
-4. Execute infrastructure metrics:
-   - node_cpu_usage
-   - node_memory_usage
-   - node_disk_io
-   - node_network_traffic
-5. Compare with baseline
-6. Generate response: "Yes, the server was significantly impacted.
+2. EXISTING DATA: Query alerts table for last incident
+   - Find most recent alert with status='firing' or 'resolved'
+   - Get alert timestamp, instance, severity
+   - Retrieve stored AI analysis (alerts.ai_analysis) for initial hypothesis
+3. EXISTING DATA: Check chat history for related conversations
+   - Find previous chat sessions about this alert (chat_sessions.alert_id)
+   - Review what user already investigated
+4. NEW DATA: Get incident time window
+5. NEW DATA: Execute infrastructure metrics from Prometheus:
+   - node_cpu_usage{instance="<from_alert>"}
+   - node_memory_usage{instance="<from_alert>"}
+   - node_disk_io{instance="<from_alert>"}
+   - node_network_traffic{instance="<from_alert>"}
+6. Compare with baseline metrics
+7. COMBINED ANALYSIS: Generate response using both existing and new data:
+   
+   "Yes, the server was significantly impacted during the incident.
+   
+   INCIDENT CONTEXT (from existing AIOps data):
+   - Alert: 'High CPU Usage' fired at 10:15 UTC on server-01
+   - Previous AI analysis suggested: 'Database connection pool exhaustion'
+   - You previously investigated: database logs and connection counts
+   
+   INFRASTRUCTURE IMPACT (from Grafana/Prometheus):
    During the incident from 10:15-10:45 UTC:
    - CPU utilization spiked to 95% (baseline: 45%)
    - Memory usage reached 92% (baseline: 65%)
    - Network traffic increased 3x normal levels
    - Disk I/O operations backed up to 2000ms latency
    
-   The root cause was a database connection pool exhaustion that
-   cascaded to high CPU usage as connections queued."
+   CORRELATION:
+   The metrics confirm the initial AI hypothesis. The connection pool 
+   exhaustion (from previous analysis) cascaded to high CPU usage as 
+   connections queued, matching the spike pattern in the metrics."
 ```
 
 ## Implementation Phases
