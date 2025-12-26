@@ -118,13 +118,24 @@
             </div>
         </div>
 
-        <!-- Pane 2: Terminal (7 cols ~ 58%) -->
-        <div class="lg:col-span-7 flex flex-col card h-full bg-black overflow-hidden">
+        <!-- Pane 2: Terminal / Data Output (7 cols ~ 58%) -->
+        <div class="lg:col-span-7 flex flex-col card h-full overflow-hidden">
             <div class="p-2 border-b border-gray-800 flex justify-between items-center bg-gray-900 flex-shrink-0">
                 <div class="flex items-center">
-                    <h2 class="font-semibold text-sm mr-2"><i class="fas fa-terminal text-green-400 mr-1"></i>Terminal
-                    </h2>
-                    <div class="flex space-x-1 mr-2">
+                    <!-- Toggle Tabs -->
+                    <div class="flex border border-gray-700 rounded mr-3">
+                        <button id="terminalTabBtn" onclick="switchRightPane('terminal')"
+                            class="px-3 py-1 text-xs font-medium bg-gray-700 text-white rounded-l border-r border-gray-600">
+                            <i class="fas fa-terminal mr-1"></i>Terminal
+                        </button>
+                        <button id="dataOutputTabBtn" onclick="switchRightPane('data')"
+                            class="px-3 py-1 text-xs font-medium bg-transparent text-gray-400 rounded-r hover:text-white">
+                            <i class="fas fa-chart-line mr-1"></i>Data Output
+                        </button>
+                    </div>
+
+                    <!-- Terminal Controls (shown when terminal is active) -->
+                    <div id="terminalControls" class="flex items-center space-x-1">
                         <button onclick="adjustTermFont(-1)" class="text-gray-400 hover:text-white px-1"
                             title="Decrease Font Size"><i class="fas fa-minus text-xs"></i></button>
                         <button onclick="adjustTermFont(1)" class="text-gray-400 hover:text-white px-1"
@@ -132,58 +143,100 @@
                     </div>
                 </div>
                 <div class="flex items-center space-x-2">
-                    <span id="termStatus" class="text-[10px] text-gray-500"
-                        title="Connection Status">Disconnected</span>
-                    <button onclick="openServerModal()" class="btn-secondary px-2 py-1 text-[10px] rounded"
-                        title="Connect to Server">
-                        <i class="fas fa-plug mr-1"></i>Connect
-                    </button>
+                    <!-- Terminal Status (shown when terminal is active) -->
+                    <div id="terminalStatus" class="flex items-center space-x-2">
+                        <span id="termStatus" class="text-[10px] text-gray-500"
+                            title="Connection Status">Disconnected</span>
+                        <button onclick="openServerModal()" class="btn-secondary px-2 py-1 text-[10px] rounded"
+                            title="Connect to Server">
+                            <i class="fas fa-plug mr-1"></i>Connect
+                        </button>
+                    </div>
+
+                    <!-- Data Output Controls (hidden by default) -->
+                    <div id="dataOutputControls" class="hidden flex items-center space-x-2">
+                        <button onclick="clearDataOutput()" class="text-gray-400 hover:text-white px-2 py-1 text-xs"
+                            title="Clear Data Output">
+                            <i class="fas fa-eraser mr-1"></i>Clear
+                        </button>
+                        <button onclick="exportDataOutput()" class="text-gray-400 hover:text-white px-2 py-1 text-xs"
+                            title="Export Data">
+                            <i class="fas fa-download mr-1"></i>Export
+                        </button>
+                    </div>
                 </div>
             </div>
             <div class="flex-grow relative overflow-hidden h-full w-full">
-                <div id="terminal" class="absolute inset-0"></div>
+                <!-- Terminal Container -->
+                <div id="terminalContainer" class="absolute inset-0">
+                    <div id="terminal" class="absolute inset-0"></div>
 
-                <!-- Inline Chat Overlay (Ctrl+I) -->
-                <div id="inlineChatOverlay" class="hidden absolute bottom-4 left-4 right-4 z-50">
-                    <div class="bg-gray-900/95 border border-purple-500/50 rounded-lg shadow-2xl backdrop-blur-sm">
-                        <div class="flex items-center px-3 py-2 border-b border-gray-700">
-                            <i class="fas fa-robot text-purple-400 mr-2"></i>
-                            <span class="text-xs text-gray-300">Ask AI about terminal</span>
-                            <span class="ml-auto text-[10px] text-gray-500">Esc to close</span>
-                        </div>
-                        <div class="p-2">
-                            <div class="flex space-x-2">
-                                <input type="text" id="inlineChatInput"
-                                    class="flex-grow bg-gray-800 border border-gray-600 text-white text-sm px-3 py-2 rounded focus:border-purple-500 focus:outline-none"
-                                    placeholder="Ask about what you see in the terminal..."
-                                    onkeydown="handleInlineChatKey(event)">
-                                <button onclick="sendInlineChat()"
-                                    class="bg-purple-600 hover:bg-purple-500 text-white px-3 py-2 rounded text-sm">
-                                    <i class="fas fa-paper-plane"></i>
-                                </button>
+                    <!-- Inline Chat Overlay (Ctrl+I) -->
+                    <div id="inlineChatOverlay" class="hidden absolute bottom-4 left-4 right-4 z-50">
+                        <div class="bg-gray-900/95 border border-purple-500/50 rounded-lg shadow-2xl backdrop-blur-sm">
+                            <div class="flex items-center px-3 py-2 border-b border-gray-700">
+                                <i class="fas fa-robot text-purple-400 mr-2"></i>
+                                <span class="text-xs text-gray-300">Ask AI about terminal</span>
+                                <span class="ml-auto text-[10px] text-gray-500">Esc to close</span>
                             </div>
-                            <div class="mt-2 flex flex-wrap gap-1">
-                                <button onclick="sendQuickInlineChat('What does this error mean?')"
-                                    class="text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-300 px-2 py-1 rounded">What
-                                    does this error mean?</button>
-                                <button onclick="sendQuickInlineChat('How do I fix this?')"
-                                    class="text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-300 px-2 py-1 rounded">How
-                                    do I fix this?</button>
-                                <button onclick="sendQuickInlineChat('Explain the last command output')"
-                                    class="text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-300 px-2 py-1 rounded">Explain
-                                    output</button>
+                            <div class="p-2">
+                                <div class="flex space-x-2">
+                                    <input type="text" id="inlineChatInput"
+                                        class="flex-grow bg-gray-800 border border-gray-600 text-white text-sm px-3 py-2 rounded focus:border-purple-500 focus:outline-none"
+                                        placeholder="Ask about what you see in the terminal..."
+                                        onkeydown="handleInlineChatKey(event)">
+                                    <button onclick="sendInlineChat()"
+                                        class="bg-purple-600 hover:bg-purple-500 text-white px-3 py-2 rounded text-sm">
+                                        <i class="fas fa-paper-plane"></i>
+                                    </button>
+                                </div>
+                                <div class="mt-2 flex flex-wrap gap-1">
+                                    <button onclick="sendQuickInlineChat('What does this error mean?')"
+                                        class="text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-300 px-2 py-1 rounded">What
+                                        does this error mean?</button>
+                                    <button onclick="sendQuickInlineChat('How do I fix this?')"
+                                        class="text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-300 px-2 py-1 rounded">How
+                                        do I fix this?</button>
+                                    <button onclick="sendQuickInlineChat('Explain the last command output')"
+                                        class="text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-300 px-2 py-1 rounded">Explain
+                                        output</button>
+                                </div>
                             </div>
                         </div>
                     </div>
+
+                    <!-- Explain Selection Button -->
+                    <div id="explainSelectionBtn" class="hidden absolute z-50">
+                        <button onclick="explainSelectedText()"
+                            class="bg-purple-600 hover:bg-purple-500 text-white text-xs px-3 py-1.5 rounded shadow-lg flex items-center space-x-1">
+                            <i class="fas fa-magic"></i>
+                            <span>Explain with AI</span>
+                        </button>
+                    </div>
                 </div>
 
-                <!-- Explain Selection Button -->
-                <div id="explainSelectionBtn" class="hidden absolute z-50">
-                    <button onclick="explainSelectedText()"
-                        class="bg-purple-600 hover:bg-purple-500 text-white text-xs px-3 py-1.5 rounded shadow-lg flex items-center space-x-1">
-                        <i class="fas fa-magic"></i>
-                        <span>Explain with AI</span>
-                    </button>
+                <!-- Data Output Container (hidden by default) -->
+                <div id="dataOutputContainer" class="hidden absolute inset-0 bg-gray-900 overflow-y-auto">
+                    <div id="dataOutputContent" class="p-4 space-y-4">
+                        <!-- Empty state -->
+                        <div id="dataOutputEmpty" class="flex flex-col items-center justify-center h-full text-center text-gray-500">
+                            <i class="fas fa-chart-line text-6xl mb-4 text-gray-700"></i>
+                            <h3 class="text-lg font-semibold mb-2">No Data Yet</h3>
+                            <p class="text-sm">Ask observability questions in the chat to see formatted results here.</p>
+                            <div class="mt-6 text-left bg-gray-800 rounded-lg p-4 max-w-md">
+                                <p class="text-xs text-gray-400 mb-2">Try asking:</p>
+                                <ul class="text-xs text-gray-300 space-y-1">
+                                    <li><i class="fas fa-chevron-right text-blue-400 mr-2"></i>"Show me error logs in the last hour"</li>
+                                    <li><i class="fas fa-chevron-right text-blue-400 mr-2"></i>"What's the P95 latency?"</li>
+                                    <li><i class="fas fa-chevron-right text-blue-400 mr-2"></i>"Is the application healthy?"</li>
+                                    <li><i class="fas fa-chevron-right text-blue-400 mr-2"></i>"Show slow traces"</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- Results will be dynamically added here -->
+                        <div id="dataOutputResults" class="hidden space-y-4"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -331,4 +384,266 @@
 {% block scripts %}
 {{ super() }}
 <script src="/static/js/ai_chat.js"></script>
+<script>
+// ============================================================================
+// Right Pane Toggle (Terminal / Data Output)
+// ============================================================================
+
+let currentRightPane = 'terminal'; // Default to terminal
+
+/**
+ * Switch between Terminal and Data Output views
+ */
+function switchRightPane(pane) {
+    currentRightPane = pane;
+
+    const terminalContainer = document.getElementById('terminalContainer');
+    const dataOutputContainer = document.getElementById('dataOutputContainer');
+    const terminalTabBtn = document.getElementById('terminalTabBtn');
+    const dataOutputTabBtn = document.getElementById('dataOutputTabBtn');
+    const terminalControls = document.getElementById('terminalControls');
+    const terminalStatus = document.getElementById('terminalStatus');
+    const dataOutputControls = document.getElementById('dataOutputControls');
+
+    if (pane === 'terminal') {
+        // Show terminal, hide data output
+        terminalContainer.classList.remove('hidden');
+        dataOutputContainer.classList.add('hidden');
+
+        // Update tab styles
+        terminalTabBtn.classList.add('bg-gray-700', 'text-white');
+        terminalTabBtn.classList.remove('bg-transparent', 'text-gray-400');
+        dataOutputTabBtn.classList.remove('bg-gray-700', 'text-white');
+        dataOutputTabBtn.classList.add('bg-transparent', 'text-gray-400');
+
+        // Show terminal controls
+        terminalControls.classList.remove('hidden');
+        terminalStatus.classList.remove('hidden');
+        dataOutputControls.classList.add('hidden');
+    } else if (pane === 'data') {
+        // Show data output, hide terminal
+        terminalContainer.classList.add('hidden');
+        dataOutputContainer.classList.remove('hidden');
+
+        // Update tab styles
+        dataOutputTabBtn.classList.add('bg-gray-700', 'text-white');
+        dataOutputTabBtn.classList.remove('bg-transparent', 'text-gray-400');
+        terminalTabBtn.classList.remove('bg-gray-700', 'text-white');
+        terminalTabBtn.classList.add('bg-transparent', 'text-gray-400');
+
+        // Show data output controls
+        terminalControls.classList.add('hidden');
+        terminalStatus.classList.add('hidden');
+        dataOutputControls.classList.remove('hidden');
+    }
+}
+
+/**
+ * Clear data output results
+ */
+function clearDataOutput() {
+    const resultsContainer = document.getElementById('dataOutputResults');
+    const emptyState = document.getElementById('dataOutputEmpty');
+
+    resultsContainer.innerHTML = '';
+    resultsContainer.classList.add('hidden');
+    emptyState.classList.remove('hidden');
+}
+
+/**
+ * Export data output as JSON
+ */
+function exportDataOutput() {
+    // Get all data from results
+    const resultsContainer = document.getElementById('dataOutputResults');
+    if (resultsContainer.children.length === 0) {
+        alert('No data to export');
+        return;
+    }
+
+    // Create export data (would contain actual query results)
+    const exportData = {
+        timestamp: new Date().toISOString(),
+        results: []
+    };
+
+    // Trigger download
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `observability-data-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+/**
+ * Display observability query results in Data Output pane
+ */
+function displayObservabilityResults(data) {
+    const resultsContainer = document.getElementById('dataOutputResults');
+    const emptyState = document.getElementById('dataOutputEmpty');
+
+    // Create result card
+    const resultCard = createObservabilityResultCard(data);
+
+    // Show results, hide empty state
+    resultsContainer.insertBefore(resultCard, resultsContainer.firstChild);
+    resultsContainer.classList.remove('hidden');
+    emptyState.classList.add('hidden');
+
+    // Auto-switch to data output view
+    switchRightPane('data');
+}
+
+/**
+ * Create formatted result card for observability data
+ */
+function createObservabilityResultCard(data) {
+    const card = document.createElement('div');
+    card.className = 'bg-gray-800 border border-gray-700 rounded-lg p-4 shadow-lg';
+
+    // Header with query and timestamp
+    const header = document.createElement('div');
+    header.className = 'flex items-start justify-between mb-3 pb-3 border-b border-gray-700';
+    header.innerHTML = `
+        <div class="flex-grow">
+            <div class="flex items-center space-x-2 mb-1">
+                <i class="fas fa-search text-blue-400"></i>
+                <h3 class="font-semibold text-sm text-white">${escapeHtml(data.query || 'Observability Query')}</h3>
+            </div>
+            <p class="text-xs text-gray-400">${new Date().toLocaleString()}</p>
+        </div>
+        <button onclick="this.closest('.bg-gray-800').remove()"
+                class="text-gray-400 hover:text-white text-xs ml-2"
+                title="Remove">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+    card.appendChild(header);
+
+    // Summary section
+    if (data.summary) {
+        const summary = document.createElement('div');
+        summary.className = 'mb-4 p-3 bg-gray-900/50 rounded border-l-4 border-blue-500';
+        summary.innerHTML = `
+            <div class="flex items-start">
+                <i class="fas fa-info-circle text-blue-400 mt-1 mr-2"></i>
+                <p class="text-sm text-gray-200">${escapeHtml(data.summary)}</p>
+            </div>
+        `;
+        card.appendChild(summary);
+    }
+
+    // Insights section
+    if (data.insights && data.insights.length > 0) {
+        const insightsContainer = document.createElement('div');
+        insightsContainer.className = 'space-y-2 mb-4';
+
+        data.insights.forEach(insight => {
+            const severityColors = {
+                'info': 'blue',
+                'warning': 'yellow',
+                'error': 'orange',
+                'critical': 'red'
+            };
+            const color = severityColors[insight.severity] || 'blue';
+
+            const insightEl = document.createElement('div');
+            insightEl.className = `bg-${color}-900/20 border border-${color}-800 rounded p-3`;
+            insightEl.innerHTML = `
+                <div class="flex items-start justify-between">
+                    <div class="flex-grow">
+                        <h4 class="text-xs font-semibold text-${color}-300 mb-1">${escapeHtml(insight.title)}</h4>
+                        <p class="text-xs text-gray-300">${escapeHtml(insight.summary)}</p>
+                        ${insight.metric_value ? `<p class="text-xs text-gray-400 mt-1">Value: ${insight.metric_value}</p>` : ''}
+                        ${insight.details && insight.details.length > 0 ? `
+                            <div class="mt-2 space-y-1">
+                                ${insight.details.slice(0, 3).map(detail =>
+                                    `<p class="text-xs text-gray-400 font-mono">${escapeHtml(detail)}</p>`
+                                ).join('')}
+                                ${insight.details.length > 3 ? `<p class="text-xs text-gray-500">... and ${insight.details.length - 3} more</p>` : ''}
+                            </div>
+                        ` : ''}
+                    </div>
+                    <span class="ml-2 px-2 py-0.5 text-[10px] rounded bg-${color}-800 text-${color}-200">${insight.severity}</span>
+                </div>
+            `;
+            insightsContainer.appendChild(insightEl);
+        });
+
+        card.appendChild(insightsContainer);
+    }
+
+    // Recommendations section
+    if (data.recommendations && data.recommendations.length > 0) {
+        const recommendations = document.createElement('div');
+        recommendations.className = 'bg-green-900/20 border border-green-800 rounded p-3';
+        recommendations.innerHTML = `
+            <h4 class="text-xs font-semibold text-green-300 mb-2 flex items-center">
+                <i class="fas fa-lightbulb mr-2"></i>Recommendations
+            </h4>
+            <ul class="space-y-1">
+                ${data.recommendations.map(rec =>
+                    `<li class="text-xs text-gray-300 flex items-start">
+                        <i class="fas fa-chevron-right text-green-400 mr-2 mt-0.5"></i>
+                        <span>${escapeHtml(rec)}</span>
+                    </li>`
+                ).join('')}
+            </ul>
+        `;
+        card.appendChild(recommendations);
+    }
+
+    // Stats footer
+    if (data.execution_time_ms || data.stats) {
+        const stats = document.createElement('div');
+        stats.className = 'mt-3 pt-3 border-t border-gray-700 flex items-center justify-between text-xs text-gray-500';
+        stats.innerHTML = `
+            <div class="flex items-center space-x-3">
+                ${data.execution_time_ms ? `<span><i class="fas fa-clock mr-1"></i>${data.execution_time_ms.toFixed(0)}ms</span>` : ''}
+                ${data.has_logs ? `<span><i class="fas fa-file-alt mr-1 text-blue-400"></i>Logs</span>` : ''}
+                ${data.has_traces ? `<span><i class="fas fa-project-diagram mr-1 text-purple-400"></i>Traces</span>` : ''}
+                ${data.has_metrics ? `<span><i class="fas fa-chart-line mr-1 text-green-400"></i>Metrics</span>` : ''}
+            </div>
+            <span class="text-gray-600">${data.intent_type || 'query'}</span>
+        `;
+        card.appendChild(stats);
+    }
+
+    return card;
+}
+
+/**
+ * Escape HTML to prevent XSS
+ */
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+/**
+ * Detect if a query is observability-related and should trigger data output
+ */
+function isObservabilityQuery(query) {
+    const observabilityKeywords = [
+        'error', 'errors', 'log', 'logs', 'trace', 'traces',
+        'metric', 'metrics', 'latency', 'performance', 'slow',
+        'p95', 'p99', 'healthy', 'health', 'uptime', 'availability',
+        'cpu', 'memory', 'disk', 'requests', 'rate'
+    ];
+
+    const lowerQuery = query.toLowerCase();
+    return observabilityKeywords.some(keyword => lowerQuery.includes(keyword));
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Default to terminal view
+    switchRightPane('terminal');
+});
+</script>
 {% endblock %}
