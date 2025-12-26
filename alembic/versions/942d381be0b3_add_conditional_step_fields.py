@@ -23,13 +23,13 @@ def create_index_safe(index_name, table_name, columns, **kw):
     # Note: sa.text is available because 'import sqlalchemy as sa' is in the file
     res = conn.execute(sa.text(f"SELECT 1 FROM pg_indexes WHERE indexname = '{index_name}'"))
     if not res.scalar():
-        create_index_safe(index_name, table_name, columns, **kw)
+        op.create_index(index_name, table_name, columns, **kw)
 
 def drop_index_safe(index_name, table_name, **kw):
     conn = op.get_bind()
     res = conn.execute(sa.text(f"SELECT 1 FROM pg_indexes WHERE indexname = '{index_name}'"))
     if res.scalar():
-        drop_index_safe(index_name, table_name=table_name, **kw)
+        op.drop_index(index_name, table_name=table_name, **kw)
 
 
 def upgrade() -> None:
