@@ -3,6 +3,77 @@
 
 {% block title %}Runbooks - AIOps Platform{% endblock %}
 
+{% block head %}
+<style>
+    /* Grafana-aligned Panel/Table Style */
+    .panel-card {
+        background-color: #181b1f;
+        border: 1px solid rgba(204, 204, 220, 0.12);
+        border-radius: 4px;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    /* Grafana-style Badges */
+    .badge {
+        padding: 2px 8px;
+        border-radius: 2px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        display: inline-block;
+    }
+
+    .badge-active {
+        background-color: #1a7f4b;
+        color: white;
+    }
+
+    /* Green */
+    .badge-draft {
+        background-color: #eb7b18;
+        color: white;
+    }
+
+    /* Orange */
+    .badge-disabled {
+        background-color: #565656;
+        color: #d3d3d3;
+    }
+
+    /* Gray */
+
+    .badge-infrastructure {
+        background-color: #3d71d9;
+        color: white;
+    }
+
+    /* Blue */
+    .badge-application {
+        background-color: #b877d9;
+        color: white;
+    }
+
+    /* Purple */
+    .badge-database {
+        background-color: #d10e5c;
+        color: white;
+    }
+
+    /* Pink */
+    .badge-network {
+        background-color: #6e9fff;
+        color: #111217;
+    }
+
+    /* Light Blue */
+    .badge-security {
+        background-color: #ff5286;
+        color: white;
+    }
+
+    /* Red */
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="space-y-4">
     <!-- Enterprise Standard Toolbar -->
@@ -45,113 +116,164 @@
     </div>
 
     <!-- Filters & Bulk Actions -->
-    <div class="card p-4">
-        <div class="flex flex-wrap gap-4 mb-4">
-            <div class="flex-1 min-w-[200px]">
-                <input type="text" id="searchInput" placeholder="Search runbooks..."
-                    class="input-field w-full px-3 py-2 rounded" onkeyup="filterRunbooks()">
-            </div>
-            <div class="w-48">
-                <select id="statusFilter" class="input-field w-full px-3 py-2 rounded" onchange="filterRunbooks()">
-                    <option value="">All Status</option>
-                    <option value="active">Active</option>
-                    <option value="draft">Draft</option>
-                    <option value="disabled">Disabled</option>
-                </select>
-            </div>
-            <div class="w-48">
-                <select id="categoryFilter" class="input-field w-full px-3 py-2 rounded" onchange="filterRunbooks()">
-                    <option value="">All Categories</option>
-                    <option value="infrastructure">Infrastructure</option>
-                    <option value="application">Application</option>
-                    <option value="database">Database</option>
-                    <option value="network">Network</option>
-                    <option value="security">Security</option>
-                </select>
-            </div>
+    <div class="card p-4 flex flex-wrap gap-4 items-center">
+        <div class="flex-1">
+            <input type="text" id="searchInput" placeholder="Search runbooks..." onkeyup="filterRunbooks()"
+                class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
         </div>
-        <!-- Bulk Actions -->
-        <div id="bulkActionsBar"
-            class="hidden flex items-center gap-3 p-3 bg-blue-900 bg-opacity-20 rounded-lg border border-blue-500">
-            <span id="selectedCount" class="text-sm text-primary font-medium">0 selected</span>
-            <button onclick="bulkEnable()" class="btn-secondary px-3 py-1 rounded text-sm">
-                <i class="fas fa-check-circle mr-1"></i>Enable
-            </button>
-            <button onclick="bulkDisable()" class="btn-secondary px-3 py-1 rounded text-sm">
-                <i class="fas fa-ban mr-1"></i>Disable
-            </button>
-            <button onclick="bulkDelete()"
-                class="btn-secondary px-3 py-1 rounded text-sm text-red-400 hover:text-red-300">
-                <i class="fas fa-trash mr-1"></i>Delete
-            </button>
-            <button onclick="clearSelection()" class="btn-secondary px-3 py-1 rounded text-sm ml-auto">
-                Clear Selection
-            </button>
-        </div>
+        <select id="statusFilter" onchange="filterRunbooks()"
+            class="bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+            <option value="">All Status</option>
+            <option value="active">Active</option>
+            <option value="draft">Draft</option>
+            <option value="disabled">Disabled</option>
+        </select>
+        <select id="categoryFilter" onchange="filterRunbooks()"
+            class="bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+            <option value="">All Categories</option>
+            <option value="infrastructure">Infrastructure</option>
+            <option value="application">Application</option>
+            <option value="database">Database</option>
+            <option value="network">Network</option>
+            <option value="security">Security</option>
+        </select>
     </div>
-
-    <!-- Stats Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div class="card p-4">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-lg bg-blue-500 bg-opacity-20 flex items-center justify-center">
-                    <i class="fas fa-book text-blue-400"></i>
-                </div>
-                <div>
-                    <p class="text-secondary text-sm">Total Runbooks</p>
-                    <p class="text-xl font-bold text-primary" id="totalCount">0</p>
-                </div>
-            </div>
-        </div>
-        <div class="card p-4">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-lg bg-green-500 bg-opacity-20 flex items-center justify-center">
-                    <i class="fas fa-check-circle text-green-400"></i>
-                </div>
-                <div>
-                    <p class="text-secondary text-sm">Active</p>
-                    <p class="text-xl font-bold text-primary" id="activeCount">0</p>
-                </div>
-            </div>
-        </div>
-        <div class="card p-4">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-lg bg-yellow-500 bg-opacity-20 flex items-center justify-center">
-                    <i class="fas fa-edit text-yellow-400"></i>
-                </div>
-                <div>
-                    <p class="text-secondary text-sm">Drafts</p>
-                    <p class="text-xl font-bold text-primary" id="draftCount">0</p>
-                </div>
-            </div>
-        </div>
-        <div class="card p-4">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-lg bg-purple-500 bg-opacity-20 flex items-center justify-center">
-                    <i class="fas fa-play text-purple-400"></i>
-                </div>
-                <div>
-                    <p class="text-secondary text-sm">Executions Today</p>
-                    <p class="text-xl font-bold text-primary" id="executionCount">0</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Runbooks Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="runbooksGrid">
-        <!-- Runbooks will be loaded dynamically -->
-    </div>
-
-    <!-- Empty State -->
-    <div id="emptyState" class="card p-12 text-center hidden">
-        <i class="fas fa-book-open text-4xl text-secondary mb-4"></i>
-        <h3 class="text-lg font-medium text-primary mb-2">No Runbooks Found</h3>
-        <p class="text-secondary mb-4">Create your first runbook to start automating remediation tasks.</p>
-        <button onclick="openCreateModal()" class="btn-primary px-4 py-2 rounded-lg">
-            <i class="fas fa-plus mr-2"></i>Create Runbook
+    <!-- Bulk Actions -->
+    <div id="bulkActionsBar"
+        class="hidden flex items-center gap-3 p-3 bg-blue-900 bg-opacity-20 rounded-lg border border-blue-500">
+        <span id="selectedCount" class="text-sm text-primary font-medium">0 selected</span>
+        <button onclick="bulkEnable()" class="btn-secondary px-3 py-1 rounded text-sm">
+            <i class="fas fa-check-circle mr-1"></i>Enable
+        </button>
+        <button onclick="bulkDisable()" class="btn-secondary px-3 py-1 rounded text-sm">
+            <i class="fas fa-ban mr-1"></i>Disable
+        </button>
+        <button onclick="bulkDelete()" class="btn-secondary px-3 py-1 rounded text-sm text-red-400 hover:text-red-300">
+            <i class="fas fa-trash mr-1"></i>Delete
+        </button>
+        <button onclick="clearSelection()" class="btn-secondary px-3 py-1 rounded text-sm ml-auto">
+            Clear Selection
         </button>
     </div>
+</div>
+
+<!-- Stats Cards -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+    <div class="card p-4">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-lg bg-blue-500 bg-opacity-20 flex items-center justify-center">
+                <i class="fas fa-book text-blue-400"></i>
+            </div>
+            <div>
+                <p class="text-secondary text-sm">Total Runbooks</p>
+                <p class="text-xl font-bold text-primary" id="totalCount">0</p>
+            </div>
+        </div>
+    </div>
+    <div class="card p-4">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-lg bg-green-500 bg-opacity-20 flex items-center justify-center">
+                <i class="fas fa-check-circle text-green-400"></i>
+            </div>
+            <div>
+                <p class="text-secondary text-sm">Active</p>
+                <p class="text-xl font-bold text-primary" id="activeCount">0</p>
+            </div>
+        </div>
+    </div>
+    <div class="card p-4">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-lg bg-yellow-500 bg-opacity-20 flex items-center justify-center">
+                <i class="fas fa-edit text-yellow-400"></i>
+            </div>
+            <div>
+                <p class="text-secondary text-sm">Drafts</p>
+                <p class="text-xl font-bold text-primary" id="draftCount">0</p>
+            </div>
+        </div>
+    </div>
+    <div class="card p-4">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-lg bg-purple-500 bg-opacity-20 flex items-center justify-center">
+                <i class="fas fa-play text-purple-400"></i>
+            </div>
+            <div>
+                <p class="text-secondary text-sm">Executions Today</p>
+                <p class="text-xl font-bold text-primary" id="executionCount">0</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Runbooks Table -->
+<div class="card overflow-hidden">
+    <table class="w-full text-sm">
+        <thead>
+            <tr class="bg-[#181b1f] text-left text-[#8e8e8e]"
+                style="border-bottom: 1px solid rgba(204, 204, 220, 0.07);">
+                <th class="px-4 py-3 font-medium w-10">
+                    <input type="checkbox" id="selectAllCheckbox" onclick="toggleSelectAll()" class="h-4 w-4">
+                </th>
+                <th class="px-4 py-3 font-medium">Name</th>
+                <th class="px-4 py-3 font-medium">Status</th>
+                <th class="px-4 py-3 font-medium">Category</th>
+                <th class="px-4 py-3 font-medium hidden md:table-cell">Steps</th>
+                <th class="px-4 py-3 font-medium hidden md:table-cell">Triggers</th>
+                <th class="px-4 py-3 font-medium hidden lg:table-cell">Created</th>
+                <th class="px-4 py-3 font-medium hidden lg:table-cell">Updated</th>
+                <th class="px-4 py-3 font-medium text-right">Actions</th>
+            </tr>
+        </thead>
+        <tbody id="runbooks-tbody" class="text-[#ccccdc]">
+            <!-- Populated by JavaScript -->
+        </tbody>
+    </table>
+</div>
+
+<!-- Pagination -->
+<div id="pagination-container" class="flex items-center justify-between mt-4 text-sm hidden">
+    <div class="text-[#8e8e8e]">
+        Showing <span id="showing-start">0</span>-<span id="showing-end">0</span> of <span id="total-count">0</span>
+        runbooks
+    </div>
+    <div class="flex items-center gap-2">
+        <button onclick="goToPage(1)" id="first-page-btn" disabled
+            class="px-3 py-1.5 rounded border border-[rgba(204,204,220,0.12)] bg-[#181b1f] text-[#ccccdc] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#22252b] transition-colors">
+            <i class="fas fa-angle-double-left"></i>
+        </button>
+        <button onclick="goToPage(currentPage - 1)" id="prev-page-btn" disabled
+            class="px-3 py-1.5 rounded border border-[rgba(204,204,220,0.12)] bg-[#181b1f] text-[#ccccdc] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#22252b] transition-colors">
+            <i class="fas fa-angle-left"></i>
+        </button>
+        <span class="px-3 py-1.5 text-[#ccccdc]">Page <span id="current-page">1</span> of <span
+                id="total-pages">1</span></span>
+        <button onclick="goToPage(currentPage + 1)" id="next-page-btn" disabled
+            class="px-3 py-1.5 rounded border border-[rgba(204,204,220,0.12)] bg-[#181b1f] text-[#ccccdc] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#22252b] transition-colors">
+            <i class="fas fa-angle-right"></i>
+        </button>
+        <button onclick="goToPage(totalPages)" id="last-page-btn" disabled
+            class="px-3 py-1.5 rounded border border-[rgba(204,204,220,0.12)] bg-[#181b1f] text-[#ccccdc] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#22252b] transition-colors">
+            <i class="fas fa-angle-double-right"></i>
+        </button>
+        <select id="page-size" onchange="changePageSize(this.value)"
+            class="px-3 py-1.5 rounded border border-[rgba(204,204,220,0.12)] bg-[#181b1f] text-[#ccccdc] focus:outline-none focus:border-[#3d71d9]">
+            <option value="10">10 per page</option>
+            <option value="25" selected>25 per page</option>
+            <option value="50">50 per page</option>
+            <option value="100">100 per page</option>
+        </select>
+    </div>
+</div>
+
+<!-- Empty State -->
+<div id="emptyState" class="card p-12 text-center hidden">
+    <i class="fas fa-book-open text-4xl text-secondary mb-4"></i>
+    <h3 class="text-lg font-medium text-primary mb-2">No Runbooks Found</h3>
+    <p class="text-secondary mb-4">Create your first runbook to start automating remediation tasks.</p>
+    <button onclick="openCreateModal()" class="btn-primary px-4 py-2 rounded-lg">
+        <i class="fas fa-plus mr-2"></i>Create Runbook
+    </button>
+</div>
 </div>
 
 <!-- Create/Edit Runbook Modal -->
@@ -466,8 +588,14 @@
 <script>
     let runbooks = [];
     let servers = [];
+    let filteredRunbooks = [];
     let stepCount = 0;
     let triggerCount = 0;
+
+    // Pagination state
+    let currentPage = 1;
+    let pageSize = 25;
+    let totalPages = 1;
 
     // Load runbooks on page load
     document.addEventListener('DOMContentLoaded', function () {
@@ -507,13 +635,17 @@
     }
 
     function renderRunbooks() {
-        const grid = document.getElementById('runbooksGrid');
+        const tbody = document.getElementById('runbooks-tbody');
         const emptyState = document.getElementById('emptyState');
+        const paginationContainer = document.getElementById('pagination-container');
+        const tableContainer = tbody.closest('.card');
+
         const searchTerm = document.getElementById('searchInput').value.toLowerCase();
         const statusFilter = document.getElementById('statusFilter').value;
         const categoryFilter = document.getElementById('categoryFilter').value;
 
-        let filtered = runbooks.filter(rb => {
+        // Filter runs
+        filteredRunbooks = runbooks.filter(rb => {
             const matchesSearch = rb.name.toLowerCase().includes(searchTerm) ||
                 (rb.description && rb.description.toLowerCase().includes(searchTerm));
             const runbookStatus = deriveStatus(rb);
@@ -522,59 +654,115 @@
             return matchesSearch && matchesStatus && matchesCategory;
         });
 
-        if (filtered.length === 0) {
-            grid.innerHTML = '';
+        if (filteredRunbooks.length === 0) {
+            tableContainer.classList.add('hidden');
+            paginationContainer.classList.add('hidden');
             emptyState.classList.remove('hidden');
             return;
         }
 
+        tableContainer.classList.remove('hidden');
+        paginationContainer.classList.remove('hidden');
         emptyState.classList.add('hidden');
-        grid.innerHTML = filtered.map(rb => {
+
+        // Calculate pagination
+        totalPages = Math.ceil(filteredRunbooks.length / pageSize);
+        const start = (currentPage - 1) * pageSize;
+        const end = Math.min(start + pageSize, filteredRunbooks.length);
+        const paginatedRunbooks = filteredRunbooks.slice(start, end);
+
+        // Update pagination info
+        document.getElementById('showing-start').textContent = filteredRunbooks.length > 0 ? start + 1 : 0;
+        document.getElementById('showing-end').textContent = end;
+        document.getElementById('total-count').textContent = filteredRunbooks.length;
+        document.getElementById('current-page').textContent = currentPage;
+        document.getElementById('total-pages').textContent = totalPages;
+
+        // Update pagination buttons
+        document.getElementById('first-page-btn').disabled = currentPage <= 1;
+        document.getElementById('prev-page-btn').disabled = currentPage <= 1;
+        document.getElementById('next-page-btn').disabled = currentPage >= totalPages;
+        document.getElementById('last-page-btn').disabled = currentPage >= totalPages;
+
+        // Render Table Rows
+        tbody.innerHTML = paginatedRunbooks.map(rb => {
             const runbookStatus = deriveStatus(rb);
             const runbookName = rb.name || 'Untitled Runbook';
+            const badgeClass = `badge-${runbookStatus}`;
+            const categoryBadgeClass = `badge-${rb.category || 'infrastructure'}`;
+            const icon = getRunbookIcon(rb.category || 'infrastructure');
+
             return `
-        <div class="card p-4 hover:border-blue-500 transition-colors" data-runbook-id="${rb.id}">
-            <div class="flex items-start gap-3 mb-3">
-                <input type="checkbox" class="runbook-checkbox mt-1 h-4 w-4" data-runbook-id="${rb.id}"
-                    onclick="event.stopPropagation(); toggleRunbookSelection('${rb.id}')" />
-                <div class="flex-1 cursor-pointer" onclick='viewRunbook(${JSON.stringify(rb.id)})'>
-                    <div class="flex items-center justify-between mb-2">
-                        <div class="flex items-center gap-2">
-                            <i class="fas fa-book text-blue-400"></i>
-                            <h3 class="font-medium text-primary">${escapeHtml(runbookName)}</h3>
+            <tr class="border-b border-[rgba(204,204,220,0.07)] hover:bg-[rgba(204,204,220,0.04)] transition-colors">
+                <td class="px-4 py-3">
+                    <input type="checkbox" class="runbook-checkbox h-4 w-4" data-runbook-id="${rb.id}"
+                        onclick="event.stopPropagation(); toggleRunbookSelection('${rb.id}')" />
+                </td>
+                <td class="px-4 py-3">
+                    <div class="flex items-center gap-2">
+                        <i class="fas ${icon.icon}" style="color: ${icon.color}"></i>
+                        <div class="font-medium text-white cursor-pointer hover:text-blue-400" onclick='viewRunbook(${JSON.stringify(rb.id)})'>
+                            ${escapeHtml(runbookName)}
                         </div>
-                        <span class="px-2 py-1 rounded text-xs font-medium ${getStatusClass(runbookStatus)}">
-                            ${runbookStatus}
-                        </span>
                     </div>
-                    <p class="text-secondary text-sm mb-3 line-clamp-2">${escapeHtml(rb.description || 'No description')}</p>
-                    <div class="flex items-center justify-between text-xs text-secondary">
-                        <span><i class="fas fa-layer-group mr-1"></i>${rb.steps_count ?? 0} steps</span>
-                        <span><i class="fas fa-bolt mr-1"></i>${rb.triggers_count ?? 0} triggers</span>
-                        <span><i class="fas fa-code-branch mr-1"></i>v${rb.version || 1}</span>
+                    ${rb.description ? `<div class="text-xs text-[#8e8e8e] mt-0.5 truncate max-w-xs pl-6">${escapeHtml(rb.description)}</div>` : ''}
+                </td>
+                <td class="px-4 py-3">
+                    <span class="badge ${badgeClass}">${runbookStatus.toUpperCase()}</span>
+                </td>
+                <td class="px-4 py-3">
+                    <span class="badge ${categoryBadgeClass}">${(rb.category || 'Infrastructure').toUpperCase()}</span>
+                </td>
+                <td class="px-4 py-3 text-[#ccccdc] font-mono text-xs hidden md:table-cell">
+                    ${rb.steps_count ?? 0}
+                </td>
+                <td class="px-4 py-3 text-[#ccccdc] font-mono text-xs hidden md:table-cell">
+                    ${rb.triggers_count ?? 0}
+                </td>
+                <td class="px-4 py-3 text-[#8e8e8e] text-xs hidden lg:table-cell">
+                    ${formatDate(rb.created_at)}
+                </td>
+                <td class="px-4 py-3 text-[#8e8e8e] text-xs hidden lg:table-cell">
+                    ${formatDate(rb.updated_at || rb.created_at)}
+                </td>
+                <td class="px-4 py-3 text-right">
+                    <div class="flex justify-end gap-1">
+                        <a href='/runbooks/${rb.id}/edit' 
+                            class="p-1.5 hover:bg-[#22252b] rounded transition-colors" 
+                            style="color: #6e9fff;"
+                            title="Edit">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                        <button onclick='cloneRunbook(${JSON.stringify(rb.id)})'
+                            class="p-1.5 hover:bg-[#22252b] rounded transition-colors" 
+                            style="color: #6ccf8e;"
+                            title="Clone">
+                            <i class="fas fa-clone"></i>
+                        </button>
+                        <button onclick='openExecuteModal(${JSON.stringify(rb.id)}, ${JSON.stringify(runbookName)})'
+                            class="p-1.5 hover:bg-[#22252b] rounded transition-colors" 
+                            style="color: #3d71d9;"
+                            title="Run"
+                            ${rb.enabled ? '' : 'disabled style="opacity:0.5; cursor:not-allowed;"'}>
+                            <i class="fas fa-play"></i>
+                        </button>
+                        <button onclick='deleteRunbook(${JSON.stringify(rb.id)})'
+                            class="p-1.5 hover:bg-[#22252b] rounded transition-colors" 
+                            style="color: #ff5286;"
+                            title="Delete">
+                            <i class="fas fa-trash"></i>
+                        </button>
                     </div>
-                </div>
-            </div>
-            <div class="flex items-center gap-2 pt-3 border-t border-gray-700">
-                <a href='/runbooks/${rb.id}/edit' onclick='event.stopPropagation()'
-                    class="flex-1 btn-secondary px-2 py-1 rounded text-sm text-center">
-                    <i class="fas fa-edit mr-1"></i>Edit
-                </a>
-                <button onclick='event.stopPropagation(); cloneRunbook(${JSON.stringify(rb.id)})'
-                    class="flex-1 btn-secondary px-2 py-1 rounded text-sm">
-                    <i class="fas fa-clone mr-1"></i>Clone
-                </button>
-                <button onclick='event.stopPropagation(); openExecuteModal(${JSON.stringify(rb.id)}, ${JSON.stringify(runbookName)})'
-                    class="flex-1 btn-primary px-2 py-1 rounded text-sm" ${rb.enabled ? '' : 'disabled'}>
-                    <i class="fas fa-play mr-1"></i>Run
-                </button>
-                <button onclick='event.stopPropagation(); deleteRunbook(${JSON.stringify(rb.id)})'
-                    class="btn-secondary px-2 py-1 rounded text-sm text-red-400 hover:text-red-300">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </div>
-        </div>
-    `}).join('');
+                </td>
+            </tr>
+            `;
+        }).join('');
+    }
+
+    // Styling Helpers
+    function deriveStatus(runbook) {
+        if (!runbook.enabled) return 'disabled';
+        return runbook.auto_execute ? 'active' : 'draft';
     }
 
     function updateStats() {
@@ -585,21 +773,39 @@
         document.getElementById('executionCount').textContent = executionsTotal;
     }
 
-    function getStatusClass(status) {
-        switch (status) {
-            case 'active': return 'bg-green-500 bg-opacity-20 text-green-400';
-            case 'draft': return 'bg-yellow-500 bg-opacity-20 text-yellow-400';
-            case 'disabled': return 'bg-gray-500 bg-opacity-20 text-gray-400';
-            default: return 'bg-gray-500 bg-opacity-20 text-gray-400';
-        }
+    function getRunbookIcon(category) {
+        const map = {
+            'infrastructure': { icon: 'fa-server', color: '#3d71d9' },  // Blue
+            'application': { icon: 'fa-cubes', color: '#b877d9' },      // Purple
+            'database': { icon: 'fa-database', color: '#d10e5c' },      // Pink
+            'network': { icon: 'fa-network-wired', color: '#6e9fff' },  // Light Blue
+            'security': { icon: 'fa-shield-alt', color: '#ff5286' }     // Red
+        };
+        return map[category] || { icon: 'fa-book', color: '#8e8e8e' };
     }
 
-    function deriveStatus(runbook) {
-        if (!runbook.enabled) return 'disabled';
-        return runbook.auto_execute ? 'active' : 'draft';
+    function formatDate(dateStr) {
+        if (!dateStr) return '-';
+        return new Date(dateStr).toLocaleDateString('en-US', {
+            month: 'short', day: 'numeric', year: 'numeric'
+        });
     }
 
     function filterRunbooks() {
+        currentPage = 1;
+        renderRunbooks();
+    }
+
+    // Pagination Helpers
+    function goToPage(page) {
+        if (page < 1 || page > totalPages) return;
+        currentPage = page;
+        renderRunbooks();
+    }
+
+    function changePageSize(size) {
+        pageSize = parseInt(size);
+        currentPage = 1;
         renderRunbooks();
     }
 
@@ -1385,7 +1591,7 @@
         window.showToast = function (message, type = 'info') {
             const toast = document.createElement('div');
             toast.className = `fixed bottom-4 right-4 px-4 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2 ${type === 'success' ? 'bg-green-600' :
-                    type === 'error' ? 'bg-red-600' : 'bg-blue-600'
+                type === 'error' ? 'bg-red-600' : 'bg-blue-600'
                 }`;
             toast.innerHTML = `
             <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>

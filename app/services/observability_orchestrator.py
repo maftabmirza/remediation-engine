@@ -19,7 +19,7 @@ from app.services.query_intent_parser import QueryIntent, get_intent_parser
 from app.services.query_translator import QueryTranslationResult, TranslatedQuery, get_query_translator
 from app.services.loki_client import LokiClient, LogEntry
 from app.services.tempo_client import TempoClient, Trace, TraceSearchResult
-from app.services.prometheus_service import PrometheusService
+from app.services.prometheus_service import PrometheusClient
 
 logger = logging.getLogger(__name__)
 
@@ -83,7 +83,7 @@ class ObservabilityOrchestrator:
         self,
         loki_client: Optional[LokiClient] = None,
         tempo_client: Optional[TempoClient] = None,
-        prometheus_service: Optional[PrometheusService] = None
+        prometheus_service: Optional[PrometheusClient] = None
     ):
         """
         Initialize orchestrator with observability clients.
@@ -95,7 +95,7 @@ class ObservabilityOrchestrator:
         """
         self.loki_client = loki_client or LokiClient()
         self.tempo_client = tempo_client or TempoClient()
-        self.prometheus_service = prometheus_service or PrometheusService()
+        self.prometheus_service = prometheus_service or PrometheusClient()
 
         self.intent_parser = get_intent_parser()
         self.query_translator = get_query_translator()

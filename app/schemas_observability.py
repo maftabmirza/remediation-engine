@@ -15,6 +15,7 @@ class ObservabilityQueryRequest(BaseModel):
     query: str = Field(..., min_length=1, description="Natural language query")
     application_id: Optional[UUID] = Field(None, description="Optional application ID for context")
     time_range: Optional[str] = Field(None, description="Optional time range override (e.g., '1h', '24h')")
+    session_id: Optional[UUID] = Field(None, description="Optional inquiry session ID for grouping queries")
 
     model_config = ConfigDict(json_schema_extra={
         "example": {
