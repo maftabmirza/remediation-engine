@@ -191,11 +191,26 @@
 
     <!-- Grouped View -->
     <div id="groupedView" class="hidden space-y-4">
-        <div id="clustersList">
-            <div class="card p-8 text-center">
-                <div class="loading-spinner mx-auto mb-2"></div>
-                <p class="text-gray-400">Loading clusters...</p>
-            </div>
+        <div class="card overflow-hidden">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="table-header text-left">
+                        <th class="px-4 py-3 font-medium w-16">Sev</th>
+                        <th class="px-4 py-3 font-medium w-24">Status</th>
+                        <th class="px-4 py-3 font-medium">Cluster Key / Summary</th>
+                        <th class="px-4 py-3 font-medium w-24">Count</th>
+                        <th class="px-4 py-3 font-medium text-right w-40">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="clustersList" class="text-[#ccccdc]">
+                    <tr class="table-row">
+                        <td colspan="5" class="p-8 text-center">
+                            <div class="loading-spinner mx-auto mb-2"></div>
+                            <p class="text-gray-400">Loading clusters...</p>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
@@ -512,103 +527,118 @@
         const container = document.getElementById('clustersList');
         if (clusters.length === 0) {
             container.innerHTML = `
-                <div class="card p-8 text-center text-gray-400">
-                    <i class="fas fa-inbox text-4xl mb-3"></i>
-                    <p>No alert clusters found</p>
-                </div>
+                <tr class="table-row">
+                    <td colspan="5" class="p-8 text-center text-gray-400">
+                        <i class="fas fa-inbox text-4xl mb-3"></i>
+                        <p>No alert clusters found</p>
+                    </td>
+                </tr>
             `;
             return;
         }
 
         container.innerHTML = clusters.map(cluster => `
-            <div class="card">
-                <div class="p-4 border-b border-gray-700">
-                    <div class="flex items-start justify-between">
-                        <div class="flex-1">
-                            <div class="flex items-center gap-3 mb-2">
-                                <span class="badge badge-${cluster.severity || 'info'} uppercase">
-                                    ${cluster.severity || 'info'}
-                                </span>
-                                <span class="text-sm ${cluster.is_active ? 'text-green-400' : 'text-gray-400'}">
-                                    <i class="fas fa-circle text-xs mr-1"></i>${cluster.is_active ? 'Active' : 'Closed'}
-                                </span>
-                                <span class="text-sm font-semibold text-purple-400">
-                                    ${cluster.alert_count} alerts
-                                </span>
-                            </div>
-                            <h3 class="font-semibold text-lg mb-1">
-                                ${cluster.cluster_key.replace(/_/g, ' ')}
-                            </h3>
-                            ${cluster.summary ? `<p class="text-sm text-gray-400 mt-2">${cluster.summary}</p>` : ''}
-                        </div>
-                        <div class="flex items-center gap-2 ml-4">
-                            ${cluster.is_active ? `
-                                <button onclick="closeCluster('${cluster.id}')" class="btn-secondary px-3 py-1 rounded text-sm">
-                                    Resolve
-                                </button>
-                            ` : ''}
-                            ${!cluster.summary && cluster.alert_count >= 3 ? `
-                                <button onclick="generateClusterSummary('${cluster.id}')" class="btn-secondary px-3 py-1 rounded text-sm">
-                                    Analyze
-                                </button>
-                            ` : ''}
-                            <button onclick="toggleCluster('${cluster.id}')" class="btn-secondary px-3 py-1 rounded text-sm">
-                                <i class="fas fa-chevron-down" id="icon-${cluster.id}"></i>
+            <tr class="table-row" id="row-${cluster.id}">
+                <td class="px-4 py-3 align-top">
+                    <span class="badge badge-${cluster.severity || 'info'} uppercase">${cluster.severity || 'info'}</span>
+                </td>
+                <td class="px-4 py-3 align-top">
+                    <span class="badge badge-${cluster.is_active ? 'firing' : 'resolved'} uppercase">
+                        ${cluster.is_active ? 'Active' : 'Closed'}
+                    </span>
+                </td>
+                <td class="px-4 py-3 align-top">
+                    <div class="font-medium text-white break-all">${cluster.cluster_key.replace(/_/g, ' ')}</div>
+                    ${cluster.summary ? `<div class="text-xs text-gray-400 mt-1">${escapeHtml(cluster.summary)}</div>` : ''}
+                </td>
+                <td class="px-4 py-3 align-top text-purple-400 font-semibold">
+                    ${cluster.alert_count}
+                </td>
+                <td class="px-4 py-3 align-top text-right whitespace-nowrap">
+                    <div class="flex justify-end gap-2">
+                        ${cluster.is_active ? `
+                            <button onclick="closeCluster('${cluster.id}')" class="p-1.5 hover:bg-[#22252b] rounded transition-colors text-green-400" title="Resolve Cluster">
+                                <i class="fas fa-check"></i>
                             </button>
-                        </div>
+                        ` : ''}
+                        ${!cluster.summary && cluster.alert_count >= 3 ? `
+                            <button onclick="generateClusterSummary('${cluster.id}')" class="p-1.5 hover:bg-[#22252b] rounded transition-colors text-blue-400" title="AI Summary">
+                                <i class="fas fa-magic"></i>
+                            </button>
+                        ` : ''}
+                        <button onclick="toggleCluster('${cluster.id}')" class="p-1.5 hover:bg-[#22252b] rounded transition-colors text-gray-400" title="Expand">
+                            <i class="fas fa-chevron-down transition-transform" id="icon-${cluster.id}"></i>
+                        </button>
                     </div>
-                </div>
-                <div id="cluster-${cluster.id}" class="hidden border-t border-gray-700">
-                     <div class="p-4"><p>Loading alerts...</p></div>
-                </div>
-            </div>
+                </td>
+            </tr>
         `).join('');
     }
 
     async function toggleCluster(clusterId) {
-        const clusterDiv = document.getElementById(`cluster-${clusterId}`);
+        const row = document.getElementById(`row-${clusterId}`);
         const icon = document.getElementById(`icon-${clusterId}`);
+        const expandedRowId = `expanded-${clusterId}`;
+        const existingRow = document.getElementById(expandedRowId);
 
-        if (expandedClusters.has(clusterId)) {
-            clusterDiv.classList.add('hidden');
-            icon.classList.remove('fa-chevron-up');
-            icon.classList.add('fa-chevron-down');
+        if (existingRow) {
+            existingRow.remove();
+            icon.style.transform = 'rotate(0deg)';
             expandedClusters.delete(clusterId);
         } else {
-            clusterDiv.classList.remove('hidden');
-            icon.classList.remove('fa-chevron-down');
-            icon.classList.add('fa-chevron-up');
+            const newRow = row.insertAdjacentElement('afterend', document.createElement('tr'));
+            newRow.id = expandedRowId;
+            newRow.className = 'bg-[#181b1f] border-b border-[rgba(204,204,220,0.07)]';
+            newRow.innerHTML = `
+                <td colspan="5" class="p-4">
+                    <div id="content-${clusterId}" class="ml-12 border-l-2 border-gray-700 pl-4">
+                        <div class="loading-spinner mb-2"></div>
+                        <span class="text-sm text-gray-400">Loading alerts...</span>
+                    </div>
+                </td>
+            `;
+            icon.style.transform = 'rotate(180deg)';
             expandedClusters.add(clusterId);
-            if (!clusterDiv.querySelector('.table-row')) {
-                await loadClusterAlerts(clusterId);
-            }
+            await loadClusterAlerts(clusterId);
         }
     }
 
     async function loadClusterAlerts(clusterId) {
-        const clusterDiv = document.getElementById(`cluster-${clusterId}`);
+        const contentDiv = document.getElementById(`content-${clusterId}`);
         try {
             const response = await apiCall(`/api/clusters/${clusterId}/alerts?page_size=100`);
             if (!response || !response.ok) throw new Error('Failed to load alerts');
             const alerts = await response.json();
 
-            // Render cluster alerts as a dense table if desired, or duplicate list
-            // For now, simple list
-            clusterDiv.innerHTML = `
-                <div class="divide-y divide-gray-700">
-                    ${alerts.map(alert => `
-                         <div class="p-3 hover:bg-gray-800 transition flex justify-between">
-                            <div>
-                                <span class="badge badge-${alert.severity} text-xs mr-2">${alert.severity}</span>
-                                <span class="text-sm font-medium">${alert.alert_name}</span>
-                            </div>
-                            <a href="/alerts/${alert.id}" class="text-gray-400 hover:text-white"><i class="fas fa-external-link-alt"></i></a>
-                         </div>
-                    `).join('')}
-                </div>
+            // Render cluster alerts as a dense table
+            contentDiv.innerHTML = `
+                <table class="w-full text-xs text-gray-300">
+                    <thead>
+                        <tr class="text-gray-500 border-b border-gray-700">
+                            <th class="pb-2 text-left">Severity</th>
+                            <th class="pb-2 text-left">Name</th>
+                            <th class="pb-2 text-left">Instance</th>
+                            <th class="pb-2 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-800">
+                        ${alerts.map(alert => `
+                            <tr>
+                                <td class="py-2 w-24">
+                                     <span class="badge badge-${alert.severity || 'info'} scale-90 origin-left">${alert.severity || 'info'}</span>
+                                </td>
+                                <td class="py-2 font-medium text-white">${escapeHtml(alert.alert_name)}</td>
+                                <td class="py-2 text-gray-400">${escapeHtml(alert.instance || '-')}</td>
+                                <td class="py-2 text-right">
+                                    <a href="/alerts/${alert.id}" class="text-blue-400 hover:text-blue-300"><i class="fas fa-external-link-alt"></i></a>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
             `;
         } catch (error) {
-            clusterDiv.innerHTML = `<div class="p-4 text-red-400">Failed to load alerts</div>`;
+            contentDiv.innerHTML = `<span class="text-red-400">Failed to load alerts</span>`;
         }
     }
 
