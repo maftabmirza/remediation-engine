@@ -121,8 +121,52 @@ async def grafana_proxy(
                 try:
                     html_content = response.content.decode('utf-8')
                     
-                    # Inject custom CSS
-                    custom_css = '<link rel="stylesheet" href="/grafana/public/css/aiops-custom.css">'
+                    # Inject inline CSS to hide Grafana branding and logo
+                    custom_css = '''<style>
+                    /* Hide Grafana logo and branding */
+                    .css-1drra8y, [href*="grafana.com"], img[src*="grafana_icon.svg"],
+                    .css-yciab3-Logo, button[aria-label="Home"], a[aria-label="Go to home"],
+                    .sidemenu__logo, header img[alt*="Grafana"], .navbar-logo,
+                    [data-testid="grafana-logo"], [class*="GrafanaLogo"],
+                    img[alt="Grafana"], a[href="/"] > img, .css-1mhnkuh {
+                        display: none !important;
+                        visibility: hidden !important;
+                    }
+                    /* Hide Grafana news panel and blog section */
+                    [data-testid="news-panel"], .news-container,
+                    [data-testid="homepage-news-feed"],
+                    [data-testid="latest-from-blog"] {
+                        display: none !important;
+                    }
+                    </style>
+                    <script>
+                    // Hide Grafana branding elements by exact text content
+                    function hideGrafanaBranding() {
+                        // Only target specific heading elements with exact text match
+                        document.querySelectorAll('h1, h2, h3').forEach(el => {
+                            const text = (el.textContent || '').trim();
+                            if (text === 'Welcome to Grafana' || text === 'Welcome to AIOps' || 
+                                text === 'Latest from the blog') {
+                                el.style.display = 'none';
+                            }
+                        });
+                        // Hide the news/blog section container - look for specific patterns
+                        document.querySelectorAll('section, article, div').forEach(el => {
+                            // Check direct children for blog heading
+                            const heading = el.querySelector(':scope > h1, :scope > h2, :scope > h3, :scope > h4');
+                            if (heading) {
+                                const text = (heading.textContent || '').trim();
+                                if (text === 'Latest from the blog') {
+                                    el.style.display = 'none';
+                                }
+                            }
+                        });
+                    }
+                    // Run after content loads - careful timing
+                    setTimeout(hideGrafanaBranding, 1000);
+                    setTimeout(hideGrafanaBranding, 2500);
+                    setTimeout(hideGrafanaBranding, 5000);
+                    </script>'''
                     if '</head>' in html_content:
                         html_content = html_content.replace('</head>', f'{custom_css}</head>')
                     

@@ -53,3 +53,11 @@
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: rgba(88, 91, 112, 1);
 }
+
+/* Enterprise UI Standard Card */
+.card {
+    background-color: #181b1f;
+    border: 1px solid rgba(204, 204, 220, 0.12);
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}

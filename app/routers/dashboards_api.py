@@ -60,7 +60,12 @@ class DashboardPanelInfo(BaseModel):
     override_time_range: Optional[str]
     override_refresh_interval: Optional[int]
     display_order: int
+    visualization_config: Optional[Dict[str, Any]] = None
     row_id: Optional[str] = None  # Panel row for grouping
+    promql_query: Optional[str] = None
+    legend_format: Optional[str] = None
+    datasource_id: Optional[str] = None
+    description: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -222,7 +227,12 @@ async def get_dashboard(
                 override_time_range=dp.override_time_range,
                 override_refresh_interval=dp.override_refresh_interval,
                 display_order=dp.display_order,
-                row_id=dp.row_id
+                row_id=dp.row_id,
+                promql_query=panel.promql_query,
+                legend_format=panel.legend_format,
+                datasource_id=panel.datasource_id,
+                description=panel.description,
+                visualization_config=panel.visualization_config
             ))
 
     # Sort by display order
@@ -677,7 +687,12 @@ async def get_home_dashboard(
                 override_time_range=dp.override_time_range,
                 override_refresh_interval=dp.override_refresh_interval,
                 display_order=dp.display_order,
-                row_id=dp.row_id
+                row_id=dp.row_id,
+                promql_query=panel.promql_query,
+                legend_format=panel.legend_format,
+                datasource_id=panel.datasource_id,
+                description=panel.description,
+                visualization_config=panel.visualization_config
             ))
 
     panel_infos.sort(key=lambda p: p.display_order)

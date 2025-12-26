@@ -4,26 +4,43 @@
 {% block title %}Runbooks - AIOps Platform{% endblock %}
 
 {% block content %}
-<div class="space-y-6">
-    <!-- Page Header -->
-    <div class="flex items-center justify-between">
-        <div>
-            <h1 class="text-2xl font-bold text-primary">Runbooks</h1>
-            <p class="text-secondary mt-1">Manage automated remediation runbooks</p>
-        </div>
-        <div class="flex gap-2">
-            <button onclick="openTemplatesModal()" class="btn-secondary px-4 py-2 rounded-lg flex items-center gap-2">
-                <i class="fas fa-layer-group"></i>
-                <span>Templates</span>
-            </button>
-            <button onclick="openImportModal()" class="btn-secondary px-4 py-2 rounded-lg flex items-center gap-2">
-                <i class="fas fa-file-import"></i>
-                <span>Import YAML</span>
-            </button>
-            <a href="/runbooks/new" class="btn-primary px-4 py-2 rounded-lg flex items-center gap-2">
-                <i class="fas fa-plus"></i>
-                <span>Create Runbook</span>
-            </a>
+<div class="space-y-4">
+    <!-- Enterprise Standard Toolbar -->
+    <div class="dashboard-header"
+        style="padding: 12px; background: #16171b; border-bottom: 1px solid rgba(255,255,255,0.05);">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <!-- Left: Breadcrumbs & Title -->
+            <div class="flex flex-col min-w-0">
+                <!-- Breadcrumbs -->
+                <nav class="flex items-center text-xs text-gray-400 mb-1">
+                    <a href="/" class="hover:text-blue-400 transition-colors">Home</a>
+                    <span class="mx-2">/</span>
+                    <span class="text-gray-200">Runbooks</span>
+                </nav>
+                <div class="flex items-center gap-3">
+                    <h1 class="text-xl font-bold text-white tracking-tight truncate">Runbook Library</h1>
+                </div>
+                <p class="text-xs text-gray-500 mt-1">Manage automated remediation runbooks</p>
+            </div>
+
+            <!-- Right: Actions -->
+            <div class="flex items-center gap-2">
+                <button onclick="openTemplatesModal()"
+                    class="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 px-3 py-1.5 rounded text-sm flex items-center gap-2 transition-colors">
+                    <i class="fas fa-layer-group"></i>
+                    <span>Templates</span>
+                </button>
+                <button onclick="openImportModal()"
+                    class="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 px-3 py-1.5 rounded text-sm flex items-center gap-2 transition-colors">
+                    <i class="fas fa-file-import"></i>
+                    <span>Import</span>
+                </button>
+                <a href="/runbooks/new"
+                    class="bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded text-white text-sm flex items-center gap-2 transition-colors">
+                    <i class="fas fa-plus"></i>
+                    <span>Create</span>
+                </a>
+            </div>
         </div>
     </div>
 
@@ -54,7 +71,8 @@
             </div>
         </div>
         <!-- Bulk Actions -->
-        <div id="bulkActionsBar" class="hidden flex items-center gap-3 p-3 bg-blue-900 bg-opacity-20 rounded-lg border border-blue-500">
+        <div id="bulkActionsBar"
+            class="hidden flex items-center gap-3 p-3 bg-blue-900 bg-opacity-20 rounded-lg border border-blue-500">
             <span id="selectedCount" class="text-sm text-primary font-medium">0 selected</span>
             <button onclick="bulkEnable()" class="btn-secondary px-3 py-1 rounded text-sm">
                 <i class="fas fa-check-circle mr-1"></i>Enable
@@ -62,7 +80,8 @@
             <button onclick="bulkDisable()" class="btn-secondary px-3 py-1 rounded text-sm">
                 <i class="fas fa-ban mr-1"></i>Disable
             </button>
-            <button onclick="bulkDelete()" class="btn-secondary px-3 py-1 rounded text-sm text-red-400 hover:text-red-300">
+            <button onclick="bulkDelete()"
+                class="btn-secondary px-3 py-1 rounded text-sm text-red-400 hover:text-red-300">
                 <i class="fas fa-trash mr-1"></i>Delete
             </button>
             <button onclick="clearSelection()" class="btn-secondary px-3 py-1 rounded text-sm ml-auto">
@@ -144,28 +163,30 @@
                 <i class="fas fa-times text-xl"></i>
             </button>
         </div>
-        
+
         <form id="runbookForm" onsubmit="saveRunbook(event)">
             <input type="hidden" id="runbookId">
-            
+
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div>
                     <label class="label-with-tooltip block text-secondary text-sm mb-1">
                         Name *
                         <span class="info-tooltip info-tooltip-bottom info-tooltip-align-left">
                             <span class="info-tooltip-icon">?</span>
-                            <span class="info-tooltip-text">A unique, descriptive name for this runbook. Use clear naming like "Restart Nginx Service" or "Clear Redis Cache".</span>
+                            <span class="info-tooltip-text">A unique, descriptive name for this runbook. Use clear
+                                naming like "Restart Nginx Service" or "Clear Redis Cache".</span>
                         </span>
                     </label>
-                    <input type="text" id="runbookName" required
-                        class="input-field w-full px-3 py-2 rounded" placeholder="e.g., Restart Service">
+                    <input type="text" id="runbookName" required class="input-field w-full px-3 py-2 rounded"
+                        placeholder="e.g., Restart Service">
                 </div>
                 <div>
                     <label class="label-with-tooltip block text-secondary text-sm mb-1">
                         Category
                         <span class="info-tooltip info-tooltip-bottom info-tooltip-align-right">
                             <span class="info-tooltip-icon">?</span>
-                            <span class="info-tooltip-text">Group runbooks by type for easier organization. Categories help filter and find runbooks quickly.</span>
+                            <span class="info-tooltip-text">Group runbooks by type for easier organization. Categories
+                                help filter and find runbooks quickly.</span>
                         </span>
                     </label>
                     <select id="runbookCategory" class="input-field w-full px-3 py-2 rounded">
@@ -177,26 +198,29 @@
                     </select>
                 </div>
             </div>
-            
+
             <div class="mb-4">
                 <label class="label-with-tooltip block text-secondary text-sm mb-1">
                     Description
                     <span class="info-tooltip">
                         <span class="info-tooltip-icon">?</span>
-                        <span class="info-tooltip-text">Provide a detailed explanation of what this runbook does, when to use it, and any prerequisites or considerations.</span>
+                        <span class="info-tooltip-text">Provide a detailed explanation of what this runbook does, when
+                            to use it, and any prerequisites or considerations.</span>
                     </span>
                 </label>
-                <textarea id="runbookDescription" rows="2"
-                    class="input-field w-full px-3 py-2 rounded" placeholder="Describe what this runbook does"></textarea>
+                <textarea id="runbookDescription" rows="2" class="input-field w-full px-3 py-2 rounded"
+                    placeholder="Describe what this runbook does"></textarea>
             </div>
-            
+
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <div>
                     <label class="label-with-tooltip block text-secondary text-sm mb-1">
                         Status
                         <span class="info-tooltip info-tooltip-align-left">
                             <span class="info-tooltip-icon">?</span>
-                            <span class="info-tooltip-text"><strong>Draft:</strong> Testing mode, cannot be triggered automatically.<br><strong>Active:</strong> Production ready, can be executed manually or by triggers.<br><strong>Disabled:</strong> Temporarily turned off.</span>
+                            <span class="info-tooltip-text"><strong>Draft:</strong> Testing mode, cannot be triggered
+                                automatically.<br><strong>Active:</strong> Production ready, can be executed manually or
+                                by triggers.<br><strong>Disabled:</strong> Temporarily turned off.</span>
                         </span>
                     </label>
                     <select id="runbookStatus" class="input-field w-full px-3 py-2 rounded">
@@ -210,7 +234,9 @@
                         Approval Required
                         <span class="info-tooltip">
                             <span class="info-tooltip-icon">?</span>
-                            <span class="info-tooltip-text"><strong>None:</strong> Execute immediately without approval.<br><strong>Manual:</strong> Requires user approval before execution.<br><strong>Auto:</strong> Auto-approves after a configurable delay.</span>
+                            <span class="info-tooltip-text"><strong>None:</strong> Execute immediately without
+                                approval.<br><strong>Manual:</strong> Requires user approval before
+                                execution.<br><strong>Auto:</strong> Auto-approves after a configurable delay.</span>
                         </span>
                     </label>
                     <select id="runbookApproval" class="input-field w-full px-3 py-2 rounded">
@@ -224,14 +250,15 @@
                         Max Executions / Hour
                         <span class="info-tooltip info-tooltip-align-right">
                             <span class="info-tooltip-icon">?</span>
-                            <span class="info-tooltip-text">Limit how many times this runbook may execute within an hour to avoid runaway automation.</span>
+                            <span class="info-tooltip-text">Limit how many times this runbook may execute within an hour
+                                to avoid runaway automation.</span>
                         </span>
                     </label>
                     <input type="number" id="runbookMaxExecutions" value="5" min="1" max="100"
                         class="input-field w-full px-3 py-2 rounded">
                 </div>
             </div>
-            
+
             <!-- Steps Section -->
             <div class="mb-4">
                 <div class="flex items-center justify-between mb-2">
@@ -239,7 +266,9 @@
                         Steps
                         <span class="info-tooltip">
                             <span class="info-tooltip-icon">?</span>
-                            <span class="info-tooltip-text">Define the sequence of actions to perform. Steps execute in order. Each step can be a shell command, HTTP request, script, or automation tool action.</span>
+                            <span class="info-tooltip-text">Define the sequence of actions to perform. Steps execute in
+                                order. Each step can be a shell command, HTTP request, script, or automation tool
+                                action.</span>
                         </span>
                     </label>
                     <button type="button" onclick="addStep()" class="btn-secondary px-3 py-1 rounded text-sm">
@@ -250,7 +279,7 @@
                     <!-- Steps will be added dynamically -->
                 </div>
             </div>
-            
+
             <!-- Triggers Section -->
             <div class="mb-6">
                 <div class="flex items-center justify-between mb-2">
@@ -258,7 +287,8 @@
                         Triggers
                         <span class="info-tooltip">
                             <span class="info-tooltip-icon">?</span>
-                            <span class="info-tooltip-text">Define conditions that automatically start this runbook. Triggers can match alert patterns, labels, or specific conditions.</span>
+                            <span class="info-tooltip-text">Define conditions that automatically start this runbook.
+                                Triggers can match alert patterns, labels, or specific conditions.</span>
                         </span>
                     </label>
                     <button type="button" onclick="addTrigger()" class="btn-secondary px-3 py-1 rounded text-sm">
@@ -273,7 +303,7 @@
                     <!-- Triggers will be added dynamically -->
                 </div>
             </div>
-            
+
             <div class="flex justify-end gap-3">
                 <button type="button" onclick="closeModal()" class="btn-secondary px-4 py-2 rounded-lg">
                     Cancel
@@ -319,7 +349,8 @@
                     Server Credential
                     <span class="info-tooltip">
                         <span class="info-tooltip-icon">?</span>
-                        <span class="info-tooltip-text">Choose a stored server credential for this execution. Leave blank to use the runbook default server or alert-derived target.</span>
+                        <span class="info-tooltip-text">Choose a stored server credential for this execution. Leave
+                            blank to use the runbook default server or alert-derived target.</span>
                     </span>
                 </label>
                 <select id="executeServerId" class="input-field w-full px-3 py-2 rounded">
@@ -329,7 +360,8 @@
 
             <div class="mb-4 flex items-center gap-2">
                 <input type="checkbox" id="executeDryRun" class="h-4 w-4">
-                <label for="executeDryRun" class="text-sm text-secondary">Dry run (validate only, do not execute commands)</label>
+                <label for="executeDryRun" class="text-sm text-secondary">Dry run (validate only, do not execute
+                    commands)</label>
             </div>
 
             <div class="mb-4">
@@ -337,13 +369,15 @@
                     Parameters (JSON)
                     <span class="info-tooltip">
                         <span class="info-tooltip-icon">?</span>
-                        <span class="info-tooltip-text">Optional JSON object with runtime parameters to pass to the runbook. These can be used in steps with template syntax like {% raw %}{{param_name}}{% endraw %}.</span>
+                        <span class="info-tooltip-text">Optional JSON object with runtime parameters to pass to the
+                            runbook. These can be used in steps with template syntax like {% raw %}{{param_name}}{%
+                            endraw %}.</span>
                     </span>
                 </label>
-                <textarea id="executeParams" rows="3"
-                    class="input-field w-full px-3 py-2 rounded font-mono text-sm" placeholder='{"key": "value"}'></textarea>
+                <textarea id="executeParams" rows="3" class="input-field w-full px-3 py-2 rounded font-mono text-sm"
+                    placeholder='{"key": "value"}'></textarea>
             </div>
-            
+
             <div class="flex justify-end gap-3">
                 <button type="button" onclick="closeExecuteModal()" class="btn-secondary px-4 py-2 rounded-lg">
                     Cancel
@@ -391,8 +425,7 @@
                     <input type="file" id="yamlFile" accept=".yaml,.yml" class="input-field w-full px-3 py-2 rounded"
                         onchange="handleFileUpload(event)">
                 </div>
-                <textarea id="yamlContent" rows="15"
-                    class="input-field w-full px-3 py-2 rounded font-mono text-sm"
+                <textarea id="yamlContent" rows="15" class="input-field w-full px-3 py-2 rounded font-mono text-sm"
                     placeholder="Paste YAML content here..."></textarea>
             </div>
             <div class="mb-4 flex items-center gap-2">
@@ -431,75 +464,75 @@
 
 {% block scripts %}
 <script>
-let runbooks = [];
-let servers = [];
-let stepCount = 0;
-let triggerCount = 0;
+    let runbooks = [];
+    let servers = [];
+    let stepCount = 0;
+    let triggerCount = 0;
 
-// Load runbooks on page load
-document.addEventListener('DOMContentLoaded', function() {
-    loadRunbooks();
-    loadServers();
-});
+    // Load runbooks on page load
+    document.addEventListener('DOMContentLoaded', function () {
+        loadRunbooks();
+        loadServers();
+    });
 
-async function loadRunbooks() {
-    try {
-        const response = await fetch('/api/remediation/runbooks');
-        if (response.ok) {
-            runbooks = await response.json();
-            renderRunbooks();
-            updateStats();
-        } else {
-            showToast('Failed to load runbooks', 'error');
+    async function loadRunbooks() {
+        try {
+            const response = await fetch('/api/remediation/runbooks');
+            if (response.ok) {
+                runbooks = await response.json();
+                renderRunbooks();
+                updateStats();
+            } else {
+                showToast('Failed to load runbooks', 'error');
+            }
+        } catch (error) {
+            console.error('Error loading runbooks:', error);
+            showToast('Error loading runbooks', 'error');
         }
-    } catch (error) {
-        console.error('Error loading runbooks:', error);
-        showToast('Error loading runbooks', 'error');
     }
-}
 
-async function loadServers() {
-    try {
-        const response = await fetch('/api/servers');
-        if (response.ok) {
-            servers = await response.json();
-        } else {
+    async function loadServers() {
+        try {
+            const response = await fetch('/api/servers');
+            if (response.ok) {
+                servers = await response.json();
+            } else {
+                servers = [];
+            }
+            populateServerOptions();
+        } catch (error) {
+            console.error('Error loading servers:', error);
             servers = [];
         }
-        populateServerOptions();
-    } catch (error) {
-        console.error('Error loading servers:', error);
-        servers = [];
     }
-}
 
-function renderRunbooks() {
-    const grid = document.getElementById('runbooksGrid');
-    const emptyState = document.getElementById('emptyState');
-    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-    const statusFilter = document.getElementById('statusFilter').value;
-    const categoryFilter = document.getElementById('categoryFilter').value;
-    
-    let filtered = runbooks.filter(rb => {
-        const matchesSearch = rb.name.toLowerCase().includes(searchTerm) || 
-                             (rb.description && rb.description.toLowerCase().includes(searchTerm));
-        const runbookStatus = deriveStatus(rb);
-        const matchesStatus = !statusFilter || runbookStatus === statusFilter;
-        const matchesCategory = !categoryFilter || rb.category === categoryFilter;
-        return matchesSearch && matchesStatus && matchesCategory;
-    });
-    
-    if (filtered.length === 0) {
-        grid.innerHTML = '';
-        emptyState.classList.remove('hidden');
-        return;
-    }
-    
-    emptyState.classList.add('hidden');
-    grid.innerHTML = filtered.map(rb => {
-        const runbookStatus = deriveStatus(rb);
-        const runbookName = rb.name || 'Untitled Runbook';
-        return `
+    function renderRunbooks() {
+        const grid = document.getElementById('runbooksGrid');
+        const emptyState = document.getElementById('emptyState');
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        const statusFilter = document.getElementById('statusFilter').value;
+        const categoryFilter = document.getElementById('categoryFilter').value;
+
+        let filtered = runbooks.filter(rb => {
+            const matchesSearch = rb.name.toLowerCase().includes(searchTerm) ||
+                (rb.description && rb.description.toLowerCase().includes(searchTerm));
+            const runbookStatus = deriveStatus(rb);
+            const matchesStatus = !statusFilter || runbookStatus === statusFilter;
+            const matchesCategory = !categoryFilter || rb.category === categoryFilter;
+            return matchesSearch && matchesStatus && matchesCategory;
+        });
+
+        if (filtered.length === 0) {
+            grid.innerHTML = '';
+            emptyState.classList.remove('hidden');
+            return;
+        }
+
+        emptyState.classList.add('hidden');
+        grid.innerHTML = filtered.map(rb => {
+            const runbookStatus = deriveStatus(rb);
+            const runbookName = rb.name || 'Untitled Runbook';
+            return `
         <div class="card p-4 hover:border-blue-500 transition-colors" data-runbook-id="${rb.id}">
             <div class="flex items-start gap-3 mb-3">
                 <input type="checkbox" class="runbook-checkbox mt-1 h-4 w-4" data-runbook-id="${rb.id}"
@@ -542,54 +575,54 @@ function renderRunbooks() {
             </div>
         </div>
     `}).join('');
-}
-
-function updateStats() {
-    document.getElementById('totalCount').textContent = runbooks.length;
-    document.getElementById('activeCount').textContent = runbooks.filter(r => deriveStatus(r) === 'active').length;
-    document.getElementById('draftCount').textContent = runbooks.filter(r => deriveStatus(r) === 'draft').length;
-    const executionsTotal = runbooks.reduce((sum, rb) => sum + (rb.executions_count || 0), 0);
-    document.getElementById('executionCount').textContent = executionsTotal;
-}
-
-function getStatusClass(status) {
-    switch(status) {
-        case 'active': return 'bg-green-500 bg-opacity-20 text-green-400';
-        case 'draft': return 'bg-yellow-500 bg-opacity-20 text-yellow-400';
-        case 'disabled': return 'bg-gray-500 bg-opacity-20 text-gray-400';
-        default: return 'bg-gray-500 bg-opacity-20 text-gray-400';
     }
-}
 
-function deriveStatus(runbook) {
-    if (!runbook.enabled) return 'disabled';
-    return runbook.auto_execute ? 'active' : 'draft';
-}
+    function updateStats() {
+        document.getElementById('totalCount').textContent = runbooks.length;
+        document.getElementById('activeCount').textContent = runbooks.filter(r => deriveStatus(r) === 'active').length;
+        document.getElementById('draftCount').textContent = runbooks.filter(r => deriveStatus(r) === 'draft').length;
+        const executionsTotal = runbooks.reduce((sum, rb) => sum + (rb.executions_count || 0), 0);
+        document.getElementById('executionCount').textContent = executionsTotal;
+    }
 
-function filterRunbooks() {
-    renderRunbooks();
-}
+    function getStatusClass(status) {
+        switch (status) {
+            case 'active': return 'bg-green-500 bg-opacity-20 text-green-400';
+            case 'draft': return 'bg-yellow-500 bg-opacity-20 text-yellow-400';
+            case 'disabled': return 'bg-gray-500 bg-opacity-20 text-gray-400';
+            default: return 'bg-gray-500 bg-opacity-20 text-gray-400';
+        }
+    }
 
-function openCreateModal() {
-    document.getElementById('modalTitle').textContent = 'Create Runbook';
-    document.getElementById('runbookForm').reset();
-    document.getElementById('runbookId').value = '';
-    document.getElementById('stepsContainer').innerHTML = '';
-    document.getElementById('triggersContainer').innerHTML = '';
-    stepCount = 0;
-    triggerCount = 0;
-    addStep(); // Add one default step
-    document.getElementById('runbookModal').classList.remove('hidden');
-}
+    function deriveStatus(runbook) {
+        if (!runbook.enabled) return 'disabled';
+        return runbook.auto_execute ? 'active' : 'draft';
+    }
 
-function closeModal() {
-    document.getElementById('runbookModal').classList.add('hidden');
-}
+    function filterRunbooks() {
+        renderRunbooks();
+    }
 
-function addStep() {
-    stepCount++;
-    const container = document.getElementById('stepsContainer');
-    const stepHtml = `
+    function openCreateModal() {
+        document.getElementById('modalTitle').textContent = 'Create Runbook';
+        document.getElementById('runbookForm').reset();
+        document.getElementById('runbookId').value = '';
+        document.getElementById('stepsContainer').innerHTML = '';
+        document.getElementById('triggersContainer').innerHTML = '';
+        stepCount = 0;
+        triggerCount = 0;
+        addStep(); // Add one default step
+        document.getElementById('runbookModal').classList.remove('hidden');
+    }
+
+    function closeModal() {
+        document.getElementById('runbookModal').classList.add('hidden');
+    }
+
+    function addStep() {
+        stepCount++;
+        const container = document.getElementById('stepsContainer');
+        const stepHtml = `
         <div class="card p-3 step-item" data-step="${stepCount}">
             <div class="flex items-center justify-between mb-2">
                 <span class="text-sm font-medium text-primary">Step ${stepCount}</span>
@@ -665,17 +698,17 @@ function addStep() {
             </div>
         </div>
     `;
-    container.insertAdjacentHTML('beforeend', stepHtml);
-}
+        container.insertAdjacentHTML('beforeend', stepHtml);
+    }
 
-function removeStep(btn) {
-    btn.closest('.step-item').remove();
-}
+    function removeStep(btn) {
+        btn.closest('.step-item').remove();
+    }
 
-function addTrigger() {
-    triggerCount++;
-    const container = document.getElementById('triggersContainer');
-    const triggerHtml = `
+    function addTrigger() {
+        triggerCount++;
+        const container = document.getElementById('triggersContainer');
+        const triggerHtml = `
         <div class="card p-3 trigger-item" data-trigger="${triggerCount}">
             <div class="flex items-center justify-between mb-2">
                 <span class="text-sm font-medium text-primary">Trigger ${triggerCount}</span>
@@ -713,186 +746,186 @@ function addTrigger() {
             </div>
         </div>
     `;
-    container.insertAdjacentHTML('beforeend', triggerHtml);
-}
-
-function removeTrigger(btn) {
-    btn.closest('.trigger-item').remove();
-}
-
-async function saveRunbook(event) {
-    event.preventDefault();
-    
-    const id = document.getElementById('runbookId').value;
-    const steps = [];
-    const triggers = [];
-    
-    // Collect steps
-    document.querySelectorAll('.step-item').forEach((item, index) => {
-        const stepNum = item.dataset.step;
-        const commandValue = document.querySelector(`[name="step_command_${stepNum}"]`).value;
-        steps.push({
-            step_order: index + 1,
-            name: document.querySelector(`[name="step_name_${stepNum}"]`).value,
-            description: null,
-            command_linux: commandValue,
-            command_windows: null,
-            target_os: 'any',
-            timeout_seconds: parseInt(document.querySelector(`[name="step_timeout_${stepNum}"]`).value) || 60,
-            requires_elevation: false,
-            working_directory: null,
-            environment_json: null,
-            continue_on_fail: document.querySelector(`[name="step_continue_${stepNum}"]`).value === 'true',
-            retry_count: 0,
-            retry_delay_seconds: 5,
-            expected_exit_code: 0,
-            expected_output_pattern: null,
-            rollback_command_linux: null,
-            rollback_command_windows: null
-        });
-    });
-    
-    // Collect triggers
-    document.querySelectorAll('.trigger-item').forEach((item, index) => {
-        const trigNum = item.dataset.trigger;
-        const patternValue = document.querySelector(`[name="trigger_pattern_${trigNum}"]`).value || '*';
-        triggers.push({
-            alert_name_pattern: patternValue,
-            severity_pattern: '*',
-            instance_pattern: '*',
-            job_pattern: '*',
-            label_matchers_json: null,
-            annotation_matchers_json: null,
-            min_duration_seconds: 0,
-            min_occurrences: 1,
-            priority: index + 1,
-            enabled: true
-        });
-    });
-    
-    const statusValue = document.getElementById('runbookStatus').value;
-    const approvalValue = document.getElementById('runbookApproval').value;
-    const enabled = statusValue !== 'disabled';
-    const autoExecute = statusValue === 'active';
-    const approvalRequired = approvalValue !== 'none';
-
-    const data = {
-        name: document.getElementById('runbookName').value,
-        description: document.getElementById('runbookDescription').value,
-        category: document.getElementById('runbookCategory').value,
-        tags: [],
-        enabled: enabled,
-        auto_execute: autoExecute,
-        approval_required: approvalRequired,
-        approval_roles: ['operator', 'engineer', 'admin'],
-        approval_timeout_minutes: approvalValue === 'auto' ? 5 : 30,
-        max_executions_per_hour: parseInt(document.getElementById('runbookMaxExecutions').value) || 5,
-        cooldown_minutes: 10,
-        default_server_id: null,
-        target_os_filter: ['linux', 'windows'],
-        target_from_alert: true,
-        target_alert_label: 'instance',
-        notifications_json: null,
-        documentation_url: null,
-        steps: steps,
-        triggers: triggers
-    };
-    
-    try {
-        const url = id ? `/api/remediation/runbooks/${id}` : '/api/remediation/runbooks';
-        const method = id ? 'PUT' : 'POST';
-        
-        const response = await fetch(url, {
-            method: method,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        });
-        
-        if (response.ok) {
-            showToast(id ? 'Runbook updated successfully' : 'Runbook created successfully', 'success');
-            closeModal();
-            loadRunbooks();
-        } else {
-            const error = await response.json();
-            showToast(error.detail || 'Failed to save runbook', 'error');
-        }
-    } catch (error) {
-        console.error('Error saving runbook:', error);
-        showToast('Error saving runbook', 'error');
+        container.insertAdjacentHTML('beforeend', triggerHtml);
     }
-}
 
-async function editRunbook(id) {
-    try {
-        const response = await fetch(`/api/remediation/runbooks/${id}`);
-        if (response.ok) {
-            const rb = await response.json();
-            
-            document.getElementById('modalTitle').textContent = 'Edit Runbook';
-            document.getElementById('runbookId').value = rb.id;
-            document.getElementById('runbookName').value = rb.name;
-            document.getElementById('runbookDescription').value = rb.description || '';
-            document.getElementById('runbookCategory').value = rb.category || 'infrastructure';
-
-            let statusValue = 'draft';
-            if (!rb.enabled) {
-                statusValue = 'disabled';
-            } else if (rb.auto_execute) {
-                statusValue = 'active';
-            }
-            document.getElementById('runbookStatus').value = statusValue;
-
-            let approvalValue = 'manual';
-            if (!rb.approval_required) {
-                approvalValue = 'none';
-            } else if (rb.approval_timeout_minutes && rb.approval_timeout_minutes <= 5) {
-                approvalValue = 'auto';
-            }
-            document.getElementById('runbookApproval').value = approvalValue;
-            document.getElementById('runbookMaxExecutions').value = rb.max_executions_per_hour || 5;
-            
-            // Load steps
-            document.getElementById('stepsContainer').innerHTML = '';
-            stepCount = 0;
-            if (rb.steps && rb.steps.length > 0) {
-                rb.steps.forEach(step => {
-                    addStep();
-                    document.querySelector(`[name="step_name_${stepCount}"]`).value = step.name;
-                    document.querySelector(`[name="step_type_${stepCount}"]`).value = 'shell';
-                    document.querySelector(`[name="step_command_${stepCount}"]`).value = step.command_linux || step.command_windows || '';
-                    document.querySelector(`[name="step_timeout_${stepCount}"]`).value = step.timeout_seconds || 60;
-                    document.querySelector(`[name="step_continue_${stepCount}"]`).value = step.continue_on_fail ? 'true' : 'false';
-                });
-            }
-            
-            // Load triggers
-            document.getElementById('triggersContainer').innerHTML = '';
-            triggerCount = 0;
-            if (rb.triggers && rb.triggers.length > 0) {
-                rb.triggers.forEach(trigger => {
-                    addTrigger();
-                    document.querySelector(`[name="trigger_type_${triggerCount}"]`).value = 'alert_pattern';
-                    document.querySelector(`[name="trigger_pattern_${triggerCount}"]`).value = trigger.alert_name_pattern || '';
-                });
-            }
-            
-            document.getElementById('runbookModal').classList.remove('hidden');
-        }
-    } catch (error) {
-        console.error('Error loading runbook:', error);
-        showToast('Error loading runbook', 'error');
+    function removeTrigger(btn) {
+        btn.closest('.trigger-item').remove();
     }
-}
 
-async function viewRunbook(id) {
-    try {
-        const response = await fetch(`/api/remediation/runbooks/${id}`);
-        if (response.ok) {
-            const rb = await response.json();
-            
-            const detailStatus = deriveStatus(rb);
-            document.getElementById('viewTitle').textContent = rb.name;
-            document.getElementById('viewContent').innerHTML = `
+    async function saveRunbook(event) {
+        event.preventDefault();
+
+        const id = document.getElementById('runbookId').value;
+        const steps = [];
+        const triggers = [];
+
+        // Collect steps
+        document.querySelectorAll('.step-item').forEach((item, index) => {
+            const stepNum = item.dataset.step;
+            const commandValue = document.querySelector(`[name="step_command_${stepNum}"]`).value;
+            steps.push({
+                step_order: index + 1,
+                name: document.querySelector(`[name="step_name_${stepNum}"]`).value,
+                description: null,
+                command_linux: commandValue,
+                command_windows: null,
+                target_os: 'any',
+                timeout_seconds: parseInt(document.querySelector(`[name="step_timeout_${stepNum}"]`).value) || 60,
+                requires_elevation: false,
+                working_directory: null,
+                environment_json: null,
+                continue_on_fail: document.querySelector(`[name="step_continue_${stepNum}"]`).value === 'true',
+                retry_count: 0,
+                retry_delay_seconds: 5,
+                expected_exit_code: 0,
+                expected_output_pattern: null,
+                rollback_command_linux: null,
+                rollback_command_windows: null
+            });
+        });
+
+        // Collect triggers
+        document.querySelectorAll('.trigger-item').forEach((item, index) => {
+            const trigNum = item.dataset.trigger;
+            const patternValue = document.querySelector(`[name="trigger_pattern_${trigNum}"]`).value || '*';
+            triggers.push({
+                alert_name_pattern: patternValue,
+                severity_pattern: '*',
+                instance_pattern: '*',
+                job_pattern: '*',
+                label_matchers_json: null,
+                annotation_matchers_json: null,
+                min_duration_seconds: 0,
+                min_occurrences: 1,
+                priority: index + 1,
+                enabled: true
+            });
+        });
+
+        const statusValue = document.getElementById('runbookStatus').value;
+        const approvalValue = document.getElementById('runbookApproval').value;
+        const enabled = statusValue !== 'disabled';
+        const autoExecute = statusValue === 'active';
+        const approvalRequired = approvalValue !== 'none';
+
+        const data = {
+            name: document.getElementById('runbookName').value,
+            description: document.getElementById('runbookDescription').value,
+            category: document.getElementById('runbookCategory').value,
+            tags: [],
+            enabled: enabled,
+            auto_execute: autoExecute,
+            approval_required: approvalRequired,
+            approval_roles: ['operator', 'engineer', 'admin'],
+            approval_timeout_minutes: approvalValue === 'auto' ? 5 : 30,
+            max_executions_per_hour: parseInt(document.getElementById('runbookMaxExecutions').value) || 5,
+            cooldown_minutes: 10,
+            default_server_id: null,
+            target_os_filter: ['linux', 'windows'],
+            target_from_alert: true,
+            target_alert_label: 'instance',
+            notifications_json: null,
+            documentation_url: null,
+            steps: steps,
+            triggers: triggers
+        };
+
+        try {
+            const url = id ? `/api/remediation/runbooks/${id}` : '/api/remediation/runbooks';
+            const method = id ? 'PUT' : 'POST';
+
+            const response = await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            if (response.ok) {
+                showToast(id ? 'Runbook updated successfully' : 'Runbook created successfully', 'success');
+                closeModal();
+                loadRunbooks();
+            } else {
+                const error = await response.json();
+                showToast(error.detail || 'Failed to save runbook', 'error');
+            }
+        } catch (error) {
+            console.error('Error saving runbook:', error);
+            showToast('Error saving runbook', 'error');
+        }
+    }
+
+    async function editRunbook(id) {
+        try {
+            const response = await fetch(`/api/remediation/runbooks/${id}`);
+            if (response.ok) {
+                const rb = await response.json();
+
+                document.getElementById('modalTitle').textContent = 'Edit Runbook';
+                document.getElementById('runbookId').value = rb.id;
+                document.getElementById('runbookName').value = rb.name;
+                document.getElementById('runbookDescription').value = rb.description || '';
+                document.getElementById('runbookCategory').value = rb.category || 'infrastructure';
+
+                let statusValue = 'draft';
+                if (!rb.enabled) {
+                    statusValue = 'disabled';
+                } else if (rb.auto_execute) {
+                    statusValue = 'active';
+                }
+                document.getElementById('runbookStatus').value = statusValue;
+
+                let approvalValue = 'manual';
+                if (!rb.approval_required) {
+                    approvalValue = 'none';
+                } else if (rb.approval_timeout_minutes && rb.approval_timeout_minutes <= 5) {
+                    approvalValue = 'auto';
+                }
+                document.getElementById('runbookApproval').value = approvalValue;
+                document.getElementById('runbookMaxExecutions').value = rb.max_executions_per_hour || 5;
+
+                // Load steps
+                document.getElementById('stepsContainer').innerHTML = '';
+                stepCount = 0;
+                if (rb.steps && rb.steps.length > 0) {
+                    rb.steps.forEach(step => {
+                        addStep();
+                        document.querySelector(`[name="step_name_${stepCount}"]`).value = step.name;
+                        document.querySelector(`[name="step_type_${stepCount}"]`).value = 'shell';
+                        document.querySelector(`[name="step_command_${stepCount}"]`).value = step.command_linux || step.command_windows || '';
+                        document.querySelector(`[name="step_timeout_${stepCount}"]`).value = step.timeout_seconds || 60;
+                        document.querySelector(`[name="step_continue_${stepCount}"]`).value = step.continue_on_fail ? 'true' : 'false';
+                    });
+                }
+
+                // Load triggers
+                document.getElementById('triggersContainer').innerHTML = '';
+                triggerCount = 0;
+                if (rb.triggers && rb.triggers.length > 0) {
+                    rb.triggers.forEach(trigger => {
+                        addTrigger();
+                        document.querySelector(`[name="trigger_type_${triggerCount}"]`).value = 'alert_pattern';
+                        document.querySelector(`[name="trigger_pattern_${triggerCount}"]`).value = trigger.alert_name_pattern || '';
+                    });
+                }
+
+                document.getElementById('runbookModal').classList.remove('hidden');
+            }
+        } catch (error) {
+            console.error('Error loading runbook:', error);
+            showToast('Error loading runbook', 'error');
+        }
+    }
+
+    async function viewRunbook(id) {
+        try {
+            const response = await fetch(`/api/remediation/runbooks/${id}`);
+            if (response.ok) {
+                const rb = await response.json();
+
+                const detailStatus = deriveStatus(rb);
+                document.getElementById('viewTitle').textContent = rb.name;
+                document.getElementById('viewContent').innerHTML = `
                 <div class="space-y-4">
                     <div class="flex items-center gap-2">
                         <span class="px-2 py-1 rounded text-xs font-medium ${getStatusClass(detailStatus)}">${detailStatus}</span>
@@ -945,369 +978,369 @@ async function viewRunbook(id) {
                     </div>
                 </div>
             `;
-            
-            document.getElementById('viewModal').classList.remove('hidden');
-        }
-    } catch (error) {
-        console.error('Error viewing runbook:', error);
-        showToast('Error loading runbook details', 'error');
-    }
-}
 
-function closeViewModal() {
-    document.getElementById('viewModal').classList.add('hidden');
-}
-
-function populateServerOptions(selectedId = '') {
-    const select = document.getElementById('executeServerId');
-    if (!select) return;
-    const options = [
-        '<option value="">Use runbook default / alert context</option>'
-    ];
-    servers.forEach(server => {
-        options.push(`<option value="${server.id}">${escapeHtml(server.name)} (${escapeHtml(server.hostname)})</option>`);
-    });
-    select.innerHTML = options.join('');
-    if (selectedId) {
-        select.value = selectedId;
-    }
-}
-
-function openExecuteModal(id, name) {
-    document.getElementById('executeRunbookId').value = id;
-    document.getElementById('executeMessage').textContent = `Execute runbook: ${name}`;
-    document.getElementById('executeServerId').value = '';
-    document.getElementById('executeDryRun').checked = false;
-    document.getElementById('executeParams').value = '';
-    populateServerOptions();
-    document.getElementById('executeModal').classList.remove('hidden');
-
-    // Fetch runbook details to detect default server selection (best effort)
-    fetch(`/api/remediation/runbooks/${id}`)
-        .then(resp => resp.ok ? resp.json() : null)
-        .then(rb => {
-            if (rb && rb.default_server_id) {
-                populateServerOptions(rb.default_server_id);
+                document.getElementById('viewModal').classList.remove('hidden');
             }
-        })
-        .catch(() => {
-            // Ignore—server dropdown stays on manual selection
-        });
-}
-
-function closeExecuteModal() {
-    document.getElementById('executeModal').classList.add('hidden');
-}
-
-async function executeRunbook(event) {
-    event.preventDefault();
-    
-    const id = document.getElementById('executeRunbookId').value;
-    const serverId = document.getElementById('executeServerId').value;
-    const dryRun = document.getElementById('executeDryRun').checked;
-    let params = {};
-    
-    try {
-        const paramsText = document.getElementById('executeParams').value;
-        if (paramsText.trim()) {
-            params = JSON.parse(paramsText);
+        } catch (error) {
+            console.error('Error viewing runbook:', error);
+            showToast('Error loading runbook details', 'error');
         }
-    } catch (e) {
-        showToast('Invalid JSON in parameters', 'error');
-        return;
     }
-    
-    try {
-        const response = await fetch(`/api/remediation/executions?runbook_id=${id}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                server_id: serverId || null,
-                alert_id: null,
-                dry_run: dryRun,
-                variables: params,
-                bypass_cooldown: false,
-                bypass_blackout: false
-            })
-        });
-        
-        if (response.ok) {
-            const result = await response.json();
-            closeExecuteModal();
-            // Redirect to executions page to see status/approval
-            window.location.href = '/executions';
-        } else {
-            let errorDetail = 'Failed to execute runbook';
-            try {
-                const error = await response.json();
-                errorDetail = error.detail || error.message || errorDetail;
-            } catch (err) {
-                // ignore parse errors
-            }
-            showToast(errorDetail, 'error');
-        }
-    } catch (error) {
-        console.error('Error executing runbook:', error);
-        showToast('Error executing runbook', 'error');
+
+    function closeViewModal() {
+        document.getElementById('viewModal').classList.add('hidden');
     }
-}
 
-// Custom confirmation modal
-let confirmCallback = null;
-
-function showConfirmModal(title, message, buttonText, buttonClass, callback) {
-    document.getElementById('confirmTitle').textContent = title;
-    document.getElementById('confirmMessage').textContent = message;
-    document.getElementById('confirmBtn').textContent = buttonText;
-    document.getElementById('confirmBtn').className = `px-4 py-2 rounded-lg ${buttonClass}`;
-    confirmCallback = callback;
-    document.getElementById('confirmModal').classList.remove('hidden');
-}
-
-function closeConfirmModal() {
-    document.getElementById('confirmModal').classList.add('hidden');
-    confirmCallback = null;
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-    document.getElementById('confirmBtn').addEventListener('click', function() {
-        if (confirmCallback) {
-            confirmCallback();
+    function populateServerOptions(selectedId = '') {
+        const select = document.getElementById('executeServerId');
+        if (!select) return;
+        const options = [
+            '<option value="">Use runbook default / alert context</option>'
+        ];
+        servers.forEach(server => {
+            options.push(`<option value="${server.id}">${escapeHtml(server.name)} (${escapeHtml(server.hostname)})</option>`);
+        });
+        select.innerHTML = options.join('');
+        if (selectedId) {
+            select.value = selectedId;
         }
-        closeConfirmModal();
-    });
-});
+    }
 
-function deleteRunbook(id) {
-    showConfirmModal(
-        'Delete Runbook',
-        'Are you sure you want to delete this runbook? This action cannot be undone.',
-        'Delete',
-        'bg-red-600 hover:bg-red-700 text-white',
-        async () => {
-            try {
-                const response = await fetch(`/api/remediation/runbooks/${id}`, {
-                    method: 'DELETE'
-                });
-                
-                if (response.ok) {
-                    showToast('Runbook deleted successfully', 'success');
-                    loadRunbooks();
-                } else {
-                    showToast('Failed to delete runbook', 'error');
+    function openExecuteModal(id, name) {
+        document.getElementById('executeRunbookId').value = id;
+        document.getElementById('executeMessage').textContent = `Execute runbook: ${name}`;
+        document.getElementById('executeServerId').value = '';
+        document.getElementById('executeDryRun').checked = false;
+        document.getElementById('executeParams').value = '';
+        populateServerOptions();
+        document.getElementById('executeModal').classList.remove('hidden');
+
+        // Fetch runbook details to detect default server selection (best effort)
+        fetch(`/api/remediation/runbooks/${id}`)
+            .then(resp => resp.ok ? resp.json() : null)
+            .then(rb => {
+                if (rb && rb.default_server_id) {
+                    populateServerOptions(rb.default_server_id);
                 }
-            } catch (error) {
-                console.error('Error deleting runbook:', error);
-                showToast('Error deleting runbook', 'error');
-            }
-        }
-    );
-}
-
-function escapeHtml(text) {
-    if (!text) return '';
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-// ============================================================================
-// BULK OPERATIONS
-// ============================================================================
-let selectedRunbooks = new Set();
-
-function toggleRunbookSelection(id) {
-    if (selectedRunbooks.has(id)) {
-        selectedRunbooks.delete(id);
-    } else {
-        selectedRunbooks.add(id);
-    }
-    updateBulkActionsBar();
-}
-
-function updateBulkActionsBar() {
-    const bar = document.getElementById('bulkActionsBar');
-    const count = document.getElementById('selectedCount');
-
-    if (selectedRunbooks.size > 0) {
-        bar.classList.remove('hidden');
-        count.textContent = `${selectedRunbooks.size} selected`;
-    } else {
-        bar.classList.add('hidden');
-    }
-}
-
-function clearSelection() {
-    selectedRunbooks.clear();
-    document.querySelectorAll('.runbook-checkbox').forEach(cb => cb.checked = false);
-    updateBulkActionsBar();
-}
-
-async function bulkAction(action) {
-    if (selectedRunbooks.size === 0) {
-        showToast('No runbooks selected', 'error');
-        return;
-    }
-
-    const ids = Array.from(selectedRunbooks);
-    try {
-        const response = await fetch(`/api/remediation/runbooks/bulk-action?action=${action}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(ids)
-        });
-
-        if (response.ok) {
-            const result = await response.json();
-            showToast(result.message, 'success');
-            clearSelection();
-            loadRunbooks();
-        } else {
-            const error = await response.json();
-            showToast(error.detail || `Failed to ${action} runbooks`, 'error');
-        }
-    } catch (error) {
-        console.error(`Bulk ${action} error:`, error);
-        showToast(`Error performing bulk ${action}`, 'error');
-    }
-}
-
-function bulkEnable() {
-    bulkAction('enable');
-}
-
-function bulkDisable() {
-    bulkAction('disable');
-}
-
-function bulkDelete() {
-    showConfirmModal(
-        'Delete Multiple Runbooks',
-        `Are you sure you want to delete ${selectedRunbooks.size} runbook(s)? This action cannot be undone.`,
-        'Delete All',
-        'bg-red-600 hover:bg-red-700 text-white',
-        () => bulkAction('delete')
-    );
-}
-
-// ============================================================================
-// CLONE RUNBOOK
-// ============================================================================
-async function cloneRunbook(id) {
-    try {
-        const response = await fetch(`/api/remediation/runbooks/${id}/clone`, {
-            method: 'POST'
-        });
-
-        if (response.ok) {
-            showToast('Runbook cloned successfully', 'success');
-            loadRunbooks();
-        } else {
-            const error = await response.json();
-            showToast(error.detail || 'Failed to clone runbook', 'error');
-        }
-    } catch (error) {
-        console.error('Clone error:', error);
-        showToast('Error cloning runbook', 'error');
-    }
-}
-
-// ============================================================================
-// IMPORT/EXPORT YAML
-// ============================================================================
-function openImportModal() {
-    document.getElementById('yamlContent').value = '';
-    document.getElementById('yamlFile').value = '';
-    document.getElementById('overwriteExisting').checked = false;
-    document.getElementById('importModal').classList.remove('hidden');
-}
-
-function closeImportModal() {
-    document.getElementById('importModal').classList.add('hidden');
-}
-
-function handleFileUpload(event) {
-    const file = event.target.files[0];
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            document.getElementById('yamlContent').value = e.target.result;
-        };
-        reader.readAsText(file);
-    }
-}
-
-async function importYAML(event) {
-    event.preventDefault();
-
-    const content = document.getElementById('yamlContent').value;
-    const overwrite = document.getElementById('overwriteExisting').checked;
-
-    if (!content.trim()) {
-        showToast('Please provide YAML content', 'error');
-        return;
-    }
-
-    try {
-        const response = await fetch('/api/remediation/runbooks/import', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                content: content,
-                format: 'yaml',
-                overwrite: overwrite
             })
-        });
+            .catch(() => {
+                // Ignore—server dropdown stays on manual selection
+            });
+    }
 
-        if (response.ok) {
-            const result = await response.json();
-            if (result.success) {
-                showToast(`Runbook ${result.action} successfully`, 'success');
-                closeImportModal();
+    function closeExecuteModal() {
+        document.getElementById('executeModal').classList.add('hidden');
+    }
+
+    async function executeRunbook(event) {
+        event.preventDefault();
+
+        const id = document.getElementById('executeRunbookId').value;
+        const serverId = document.getElementById('executeServerId').value;
+        const dryRun = document.getElementById('executeDryRun').checked;
+        let params = {};
+
+        try {
+            const paramsText = document.getElementById('executeParams').value;
+            if (paramsText.trim()) {
+                params = JSON.parse(paramsText);
+            }
+        } catch (e) {
+            showToast('Invalid JSON in parameters', 'error');
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/remediation/executions?runbook_id=${id}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    server_id: serverId || null,
+                    alert_id: null,
+                    dry_run: dryRun,
+                    variables: params,
+                    bypass_cooldown: false,
+                    bypass_blackout: false
+                })
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                closeExecuteModal();
+                // Redirect to executions page to see status/approval
+                window.location.href = '/executions';
+            } else {
+                let errorDetail = 'Failed to execute runbook';
+                try {
+                    const error = await response.json();
+                    errorDetail = error.detail || error.message || errorDetail;
+                } catch (err) {
+                    // ignore parse errors
+                }
+                showToast(errorDetail, 'error');
+            }
+        } catch (error) {
+            console.error('Error executing runbook:', error);
+            showToast('Error executing runbook', 'error');
+        }
+    }
+
+    // Custom confirmation modal
+    let confirmCallback = null;
+
+    function showConfirmModal(title, message, buttonText, buttonClass, callback) {
+        document.getElementById('confirmTitle').textContent = title;
+        document.getElementById('confirmMessage').textContent = message;
+        document.getElementById('confirmBtn').textContent = buttonText;
+        document.getElementById('confirmBtn').className = `px-4 py-2 rounded-lg ${buttonClass}`;
+        confirmCallback = callback;
+        document.getElementById('confirmModal').classList.remove('hidden');
+    }
+
+    function closeConfirmModal() {
+        document.getElementById('confirmModal').classList.add('hidden');
+        confirmCallback = null;
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        document.getElementById('confirmBtn').addEventListener('click', function () {
+            if (confirmCallback) {
+                confirmCallback();
+            }
+            closeConfirmModal();
+        });
+    });
+
+    function deleteRunbook(id) {
+        showConfirmModal(
+            'Delete Runbook',
+            'Are you sure you want to delete this runbook? This action cannot be undone.',
+            'Delete',
+            'bg-red-600 hover:bg-red-700 text-white',
+            async () => {
+                try {
+                    const response = await fetch(`/api/remediation/runbooks/${id}`, {
+                        method: 'DELETE'
+                    });
+
+                    if (response.ok) {
+                        showToast('Runbook deleted successfully', 'success');
+                        loadRunbooks();
+                    } else {
+                        showToast('Failed to delete runbook', 'error');
+                    }
+                } catch (error) {
+                    console.error('Error deleting runbook:', error);
+                    showToast('Error deleting runbook', 'error');
+                }
+            }
+        );
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // ============================================================================
+    // BULK OPERATIONS
+    // ============================================================================
+    let selectedRunbooks = new Set();
+
+    function toggleRunbookSelection(id) {
+        if (selectedRunbooks.has(id)) {
+            selectedRunbooks.delete(id);
+        } else {
+            selectedRunbooks.add(id);
+        }
+        updateBulkActionsBar();
+    }
+
+    function updateBulkActionsBar() {
+        const bar = document.getElementById('bulkActionsBar');
+        const count = document.getElementById('selectedCount');
+
+        if (selectedRunbooks.size > 0) {
+            bar.classList.remove('hidden');
+            count.textContent = `${selectedRunbooks.size} selected`;
+        } else {
+            bar.classList.add('hidden');
+        }
+    }
+
+    function clearSelection() {
+        selectedRunbooks.clear();
+        document.querySelectorAll('.runbook-checkbox').forEach(cb => cb.checked = false);
+        updateBulkActionsBar();
+    }
+
+    async function bulkAction(action) {
+        if (selectedRunbooks.size === 0) {
+            showToast('No runbooks selected', 'error');
+            return;
+        }
+
+        const ids = Array.from(selectedRunbooks);
+        try {
+            const response = await fetch(`/api/remediation/runbooks/bulk-action?action=${action}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(ids)
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                showToast(result.message, 'success');
+                clearSelection();
                 loadRunbooks();
             } else {
-                showToast(result.errors.join(', ') || 'Import failed', 'error');
+                const error = await response.json();
+                showToast(error.detail || `Failed to ${action} runbooks`, 'error');
             }
-        } else {
-            const error = await response.json();
-            showToast(error.detail || 'Failed to import runbook', 'error');
+        } catch (error) {
+            console.error(`Bulk ${action} error:`, error);
+            showToast(`Error performing bulk ${action}`, 'error');
         }
-    } catch (error) {
-        console.error('Import error:', error);
-        showToast('Error importing runbook', 'error');
     }
-}
 
-// ============================================================================
-// TEMPLATES
-// ============================================================================
-async function openTemplatesModal() {
-    document.getElementById('templatesModal').classList.remove('hidden');
-    await loadTemplates();
-}
+    function bulkEnable() {
+        bulkAction('enable');
+    }
 
-function closeTemplatesModal() {
-    document.getElementById('templatesModal').classList.add('hidden');
-}
+    function bulkDisable() {
+        bulkAction('disable');
+    }
 
-async function loadTemplates() {
-    try {
-        const response = await fetch('/api/remediation/templates');
-        if (response.ok) {
-            const data = await response.json();
-            renderTemplates(data.templates);
-        } else {
-            showToast('Failed to load templates', 'error');
+    function bulkDelete() {
+        showConfirmModal(
+            'Delete Multiple Runbooks',
+            `Are you sure you want to delete ${selectedRunbooks.size} runbook(s)? This action cannot be undone.`,
+            'Delete All',
+            'bg-red-600 hover:bg-red-700 text-white',
+            () => bulkAction('delete')
+        );
+    }
+
+    // ============================================================================
+    // CLONE RUNBOOK
+    // ============================================================================
+    async function cloneRunbook(id) {
+        try {
+            const response = await fetch(`/api/remediation/runbooks/${id}/clone`, {
+                method: 'POST'
+            });
+
+            if (response.ok) {
+                showToast('Runbook cloned successfully', 'success');
+                loadRunbooks();
+            } else {
+                const error = await response.json();
+                showToast(error.detail || 'Failed to clone runbook', 'error');
+            }
+        } catch (error) {
+            console.error('Clone error:', error);
+            showToast('Error cloning runbook', 'error');
         }
-    } catch (error) {
-        console.error('Error loading templates:', error);
-        showToast('Error loading templates', 'error');
     }
-}
 
-function renderTemplates(templates) {
-    const grid = document.getElementById('templatesGrid');
-    grid.innerHTML = templates.map(t => `
+    // ============================================================================
+    // IMPORT/EXPORT YAML
+    // ============================================================================
+    function openImportModal() {
+        document.getElementById('yamlContent').value = '';
+        document.getElementById('yamlFile').value = '';
+        document.getElementById('overwriteExisting').checked = false;
+        document.getElementById('importModal').classList.remove('hidden');
+    }
+
+    function closeImportModal() {
+        document.getElementById('importModal').classList.add('hidden');
+    }
+
+    function handleFileUpload(event) {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                document.getElementById('yamlContent').value = e.target.result;
+            };
+            reader.readAsText(file);
+        }
+    }
+
+    async function importYAML(event) {
+        event.preventDefault();
+
+        const content = document.getElementById('yamlContent').value;
+        const overwrite = document.getElementById('overwriteExisting').checked;
+
+        if (!content.trim()) {
+            showToast('Please provide YAML content', 'error');
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/remediation/runbooks/import', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    content: content,
+                    format: 'yaml',
+                    overwrite: overwrite
+                })
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                if (result.success) {
+                    showToast(`Runbook ${result.action} successfully`, 'success');
+                    closeImportModal();
+                    loadRunbooks();
+                } else {
+                    showToast(result.errors.join(', ') || 'Import failed', 'error');
+                }
+            } else {
+                const error = await response.json();
+                showToast(error.detail || 'Failed to import runbook', 'error');
+            }
+        } catch (error) {
+            console.error('Import error:', error);
+            showToast('Error importing runbook', 'error');
+        }
+    }
+
+    // ============================================================================
+    // TEMPLATES
+    // ============================================================================
+    async function openTemplatesModal() {
+        document.getElementById('templatesModal').classList.remove('hidden');
+        await loadTemplates();
+    }
+
+    function closeTemplatesModal() {
+        document.getElementById('templatesModal').classList.add('hidden');
+    }
+
+    async function loadTemplates() {
+        try {
+            const response = await fetch('/api/remediation/templates');
+            if (response.ok) {
+                const data = await response.json();
+                renderTemplates(data.templates);
+            } else {
+                showToast('Failed to load templates', 'error');
+            }
+        } catch (error) {
+            console.error('Error loading templates:', error);
+            showToast('Error loading templates', 'error');
+        }
+    }
+
+    function renderTemplates(templates) {
+        const grid = document.getElementById('templatesGrid');
+        grid.innerHTML = templates.map(t => `
         <div class="card p-4">
             <div class="flex items-center gap-2 mb-2">
                 <i class="fas fa-layer-group text-blue-400"></i>
@@ -1324,45 +1357,44 @@ function renderTemplates(templates) {
             </button>
         </div>
     `).join('');
-}
-
-async function createFromTemplate(templateId) {
-    try {
-        const response = await fetch(`/api/remediation/templates/${templateId}/create`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-        });
-
-        if (response.ok) {
-            showToast('Runbook created from template', 'success');
-            closeTemplatesModal();
-            loadRunbooks();
-        } else {
-            const error = await response.json();
-            showToast(error.detail || 'Failed to create from template', 'error');
-        }
-    } catch (error) {
-        console.error('Template creation error:', error);
-        showToast('Error creating from template', 'error');
     }
-}
 
-// Only define showToast if not already defined by parent
-if (typeof showToast === 'undefined') {
-    window.showToast = function(message, type = 'info') {
-        const toast = document.createElement('div');
-        toast.className = `fixed bottom-4 right-4 px-4 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2 ${
-            type === 'success' ? 'bg-green-600' :
-            type === 'error' ? 'bg-red-600' : 'bg-blue-600'
-        }`;
-        toast.innerHTML = `
+    async function createFromTemplate(templateId) {
+        try {
+            const response = await fetch(`/api/remediation/templates/${templateId}/create`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            if (response.ok) {
+                showToast('Runbook created from template', 'success');
+                closeTemplatesModal();
+                loadRunbooks();
+            } else {
+                const error = await response.json();
+                showToast(error.detail || 'Failed to create from template', 'error');
+            }
+        } catch (error) {
+            console.error('Template creation error:', error);
+            showToast('Error creating from template', 'error');
+        }
+    }
+
+    // Only define showToast if not already defined by parent
+    if (typeof showToast === 'undefined') {
+        window.showToast = function (message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `fixed bottom-4 right-4 px-4 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2 ${type === 'success' ? 'bg-green-600' :
+                    type === 'error' ? 'bg-red-600' : 'bg-blue-600'
+                }`;
+            toast.innerHTML = `
             <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
             <span>${escapeHtml(message)}</span>
         `;
-        document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 3000);
-    };
-}
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        };
+    }
 </script>
 {{ super() }}
 {% endblock %}

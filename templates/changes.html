@@ -9,24 +9,43 @@
 {% endblock %}
 
 {% block content %}
-<div class="space-y-6">
-    <!-- Header -->
-    <div class="flex justify-between items-center">
-        <div>
-            <h1 class="text-2xl font-bold">Change Correlation</h1>
-            <p class="text-gray-400">Track deployments and their impact on incidents</p>
-        </div>
+<div class="space-y-4">
+    <!-- Enterprise Standard Toolbar -->
+    <div class="dashboard-header"
+        style="padding: 12px; background: #16171b; border-bottom: 1px solid rgba(255,255,255,0.05); border-radius: 8px;">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <!-- Left: Breadcrumbs & Title -->
+            <div class="flex flex-col min-w-0">
+                <nav class="flex items-center text-xs text-gray-400 mb-1">
+                    <a href="/" class="hover:text-blue-400 transition-colors">Home</a>
+                    <span class="mx-2">/</span>
+                    <span class="text-gray-200">Change Correlation</span>
+                </nav>
+                <div class="flex items-center gap-3">
+                    <h1 class="text-xl font-bold text-white tracking-tight truncate">Change Correlation</h1>
+                </div>
+                <p class="text-xs text-gray-500 mt-1">Track deployments and their impact on incidents</p>
+            </div>
 
-        <div class="flex items-center space-x-4">
-            <select id="timeRange" class="input-field bg-gray-900 border-gray-700 rounded px-3 py-2"
-                onchange="loadAllData()">
-                <option value="24h">Last 24h</option>
-                <option value="7d" selected>Last 7 days</option>
-                <option value="30d">Last 30 days</option>
-            </select>
-            <button onclick="showITSMModal()" class="btn-secondary">
-                <i class="fas fa-plug mr-2"></i>Configure ITSM
-            </button>
+            <!-- Right: Actions -->
+            <div class="flex items-center gap-3">
+                <div class="flex items-center space-x-2 bg-gray-700/50 rounded px-3 py-1.5 border border-gray-700">
+                    <label for="timeRange" class="text-xs text-gray-400">Range:</label>
+                    <select id="timeRange"
+                        class="bg-transparent text-sm text-white focus:outline-none border-none p-0 cursor-pointer"
+                        onchange="loadAllData()">
+                        <option value="24h">Last 24h</option>
+                        <option value="7d" selected>Last 7 days</option>
+                        <option value="30d">Last 30 days</option>
+                    </select>
+                </div>
+
+                <button onclick="showITSMModal()"
+                    class="flex items-center gap-2 px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors text-sm shadow-sm">
+                    <i class="fas fa-plug text-purple-400"></i>
+                    <span>Configure ITSM</span>
+                </button>
+            </div>
         </div>
     </div>
 

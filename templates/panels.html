@@ -9,107 +9,142 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/theme/dracula.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/addon/hint/show-hint.min.css">
 <style>
+    /* Grafana-aligned Panel Card */
     .panel-card {
+        background-color: #181b1f;
+        /* Grafana secondary bg */
+        border: 1px solid rgba(204, 204, 220, 0.12);
+        /* Grafana border */
+        border-radius: 4px;
+        /* Grafana uses 4px */
         transition: transform 0.2s, box-shadow 0.2s;
     }
 
     .panel-card:hover {
         transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        border-color: rgba(204, 204, 220, 0.2);
     }
 
+    /* Grafana-style Badges */
     .badge {
         padding: 2px 8px;
-        border-radius: 4px;
+        border-radius: 2px;
+        /* Grafana uses smaller radius */
         font-size: 0.75rem;
         font-weight: 500;
     }
 
     .badge-graph,
     .badge-area {
-        background-color: #3b82f6;
+        background-color: #3d71d9;
+        /* Grafana blue */
         color: white;
     }
 
     .badge-stacked_area,
     .badge-stacked_bar {
-        background-color: #6366f1;
+        background-color: #b877d9;
+        /* Grafana purple */
         color: white;
     }
 
     .badge-bar {
-        background-color: #0891b2;
-        color: white;
+        background-color: #6e9fff;
+        /* Grafana light blue */
+        color: #111217;
     }
 
     .badge-gauge {
-        background-color: #10b981;
+        background-color: #1a7f4b;
+        /* Grafana green */
         color: white;
     }
 
     .badge-stat,
     .badge-sparkline {
-        background-color: #f59e0b;
+        background-color: #eb7b18;
+        /* Grafana orange */
         color: white;
     }
 
     .badge-pie,
     .badge-doughnut {
-        background-color: #ec4899;
+        background-color: #d10e5c;
+        /* Grafana pink/magenta */
         color: white;
     }
 
     .badge-heatmap {
-        background-color: #ef4444;
+        background-color: #ff5286;
+        /* Grafana red */
         color: white;
     }
 
     .badge-table {
-        background-color: #8b5cf6;
+        background-color: #b877d9;
+        /* Grafana purple */
         color: white;
     }
 
     .badge-template {
-        background-color: #84cc16;
-        color: white;
+        background-color: #6ccf8e;
+        /* Grafana light green */
+        color: #111217;
     }
 
 
-    /* CodeMirror customization */
+    /* CodeMirror customization - Grafana style */
     .CodeMirror {
         height: 200px;
-        border: 1px solid rgb(75, 85, 99);
-        border-radius: 0.375rem;
+        border: 1px solid rgba(204, 204, 220, 0.2);
+        border-radius: 4px;
         font-size: 14px;
         font-family: 'Courier New', monospace;
+        background-color: #111217;
+        /* Grafana primary bg */
     }
 
     .CodeMirror-gutters {
-        background-color: rgb(31, 41, 55);
-        border-right: 1px solid rgb(75, 85, 99);
+        background-color: #181b1f;
+        border-right: 1px solid rgba(204, 204, 220, 0.12);
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="p-6">
-    <!-- Header -->
-    <div class="flex justify-between items-center mb-6">
-        <div>
-            <h1 class="text-2xl font-bold text-white">Prometheus Panels</h1>
-            <p class="text-gray-400 text-sm">Create and manage custom PromQL panels</p>
+<div class="space-y-4">
+    <!-- Enterprise Standard Toolbar -->
+    <div class="dashboard-header"
+        style="padding: 12px; background: #16171b; border-bottom: 1px solid rgba(255,255,255,0.05); border-radius: 8px;">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <!-- Left: Breadcrumbs & Title -->
+            <div class="flex flex-col min-w-0">
+                <!-- Breadcrumbs -->
+                <nav class="flex items-center text-xs text-gray-400 mb-1">
+                    <a href="/" class="hover:text-blue-400 transition-colors">Home</a>
+                    <span class="mx-2">/</span>
+                    <span class="text-gray-200">Panels</span>
+                </nav>
+                <div class="flex items-center gap-3">
+                    <h1 class="text-xl font-bold text-white tracking-tight truncate">Metric Panels</h1>
+                </div>
+                <p class="text-xs text-gray-500 mt-1">Create and manage custom PromQL panels</p>
+            </div>
+
+            <!-- Right: Actions -->
+            <div class="flex items-center gap-2">
+                <button onclick="showCreateModal()"
+                    class="bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded text-white text-sm flex items-center gap-2 transition-colors">
+                    <i class="fas fa-plus"></i>
+                    Create Panel
+                </button>
+            </div>
         </div>
-        <button onclick="showCreateModal()"
-            class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded text-white flex items-center gap-2">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
-            Create Panel
-        </button>
     </div>
 
     <!-- Filters -->
-    <div class="bg-gray-800 rounded-lg p-4 mb-6 flex gap-4">
+    <div class="card p-4 flex flex-wrap gap-4 items-center">
         <div class="flex-1">
             <input type="text" id="search-input" placeholder="Search panels..." onkeyup="filterPanels()"
                 class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
@@ -132,13 +167,66 @@
         </label>
     </div>
 
-    <!-- Panels Grid -->
-    <div id="panels-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <!-- Populated by JavaScript -->
+    <!-- Panels Table -->
+    <div class="card overflow-hidden">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="bg-[#181b1f] text-left text-[#8e8e8e]"
+                    style="border-bottom: 1px solid rgba(204, 204, 220, 0.07);">
+                    <th class="px-4 py-3 font-medium w-10"></th>
+                    <th class="px-4 py-3 font-medium">Name</th>
+                    <th class="px-4 py-3 font-medium">Type</th>
+                    <th class="px-4 py-3 font-medium">Datasource</th>
+                    <th class="px-4 py-3 font-medium hidden lg:table-cell">Query</th>
+                    <th class="px-4 py-3 font-medium hidden md:table-cell">Created</th>
+                    <th class="px-4 py-3 font-medium hidden md:table-cell">Updated</th>
+                    <th class="px-4 py-3 font-medium text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="panels-tbody" class="text-[#ccccdc]">
+                <!-- Populated by JavaScript -->
+            </tbody>
+        </table>
     </div>
 
-    <div id="no-panels" class="hidden bg-gray-800 rounded-lg p-8 text-center">
-        <p class="text-gray-400">No panels found. Create your first panel to get started.</p>
+    <!-- Pagination -->
+    <div id="pagination-container" class="flex items-center justify-between mt-4 text-sm">
+        <div class="text-[#8e8e8e]">
+            Showing <span id="showing-start">0</span>-<span id="showing-end">0</span> of <span id="total-count">0</span>
+            panels
+        </div>
+        <div class="flex items-center gap-2">
+            <button onclick="goToPage(1)" id="first-page-btn" disabled
+                class="px-3 py-1.5 rounded border border-[rgba(204,204,220,0.12)] bg-[#181b1f] text-[#ccccdc] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#22252b] transition-colors">
+                <i class="fas fa-angle-double-left"></i>
+            </button>
+            <button onclick="goToPage(currentPage - 1)" id="prev-page-btn" disabled
+                class="px-3 py-1.5 rounded border border-[rgba(204,204,220,0.12)] bg-[#181b1f] text-[#ccccdc] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#22252b] transition-colors">
+                <i class="fas fa-angle-left"></i>
+            </button>
+            <span class="px-3 py-1.5 text-[#ccccdc]">Page <span id="current-page">1</span> of <span
+                    id="total-pages">1</span></span>
+            <button onclick="goToPage(currentPage + 1)" id="next-page-btn" disabled
+                class="px-3 py-1.5 rounded border border-[rgba(204,204,220,0.12)] bg-[#181b1f] text-[#ccccdc] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#22252b] transition-colors">
+                <i class="fas fa-angle-right"></i>
+            </button>
+            <button onclick="goToPage(totalPages)" id="last-page-btn" disabled
+                class="px-3 py-1.5 rounded border border-[rgba(204,204,220,0.12)] bg-[#181b1f] text-[#ccccdc] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#22252b] transition-colors">
+                <i class="fas fa-angle-double-right"></i>
+            </button>
+            <select id="page-size" onchange="changePageSize(this.value)"
+                class="px-3 py-1.5 rounded border border-[rgba(204,204,220,0.12)] bg-[#181b1f] text-[#ccccdc] focus:outline-none focus:border-[#3d71d9]">
+                <option value="10">10 per page</option>
+                <option value="25" selected>25 per page</option>
+                <option value="50">50 per page</option>
+                <option value="100">100 per page</option>
+            </select>
+        </div>
+    </div>
+
+    <div id="no-panels" class="hidden bg-[#181b1f] rounded border border-[rgba(204,204,220,0.12)] p-8 text-center">
+        <i class="fas fa-chart-bar text-4xl text-[#8e8e8e] mb-3"></i>
+        <p class="text-[#8e8e8e]">No panels found. Create your first panel to get started.</p>
     </div>
 </div>
 
@@ -274,8 +362,7 @@
                                 Test Query
                             </button>
                         </div>
-                        <textarea id="query-editor" rows="8" required
-                            placeholder="Example: rate(http_requests_total[5m])"
+                        <textarea id="query-editor" rows="8" placeholder="Example: rate(http_requests_total[5m])"
                             class="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"></textarea>
                         <p class="text-xs text-gray-400 mt-1">Enter your PromQL query or select an example above</p>
                     </div>
@@ -488,6 +575,11 @@
         }
     }
 
+    // Pagination state
+    let currentPage = 1;
+    let pageSize = 25;
+    let totalPages = 1;
+
     function filterPanels() {
         const search = document.getElementById('search-input').value.toLowerCase();
         const datasourceFilter = document.getElementById('datasource-filter').value;
@@ -506,62 +598,181 @@
             return matchesSearch && matchesDatasource && matchesType && matchesTemplate;
         });
 
+        currentPage = 1; // Reset to first page on filter
         renderPanels();
     }
 
+    function getPanelTypeIcon(type) {
+        // Returns icon class and color matching badge colors
+        const iconConfig = {
+            'graph': { icon: 'fa-chart-line', color: '#3d71d9' },      // Blue
+            'area': { icon: 'fa-chart-area', color: '#3d71d9' },       // Blue
+            'stacked_area': { icon: 'fa-layer-group', color: '#b877d9' }, // Purple
+            'stacked_bar': { icon: 'fa-bars', color: '#b877d9' },       // Purple
+            'bar': { icon: 'fa-chart-bar', color: '#6e9fff' },          // Light blue
+            'gauge': { icon: 'fa-tachometer-alt', color: '#1a7f4b' },   // Green
+            'stat': { icon: 'fa-hashtag', color: '#eb7b18' },           // Orange
+            'sparkline': { icon: 'fa-wave-square', color: '#eb7b18' },  // Orange
+            'pie': { icon: 'fa-chart-pie', color: '#d10e5c' },          // Pink/Magenta
+            'doughnut': { icon: 'fa-circle-notch', color: '#d10e5c' },  // Pink/Magenta
+            'heatmap': { icon: 'fa-th', color: '#ff5286' },             // Red
+            'table': { icon: 'fa-table', color: '#b877d9' }             // Purple
+        };
+        return iconConfig[type] || { icon: 'fa-chart-bar', color: '#6e9fff' };
+    }
+
+    function formatDate(dateStr) {
+        if (!dateStr) return '-';
+        const date = new Date(dateStr);
+        return date.toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+        });
+    }
+
+    function truncateQuery(query, maxLen = 50) {
+        if (!query) return '-';
+        return query.length > maxLen ? query.substring(0, maxLen) + '...' : query;
+    }
+
     function renderPanels() {
-        const grid = document.getElementById('panels-grid');
+        const tbody = document.getElementById('panels-tbody');
         const noPanel = document.getElementById('no-panels');
+        const paginationContainer = document.getElementById('pagination-container');
+        const tableContainer = tbody.closest('.card');
 
         if (filteredPanels.length === 0) {
-            grid.classList.add('hidden');
+            tableContainer.classList.add('hidden');
+            paginationContainer.classList.add('hidden');
             noPanel.classList.remove('hidden');
             return;
         }
 
-        grid.classList.remove('hidden');
+        tableContainer.classList.remove('hidden');
+        paginationContainer.classList.remove('hidden');
         noPanel.classList.add('hidden');
 
-        grid.innerHTML = filteredPanels.map(panel => {
+        // Calculate pagination
+        totalPages = Math.ceil(filteredPanels.length / pageSize);
+        const start = (currentPage - 1) * pageSize;
+        const end = Math.min(start + pageSize, filteredPanels.length);
+        const paginatedPanels = filteredPanels.slice(start, end);
+
+        // Update pagination info
+        document.getElementById('showing-start').textContent = filteredPanels.length > 0 ? start + 1 : 0;
+        document.getElementById('showing-end').textContent = end;
+        document.getElementById('total-count').textContent = filteredPanels.length;
+        document.getElementById('current-page').textContent = currentPage;
+        document.getElementById('total-pages').textContent = totalPages;
+
+        // Update pagination buttons
+        document.getElementById('first-page-btn').disabled = currentPage <= 1;
+        document.getElementById('prev-page-btn').disabled = currentPage <= 1;
+        document.getElementById('next-page-btn').disabled = currentPage >= totalPages;
+        document.getElementById('last-page-btn').disabled = currentPage >= totalPages;
+
+        // Render table rows
+        tbody.innerHTML = paginatedPanels.map(panel => {
             const datasource = datasources.find(ds => ds.id === panel.datasource_id);
             const badgeClass = `badge-${panel.panel_type}`;
+            const icon = getPanelTypeIcon(panel.panel_type);
 
             return `
-            <div class="panel-card bg-gray-800 rounded-lg p-4 border border-gray-700">
-                <div class="flex justify-between items-start mb-2">
-                    <h3 class="text-white font-medium">${escapeHtml(panel.name)}</h3>
-                    <div class="flex gap-2">
-                        <button onclick="editPanel('${panel.id}')" class="text-gray-400 hover:text-white" title="Edit">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                            </svg>
+            <tr class="border-b border-[rgba(204,204,220,0.07)] hover:bg-[rgba(204,204,220,0.04)] transition-colors">
+                <td class="px-4 py-3">
+                    <i class="fas ${icon.icon}" style="color: ${icon.color}"></i>
+                </td>
+                <td class="px-4 py-3">
+                    <div class="font-medium text-white">${escapeHtml(panel.name)}</div>
+                    ${panel.description ? `<div class="text-xs text-[#8e8e8e] mt-0.5 truncate max-w-xs">${escapeHtml(panel.description)}</div>` : ''}
+                </td>
+                <td class="px-4 py-3">
+                    <span class="badge ${badgeClass}">${panel.panel_type.toUpperCase()}</span>
+                    ${panel.is_template ? '<span class="badge badge-template ml-1">TEMPLATE</span>' : ''}
+                </td>
+                <td class="px-4 py-3 text-[#8e8e8e]">
+                    ${datasource ? escapeHtml(datasource.name) : '<span class="text-[#ff5286]">Unknown</span>'}
+                </td>
+                <td class="px-4 py-3 hidden lg:table-cell">
+                    <code class="text-xs text-[#6ccf8e] bg-[#111217] px-2 py-1 rounded">${escapeHtml(truncateQuery(panel.promql_query))}</code>
+                </td>
+                <td class="px-4 py-3 text-[#8e8e8e] text-xs hidden md:table-cell">
+                    ${formatDate(panel.created_at)}
+                </td>
+                <td class="px-4 py-3 text-[#8e8e8e] text-xs hidden md:table-cell">
+                    ${formatDate(panel.updated_at)}
+                </td>
+                <td class="px-4 py-3 text-right">
+                    <div class="flex justify-end gap-1">
+                        <button onclick="editPanel('${panel.id}')" 
+                            class="p-1.5 hover:bg-[#22252b] rounded transition-colors" 
+                            style="color: #6e9fff;"
+                            title="Edit">
+                            <i class="fas fa-edit"></i>
                         </button>
-                        <button onclick="deletePanel('${panel.id}', '${escapeHtml(panel.name)}')" class="text-red-400 hover:text-red-300" title="Delete">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                            </svg>
+                        <button onclick="duplicatePanel('${panel.id}')" 
+                            class="p-1.5 hover:bg-[#22252b] rounded transition-colors" 
+                            style="color: #6ccf8e;"
+                            title="Duplicate">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                        <button onclick="deletePanel('${panel.id}', '${escapeHtml(panel.name)}')" 
+                            class="p-1.5 hover:bg-[#22252b] rounded transition-colors" 
+                            style="color: #ff5286;"
+                            title="Delete">
+                            <i class="fas fa-trash"></i>
                         </button>
                     </div>
-                </div>
-
-                ${panel.description ? `<p class="text-gray-400 text-sm mb-3">${escapeHtml(panel.description)}</p>` : ''}
-
-                <div class="bg-gray-900 rounded p-2 mb-3">
-                    <code class="text-xs text-green-400">${escapeHtml(panel.promql_query)}</code>
-                </div>
-
-                <div class="flex flex-wrap gap-2 mb-2">
-                    <span class="badge ${badgeClass}">${panel.panel_type.toUpperCase()}</span>
-                    ${panel.is_template ? '<span class="badge badge-template">TEMPLATE</span>' : ''}
-                </div>
-
-                <div class="text-xs text-gray-400">
-                    <div>Datasource: ${datasource ? escapeHtml(datasource.name) : 'Unknown'}</div>
-                    <div>Range: ${panel.time_range} | Refresh: ${panel.refresh_interval}s</div>
-                </div>
-            </div>
+                </td>
+            </tr>
         `;
         }).join('');
+    }
+
+    function goToPage(page) {
+        if (page < 1 || page > totalPages) return;
+        currentPage = page;
+        renderPanels();
+    }
+
+    function changePageSize(size) {
+        pageSize = parseInt(size);
+        currentPage = 1;
+        renderPanels();
+    }
+
+    async function duplicatePanel(panelId) {
+        const panel = panels.find(p => p.id === panelId);
+        if (!panel) return;
+
+        try {
+            const newPanel = {
+                ...panel,
+                name: panel.name + ' (Copy)',
+                is_template: false
+            };
+            delete newPanel.id;
+            delete newPanel.created_at;
+            delete newPanel.updated_at;
+
+            const response = await apiCall('/api/panels/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newPanel)
+            });
+
+            if (response.ok) {
+                showToast('Panel duplicated successfully', 'success');
+                await loadPanels();
+            } else {
+                const error = await response.json();
+                showToast(error.detail || 'Failed to duplicate panel', 'error');
+            }
+        } catch (error) {
+            console.error('Failed to duplicate panel:', error);
+            showToast('Failed to duplicate panel', 'error');
+        }
     }
 
     function showCreateModal() {
@@ -1093,6 +1304,12 @@
             tags: tags.length > 0 ? tags : null,
             visualization_config: collectChartConfig()  // Add chart configuration
         };
+
+        // Manual validation for PromQL query (since CodeMirror hides the required textarea)
+        if (!data.promql_query || !data.promql_query.trim()) {
+            showToast('PromQL Query is required', 'error');
+            return;
+        }
 
         try {
             const url = id ? `/api/panels/${id}` : '/api/panels/';
