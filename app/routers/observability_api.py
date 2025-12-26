@@ -30,6 +30,8 @@ from app.schemas_observability import (
 from app.services.observability_orchestrator import get_observability_orchestrator
 from app.services.query_intent_parser import get_intent_parser
 from app.services.query_translator import get_query_translator
+from app.services.query_response_formatter import get_response_formatter, FormattedResponse
+from app.services.query_cache import get_query_cache
 from app.services.auth_service import get_current_user
 from app.models import User
 
@@ -335,3 +337,100 @@ async def get_example_queries(
             }
         }
     }
+
+
+# ============================================================================
+# POST /api/observability/query/formatted - Execute Query with Formatting
+# ============================================================================
+
+@router.post("/query/formatted", response_model=FormattedResponse)
+async def query_observability_formatted(
+    request: ObservabilityQueryRequest,
+    use_cache: bool = True,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Execute a natural language query and return formatted human-readable results.
+
+    This endpoint provides AI-powered formatting of query results with:
+    - Executive summary
+    - Key insights with severity levels
+    - Recommendations
+    - Quick stats
+
+    Supports caching for improved performance.
+    """
+    logger.info(f"Formatted query from user {current_user.username}: {request.query}")
+
+    # Get application context
+    app_context = None
+    if request.application_id:
+        profile = db.query(ApplicationProfile).filter(
+            ApplicationProfile.app_id == request.application_id
+        ).first()
+
+        if profile:
+            translator = get_query_translator()
+            app_context = translator.build_context_from_profile({
+                "service_mappings": profile.service_mappings,
+                "default_metrics": profile.default_metrics,
+                "architecture_type": profile.architecture_type
+            })
+
+    # Check cache
+    cache = get_query_cache()
+    if use_cache:
+        cached_result = cache.get(request.query, app_context)
+        if cached_result is not None:
+            logger.info("Returning cached formatted result")
+            return cached_result
+
+    # Execute query
+    orchestrator = get_observability_orchestrator()
+    result = await orchestrator.query(request.query, app_context)
+
+    # Format response
+    formatter = get_response_formatter()
+    formatted = formatter.format(result)
+
+    # Cache result
+    if use_cache:
+        cache.set(request.query, formatted, app_context)
+
+    return formatted
+
+
+# ============================================================================
+# GET /api/observability/cache/stats - Get Cache Statistics
+# ============================================================================
+
+@router.get("/cache/stats")
+async def get_cache_stats(
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get query cache statistics.
+
+    Returns cache hit rate, size, and other metrics.
+    """
+    cache = get_query_cache()
+    return cache.get_stats()
+
+
+# ============================================================================
+# DELETE /api/observability/cache - Clear Cache
+# ============================================================================
+
+@router.delete("/cache")
+async def clear_cache(
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Clear the query cache.
+
+    Requires authentication. Useful for debugging or forcing fresh queries.
+    """
+    cache = get_query_cache()
+    cache.clear()
+    return {"message": "Cache cleared successfully"}
