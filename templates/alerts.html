@@ -332,10 +332,10 @@
                 <td class="px-4 py-3 text-xs text-gray-400 hidden sm:table-cell">
                     ${new Date(alert.timestamp).toLocaleString()}
                 </td>
-                <td class="px-4 py-3 text-sm">
+                <td class="px-4 py-3 text-sm whitespace-nowrap">
                     ${alert.analyzed
-                ? '<span class="status-analyzed"><i class="fas fa-check-circle mr-1"></i>Analyzed</span>'
-                : '<span class="status-pending"><i class="fas fa-robot mr-1"></i>Pending</span>'
+                ? '<div class="flex items-center status-analyzed"><i class="fas fa-check-circle mr-1.5"></i>Analyzed</div>'
+                : '<div class="flex items-center status-pending"><i class="fas fa-robot mr-1.5"></i>Pending</div>'
             }
                 </td>
                 <td class="px-4 py-3 text-right">
