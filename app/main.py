@@ -43,6 +43,7 @@ from app.routers import (
     agent_api,
     agent_ws,
     applications,
+    application_profiles_api,  # Phase 3: Application Profiles
     knowledge,  # Phase 2: Knowledge Base
     feedback,  # Phase 3: Learning System
     troubleshooting  # Phase 4: Troubleshooting Engine
@@ -210,6 +211,7 @@ app.include_router(scheduler.router)
 app.include_router(agent_api.router)
 app.include_router(agent_ws.router)
 app.include_router(applications.router)  # Phase 1: Application Registry
+app.include_router(application_profiles_api.router)  # Phase 3: Application Profiles
 app.include_router(knowledge.router)      # Phase 2: Knowledge Base
 app.include_router(feedback.router, prefix="/api/v1", tags=["learning"])  # Phase 3: Learning System
 app.include_router(troubleshooting.router, prefix="/api/v1", tags=["troubleshooting"])  # Phase 4: Troubleshooting Engine

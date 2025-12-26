@@ -120,3 +120,65 @@ class ComponentDependency(Base):
             name='ck_dependencies_type'
         ),
     )
+
+
+class ApplicationProfile(Base):
+    """
+    Application monitoring profile for AI-powered observability.
+
+    Stores metadata about application monitoring, SLOs, and datasource mappings
+    to enable natural language queries about application health and metrics.
+    """
+    __tablename__ = "application_profiles"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    app_id = Column(UUID(as_uuid=True), ForeignKey("applications.id", ondelete="CASCADE"), nullable=False, index=True, unique=True)
+
+    # Architecture information for AI context
+    architecture_type = Column(String(50), nullable=True)  # monolith, microservices, serverless
+    framework = Column(String(100), nullable=True)  # FastAPI, Django, Spring Boot, etc.
+    language = Column(String(50), nullable=True)  # Python, Java, Go, etc.
+    architecture_info = Column(JSON, default={})  # Additional architecture details
+
+    # Service to metrics mapping
+    service_mappings = Column(JSON, default={})
+    # Example: {
+    #   "api": {"metrics_prefix": "app_api_", "log_label": "service=app-api"},
+    #   "worker": {"metrics_prefix": "app_worker_", "log_label": "service=app-worker"}
+    # }
+
+    # Default metrics to track
+    default_metrics = Column(JSON, default=[])
+    # Example: ["http_requests_total", "http_request_duration_seconds", "http_errors_total", "up"]
+
+    # Service Level Objectives (SLOs)
+    slos = Column(JSON, default={})
+    # Example: {
+    #   "availability": 0.999,
+    #   "error_rate": 0.02,
+    #   "p95_latency_ms": 500,
+    #   "p99_latency_ms": 1000
+    # }
+
+    # Datasource configurations
+    prometheus_datasource_id = Column(UUID(as_uuid=True), nullable=True)  # Future: FK to datasources table
+    loki_datasource_id = Column(UUID(as_uuid=True), nullable=True)  # Future: FK to datasources table
+    tempo_datasource_id = Column(UUID(as_uuid=True), nullable=True)  # Future: FK to datasources table
+
+    # AI context preferences
+    default_time_range = Column(String(20), default="1h")  # Default time range for queries
+    log_patterns = Column(JSON, default={})  # Common log patterns for parsing
+    # Example: {"error_pattern": "ERROR|FATAL", "warning_pattern": "WARN|WARNING"}
+
+    created_at = Column(DateTime(timezone=True), default=utc_now)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+
+    # Relationships
+    application = relationship("Application", backref="monitoring_profile")
+
+    __table_args__ = (
+        CheckConstraint(
+            "architecture_type IN ('monolith', 'microservices', 'serverless', 'hybrid', 'other')",
+            name='ck_app_profiles_architecture'
+        ),
+    )
