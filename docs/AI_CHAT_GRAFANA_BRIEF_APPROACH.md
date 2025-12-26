@@ -190,13 +190,57 @@ Behind the scenes:
 - Integrate all components into chat flow
 - Add error handling and fallbacks
 - Optimize response times
+- **Implement split-screen UI** (chat on left, data output on right)
+- Add interactive data visualizations
 - User testing and refinement
 
 ### Phase 6: Polish (Weeks 11-12)
 - Performance optimization (caching, parallel queries)
 - Documentation (user guide, admin setup)
-- UI improvements (show charts inline, query preview)
+- UI refinements (responsive design, accessibility)
 - Training and rollout
+
+## User Interface Design
+
+### Split-Screen Layout
+
+**Feature**: Dual-panel interface for better data visualization
+
+**Layout**:
+- **Left Panel (60%)**: Chat conversation with AI
+- **Right Panel (40%)**: Structured data output
+- **Resizable**: Drag divider to adjust panel sizes
+- **Collapsible**: Hide right panel when not needed
+
+**Example Use Case**:
+```
+User: "Show me 24 hour events for abc app"
+
+Left Panel (Chat):           Right Panel (Data):
+─────────────────           ──────────────────
+User: Show me events...     📊 Events Summary
+                            Total: 142
+AI: Found 142 events:       ✅ Info: 95
+• 95 info (67%)             ⚠️  Warn: 35
+• 35 warnings (25%)         ❌ Error: 12
+• 12 errors (8%)            
+                            📈 Timeline Chart
+Peak at 2-4 PM UTC          [Interactive graph]
+during deployment           
+                            📑 Event Table
+Suggested:                  Time | Level | Message
+• Show error details        ───────────────────
+• Compare yesterday         14:32 | ERROR | DB...
+                            14:31 | WARN  | Lat...
+                            
+                            [Export CSV] [Filter]
+```
+
+**Benefits**:
+- Better data comprehension (tables, charts, formatted output)
+- Maintains conversational flow on left
+- Export data from right panel (CSV, JSON, PDF)
+- Interactive visualizations (zoomable charts, sortable tables)
 
 ## Technical Stack
 

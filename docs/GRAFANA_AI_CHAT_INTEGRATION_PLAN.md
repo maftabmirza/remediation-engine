@@ -526,7 +526,9 @@ System Actions:
 2. Query execution orchestration
 3. Result formatting and presentation
 4. Error handling and fallbacks
-5. UI improvements for data visualization
+5. Split-screen UI layout (chat + data output panels)
+6. Interactive data visualization components
+7. Export functionality for data panel
 
 **Testing**:
 - End-to-end user flow tests
@@ -714,35 +716,96 @@ CONTEXT_BUILD_DURATION = Histogram(
 3. **Data Visualization**: Inline charts for metric queries
 4. **Historical Context Panel**: Show relevant historical data
 5. **Suggested Queries**: Auto-suggest common queries for the context
+6. **Split-Screen Layout**: Dual-panel interface with chat on left, structured output on right
 
-### Example UI Flow
+### Split-Screen Layout Design
+
+**Purpose**: Provide better data visualization while maintaining chat flow
+
+**Layout**:
+```
+┌──────────────────────────────────────────────────────────────┐
+│                    Chat Interface                             │
+├─────────────────────────┬────────────────────────────────────┤
+│  Chat Panel (Left)      │  Data Output Panel (Right)         │
+│  - Conversation flow    │  - Structured results              │
+│  - User messages        │  - Tables, charts, metrics         │
+│  - AI responses         │  - HTML/Markdown formatted         │
+│  - Query previews       │  - Real-time updates               │
+│                         │                                     │
+│  Resizable divider  ←→  │                                     │
+└─────────────────────────┴────────────────────────────────────┘
+```
+
+**Use Cases**:
+- **Event Queries**: Chat shows conversation, right panel displays event table
+- **Health Checks**: Chat shows analysis, right panel shows SLO metrics dashboard
+- **Impact Analysis**: Chat shows narrative, right panel shows metric charts
+- **Log Queries**: Chat shows summary, right panel shows formatted log entries
+
+**Implementation**:
+- Use CSS Grid or Flexbox for responsive layout
+- Resizable divider (drag to adjust panel sizes)
+- Right panel supports HTML, Markdown, charts (via Chart.js or similar)
+- Export functionality (CSV, JSON, PDF) from right panel
+- Collapsible right panel when not needed
+
+### Example UI Flow (Split-Screen)
+
+**Scenario**: User asks "Show me 24 hour events of abc app"
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│  Chat: abc-app Incident Analysis                       │
-├─────────────────────────────────────────────────────────┤
-│  Connected to: Prometheus (healthy), Loki (healthy)   │
-├─────────────────────────────────────────────────────────┤
-│  User: How many errors in the last 24 hours?          │
-│                                                          │
-│  AI: Let me check the error metrics...                 │
-│      [Executing: sum(rate(http_errors{app="abc"}[24h]))]│
-│                                                          │
-│      In the last 24 hours, abc-app had:                │
-│      • Total errors: 142                                │
-│      • Error rate: 0.8% of requests                    │
-│      • Peak: 18 errors at 14:30 UTC                    │
-│                                                          │
-│      [Chart showing error rate over time]              │
-│                                                          │
-│      This is within normal range. The spike at 14:30  │
-│      correlates with the deployment event.             │
-├─────────────────────────────────────────────────────────┤
-│  Suggested: • Show me the error logs                   │
-│             • What was the CPU usage?                  │
-│             • Compare with last week                    │
-└─────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  Chat: abc-app Event Analysis                                                │
+├────────────────────────────────┬─────────────────────────────────────────────┤
+│  💬 CHAT PANEL                 │  📊 DATA OUTPUT PANEL                       │
+├────────────────────────────────┼─────────────────────────────────────────────┤
+│                                │                                              │
+│ User:                          │                                              │
+│ Show me 24 hour events for     │                                              │
+│ abc app                        │                                              │
+│                                │                                              │
+│ ──────────────────────────     │                                              │
+│                                │                                              │
+│ AI:                            │  📋 Events Summary (Last 24h)                │
+│ Analyzing events for abc-app   │  ┌────────────────────────────────────────┐ │
+│ in the last 24 hours...        │  │ Total Events: 142                      │ │
+│                                │  │ ✅ Info: 95 (67%)                       │ │
+│ [Executing: count_over_time(   │  │ ⚠️  Warning: 35 (25%)                   │ │
+│  {app="abc"}[24h])]            │  │ ❌ Error: 12 (8%)                       │ │
+│                                │  └────────────────────────────────────────┘ │
+│ Found 142 events:              │                                              │
+│ • 95 info-level (67%)          │  📈 Event Timeline                          │
+│ • 35 warnings (25%)            │  [Interactive Chart]                        │
+│ • 12 errors (8%)               │   20 ┤     ╭─╮                              │
+│                                │   15 ┤   ╭─╯ ╰╮                             │
+│ Peak activity: 2-4 PM UTC      │   10 ┤ ╭─╯    ╰──╮                         │
+│ during deployment window       │    5 ┼─╯         ╰───                      │
+│                                │      └─────────────────                     │
+│ See detailed breakdown →       │      00h  06h  12h  18h                     │
+│                                │                                              │
+│ ──────────────────────────     │  📑 Event Details                           │
+│                                │  ┌────────────────────────────────────────┐ │
+│ Suggested:                     │  │ Time     │ Level │ Message             │ │
+│ • Show error details           │  ├──────────┼───────┼─────────────────────┤ │
+│ • Compare with yesterday       │  │ 14:32:15 │ ERROR │ DB connection...    │ │
+│ • Check server metrics         │  │ 14:31:08 │ WARN  │ High latency...     │ │
+│                                │  │ 14:30:42 │ INFO  │ Deployment start    │ │
+│                                │  │ ...      │ ...   │ ...                 │ │
+│                                │  └────────────────────────────────────────┘ │
+│                                │                                              │
+│                                │  [Export CSV] [Export JSON] [Filter]        │
+│                                │                                              │
+└────────────────────────────────┴─────────────────────────────────────────────┘
 ```
+
+**Key Features**:
+- **Left Panel**: Natural conversation flow with AI
+- **Right Panel**: Structured data (tables, charts, formatted lists)
+- **Synchronized**: Right panel updates as AI generates data
+- **Interactive**: Charts are clickable/zoomable, tables are sortable
+- **Export**: Save data from right panel in various formats
+- **Responsive**: Panels resize based on content importance
 
 ## Alternative Approaches Considered
 

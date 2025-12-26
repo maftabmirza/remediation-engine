@@ -164,6 +164,32 @@ System:
 - ✅ Execute queries in parallel
 - ✅ Stream AI responses
 
+## 🎨 User Interface
+
+### Split-Screen Layout
+- **Left Panel**: Chat conversation with AI
+- **Right Panel**: Structured data output (tables, charts, metrics)
+- **Resizable**: Adjust panel sizes with drag divider
+- **Export**: Save data from right panel (CSV, JSON, PDF)
+
+**Example**:
+```
+User: "Show me 24h events for abc app"
+
+Chat (Left):              Data Output (Right):
+──────────────           ──────────────────────
+User: Show events...     📊 Total: 142 events
+                         ✅ Info: 95 (67%)
+AI: Found 142 events:    ⚠️  Warn: 35 (25%)
+• 95 info                ❌ Error: 12 (8%)
+• 35 warnings            
+• 12 errors              📈 [Event Timeline Chart]
+                         
+Peak at 2-4 PM UTC       📑 [Event Details Table]
+                         
+                         [Export] [Filter]
+```
+
 ## 📦 Tech Stack
 
 ### New Dependencies
