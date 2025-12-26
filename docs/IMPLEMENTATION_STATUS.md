@@ -352,3 +352,55 @@ pytest tests/test_loki_client.py -v
 
 **Last Updated:** 2025-12-26
 **Next Review:** Start of Phase 3
+
+---
+
+## 🔄 Recent Updates (2025-12-26)
+
+### Plan Adjustments
+
+**1. Existing Split-Screen UI Found** ✅
+- **Location:** `/ai` page already has chat (40%) + terminal (60%) layout
+- **Impact:** Don't need to create new template, just enhance existing one
+- **Change:** Phase 5 now adds toggle to switch between Terminal ↔ Data Output
+
+**2. Caching Deferred** 🔮
+- **Decision:** Remove Redis caching from Phase 4
+- **Reason:** Focus on core functionality first
+- **Future:** Will implement caching in optimization phase post-Phase 5
+
+### Updated Phase 5 Implementation
+
+**Before:**
+- Create new `ai_chat_enhanced.html` template
+- Build split-screen layout from scratch
+
+**After:**
+- Modify existing `templates/ai_chat.html`
+- Add toggle buttons: [Terminal] [Data Output]
+- Right pane switches between two modes:
+  - **Terminal Mode** (existing): SSH command execution
+  - **Data Output Mode** (new): Metrics/logs visualization
+
+**Toggle Behavior:**
+- Default: Terminal mode visible
+- When user asks data query → Auto-switch to Data Output mode
+- User can manually toggle anytime
+
+**Time Savings:** ~2 days (reusing existing layout)
+
+---
+
+## 📄 Documentation Updates
+
+**New Document:**
+- [PLAN_UPDATES_2025-12-26.md](./PLAN_UPDATES_2025-12-26.md) - Detailed changes
+
+**Updated Sections:**
+- Phase 4 Week 3: Testing & API Endpoints (removed caching)
+- Phase 5 Week 2: Enhanced existing template (not new template)
+- Performance section: Moved caching to "Future Optimization"
+
+**See:** [PLAN_UPDATES_2025-12-26.md](./PLAN_UPDATES_2025-12-26.md) for full details
+
+---
