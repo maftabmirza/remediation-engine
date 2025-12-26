@@ -150,7 +150,8 @@
                     <th class="px-4 py-3 font-medium w-16">Sev</th>
                     <th class="px-4 py-3 font-medium w-24">Status</th>
                     <th class="px-4 py-3 font-medium">Alert Name</th>
-                    <th class="px-4 py-3 font-medium hidden md:table-cell">Instance / Labels</th>
+                    <th class="px-4 py-3 font-medium hidden md:table-cell">Instance</th>
+                    <th class="px-4 py-3 font-medium hidden lg:table-cell">Job</th>
                     <th class="px-4 py-3 font-medium hidden sm:table-cell">Time</th>
                     <th class="px-4 py-3 font-medium w-24">AI Analysis</th>
                     <th class="px-4 py-3 font-medium text-right w-32">Actions</th>
@@ -158,7 +159,7 @@
             </thead>
             <tbody id="alertsList" class="text-[#ccccdc]">
                 <tr class="table-row">
-                    <td colspan="7" class="p-8 text-center">
+                    <td colspan="8" class="p-8 text-center">
                         <div class="loading-spinner mx-auto mb-2"></div>
                         <p class="text-gray-400">Loading alerts...</p>
                     </td>
@@ -288,7 +289,7 @@
             console.error('Failed to load alerts:', error);
             document.getElementById('alertsList').innerHTML = `
                 <tr class="table-row">
-                    <td colspan="7" class="p-8 text-center text-red-400">
+                    <td colspan="8" class="p-8 text-center text-red-400">
                          <i class="fas fa-exclamation-circle text-2xl mb-2"></i>
                          <p>Failed to load alerts</p>
                     </td>
@@ -304,7 +305,7 @@
         if (data.alerts.length === 0) {
             container.innerHTML = `
                 <tr class="table-row">
-                    <td colspan="7" class="p-8 text-center text-gray-400">
+                    <td colspan="8" class="p-8 text-center text-gray-400">
                          <i class="fas fa-inbox text-4xl mb-3"></i>
                          <p>No alerts found</p>
                     </td>
@@ -325,11 +326,13 @@
                 <td class="px-4 py-3 font-medium text-white">
                     ${escapeHtml(alert.alert_name)}
                 </td>
-                <td class="px-4 py-3 text-xs text-gray-400 hidden md:table-cell">
-                    ${alert.instance ? `<div><i class="fas fa-server mr-1"></i>${escapeHtml(alert.instance)}</div>` : ''}
-                    ${alert.job ? `<div class="mt-0.5"><i class="fas fa-briefcase mr-1"></i>${escapeHtml(alert.job)}</div>` : ''}
+                <td class="px-4 py-3 text-xs text-gray-400 hidden md:table-cell whitespace-nowrap">
+                    ${alert.instance ? `<div class="flex items-center"><i class="fas fa-server mr-2 opacity-70"></i>${escapeHtml(alert.instance)}</div>` : '<span class="text-gray-600">-</span>'}
                 </td>
-                <td class="px-4 py-3 text-xs text-gray-400 hidden sm:table-cell">
+                <td class="px-4 py-3 text-xs text-gray-400 hidden lg:table-cell whitespace-nowrap">
+                    ${alert.job ? `<div class="flex items-center"><i class="fas fa-briefcase mr-2 opacity-70"></i>${escapeHtml(alert.job)}</div>` : '<span class="text-gray-600">-</span>'}
+                </td>
+                <td class="px-4 py-3 text-xs text-gray-400 hidden sm:table-cell whitespace-nowrap">
                     ${new Date(alert.timestamp).toLocaleString()}
                 </td>
                 <td class="px-4 py-3 text-sm whitespace-nowrap">
