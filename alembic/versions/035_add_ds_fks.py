@@ -10,7 +10,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID
 
 # revision identifiers, used by Alembic.
-revision = '035_add_datasource_fks_to_profiles'
+revision = '035_add_ds_fks'
 down_revision = '034_add_grafana_datasources'
 branch_labels = None
 depends_on = None

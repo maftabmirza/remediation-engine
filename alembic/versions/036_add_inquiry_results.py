@@ -11,7 +11,7 @@ from sqlalchemy.dialects.postgresql import UUID, JSONB
 
 # revision identifiers, used by Alembic.
 revision = '036_add_inquiry_results'
-down_revision = '035_add_datasource_fks_to_profiles'
+down_revision = '035_add_ds_fks'
 branch_labels = None
 depends_on = None
 
