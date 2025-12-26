@@ -321,7 +321,7 @@
                     <span class="badge badge-${alert.severity || 'info'} uppercase">${alert.severity || 'info'}</span>
                 </td>
                 <td class="px-4 py-3">
-                     <span class="badge badge-${alert.status} uppercase">${alert.status}</span>
+                     <span class="badge badge-${(alert.status || 'other').toLowerCase()} uppercase">${alert.status || 'Unknown'}</span>
                 </td>
                 <td class="px-4 py-3 font-medium text-white">
                     ${escapeHtml(alert.alert_name)}
