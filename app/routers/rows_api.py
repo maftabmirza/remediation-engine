@@ -25,6 +25,7 @@ class PanelRowCreate(BaseModel):
     description: Optional[str] = None
     order: int = 0
     is_collapsed: bool = False
+    is_section_header: bool = False
 
 
 class PanelRowUpdate(BaseModel):
@@ -32,6 +33,7 @@ class PanelRowUpdate(BaseModel):
     description: Optional[str] = None
     order: Optional[int] = None
     is_collapsed: Optional[bool] = None
+    is_section_header: Optional[bool] = None
 
 
 class PanelRowResponse(BaseModel):
@@ -41,6 +43,7 @@ class PanelRowResponse(BaseModel):
     description: Optional[str]
     order: int
     is_collapsed: bool
+    is_section_header: bool
     created_at: str
     updated_at: str
 
@@ -59,11 +62,19 @@ async def create_row(
     if not dashboard:
         raise HTTPException(status_code=404, detail="Dashboard not found")
 
+    # Handle section header flag by storing it in description
+    description = row_data.description
+    if row_data.is_section_header:
+        if description:
+            description = f"[SECTION_HEADER] {description}"
+        else:
+            description = "[SECTION_HEADER]"
+
     new_row = PanelRow(
         id=str(uuid.uuid4()),
         dashboard_id=dashboard_id,
         title=row_data.title,
-        description=row_data.description,
+        description=description,
         order=row_data.order,
         is_collapsed=row_data.is_collapsed
     )
@@ -72,13 +83,21 @@ async def create_row(
     db.commit()
     db.refresh(new_row)
 
+    # Compute is_section_header for response
+    is_section_header = False
+    clean_description = new_row.description
+    if new_row.description and new_row.description.startswith("[SECTION_HEADER]"):
+        is_section_header = True
+        clean_description = new_row.description.replace("[SECTION_HEADER]", "").strip() or None
+
     return PanelRowResponse(
         id=new_row.id,
         dashboard_id=new_row.dashboard_id,
         title=new_row.title,
-        description=new_row.description,
+        description=clean_description,
         order=new_row.order,
         is_collapsed=new_row.is_collapsed,
+        is_section_header=is_section_header,
         created_at=new_row.created_at.isoformat() if new_row.created_at else "",
         updated_at=new_row.updated_at.isoformat() if new_row.updated_at else ""
     )
@@ -94,19 +113,27 @@ async def list_rows(
         PanelRow.dashboard_id == dashboard_id
     ).order_by(PanelRow.order).all()
 
-    return [
-        PanelRowResponse(
+    response_rows = []
+    for row in rows:
+        is_section_header = False
+        clean_description = row.description
+        if row.description and row.description.startswith("[SECTION_HEADER]"):
+            is_section_header = True
+            clean_description = row.description.replace("[SECTION_HEADER]", "").strip() or None
+        
+        response_rows.append(PanelRowResponse(
             id=row.id,
             dashboard_id=row.dashboard_id,
             title=row.title,
-            description=row.description,
+            description=clean_description,
             order=row.order,
             is_collapsed=row.is_collapsed,
+            is_section_header=is_section_header,
             created_at=row.created_at.isoformat() if row.created_at else "",
             updated_at=row.updated_at.isoformat() if row.updated_at else ""
-        )
-        for row in rows
-    ]
+        ))
+
+    return response_rows
 
 
 @router.get("/{dashboard_id}/rows/{row_id}", response_model=PanelRowResponse)
@@ -123,14 +150,21 @@ async def get_row(
 
     if not row:
         raise HTTPException(status_code=404, detail="Panel row not found")
+    
+    is_section_header = False
+    clean_description = row.description
+    if row.description and row.description.startswith("[SECTION_HEADER]"):
+        is_section_header = True
+        clean_description = row.description.replace("[SECTION_HEADER]", "").strip() or None
 
     return PanelRowResponse(
         id=row.id,
         dashboard_id=row.dashboard_id,
         title=row.title,
-        description=row.description,
+        description=clean_description,
         order=row.order,
         is_collapsed=row.is_collapsed,
+        is_section_header=is_section_header,
         created_at=row.created_at.isoformat() if row.created_at else "",
         updated_at=row.updated_at.isoformat() if row.updated_at else ""
     )
@@ -153,19 +187,58 @@ async def update_row(
         raise HTTPException(status_code=404, detail="Panel row not found")
 
     update_data = row_update.dict(exclude_unset=True)
+    
+    # Handle is_section_header logic
+    print(f"DEBUG: update_data before processing: {update_data}")
+    if 'is_section_header' in update_data:
+        is_header = update_data.pop('is_section_header')
+        
+        # Get current or new description
+        current_desc = update_data.get('description', row.description)
+        
+        # Clean current description of any marker if it exists
+        clean_desc = None
+        if current_desc:
+            clean_desc = current_desc.replace("[SECTION_HEADER]", "").strip() or None
+
+        if is_header:
+            if clean_desc:
+                update_data['description'] = f"[SECTION_HEADER] {clean_desc}"
+            else:
+                update_data['description'] = "[SECTION_HEADER]"
+        else:
+            update_data['description'] = clean_desc
+    elif 'description' in update_data:
+        # If updating description but not changing header status, ensure we preserve header status if it was set
+        if row.description and row.description.startswith("[SECTION_HEADER]"):
+            desc = update_data['description']
+            if desc:
+                update_data['description'] = f"[SECTION_HEADER] {desc}"
+            else:
+                update_data['description'] = "[SECTION_HEADER]"
+    
+    print(f"DEBUG: update_data after processing: {update_data}")
+
     for field, value in update_data.items():
         setattr(row, field, value)
 
     db.commit()
     db.refresh(row)
+    
+    is_section_header = False
+    clean_description = row.description
+    if row.description and row.description.startswith("[SECTION_HEADER]"):
+        is_section_header = True
+        clean_description = row.description.replace("[SECTION_HEADER]", "").strip() or None
 
     return PanelRowResponse(
         id=row.id,
         dashboard_id=row.dashboard_id,
         title=row.title,
-        description=row.description,
+        description=clean_description,
         order=row.order,
         is_collapsed=row.is_collapsed,
+        is_section_header=is_section_header,
         created_at=row.created_at.isoformat() if row.created_at else "",
         updated_at=row.updated_at.isoformat() if row.updated_at else ""
     )
@@ -184,6 +257,8 @@ async def delete_row(
         PanelRow.id == row_id,
         PanelRow.dashboard_id == dashboard_id
     ).first()
+
+    print(f"DEBUG: Deleting row {row_id} in dashboard {dashboard_id}. Found: {row}")
 
     if not row:
         raise HTTPException(status_code=404, detail="Panel row not found")

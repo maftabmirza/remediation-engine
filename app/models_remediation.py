@@ -166,6 +166,10 @@ class RunbookStep(Base):
     output_variable = Column(String(100), nullable=True)  # Variable name to store output
     output_extract_pattern = Column(String(500), nullable=True)  # Regex to extract specific value
 
+    # Conditional Execution
+    run_if_variable = Column(String(100), nullable=True)  # Output variable to check
+    run_if_value = Column(String(500), nullable=True)  # Value to match (regex supported)
+
     # Rollback (optional)
     rollback_command_linux = Column(Text, nullable=True)
     rollback_command_windows = Column(Text, nullable=True)

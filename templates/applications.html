@@ -1,30 +1,39 @@
 {% extends "layout.html" %}
 
 {% block content %}
-<div class="space-y-6">
-    <!-- Header -->
-    <div class="flex justify-between items-center bg-gray-800 p-4 rounded-lg border border-gray-700">
-        <div class="flex items-center space-x-3">
-            <div class="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                <i class="fas fa-sitemap text-blue-400 text-xl"></i>
+<div class="space-y-4">
+    <!-- Enterprise Standard Toolbar -->
+    <!-- Enterprise Standard Toolbar -->
+    <div class="dashboard-header"
+        style="padding: 12px; background: #16171b; border-bottom: 1px solid rgba(255,255,255,0.05); border-radius: 8px;">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <!-- Left: Breadcrumbs & Title -->
+            <div class="flex flex-col min-w-0">
+                <nav class="flex items-center text-xs text-gray-400 mb-1">
+                    <a href="/" class="hover:text-blue-400 transition-colors">Home</a>
+                    <span class="mx-2">/</span>
+                    <span class="text-gray-200">Applications</span>
+                </nav>
+                <div class="flex items-center gap-3">
+                    <h1 class="text-xl font-bold text-white tracking-tight truncate">Application Registry</h1>
+                </div>
+                <p class="text-xs text-gray-500 mt-1">Manage applications and dependency topology</p>
             </div>
-            <div>
-                <h2 class="text-xl font-bold text-white">Application Registry</h2>
-                <p class="text-xs text-gray-400">Manage applications and dependency topology</p>
+
+            <!-- Right: Actions -->
+            <div class="flex items-center gap-3">
+                <div class="relative">
+                    <input type="text" id="searchInput" placeholder="Search applications..."
+                        class="bg-gray-700 border-none rounded px-3 py-1.5 pl-9 text-sm text-white focus:outline-none focus:ring-1 focus:ring-blue-500 w-64"
+                        oninput="debouncedSearch()">
+                    <i class="fas fa-search absolute left-3 top-2.5 text-gray-400 text-xs"></i>
+                </div>
+                <button onclick="openCreateModal()"
+                    class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded text-sm flex items-center gap-2 transition-colors shadow-sm">
+                    <i class="fas fa-plus"></i>
+                    <span>Register App</span>
+                </button>
             </div>
-        </div>
-        <div class="flex items-center space-x-3">
-            <div class="relative">
-                <input type="text" id="searchInput" placeholder="Search applications..."
-                    class="bg-gray-700 border border-gray-600 rounded-lg pl-10 pr-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none w-64"
-                    oninput="debouncedSearch()">
-                <i class="fas fa-search absolute left-3 top-2.5 text-gray-400"></i>
-            </div>
-            <button onclick="openCreateModal()"
-                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors">
-                <i class="fas fa-plus"></i>
-                <span>Register Application</span>
-            </button>
         </div>
     </div>
 
@@ -143,6 +152,7 @@
 {% endblock %}
 
 {% block scripts %}
+{{ super() }}
 <script>
     let currentPage = 1;
     const pageSize = 10;

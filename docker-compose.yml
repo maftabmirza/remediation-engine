@@ -127,9 +127,39 @@ services:
 
       # Logging
       - GF_LOG_LEVEL=info
+
+      # === BRANDING & WHITE-LABELING ===
+      # Application Title
+      - GF_INSTANCE_NAME=AIOps Platform
+
+      # Footer customization
+      - GF_SERVER_FOOTER_LINKS=[]
+
+      # Enterprise white-labeling (requires Grafana Enterprise license)
+      # These settings provide advanced branding capabilities
+      # For OSS Grafana, basic branding is achieved through custom CSS and grafana.ini
+      - GF_ENTERPRISE_WHITELABELING_ENABLED=true
+      - GF_ENTERPRISE_WHITELABELING_APP_TITLE=AIOps Observability
+      - GF_ENTERPRISE_WHITELABELING_LOGIN_TITLE=AIOps Platform
+      - GF_ENTERPRISE_WHITELABELING_LOGIN_SUBTITLE=Advanced Observability
+      - GF_ENTERPRISE_WHITELABELING_FOOTER_TEXT=AIOps Platform © 2025
+      - GF_ENTERPRISE_WHITELABELING_LOGIN_LOGO=/public/img/aiops-logo.svg
+      - GF_ENTERPRISE_WHITELABELING_MENU_LOGO=/public/img/aiops-logo-small.svg
+
+      # Hide Grafana branding
+      - GF_ANALYTICS_REPORTING_ENABLED=false
+      - GF_ANALYTICS_CHECK_FOR_UPDATES=false
+      - GF_NEWS_NEWS_FEED_ENABLED=false
+      
+      # Disable OpenFeature to prevent OFREP console errors
+      - GF_FEATURE_TOGGLES_ENABLE=publicDashboards:false,enable_openfeature:false
     volumes:
       - grafana-data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/grafana.ini:/etc/grafana/grafana.ini:ro
+      - ./grafana/custom.css:/usr/share/grafana/public/css/aiops-custom.css:ro
+      - ./grafana/assets/logo.svg:/usr/share/grafana/public/img/aiops-logo.svg:ro
+      - ./grafana/assets/logo-small.svg:/usr/share/grafana/public/img/aiops-logo-small.svg:ro
     networks:
       - aiops-network
     depends_on:

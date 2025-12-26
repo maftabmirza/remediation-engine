@@ -5,14 +5,15 @@
 {% block extra_css %}
 .grafana-container {
 position: fixed !important;
-top: 60px !important;
-left: 80px !important;
-right: 0 !important;
-bottom: 0 !important;
+top: 6px !important;
+left: 104px !important;
+right: 24px !important;
+bottom: 24px !important;
 overflow: hidden !important;
 background: #111 !important;
 transition: left 0.3s ease;
 z-index: 10;
+border-radius: 8px;
 }
 
 .grafana-container iframe {
@@ -49,7 +50,7 @@ to { transform: rotate(360deg); }
 
 @media (max-width: 768px) {
 .grafana-container {
-left: 0 !important;
+left: 24px !important;
 }
 }
 {% endblock %}
@@ -60,9 +61,7 @@ left: 0 !important;
         <div class="spinner"></div>
         <div>Loading Grafana Dashboards...</div>
     </div>
-    <iframe
-        id="grafana-iframe"
-        src="/grafana/?orgId=1&kiosk=tv"
+    <iframe id="grafana-iframe" src="/grafana/?orgId=1&kiosk=tv"
         sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox"
         onload="document.getElementById('loading').style.display='none';">
     </iframe>

@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import StreamingResponse
 import httpx
 import os
+import re
 from app.routers.auth import get_current_user
 from app.models import User
 
@@ -114,9 +115,80 @@ async def grafana_proxy(
                             header_value = f'/grafana{header_value}'
                     response_headers[header_name] = header_value
 
+            # Process HTML responses for branding injection
+            response_content = response.content
+            if 'text/html' in response.headers.get('content-type', ''):
+                try:
+                    html_content = response.content.decode('utf-8')
+                    
+                    # Inject inline CSS to hide Grafana branding and logo
+                    custom_css = '''<style>
+                    /* Hide Grafana logo and branding */
+                    .css-1drra8y, [href*="grafana.com"], img[src*="grafana_icon.svg"],
+                    .css-yciab3-Logo, button[aria-label="Home"], a[aria-label="Go to home"],
+                    .sidemenu__logo, header img[alt*="Grafana"], .navbar-logo,
+                    [data-testid="grafana-logo"], [class*="GrafanaLogo"],
+                    img[alt="Grafana"], a[href="/"] > img, .css-1mhnkuh {
+                        display: none !important;
+                        visibility: hidden !important;
+                    }
+                    /* Hide Grafana news panel and blog section */
+                    [data-testid="news-panel"], .news-container,
+                    [data-testid="homepage-news-feed"],
+                    [data-testid="latest-from-blog"] {
+                        display: none !important;
+                    }
+                    </style>
+                    <script>
+                    // Hide Grafana branding elements by exact text content
+                    function hideGrafanaBranding() {
+                        // Only target specific heading elements with exact text match
+                        document.querySelectorAll('h1, h2, h3').forEach(el => {
+                            const text = (el.textContent || '').trim();
+                            if (text === 'Welcome to Grafana' || text === 'Welcome to AIOps' || 
+                                text === 'Latest from the blog') {
+                                el.style.display = 'none';
+                            }
+                        });
+                        // Hide the news/blog section container - look for specific patterns
+                        document.querySelectorAll('section, article, div').forEach(el => {
+                            // Check direct children for blog heading
+                            const heading = el.querySelector(':scope > h1, :scope > h2, :scope > h3, :scope > h4');
+                            if (heading) {
+                                const text = (heading.textContent || '').trim();
+                                if (text === 'Latest from the blog') {
+                                    el.style.display = 'none';
+                                }
+                            }
+                        });
+                    }
+                    // Run after content loads - careful timing
+                    setTimeout(hideGrafanaBranding, 1000);
+                    setTimeout(hideGrafanaBranding, 2500);
+                    setTimeout(hideGrafanaBranding, 5000);
+                    </script>'''
+                    if '</head>' in html_content:
+                        html_content = html_content.replace('</head>', f'{custom_css}</head>')
+                    
+                    # Replace "Grafana" text with "AIOps" in specific contexts only
+                    # Target title tags specifically to avoid unintended replacements
+                    # Replace in title tags
+                    html_content = re.sub(r'<title>([^<]*?)Grafana([^<]*?)</title>', 
+                                         r'<title>\1AIOps\2</title>', 
+                                         html_content, flags=re.IGNORECASE)
+                    # Replace in visible text (between tags) but not in attributes or scripts
+                    html_content = re.sub(r'>(\s*)Grafana(\s*)<', 
+                                         r'>\1AIOps\2<', 
+                                         html_content)
+                    
+                    response_content = html_content.encode('utf-8')
+                except (UnicodeDecodeError, AttributeError):
+                    # If decoding fails, use original content
+                    response_content = response.content
+
             # Return proxied response
             return Response(
-                content=response.content,
+                content=response_content,
                 status_code=response.status_code,
                 headers=response_headers
             )

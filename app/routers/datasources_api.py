@@ -369,7 +369,15 @@ async def test_datasource(
                 uptime = None
                 if runtime_response.status_code == 200:
                     runtime_data = runtime_response.json()
-                    uptime = runtime_data.get("data", {}).get("startTime")
+                    startTime_str = runtime_data.get("data", {}).get("startTime")
+                    if startTime_str:
+                        try:
+                            # Parse RFC3339 string to datetime
+                            # Python 3.11+ supports ISO parsing including Z
+                            start_dt = datetime.fromisoformat(startTime_str.replace('Z', '+00:00'))
+                            uptime = (datetime.now(start_dt.tzinfo) - start_dt).total_seconds()
+                        except Exception:
+                            uptime = None
 
                 return DatasourceTestResult(
                     success=True,

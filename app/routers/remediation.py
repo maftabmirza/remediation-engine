@@ -174,6 +174,8 @@ async def create_runbook(
             expected_output_pattern=step_data.expected_output_pattern,
             output_variable=step_data.output_variable,
             output_extract_pattern=step_data.output_extract_pattern,
+            run_if_variable=step_data.run_if_variable,
+            run_if_value=step_data.run_if_value,
             rollback_command_linux=step_data.rollback_command_linux,
             rollback_command_windows=step_data.rollback_command_windows
         )
@@ -341,6 +343,8 @@ async def update_runbook(
                 expected_output_pattern=step_data.expected_output_pattern,
                 output_variable=step_data.output_variable,
                 output_extract_pattern=step_data.output_extract_pattern,
+                run_if_variable=step_data.run_if_variable,
+                run_if_value=step_data.run_if_value,
                 rollback_command_linux=step_data.rollback_command_linux,
                 rollback_command_windows=step_data.rollback_command_windows
             )
@@ -493,6 +497,8 @@ async def clone_runbook(
             expected_output_pattern=step.expected_output_pattern,
             output_variable=step.output_variable,
             output_extract_pattern=step.output_extract_pattern,
+            run_if_variable=step.run_if_variable,
+            run_if_value=step.run_if_value,
             rollback_command_linux=step.rollback_command_linux,
             rollback_command_windows=step.rollback_command_windows
         )
@@ -693,6 +699,8 @@ async def add_step(
         expected_output_pattern=step_data.expected_output_pattern,
         output_variable=step_data.output_variable,
         output_extract_pattern=step_data.output_extract_pattern,
+        run_if_variable=step_data.run_if_variable,
+        run_if_value=step_data.run_if_value,
         rollback_command_linux=step_data.rollback_command_linux,
         rollback_command_windows=step_data.rollback_command_windows
     )

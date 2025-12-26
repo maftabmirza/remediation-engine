@@ -1,0 +1,79 @@
+/* AIOps Theme Override for Grafana */
+
+/* Hide Grafana branding elements */
+.sidemenu__logo,
+.login-branding,
+[aria-label*="Grafana"],
+a[href*="grafana.com"],
+.footer a[href*="grafana"] {
+    display: none !important;
+}
+
+/* AIOps Color Scheme - Match the dark theme */
+:root {
+    --primary-color: #1f77b4;      /* AIOps blue */
+    --secondary-color: #2a2a3a;    /* Sidebar bg */
+    --background: #1e1e2e;         /* Main bg */
+    --text-primary: #fff;
+    --text-secondary: #aaa;
+}
+
+/* Navbar/Header styling */
+.navbar,
+.page-header,
+.top-bar {
+    background: var(--secondary-color) !important;
+    border-bottom: 2px solid var(--primary-color) !important;
+}
+
+/* Sidebar styling to match AIOps */
+.sidemenu {
+    background: var(--secondary-color) !important;
+}
+
+/* Panel backgrounds */
+.panel-container,
+.dashboard-container {
+    background: var(--background) !important;
+}
+
+/* Button styling to match AIOps */
+.btn-primary {
+    background: var(--primary-color) !important;
+    border-color: var(--primary-color) !important;
+}
+
+/* Links color */
+a {
+    color: var(--primary-color) !important;
+}
+
+/* Custom loading spinner to match AIOps */
+.preloader {
+    background: var(--background) !important;
+}
+
+.preloader__logo {
+    display: none;
+}
+
+/* Hide original preloader text and show custom text */
+.preloader__text {
+    visibility: hidden;
+    position: relative;
+}
+
+.preloader__text::after {
+    content: "Loading AIOps...";
+    color: var(--primary-color);
+    visibility: visible;
+    position: absolute;
+    left: 0;
+    top: 0;
+}
+
+/* Hide help/docs links that reference Grafana */
+[data-testid="help-button"],
+.footer a[href*="grafana"] {
+    display: none !important;
+}

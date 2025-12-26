@@ -4,26 +4,49 @@
 {% block title %}Audit Logs - AIOps Platform{% endblock %}
 
 {% block content %}
-<div class="space-y-6">
-    <!-- Header -->
-    <div>
-        <h1 class="text-2xl font-bold">Audit Logs</h1>
-        <p class="text-gray-400">System activity and terminal session recordings</p>
+<div class="space-y-4">
+    <!-- Enterprise Standard Toolbar -->
+    <div class="dashboard-header"
+        style="padding: 12px; background: #16171b; border-bottom: 1px solid rgba(255,255,255,0.05); border-radius: 8px;">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <!-- Left: Breadcrumbs & Title -->
+            <div class="flex flex-col min-w-0">
+                <nav class="flex items-center text-xs text-gray-400 mb-1">
+                    <a href="/" class="hover:text-blue-400 transition-colors">Home</a>
+                    <span class="mx-2">/</span>
+                    <span class="text-gray-200">Audit Logs</span>
+                </nav>
+                <div class="flex items-center gap-3">
+                    <h1 class="text-xl font-bold text-white tracking-tight truncate">Audit Logs</h1>
+                </div>
+                <p class="text-xs text-gray-500 mt-1">System activity and terminal session recordings</p>
+            </div>
+
+            <!-- Right: Actions (Empty for now, tabs are below) -->
+            <div class="flex items-center gap-3">
+                <!-- No specific actions for audit header yet, keeping alignment -->
+            </div>
+        </div>
     </div>
-    
+
     <!-- Tabs -->
-    <div class="flex space-x-4 border-b border-gray-700">
-        <button onclick="switchTab('logs')" id="tab-logs" class="px-4 py-2 border-b-2 border-blue-500 text-blue-400 font-medium">
-            System Logs
-        </button>
-        <button onclick="switchTab('sessions')" id="tab-sessions" class="px-4 py-2 border-b-2 border-transparent text-gray-400 hover:text-gray-300">
-            Terminal Sessions
-        </button>
-        <button onclick="switchTab('chats')" id="tab-chats" class="px-4 py-2 border-b-2 border-transparent text-gray-400 hover:text-gray-300">
-            Chat Sessions
-        </button>
+    <div class="card">
+        <div class="flex space-x-4 border-b border-gray-700 px-4">
+            <button onclick="switchTab('logs')" id="tab-logs"
+                class="px-4 py-3 border-b-2 border-blue-500 text-blue-400 font-medium text-sm">
+                System Logs
+            </button>
+            <button onclick="switchTab('sessions')" id="tab-sessions"
+                class="px-4 py-3 border-b-2 border-transparent text-gray-400 hover:text-gray-300 text-sm">
+                Terminal Sessions
+            </button>
+            <button onclick="switchTab('chats')" id="tab-chats"
+                class="px-4 py-3 border-b-2 border-transparent text-gray-400 hover:text-gray-300 text-sm">
+                Chat Sessions
+            </button>
+        </div>
     </div>
-    
+
     <!-- System Logs Tab -->
     <div id="view-logs" class="space-y-4">
         <div class="card overflow-hidden">
@@ -100,15 +123,18 @@
                 </table>
             </div>
             <!-- Pagination Controls -->
-            <div id="chatPagination" class="px-6 py-4 border-t border-gray-700 flex items-center justify-between hidden">
+            <div id="chatPagination"
+                class="px-6 py-4 border-t border-gray-700 flex items-center justify-between hidden">
                 <span class="text-sm text-gray-400" id="chatPaginationInfo">
                     Showing 1 to 10 of 20 results
                 </span>
                 <div class="flex space-x-2">
-                    <button onclick="changeChatPage(-1)" id="btnPrevChat" class="px-3 py-1 rounded border border-gray-600 text-gray-300 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <button onclick="changeChatPage(-1)" id="btnPrevChat"
+                        class="px-3 py-1 rounded border border-gray-600 text-gray-300 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed">
                         Previous
                     </button>
-                    <button onclick="changeChatPage(1)" id="btnNextChat" class="px-3 py-1 rounded border border-gray-600 text-gray-300 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <button onclick="changeChatPage(1)" id="btnNextChat"
+                        class="px-3 py-1 rounded border border-gray-600 text-gray-300 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed">
                         Next
                     </button>
                 </div>
@@ -118,70 +144,86 @@
 </div>
 
 <!-- Recording Modal -->
-<div id="recordingModal" class="fixed inset-0 z-[100] hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+<div id="recordingModal" class="fixed inset-0 z-[100] hidden" aria-labelledby="modal-title" role="dialog"
+    aria-modal="true">
     <!-- Backdrop -->
-    <div class="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity" aria-hidden="true" onclick="closeRecordingModal()"></div>
-  
+    <div class="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity" aria-hidden="true"
+        onclick="closeRecordingModal()"></div>
+
     <!-- Modal Panel -->
     <div class="fixed inset-0 z-10 w-screen overflow-y-auto">
-      <div class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
-        <div class="relative transform overflow-hidden rounded-lg bg-[#1e1e2e] text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-5xl border border-gray-700 flex flex-col h-[80vh]">
-          
-          <!-- Header -->
-          <div class="bg-[#282a36] px-4 py-3 sm:px-6 flex justify-between items-center border-b border-gray-700 shrink-0">
-            <h3 class="text-lg font-semibold leading-6 text-white">Session Recording</h3>
-            <button type="button" class="rounded-md text-gray-400 hover:text-white focus:outline-none" onclick="closeRecordingModal()">
-              <span class="sr-only">Close</span>
-              <i class="fas fa-times text-xl"></i>
-            </button>
-          </div>
-          
-          <!-- Content -->
-          <div class="p-0 flex-1 bg-black overflow-hidden relative" style="min-height: 500px;">
-            <div id="terminal-container" class="h-full w-full"></div>
-          </div>
-          
-          <!-- Footer -->
-          <div class="bg-[#282a36] px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6 border-t border-gray-700 shrink-0">
-            <button type="button" class="mt-3 inline-flex w-full justify-center rounded-md bg-gray-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-500 sm:mt-0 sm:w-auto" onclick="closeRecordingModal()">Close</button>
-          </div>
+        <div class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
+            <div
+                class="relative transform overflow-hidden rounded-lg bg-[#1e1e2e] text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-5xl border border-gray-700 flex flex-col h-[80vh]">
+
+                <!-- Header -->
+                <div
+                    class="bg-[#282a36] px-4 py-3 sm:px-6 flex justify-between items-center border-b border-gray-700 shrink-0">
+                    <h3 class="text-lg font-semibold leading-6 text-white">Session Recording</h3>
+                    <button type="button" class="rounded-md text-gray-400 hover:text-white focus:outline-none"
+                        onclick="closeRecordingModal()">
+                        <span class="sr-only">Close</span>
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+
+                <!-- Content -->
+                <div class="p-0 flex-1 bg-black overflow-hidden relative" style="min-height: 500px;">
+                    <div id="terminal-container" class="h-full w-full"></div>
+                </div>
+
+                <!-- Footer -->
+                <div
+                    class="bg-[#282a36] px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6 border-t border-gray-700 shrink-0">
+                    <button type="button"
+                        class="mt-3 inline-flex w-full justify-center rounded-md bg-gray-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-500 sm:mt-0 sm:w-auto"
+                        onclick="closeRecordingModal()">Close</button>
+                </div>
+            </div>
         </div>
-      </div>
     </div>
 </div>
 
 <!-- Transcript Modal -->
-<div id="transcriptModal" class="fixed inset-0 z-[100] hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+<div id="transcriptModal" class="fixed inset-0 z-[100] hidden" aria-labelledby="modal-title" role="dialog"
+    aria-modal="true">
     <!-- Backdrop -->
-    <div class="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity" aria-hidden="true" onclick="closeTranscriptModal()"></div>
-  
+    <div class="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity" aria-hidden="true"
+        onclick="closeTranscriptModal()"></div>
+
     <!-- Modal Panel -->
     <div class="fixed inset-0 z-10 w-screen overflow-y-auto">
-      <div class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
-        <div class="relative transform overflow-hidden rounded-lg bg-[#1e1e2e] text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-4xl border border-gray-700 flex flex-col max-h-[85vh]">
-          
-          <!-- Header -->
-          <div class="bg-[#282a36] px-4 py-3 sm:px-6 flex justify-between items-center border-b border-gray-700 shrink-0">
-            <h3 class="text-lg font-semibold leading-6 text-white">Chat Transcript</h3>
-            <button type="button" class="rounded-md text-gray-400 hover:text-white focus:outline-none" onclick="closeTranscriptModal()">
-              <span class="sr-only">Close</span>
-              <i class="fas fa-times text-xl"></i>
-            </button>
-          </div>
-          
-          <!-- Content -->
-          <div class="px-4 py-4 sm:p-6 overflow-y-auto flex-1 bg-[#1e1e2e]">
-            <div id="transcript-container" class="space-y-4">
-                <!-- Messages injected here -->
+        <div class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
+            <div
+                class="relative transform overflow-hidden rounded-lg bg-[#1e1e2e] text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-4xl border border-gray-700 flex flex-col max-h-[85vh]">
+
+                <!-- Header -->
+                <div
+                    class="bg-[#282a36] px-4 py-3 sm:px-6 flex justify-between items-center border-b border-gray-700 shrink-0">
+                    <h3 class="text-lg font-semibold leading-6 text-white">Chat Transcript</h3>
+                    <button type="button" class="rounded-md text-gray-400 hover:text-white focus:outline-none"
+                        onclick="closeTranscriptModal()">
+                        <span class="sr-only">Close</span>
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+
+                <!-- Content -->
+                <div class="px-4 py-4 sm:p-6 overflow-y-auto flex-1 bg-[#1e1e2e]">
+                    <div id="transcript-container" class="space-y-4">
+                        <!-- Messages injected here -->
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div
+                    class="bg-[#282a36] px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6 border-t border-gray-700 shrink-0">
+                    <button type="button"
+                        class="mt-3 inline-flex w-full justify-center rounded-md bg-gray-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-500 sm:mt-0 sm:w-auto"
+                        onclick="closeTranscriptModal()">Close</button>
+                </div>
             </div>
-          </div>
-          
-          <!-- Footer -->
-          <div class="bg-[#282a36] px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6 border-t border-gray-700 shrink-0">
-            <button type="button" class="mt-3 inline-flex w-full justify-center rounded-md bg-gray-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-500 sm:mt-0 sm:w-auto" onclick="closeTranscriptModal()">Close</button>
-          </div>
         </div>
-      </div>
     </div>
 </div>
 {% endblock %}
@@ -191,7 +233,7 @@
 <script>
     let currentTab = 'logs';
     let term = null;
-    
+
     // Chat Pagination State
     let chatPage = 1;
     const chatLimit = 10;
@@ -199,12 +241,12 @@
 
     function switchTab(tab) {
         currentTab = tab;
-        
+
         // Update UI
-        document.getElementById('tab-logs').className = tab === 'logs' 
+        document.getElementById('tab-logs').className = tab === 'logs'
             ? 'px-4 py-2 border-b-2 border-blue-500 text-blue-400 font-medium'
             : 'px-4 py-2 border-b-2 border-transparent text-gray-400 hover:text-gray-300';
-            
+
         document.getElementById('tab-sessions').className = tab === 'sessions'
             ? 'px-4 py-2 border-b-2 border-blue-500 text-blue-400 font-medium'
             : 'px-4 py-2 border-b-2 border-transparent text-gray-400 hover:text-gray-300';
@@ -212,11 +254,11 @@
         document.getElementById('tab-chats').className = tab === 'chats'
             ? 'px-4 py-2 border-b-2 border-blue-500 text-blue-400 font-medium'
             : 'px-4 py-2 border-b-2 border-transparent text-gray-400 hover:text-gray-300';
-            
+
         document.getElementById('view-logs').classList.toggle('hidden', tab !== 'logs');
         document.getElementById('view-sessions').classList.toggle('hidden', tab !== 'sessions');
         document.getElementById('view-chats').classList.toggle('hidden', tab !== 'chats');
-        
+
         // Load data if needed
         if (tab === 'logs') loadLogs();
         else if (tab === 'sessions') loadSessions();
@@ -227,7 +269,7 @@
         try {
             const response = await apiCall('/api/audit/logs');
             if (!response) return;
-            
+
             const logs = await response.json();
             renderLogs(logs);
         } catch (error) {
@@ -237,7 +279,7 @@
 
     function renderLogs(logs) {
         const tbody = document.getElementById('logsTableBody');
-        
+
         if (logs.length === 0) {
             tbody.innerHTML = `
                 <tr>
@@ -248,7 +290,7 @@
             `;
             return;
         }
-        
+
         tbody.innerHTML = logs.map(log => `
             <tr class="hover:bg-gray-800 transition">
                 <td class="px-6 py-4 whitespace-nowrap text-gray-400">
@@ -276,7 +318,7 @@
         try {
             const response = await apiCall('/api/audit/terminal-sessions');
             if (!response) return;
-            
+
             const sessions = await response.json();
             renderSessions(sessions);
         } catch (error) {
@@ -286,7 +328,7 @@
 
     function renderSessions(sessions) {
         const tbody = document.getElementById('sessionsTableBody');
-        
+
         if (sessions.length === 0) {
             tbody.innerHTML = `
                 <tr>
@@ -297,12 +339,12 @@
             `;
             return;
         }
-        
+
         tbody.innerHTML = sessions.map(session => {
             const start = new Date(session.started_at);
             const end = session.ended_at ? new Date(session.ended_at) : null;
             const duration = end ? Math.round((end - start) / 1000) + 's' : 'Active';
-            
+
             return `
             <tr class="hover:bg-gray-800 transition">
                 <td class="px-6 py-4 whitespace-nowrap text-gray-400">
@@ -333,28 +375,28 @@
         try {
             const response = await apiCall(`/api/audit/terminal-sessions/${sessionId}/recording`);
             if (!response) return;
-            
+
             if (!response.ok) {
                 const err = await response.json();
                 showToast(err.detail || 'Failed to load recording', 'error');
                 return;
             }
-            
+
             const data = await response.json();
-            
+
             const modal = document.getElementById('recordingModal');
             modal.classList.remove('hidden');
-            
+
             const container = document.getElementById('terminal-container');
             container.innerHTML = '';
-            
+
             // Force layout
             void modal.offsetWidth;
-            
+
             // Wait for transition to complete
             setTimeout(() => {
                 if (term) term.dispose();
-                
+
                 term = new Terminal({
                     cursorBlink: false,
                     disableStdin: true,
@@ -367,12 +409,12 @@
                     rows: 40,
                     cols: 120
                 });
-                
+
                 const fitAddon = new FitAddon.FitAddon();
                 term.loadAddon(fitAddon);
-                
+
                 term.open(container);
-                
+
                 // Write content
                 if (data.content) {
                     const content = data.content.replace(/\r\n/g, '\n').replace(/\n/g, '\r\n');
@@ -380,7 +422,7 @@
                 } else {
                     term.write('\r\nNo content in recording file.');
                 }
-                
+
                 // Try to fit after rendering
                 setTimeout(() => {
                     try {
@@ -390,9 +432,9 @@
                         console.warn('Fit failed', e);
                     }
                 }, 50);
-                
+
             }, 300);
-            
+
         } catch (error) {
             console.error(error);
             showToast('Failed to load recording', 'error');
@@ -411,11 +453,11 @@
         try {
             const response = await apiCall(`/api/audit/chat-sessions/${sessionId}/transcript`);
             if (!response) return;
-            
+
             const messages = await response.json();
-            
+
             document.getElementById('transcriptModal').classList.remove('hidden');
-            
+
             const container = document.getElementById('transcript-container');
             container.innerHTML = messages.map(msg => `
                 <div class="flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}">
@@ -426,7 +468,7 @@
                     <div class="text-xs text-gray-500 mt-1">${new Date(msg.created_at).toLocaleString()}</div>
                 </div>
             `).join('');
-            
+
         } catch (error) {
             showToast('Failed to load transcript', 'error');
         }
@@ -440,7 +482,7 @@
         try {
             const response = await apiCall(`/api/audit/chat-sessions?page=${chatPage}&limit=${chatLimit}`);
             if (!response) return;
-            
+
             const data = await response.json();
             chatTotal = data.total;
             renderChats(data.items);
@@ -453,7 +495,7 @@
 
     function renderChats(chats) {
         const tbody = document.getElementById('chatsTableBody');
-        
+
         if (chats.length === 0) {
             tbody.innerHTML = `
                 <tr>
@@ -464,7 +506,7 @@
             `;
             return;
         }
-        
+
         tbody.innerHTML = chats.map(chat => `
             <tr class="hover:bg-gray-800 transition">
                 <td class="px-6 py-4 whitespace-nowrap text-gray-400">
@@ -494,15 +536,15 @@
             pagination.classList.add('hidden');
             return;
         }
-        
+
         pagination.classList.remove('hidden');
-        
+
         const start = (chatPage - 1) * chatLimit + 1;
         const end = Math.min(chatPage * chatLimit, chatTotal);
-        
-        document.getElementById('chatPaginationInfo').textContent = 
+
+        document.getElementById('chatPaginationInfo').textContent =
             `Showing ${start} to ${end} of ${chatTotal} results`;
-            
+
         document.getElementById('btnPrevChat').disabled = chatPage === 1;
         document.getElementById('btnNextChat').disabled = end >= chatTotal;
     }

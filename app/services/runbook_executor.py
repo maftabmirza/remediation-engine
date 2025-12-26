@@ -214,6 +214,19 @@ class RunbookExecutor:
                             on_step_complete(step.step_order, step.name, True)
                         continue
                     
+                    # Check conditional execution
+                    if step.run_if_variable:
+                        should_run = self._check_conditional(step, runtime_vars)
+                        if not should_run:
+                            step_exec.status = "skipped"
+                            step_exec.completed_at = utc_now()
+                            step_exec.error_message = f"Skipped: Condition not met ({step.run_if_variable} did not match)"
+                            await self.db.commit()
+                            
+                            if on_step_complete:
+                                on_step_complete(step.step_order, step.name, True)
+                            continue
+                    
                     # Get appropriate command/config based on step type
                     command = self._get_command_for_step(step, server)
 
@@ -789,6 +802,44 @@ class RunbookExecutor:
             # Default to linux
             return step.command_linux
     
+    def _check_conditional(self, step: RunbookStep, runtime_vars: Dict[str, Any]) -> bool:
+        """
+        Check if step should run based on variable validation.
+        Returns True if step should run (or no condition), False otherwise.
+        """
+        if not step.run_if_variable:
+            return True
+            
+        # Get variable value
+        actual_value = runtime_vars.get(step.run_if_variable)
+        
+        # If variable doesn't exist, we skip (fail open or closed? usually closed for safety)
+        if actual_value is None:
+            logger.info(f"Conditional step {step.step_order}: Variable '{step.run_if_variable}' not found. Skipping.")
+            return False
+            
+        target_value = step.run_if_value or ""
+        
+        # Check for regex match if target looks like regex (simple heuristic or always regex?)
+        # Let's support regex if it starts with regex: prefix, otherwise exact string match
+        # Actually, user requirement implies "match", usually regex or equality. 
+        # Existing logic uses regex for extraction. Let's assume equality for now, or regex if flexible.
+        # Let's do exact match OR regex.
+        
+        # 1. Exact match
+        if str(actual_value) == target_value:
+            return True
+            
+        # 2. Regex match
+        try:
+            if re.fullmatch(target_value, str(actual_value)):
+                return True
+        except re.error:
+            pass # Not a valid regex or didn't match
+            
+        logger.info(f"Conditional step {step.step_order}: Value '{actual_value}' did not match target '{target_value}'")
+        return False
+
     async def _execute_with_retries(
         self,
         executor,

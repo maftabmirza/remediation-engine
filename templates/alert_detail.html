@@ -18,7 +18,7 @@
         margin: 0.5rem 0;
     }
 </style>
-<div id="alertContent" class="space-y-6 h-full flex flex-col">
+<div id="alertContent" class="space-y-4 h-full flex flex-col">
     <div class="text-center py-8">
         <div class="loading-spinner mx-auto"></div>
         <p class="text-gray-400 mt-2">Loading alert...</p>
@@ -306,18 +306,34 @@
             .join('');
 
         container.innerHTML = `
-            <!-- Header -->
-            <div class="flex items-center justify-between mb-2">
-                <div class="flex items-center space-x-3">
-                    <a href="/alerts" class="text-gray-400 hover:text-white" title="Back to Alerts"><i class="fas fa-arrow-left"></i></a>
-                    <div class="flex items-center space-x-3">
-                        <h1 class="text-lg font-bold" title="Alert Name">${alert.alert_name}</h1>
-                        <span class="badge-${alert.severity || 'info'} px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider" title="Severity">${alert.severity || 'info'}</span>
-                        <span class="status-${alert.status} text-xs flex items-center" title="Status"><i class="fas fa-circle text-[8px] mr-1"></i>${alert.status}</span>
+            <!-- Enterprise Standard Toolbar -->
+            <div class="dashboard-header mb-4" style="padding: 12px; background: #16171b; border-bottom: 1px solid rgba(255,255,255,0.05); border-radius: 8px;">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <!-- Left: Breadcrumbs & Title -->
+                    <div class="flex flex-col min-w-0">
+                        <nav class="flex items-center text-xs text-gray-400 mb-1">
+                            <a href="/" class="hover:text-blue-400 transition-colors">Home</a>
+                            <span class="mx-2">/</span>
+                            <a href="/alerts" class="hover:text-blue-400 transition-colors">Alerts</a>
+                            <span class="mx-2">/</span>
+                            <span class="text-gray-200">Details</span>
+                        </nav>
+                        <div class="flex items-center gap-3">
+                            <h1 class="text-xl font-bold text-white tracking-tight truncate" title="Alert Name">${alert.alert_name}</h1>
+                            <span class="badge-${alert.severity || 'info'} px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider" title="Severity">${alert.severity || 'info'}</span>
+                        </div>
+                        <div class="flex items-center gap-2 mt-1">
+                             <span class="status-${alert.status} text-xs flex items-center" title="Status"><i class="fas fa-circle text-[8px] mr-1"></i>${alert.status}</span>
+                        </div>
                     </div>
-                </div>
-                <div class="flex space-x-2">
-                    <button onclick="deleteAlert()" class="btn-secondary px-2 py-1 rounded text-red-400 hover:text-red-300 text-xs" title="Delete Alert"><i class="fas fa-trash"></i></button>
+
+                    <!-- Right: Actions -->
+                    <div class="flex items-center gap-2">
+                        <button onclick="deleteAlert()" class="bg-gray-700 hover:bg-red-900/30 text-red-400 hover:text-red-300 px-3 py-1.5 rounded text-sm flex items-center gap-2 transition-colors">
+                            <i class="fas fa-trash"></i>
+                            Delete
+                        </button>
+                    </div>
                 </div>
             </div>
             

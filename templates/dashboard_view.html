@@ -1,31 +1,62 @@
 {% extends "layout.html" %}
 {% set active_page = 'dashboards' %}
 
-{% block title %}Dashboard View - AIOps Platform{% endblock %}
+{% block title %}Dashboard View - AIOps Platform (v6){% endblock %}
 
 {% block head %}
 <!-- GridStack CSS -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gridstack@8.4.0/dist/gridstack.min.css" />
 <style>
     .grid-stack-item-content {
-        background: rgb(31, 41, 55);
-        border: 1px solid rgb(55, 65, 81);
+        background: #181b1f;
+        border: 1px solid rgba(204, 204, 220, 0.12);
         border-radius: 0.5rem;
         overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        /* Force 16px gap (8px on each side) */
+        top: 8px !important;
+        right: 8px !important;
+        bottom: 8px !important;
+        left: 8px !important;
+        width: auto !important;
+        height: auto !important;
+        /* Enterprise Polish */
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        transition: all 0.2s ease-in-out;
+    }
+
+    .grid-stack-item-content:hover {
+        border-color: rgba(204, 204, 220, 0.25);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -2px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Enforce GridStack gaps using CSS variables (GridStack v8+) */
+    .grid-stack {
+        --gs-column-gap: 16px;
+        --gs-row-gap: 16px;
+        background: transparent;
+        /* Visual debug: encourage transparency */
+    }
+
+
+
+    .panel-row-section {
+        margin-bottom: 1.5rem;
     }
 
     .panel-drag-handle {
         cursor: move;
         padding: 0.75rem 1rem;
-        background: rgb(55, 65, 81);
-        border-bottom: 1px solid rgb(75, 85, 99);
+        background: #22252b;
+        border-bottom: 1px solid rgba(204, 204, 220, 0.12);
         display: none;
         align-items: center;
         justify-content: space-between;
     }
 
     .panel-drag-handle:hover {
-        background: rgb(75, 85, 99);
+        background: #2a2d34;
     }
 
     .grid-stack-item.editing .panel-drag-handle {
@@ -40,6 +71,18 @@
 
     .panel-content {
         padding: 1rem;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+    }
+
+    .panel-chart-container {
+        flex: 1;
+        min-height: 120px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
     .panel-actions {
@@ -97,12 +140,15 @@
         display: none;
     }
 
-    /* Panel Row Headers */
+    /* Panel Row Headers - Grafana Style */
     .panel-row-header {
-        background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(139, 92, 246, 0.1) 100%);
-        border: 1px solid rgba(99, 102, 241, 0.3);
-        border-radius: 0.5rem;
-        padding: 0.75rem 1rem;
+        background: transparent;
+        border-top: 1px solid rgba(204, 204, 220, 0.12);
+        border-bottom: 1px solid rgba(204, 204, 220, 0.12);
+        border-left: none;
+        border-right: none;
+        border-radius: 0;
+        padding: 0.5rem 0.25rem;
         margin-bottom: 0.5rem;
         cursor: pointer;
         transition: all 0.2s ease;
@@ -112,20 +158,26 @@
     }
 
     .panel-row-header:hover {
-        background: linear-gradient(135deg, rgba(99, 102, 241, 0.25) 0%, rgba(139, 92, 246, 0.15) 100%);
-        border-color: rgba(99, 102, 241, 0.5);
+        background: rgba(204, 204, 220, 0.05);
     }
 
     .panel-row-header .row-title {
         display: flex;
         align-items: center;
-        gap: 0.75rem;
-        font-weight: 600;
-        color: white;
+        gap: 0.5rem;
+        font-weight: 500;
+        font-size: 0.875rem;
+        color: #ccccdc;
+    }
+
+    .panel-row-header .row-title i.fa-layer-group {
+        color: #8e8e8e;
     }
 
     .panel-row-header .row-toggle {
         transition: transform 0.3s ease;
+        font-size: 0.75rem;
+        color: #8e8e8e;
     }
 
     .panel-row-header.collapsed .row-toggle {
@@ -144,161 +196,312 @@
     }
 
     .panel-row-section {
-        margin-bottom: 1.5rem;
+        margin-bottom: 1rem;
     }
 
     .panel-row-badge {
-        background: rgba(99, 102, 241, 0.3);
-        color: rgb(165, 180, 252);
-        padding: 0.25rem 0.5rem;
-        border-radius: 9999px;
-        font-size: 0.75rem;
-        font-weight: 500;
+        background: rgba(204, 204, 220, 0.1);
+        color: #8e8e8e;
+        padding: 0.125rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        font-weight: 400;
+    }
+
+    /* Grafana-style Toolbar Buttons */
+    .toolbar-btn {
+        color: #ccccdc;
+        /* Grafana text color */
+        transition: all 0.15s ease;
+        border-radius: 4px;
+        /* Grafana uses 4px */
+    }
+
+    .toolbar-btn:hover {
+        color: #ffffff;
+        background: #22252b;
+        /* Grafana tertiary background */
+    }
+
+    .toolbar-btn:active {
+        transform: scale(0.95);
+    }
+
+    .toolbar-btn i {
+        font-size: 0.875rem;
+    }
+
+    /* Toolbar divider */
+    .toolbar-divider {
+        width: 1px;
+        height: 24px;
+        background: rgba(204, 204, 220, 0.12);
+        /* Grafana border color */
+        margin: 0 4px;
+    }
+
+    /* Query editor textarea styling */
+    #query-editor {
+        font-family: 'Courier New', monospace;
+        font-size: 14px;
+        background-color: #111217;
+        /* Grafana primary bg */
+        color: #ccccdc;
+        /* Grafana text color */
+        border: 1px solid rgba(204, 204, 220, 0.2);
+        border-radius: 4px;
+    }
+
+    #query-editor:focus {
+        border-color: #3d71d9;
+        /* Grafana blue */
+        outline: none;
+    }
+
+    /* Empty State Styling */
+    .empty-state-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 4rem 2rem;
+        text-align: center;
+        border: 2px dashed rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        margin: 2rem;
+        background: rgba(255, 255, 255, 0.02);
+    }
+
+    .empty-state-icon {
+        font-size: 3rem;
+        color: #3b82f6;
+        margin-bottom: 1.5rem;
+        opacity: 0.8;
+    }
+
+    /* Skeleton Loading Animation */
+    .skeleton {
+        background: linear-gradient(90deg, #22252b 25%, #2a2d34 50%, #22252b 75%);
+        background-size: 200% 100%;
+        animation: skeleton-loading 1.5s infinite;
+        border-radius: 4px;
+    }
+
+    @keyframes skeleton-loading {
+        0% {
+            background-position: 200% 0;
+        }
+
+        100% {
+            background-position: -200% 0;
+        }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="space-y-6">
-    <!-- Header -->
-    <div class="dashboard-header flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div class="flex items-center gap-4">
-            <a href="/dashboards" class="text-gray-400 hover:text-white transition-colors">
-                <i class="fas fa-arrow-left"></i>
-            </a>
-            <div>
-                <h1 id="dashboard-title" class="text-2xl font-bold">Loading Dashboard...</h1>
-                <p id="dashboard-description" class="text-gray-400 text-sm"></p>
-            </div>
-        </div>
-        <div class="flex items-center gap-3">
-            <!-- Edit Layout Toggle -->
-            <button id="edit-mode-btn" onclick="toggleEditMode()"
-                class="px-4 py-2 rounded-lg border border-gray-600 hover:bg-gray-700 text-sm transition-colors">
-                <i class="fas fa-edit mr-2"></i>
-                <span id="edit-mode-text">Edit Layout</span>
-            </button>
-
-            <button onclick="showTimePickerModal()"
-                class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm hover:bg-gray-700 transition-colors flex items-center gap-2">
-                <i class="fas fa-clock text-blue-400"></i>
-                <span id="time-range-display">Last 24h</span>
-                <i class="fas fa-chevron-down text-xs text-gray-500"></i>
-            </button>
-            <button id="refresh-btn" class="btn-secondary px-4 py-2 rounded-lg text-sm flex items-center gap-2">
-                <i class="fas fa-sync-alt"></i>
-                <span id="refresh-text">Refresh</span>
-                <span id="refresh-countdown" class="text-xs text-gray-400 hidden"></span>
-            </button>
-            <div id="links-dropdown" class="relative hidden">
-                <button onclick="toggleLinksDropdown()"
-                    class="btn-secondary px-4 py-2 rounded-lg text-sm flex items-center gap-2">
-                    <i class="fas fa-link mr-2"></i>
-                    Links
-                    <i class="fas fa-chevron-down text-xs"></i>
-                </button>
-                <div id="links-menu"
-                    class="hidden absolute right-0 mt-2 w-56 bg-gray-800 border border-gray-700 rounded-lg shadow-lg z-50">
-                    <div class="p-2" id="links-list">
-                        <!-- Links will be populated here -->
-                    </div>
+<div class="space-y-4">
+    <!-- Grafana-style Toolbar -->
+    <!-- Grafana-style Toolbar -->
+    <div class="dashboard-header"
+        style="padding: 12px; background: #16171b; border-bottom: 1px solid rgba(255,255,255,0.05);">
+        <div class="flex items-center justify-between gap-4">
+            <!-- Left: Breadcrumbs & Title -->
+            <div class="flex flex-col min-w-0">
+                <!-- Breadcrumbs -->
+                <nav class="flex items-center text-xs text-gray-400 mb-1">
+                    <a href="/" class="hover:text-blue-400 transition-colors">Home</a>
+                    <span class="mx-2">/</span>
+                    <a href="/dashboards" class="hover:text-blue-400 transition-colors">Dashboards</a>
+                    <span class="mx-2">/</span>
+                    <span class="text-gray-200">Operations</span>
+                </nav>
+                <div class="flex items-center gap-3">
+                    <h1 id="dashboard-title" class="text-xl font-bold text-white tracking-tight truncate">Loading...
+                    </h1>
+                    <span id="dashboard-description"
+                        class="hidden px-2 py-0.5 rounded text-[10px] bg-gray-800 text-gray-400 border border-gray-700 truncate max-w-[200px]"></span>
                 </div>
             </div>
-            <button onclick="showVariablesModal()" class="btn-secondary px-4 py-2 rounded-lg text-sm">
-                <i class="fas fa-sliders-h mr-2"></i>
-                Variables
-            </button>
-            <button onclick="showAlertsModal()"
-                class="btn-secondary px-4 py-2 rounded-lg text-sm flex items-center gap-2 relative">
-                <i class="fas fa-bell mr-2"></i>
-                Alerts
-                <span id="alerts-badge"
-                    class="hidden absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">0</span>
-            </button>
-            <button onclick="showAnnotationsModal()" class="btn-secondary px-4 py-2 rounded-lg text-sm">
-                <i class="fas fa-bookmark mr-2"></i>
-                Annotations
-            </button>
-            <button onclick="showRowsModal()" class="btn-secondary px-4 py-2 rounded-lg text-sm">
-                <i class="fas fa-bars mr-2"></i>
-                Rows
-            </button>
-            <button onclick="exportDashboard()" class="btn-secondary px-4 py-2 rounded-lg text-sm">
-                <i class="fas fa-download mr-2"></i>
-                Export
-            </button>
-            <button onclick="showImportModal()" class="btn-secondary px-4 py-2 rounded-lg text-sm">
-                <i class="fas fa-upload mr-2"></i>
-                Import
-            </button>
-            <button onclick="showSnapshotModal()" class="btn-secondary px-4 py-2 rounded-lg text-sm">
-                <i class="fas fa-camera mr-2"></i>
-                Snapshot
-            </button>
-            <button onclick="toggleKioskMode()" class="btn-secondary px-4 py-2 rounded-lg text-sm">
-                <i class="fas fa-tv mr-2"></i>
-                Kiosk Mode
-            </button>
-            <a href="/dashboards" class="btn-secondary px-4 py-2 rounded-lg text-sm">
-                <i class="fas fa-cog mr-2"></i>
-                Settings
-            </a>
-        </div>
-    </div>
 
-    <!-- Dashboard Variables -->
-    <div id="variables-container" class="hidden">
-        <div class="bg-gray-800/50 border border-gray-700/50 rounded-lg p-4 mb-6">
-            <div class="flex items-center gap-3 flex-wrap" id="variables-list">
-                <!-- Variables will be populated here -->
+            <!-- Right: Toolbar Actions -->
+            <div class="flex items-center gap-2">
+
+                <!-- Primary Actions Group -->
+                <div class="flex items-center bg-gray-800 rounded-lg p-1 border border-gray-700">
+                    <!-- Time Range -->
+                    <button onclick="showTimePickerModal()"
+                        class="toolbar-btn px-3 py-1.5 rounded text-sm hover:bg-gray-700 transition-colors flex items-center gap-2 text-gray-300">
+                        <i class="fas fa-clock text-blue-400 text-xs"></i>
+                        <span id="time-range-display">Last 24h</span>
+                        <i class="fas fa-chevron-down text-[10px] text-gray-500"></i>
+                    </button>
+
+                    <div class="w-px h-5 bg-gray-600 mx-1"></div>
+
+                    <!-- Refresh -->
+                    <button id="refresh-btn" onclick="refreshAllPanels()"
+                        class="toolbar-btn px-2 py-1.5 rounded hover:bg-gray-700 transition-colors flex items-center gap-2"
+                        title="Refresh Data">
+                        <i class="fas fa-sync-alt text-green-400 text-sm"></i>
+                        <span id="refresh-countdown" class="text-xs text-gray-400 hidden"></span>
+                    </button>
+                </div>
+
+                <!-- Editor Actions -->
+                <button id="edit-mode-btn" onclick="toggleEditMode()"
+                    class="toolbar-btn px-3 py-1.5 rounded border border-gray-600 hover:border-blue-400 hover:text-blue-400 text-sm transition-all flex items-center gap-2"
+                    title="Edit Layout">
+                    <i class="fas fa-pen text-xs"></i>
+                    <span id="edit-mode-text" class="hidden sm:inline">Edit</span>
+                </button>
+
+                <!-- Save/Cancel (Hidden by default) -->
+                <button id="save-layout-btn" onclick="saveLayoutChanges()"
+                    class="hidden btn-primary px-3 py-1.5 text-sm flex items-center gap-2">
+                    <i class="fas fa-save"></i> Save
+                </button>
+                <button id="cancel-edit-btn" onclick="cancelEditMode()"
+                    class="hidden btn-secondary px-3 py-1.5 text-sm">
+                    Cancel
+                </button>
+
+                <!-- More Actions Dropdown -->
+                <div class="relative ml-2" id="more-actions-container">
+                    <button onclick="toggleMoreActions()"
+                        class="toolbar-btn p-2 rounded hover:bg-gray-700 transition-colors text-gray-400">
+                        <i class="fas fa-ellipsis-v"></i>
+                    </button>
+                    <!-- Dropdown Menu -->
+                    <div id="more-actions-menu"
+                        class="hidden absolute right-0 mt-2 w-56 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-50 py-1">
+                        <div class="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Dashboard
+                        </div>
+
+                        <button onclick="showRowsModal()"
+                            class="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white flex items-center gap-3">
+                            <i class="fas fa-layer-group text-indigo-400 w-4"></i> Manage Rows
+                        </button>
+                        <button onclick="showVariablesModal()"
+                            class="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white flex items-center gap-3">
+                            <i class="fas fa-sliders-h text-purple-400 w-4"></i> Variables
+                        </button>
+                        <button onclick="showAnnotationsModal()"
+                            class="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white flex items-center gap-3">
+                            <i class="fas fa-bookmark text-yellow-400 w-4"></i> Annotations
+                        </button>
+                        <button onclick="showAlertsModal()"
+                            class="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white flex items-center gap-3">
+                            <div class="relative">
+                                <i class="fas fa-bell text-red-400 w-4"></i>
+                                <span id="alerts-badge"
+                                    class="hidden absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-2 h-2"></span>
+                            </div>
+                            Alerts
+                        </button>
+
+                        <!-- Links Section (Restored for JS compatibility) -->
+                        <div id="links-dropdown" class="block">
+                            <div class="border-t border-gray-700 my-1"></div>
+                            <div class="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Links
+                            </div>
+                            <div id="links-list"></div>
+                        </div>
+
+                        <div class="border-t border-gray-700 my-1"></div>
+                        <div class="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions
+                        </div>
+
+                        <button onclick="showSnapshotModal()"
+                            class="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white flex items-center gap-3">
+                            <i class="fas fa-camera text-gray-400 w-4"></i> Snapshot
+                        </button>
+                        <button onclick="exportDashboard()"
+                            class="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white flex items-center gap-3">
+                            <i class="fas fa-download text-gray-400 w-4"></i> Export JSON
+                        </button>
+                        <button onclick="showImportModal()"
+                            class="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white flex items-center gap-3">
+                            <i class="fas fa-upload text-gray-400 w-4"></i> Import JSON
+                        </button>
+
+                        <div class="border-t border-gray-700 my-1"></div>
+
+                        <button onclick="toggleKioskMode()"
+                            class="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white flex items-center gap-3">
+                            <i class="fas fa-tv text-orange-400 w-4"></i> Kiosk Mode
+                        </button>
+
+                        <!-- Settings Items Flattened -->
+                        <button onclick="showShareModal()"
+                            class="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white flex items-center gap-3">
+                            <i class="fas fa-share-alt text-blue-400 w-4"></i> Share
+                        </button>
+                        <button onclick="duplicateDashboard()"
+                            class="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white flex items-center gap-3">
+                            <i class="fas fa-copy text-green-400 w-4"></i> Duplicate
+                        </button>
+                    </div>
+                </div>
+
             </div>
         </div>
     </div>
+</div>
 
-    <!-- Dashboard Loading State -->
-    <div id="loading-state" class="flex items-center justify-center py-20">
-        <div class="text-center">
-            <i class="fas fa-spinner fa-spin text-4xl text-blue-400 mb-4"></i>
-            <p class="text-gray-400">Loading dashboard...</p>
+<!-- Dashboard Variables -->
+<div id="variables-container" class="hidden">
+    <div class="rounded-lg p-4 mb-6 shadow-sm" style="background-color: #181b1f; border: 1px solid #2d2d31;">
+        <div class="flex items-center gap-4 flex-wrap" id="variables-list">
+            <!-- Variables will be populated here -->
         </div>
     </div>
+</div>
 
-    <!-- Dashboard Error State -->
-    <div id="error-state" class="hidden">
-        <div class="bg-red-900/30 border border-red-700/50 rounded-lg p-6 text-center">
-            <i class="fas fa-exclamation-triangle text-4xl text-red-400 mb-4"></i>
-            <h3 class="text-lg font-semibold text-red-300 mb-2">Failed to load dashboard</h3>
-            <p id="error-message" class="text-red-200/70 mb-4"></p>
-            <button onclick="loadDashboard()" class="btn-primary px-4 py-2 rounded-lg">
-                <i class="fas fa-redo mr-2"></i>
-                Retry
-            </button>
-        </div>
+<!-- Dashboard Loading State -->
+<div id="loading-state" class="flex items-center justify-center py-20">
+    <div class="text-center">
+        <i class="fas fa-spinner fa-spin text-4xl text-blue-400 mb-4"></i>
+        <p class="text-gray-400">Loading dashboard...</p>
     </div>
+</div>
 
-    <!-- Empty State -->
-    <div id="empty-state" class="hidden">
-        <div class="bg-gray-800/50 border border-gray-700/50 rounded-lg p-10 text-center">
-            <i class="fas fa-chart-bar text-5xl text-gray-600 mb-4"></i>
-            <h3 class="text-lg font-semibold text-gray-300 mb-2">No panels in this dashboard</h3>
-            <p class="text-gray-500 mb-6">Add some panels to visualize your metrics.</p>
-            <a href="/dashboards" class="btn-primary px-6 py-2 rounded-lg">
-                <i class="fas fa-plus mr-2"></i>
-                Add Panels
-            </a>
-        </div>
+<!-- Dashboard Error State -->
+<div id="error-state" class="hidden">
+    <div class="bg-red-900/30 border border-red-700/50 rounded-lg p-6 text-center">
+        <i class="fas fa-exclamation-triangle text-4xl text-red-400 mb-4"></i>
+        <h3 class="text-lg font-semibold text-red-300 mb-2">Failed to load dashboard</h3>
+        <p id="error-message" class="text-red-200/70 mb-4"></p>
+        <button onclick="loadDashboard()" class="btn-primary px-4 py-2 rounded-lg">
+            <i class="fas fa-redo mr-2"></i>
+            Retry
+        </button>
     </div>
+</div>
 
-    <!-- GridStack Container with Row Support -->
-    <div id="panels-container" class="hidden">
-        <div id="rows-container">
-            <!-- Row sections will be dynamically added here -->
-        </div>
-        <!-- Ungrouped panels grid -->
-        <div id="ungrouped-section">
-            <div class="grid-stack" id="grid-ungrouped"></div>
-        </div>
+<!-- Empty State -->
+<div id="empty-state" class="hidden">
+    <div class="bg-gray-800/50 border border-gray-700/50 rounded-lg p-10 text-center">
+        <i class="fas fa-chart-bar text-5xl text-gray-600 mb-4"></i>
+        <h3 class="text-lg font-semibold text-gray-300 mb-2">No panels in this dashboard</h3>
+        <p class="text-gray-500 mb-6">Add some panels to visualize your metrics.</p>
+        <a href="/dashboards" class="btn-primary px-6 py-2 rounded-lg">
+            <i class="fas fa-plus mr-2"></i>
+            Add Panels
+        </a>
     </div>
+</div>
+
+<!-- GridStack Container with Row Support -->
+<div id="panels-container" class="hidden">
+    <div id="rows-container">
+        <!-- Row sections will be dynamically added here -->
+    </div>
+    <!-- Ungrouped panels grid -->
+    <div id="ungrouped-section">
+        <div class="grid-stack" id="grid-ungrouped"></div>
+    </div>
+</div>
 </div>
 
 <!-- Variables Management Modal -->
@@ -935,9 +1138,312 @@
     Exit Kiosk Mode
 </button>
 
+<!-- Create/Edit Panel Modal -->
+<div id="panel-modal"
+    class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-start justify-center z-50 overflow-y-auto py-8">
+    <div class="bg-gray-800 rounded-lg p-6 my-auto" style="width: 80vw; max-height: 85vh; overflow-y: auto;">
+        <div class="flex justify-between items-center mb-4">
+            <h2 id="modal-title" class="text-xl font-bold text-white">Create Panel</h2>
+            <button onclick="closePanelModal()" class="text-gray-400 hover:text-white">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+
+        <form id="panel-form" onsubmit="savePanel(event)">
+            <input type="hidden" id="panel-id">
+
+            <div class="grid grid-cols-2 gap-4">
+                <!-- Left Column -->
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Panel Name *</label>
+                        <input type="text" id="panel-name" required
+                            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Description</label>
+                        <textarea id="panel-description" rows="2"
+                            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"></textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Datasource *</label>
+                        <select id="panel-datasource" required
+                            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                            <option value="">Select datasource...</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Panel Type</label>
+                        <select id="panel-type"
+                            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                            <optgroup label="Time Series">
+                                <option value="graph">Line Chart</option>
+                                <option value="area">Area Chart</option>
+                                <option value="stacked_area">Stacked Area</option>
+                                <option value="bar">Bar Chart</option>
+                                <option value="stacked_bar">Stacked Bar</option>
+                            </optgroup>
+                            <optgroup label="Single Value">
+                                <option value="stat">Stat (Big Number)</option>
+                                <option value="gauge">Gauge</option>
+                                <option value="sparkline">Sparkline</option>
+                            </optgroup>
+                            <optgroup label="Distribution">
+                                <option value="pie">Pie Chart</option>
+                                <option value="doughnut">Doughnut Chart</option>
+                                <option value="heatmap">Heatmap</option>
+                            </optgroup>
+                            <optgroup label="Data">
+                                <option value="table">Table</option>
+                            </optgroup>
+                        </select>
+                    </div>
+
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-1">Time Range</label>
+                            <select id="panel-time-range"
+                                class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                                <option value="5m">5 minutes</option>
+                                <option value="15m">15 minutes</option>
+                                <option value="30m">30 minutes</option>
+                                <option value="1h">1 hour</option>
+                                <option value="3h">3 hours</option>
+                                <option value="6h">6 hours</option>
+                                <option value="12h">12 hours</option>
+                                <option value="24h" selected>24 hours</option>
+                                <option value="7d">7 days</option>
+                                <option value="30d">30 days</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-1">Refresh (s)</label>
+                            <input type="number" id="panel-refresh" value="30" min="5" max="3600"
+                                class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                        </div>
+                    </div>
+
+                    <div class="flex gap-4">
+                        <label class="flex items-center text-gray-300">
+                            <input type="checkbox" id="panel-is-template" class="mr-2">
+                            Save as Template
+                        </label>
+                        <label class="flex items-center text-gray-300">
+                            <input type="checkbox" id="panel-is-public" class="mr-2">
+                            Public
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Right Column - Query Editor -->
+                <div class="space-y-4">
+                    <!-- Query Examples -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Query Examples</label>
+                        <select id="query-examples" onchange="loadQueryExample()"
+                            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                            <option value="">Select an example...</option>
+                            <option value="cpu">CPU Usage (%)</option>
+                            <option value="memory">Memory Usage (GB)</option>
+                            <option value="disk">Disk Usage (%)</option>
+                            <option value="network_rx">Network Received (MB/s)</option>
+                            <option value="network_tx">Network Transmitted (MB/s)</option>
+                            <option value="http_rate">HTTP Request Rate</option>
+                            <option value="http_errors">HTTP Error Rate (%)</option>
+                            <option value="http_latency">HTTP Request Duration p95</option>
+                            <option value="alerts">Active Alerts</option>
+                            <option value="up">Target Up/Down</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="block text-sm font-medium text-gray-300">PromQL Query *</label>
+                            <button type="button" onclick="testQuery()"
+                                class="text-blue-400 hover:text-blue-300 text-sm">
+                                Test Query
+                            </button>
+                        </div>
+                        <textarea id="query-editor" rows="8" required
+                            placeholder="Example: rate(http_requests_total[5m])"
+                            class="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"></textarea>
+                        <p class="text-xs text-gray-400 mt-1">Enter your PromQL query or select an example above</p>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Legend Format</label>
+                        <input type="text" id="panel-legend" placeholder="{{instance}}"
+                            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                        <p class="text-xs text-gray-400 mt-1">Use {{label_name}} for label values</p>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Tags (comma-separated)</label>
+                        <input type="text" id="panel-tags" placeholder="infrastructure, cpu, monitoring"
+                            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Query Preview Section - Full Width (outside the 2-column grid) -->
+            <div id="query-result" class="hidden mt-6 border-t border-gray-700 pt-6">
+                <h3 class="text-lg font-semibold text-white mb-4">Query Preview</h3>
+                <div id="query-status" class="p-3 rounded text-sm mb-4"></div>
+                <div id="query-preview-chart" class="hidden bg-gray-900 rounded-lg p-4 mb-4"
+                    style="height: 280px; width: 100%;"></div>
+                <div id="query-data-preview" class="hidden bg-gray-900 rounded-lg p-4 max-h-48 overflow-auto">
+                    <div class="text-xs text-gray-400 mb-2 font-medium">Raw Data (first 3 series):</div>
+                    <pre id="query-data-json" class="text-xs text-green-400 font-mono whitespace-pre-wrap"></pre>
+                </div>
+            </div>
+
+            <!-- Advanced Chart Configuration -->
+            <div class="mt-6 border-t border-gray-700 pt-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-white">Chart Configuration</h3>
+                    <button type="button" onclick="toggleChartConfig()"
+                        class="text-sm text-blue-400 hover:text-blue-300">
+                        <i id="chart-config-icon" class="fas fa-chevron-down"></i>
+                        <span id="chart-config-text">Show</span>
+                    </button>
+                </div>
+
+                <div id="chart-config-section" class="hidden space-y-4">
+                    <!-- Y-Axis Configuration -->
+                    <div class="bg-gray-800/50 rounded-lg p-4 space-y-3">
+                        <h4 class="text-sm font-medium text-gray-300 mb-3">Y-Axis</h4>
+                        <div class="grid grid-cols-3 gap-3">
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Min Value</label>
+                                <input type="number" id="y-axis-min" step="any" placeholder="Auto"
+                                    class="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Max Value</label>
+                                <input type="number" id="y-axis-max" step="any" placeholder="Auto"
+                                    class="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Label</label>
+                                <input type="text" id="y-axis-label" placeholder="Value"
+                                    class="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Units & Formatting -->
+                    <div class="bg-gray-800/50 rounded-lg p-4 space-y-3">
+                        <h4 class="text-sm font-medium text-gray-300 mb-3">Units & Formatting</h4>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Unit Format</label>
+                                <select id="unit-format"
+                                    class="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500">
+                                    <option value="">None (Number)</option>
+                                    <option value="percent">Percent (%)</option>
+                                    <option value="bytes">Bytes (B, KB, MB, GB)</option>
+                                    <option value="seconds">Time (s, m, h, d)</option>
+                                    <option value="milliseconds">Milliseconds (ms)</option>
+                                    <option value="requests">Requests/sec</option>
+                                    <option value="ops">Ops/sec</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Decimals</label>
+                                <input type="number" id="decimals" min="0" max="5" value="2"
+                                    class="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Color Scheme -->
+                    <div class="bg-gray-800/50 rounded-lg p-4 space-y-3">
+                        <h4 class="text-sm font-medium text-gray-300 mb-3">Colors</h4>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Color Scheme</label>
+                                <select id="color-scheme"
+                                    class="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500">
+                                    <option value="default">Default (Blue)</option>
+                                    <option value="green">Green</option>
+                                    <option value="red">Red</option>
+                                    <option value="purple">Purple</option>
+                                    <option value="rainbow">Rainbow (Multi-color)</option>
+                                    <option value="cool">Cool (Blue-Green)</option>
+                                    <option value="warm">Warm (Orange-Red)</option>
+                                </select>
+                            </div>
+                            <div class="flex items-end">
+                                <label class="flex items-center text-gray-300 text-sm">
+                                    <input type="checkbox" id="use-gradient" class="mr-2">
+                                    Use Gradient Fill
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Thresholds -->
+                    <div class="bg-gray-800/50 rounded-lg p-4 space-y-3">
+                        <div class="flex items-center justify-between mb-3">
+                            <h4 class="text-sm font-medium text-gray-300">Thresholds</h4>
+                            <button type="button" onclick="addThreshold()"
+                                class="text-xs text-green-400 hover:text-green-300">
+                                <i class="fas fa-plus mr-1"></i>Add Threshold
+                            </button>
+                        </div>
+                        <div id="thresholds-container" class="space-y-2">
+                            <!-- Thresholds will be added here dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Legend -->
+                    <div class="bg-gray-800/50 rounded-lg p-4 space-y-3">
+                        <h4 class="text-sm font-medium text-gray-300 mb-3">Legend</h4>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Position</label>
+                                <select id="legend-position"
+                                    class="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500">
+                                    <option value="bottom">Bottom</option>
+                                    <option value="top">Top</option>
+                                    <option value="left">Left</option>
+                                    <option value="right">Right</option>
+                                </select>
+                            </div>
+                            <div class="flex items-end">
+                                <label class="flex items-center text-gray-300 text-sm">
+                                    <input type="checkbox" id="show-legend" checked class="mr-2">
+                                    Show Legend
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 mt-6">
+                <button type="button" onclick="closePanelModal()"
+                    class="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded text-white">
+                    Cancel
+                </button>
+                <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white">
+                    Save Panel
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- GridStack JS -->
 <script src="https://cdn.jsdelivr.net/npm/gridstack@8.4.0/dist/gridstack-all.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<!-- Panel Editor Shared JS -->
+<script src="/static/js/panel-editor.js"></script>
+
 <script>
     const dashboardId = '{{ dashboard_id }}';
     let dashboard = null;
@@ -951,6 +1457,167 @@
     let variableValues = {}; // Store selected values for each variable
     let panelRows = []; // Store panel rows for grouping
 
+    // Settings menu replaced by "More Actions"
+
+
+    // More Actions Menu Toggle
+    function toggleMoreActions() {
+        const menu = document.getElementById('more-actions-menu');
+        menu.classList.toggle('hidden');
+    }
+
+    // Close More Actions menu when clicking outside
+    document.addEventListener('click', (e) => {
+        const menu = document.getElementById('more-actions-menu');
+        const btn = e.target.closest('[onclick="toggleMoreActions()"]');
+        if (menu && !menu.classList.contains('hidden') && !btn && !menu.contains(e.target)) {
+            menu.classList.add('hidden');
+        }
+    });
+
+    // Links dropdown toggle
+    function toggleLinksDropdown() {
+        const menu = document.getElementById('links-menu');
+        menu.classList.toggle('hidden');
+    }
+
+    // Edit Mode Functions
+    let originalLayoutState = null; // Store original layout for cancel functionality
+
+    function toggleEditMode() {
+        editMode = !editMode;
+        const editBtn = document.getElementById('edit-mode-btn');
+        const editText = document.getElementById('edit-mode-text');
+        const cancelBtn = document.getElementById('cancel-edit-btn');
+        const saveBtn = document.getElementById('save-layout-btn');
+
+        if (editMode) {
+            // Entering edit mode - save current state for potential cancel
+            originalLayoutState = saveCurrentLayoutState();
+
+            editBtn.classList.add('bg-blue-600', 'border-blue-500');
+            editText.textContent = 'Editing';
+            cancelBtn.classList.remove('hidden');
+            saveBtn.classList.remove('hidden');
+
+            // Enable grid dragging and resizing
+            Object.values(grids).forEach(g => {
+                if (g) {
+                    g.enable();
+                }
+            });
+
+            // Add 'editing' class to all grid items to show action buttons
+            document.querySelectorAll('.grid-stack-item').forEach(item => {
+                item.classList.add('editing');
+            });
+
+            showToast('Edit mode enabled. Drag panels to rearrange.', 'info');
+        } else {
+            exitEditMode();
+        }
+    }
+
+    function exitEditMode() {
+        editMode = false;
+        const editBtn = document.getElementById('edit-mode-btn');
+        const editText = document.getElementById('edit-mode-text');
+        const cancelBtn = document.getElementById('cancel-edit-btn');
+        const saveBtn = document.getElementById('save-layout-btn');
+
+        editBtn.classList.remove('bg-blue-600', 'border-blue-500');
+        editText.textContent = 'Edit';
+        cancelBtn.classList.add('hidden');
+        saveBtn.classList.add('hidden');
+
+        // Disable grid dragging and resizing
+        Object.values(grids).forEach(g => {
+            if (g) {
+                g.disable();
+            }
+        });
+
+        // Remove 'editing' class from all grid items to hide action buttons
+        document.querySelectorAll('.grid-stack-item').forEach(item => {
+            item.classList.remove('editing');
+        });
+
+        originalLayoutState = null;
+    }
+
+    function cancelEditMode() {
+        if (originalLayoutState) {
+            // Restore original layout
+            restoreLayoutState(originalLayoutState);
+            showToast('Layout changes cancelled', 'info');
+        }
+        exitEditMode();
+    }
+
+    async function saveLayoutChanges() {
+        try {
+            // Save layout for each grid
+            for (const [gridId, gridInstance] of Object.entries(grids)) {
+                if (gridInstance) {
+                    const items = gridInstance.getGridItems();
+                    for (const item of items) {
+                        const panelId = item.getAttribute('gs-id');
+                        const x = parseInt(item.getAttribute('gs-x')) || 0;
+                        const y = parseInt(item.getAttribute('gs-y')) || 0;
+                        const w = parseInt(item.getAttribute('gs-w')) || 6;
+                        const h = parseInt(item.getAttribute('gs-h')) || 4;
+
+                        // Update panel position
+                        await fetch(`/api/dashboards/${dashboardId}/panels/${panelId}/position`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ grid_x: x, grid_y: y, grid_width: w, grid_height: h })
+                        });
+                    }
+                }
+            }
+            showToast('Layout saved successfully!', 'success');
+        } catch (error) {
+            console.error('Error saving layout:', error);
+            showToast('Failed to save layout', 'error');
+        }
+        exitEditMode();
+    }
+
+    function saveCurrentLayoutState() {
+        const state = {};
+        Object.entries(grids).forEach(([gridId, gridInstance]) => {
+            if (gridInstance) {
+                state[gridId] = gridInstance.save(false);
+            }
+        });
+        return state;
+    }
+
+    function restoreLayoutState(state) {
+        Object.entries(state).forEach(([gridId, items]) => {
+            const gridInstance = grids[gridId];
+            if (gridInstance && items) {
+                gridInstance.load(items, true);
+            }
+        });
+    }
+
+    // Placeholder functions for settings menu actions
+    function showShareModal() {
+        showToast('Share functionality coming soon!', 'info');
+        // settings-menu removed
+        const moreMenu = document.getElementById('more-actions-menu');
+        if (moreMenu) moreMenu.classList.add('hidden');
+    }
+
+    function duplicateDashboard() {
+        showToast('Duplicate functionality coming soon!', 'info');
+        // settings-menu removed
+        const moreMenu = document.getElementById('more-actions-menu');
+        if (moreMenu) moreMenu.classList.add('hidden');
+    }
+
     // Load dashboard on page load
     document.addEventListener('DOMContentLoaded', async () => {
         initializeGrid();  // Must initialize grid BEFORE loading dashboard (which calls renderPanels)
@@ -961,6 +1628,44 @@
     document.getElementById('refresh-btn').addEventListener('click', () => {
         refreshAllPanels();
     });
+
+    function renderEmptyState() {
+        const gridContainer = document.querySelector('.grid-stack');
+        // Clear minimal height spacers if any
+        if (gridContainer) gridContainer.innerHTML = '';
+
+        const mainContainer = document.getElementById('dashboard-grid');
+        if (mainContainer) mainContainer.innerHTML = '';
+
+        // We create the empty state in the main content area, replacing the grid
+        const emptyState = document.createElement('div');
+        emptyState.className = 'empty-state-container';
+        emptyState.innerHTML = `
+            <i class="fas fa-chart-line empty-state-icon"></i>
+            <h3 class="text-xl font-bold text-white mb-2">This dashboard is empty</h3>
+            <p class="text-gray-400 mb-6 max-w-md">Start building your operations view by adding panels or importing an existing layout.</p>
+            <div class="flex gap-4">
+                <button onclick="showPanelModal()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white font-medium transition-colors flex items-center gap-2">
+                    <i class="fas fa-plus"></i> Add New Panel
+                </button>
+                <button onclick="showImportModal()" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-gray-200 font-medium transition-colors flex items-center gap-2">
+                    <i class="fas fa-upload"></i> Import JSON
+                </button>
+            </div>
+        `;
+
+        // Find a good place to append it. Ideally replacing the grid.
+        // If 'dashboard-grid' is the container for gridstack, we use that.
+        // If not, we might need to find the parent of grid-stack.
+
+        // Let's assume dashboard-grid is the main wrapper 
+        if (mainContainer) {
+            mainContainer.appendChild(emptyState);
+        } else if (gridContainer) {
+            gridContainer.parentNode.appendChild(emptyState);
+            gridContainer.style.display = 'none';
+        }
+    }
 
     async function loadDashboard() {
         showLoading();
@@ -995,7 +1700,7 @@
             await loadPanelRows();
 
             if (panels.length === 0) {
-                showEmpty();
+                renderEmptyState();
             } else {
                 renderPanels();
                 showPanels();
@@ -1075,7 +1780,9 @@
             // Create select element
             const select = document.createElement('select');
             select.id = `var-${variable.name}`;
-            select.className = 'bg-gray-700 border border-gray-600 rounded px-3 py-1.5 text-sm min-w-[150px] cursor-pointer';
+            select.className = 'rounded px-3 py-1.5 text-sm min-w-[150px] cursor-pointer text-gray-300 focus:border-blue-500 focus:outline-none';
+            select.style.backgroundColor = '#0e0f11';
+            select.style.border = '1px solid #2d2d31';
 
 
             // Only set multiple attribute for multi-select variables
@@ -1163,12 +1870,13 @@
     }
 
     function initializeGridFor(elementId) {
+        console.log('Initializing GridStack (Row Spacing Fix v6 - Forced CSS Inset)');
         const element = document.getElementById(elementId);
         if (!element) return null;
 
         const gridInstance = GridStack.init({
             cellHeight: 80,
-            margin: 10,
+            // margin: 16, // Handled by CSS in v6
             resizable: {
                 handles: 'e, se, s, sw, w'
             },
@@ -1191,7 +1899,24 @@
                     grid_width: item.w,
                     grid_height: item.h
                 });
+
+                // Resize chart when panel is resized
+                if (charts[panelId]) {
+                    setTimeout(() => {
+                        charts[panelId].resize();
+                    }, 100);
+                }
             });
+        });
+
+        // Handle resize stop to ensure charts resize properly
+        gridInstance.on('resizestop', (event, el) => {
+            const panelId = el.getAttribute('gs-id');
+            if (panelId && charts[panelId]) {
+                setTimeout(() => {
+                    charts[panelId].resize();
+                }, 50);
+            }
         });
 
         grids[elementId] = gridInstance;
@@ -1270,30 +1995,52 @@
             const rowPanels = panelsByRow[row.id] || [];
             const panelCount = rowPanels.length;
             const isCollapsed = row.is_collapsed;
+            const isSectionHeader = row.is_section_header;
 
             // Create row section HTML
-            const sectionHtml = `
-                <div class="panel-row-section" id="row-section-${row.id}">
-                    <div class="panel-row-header ${isCollapsed ? 'collapsed' : ''}" 
-                         id="row-header-${row.id}" 
-                         onclick="toggleRow('${row.id}')">
-                        <div class="row-title">
-                            <i class="fas fa-chevron-down row-toggle"></i>
-                            <i class="fas fa-layer-group text-indigo-400"></i>
-                            <span>${escapeHtml(row.title)}</span>
-                            ${row.description ? `<span class="text-gray-500 text-sm font-normal ml-2">- ${escapeHtml(row.description)}</span>` : ''}
+            let sectionHtml = '';
+
+            if (isSectionHeader) {
+                // Section Header Style (Title only, no collapse, no badge)
+                sectionHtml = `
+                    <div class="panel-row-section section-header" id="row-section-${row.id}">
+                        <div class="panel-row-header-title-only mb-2 mt-2">
+                            <h3 class="text-xl font-bold text-white flex items-center gap-2">
+                                ${escapeHtml(row.title)}
+                            </h3>
+                            ${row.description ? `<p class="text-gray-400 text-sm mt-1">${escapeHtml(row.description)}</p>` : ''}
                         </div>
-                        <div class="flex items-center gap-3">
-                            <span class="panel-row-badge">${panelCount} panel${panelCount !== 1 ? 's' : ''}</span>
+                        <div class="panel-row-content" id="row-content-${row.id}">
+                            <div class="grid-stack" id="grid-row-${row.id}"></div>
                         </div>
                     </div>
-                    <div class="panel-row-content ${isCollapsed ? 'collapsed' : ''}" 
-                         id="row-content-${row.id}"
-                         style="${isCollapsed ? '' : 'max-height: 2000px;'}">
-                        <div class="grid-stack" id="grid-row-${row.id}"></div>
+                `;
+            } else {
+                // Standard Collapsible Row
+                sectionHtml = `
+                    <div class="panel-row-section" id="row-section-${row.id}">
+                        <div class="panel-row-header ${isCollapsed ? 'collapsed' : ''}" 
+                             id="row-header-${row.id}" 
+                             onclick="toggleRow('${row.id}')">
+                            <div class="row-title">
+                                <i class="fas fa-chevron-down row-toggle"></i>
+                                <i class="fas fa-layer-group text-indigo-400"></i>
+                                <span>${escapeHtml(row.title)}</span>
+                                ${row.description ? `<span class="text-gray-500 text-sm font-normal ml-2">- ${escapeHtml(row.description)}</span>` : ''}
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <span class="panel-row-badge">${panelCount} panel${panelCount !== 1 ? 's' : ''}</span>
+                            </div>
+                        </div>
+                        <div class="panel-row-content ${isCollapsed ? 'collapsed' : ''}" 
+                             id="row-content-${row.id}"
+                             style="${isCollapsed ? '' : 'max-height: 2000px;'}">
+                            <div class="grid-stack" id="grid-row-${row.id}"></div>
+                        </div>
                     </div>
-                </div>
-            `;
+                `;
+            }
+
             rowsContainer.insertAdjacentHTML('beforeend', sectionHtml);
 
             // Initialize grid for this row
@@ -1347,7 +2094,7 @@
 
         // Create panel HTML
         const panelHtml = `
-            <div class="grid-stack-item-content">
+            <div class="h-full flex flex-col">
                 <div class="panel-drag-handle">
                     <div>
                         <i class="fas fa-grip-vertical mr-2"></i>
@@ -1373,8 +2120,8 @@
                 </div>
                 <div class="panel-content">
                     <div class="flex items-center justify-between mb-2">
-                        <div class="flex-1">
-                            <p class="text-xs text-gray-500">${escapeHtml(panelDescription)}</p>
+                        <div class="flex-1 text-center">
+                            <p class="text-sm text-gray-300 font-medium">${escapeHtml(panelDescription)}</p>
                         </div>
                         <div class="flex items-center gap-2">
                             <button onclick="inspectPanel('${panelId}')" class="text-gray-500 hover:text-purple-400 transition-colors" title="Inspect">
@@ -1386,7 +2133,7 @@
                             </span>
                         </div>
                     </div>
-                    <div id="chart-${panelId}" style="width: 100%; height: 220px;" class="bg-gray-800/50 rounded-lg flex items-center justify-center">
+                    <div id="chart-${panelId}" class="panel-chart-container bg-gray-800/50 rounded-lg">
                         <i class="fas fa-spinner fa-spin text-2xl text-gray-500"></i>
                     </div>
                     <div class="mt-2 text-xs text-gray-600 font-mono truncate" title="${escapeHtml(panelQuery)}">
@@ -1440,7 +2187,8 @@
 
             if (hasSubstitutions && hasDatasourceId) {
                 // Use test-query endpoint with substituted query
-                response = await fetch(`/api/panels/test-query`, {
+                // Use apiCall for correct auth handling
+                response = await apiCall(`/api/panels/test-query`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -1449,6 +2197,8 @@
                         time_range: '1h'  // test-query uses time_range, not start/end
                     })
                 });
+
+                if (!response) return; // Auth redirect happened
 
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}`);
@@ -1461,7 +2211,10 @@
                 };
             } else {
                 // Use normal panel data endpoint (handles datasource lookup via panel ID)
-                response = await fetch(`/api/panels/${panelId}/data?start=${start.toISOString()}&end=${end.toISOString()}`);
+                // Use apiCall for correct auth handling
+                response = await apiCall(`/api/panels/${panelId}/data?start=${start.toISOString()}&end=${end.toISOString()}`);
+
+                if (!response) return; // Auth redirect happened
 
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}`);
@@ -1554,15 +2307,44 @@
         }
     }
 
-    // Color Scheme Maps
+    // Color Scheme Maps - Grafana Dark Mode Palette
     const colorSchemes = {
-        'default': ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3ba272'],
-        'green': ['#10b981', '#059669', '#047857', '#065f46', '#064e3b'],
-        'red': ['#ef4444', '#dc2626', '#b91c1c', '#991b1b', '#7f1d1d'],
-        'purple': ['#8b5cf6', '#7c3aed', '#6d28d9', '#5b21b6', '#4c1d95'],
-        'rainbow': ['#ef4444', '#f97316', '#eab308', '#10b981', '#3b82f6', '#8b5cf6'],
-        'cool': ['#06b6d4', '#0891b2', '#0e7490', '#155e75', '#164e63'],
-        'warm': ['#f97316', '#ea580c', '#c2410c', '#9a3412', '#7c2d12']
+        // Grafana's classic dark theme palette - vibrant colors with good contrast
+        'default': [
+            '#7eb26d',  // Green
+            '#eab839',  // Yellow/Gold
+            '#6ed0e0',  // Cyan/Teal
+            '#ef843c',  // Orange
+            '#e24d42',  // Red
+            '#1f78c1',  // Blue
+            '#ba43a9',  // Purple/Magenta
+            '#705da0',  // Violet
+            '#508642',  // Dark Green
+            '#cca300',  // Dark Yellow
+            '#447ebc',  // Steel Blue
+            '#c15c17',  // Burnt Orange
+            '#890f02',  // Dark Red
+            '#0a437c',  // Navy Blue
+            '#6d1f62',  // Dark Magenta
+            '#584477'   // Dark Violet
+        ],
+        'green': ['#7eb26d', '#508642', '#3f6833', '#2f5127', '#1f3a1c'],
+        'red': ['#e24d42', '#c15c17', '#890f02', '#6d1f1f', '#5c1a1a'],
+        'purple': ['#ba43a9', '#705da0', '#584477', '#6d1f62', '#4a1f4a'],
+        'rainbow': ['#e24d42', '#ef843c', '#eab839', '#7eb26d', '#1f78c1', '#ba43a9'],
+        'cool': ['#6ed0e0', '#447ebc', '#1f78c1', '#0a437c', '#052b4d'],
+        'warm': ['#ef843c', '#eab839', '#e24d42', '#c15c17', '#890f02'],
+        // Grafana's new palette for more modern look
+        'grafana_modern': [
+            '#73bf69',  // Green
+            '#f2cc0c',  // Yellow
+            '#8ab8ff',  // Light Blue
+            '#ff9830',  // Orange
+            '#f2495c',  // Red
+            '#5794f2',  // Blue
+            '#b877d9',  // Purple
+            '#ff6eb4'   // Pink
+        ]
     };
 
     function getColors(scheme, count) {
@@ -1580,6 +2362,14 @@
         // Initialize or get existing chart
         if (!charts[panelId]) {
             charts[panelId] = echarts.init(container);
+
+            // Add ResizeObserver to automatically resize chart when container size changes
+            const resizeObserver = new ResizeObserver(() => {
+                if (charts[panelId]) {
+                    charts[panelId].resize();
+                }
+            });
+            resizeObserver.observe(container);
         }
         const chart = charts[panelId];
 
@@ -1593,7 +2383,14 @@
 
         // Build series from Prometheus data
         const series = data.map((s, idx) => {
-            const name = formatLegend(null, s.metric) || `Series ${idx + 1}`;
+            // Smart default: If single series and unknown metric name, use panel name instead of instance
+            let defaultLabel = null;
+
+            if (data.length === 1 && !panelItem.legend_format) {
+                defaultLabel = panelItem.panel_name || panelItem.name || `Series ${idx + 1}`;
+            }
+
+            const name = defaultLabel || formatLegend(panelItem.legend_format, s.metric) || `Series ${idx + 1}`;
             const values = (s.values || []).map(v => [
                 new Date(v[0] * 1000),
                 parseFloat(v[1])
@@ -1814,8 +2611,8 @@
 
     function formatLegend(format, metric) {
         if (!format || !metric) {
-            // Default: use instance or job label
-            return metric.instance || metric.job || Object.values(metric)[0] || 'Value';
+            // Default: use metric name if available, otherwise instance or job
+            return metric.__name__ || metric.instance || metric.job || Object.values(metric)[0] || 'Value';
         }
 
         let result = format;
@@ -1848,36 +2645,8 @@
         }, intervalSeconds * 1000);
     }
 
-    function toggleEditMode() {
-        editMode = !editMode;
-
-        const btn = document.getElementById('edit-mode-btn');
-        const text = document.getElementById('edit-mode-text');
-        const container = document.getElementById('panels-container');
-
-        if (editMode) {
-            // Enable editing
-            grid.enable();
-            text.textContent = 'Save Layout';
-            btn.classList.add('bg-blue-600', 'text-white', 'border-blue-600');
-            btn.classList.remove('border-gray-600');
-            container.classList.add('edit-mode-active');
-            document.querySelectorAll('.grid-stack-item').forEach(item => {
-                item.classList.add('editing');
-            });
-        } else {
-            // Disable editing
-            grid.disable();
-            text.textContent = 'Edit Layout';
-            btn.classList.remove('bg-blue-600', 'text-white', 'border-blue-600');
-            btn.classList.add('border-gray-600');
-            container.classList.remove('edit-mode-active');
-            document.querySelectorAll('.grid-stack-item').forEach(item => {
-                item.classList.remove('editing');
-            });
-            showToast('Layout saved successfully', 'success');
-        }
-    }
+    // toggleEditMode is defined earlier in the file (around line 1429)
+    // with proper Cancel/Save button handling
 
     async function savePanelPosition(panelId, position) {
         try {
@@ -1895,10 +2664,153 @@
         }
     }
 
+    // --- Panel Edit Modal Logic ---
+
+    let queryEditor = null;
+    let thresholdCounter = 0;
+    let previewChart = null;
+
     function editPanel(panelId) {
-        // Redirect to panels page with edit mode
-        window.location.href = `/panels?edit=${panelId}`;
+        // Find panel in the local panels array (populated from templating or API)
+        // Since we don't have a global panels array here yet, we might need to fetch it or rely on what's available.
+        // The dashboard view renders panels server-side.
+        // We can fetch the panel details via API to ensure we have the latest.
+
+        fetch(`/api/panels/${panelId}`)
+            .then(response => response.json())
+            .then(panel => {
+                openEditModal(panel);
+            })
+            .catch(error => {
+                console.error('Error fetching panel details:', error);
+                showToast('Failed to load panel details', 'error');
+            });
     }
+
+    function openEditModal(panel) {
+        document.getElementById('modal-title').textContent = 'Edit Panel';
+        document.getElementById('panel-id').value = panel.id;
+        document.getElementById('panel-name').value = panel.name;
+        document.getElementById('panel-description').value = panel.description || '';
+
+        // Populate Datasource Dropdown if empty (might need to fetch datasources)
+        ensureDatasourcesLoaded().then(() => {
+            document.getElementById('panel-datasource').value = panel.datasource_id;
+        });
+
+        document.getElementById('panel-type').value = panel.panel_type;
+        document.getElementById('panel-legend').value = panel.legend_format || '';
+        document.getElementById('panel-time-range').value = panel.time_range;
+        document.getElementById('panel-refresh').value = panel.refresh_interval;
+        document.getElementById('panel-is-template').checked = panel.is_template;
+        document.getElementById('panel-is-public').checked = panel.is_public;
+        document.getElementById('panel-tags').value = panel.tags ? panel.tags.join(', ') : '';
+        document.getElementById('query-result').classList.add('hidden');
+        document.getElementById('panel-modal').classList.remove('hidden');
+
+        // Set query editor value directly (no CodeMirror - it has rendering issues in modals)
+        const queryTextarea = document.getElementById('query-editor');
+        queryTextarea.value = panel.promql_query || '';
+        queryTextarea.style.display = 'block'; // Ensure textarea is visible
+
+        // Load visualization config using shared function
+        PanelEditor.loadVisualizationConfig(panel.visualization_config);
+    }
+
+    function closePanelModal() {
+        document.getElementById('panel-modal').classList.add('hidden');
+    }
+
+    async function savePanel(event) {
+        event.preventDefault();
+        const id = document.getElementById('panel-id').value;
+        const tags = document.getElementById('panel-tags').value
+            .split(',')
+            .map(t => t.trim())
+            .filter(t => t.length > 0);
+
+        // Explicitly save current position from grid to ensure resize/move is persisted
+        if (id) {
+            const gridItem = document.querySelector(`.grid-stack-item[gs-id="${id}"]`);
+            if (gridItem) {
+                const x = parseInt(gridItem.getAttribute('gs-x')) || 0;
+                const y = parseInt(gridItem.getAttribute('gs-y')) || 0;
+                const w = parseInt(gridItem.getAttribute('gs-w')) || 6;
+                const h = parseInt(gridItem.getAttribute('gs-h')) || 4;
+
+                // We await this to ensure it completes before page reload
+                await savePanelPosition(id, { grid_x: x, grid_y: y, grid_width: w, grid_height: h });
+            }
+        }
+
+        const data = {
+            name: document.getElementById('panel-name').value,
+            description: document.getElementById('panel-description').value || null,
+            datasource_id: document.getElementById('panel-datasource').value,
+            promql_query: document.getElementById('query-editor').value,
+            legend_format: document.getElementById('panel-legend').value || null,
+            time_range: document.getElementById('panel-time-range').value,
+            refresh_interval: parseInt(document.getElementById('panel-refresh').value),
+            panel_type: document.getElementById('panel-type').value,
+            is_template: document.getElementById('panel-is-template').checked,
+            is_public: document.getElementById('panel-is-public').checked,
+            tags: tags.length > 0 ? tags : null,
+            visualization_config: collectChartConfig()
+        };
+
+        try {
+            const response = await fetch(`/api/panels/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            if (response.ok) {
+                showToast('Panel updated successfully', 'success');
+                closePanelModal();
+                // Reload the specific panel or the whole page
+                setTimeout(() => location.reload(), 500); // Simple reload for now to reflect changes matches existing behavior
+            } else {
+                const error = await response.json();
+                showToast(error.detail || 'Failed to save panel', 'error');
+            }
+        } catch (error) {
+            console.error('Failed to save panel:', error);
+            showToast('Failed to save panel', 'error');
+        }
+    }
+
+    // --- Helper Functions for Modal ---
+
+    let datasourcesLoaded = false;
+    async function ensureDatasourcesLoaded() {
+        if (datasourcesLoaded) return;
+        try {
+            const response = await fetch('/api/datasources/?enabled_only=true');
+            const datasources = await response.json();
+            const select = document.getElementById('panel-datasource');
+            // Keep the default option
+            const defaultOption = select.options[0];
+            select.innerHTML = '';
+            select.appendChild(defaultOption);
+
+            datasources.forEach(ds => {
+                const option = document.createElement('option');
+                option.value = ds.id;
+                option.textContent = ds.name;
+                select.appendChild(option);
+            });
+            datasourcesLoaded = true;
+        } catch (error) {
+            console.error('Failed to load datasources:', error);
+        }
+    }
+
+    // Note: toggleChartConfig, addThreshold, removeThreshold, collectChartConfig, 
+    // testQuery, renderModalPreviewChart, getPreviewMetricLabel, loadQueryExample
+    // are now provided by the shared panel-editor.js file
+
+
 
     async function duplicatePanel(panelId) {
         if (!confirm('Duplicate this panel?')) return;
@@ -3385,19 +4297,8 @@ ${Object.entries(alert.annotations).map(([k, v]) => `  ${k}: ${v}`).join('\n')}`
         });
     }
 
-    function toggleLinksDropdown() {
-        const menu = document.getElementById('links-menu');
-        menu.classList.toggle('hidden');
-    }
+    // Links menu integrated into "More Actions" - obsolete toggles removed.
 
-    // Close links dropdown when clicking outside
-    document.addEventListener('click', (e) => {
-        const linksDropdown = document.getElementById('links-dropdown');
-        const linksMenu = document.getElementById('links-menu');
-        if (linksDropdown && !linksDropdown.contains(e.target)) {
-            linksMenu.classList.add('hidden');
-        }
-    });
 
     // Load dashboard links on page load
     document.addEventListener('DOMContentLoaded', async () => {
@@ -3565,13 +4466,14 @@ ${Object.entries(alert.annotations).map(([k, v]) => `  ${k}: ${v}`).join('\n')}`
         dashboardRows.sort((a, b) => a.order - b.order);
 
         container.innerHTML = dashboardRows.map(row => `
-            <div class="bg-gray-700 rounded-lg p-4 border-l-4 ${row.is_collapsed ? 'border-gray-500' : 'border-indigo-500'}">
+            <div class="bg-gray-700 rounded-lg p-4 border-l-4 ${row.is_section_header ? 'border-purple-500' : (row.is_collapsed ? 'border-gray-500' : 'border-indigo-500')}">
                 <div class="flex items-start justify-between">
                     <div class="flex-1">
                         <div class="flex items-center gap-2">
-                            <i class="fas fa-grip-vertical text-gray-500"></i>
+                            <i class="fas fa-${row.is_section_header ? 'heading' : 'grip-vertical'} text-gray-500"></i>
                             <h4 class="font-bold text-white">${row.title}</h4>
-                            ${row.is_collapsed ? '<span class="text-xs bg-gray-600 px-2 py-1 rounded">Collapsed</span>' : ''}
+                            ${row.is_collapsed && !row.is_section_header ? '<span class="text-xs bg-gray-600 px-2 py-1 rounded">Collapsed</span>' : ''}
+                            ${row.is_section_header ? '<span class="text-xs bg-purple-900 text-purple-200 px-2 py-1 rounded">Section Header</span>' : ''}
                         </div>
                         ${row.description ? `<p class="text-gray-400 text-sm mt-1 ml-6">${row.description}</p>` : ''}
                         <p class="text-gray-500 text-xs mt-1 ml-6">Order: ${row.order}</p>
@@ -3582,7 +4484,7 @@ ${Object.entries(alert.annotations).map(([k, v]) => `  ${k}: ${v}`).join('\n')}`
                             title="Edit">
                             <i class="fas fa-edit"></i>
                         </button>
-                        <button onclick="deleteRow('${row.id}')"
+                        <button onclick="deletePanelRow('${row.id}')"
                             class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm"
                             title="Delete">
                             <i class="fas fa-trash"></i>
@@ -3611,6 +4513,8 @@ ${Object.entries(alert.annotations).map(([k, v]) => `  ${k}: ${v}`).join('\n')}`
         document.getElementById('row-description').value = '';
         document.getElementById('row-order').value = dashboardRows.length;
         document.getElementById('row-collapsed').checked = false;
+        document.getElementById('row-section-header').checked = false;
+        handleSectionHeaderToggle();
         document.getElementById('row-title').focus();
     }
 
@@ -3626,7 +4530,8 @@ ${Object.entries(alert.annotations).map(([k, v]) => `  ${k}: ${v}`).join('\n')}`
             title: document.getElementById('row-title').value,
             description: document.getElementById('row-description').value || null,
             order: parseInt(document.getElementById('row-order').value),
-            is_collapsed: document.getElementById('row-collapsed').checked
+            is_collapsed: document.getElementById('row-collapsed').checked,
+            is_section_header: document.getElementById('row-section-header').checked
         };
 
         try {
@@ -3672,6 +4577,8 @@ ${Object.entries(alert.annotations).map(([k, v]) => `  ${k}: ${v}`).join('\n')}`
             document.getElementById('row-description').value = row.description || '';
             document.getElementById('row-order').value = row.order;
             document.getElementById('row-collapsed').checked = row.is_collapsed;
+            document.getElementById('row-section-header').checked = row.is_section_header;
+            handleSectionHeaderToggle();
             document.getElementById('row-form').classList.remove('hidden');
             document.getElementById('row-title').focus();
         } catch (error) {
@@ -3680,25 +4587,66 @@ ${Object.entries(alert.annotations).map(([k, v]) => `  ${k}: ${v}`).join('\n')}`
         }
     }
 
-    async function deleteRow(rowId) {
-        if (!confirm('Delete this row? Panels in this row will be unassigned.')) return;
+    let confirmationCallback = null;
 
-        try {
-            const response = await fetch(`/api/dashboards/${dashboardId}/rows/${rowId}`, {
-                method: 'DELETE'
-            });
+    function showConfirmationModal(title, message, onConfirm) {
+        document.getElementById('confirmation-title').textContent = title;
+        document.getElementById('confirmation-message').textContent = message;
+        confirmationCallback = onConfirm;
 
-            if (response.ok) {
-                await loadRows();
-                await loadDashboardPanels(); // Reload panels to reflect changes
-            } else {
-                alert('Failed to delete row');
-            }
-        } catch (error) {
-            console.error('Error deleting row:', error);
-            alert('Failed to delete row');
-        }
+        const modal = document.getElementById('confirmation-modal');
+        // Ensure modal is at body level to avoid z-index stacking context issues
+        document.body.appendChild(modal);
+        modal.classList.remove('hidden');
+        modal.style.zIndex = '9999';
+
+        // Focus confirm button for a11y
+        setTimeout(() => document.getElementById('confirmation-confirm-btn').focus(), 100);
     }
+
+    function closeConfirmationModal() {
+        document.getElementById('confirmation-modal').classList.add('hidden');
+        confirmationCallback = null;
+    }
+
+    // Attach click handler to confirm button once
+    document.addEventListener('DOMContentLoaded', () => {
+        const confirmBtn = document.getElementById('confirmation-confirm-btn');
+        if (confirmBtn) {
+            confirmBtn.addEventListener('click', () => {
+                if (confirmationCallback) confirmationCallback();
+                closeConfirmationModal();
+            });
+        }
+    });
+
+    async function deletePanelRow(rowId) {
+        showConfirmationModal(
+            'Delete Row',
+            'Are you sure you want to delete this row? All panels in this row will be unassigned (moved to ungrouped).',
+            async () => {
+                const url = `/api/dashboards/${dashboardId}/rows/${rowId}`;
+
+                try {
+                    const response = await fetch(url, { method: 'DELETE' });
+
+                    if (response.ok) {
+                        await loadRows();
+                        await loadDashboardPanels();
+                        showToast('Row deleted successfully', 'success');
+                    } else {
+                        const errText = await response.text();
+                        console.error('Deletion failed:', response.status, errText);
+                        alert(`Failed to delete row: ${response.status}`);
+                    }
+                } catch (error) {
+                    console.error('Error deleting row:', error);
+                    alert('Failed to delete row (network error)');
+                }
+            }
+        );
+    }
+
 
     // Cleanup on page unload
     window.addEventListener('beforeunload', () => {
@@ -3708,6 +4656,27 @@ ${Object.entries(alert.annotations).map(([k, v]) => `  ${k}: ${v}`).join('\n')}`
         Object.values(charts).forEach(chart => chart.dispose());
     });
 </script>
+
+<!-- Confirmation Modal -->
+<div id="confirmation-modal"
+    class="fixed inset-0 bg-black bg-opacity-70 hidden flex items-center justify-center z-[200]">
+    <div
+        class="bg-gray-800 rounded-lg p-6 w-full max-w-md border border-gray-700 shadow-xl transform transition-all scale-100">
+        <h3 id="confirmation-title" class="text-xl font-bold text-white mb-4">Confirm Action</h3>
+        <p id="confirmation-message" class="text-gray-300 mb-6">Are you sure you want to proceed?</p>
+        <div class="flex justify-end gap-3">
+            <button onclick="closeConfirmationModal()"
+                class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg transition-colors">
+                Cancel
+            </button>
+            <button id="confirmation-confirm-btn"
+                class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors flex items-center gap-2">
+                <i class="fas fa-check"></i>
+                Confirm
+            </button>
+        </div>
+    </div>
+</div>
 
 <!-- Snapshot Modal -->
 <div id="snapshot-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
@@ -3876,10 +4845,33 @@ ${Object.entries(alert.annotations).map(([k, v]) => `  ${k}: ${v}`).join('\n')}`
 
                     <div class="mb-4">
                         <label class="flex items-center text-gray-300">
+                            <input type="checkbox" id="row-section-header" class="mr-2"
+                                onchange="handleSectionHeaderToggle()">
+                            <span class="font-bold text-indigo-400">Title Only (Section Header)</span>
+                        </label>
+                        <p class="text-xs text-gray-500 mt-1 ml-6">Render as a simple section title without collapse
+                            functionality</p>
+                    </div>
+
+                    <div class="mb-4" id="row-collapsed-container">
+                        <label class="flex items-center text-gray-300">
                             <input type="checkbox" id="row-collapsed" class="mr-2">
                             Start collapsed
                         </label>
                     </div>
+
+                    <script>
+                        function handleSectionHeaderToggle() {
+                            const isHeader = document.getElementById('row-section-header').checked;
+                            const collapsedContainer = document.getElementById('row-collapsed-container');
+                            if (isHeader) {
+                                collapsedContainer.classList.add('hidden');
+                                document.getElementById('row-collapsed').checked = false;
+                            } else {
+                                collapsedContainer.classList.remove('hidden');
+                            }
+                        }
+                    </script>
 
                     <div class="flex gap-2">
                         <button type="submit" class="btn-primary px-4 py-2 rounded-lg">
