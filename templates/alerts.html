@@ -3,15 +3,83 @@
 
 {% block title %}Alerts - AIOps Platform{% endblock %}
 
+{% block head %}
+<style>
+    /* Grafana-aligned Table Styling */
+    .badge {
+        padding: 2px 8px;
+        border-radius: 2px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+
+    .badge-critical {
+        background-color: #ff5286;
+        color: white;
+    }
+
+    .badge-warning {
+        background-color: #eb7b18;
+        color: white;
+    }
+
+    .badge-info {
+        background-color: #3d71d9;
+        color: white;
+    }
+
+    .badge-other {
+        background-color: #6e9fff;
+        color: #111217;
+    }
+
+    .badge-firing {
+        background-color: #ff5286;
+        color: white;
+    }
+
+    .badge-resolved {
+        background-color: #1a7f4b;
+        color: white;
+    }
+
+    .badge-acknowledged {
+        background-color: #6e9fff;
+        color: #111217;
+    }
+
+    .table-header {
+        background-color: #181b1f;
+        color: #8e8e8e;
+        border-bottom: 1px solid rgba(204, 204, 220, 0.07);
+    }
+
+    .table-row {
+        border-bottom: 1px solid rgba(204, 204, 220, 0.07);
+        transition: background-color 0.15s;
+    }
+
+    .table-row:hover {
+        background-color: rgba(204, 204, 220, 0.04);
+    }
+
+    .status-analyzed {
+        color: #6ccf8e;
+    }
+
+    .status-pending {
+        color: #eb7b18;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="space-y-4">
-    <!-- Enterprise Standard Toolbar -->
+    <!-- Header -->
     <div class="dashboard-header"
-        style="padding: 12px; background: #16171b; border-bottom: 1px solid rgba(255,255,255,0.05);">
+        style="padding: 12px; background: #16171b; border-bottom: 1px solid rgba(255,255,255,0.05); border-radius: 8px;">
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <!-- Left: Breadcrumbs & Title -->
             <div class="flex flex-col min-w-0">
-                <!-- Breadcrumbs -->
                 <nav class="flex items-center text-xs text-gray-400 mb-1">
                     <a href="/" class="hover:text-blue-400 transition-colors">Home</a>
                     <span class="mx-2">/</span>
@@ -22,10 +90,7 @@
                 </div>
                 <p class="text-xs text-gray-500 mt-1">Monitor and analyze infrastructure alerts</p>
             </div>
-
-            <!-- Right: Toolbar Actions -->
             <div class="flex items-center gap-2">
-                <!-- View Toggle & Refresh Group -->
                 <div class="flex items-center bg-gray-800 rounded-lg p-1 border border-gray-700">
                     <button id="viewIndividual" onclick="switchView('individual')"
                         class="px-3 py-1.5 rounded text-sm font-medium transition bg-gray-700 text-white flex items-center">
@@ -35,10 +100,7 @@
                         class="px-3 py-1.5 rounded text-sm font-medium transition text-gray-400 hover:text-white flex items-center">
                         <i class="fas fa-layer-group mr-1.5"></i> Grouped
                     </button>
-
                     <div class="w-px h-5 bg-gray-600 mx-1"></div>
-
-                    <!-- Refresh -->
                     <button onclick="refreshCurrentView()"
                         class="toolbar-btn p-1.5 rounded hover:bg-gray-700 transition-colors text-gray-400 hover:text-white"
                         title="Refresh Data">
@@ -50,94 +112,83 @@
     </div>
 
     <!-- Filters -->
-    <div class="card p-4">
-        <div class="flex flex-wrap gap-4 items-center">
-            <div>
-                <label class="label-with-tooltip text-sm text-gray-400 block mb-1">
-                    Severity
-                    <span class="info-tooltip info-tooltip-align-left">
-                        <span class="info-tooltip-icon">?</span>
-                        <span class="info-tooltip-text">Filter alerts by severity level (Critical, Warning,
-                            Info).</span>
-                    </span>
-                </label>
-                <select id="filterSeverity" class="input-field px-3 py-2 rounded" onchange="loadAlerts()">
-                    <option value="">All</option>
-                    <option value="critical">Critical</option>
-                    <option value="warning">Warning</option>
-                    <option value="info">Info</option>
-                </select>
-            </div>
-            <div>
-                <label class="label-with-tooltip text-sm text-gray-400 block mb-1">
-                    Status
-                    <span class="info-tooltip info-tooltip-align-left">
-                        <span class="info-tooltip-icon">?</span>
-                        <span class="info-tooltip-text"><strong>Firing:</strong> Active
-                            alerts.<br><strong>Resolved:</strong> Alerts that have cleared.</span>
-                    </span>
-                </label>
-                <select id="filterStatus" class="input-field px-3 py-2 rounded" onchange="loadAlerts()">
-                    <option value="">All</option>
-                    <option value="firing">Firing</option>
-                    <option value="resolved">Resolved</option>
-                </select>
-            </div>
-            <div>
-                <label class="label-with-tooltip text-sm text-gray-400 block mb-1">
-                    Analysis
-                    <span class="info-tooltip info-tooltip-align-left">
-                        <span class="info-tooltip-icon">?</span>
-                        <span class="info-tooltip-text">Filter by whether the AI has analyzed the alert.</span>
-                    </span>
-                </label>
-                <select id="filterAnalyzed" class="input-field px-3 py-2 rounded" onchange="loadAlerts()">
-                    <option value="">All</option>
-                    <option value="true">Analyzed</option>
-                    <option value="false">Pending</option>
-                </select>
-            </div>
-            <div class="flex-1 flex items-center gap-2">
-                <label class="label-with-tooltip text-sm text-gray-400 mb-0 whitespace-nowrap flex-shrink-0">
-                    Search
-                    <span class="info-tooltip info-tooltip-align-left">
-                        <span class="info-tooltip-icon">?</span>
-                        <span class="info-tooltip-text">Search by alert name, instance, or job.</span>
-                    </span>
-                </label>
-                <input type="text" id="filterSearch" class="input-field px-3 py-2 rounded w-full"
-                    placeholder="Search alert name..." onkeyup="debounceSearch()">
-            </div>
+    <div class="card p-4 flex flex-wrap gap-4 items-center">
+        <select id="filterSeverity"
+            class="bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+            onchange="loadAlerts()">
+            <option value="">All Severities</option>
+            <option value="critical">Critical</option>
+            <option value="warning">Warning</option>
+            <option value="info">Info</option>
+        </select>
+        <select id="filterStatus"
+            class="bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+            onchange="loadAlerts()">
+            <option value="">All Statuses</option>
+            <option value="firing">Firing</option>
+            <option value="resolved">Resolved</option>
+        </select>
+        <select id="filterAnalyzed"
+            class="bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+            onchange="loadAlerts()">
+            <option value="">All Analysis</option>
+            <option value="true">Analyzed</option>
+            <option value="false">Pending</option>
+        </select>
+        <div class="flex-1">
+            <input type="text" id="filterSearch"
+                class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                placeholder="Search alert name, instance..." onkeyup="debounceSearch()">
         </div>
     </div>
 
-    <!-- Individual Alerts List -->
-    <div id="individualView" class="card">
-        <div id="alertsList" class="divide-y divide-gray-700">
-            <div class="p-8 text-center">
-                <div class="loading-spinner mx-auto mb-2"></div>
-                <p class="text-gray-400">Loading alerts...</p>
-            </div>
-        </div>
+    <!-- Individual View (Table) -->
+    <div id="individualView" class="card overflow-hidden">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="table-header text-left">
+                    <th class="px-4 py-3 font-medium w-16">Sev</th>
+                    <th class="px-4 py-3 font-medium w-24">Status</th>
+                    <th class="px-4 py-3 font-medium">Alert Name</th>
+                    <th class="px-4 py-3 font-medium hidden md:table-cell">Instance / Labels</th>
+                    <th class="px-4 py-3 font-medium hidden sm:table-cell">Time</th>
+                    <th class="px-4 py-3 font-medium w-24">AI Analysis</th>
+                    <th class="px-4 py-3 font-medium text-right w-32">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="alertsList" class="text-[#ccccdc]">
+                <tr class="table-row">
+                    <td colspan="7" class="p-8 text-center">
+                        <div class="loading-spinner mx-auto mb-2"></div>
+                        <p class="text-gray-400">Loading alerts...</p>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
 
         <!-- Pagination -->
-        <div id="pagination" class="p-4 border-t border-gray-700 flex items-center justify-between hidden">
-            <div class="text-sm text-gray-400">
+        <div id="pagination"
+            class="flex items-center justify-between p-4 border-t border-[rgba(204,204,204,0.12)] text-sm hidden">
+            <div class="text-[#8e8e8e]">
                 Showing <span id="showingFrom">0</span>-<span id="showingTo">0</span> of <span id="totalAlerts">0</span>
             </div>
-            <div class="flex space-x-2">
-                <button id="prevBtn" class="btn-secondary px-3 py-1 rounded" onclick="prevPage()" disabled>
-                    <i class="fas fa-chevron-left"></i>
+            <div class="flex items-center gap-2">
+                <button id="prevBtn"
+                    class="px-3 py-1.5 rounded border border-[rgba(204,204,220,0.12)] bg-[#181b1f] text-[#ccccdc] disabled:opacity-50 hover:bg-[#22252b]"
+                    onclick="prevPage()" disabled>
+                    <i class="fas fa-angle-left"></i>
                 </button>
-                <span id="pageInfo" class="px-3 py-1">Page 1</span>
-                <button id="nextBtn" class="btn-secondary px-3 py-1 rounded" onclick="nextPage()">
-                    <i class="fas fa-chevron-right"></i>
+                <span id="pageInfo" class="px-3 py-1.5 text-[#ccccdc]">Page 1</span>
+                <button id="nextBtn"
+                    class="px-3 py-1.5 rounded border border-[rgba(204,204,220,0.12)] bg-[#181b1f] text-[#ccccdc] disabled:opacity-50 hover:bg-[#22252b]"
+                    onclick="nextPage()">
+                    <i class="fas fa-angle-right"></i>
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- Grouped Clusters View -->
+    <!-- Grouped View -->
     <div id="groupedView" class="hidden space-y-4">
         <div id="clustersList">
             <div class="card p-8 text-center">
@@ -148,7 +199,7 @@
     </div>
 </div>
 
-<!-- Analyze Modal -->
+<!-- Modal -->
 <div id="analyzeModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
     <div class="card p-6 w-full max-w-2xl max-h-screen overflow-y-auto m-4">
         <div class="flex items-center justify-between mb-4">
@@ -157,9 +208,7 @@
                 <i class="fas fa-times"></i>
             </button>
         </div>
-        <div id="modalContent">
-            <!-- Analysis content will be inserted here -->
-        </div>
+        <div id="modalContent"></div>
     </div>
 </div>
 {% endblock %}
@@ -170,13 +219,11 @@
     let currentPage = 1;
     let totalPages = 1;
     let searchTimeout = null;
-    let currentView = 'individual'; // 'individual' or 'grouped'
-    let expandedClusters = new Set(); // Track expanded clusters
+    let currentView = 'individual';
+    let expandedClusters = new Set();
 
     function switchView(view) {
         currentView = view;
-
-        // Update button styles
         const individualBtn = document.getElementById('viewIndividual');
         const groupedBtn = document.getElementById('viewGrouped');
 
@@ -185,30 +232,23 @@
             individualBtn.classList.remove('text-gray-400');
             groupedBtn.classList.remove('bg-gray-700', 'text-white');
             groupedBtn.classList.add('text-gray-400');
-
             document.getElementById('individualView').classList.remove('hidden');
             document.getElementById('groupedView').classList.add('hidden');
-
             loadAlerts();
         } else {
             groupedBtn.classList.add('bg-gray-700', 'text-white');
             groupedBtn.classList.remove('text-gray-400');
             individualBtn.classList.remove('bg-gray-700', 'text-white');
             individualBtn.classList.add('text-gray-400');
-
             document.getElementById('individualView').classList.add('hidden');
             document.getElementById('groupedView').classList.remove('hidden');
-
             loadClusters();
         }
     }
 
     function refreshCurrentView() {
-        if (currentView === 'individual') {
-            loadAlerts();
-        } else {
-            loadClusters();
-        }
+        if (currentView === 'individual') loadAlerts();
+        else loadClusters();
     }
 
     function debounceSearch() {
@@ -222,7 +262,7 @@
         const analyzed = document.getElementById('filterAnalyzed').value;
         const search = document.getElementById('filterSearch').value;
 
-        let url = `/api/alerts?page=${currentPage}&page_size=15`;
+        let url = `/api/alerts?page=${currentPage}&page_size=20`;
         if (severity) url += `&severity=${severity}`;
         if (status) url += `&status=${status}`;
         if (analyzed) url += `&analyzed=${analyzed}`;
@@ -231,16 +271,17 @@
         try {
             const response = await apiCall(url);
             if (!response) return;
-
             const data = await response.json();
             renderAlerts(data);
         } catch (error) {
             console.error('Failed to load alerts:', error);
             document.getElementById('alertsList').innerHTML = `
-                <div class="p-8 text-center text-red-400">
-                    <i class="fas fa-exclamation-circle text-2xl mb-2"></i>
-                    <p>Failed to load alerts</p>
-                </div>
+                <tr class="table-row">
+                    <td colspan="7" class="p-8 text-center text-red-400">
+                         <i class="fas fa-exclamation-circle text-2xl mb-2"></i>
+                         <p>Failed to load alerts</p>
+                    </td>
+                </tr>
             `;
         }
     }
@@ -251,67 +292,67 @@
 
         if (data.alerts.length === 0) {
             container.innerHTML = `
-                <div class="p-8 text-center text-gray-400">
-                    <i class="fas fa-inbox text-4xl mb-3"></i>
-                    <p>No alerts found</p>
-                </div>
+                <tr class="table-row">
+                    <td colspan="7" class="p-8 text-center text-gray-400">
+                         <i class="fas fa-inbox text-4xl mb-3"></i>
+                         <p>No alerts found</p>
+                    </td>
+                </tr>
             `;
             document.getElementById('pagination').classList.add('hidden');
             return;
         }
 
         container.innerHTML = data.alerts.map(alert => `
-            <div class="p-4 hover:bg-gray-800 transition">
-                <div class="flex items-start justify-between">
-                    <div class="flex-1">
-                        <div class="flex items-center space-x-3 mb-2">
-                            <span class="badge-${alert.severity || 'info'} px-2 py-1 rounded text-xs font-semibold uppercase">
-                                ${alert.severity || 'info'}
-                            </span>
-                            <span class="status-${alert.status} text-sm">
-                                <i class="fas fa-circle text-xs mr-1"></i>${alert.status}
-                            </span>
-                            ${alert.analyzed
-                ? '<span class="text-green-400 text-sm"><i class="fas fa-check-circle mr-1"></i>Analyzed</span>'
-                : '<span class="text-yellow-400 text-sm"><i class="fas fa-clock mr-1"></i>Pending</span>'
+            <tr class="table-row">
+                <td class="px-4 py-3">
+                    <span class="badge badge-${alert.severity || 'info'} uppercase">${alert.severity || 'info'}</span>
+                </td>
+                <td class="px-4 py-3">
+                     <span class="badge badge-${alert.status} uppercase">${alert.status}</span>
+                </td>
+                <td class="px-4 py-3 font-medium text-white">
+                    ${escapeHtml(alert.alert_name)}
+                </td>
+                <td class="px-4 py-3 text-xs text-gray-400 hidden md:table-cell">
+                    ${alert.instance ? `<div><i class="fas fa-server mr-1"></i>${escapeHtml(alert.instance)}</div>` : ''}
+                    ${alert.job ? `<div class="mt-0.5"><i class="fas fa-briefcase mr-1"></i>${escapeHtml(alert.job)}</div>` : ''}
+                </td>
+                <td class="px-4 py-3 text-xs text-gray-400 hidden sm:table-cell">
+                    ${new Date(alert.timestamp).toLocaleString()}
+                </td>
+                <td class="px-4 py-3 text-sm">
+                    ${alert.analyzed
+                ? '<span class="status-analyzed"><i class="fas fa-check-circle mr-1"></i>Analyzed</span>'
+                : '<span class="status-pending"><i class="fas fa-robot mr-1"></i>Pending</span>'
             }
-                        </div>
-                        <h3 class="font-semibold text-lg">${alert.alert_name}</h3>
-                        <div class="text-sm text-gray-400 mt-1">
-                            <span><i class="fas fa-server mr-1"></i>${alert.instance || 'N/A'}</span>
-                            <span class="mx-2">•</span>
-                            <span><i class="fas fa-briefcase mr-1"></i>${alert.job || 'N/A'}</span>
-                            <span class="mx-2">•</span>
-                            <span><i class="fas fa-clock mr-1"></i>${new Date(alert.timestamp).toLocaleString()}</span>
-                        </div>
-                    </div>
-                    <div class="flex space-x-2 ml-4">
+                </td>
+                <td class="px-4 py-3 text-right">
+                    <div class="flex justify-end gap-1">
                         ${alert.analyzed ? `
-                            <button onclick="viewAnalysis('${alert.id}')" class="btn-secondary px-3 py-1 rounded text-sm">
-                                <i class="fas fa-eye mr-1"></i> View
+                            <button onclick="viewAnalysis('${alert.id}')" class="p-1.5 hover:bg-[#22252b] rounded transition-colors text-blue-400" title="View Analysis">
+                                <i class="fas fa-eye"></i>
                             </button>
-                            <button onclick="analyzeAlert('${alert.id}', true)" class="btn-secondary px-3 py-1 rounded text-sm">
-                                <i class="fas fa-redo mr-1"></i> Re-analyze
+                            <button onclick="analyzeAlert('${alert.id}', true)" class="p-1.5 hover:bg-[#22252b] rounded transition-colors text-purple-400" title="Re-analyze">
+                                <i class="fas fa-redo"></i>
                             </button>
                         ` : `
-                            <button onclick="analyzeAlert('${alert.id}')" class="btn-primary px-3 py-1 rounded text-sm">
-                                <i class="fas fa-brain mr-1"></i> Analyze
+                            <button onclick="analyzeAlert('${alert.id}')" class="p-1.5 hover:bg-[#22252b] rounded transition-colors text-green-400" title="Analyze with AI">
+                                <i class="fas fa-brain"></i>
                             </button>
                         `}
-                        <a href="/alerts/${alert.id}" class="btn-secondary px-3 py-1 rounded text-sm">
+                        <a href="/alerts/${alert.id}" class="p-1.5 hover:bg-[#22252b] rounded transition-colors text-gray-400" title="Details">
                             <i class="fas fa-external-link-alt"></i>
                         </a>
                     </div>
-                </div>
-            </div>
+                </td>
+            </tr>
         `).join('');
 
         // Update pagination
-        const pagination = document.getElementById('pagination');
-        pagination.classList.remove('hidden');
-
-        const from = (currentPage - 1) * 15 + 1;
-        const to = Math.min(currentPage * 15, data.total);
+        document.getElementById('pagination').classList.remove('hidden');
+        const from = (currentPage - 1) * 20 + 1;
+        const to = Math.min(currentPage * 20, data.total);
         document.getElementById('showingFrom').textContent = from;
         document.getElementById('showingTo').textContent = to;
         document.getElementById('totalAlerts').textContent = data.total;
@@ -327,7 +368,6 @@
             loadAlerts();
         }
     }
-
     function nextPage() {
         if (currentPage < totalPages) {
             currentPage++;
@@ -335,81 +375,47 @@
         }
     }
 
+    // Analysis Logic
     async function analyzeAlert(alertId, force = false) {
         const modal = document.getElementById('analyzeModal');
         const modalContent = document.getElementById('modalContent');
-
         modal.classList.remove('hidden');
         modal.classList.add('flex');
-
         modalContent.innerHTML = `
             <div class="text-center py-8">
                 <div class="loading-spinner mx-auto mb-4"></div>
                 <p class="text-gray-400">Analyzing alert with AI...</p>
-                <p class="text-sm text-gray-500 mt-2">This may take a few seconds</p>
             </div>
         `;
-
         try {
             const response = await apiCall(`/api/alerts/${alertId}/analyze`, {
                 method: 'POST',
                 body: JSON.stringify({ force })
             });
-
             if (!response) return;
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.detail || 'Analysis failed');
-            }
-
+            if (!response.ok) throw new Error((await response.json()).detail || 'Analysis failed');
             const data = await response.json();
             showAnalysisResult(data);
-            loadAlerts(); // Refresh the list
-
+            loadAlerts();
         } catch (error) {
-            modalContent.innerHTML = `
-                <div class="text-center py-8 text-red-400">
-                    <i class="fas fa-exclamation-circle text-4xl mb-3"></i>
-                    <p>Analysis failed</p>
-                    <p class="text-sm mt-2">${error.message}</p>
-                    <button onclick="closeModal()" class="btn-secondary mt-4 px-4 py-2 rounded">Close</button>
-                </div>
-            `;
+            modalContent.innerHTML = `<div class="text-center text-red-400"><p>Analysis failed</p><p class="text-sm">${error.message}</p></div>`;
         }
     }
 
     async function viewAnalysis(alertId) {
         const modal = document.getElementById('analyzeModal');
         const modalContent = document.getElementById('modalContent');
-
         modal.classList.remove('hidden');
         modal.classList.add('flex');
-
-        modalContent.innerHTML = `
-            <div class="text-center py-8">
-                <div class="loading-spinner mx-auto"></div>
-            </div>
-        `;
-
+        modalContent.innerHTML = `<div class="text-center py-8"><div class="loading-spinner mx-auto"></div></div>`;
         try {
             const response = await apiCall(`/api/alerts/${alertId}`);
             if (!response) return;
-
             const alert = await response.json();
-
             if (!alert.ai_analysis) {
-                modalContent.innerHTML = `
-                    <div class="text-center py-8">
-                        <p class="text-gray-400">No analysis available</p>
-                        <button onclick="analyzeAlert('${alertId}')" class="btn-primary mt-4 px-4 py-2 rounded">
-                            Analyze Now
-                        </button>
-                    </div>
-                `;
+                modalContent.innerHTML = `<div class="text-center"><p>No analysis</p><button onclick="analyzeAlert('${alertId}')" class="btn-primary mt-2">Analyze</button></div>`;
                 return;
             }
-
             showAnalysisResult({
                 alert_id: alert.id,
                 analysis: alert.ai_analysis,
@@ -417,66 +423,45 @@
                 analyzed_at: alert.analyzed_at,
                 analysis_count: alert.analysis_count
             });
-
         } catch (error) {
-            modalContent.innerHTML = `
-                <div class="text-center py-8 text-red-400">
-                    <p>Failed to load analysis</p>
-                </div>
-            `;
+            modalContent.innerHTML = `<div class="text-center text-red-400"><p>Failed to load</p></div>`;
         }
     }
 
     function showAnalysisResult(data) {
         const modalContent = document.getElementById('modalContent');
-
-        // Convert markdown-like formatting
-        let formattedAnalysis = data.analysis
+        let formatted = data.analysis
             .replace(/## (.*)/g, '<h3 class="text-lg font-semibold mt-4 mb-2 text-blue-400">$1</h3>')
             .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
             .replace(/`(.*?)`/g, '<code class="bg-gray-800 px-1 rounded">$1</code>')
-            .replace(/\n/g, '<br>');
+            .replace(/\\n/g, '<br>');
 
         modalContent.innerHTML = `
             <div class="space-y-4">
-                <div class="flex items-center justify-between text-sm text-gray-400">
-                    <span>
-                        <i class="fas fa-clock mr-1"></i>
-                        Analyzed: ${new Date(data.analyzed_at).toLocaleString()}
-                    </span>
-                    <span>
-                        Analysis count: ${data.analysis_count}
-                    </span>
+                <div class="text-sm text-gray-400 flex justify-between">
+                    <span>${new Date(data.analyzed_at).toLocaleString()}</span>
+                    <span>Count: ${data.analysis_count}</span>
                 </div>
-                
-                <div class="prose prose-invert max-w-none">
-                    ${formattedAnalysis}
-                </div>
-                
-                ${data.recommendations && data.recommendations.length > 0 ? `
-                    <div class="mt-4 p-4 bg-gray-800 rounded-lg">
-                        <h4 class="font-semibold mb-2">
-                            <i class="fas fa-lightbulb text-yellow-400 mr-2"></i>
-                            Quick Recommendations
-                        </h4>
-                        <ul class="list-disc list-inside space-y-1 text-sm">
-                            ${data.recommendations.map(r => `<li>${r}</li>`).join('')}
-                        </ul>
-                    </div>
-                ` : ''}
-                
-                <div class="flex justify-end space-x-2 mt-4 pt-4 border-t border-gray-700">
-                    <button onclick="analyzeAlert('${data.alert_id}', true)" class="btn-secondary px-4 py-2 rounded">
-                        <i class="fas fa-redo mr-1"></i> Re-analyze
-                    </button>
-                    <button onclick="closeModal()" class="btn-primary px-4 py-2 rounded">
-                        Close
-                    </button>
+                <div class="prose prose-invert max-w-none">${formatted}</div>
+                ${data.recommendations && data.recommendations.length ? `
+                    <div class="bg-gray-800 p-4 rounded">
+                        <h4 class="font-semibold text-yellow-400 mb-2">Recommendations</h4>
+                        <ul class="list-disc list-inside text-sm space-y-1">${data.recommendations.map(r => `<li>${r}</li>`).join('')}</ul>
+                    </div>` : ''}
+                <div class="flex justify-end gap-2 pt-4 border-t border-gray-700">
+                    <button onclick="analyzeAlert('${data.alert_id}', true)" class="btn-secondary px-4 py-2 rounded">Re-analyze</button>
+                    <button onclick="closeModal()" class="btn-primary px-4 py-2 rounded">Close</button>
                 </div>
             </div>
         `;
     }
 
+    function closeModal() {
+        document.getElementById('analyzeModal').classList.add('hidden');
+        document.getElementById('analyzeModal').classList.remove('flex');
+    }
+
+    // Clusters Logic 
     async function loadClusters() {
         const container = document.getElementById('clustersList');
         const severity = document.getElementById('filterSeverity').value;
@@ -496,18 +481,13 @@
             if (status === 'resolved') url += `&is_active=false`;
 
             const response = await apiCall(url);
-            if (!response || !response.ok) {
-                throw new Error('Failed to load clusters');
-            }
-
+            if (!response || !response.ok) throw new Error('Failed to load clusters');
             const clusters = await response.json();
             renderClusters(clusters);
-
         } catch (error) {
             console.error('Failed to load clusters:', error);
             container.innerHTML = `
                 <div class="card p-8 text-center text-red-400">
-                    <i class="fas fa-exclamation-circle text-2xl mb-2"></i>
                     <p>Failed to load clusters</p>
                 </div>
             `;
@@ -516,13 +496,11 @@
 
     function renderClusters(clusters) {
         const container = document.getElementById('clustersList');
-
         if (clusters.length === 0) {
             container.innerHTML = `
                 <div class="card p-8 text-center text-gray-400">
                     <i class="fas fa-inbox text-4xl mb-3"></i>
                     <p>No alert clusters found</p>
-                    <p class="text-sm mt-2">Clusters are created automatically when similar alerts are detected</p>
                 </div>
             `;
             return;
@@ -530,48 +508,34 @@
 
         container.innerHTML = clusters.map(cluster => `
             <div class="card">
-                <!-- Cluster Header -->
                 <div class="p-4 border-b border-gray-700">
                     <div class="flex items-start justify-between">
                         <div class="flex-1">
                             <div class="flex items-center gap-3 mb-2">
-                                <span class="badge-${cluster.severity || 'info'} px-2 py-1 rounded text-xs font-semibold uppercase">
+                                <span class="badge badge-${cluster.severity || 'info'} uppercase">
                                     ${cluster.severity || 'info'}
                                 </span>
                                 <span class="text-sm ${cluster.is_active ? 'text-green-400' : 'text-gray-400'}">
                                     <i class="fas fa-circle text-xs mr-1"></i>${cluster.is_active ? 'Active' : 'Closed'}
                                 </span>
-                                <span class="text-sm text-gray-400">
-                                    <i class="fas fa-layer-group mr-1"></i>${cluster.cluster_type}
-                                </span>
                                 <span class="text-sm font-semibold text-purple-400">
-                                    <i class="fas fa-bell mr-1"></i>${cluster.alert_count} alerts
+                                    ${cluster.alert_count} alerts
                                 </span>
                             </div>
                             <h3 class="font-semibold text-lg mb-1">
                                 ${cluster.cluster_key.replace(/_/g, ' ')}
                             </h3>
-                            ${cluster.summary ? `
-                                <p class="text-sm text-gray-400 mt-2">
-                                    <i class="fas fa-robot mr-1 text-blue-400"></i>${cluster.summary}
-                                </p>
-                            ` : ''}
-                            <div class="flex items-center gap-4 text-xs text-gray-500 mt-2">
-                                <span><i class="fas fa-clock mr-1"></i>First: ${new Date(cluster.first_seen).toLocaleString()}</span>
-                                <span><i class="fas fa-clock mr-1"></i>Last: ${new Date(cluster.last_seen).toLocaleString()}</span>
-                                <span><i class="fas fa-hourglass-half mr-1"></i>${cluster.duration_hours.toFixed(1)}h duration</span>
-                                <span><i class="fas fa-chart-line mr-1"></i>${cluster.alerts_per_hour.toFixed(1)} alerts/h</span>
-                            </div>
+                            ${cluster.summary ? `<p class="text-sm text-gray-400 mt-2">${cluster.summary}</p>` : ''}
                         </div>
                         <div class="flex items-center gap-2 ml-4">
                             ${cluster.is_active ? `
-                                <button onclick="closeCluster('${cluster.id}')" class="btn-secondary px-3 py-1 rounded text-sm" title="Close cluster">
-                                    <i class="fas fa-check mr-1"></i> Resolve
+                                <button onclick="closeCluster('${cluster.id}')" class="btn-secondary px-3 py-1 rounded text-sm">
+                                    Resolve
                                 </button>
                             ` : ''}
                             ${!cluster.summary && cluster.alert_count >= 3 ? `
-                                <button onclick="generateClusterSummary('${cluster.id}')" class="btn-secondary px-3 py-1 rounded text-sm" title="Generate AI summary">
-                                    <i class="fas fa-brain mr-1"></i> Analyze
+                                <button onclick="generateClusterSummary('${cluster.id}')" class="btn-secondary px-3 py-1 rounded text-sm">
+                                    Analyze
                                 </button>
                             ` : ''}
                             <button onclick="toggleCluster('${cluster.id}')" class="btn-secondary px-3 py-1 rounded text-sm">
@@ -580,14 +544,8 @@
                         </div>
                     </div>
                 </div>
-                
-                <!-- Cluster Alerts (Hidden by default) -->
                 <div id="cluster-${cluster.id}" class="hidden border-t border-gray-700">
-                    <div class="p-4 bg-gray-800 bg-opacity-50">
-                        <p class="text-sm text-gray-400 mb-3">
-                            <i class="fas fa-info-circle mr-1"></i>Loading ${cluster.alert_count} alerts in this cluster...
-                        </p>
-                    </div>
+                     <div class="p-4"><p>Loading alerts...</p></div>
                 </div>
             </div>
         `).join('');
@@ -598,20 +556,16 @@
         const icon = document.getElementById(`icon-${clusterId}`);
 
         if (expandedClusters.has(clusterId)) {
-            // Collapse
             clusterDiv.classList.add('hidden');
             icon.classList.remove('fa-chevron-up');
             icon.classList.add('fa-chevron-down');
             expandedClusters.delete(clusterId);
         } else {
-            // Expand
             clusterDiv.classList.remove('hidden');
             icon.classList.remove('fa-chevron-down');
             icon.classList.add('fa-chevron-up');
             expandedClusters.add(clusterId);
-
-            // Load alerts if not already loaded
-            if (clusterDiv.querySelector('.bg-gray-800')) {
+            if (!clusterDiv.querySelector('.table-row')) {
                 await loadClusterAlerts(clusterId);
             }
         }
@@ -619,121 +573,59 @@
 
     async function loadClusterAlerts(clusterId) {
         const clusterDiv = document.getElementById(`cluster-${clusterId}`);
-
         try {
             const response = await apiCall(`/api/clusters/${clusterId}/alerts?page_size=100`);
-            if (!response || !response.ok) {
-                throw new Error('Failed to load alerts');
-            }
-
+            if (!response || !response.ok) throw new Error('Failed to load alerts');
             const alerts = await response.json();
 
+            // Render cluster alerts as a dense table if desired, or duplicate list
+            // For now, simple list
             clusterDiv.innerHTML = `
                 <div class="divide-y divide-gray-700">
                     ${alerts.map(alert => `
-                        <div class="p-3 hover:bg-gray-800 transition">
-                            <div class="flex items-start justify-between">
-                                <div class="flex-1">
-                                    <div class="flex items-center gap-2 mb-1">
-                                        <span class="badge-${alert.severity || 'info'} px-2 py-0.5 rounded text-xs">
-                                            ${alert.severity || 'info'}
-                                        </span>
-                                        <span class="font-medium text-sm">${alert.alert_name}</span>
-                                    </div>
-                                    <div class="text-xs text-gray-400">
-                                        <span><i class="fas fa-server mr-1"></i>${alert.instance || 'N/A'}</span>
-                                        <span class="mx-2">•</span>
-                                        <span><i class="fas fa-clock mr-1"></i>${new Date(alert.timestamp).toLocaleString()}</span>
-                                    </div>
-                                </div>
-                                <a href="/alerts/${alert.id}" class="btn-secondary px-2 py-1 rounded text-xs">
-                                    <i class="fas fa-external-link-alt"></i>
-                                </a>
+                         <div class="p-3 hover:bg-gray-800 transition flex justify-between">
+                            <div>
+                                <span class="badge badge-${alert.severity} text-xs mr-2">${alert.severity}</span>
+                                <span class="text-sm font-medium">${alert.alert_name}</span>
                             </div>
-                        </div>
+                            <a href="/alerts/${alert.id}" class="text-gray-400 hover:text-white"><i class="fas fa-external-link-alt"></i></a>
+                         </div>
                     `).join('')}
                 </div>
             `;
-
         } catch (error) {
-            console.error('Failed to load cluster alerts:', error);
-            clusterDiv.innerHTML = `
-                <div class="p-4 text-center text-red-400">
-                    <p class="text-sm">Failed to load alerts</p>
-                </div>
-            `;
+            clusterDiv.innerHTML = `<div class="p-4 text-red-400">Failed to load alerts</div>`;
         }
     }
 
     async function closeCluster(clusterId) {
-        if (!confirm('Are you sure you want to close this cluster? This will mark it as resolved.')) {
-            return;
-        }
-
+        if (!confirm('Are you sure you want to close this cluster?')) return;
         try {
-            const response = await apiCall(`/api/clusters/${clusterId}/close?reason=manual`, {
-                method: 'POST'
-            });
-
-            if (!response || !response.ok) {
-                throw new Error('Failed to close cluster');
-            }
-
-            // Reload clusters
-            loadClusters();
-
-        } catch (error) {
-            console.error('Failed to close cluster:', error);
-            alert('Failed to close cluster: ' + error.message);
-        }
+            const response = await apiCall(`/api/clusters/${clusterId}/close?reason=manual`, { method: 'POST' });
+            if (response && response.ok) loadClusters();
+        } catch (e) { alert(e.message); }
     }
 
     async function generateClusterSummary(clusterId) {
-        const button = event.target.closest('button');
-        const originalHTML = button.innerHTML;
-        button.disabled = true;
-        button.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Analyzing...';
-
+        const btn = event.target.closest('button');
+        const originalContent = btn.innerHTML;
+        btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
         try {
-            const response = await apiCall(`/api/clusters/${clusterId}/regenerate-summary`, {
-                method: 'POST'
-            });
-
-            if (!response || !response.ok) {
-                throw new Error('Failed to generate summary');
-            }
-
-            // Reload clusters to show new summary
+            await apiCall(`/api/clusters/${clusterId}/regenerate-summary`, { method: 'POST' });
             loadClusters();
-
-        } catch (error) {
-            console.error('Failed to generate summary:', error);
-            alert('Failed to generate summary: ' + error.message);
-            button.disabled = false;
-            button.innerHTML = originalHTML;
+        } catch (e) {
+            alert(e.message);
+            btn.disabled = false; btn.innerHTML = originalContent;
         }
     }
 
-    function closeModal() {
-        const modal = document.getElementById('analyzeModal');
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
-    }
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+    document.getElementById('analyzeModal').addEventListener('click', (e) => { if (e.target === e.currentTarget) closeModal(); });
 
-    // Close modal on escape key
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') closeModal();
-    });
-
-    // Close modal on backdrop click
-    document.getElementById('analyzeModal').addEventListener('click', (e) => {
-        if (e.target === e.currentTarget) closeModal();
-    });
-
-    // Initial load
+    // Initial Load
     loadAlerts();
 
-    // Check URL params for filters
+    // Check URL params
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.has('analyzed')) {
         document.getElementById('filterAnalyzed').value = urlParams.get('analyzed');
