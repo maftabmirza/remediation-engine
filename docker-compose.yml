@@ -88,8 +88,8 @@ services:
     image: grafana/grafana-enterprise:latest
     container_name: aiops-grafana
     restart: unless-stopped
-    ports:
-      - "3000:3000"
+    # ports:
+    #   - "3000:3000"
     environment:
       # SSO Authentication via Auth Proxy
       - GF_AUTH_PROXY_ENABLED=true
@@ -150,7 +150,7 @@ services:
       - GF_ANALYTICS_REPORTING_ENABLED=false
       - GF_ANALYTICS_CHECK_FOR_UPDATES=false
       - GF_NEWS_NEWS_FEED_ENABLED=false
-      
+
       # Disable OpenFeature to prevent OFREP console errors
       - GF_FEATURE_TOGGLES_ENABLE=publicDashboards:false,enable_openfeature:false
     volumes:
@@ -188,10 +188,10 @@ services:
     container_name: aiops-tempo
     restart: unless-stopped
     ports:
-      - "3200:3200"   # Tempo HTTP
-      - "4317:4317"   # OTLP gRPC
-      - "4318:4318"   # OTLP HTTP
-      - "9411:9411"   # Zipkin
+      - "3200:3200" # Tempo HTTP
+      - "4317:4317" # OTLP gRPC
+      - "4318:4318" # OTLP HTTP
+      - "9411:9411" # Zipkin
     command: -config.file=/etc/tempo/tempo.yaml
     volumes:
       - tempo-data:/var/tempo
