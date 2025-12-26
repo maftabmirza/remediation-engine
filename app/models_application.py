@@ -1,10 +1,11 @@
 """Application Registry Models
 
 SQLAlchemy ORM models for application registry, components, and dependencies.
+Includes GrafanaDatasource model for Loki, Tempo, and other observability datasources.
 """
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, Text, ForeignKey, DateTime, JSON, CheckConstraint
+from sqlalchemy import Column, String, Text, ForeignKey, DateTime, JSON, CheckConstraint, Boolean, Integer
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
@@ -180,5 +181,69 @@ class ApplicationProfile(Base):
         CheckConstraint(
             "architecture_type IN ('monolith', 'microservices', 'serverless', 'hybrid', 'other')",
             name='ck_app_profiles_architecture'
+        ),
+    )
+
+
+class GrafanaDatasource(Base):
+    """
+    Grafana datasource configuration for observability backends.
+
+    Supports multiple datasource types:
+    - loki: Log aggregation
+    - tempo: Distributed tracing
+    - prometheus: Metrics (overlaps with PrometheusDatasource but more general)
+    - mimir: Long-term metrics storage
+    - alertmanager: Alert management
+
+    This model allows applications to reference specific datasource instances
+    for AI-powered querying and observability.
+    """
+    __tablename__ = "grafana_datasources"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String(100), nullable=False, unique=True, index=True)
+    datasource_type = Column(String(50), nullable=False, index=True)  # loki, tempo, prometheus, mimir
+    url = Column(String(512), nullable=False)
+    description = Column(Text, nullable=True)
+
+    # Authentication
+    auth_type = Column(String(50), default="none")  # none, basic, bearer, oauth2
+    username = Column(String(255), nullable=True)
+    password = Column(String(512), nullable=True)  # Should be encrypted in production
+    bearer_token = Column(String(512), nullable=True)  # Should be encrypted in production
+
+    # Configuration
+    timeout = Column(Integer, default=30)  # Request timeout in seconds
+    is_default = Column(Boolean, default=False)  # Default datasource for this type
+    is_enabled = Column(Boolean, default=True)
+
+    # Type-specific configuration (JSON)
+    # For Loki: {"max_lines": 1000, "derived_fields": [...]}
+    # For Tempo: {"trace_query_type": "search", "service_map_enabled": true}
+    # For Prometheus: {"query_timeout": "30s", "default_step": "15s"}
+    config_json = Column(JSON, default={})
+
+    # Custom HTTP headers
+    custom_headers = Column(JSON, default={})
+
+    # Health status (updated by background health checks)
+    last_health_check = Column(DateTime(timezone=True), nullable=True)
+    is_healthy = Column(Boolean, default=True)
+    health_message = Column(Text, nullable=True)
+
+    # Metadata
+    created_at = Column(DateTime(timezone=True), default=utc_now)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+    created_by = Column(String(255), nullable=True)
+
+    __table_args__ = (
+        CheckConstraint(
+            "datasource_type IN ('loki', 'tempo', 'prometheus', 'mimir', 'alertmanager', 'jaeger', 'zipkin', 'elasticsearch')",
+            name='ck_datasources_type'
+        ),
+        CheckConstraint(
+            "auth_type IN ('none', 'basic', 'bearer', 'oauth2', 'api_key')",
+            name='ck_datasources_auth_type'
         ),
     )
