@@ -30,6 +30,7 @@ This directory contains planning and architecture documentation for the AIOps Re
 |----------|------|---------|----------|
 | **IMPLEMENTATION_STATUS.md** | 7KB | Quick status & checklists | Everyone |
 | **CONSOLIDATED_IMPLEMENTATION_PLAN.md** | 45KB | Master implementation plan | Developers, Architects |
+| **PLAN_UPDATES_2025-12-26.md** | 12KB | Plan adjustments | Developers, PMs |
 
 ### Archived Documents (Superseded)
 
