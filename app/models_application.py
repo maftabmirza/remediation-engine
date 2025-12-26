@@ -161,10 +161,22 @@ class ApplicationProfile(Base):
     #   "p99_latency_ms": 1000
     # }
 
-    # Datasource configurations
-    prometheus_datasource_id = Column(UUID(as_uuid=True), nullable=True)  # Future: FK to datasources table
-    loki_datasource_id = Column(UUID(as_uuid=True), nullable=True)  # Future: FK to datasources table
-    tempo_datasource_id = Column(UUID(as_uuid=True), nullable=True)  # Future: FK to datasources table
+    # Datasource configurations (FK to GrafanaDatasource)
+    prometheus_datasource_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("grafana_datasources.id", ondelete="SET NULL"),
+        nullable=True
+    )
+    loki_datasource_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("grafana_datasources.id", ondelete="SET NULL"),
+        nullable=True
+    )
+    tempo_datasource_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("grafana_datasources.id", ondelete="SET NULL"),
+        nullable=True
+    )
 
     # AI context preferences
     default_time_range = Column(String(20), default="1h")  # Default time range for queries
@@ -176,6 +188,21 @@ class ApplicationProfile(Base):
 
     # Relationships
     application = relationship("Application", backref="monitoring_profile")
+    prometheus_datasource = relationship(
+        "GrafanaDatasource",
+        foreign_keys=[prometheus_datasource_id],
+        backref="prometheus_profiles"
+    )
+    loki_datasource = relationship(
+        "GrafanaDatasource",
+        foreign_keys=[loki_datasource_id],
+        backref="loki_profiles"
+    )
+    tempo_datasource = relationship(
+        "GrafanaDatasource",
+        foreign_keys=[tempo_datasource_id],
+        backref="tempo_profiles"
+    )
 
     __table_args__ = (
         CheckConstraint(
