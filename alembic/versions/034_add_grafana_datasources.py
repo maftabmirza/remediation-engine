@@ -9,6 +9,17 @@ from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID
 
+
+# Import migration helpers
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+from migration_helpers import (
+    create_table_safe, create_index_safe, add_column_safe,
+    create_foreign_key_safe, create_unique_constraint_safe, create_check_constraint_safe,
+    drop_index_safe, drop_constraint_safe, drop_column_safe, drop_table_safe
+)
+
 # revision identifiers, used by Alembic.
 revision = '034_add_grafana_datasources'
 down_revision = '033_add_application_profiles'
@@ -18,7 +29,7 @@ depends_on = None
 
 def upgrade():
     """Create grafana_datasources table for Loki, Tempo, and other observability backends."""
-    op.create_table(
+    create_table_safe(
         'grafana_datasources',
         sa.Column('id', UUID(as_uuid=True), primary_key=True),
         sa.Column('name', sa.String(length=100), nullable=False, unique=True, index=True),
@@ -63,4 +74,4 @@ def upgrade():
 
 def downgrade():
     """Drop grafana_datasources table."""
-    op.drop_table('grafana_datasources')
+    drop_table_safe('grafana_datasources')

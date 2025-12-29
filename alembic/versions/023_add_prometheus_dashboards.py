@@ -9,6 +9,17 @@ from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
+
+# Import migration helpers
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+from migration_helpers import (
+    create_table_safe, create_index_safe, add_column_safe,
+    create_foreign_key_safe, create_unique_constraint_safe, create_check_constraint_safe,
+    drop_index_safe, drop_constraint_safe, drop_column_safe, drop_table_safe
+)
+
 # revision identifiers, used by Alembic.
 revision = '023'
 down_revision = '022_add_change_cis_app'
@@ -18,7 +29,7 @@ depends_on = None
 
 def upgrade():
     # Create prometheus_datasources table
-    op.create_table(
+    create_table_safe(
         'prometheus_datasources',
         sa.Column('id', sa.String(36), primary_key=True),
         sa.Column('name', sa.String(255), nullable=False, unique=True, index=True),
@@ -38,7 +49,7 @@ def upgrade():
     )
 
     # Create prometheus_panels table
-    op.create_table(
+    create_table_safe(
         'prometheus_panels',
         sa.Column('id', sa.String(36), primary_key=True),
         sa.Column('name', sa.String(255), nullable=False, index=True),
@@ -61,7 +72,7 @@ def upgrade():
     )
 
     # Create dashboards table
-    op.create_table(
+    create_table_safe(
         'dashboards',
         sa.Column('id', sa.String(36), primary_key=True),
         sa.Column('name', sa.String(255), nullable=False, index=True),
@@ -81,7 +92,7 @@ def upgrade():
     )
 
     # Create dashboard_panels junction table
-    op.create_table(
+    create_table_safe(
         'dashboard_panels',
         sa.Column('id', sa.String(36), primary_key=True),
         sa.Column('dashboard_id', sa.String(36), sa.ForeignKey('dashboards.id', ondelete='CASCADE'), nullable=False),
@@ -96,14 +107,14 @@ def upgrade():
     )
 
     # Create indexes
-    op.create_index('ix_prometheus_panels_datasource', 'prometheus_panels', ['datasource_id'])
-    op.create_index('ix_dashboard_panels_dashboard', 'dashboard_panels', ['dashboard_id'])
-    op.create_index('ix_dashboard_panels_panel', 'dashboard_panels', ['panel_id'])
+    create_index_safe('ix_prometheus_panels_datasource', 'prometheus_panels', ['datasource_id'])
+    create_index_safe('ix_dashboard_panels_dashboard', 'dashboard_panels', ['dashboard_id'])
+    create_index_safe('ix_dashboard_panels_panel', 'dashboard_panels', ['panel_id'])
 
 
 def downgrade():
-    op.drop_table('dashboard_panels')
-    op.drop_table('dashboards')
-    op.drop_table('prometheus_panels')
-    op.drop_table('prometheus_datasources')
+    drop_table_safe('dashboard_panels')
+    drop_table_safe('dashboards')
+    drop_table_safe('prometheus_panels')
+    drop_table_safe('prometheus_datasources')
     op.execute('DROP TYPE IF EXISTS paneltype')

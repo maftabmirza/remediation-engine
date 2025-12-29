@@ -9,6 +9,17 @@ from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 
+
+# Import migration helpers
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+from migration_helpers import (
+    create_table_safe, create_index_safe, add_column_safe,
+    create_foreign_key_safe, create_unique_constraint_safe, create_check_constraint_safe,
+    drop_index_safe, drop_constraint_safe, drop_column_safe, drop_table_safe
+)
+
 # revision identifiers, used by Alembic.
 revision = '036_add_inquiry_results'
 down_revision = '035_add_ds_fks'
@@ -18,7 +29,7 @@ depends_on = None
 
 def upgrade():
     """Create inquiry_results table for storing observability query results."""
-    op.create_table(
+    create_table_safe(
         'inquiry_results',
         sa.Column('id', UUID(as_uuid=True), primary_key=True, server_default=sa.text('gen_random_uuid()')),
         sa.Column('user_id', UUID(as_uuid=True), sa.ForeignKey('users.id', ondelete='CASCADE'), nullable=False),
@@ -31,12 +42,12 @@ def upgrade():
     )
     
     # Index for user queries lookup
-    op.create_index('ix_inquiry_results_user_id', 'inquiry_results', ['user_id'])
-    op.create_index('ix_inquiry_results_created_at', 'inquiry_results', ['created_at'])
+    create_index_safe('ix_inquiry_results_user_id', 'inquiry_results', ['user_id'])
+    create_index_safe('ix_inquiry_results_created_at', 'inquiry_results', ['created_at'])
 
 
 def downgrade():
     """Drop inquiry_results table."""
-    op.drop_index('ix_inquiry_results_created_at')
-    op.drop_index('ix_inquiry_results_user_id')
-    op.drop_table('inquiry_results')
+    drop_index_safe('ix_inquiry_results_created_at')
+    drop_index_safe('ix_inquiry_results_user_id')
+    drop_table_safe('inquiry_results')

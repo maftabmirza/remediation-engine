@@ -10,6 +10,17 @@ import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID, JSON
 
 
+
+# Import migration helpers
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+from migration_helpers import (
+    create_table_safe, create_index_safe, add_column_safe,
+    create_foreign_key_safe, create_unique_constraint_safe, create_check_constraint_safe,
+    drop_index_safe, drop_constraint_safe, drop_column_safe, drop_table_safe
+)
+
 # revision identifiers, used by Alembic.
 revision = '033_add_application_profiles'
 down_revision = '942d381be0b3'
@@ -19,7 +30,7 @@ depends_on = None
 
 def upgrade():
     # Create application_profiles table
-    op.create_table(
+    create_table_safe(
         'application_profiles',
         sa.Column('id', UUID(as_uuid=True), primary_key=True),
         sa.Column('app_id', UUID(as_uuid=True), sa.ForeignKey('applications.id', ondelete='CASCADE'), nullable=False, index=True, unique=True),
@@ -58,4 +69,4 @@ def upgrade():
 
 def downgrade():
     # Drop application_profiles table
-    op.drop_table('application_profiles')
+    drop_table_safe('application_profiles')
