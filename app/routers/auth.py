@@ -190,3 +190,44 @@ async def get_current_user_info(
     payload = UserResponse.model_validate(current_user)
     payload.permissions = list(get_permissions_for_role(db, current_user.role))
     return payload
+
+
+@router.post("/change-password")
+async def change_password(
+    request: Request,
+    password_data: "ChangePasswordRequest",
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Change current user's password.
+    Requires current password for verification.
+    """
+    from app.schemas import ChangePasswordRequest
+    from passlib.context import CryptContext
+    
+    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+    
+    # Verify current password
+    if not pwd_context.verify(password_data.current_password, current_user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password is incorrect"
+        )
+    
+    # Update password
+    current_user.password_hash = get_password_hash(password_data.new_password)
+    db.commit()
+    
+    # Log the password change
+    audit = AuditLog(
+        user_id=current_user.id,
+        action="change_password",
+        resource_type="user",
+        resource_id=current_user.id,
+        ip_address=request.client.host if request.client else None
+    )
+    db.add(audit)
+    db.commit()
+    
+    return {"message": "Password changed successfully"}
