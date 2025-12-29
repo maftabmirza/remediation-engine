@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import User, AuditLog
-from app.schemas import LoginRequest, LoginResponse, UserResponse, UserCreate
+from app.schemas import LoginRequest, LoginResponse, UserResponse, UserCreate, ChangePasswordRequest
 from app.services.auth_service import (
     authenticate_user,
     create_access_token,
@@ -195,7 +195,7 @@ async def get_current_user_info(
 @router.post("/change-password")
 async def change_password(
     request: Request,
-    password_data: "ChangePasswordRequest",
+    password_data: ChangePasswordRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -203,7 +203,6 @@ async def change_password(
     Change current user's password.
     Requires current password for verification.
     """
-    from app.schemas import ChangePasswordRequest
     from passlib.context import CryptContext
     
     pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
