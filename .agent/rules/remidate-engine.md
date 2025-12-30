@@ -3,6 +3,8 @@ trigger: always_on
 ---
 
 Local development environment 
+
+We can test code local and deploy container on laptop, docker desktop is already installed
 1. local code PS D:\remediate-engine-antigravity\remediation-engine>
 2. Local windows container 
 #d11204f9-edbb-44f8-82c8-b65eca2c6c58	Restart docker	queued	172.239.195.215	Auto	2m ago	2m 29s	

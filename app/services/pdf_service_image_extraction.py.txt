@@ -1,0 +1,84 @@
+    def extract_images_from_pdf(self, pdf_path: str, output_dir: Optional[str] = None) -> List[Dict[str, Any]]:
+        """
+        Extract all images from a PDF file.
+        
+        Args:
+            pdf_path: Path to the PDF file
+            output_dir: Directory to save extracted images (optional, uses temp if not provided)
+            
+        Returns:
+            List of dicts with image info: {'path': str, 'page': int, 'index': int, 'width': int, 'height': int}
+        """
+        if not fitz:
+            self.logger.warning("PyMuPDF not installed - cannot extract images from PDF")
+            return []
+        
+        try:
+            # Set output directory
+            if output_dir:
+                output_path = Path(output_dir)
+            else:
+                output_path = Path("./storage/knowledge/temp")
+            
+            output_path.mkdir(parents=True, exist_ok=True)
+            
+            # Open PDF
+            pdf_document = fitz.open(pdf_path)
+            extracted_images = []
+            
+            # Iterate through pages
+            for page_num in range(len(pdf_document)):
+                page = pdf_document[page_num]
+                
+                # Get images on this page
+                image_list = page.get_images(full=True)
+                
+                for img_index, img_info in enumerate(image_list):
+                    try:
+                        xref = img_info[0]  # Image reference number
+                        
+                        # Extract image
+                        base_image = pdf_document.extract_image(xref)
+                        image_bytes = base_image["image"]
+                        image_ext = base_image["ext"]
+                        
+                        # Skip very small images (likely icons or decorations)
+                        if len(image_bytes) < 5000:  # Less than 5KB
+                            continue
+                        
+                        # Generate filename
+                        image_filename = f"pdf_page{page_num + 1}_img{img_index + 1}.{image_ext}"
+                        image_path = output_path / image_filename
+                        
+                        # Save image
+                        with open(image_path, "wb") as img_file:
+                            img_file.write(image_bytes)
+                        
+                        # Get image dimensions
+                        width = base_image.get("width", 0)
+                        height = base_image.get("height", 0)
+                        
+                        extracted_images.append({
+                            "path": str(image_path),
+                            "page": page_num + 1,
+                            "index": img_index + 1,
+                            "width": width,
+                            "height": height,
+                            "size_bytes": len(image_bytes),
+                            "format": image_ext
+                        })
+                        
+                        self.logger.info(f"Extracted image from page {page_num + 1}: {image_filename} ({width}x{height}, {len(image_bytes)} bytes)")
+                        
+                    except Exception as e:
+                        self.logger.warning(f"Failed to extract image {img_index} from page {page_num + 1}: {e}")
+                        continue
+            
+            pdf_document.close()
+            
+            self.logger.info(f"Extracted {len(extracted_images)} images from PDF: {pdf_path}")
+            return extracted_images
+            
+        except Exception as e:
+            self.logger.error(f"Failed to extract images from PDF: {e}")
+            return []

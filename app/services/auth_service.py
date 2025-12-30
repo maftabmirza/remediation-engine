@@ -13,6 +13,8 @@ from app.config import get_settings
 from app.database import get_db
 from app.database import get_db
 from app.models import User, Role
+from app.models_group import Group, GroupMember
+from app.models_runbook_acl import RunbookACL
 
 settings = get_settings()
 
@@ -156,10 +158,92 @@ def get_permissions_for_role(db: Session, role: str) -> Set[str]:
     return ROLE_PERMISSIONS.get(normalized, set())
 
 
-def has_permission(db: Session, user: User, permission: str) -> bool:
-    """Check if a user has a specific permission."""
-    return permission in get_permissions_for_role(db, user.role)
+def get_permissions_for_user(db: Session, user: User) -> Set[str]:
+    """
+    Get all permissions for a user: direct role + all group roles.
+    
+    Permission calculation: user_perms = direct_role_perms ∪ group1_role_perms ∪ group2_role_perms ...
+    """
+    perms = set()
+    
+    # 1. Direct user role permissions
+    direct_perms = get_permissions_for_role(db, user.role)
+    perms.update(direct_perms)
+    
+    # 2. Group role permissions
+    memberships = db.query(GroupMember).filter(
+        GroupMember.user_id == user.id
+    ).all()
+    
+    for membership in memberships:
+        group = db.query(Group).filter(
+            Group.id == membership.group_id,
+            Group.is_active == True
+        ).first()
+        
+        if group and group.role:
+            group_perms = set(group.role.permissions or [])
+            perms.update(group_perms)
+    
+    return perms
 
+
+def has_permission(db: Session, user: User, permission: str) -> bool:
+    """Check if a user has a specific permission (from direct role or groups)."""
+    return permission in get_permissions_for_user(db, user)
+
+
+def can_access_runbook(db: Session, user: User, runbook_id: str, action: str) -> bool:
+    """
+    Check if user can perform action on runbook (ADDITIVE model).
+    
+    action: 'view', 'edit', 'execute'
+    
+    Returns True if:
+    - User has global permission (edit_runbooks, execute_runbooks, view_runbooks)
+    - OR User belongs to a group with matching ACL on this runbook
+    """
+    # Map action to global permission
+    global_perm_map = {
+        'view': 'read',  # Any read permission allows viewing
+        'edit': 'edit_runbooks',
+        'execute': 'execute_runbooks'
+    }
+    
+    global_perm = global_perm_map.get(action)
+    if not global_perm:
+        return False
+    
+    # Check global permission first
+    user_perms = get_permissions_for_user(db, user)
+    if global_perm in user_perms:
+        return True
+    
+    # For view, also check 'execute_runbooks' and 'edit_runbooks' (they imply view)
+    if action == 'view' and ('execute_runbooks' in user_perms or 'edit_runbooks' in user_perms):
+        return True
+    
+    # Check ACL: get user's group IDs
+    memberships = db.query(GroupMember).filter(GroupMember.user_id == user.id).all()
+    group_ids = [m.group_id for m in memberships]
+    
+    if not group_ids:
+        return False
+    
+    # Find ACL entry for this runbook and any of user's groups
+    acl_column = {
+        'view': RunbookACL.can_view,
+        'edit': RunbookACL.can_edit,
+        'execute': RunbookACL.can_execute
+    }[action]
+    
+    acl_entry = db.query(RunbookACL).filter(
+        RunbookACL.runbook_id == runbook_id,
+        RunbookACL.group_id.in_(group_ids),
+        acl_column == True
+    ).first()
+    
+    return acl_entry is not None
 
 def create_user(db: Session, username: str, password: str, role: str = DEFAULT_ROLE) -> User:
     """Create a new user"""
@@ -283,13 +367,13 @@ def require_role(allowed_roles: list):
 
 
 def require_permission(required: List[str]):
-    """Dependency factory that enforces the presence of permissions."""
+    """Dependency factory that enforces the presence of permissions (from direct role or groups)."""
 
     def permission_checker(
         user: User = Depends(get_current_user),
         db: Session = Depends(get_db)
     ) -> User:
-        user_perms = get_permissions_for_role(db, user.role)
+        user_perms = get_permissions_for_user(db, user)
         if not set(required).issubset(user_perms):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,

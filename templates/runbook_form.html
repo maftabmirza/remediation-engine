@@ -147,30 +147,41 @@
 </style>
 
 <div class="h-full flex flex-col">
-    <!-- Header -->
-    <div class="flex items-center justify-between mb-6 flex-shrink-0">
-        <div class="flex items-center gap-4">
-            <a href="/runbooks" class="text-secondary hover:text-primary transition-colors">
-                <i class="fas fa-arrow-left text-lg"></i>
-            </a>
-            <div>
-                <h1 class="text-2xl font-bold text-primary" id="pageTitle">
-                    {{ 'Edit Runbook' if mode == 'edit' else 'Create Runbook' }}
-                </h1>
-                <p class="text-secondary text-sm mt-1" id="pageSubtitle">
+    <!-- Enterprise Standard Toolbar -->
+    <div class="dashboard-header mb-6 flex-shrink-0"
+        style="padding: 12px; background: #16171b; border-bottom: 1px solid rgba(255,255,255,0.05); border-radius: 8px;">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <!-- Left: Breadcrumbs & Title -->
+            <div class="flex flex-col min-w-0">
+                <nav class="flex items-center text-xs text-gray-400 mb-1">
+                    <a href="/" class="hover:text-blue-400 transition-colors">Home</a>
+                    <span class="mx-2">/</span>
+                    <a href="/runbooks" class="hover:text-blue-400 transition-colors">Runbooks</a>
+                    <span class="mx-2">/</span>
+                    <span class="text-gray-200">{{ 'Edit' if mode == 'edit' else 'Create' }}</span>
+                </nav>
+                <div class="flex items-center gap-3">
+                    <h1 class="text-xl font-bold text-white tracking-tight truncate" id="pageTitle">
+                        {{ 'Edit Runbook' if mode == 'edit' else 'Create Runbook' }}
+                    </h1>
+                </div>
+                <p class="text-xs text-gray-500 mt-1" id="pageSubtitle">
                     {{ 'Modify runbook configuration' if mode == 'edit' else 'Define a new automated remediation
                     runbook' }}
                 </p>
             </div>
-        </div>
-        <div class="flex items-center gap-3">
-            <button onclick="cancelForm()" class="btn-secondary px-4 py-2 rounded-lg">
-                Cancel
-            </button>
-            <button onclick="saveRunbook()" class="btn-primary px-4 py-2 rounded-lg flex items-center gap-2">
-                <i class="fas fa-save"></i>
-                <span>Save Runbook</span>
-            </button>
+            <!-- Right: Actions -->
+            <div class="flex items-center gap-2">
+                <button onclick="cancelForm()"
+                    class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1.5 rounded text-sm flex items-center gap-2 transition-colors">
+                    Cancel
+                </button>
+                <button onclick="saveRunbook()"
+                    class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded text-sm flex items-center gap-2 transition-colors">
+                    <i class="fas fa-save"></i>
+                    Save Runbook
+                </button>
+            </div>
         </div>
     </div>
 
@@ -198,6 +209,15 @@
                 <a href="#section-settings" onclick="scrollToSection(event, 'section-settings')">
                     <i class="fas fa-cog"></i>
                     <span>Settings</span>
+                </a>
+                <a href="#section-permissions" onclick="scrollToSection(event, 'section-permissions')">
+                    <i class="fas fa-shield-alt"></i>
+                    <span>Permissions</span>
+                </a>
+                <a href="#section-workflow"
+                    onclick="scrollToSection(event, 'section-workflow'); updateWorkflowDiagram();">
+                    <i class="fas fa-project-diagram"></i>
+                    <span>Workflow</span>
                 </a>
             </nav>
 
@@ -513,6 +533,68 @@
                         </div>
                     </div>
                 </section>
+
+                <!-- Section: Permissions -->
+                <section id="section-permissions" class="form-section card p-6">
+                    <h2 class="text-lg font-semibold text-primary mb-4 flex items-center gap-2">
+                        <i class="fas fa-shield-alt text-purple-400"></i>
+                        Permissions
+                    </h2>
+
+                    <p class="text-secondary text-sm mb-4">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        Grant specific groups access to this runbook. This is <strong>additive</strong> to global role
+                        permissions.
+                    </p>
+
+                    <div id="aclContainer" class="space-y-3">
+                        <div class="text-center py-4 text-secondary">
+                            <i class="fas fa-spinner fa-spin mr-2"></i>Loading groups...
+                        </div>
+                    </div>
+
+                    <div class="mt-4 pt-4 border-t border-gray-700">
+                        <button type="button" onclick="addAclEntry()"
+                            class="btn-secondary px-4 py-2 rounded text-sm flex items-center gap-2">
+                            <i class="fas fa-plus"></i>
+                            Add Group Permission
+                        </button>
+                    </div>
+                </section>
+
+                <!-- Section: Workflow Visualization -->
+                <section id="section-workflow" class="form-section card p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-semibold text-primary flex items-center gap-2">
+                            <i class="fas fa-project-diagram text-purple-400"></i>
+                            Workflow Visualization
+                        </h2>
+                        <button type="button" onclick="updateWorkflowDiagram()"
+                            class="text-sm px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-gray-300 hover:text-white transition-colors flex items-center gap-2">
+                            <i class="fas fa-sync-alt"></i> Refresh Diagram
+                        </button>
+                    </div>
+
+                    <div
+                        class="bg-gray-900 rounded-lg p-4 h-[400px] border border-gray-700 flex items-center justify-center overflow-hidden relative">
+                        <div id="workflowGraph" class="w-full h-full flex items-center justify-center text-gray-500">
+                            Loading workflow...
+                        </div>
+                        <!-- Legend -->
+                        <div
+                            class="absolute bottom-4 right-4 bg-gray-800/90 p-3 rounded border border-gray-700 text-xs text-gray-400 backdrop-blur-sm space-y-1">
+                            <div class="flex items-center"><span
+                                    class="w-3 h-3 rounded bg-blue-500/20 border border-blue-500 mr-2"></span>Command
+                            </div>
+                            <div class="flex items-center"><span
+                                    class="w-3 h-3 rounded bg-green-500/20 border border-green-500 mr-2"></span>API
+                                Request</div>
+                            <div class="flex items-center"><span
+                                    class="w-3 h-3 rounded bg-purple-500/20 border border-purple-500 mr-2"></span>Notification
+                            </div>
+                        </div>
+                    </div>
+                </section>
             </form>
         </div>
     </div>
@@ -580,6 +662,8 @@
     let codeMirrorInstances = {};
     let servers = [];
     let apiProfiles = [];
+    let groups = [];
+    let aclEntries = [];
     const mode = '{{ mode }}';
     const runbookId = '{{ runbook_id or "" }}';
 
@@ -587,9 +671,13 @@
     document.addEventListener('DOMContentLoaded', async function () {
         await loadServers();
         await loadApiProfiles();
+        await loadGroups();
 
         if (mode === 'edit' && runbookId) {
             await loadRunbook(runbookId);
+            await loadRunbookAcl(runbookId);
+        } else {
+            renderAclEntries();
         }
 
         // Initialize sortable for steps
@@ -648,6 +736,172 @@
             option.textContent = `${server.name} (${server.hostname})`;
             select.appendChild(option);
         });
+    }
+
+    // --- ACL Management ---
+    async function loadGroups() {
+        try {
+            const response = await fetch('/api/groups');
+            if (response.ok) {
+                groups = await response.json();
+            }
+        } catch (error) {
+            console.error('Error loading groups:', error);
+        }
+    }
+
+    async function loadRunbookAcl(id) {
+        try {
+            const response = await fetch(`/api/runbooks/${id}/acl`);
+            if (response.ok) {
+                aclEntries = await response.json();
+            }
+        } catch (error) {
+            console.error('Error loading ACL:', error);
+        }
+        renderAclEntries();
+    }
+
+    function renderAclEntries() {
+        const container = document.getElementById('aclContainer');
+
+        if (!groups || groups.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-4 text-secondary">
+                    <i class="fas fa-info-circle mr-2"></i>No groups available. Create groups in Settings first.
+                </div>
+            `;
+            return;
+        }
+
+        if (aclEntries.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-4 text-secondary">
+                    <i class="fas fa-globe mr-2"></i>Using global role permissions only.
+                    <br><span class="text-xs">Add group permissions for fine-grained access control.</span>
+                </div>
+            `;
+            return;
+        }
+
+        let html = `
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-secondary text-xs uppercase">
+                        <th class="text-left py-2 px-3">Group</th>
+                        <th class="text-center py-2 px-2">View</th>
+                        <th class="text-center py-2 px-2">Edit</th>
+                        <th class="text-center py-2 px-2">Execute</th>
+                        <th class="text-right py-2 px-3"></th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        aclEntries.forEach((entry, index) => {
+            const group = groups.find(g => g.id === entry.group_id) || { name: entry.group_name || 'Unknown' };
+            html += `
+                <tr class="border-t border-gray-700" data-acl-index="${index}">
+                    <td class="py-2 px-3 text-primary">${escapeHtml(group.name)}</td>
+                    <td class="text-center py-2 px-2">
+                        <input type="checkbox" ${entry.can_view ? 'checked' : ''} 
+                            onchange="updateAclEntry(${index}, 'can_view', this.checked)"
+                            class="form-checkbox text-blue-500 rounded">
+                    </td>
+                    <td class="text-center py-2 px-2">
+                        <input type="checkbox" ${entry.can_edit ? 'checked' : ''} 
+                            onchange="updateAclEntry(${index}, 'can_edit', this.checked)"
+                            class="form-checkbox text-green-500 rounded">
+                    </td>
+                    <td class="text-center py-2 px-2">
+                        <input type="checkbox" ${entry.can_execute ? 'checked' : ''} 
+                            onchange="updateAclEntry(${index}, 'can_execute', this.checked)"
+                            class="form-checkbox text-purple-500 rounded">
+                    </td>
+                    <td class="text-right py-2 px-3">
+                        <button type="button" onclick="removeAclEntry(${index})" 
+                            class="text-red-400 hover:text-red-300" title="Remove">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        html += '</tbody></table>';
+        container.innerHTML = html;
+    }
+
+    function addAclEntry() {
+        // Get groups not already added
+        const existingGroupIds = aclEntries.map(e => e.group_id);
+        const availableGroups = groups.filter(g => !existingGroupIds.includes(g.id));
+
+        if (availableGroups.length === 0) {
+            showToast('All groups already have permissions', 'warning');
+            return;
+        }
+
+        // Show a simple dropdown to select group
+        const groupOptions = availableGroups.map(g =>
+            `<option value="${g.id}">${escapeHtml(g.name)}</option>`
+        ).join('');
+
+        const container = document.getElementById('aclContainer');
+        const addRow = document.createElement('div');
+        addRow.className = 'flex items-center gap-3 p-3 bg-gray-800 rounded border border-gray-600';
+        addRow.innerHTML = `
+            <select id="newAclGroup" class="input-field flex-1 px-3 py-2 rounded text-sm">
+                <option value="">-- Select Group --</option>
+                ${groupOptions}
+            </select>
+            <button type="button" onclick="confirmAddAclEntry()" class="btn-primary px-3 py-2 rounded text-sm">Add</button>
+            <button type="button" onclick="cancelAddAclEntry()" class="btn-secondary px-3 py-2 rounded text-sm">Cancel</button>
+        `;
+        container.appendChild(addRow);
+    }
+
+    function confirmAddAclEntry() {
+        const select = document.getElementById('newAclGroup');
+        const groupId = select.value;
+        if (!groupId) {
+            showToast('Please select a group', 'warning');
+            return;
+        }
+
+        const group = groups.find(g => g.id === groupId);
+        aclEntries.push({
+            group_id: groupId,
+            group_name: group?.name,
+            can_view: true,
+            can_edit: false,
+            can_execute: false
+        });
+        renderAclEntries();
+    }
+
+    function cancelAddAclEntry() {
+        renderAclEntries();
+    }
+
+    function updateAclEntry(index, field, value) {
+        if (aclEntries[index]) {
+            aclEntries[index][field] = value;
+        }
+    }
+
+    function removeAclEntry(index) {
+        aclEntries.splice(index, 1);
+        renderAclEntries();
+    }
+
+    function collectAclEntries() {
+        return aclEntries.map(e => ({
+            group_id: e.group_id,
+            can_view: e.can_view === true,
+            can_edit: e.can_edit === true,
+            can_execute: e.can_execute === true
+        }));
     }
 
     async function loadRunbook(id) {
@@ -921,8 +1175,18 @@
                     </div>
                 </div>
                 
+                <!-- Advanced Settings Toggle Button -->
+                <div class="mt-4 pt-3 border-t border-gray-700">
+                    <button type="button" class="advanced-toggle flex items-center gap-2 text-sm text-secondary hover:text-primary transition-colors" 
+                        onclick="toggleAdvancedSettings('${stepId}')">
+                        <i class="fas fa-chevron-right transition-transform" id="${stepId}-advanced-icon"></i>
+                        <span>Advanced Settings</span>
+                        <span class="text-xs text-gray-500 ml-2">(Output, Conditions, Timeout, Rollback)</span>
+                    </button>
+                </div>
+                
                 <!-- Advanced Settings (collapsed by default) -->
-                <div class="step-advanced mt-4 pt-4 border-t border-gray-700" id="${stepId}-advanced">
+                <div class="step-advanced mt-3 pl-4" id="${stepId}-advanced">
                     
                     <!-- Output Configuration -->
                     <div class="mb-4 pb-4 border-b border-gray-700">
@@ -953,6 +1217,39 @@
                                 </label>
                                 <input type="text" class="step-output-pattern input-field w-full px-2 py-1 rounded text-sm font-mono"
                                     placeholder="e.g. PID: (\d+)" value="${escapeHtml(stepData?.output_extract_pattern || '')}">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Conditional Execution -->
+                    <div class="mb-4 pb-4 border-b border-gray-700">
+                        <h5 class="text-xs font-semibold text-secondary uppercase tracking-wider mb-3">Conditional Execution (Run If)</h5>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                 <label class="block text-secondary text-xs mb-1">
+                                    Run Condition Variable
+                                    <span class="text-xs text-secondary ml-2 group relative cursor-help">
+                                        <i class="fas fa-info-circle"></i>
+                                        <span class="tooltip hidden absolute bottom-full left-0 bg-gray-800 text-xs p-2 rounded w-48 z-10 transition-opacity opacity-0 group-hover:opacity-100 pointer-events-none">
+                                            Variable to check (e.g. svc_status). If empty, step always runs.
+                                        </span>
+                                    </span>
+                                </label>
+                                <input type="text" class="step-run-if-variable input-field w-full px-2 py-1 rounded text-sm font-mono"
+                                    placeholder="e.g. svc_status" value="${escapeHtml(stepData?.run_if_variable || '')}">
+                            </div>
+                            <div>
+                                 <label class="block text-secondary text-xs mb-1">
+                                    Run Condition Value
+                                    <span class="text-xs text-secondary ml-2 group relative cursor-help">
+                                        <i class="fas fa-info-circle"></i>
+                                        <span class="tooltip hidden absolute bottom-full left-0 bg-gray-800 text-xs p-2 rounded w-48 z-10 transition-opacity opacity-0 group-hover:opacity-100 pointer-events-none">
+                                            Value required to execute (exact match or regex).
+                                        </span>
+                                    </span>
+                                </label>
+                                <input type="text" class="step-run-if-value input-field w-full px-2 py-1 rounded text-sm font-mono"
+                                    placeholder="e.g. active" value="${escapeHtml(stepData?.run_if_value || '')}">
                             </div>
                         </div>
                     </div>
@@ -1028,6 +1325,24 @@
             }
         }
 
+        // Auto-expand advanced settings if any values are present
+        const hasAdvancedValues = stepData?.output_variable ||
+            stepData?.output_extract_pattern ||
+            stepData?.run_if_variable ||
+            stepData?.run_if_value ||
+            stepData?.description ||
+            stepData?.rollback_command_linux ||
+            stepData?.rollback_command_windows ||
+            (stepData?.timeout_seconds && stepData.timeout_seconds !== 60) ||
+            (stepData?.retry_count && stepData.retry_count > 0) ||
+            stepData?.continue_on_fail ||
+            stepData?.requires_elevation;
+
+        if (hasAdvancedValues) {
+            // Expand the advanced section
+            setTimeout(() => toggleAdvancedSettings(stepId), 0);
+        }
+
         updateCounts();
     }
 
@@ -1085,6 +1400,20 @@
     function toggleStepAdvanced(stepId) {
         const advanced = document.getElementById(`${stepId}-advanced`);
         advanced.classList.toggle('show');
+    }
+
+    function toggleAdvancedSettings(stepId) {
+        const advanced = document.getElementById(`${stepId}-advanced`);
+        const icon = document.getElementById(`${stepId}-advanced-icon`);
+
+        // Toggle 'show' class to override CSS display:none
+        advanced.classList.toggle('show');
+
+        if (advanced.classList.contains('show')) {
+            icon.style.transform = 'rotate(90deg)';
+        } else {
+            icon.style.transform = 'rotate(0deg)';
+        }
     }
 
     function removeStep(stepId) {
@@ -1213,6 +1542,8 @@
                 expected_exit_code: parseInt(stepEl.querySelector('.step-exit-code')?.value) || 0,
                 output_variable: stepEl.querySelector('.step-output-variable')?.value || null,
                 output_extract_pattern: stepEl.querySelector('.step-output-pattern')?.value || null,
+                run_if_variable: stepEl.querySelector('.step-run-if-variable')?.value || null,
+                run_if_value: stepEl.querySelector('.step-run-if-value')?.value || null,
                 rollback_command_linux: stepEl.querySelector('.step-rollback-linux')?.value || null,
                 rollback_command_windows: stepEl.querySelector('.step-rollback-windows')?.value || null
             };
@@ -1517,6 +1848,137 @@
             setTimeout(() => toast.remove(), 3000);
         };
     }
+</script>
+
+<script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+
+    mermaid.initialize({
+        startOnLoad: false,
+        theme: 'dark',
+        securityLevel: 'loose',
+        flowchart: { curve: 'basis' }
+    });
+
+    window.updateWorkflowDiagram = async function () {
+        const element = document.getElementById('workflowGraph');
+        // Get current steps from data collection
+        const data = collectFormData();
+        const steps = data.steps;
+
+        if (!steps || steps.length === 0) {
+            element.innerHTML = '<div class="flex flex-col items-center text-gray-500"><i class="fas fa-list-ul text-4xl mb-2"></i><span>No steps defined</span></div>';
+            return;
+        }
+
+        // Build Mermaid syntax with conditional support
+        let mmd = 'graph TD\n';
+        mmd += '    Start((Start)):::start\n';
+
+        // Track the previous node to connect from
+        let prevNode = 'Start';
+
+        steps.forEach((step, index) => {
+            const safeName = (step.name || 'Untitled').replace(/["'\n]/g, '').substring(0, 30);
+            const stepNode = `Step${index}`;
+
+            // Check if this step has a condition
+            const hasCondition = step.run_if_variable && step.run_if_value;
+            const conditionNode = `Cond${index}`;
+
+            // Build node label with extra info
+            let label = safeName;
+
+            // Add icon
+            let icon = 'fa:fa-terminal';
+            if (step.step_type === 'api') icon = 'fa:fa-globe';
+            label = `${icon} ${label}`;
+
+            // Show Output Variable if set
+            if (step.output_variable) {
+                label += `<br/><small>➜ $${step.output_variable}</small>`;
+            }
+
+            // Determine style
+            let style = ':::cmd';
+            if (step.step_type === 'api') style = ':::api';
+
+            if (hasCondition) {
+                // Create a decision diamond for the condition
+                const condVar = step.run_if_variable;
+                const condVal = step.run_if_value.length > 10 ? step.run_if_value.substring(0, 10) + '...' : step.run_if_value;
+
+                mmd += '    ' + conditionNode + '{' + condVar + ' == ' + condVal + '?}:::condition\n';
+                mmd += '    ' + stepNode + '["' + label + '"]' + style + '\n';
+
+                // Connect previous node to condition
+                mmd += `    ${prevNode} --> ${conditionNode}\n`;
+
+                // Condition true: run the step
+                mmd += `    ${conditionNode} -->|Yes| ${stepNode}\n`;
+
+                // Condition false: skip to next step or end
+                if (index < steps.length - 1) {
+                    // Check if next step also has condition
+                    const nextStep = steps[index + 1];
+                    const nextHasCondition = nextStep.run_if_variable && nextStep.run_if_value;
+                    if (nextHasCondition) {
+                        mmd += `    ${conditionNode} -.->|No/Skip| Cond${index + 1}\n`;
+                    } else {
+                        mmd += `    ${conditionNode} -.->|No/Skip| Step${index + 1}\n`;
+                    }
+                } else {
+                    mmd += `    ${conditionNode} -.->|No/Skip| EndNode((End)):::finish\n`;
+                }
+
+                // Step continues to next
+                if (index < steps.length - 1) {
+                    const nextStep = steps[index + 1];
+                    const nextHasCondition = nextStep.run_if_variable && nextStep.run_if_value;
+                    if (nextHasCondition) {
+                        prevNode = stepNode; // Will connect to next condition
+                    } else {
+                        prevNode = stepNode; // Will connect directly to next step
+                    }
+                } else {
+                    mmd += `    ${stepNode} --> EndNode((End)):::finish\n`;
+                }
+
+                // Update prevNode for steps that complete
+                if (index < steps.length - 1) {
+                    // The step output connects to the next node
+                }
+                prevNode = stepNode;
+            } else {
+                // No condition - simple linear connection
+                mmd += `    ${stepNode}["${label}"]${style}\n`;
+                mmd += `    ${prevNode} --> ${stepNode}\n`;
+
+                if (index === steps.length - 1) {
+                    mmd += `    ${stepNode} --> EndNode((End)):::finish\n`;
+                }
+                prevNode = stepNode;
+            }
+        });
+
+        // Styles
+        mmd += `
+    classDef start fill:#10b981,stroke:#059669,color:white;
+    classDef finish fill:#ef4444,stroke:#dc2626,color:white;
+    classDef cmd fill:#3b82f6,stroke:#2563eb,color:white;
+    classDef api fill:#10b981,stroke:#059669,color:white;
+    classDef condition fill:#f59e0b,stroke:#d97706,color:white;
+        `;
+
+        try {
+            // Need unique ID for each render to avoid conflicts if re-rendering
+            const { svg } = await mermaid.render('workflowSvg-' + Date.now(), mmd);
+            element.innerHTML = svg;
+        } catch (e) {
+            console.error('Mermaid render error:', e, mmd);
+            element.innerHTML = '<div class="text-red-400 text-sm">Error rendering workflow. Check console for details.</div>';
+        }
+    };
 </script>
 {{ super() }}
 {% endblock %}

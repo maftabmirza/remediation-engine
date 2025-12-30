@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import logging
 
 from app.database import get_db, get_async_db
-from app.models import Alert, LLMProvider
+from app.models import Alert, LLMProvider, IncidentMetrics
 from app.schemas import AlertmanagerWebhook
 from app.services.rules_engine import find_matching_rule
 from app.services.llm_service import analyze_alert
@@ -215,6 +215,18 @@ async def receive_alertmanager_webhook(
             db.add(alert)
             db.commit()
             db.refresh(alert)
+            
+            # Create incident metrics
+            metric = IncidentMetrics(
+                alert_id=alert.id,
+                incident_started=timestamp,
+                incident_detected=timestamp,  # Same as started for now
+                service_name=job or labels.get("service") or labels.get("app"),
+                severity=severity
+            )
+            metric.calculate_durations()
+            db.add(metric)
+            db.commit()
             
             logger.info(f"Stored alert: {alert_name} (action: {action})")
             

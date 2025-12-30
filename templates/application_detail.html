@@ -1,46 +1,63 @@
 {% extends "layout.html" %}
 
 {% block content %}
-<div class="space-y-6">
-    <!-- Header -->
-    <div class="flex justify-between items-start">
-        <div class="flex items-center space-x-4">
-            <a href="/applications" class="text-gray-400 hover:text-white transition-colors">
-                <i class="fas fa-arrow-left text-xl"></i>
-            </a>
-            <div class="w-12 h-12 rounded-lg bg-gray-700 flex items-center justify-center text-gray-300 font-bold text-xl"
-                id="appIcon">
-                --
-            </div>
-            <div>
-                <h2 class="text-2xl font-bold text-white flex items-center gap-3">
-                    <span id="appDisplayName">Loading...</span>
-                    <!-- Criticality Badge -->
-                    <span id="appCriticalityBadge" class="text-xs px-2 py-0.5 rounded border hidden"></span>
-                </h2>
-                <div class="flex items-center space-x-4 text-sm text-gray-400 mt-1">
-                    <span class="font-mono" id="appName">...</span>
-                    <span>&bull;</span>
-                    <span id="appOwner">...</span>
+<div class="space-y-4">
+    <!-- Enterprise Standard Toolbar -->
+    <div class="dashboard-header"
+        style="padding: 12px; background: #16171b; border-bottom: 1px solid rgba(255,255,255,0.05); border-radius: 8px;">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <!-- Left: Icon + Breadcrumbs & Title -->
+            <div class="flex items-start gap-4 min-w-0">
+                <!-- Icon (Preserved ID) -->
+                <div class="w-10 h-10 rounded-lg bg-gray-700 flex-shrink-0 flex items-center justify-center text-gray-300 font-bold text-sm"
+                    id="appIcon">
+                    --
+                </div>
+
+                <div class="flex flex-col min-w-0">
+                    <!-- Breadcrumbs -->
+                    <nav class="flex items-center text-xs text-gray-400 mb-1">
+                        <a href="/" class="hover:text-blue-400 transition-colors">Home</a>
+                        <span class="mx-2">/</span>
+                        <a href="/applications" class="hover:text-blue-400 transition-colors">Applications</a>
+                        <span class="mx-2">/</span>
+                        <span class="text-gray-200">Details</span>
+                    </nav>
+
+                    <div class="flex items-center gap-3">
+                        <h1 class="text-xl font-bold text-white tracking-tight truncate">
+                            <span id="appDisplayName">Loading...</span>
+                        </h1>
+                        <!-- Criticality Badge (Preserved ID) -->
+                        <span id="appCriticalityBadge" class="text-xs px-2 py-0.5 rounded border hidden"></span>
+                    </div>
+
+                    <div class="flex items-center gap-2 text-xs text-gray-500 mt-1">
+                        <span class="font-mono" id="appName">...</span>
+                        <span>&bull;</span>
+                        <span id="appOwner">...</span>
+                    </div>
                 </div>
             </div>
-        </div>
-        <div class="flex space-x-2">
-            <button onclick="openComponentModal()"
-                class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors">
-                <i class="fas fa-cube"></i>
-                <span>Add Component</span>
-            </button>
-            <button onclick="openDependencyModal()"
-                class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors">
-                <i class="fas fa-link"></i>
-                <span>Add Dependency</span>
-            </button>
-            <button onclick="openEditAppModal()"
-                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors">
-                <i class="fas fa-edit"></i>
-                <span>Edit App</span>
-            </button>
+
+            <!-- Right: Actions -->
+            <div class="flex items-center gap-2">
+                <button onclick="openComponentModal()"
+                    class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1.5 rounded text-sm flex items-center gap-2 transition-colors">
+                    <i class="fas fa-cube"></i>
+                    Component
+                </button>
+                <button onclick="openDependencyModal()"
+                    class="bg-purple-600 hover:bg-purple-500 text-white px-3 py-1.5 rounded text-sm flex items-center gap-2 transition-colors">
+                    <i class="fas fa-link"></i>
+                    Dependency
+                </button>
+                <button onclick="openEditAppModal()"
+                    class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded text-sm flex items-center gap-2 transition-colors">
+                    <i class="fas fa-edit"></i>
+                    Edit
+                </button>
+            </div>
         </div>
     </div>
 
@@ -288,6 +305,7 @@
 {% endblock %}
 
 {% block scripts %}
+{{ super() }}
 <script type="module">
     import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
 

@@ -1,0 +1,704 @@
+{% extends "layout.html" %}
+{% set active_page = 'playlists' %}
+
+{% block title %}Playlists{% endblock %}
+
+{% block head %}
+<style>
+    .playlist-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .playlist-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .dashboard-item {
+        cursor: grab;
+        transition: background-color 0.2s;
+    }
+
+    .dashboard-item:hover {
+        background-color: rgba(59, 130, 246, 0.1);
+    }
+
+    .dashboard-item.dragging {
+        opacity: 0.5;
+    }
+
+    .badge {
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+
+    .badge-loop {
+        background-color: #10b981;
+        color: white;
+    }
+
+    .badge-once {
+        background-color: #6b7280;
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+    <!-- Enterprise Standard Toolbar -->
+    <div class="dashboard-header"
+        style="padding: 12px; background: #16171b; border-bottom: 1px solid rgba(255,255,255,0.05); border-radius: 8px;">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <!-- Left: Breadcrumbs & Title -->
+            <div class="flex flex-col min-w-0">
+                <!-- Breadcrumbs -->
+                <nav class="flex items-center text-xs text-gray-400 mb-1">
+                    <a href="/" class="hover:text-blue-400 transition-colors">Home</a>
+                    <span class="mx-2">/</span>
+                    <span class="text-gray-200">Playlists</span>
+                </nav>
+                <div class="flex items-center gap-3">
+                    <h1 class="text-xl font-bold text-white tracking-tight truncate">Playlists</h1>
+                </div>
+                <p class="text-xs text-gray-500 mt-1">Auto-rotate dashboards for TV mode</p>
+            </div>
+
+            <!-- Right: Actions -->
+            <div class="flex items-center gap-2">
+                <button onclick="showCreatePlaylistModal()"
+                    class="bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded text-white text-sm flex items-center gap-2 transition-colors">
+                    <i class="fas fa-plus"></i>
+                    New Playlist
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Playlists Table -->
+    <div class="card overflow-hidden">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="bg-[#181b1f] text-left text-[#8e8e8e]"
+                    style="border-bottom: 1px solid rgba(204, 204, 220, 0.07);">
+                    <th class="px-4 py-3 font-medium w-10"></th>
+                    <th class="px-4 py-3 font-medium">Name</th>
+                    <th class="px-4 py-3 font-medium">Mode</th>
+                    <th class="px-4 py-3 font-medium hidden md:table-cell">Interval</th>
+                    <th class="px-4 py-3 font-medium hidden md:table-cell">Dashboards</th>
+                    <th class="px-4 py-3 font-medium hidden lg:table-cell">Created</th>
+                    <th class="px-4 py-3 font-medium text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="playlists-tbody" class="text-[#ccccdc]">
+                <!-- Populated by JavaScript -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    <div id="pagination-container" class="flex items-center justify-between mt-4 text-sm">
+        <div class="text-[#8e8e8e]">
+            Showing <span id="showing-start">0</span>-<span id="showing-end">0</span> of <span id="total-count">0</span>
+            playlists
+        </div>
+        <div class="flex items-center gap-2">
+            <button onclick="goToPage(1)" id="first-page-btn" disabled class="px-3 py-1.5 rounded"
+                style="border: 1px solid rgba(204, 204, 220, 0.07); background: #181b1f; color: #ccccdc;">
+                <i class="fas fa-angle-double-left"></i>
+            </button>
+            <button onclick="goToPage(currentPage - 1)" id="prev-page-btn" disabled class="px-3 py-1.5 rounded"
+                style="border: 1px solid rgba(204, 204, 220, 0.07); background: #181b1f; color: #ccccdc;">
+                <i class="fas fa-angle-left"></i>
+            </button>
+            <span class="px-3 py-1.5 text-[#ccccdc]">Page <span id="current-page">1</span> of <span
+                    id="total-pages">1</span></span>
+            <button onclick="goToPage(currentPage + 1)" id="next-page-btn" disabled class="px-3 py-1.5 rounded"
+                style="border: 1px solid rgba(204, 204, 220, 0.07); background: #181b1f; color: #ccccdc;">
+                <i class="fas fa-angle-right"></i>
+            </button>
+            <button onclick="goToPage(totalPages)" id="last-page-btn" disabled class="px-3 py-1.5 rounded"
+                style="border: 1px solid rgba(204, 204, 220, 0.07); background: #181b1f; color: #ccccdc;">
+                <i class="fas fa-angle-double-right"></i>
+            </button>
+            <select id="page-size" onchange="changePageSize(this.value)" class="px-3 py-1.5 rounded"
+                style="border: 1px solid rgba(204, 204, 220, 0.07); background: #181b1f; color: #ccccdc;">
+                <option value="10">10 per page</option>
+                <option value="25" selected>25 per page</option>
+                <option value="50">50 per page</option>
+            </select>
+        </div>
+    </div>
+
+    <div id="no-playlists" class="hidden bg-[#181b1f] rounded p-8 text-center"
+        style="border: 1px solid rgba(204, 204, 220, 0.07);">
+        <i class="fas fa-play-circle text-4xl text-[#8e8e8e] mb-3"></i>
+        <p class="text-[#8e8e8e]">No playlists found. Create your first playlist to get started.</p>
+    </div>
+</div>
+
+<!-- Create/Edit Playlist Modal -->
+<div id="playlist-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-gray-800 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div class="flex justify-between items-center mb-4">
+            <h2 id="playlist-modal-title" class="text-xl font-bold text-white">New Playlist</h2>
+            <button onclick="closePlaylistModal()" class="text-gray-400 hover:text-white">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+
+        <form id="playlist-form" onsubmit="savePlaylist(event)">
+            <input type="hidden" id="playlist-id" value="">
+
+            <div class="mb-4">
+                <label class="block text-gray-300 mb-2">Name *</label>
+                <input type="text" id="playlist-name" required
+                    class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-gray-300 mb-2">Description</label>
+                <textarea id="playlist-description" rows="3"
+                    class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"></textarea>
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-gray-300 mb-2">Interval (seconds)</label>
+                <input type="number" id="playlist-interval" value="30" min="5" max="3600"
+                    class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                <p class="text-gray-500 text-xs mt-1">Time each dashboard is displayed</p>
+            </div>
+
+            <div class="mb-4">
+                <label class="flex items-center text-gray-300">
+                    <input type="checkbox" id="playlist-loop" checked class="mr-2">
+                    Loop continuously
+                </label>
+                <p class="text-gray-500 text-xs mt-1">If unchecked, playlist stops after one cycle</p>
+            </div>
+
+            <div class="flex gap-2 justify-end">
+                <button type="button" onclick="closePlaylistModal()"
+                    class="px-4 py-2 bg-gray-700 text-white rounded hover:bg-gray-600">
+                    Cancel
+                </button>
+                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                    Save
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Manage Playlist Items Modal -->
+<div id="items-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-gray-800 rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-bold text-white">Manage Dashboards</h2>
+            <button onclick="closeItemsModal()" class="text-gray-400 hover:text-white">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+            <!-- Available Dashboards -->
+            <div>
+                <h3 class="text-lg font-semibold text-white mb-3">Available Dashboards</h3>
+                <input type="text" id="search-available" placeholder="Search..." onkeyup="filterAvailableDashboards()"
+                    class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500 mb-3">
+                <div id="available-dashboards" class="space-y-2 max-h-96 overflow-y-auto">
+                    <!-- Populated by JavaScript -->
+                </div>
+            </div>
+
+            <!-- Playlist Items -->
+            <div>
+                <h3 class="text-lg font-semibold text-white mb-3">Playlist Dashboards (Drag to reorder)</h3>
+                <div id="playlist-items" class="space-y-2 max-h-96 overflow-y-auto">
+                    <!-- Populated by JavaScript -->
+                </div>
+                <div id="no-items" class="hidden text-gray-500 text-center py-8">
+                    No dashboards added. Add dashboards from the left panel.
+                </div>
+            </div>
+        </div>
+
+        <div class="flex justify-end mt-4">
+            <button onclick="closeItemsModal()" class="px-4 py-2 bg-gray-700 text-white rounded hover:bg-gray-600">
+                Close
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let playlists = [];
+    let allDashboards = [];
+    let currentPlaylistId = null;
+    let playlistItems = [];
+
+    // Load playlists on page load
+    document.addEventListener('DOMContentLoaded', () => {
+        loadPlaylists();
+        loadDashboards();
+    });
+
+    async function loadPlaylists() {
+        try {
+            const response = await fetch('/api/playlists');
+            playlists = await response.json();
+            renderPlaylists();
+        } catch (error) {
+            console.error('Error loading playlists:', error);
+            alert('Failed to load playlists');
+        }
+    }
+
+    async function loadDashboards() {
+        try {
+            const response = await fetch('/api/dashboards');
+            allDashboards = await response.json();
+        } catch (error) {
+            console.error('Error loading dashboards:', error);
+        }
+    }
+
+    // Pagination state
+    let currentPage = 1;
+    let pageSize = 25;
+    let totalPages = 1;
+
+    function formatDate(dateStr) {
+        if (!dateStr) return '-';
+        const date = new Date(dateStr);
+        return date.toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+        });
+    }
+
+    function renderPlaylists() {
+        const tbody = document.getElementById('playlists-tbody');
+        const noPlaylists = document.getElementById('no-playlists');
+        const paginationContainer = document.getElementById('pagination-container');
+        const tableContainer = tbody.closest('.card');
+
+        if (playlists.length === 0) {
+            tableContainer.classList.add('hidden');
+            paginationContainer.classList.add('hidden');
+            noPlaylists.classList.remove('hidden');
+            return;
+        }
+
+        tableContainer.classList.remove('hidden');
+        paginationContainer.classList.remove('hidden');
+        noPlaylists.classList.add('hidden');
+
+        // Calculate pagination
+        totalPages = Math.ceil(playlists.length / pageSize);
+        const start = (currentPage - 1) * pageSize;
+        const end = Math.min(start + pageSize, playlists.length);
+        const paginatedPlaylists = playlists.slice(start, end);
+
+        // Update pagination info
+        document.getElementById('showing-start').textContent = playlists.length > 0 ? start + 1 : 0;
+        document.getElementById('showing-end').textContent = end;
+        document.getElementById('total-count').textContent = playlists.length;
+        document.getElementById('current-page').textContent = currentPage;
+        document.getElementById('total-pages').textContent = totalPages;
+
+        // Update pagination buttons
+        document.getElementById('first-page-btn').disabled = currentPage <= 1;
+        document.getElementById('prev-page-btn').disabled = currentPage <= 1;
+        document.getElementById('next-page-btn').disabled = currentPage >= totalPages;
+        document.getElementById('last-page-btn').disabled = currentPage >= totalPages;
+
+        // Render table rows
+        tbody.innerHTML = paginatedPlaylists.map(playlist => {
+            return `
+            <tr class="hover:bg-[rgba(204,204,220,0.04)] transition-colors" style="border-bottom: 1px solid rgba(204, 204, 220, 0.07);">
+                <td class="px-4 py-3">
+                    <i class="fas fa-play-circle" style="color: #6e9fff;"></i>
+                </td>
+                <td class="px-4 py-3">
+                    <div class="font-medium text-white">${playlist.name}</div>
+                    ${playlist.description ? `<div class="text-xs text-[#8e8e8e] mt-0.5 truncate max-w-xs">${playlist.description}</div>` : ''}
+                </td>
+                <td class="px-4 py-3">
+                    <span class="badge" style="background-color: ${playlist.loop ? '#1a7f4b' : '#6b7280'}; color: white; padding: 2px 8px; border-radius: 2px; font-size: 0.75rem;">
+                        ${playlist.loop ? 'LOOP' : 'ONCE'}
+                    </span>
+                </td>
+                <td class="px-4 py-3 text-[#8e8e8e] hidden md:table-cell">
+                    ${playlist.interval}s
+                </td>
+                <td class="px-4 py-3 text-[#8e8e8e] hidden md:table-cell">
+                    ${playlist.item_count || 0}
+                </td>
+                <td class="px-4 py-3 text-[#8e8e8e] text-xs hidden lg:table-cell">
+                    ${formatDate(playlist.created_at)}
+                </td>
+                <td class="px-4 py-3 text-right">
+                    <div class="flex justify-end gap-1">
+                        <button onclick="playPlaylist('${playlist.id}')" 
+                            class="p-1.5 hover:bg-[#22252b] rounded transition-colors ${playlist.item_count === 0 ? 'opacity-50 cursor-not-allowed' : ''}" 
+                            style="color: #1a7f4b;"
+                            title="Play"
+                            ${playlist.item_count === 0 ? 'disabled' : ''}>
+                            <i class="fas fa-play"></i>
+                        </button>
+                        <button onclick="manageItems('${playlist.id}')" 
+                            class="p-1.5 hover:bg-[#22252b] rounded transition-colors" 
+                            style="color: #b877d9;"
+                            title="Manage Dashboards">
+                            <i class="fas fa-list"></i>
+                        </button>
+                        <button onclick="editPlaylist('${playlist.id}')" 
+                            class="p-1.5 hover:bg-[#22252b] rounded transition-colors" 
+                            style="color: #6e9fff;"
+                            title="Edit">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button onclick="deletePlaylist('${playlist.id}')" 
+                            class="p-1.5 hover:bg-[#22252b] rounded transition-colors" 
+                            style="color: #ff5286;"
+                            title="Delete">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+        }).join('');
+    }
+
+    function goToPage(page) {
+        if (page < 1 || page > totalPages) return;
+        currentPage = page;
+        renderPlaylists();
+    }
+
+    function changePageSize(size) {
+        pageSize = parseInt(size);
+        currentPage = 1;
+        renderPlaylists();
+    }
+
+    function showCreatePlaylistModal() {
+        document.getElementById('playlist-modal-title').textContent = 'New Playlist';
+        document.getElementById('playlist-form').reset();
+        document.getElementById('playlist-id').value = '';
+        document.getElementById('playlist-loop').checked = true;
+        document.getElementById('playlist-interval').value = '30';
+        document.getElementById('playlist-modal').classList.remove('hidden');
+    }
+
+    function closePlaylistModal() {
+        document.getElementById('playlist-modal').classList.add('hidden');
+    }
+
+    async function savePlaylist(event) {
+        event.preventDefault();
+
+        const playlistId = document.getElementById('playlist-id').value;
+        const data = {
+            name: document.getElementById('playlist-name').value,
+            description: document.getElementById('playlist-description').value || null,
+            interval: parseInt(document.getElementById('playlist-interval').value),
+            loop: document.getElementById('playlist-loop').checked
+        };
+
+        try {
+            let response;
+            if (playlistId) {
+                // Update existing playlist
+                response = await fetch(`/api/playlists/${playlistId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+            } else {
+                // Create new playlist
+                response = await fetch('/api/playlists', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+            }
+
+            if (response.ok) {
+                closePlaylistModal();
+                await loadPlaylists();
+            } else {
+                const error = await response.json();
+                alert(`Error: ${error.detail || 'Failed to save playlist'}`);
+            }
+        } catch (error) {
+            console.error('Error saving playlist:', error);
+            alert('Failed to save playlist');
+        }
+    }
+
+    async function editPlaylist(playlistId) {
+        try {
+            const response = await fetch(`/api/playlists/${playlistId}`);
+            const playlist = await response.json();
+
+            document.getElementById('playlist-modal-title').textContent = 'Edit Playlist';
+            document.getElementById('playlist-id').value = playlist.id;
+            document.getElementById('playlist-name').value = playlist.name;
+            document.getElementById('playlist-description').value = playlist.description || '';
+            document.getElementById('playlist-interval').value = playlist.interval;
+            document.getElementById('playlist-loop').checked = playlist.loop;
+            document.getElementById('playlist-modal').classList.remove('hidden');
+        } catch (error) {
+            console.error('Error loading playlist:', error);
+            alert('Failed to load playlist');
+        }
+    }
+
+    async function deletePlaylist(playlistId) {
+        if (!confirm('Are you sure you want to delete this playlist?')) return;
+
+        try {
+            const response = await fetch(`/api/playlists/${playlistId}`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                await loadPlaylists();
+            } else {
+                alert('Failed to delete playlist');
+            }
+        } catch (error) {
+            console.error('Error deleting playlist:', error);
+            alert('Failed to delete playlist');
+        }
+    }
+
+    async function manageItems(playlistId) {
+        currentPlaylistId = playlistId;
+
+        try {
+            const response = await fetch(`/api/playlists/${playlistId}`);
+            const playlist = await response.json();
+            playlistItems = playlist.items || [];
+
+            renderAvailableDashboards();
+            renderPlaylistItems();
+
+            document.getElementById('items-modal').classList.remove('hidden');
+        } catch (error) {
+            console.error('Error loading playlist items:', error);
+            alert('Failed to load playlist items');
+        }
+    }
+
+    function closeItemsModal() {
+        document.getElementById('items-modal').classList.add('hidden');
+        currentPlaylistId = null;
+    }
+
+    function renderAvailableDashboards() {
+        const container = document.getElementById('available-dashboards');
+
+        // Filter out dashboards already in playlist
+        const playlistDashboardIds = playlistItems.map(item => item.dashboard_id);
+        const available = allDashboards.filter(d => !playlistDashboardIds.includes(d.id));
+
+        container.innerHTML = available.map(dashboard => `
+        <div class="dashboard-item bg-gray-700 p-3 rounded border border-gray-600 flex justify-between items-center">
+            <div>
+                <div class="text-white font-medium">${dashboard.name}</div>
+                ${dashboard.description ? `<div class="text-gray-400 text-xs">${dashboard.description}</div>` : ''}
+            </div>
+            <button onclick="addDashboardToPlaylist('${dashboard.id}')"
+                class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm">
+                <i class="fas fa-plus"></i>
+            </button>
+        </div>
+    `).join('');
+
+        if (available.length === 0) {
+            container.innerHTML = '<div class="text-gray-500 text-center py-4">All dashboards added or no dashboards available</div>';
+        }
+    }
+
+    function renderPlaylistItems() {
+        const container = document.getElementById('playlist-items');
+        const noItems = document.getElementById('no-items');
+
+        if (playlistItems.length === 0) {
+            container.classList.add('hidden');
+            noItems.classList.remove('hidden');
+            return;
+        }
+
+        container.classList.remove('hidden');
+        noItems.classList.add('hidden');
+
+        // Sort by order
+        playlistItems.sort((a, b) => a.order - b.order);
+
+        container.innerHTML = playlistItems.map((item, index) => `
+        <div class="dashboard-item bg-gray-700 p-3 rounded border border-gray-600 flex items-center gap-2"
+             draggable="true" data-item-id="${item.id}" data-order="${item.order}">
+            <div class="cursor-grab text-gray-500">
+                <i class="fas fa-grip-vertical"></i>
+            </div>
+            <div class="flex-1">
+                <div class="text-white font-medium">${item.dashboard_name}</div>
+                <div class="text-gray-400 text-xs">Order: ${index + 1}</div>
+            </div>
+            <button onclick="removeDashboardFromPlaylist('${item.id}')"
+                class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    `).join('');
+
+        // Add drag and drop handlers
+        setupDragAndDrop();
+    }
+
+    function filterAvailableDashboards() {
+        const search = document.getElementById('search-available').value.toLowerCase();
+        const items = document.querySelectorAll('#available-dashboards .dashboard-item');
+
+        items.forEach(item => {
+            const text = item.textContent.toLowerCase();
+            item.style.display = text.includes(search) ? 'flex' : 'none';
+        });
+    }
+
+    async function addDashboardToPlaylist(dashboardId) {
+        try {
+            const maxOrder = playlistItems.length > 0
+                ? Math.max(...playlistItems.map(i => i.order))
+                : -1;
+
+            const response = await fetch(`/api/playlists/${currentPlaylistId}/items`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    dashboard_id: dashboardId,
+                    order: maxOrder + 1
+                })
+            });
+
+            if (response.ok) {
+                const newItem = await response.json();
+                playlistItems.push(newItem);
+                renderAvailableDashboards();
+                renderPlaylistItems();
+                await loadPlaylists(); // Refresh playlist counts
+            } else {
+                alert('Failed to add dashboard');
+            }
+        } catch (error) {
+            console.error('Error adding dashboard:', error);
+            alert('Failed to add dashboard');
+        }
+    }
+
+    async function removeDashboardFromPlaylist(itemId) {
+        try {
+            const response = await fetch(`/api/playlists/${currentPlaylistId}/items/${itemId}`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                playlistItems = playlistItems.filter(i => i.id !== itemId);
+                renderAvailableDashboards();
+                renderPlaylistItems();
+                await loadPlaylists(); // Refresh playlist counts
+            } else {
+                alert('Failed to remove dashboard');
+            }
+        } catch (error) {
+            console.error('Error removing dashboard:', error);
+            alert('Failed to remove dashboard');
+        }
+    }
+
+    function setupDragAndDrop() {
+        const items = document.querySelectorAll('#playlist-items .dashboard-item');
+
+        items.forEach(item => {
+            item.addEventListener('dragstart', handleDragStart);
+            item.addEventListener('dragover', handleDragOver);
+            item.addEventListener('drop', handleDrop);
+            item.addEventListener('dragend', handleDragEnd);
+        });
+    }
+
+    let draggedItem = null;
+
+    function handleDragStart(e) {
+        draggedItem = this;
+        this.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+    }
+
+    function handleDragOver(e) {
+        if (e.preventDefault) {
+            e.preventDefault();
+        }
+        e.dataTransfer.dropEffect = 'move';
+        return false;
+    }
+
+    function handleDrop(e) {
+        if (e.stopPropagation) {
+            e.stopPropagation();
+        }
+
+        if (draggedItem !== this) {
+            const allItems = Array.from(document.querySelectorAll('#playlist-items .dashboard-item'));
+            const draggedIndex = allItems.indexOf(draggedItem);
+            const targetIndex = allItems.indexOf(this);
+
+            if (draggedIndex < targetIndex) {
+                this.parentNode.insertBefore(draggedItem, this.nextSibling);
+            } else {
+                this.parentNode.insertBefore(draggedItem, this);
+            }
+
+            updateItemOrder();
+        }
+
+        return false;
+    }
+
+    function handleDragEnd() {
+        this.classList.remove('dragging');
+    }
+
+    async function updateItemOrder() {
+        const items = document.querySelectorAll('#playlist-items .dashboard-item');
+
+        // Update order in playlistItems array
+        items.forEach((item, index) => {
+            const itemId = item.dataset.itemId;
+            const playlistItem = playlistItems.find(i => i.id === itemId);
+            if (playlistItem) {
+                playlistItem.order = index;
+            }
+        });
+
+        // Re-render to show updated order numbers
+        renderPlaylistItems();
+
+        // Note: For a production app, you'd want to persist this order to the backend
+        // For now, the order is only persisted when items are added
+    }
+
+    function playPlaylist(playlistId) {
+        // Open playlist player in new window/tab
+        window.open(`/playlists/${playlistId}/play`, '_blank');
+    }
+</script>
+{% endblock %}

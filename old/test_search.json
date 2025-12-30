@@ -1,0 +1,5 @@
+{
+    "query": "reverse proxy failure",
+    "limit": 10,
+    "min_similarity": 0.5
+}

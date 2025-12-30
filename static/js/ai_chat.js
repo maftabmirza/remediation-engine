@@ -6,7 +6,7 @@
 // Global state
 let chatSocket = null;
 let terminalSocket = null;
-let currentSessionId = null;
+var currentSessionId = null;
 let currentSession = null;
 let term = null;
 let fitAddon = null;
@@ -145,7 +145,15 @@ async function initChatSession() {
         }
 
         updateModelSelector();
-        await loadMessageHistory(currentSession.id);
+
+        // Skip loading history if in General Inquiry mode to prevent overwriting
+        if (typeof currentChatMode !== 'undefined' && currentChatMode === 'general') {
+            console.log('Skipping troubleshoot history load (Inquiry Mode active)');
+            // Still connect WebSocket for status updates if needed, checking logic inside connectChatWebSocket
+        } else {
+            await loadMessageHistory(currentSession.id);
+        }
+
         connectChatWebSocket(currentSession.id);
     } catch (error) {
         console.error('Chat init failed:', error);
@@ -155,32 +163,59 @@ async function initChatSession() {
 
 async function loadAvailableProviders() {
     try {
+        // Show connecting status
+        if (typeof updateModelStatusIcon === 'function') {
+            updateModelStatusIcon('connecting');
+        }
+
         const response = await apiCall('/api/chat/providers');
         if (!response.ok) throw new Error('Failed to load providers');
         availableProviders = await response.json();
-        const selector = document.getElementById('modelSelector');
-        if (availableProviders.length === 0) {
-            selector.innerHTML = '<option value="">No providers configured</option>';
-            return;
+
+        // Use new dropdown if available, fallback to legacy select
+        if (typeof populateModelDropdown === 'function') {
+            populateModelDropdown(availableProviders);
+        } else {
+            // Legacy select element fallback
+            const selector = document.getElementById('modelSelector');
+            if (selector) {
+                if (availableProviders.length === 0) {
+                    selector.innerHTML = '<option value="">No providers configured</option>';
+                } else {
+                    selector.innerHTML = availableProviders.map(p =>
+                        `<option value="${p.id}">${p.provider_name}${p.is_default ? ' ⭐' : ''}</option>`
+                    ).join('');
+                }
+            }
         }
-        selector.innerHTML = availableProviders.map(p =>
-            `<option value="${p.id}">${p.provider_name}${p.is_default ? ' ⭐' : ''}</option>`
-        ).join('');
     } catch (error) {
         console.error('Failed to load providers:', error);
-        const selector = document.getElementById('modelSelector');
-        selector.innerHTML = '<option value="">Error loading models</option>';
+        if (typeof updateModelStatusIcon === 'function') {
+            updateModelStatusIcon('disconnected');
+        }
     }
 }
 
 function updateModelSelector() {
-    const selector = document.getElementById('modelSelector');
+    // Set selected model ID for new dropdown
     if (currentSession && currentSession.llm_provider_id) {
-        selector.value = currentSession.llm_provider_id;
+        if (typeof selectedModelId !== 'undefined') {
+            selectedModelId = currentSession.llm_provider_id;
+        }
+        // Update tooltip with model name
+        const provider = availableProviders.find(p => p.id === currentSession.llm_provider_id);
+        if (provider) {
+            const btn = document.getElementById('modelIconBtn');
+            if (btn) btn.title = `LLM: ${provider.provider_name}`;
+        }
     } else {
         const defaultProvider = availableProviders.find(p => p.is_default);
         if (defaultProvider) {
-            selector.value = defaultProvider.id;
+            if (typeof selectedModelId !== 'undefined') {
+                selectedModelId = defaultProvider.id;
+            }
+            const btn = document.getElementById('modelIconBtn');
+            if (btn) btn.title = `LLM: ${defaultProvider.provider_name}`;
         }
     }
 }
@@ -225,7 +260,7 @@ async function loadMessageHistory(sessionId) {
                 const hasCodeBlock = msg.content.includes('```') || msg.content.includes('[TERMINAL') || msg.content.includes('[ERROR') || msg.content.includes('[SYSTEM');
                 wrapper.className = hasCodeBlock ? 'flex justify-start w-full pr-2 mb-3' : 'flex justify-end mb-3';
                 wrapper.innerHTML = `
-                    <div class="bg-gray-700/80 border border-purple-500/30 rounded-lg p-3 ${hasCodeBlock ? 'w-full' : 'max-w-xs lg:max-w-md'} text-sm text-white shadow-md" style="word-break: break-word;">
+                    <div class="bg-gray-700/80 border border-gray-700 rounded-lg p-3 ${hasCodeBlock ? 'w-full' : 'max-w-xs lg:max-w-md'} text-sm text-white shadow-md" style="word-break: break-word;">
                         <div class="user-message-content ${hasCodeBlock ? 'overflow-x-auto max-h-80 overflow-y-auto' : ''}">
                             ${hasCodeBlock ? marked.parse(msg.content) : escapeHtml(msg.content)}
                         </div>
@@ -244,7 +279,7 @@ async function loadMessageHistory(sessionId) {
                             </div>
                             <span class="text-xs text-gray-400">AI Assistant</span>
                         </div>
-                        <div class="bg-gray-800/80 rounded-lg p-4 border border-purple-500/20 text-sm ai-message-content shadow-lg">
+                        <div class="bg-gray-800/80 rounded-lg p-4 border border-gray-700 text-sm ai-message-content shadow-lg">
                             ${marked.parse(msg.content)}
                         </div>
                     </div>
@@ -302,8 +337,9 @@ function connectChatWebSocket(sessionId) {
     }
     chatSocket = new WebSocket(`${protocol}//${window.location.host}/ws/chat/${sessionId}?token=${token}`);
     chatSocket.onopen = () => {
-        document.getElementById('chatStatus').textContent = 'Connected';
-        document.getElementById('chatStatus').className = 'text-xs text-green-400';
+        if (typeof updateModelStatusIcon === 'function') {
+            updateModelStatusIcon('connected');
+        }
     };
     chatSocket.onmessage = (event) => {
         const msg = event.data;
@@ -311,19 +347,21 @@ function connectChatWebSocket(sessionId) {
         appendAIMessage(msg);
     };
     chatSocket.onclose = () => {
-        document.getElementById('chatStatus').textContent = 'Disconnected';
-        document.getElementById('chatStatus').className = 'text-xs text-red-400';
+        if (typeof updateModelStatusIcon === 'function') {
+            updateModelStatusIcon('disconnected');
+        }
         setTimeout(() => {
             if (currentSessionId) {
-                document.getElementById('chatStatus').textContent = 'Reconnecting...';
-                document.getElementById('chatStatus').className = 'text-xs text-yellow-400';
+                if (typeof updateModelStatusIcon === 'function') {
+                    updateModelStatusIcon('connecting');
+                }
                 connectChatWebSocket(currentSessionId);
             }
         }, 3000);
     };
 }
 
-function appendAIMessage(text) {
+function appendAIMessage(text, skipRunButtons = false) {
     removeTypingIndicator();
     const container = document.getElementById('chatMessages');
     if (lastMessageRole !== 'assistant' || !currentMessageDiv) {
@@ -337,7 +375,7 @@ function appendAIMessage(text) {
                     </div>
                     <span class="text-xs text-gray-400">AI Assistant</span>
                 </div>
-                <div class="bg-gray-800/80 rounded-lg p-4 border border-purple-500/20 text-sm ai-message-content shadow-lg" data-full-text=""></div>
+                <div class="bg-gray-800/80 rounded-lg p-4 border border-gray-700 text-sm ai-message-content shadow-lg" data-full-text=""></div>
             </div>
         `;
         container.appendChild(wrapper);
@@ -352,7 +390,10 @@ function appendAIMessage(text) {
     const newText = currentText + text;
     currentMessageDiv.setAttribute('data-full-text', newText);
     currentMessageDiv.innerHTML = marked.parse(newText);
-    addRunButtons(currentMessageDiv);
+    // Skip adding "Run in Terminal" buttons for inquiry mode responses
+    if (!skipRunButtons) {
+        addRunButtons(currentMessageDiv);
+    }
     container.scrollTop = container.scrollHeight;
 }
 
@@ -361,7 +402,7 @@ function appendUserMessage(text) {
     const wrapper = document.createElement('div');
     wrapper.className = 'flex justify-end';
     wrapper.innerHTML = `
-        <div class="bg-gray-700/80 border border-purple-500/30 rounded-lg p-3 max-w-xs lg:max-w-md text-sm text-white shadow-md">
+        <div class="bg-gray-700/80 border border-gray-700 rounded-lg p-3 max-w-xs lg:max-w-md text-sm text-white shadow-md">
             ${text}
         </div>
     `;
@@ -393,9 +434,34 @@ function sendMessage(e) {
     }
     const input = document.getElementById('chatInput');
     const text = input.value.trim();
-    if (!text || !chatSocket) return;
+    if (!text) return;
+
+    // Check which mode we're in (defined in ai_chat.html)
+    const chatMode = typeof currentChatMode !== 'undefined' ? currentChatMode : 'troubleshoot';
+
     appendUserMessage(escapeHtml(text));
     showTypingIndicator();
+
+    if (chatMode === 'general') {
+        // General Inquiry mode: Use observability API
+        // The handleObservabilityQuery function is defined in ai_chat.html
+        if (typeof handleObservabilityQuery === 'function') {
+            handleObservabilityQuery(text);
+        } else {
+            removeTypingIndicator();
+            appendAIMessage('Error: Observability query handler not available.');
+        }
+        input.value = '';
+        return;
+    }
+
+    // Troubleshooting mode: Use WebSocket chat (original behavior)
+    if (!chatSocket) {
+        removeTypingIndicator();
+        appendAIMessage('Chat not connected. Please refresh the page.');
+        return;
+    }
+
     const termContent = getTerminalContent();
     let finalMessage = text;
     if (termContent) {

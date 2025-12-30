@@ -27,6 +27,7 @@ class ContextStatusResponse(BaseModel):
 class ChatSessionCreate(BaseModel):
     alert_id: Optional[UUID] = None
     llm_provider_id: Optional[UUID] = None
+    title: Optional[str] = None
 
 class ChatSessionResponse(BaseModel):
     id: UUID
@@ -45,6 +46,32 @@ class ChatMessageResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class ChatSessionListItem(BaseModel):
+    id: UUID
+    title: Optional[str] = None
+    created_at: datetime
+    message_count: int
+
+@router.get("/sessions", response_model=List[ChatSessionListItem])
+async def list_chat_sessions(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """List all chat sessions for the current user"""
+    sessions = db.query(ChatSession).filter(
+        ChatSession.user_id == current_user.id
+    ).order_by(ChatSession.updated_at.desc()).all()
+    
+    return [
+        ChatSessionListItem(
+            id=s.id,
+            title=s.title or "Untitled Session",
+            created_at=s.created_at,
+            message_count=len(s.messages)
+        )
+        for s in sessions
+    ]
+
 @router.post("/sessions", response_model=ChatSessionResponse)
 async def create_session(
     data: ChatSessionCreate,
@@ -52,13 +79,14 @@ async def create_session(
     db: Session = Depends(get_db)
 ):
     """Create a new chat session, optionally linked to an alert"""
-    title = "AI Chat"
+    title = data.title or "AI Chat"
     
     if data.alert_id:
         alert = db.query(Alert).filter(Alert.id == data.alert_id).first()
         if not alert:
             raise HTTPException(status_code=404, detail="Alert not found")
-        title = f"Chat about {alert.alert_name}"
+        if not data.title:
+            title = f"Chat about {alert.alert_name}"
         
     session = ChatSession(
         user_id=current_user.id,
@@ -67,6 +95,33 @@ async def create_session(
         title=title
     )
     db.add(session)
+    db.commit()
+    db.refresh(session)
+    return session
+
+class UpdateSessionRequest(BaseModel):
+    title: Optional[str] = None
+
+@router.patch("/sessions/{session_id}")
+async def update_session(
+    session_id: UUID,
+    data: UpdateSessionRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Update a chat session (e.g. title)"""
+    session = db.query(ChatSession).filter(
+        ChatSession.id == session_id,
+        ChatSession.user_id == current_user.id
+    ).first()
+
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    if data.title is not None:
+        session.title = data.title
+        session.updated_at = datetime.utcnow()
+
     db.commit()
     db.refresh(session)
     return session

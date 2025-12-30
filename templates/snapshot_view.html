@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Snapshot - AIOps Platform</title>
+    <!-- ECharts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- GridStack CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gridstack@8.4.0/dist/gridstack.min.css">
+    <!-- GridStack JS -->
+    <script src="https://cdn.jsdelivr.net/npm/gridstack@8.4.0/dist/gridstack-all.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: rgba(30, 30, 60, 0.8);
+            border-bottom: 1px solid rgba(100, 100, 180, 0.2);
+            padding: 1rem 2rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            background: linear-gradient(135deg, #818cf8 0%, #c084fc 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .snapshot-info {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            color: #9ca3af;
+            font-size: 0.875rem;
+        }
+
+        .snapshot-badge {
+            background: rgba(99, 102, 241, 0.2);
+            color: #a5b4fc;
+            padding: 0.25rem 0.75rem;
+            border-radius: 1rem;
+            font-size: 0.75rem;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .panels-container {
+            margin-top: 1rem;
+        }
+
+        .grid-stack {
+            background: transparent;
+        }
+
+        .grid-stack-item-content {
+            background: linear-gradient(180deg, rgba(30, 30, 60, 0.9) 0%, rgba(20, 20, 40, 0.95) 100%);
+            border: 1px solid rgba(100, 100, 180, 0.3);
+            border-radius: 0.75rem;
+            overflow: hidden;
+        }
+
+        .panel-header {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid rgba(100, 100, 180, 0.2);
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .panel-header h3 {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #e0e0e0;
+        }
+
+        .panel-content {
+            padding: 0.5rem;
+            height: calc(100% - 50px);
+        }
+
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            font-size: 1.25rem;
+            color: #9ca3af;
+        }
+
+        .error {
+            text-align: center;
+            padding: 4rem;
+        }
+
+        .error i {
+            font-size: 4rem;
+            color: #ef4444;
+            margin-bottom: 1rem;
+        }
+
+        .error h2 {
+            color: #e0e0e0;
+            margin-bottom: 0.5rem;
+        }
+
+        .error p {
+            color: #9ca3af;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="loading" class="loading">
+        <i class="fas fa-spinner fa-spin mr-2"></i> Loading snapshot...
+    </div>
+
+    <div id="content" style="display: none;">
+        <header class="header">
+            <div class="header-content">
+                <h1 id="dashboard-name">Dashboard Snapshot</h1>
+                <div class="snapshot-info">
+                    <span class="snapshot-badge"><i class="fas fa-camera mr-1"></i> Snapshot</span>
+                    <span id="snapshot-date"></span>
+                </div>
+            </div>
+        </header>
+
+        <div class="container">
+            <div class="panels-container">
+                <div id="grid-stack" class="grid-stack"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="error" class="error" style="display: none;">
+        <i class="fas fa-exclamation-triangle"></i>
+        <h2>Snapshot Not Found</h2>
+        <p id="error-message">The requested snapshot could not be found or has expired.</p>
+    </div>
+
+    <script>
+        const snapshotKey = '{{ snapshot_key }}';
+        let grid = null;
+        let charts = {};
+
+        document.addEventListener('DOMContentLoaded', loadSnapshot);
+
+        async function loadSnapshot() {
+            try {
+                const response = await fetch(`/api/snapshots/${snapshotKey}`);
+
+                if (!response.ok) {
+                    throw new Error(response.status === 404 ? 'Snapshot not found' :
+                        response.status === 410 ? 'Snapshot has expired' : 'Failed to load snapshot');
+                }
+
+                const snapshot = await response.json();
+                renderSnapshot(snapshot);
+            } catch (error) {
+                console.error('Error loading snapshot:', error);
+                showError(error.message);
+            }
+        }
+
+        function showError(message) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('error').style.display = 'block';
+            document.getElementById('error-message').textContent = message;
+        }
+
+        function renderSnapshot(snapshot) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('content').style.display = 'block';
+
+            const data = snapshot.data;
+            document.getElementById('dashboard-name').textContent = data.dashboard.name;
+            document.getElementById('snapshot-date').textContent =
+                `Created: ${new Date(snapshot.created_at).toLocaleString()}`;
+
+            // Initialize GridStack
+            grid = GridStack.init({
+                cellHeight: 80,
+                margin: 10,
+                disableDrag: true,
+                disableResize: true,
+                staticGrid: true
+            });
+
+            // Render panels
+            data.panels.forEach((panelData, index) => {
+                const panel = panelData.panel;
+                const pos = panelData.position;
+                const panelId = `panel-${index}`;
+
+                const html = `
+                    <div class="grid-stack-item-content">
+                        <div class="panel-header">
+                            <h3>${escapeHtml(panel.name)}</h3>
+                        </div>
+                        <div class="panel-content">
+                            <div id="chart-${panelId}" style="width: 100%; height: 100%;"></div>
+                        </div>
+                    </div>
+                `;
+
+                grid.addWidget({
+                    x: pos.grid_x,
+                    y: pos.grid_y,
+                    w: pos.grid_width,
+                    h: pos.grid_height,
+                    content: html,
+                    id: panelId
+                });
+
+                // Initialize chart after a brief delay
+                setTimeout(() => {
+                    initChart(panelId, panel);
+                }, 100);
+            });
+        }
+
+        async function initChart(panelId, panel) {
+            const chartDom = document.getElementById(`chart-${panelId}`);
+            if (!chartDom) return;
+
+            const chart = echarts.init(chartDom, 'dark');
+            charts[panelId] = chart;
+
+            // Show loading state
+            chart.showLoading({
+                text: 'Loading...',
+                color: '#818cf8',
+                textColor: '#9ca3af',
+                maskColor: 'rgba(0, 0, 0, 0.3)'
+            });
+
+            try {
+                // Fetch live data from the snapshots query API
+                const response = await fetch(`/api/snapshots/query/data?promql_query=${encodeURIComponent(panel.promql_query)}&time_range=${panel.time_range || '1h'}`);
+
+                if (!response.ok) {
+                    throw new Error('Failed to load data');
+                }
+
+                const data = await response.json();
+                chart.hideLoading();
+
+                if (data.data && data.data.length > 0) {
+                    renderChart(chart, data.data, panel);
+                } else {
+                    showNoData(chart, panel);
+                }
+            } catch (error) {
+                chart.hideLoading();
+                showNoData(chart, panel);
+            }
+
+            // Handle resize
+            window.addEventListener('resize', () => chart.resize());
+        }
+
+        function renderChart(chart, data, panel) {
+            const colors = ['#818cf8', '#34d399', '#f472b6', '#fbbf24', '#60a5fa'];
+            const series = [];
+
+            data.forEach((metric, index) => {
+                if (metric.values && metric.values.length > 0) {
+                    series.push({
+                        name: getMetricLabel(metric.metric),
+                        type: 'line',
+                        smooth: true,
+                        symbol: 'none',
+                        sampling: 'lttb',
+                        lineStyle: { width: 2 },
+                        areaStyle: { opacity: 0.1 },
+                        data: metric.values.map(v => [v[0] * 1000, parseFloat(v[1])])
+                    });
+                }
+            });
+
+            chart.setOption({
+                backgroundColor: 'transparent',
+                color: colors,
+                grid: { left: 60, right: 20, top: 30, bottom: 30 },
+                tooltip: {
+                    trigger: 'axis',
+                    backgroundColor: 'rgba(20, 20, 40, 0.95)',
+                    borderColor: 'rgba(100, 100, 180, 0.3)'
+                },
+                xAxis: {
+                    type: 'time',
+                    axisLine: { lineStyle: { color: '#444' } },
+                    axisLabel: { color: '#888' },
+                    splitLine: { show: false }
+                },
+                yAxis: {
+                    type: 'value',
+                    axisLine: { show: false },
+                    axisLabel: { color: '#888' },
+                    splitLine: { lineStyle: { color: '#333' } }
+                },
+                series: series
+            }, true);
+        }
+
+        function showNoData(chart, panel) {
+            chart.setOption({
+                backgroundColor: 'transparent',
+                title: {
+                    text: 'No Data Available',
+                    subtext: panel.promql_query,
+                    left: 'center',
+                    top: 'center',
+                    textStyle: { color: '#9ca3af', fontSize: 14 },
+                    subtextStyle: { color: '#6b7280', fontSize: 10 }
+                }
+            });
+        }
+
+        function getMetricLabel(metric) {
+            if (!metric) return 'Value';
+            return metric.instance || metric.job || Object.values(metric)[0] || 'Value';
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+
+</html>

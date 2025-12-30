@@ -17,11 +17,13 @@ from app.models import User, LLMProvider
 import app.models_application  # noqa: F401
 import app.models_knowledge  # noqa: F401
 import app.models_learning  # noqa: F401 - Phase 3: Learning System
+import app.models_dashboards  # noqa: F401 - Prometheus Dashboard Builder
 from app.services.auth_service import (
     get_current_user_optional,
     create_user,
     get_user_by_username,
-    get_permissions_for_role
+    get_permissions_for_role,
+    get_permissions_for_user
 )
 from app.routers import (
     auth,
@@ -43,9 +45,32 @@ from app.routers import (
     agent_api,
     agent_ws,
     applications,
+    application_profiles_api,  # Phase 3: Application Profiles
+    grafana_datasources_api,  # Phase 3: Grafana Datasources
+    observability_api,  # Phase 4: AI-Powered Observability Queries
     knowledge,  # Phase 2: Knowledge Base
     feedback,  # Phase 3: Learning System
-    troubleshooting  # Phase 4: Troubleshooting Engine
+    troubleshooting,  # Phase 4: Troubleshooting Engine
+    troubleshooting,  # Phase 4: Troubleshooting Engine
+    clusters,  # Week 1-2: Alert Clustering
+    analytics,  # Phase 3-4: Analytics API
+    itsm,  # Week 5-6: Change Correlation
+    changes,  # Week 5-6: Change Correlation
+    prometheus,  # Prometheus Integration
+    datasources_api,  # Prometheus Dashboard Builder - Datasources
+    panels_api,  # Prometheus Dashboard Builder - Panels
+    dashboards_api,  # Prometheus Dashboard Builder - Dashboards
+    variables_api,  # Prometheus Dashboard Builder - Variables
+    alerts_api,  # Prometheus Dashboard Builder - Alerts Integration
+    annotations_api,  # Prometheus Dashboard Builder - Annotations
+    groups_api,  # Group-based RBAC
+    runbook_acl_api,  # Runbook ACL - resource level permissions
+    snapshots_api,  # Prometheus Dashboard Builder - Snapshots
+    playlists_api,  # Prometheus Dashboard Builder - Playlists
+    rows_api,  # Prometheus Dashboard Builder - Panel Rows
+    query_history_api,  # Prometheus Dashboard Builder - Query History
+    dashboard_permissions_api,  # Dashboard Permissions
+    grafana_proxy  # Grafana Integration - SSO Proxy
 )
 from app import api_credential_profiles
 from app.services.execution_worker import start_execution_worker, stop_execution_worker
@@ -94,7 +119,33 @@ def init_db():
             db.add(provider)
             db.commit()
             logger.info("Default LLM provider created")
-            
+
+        # Check if default Prometheus datasource exists
+        from app.models_dashboards import PrometheusDatasource
+        default_datasource = db.query(PrometheusDatasource).filter(
+            PrometheusDatasource.is_default == True
+        ).first()
+
+        if not default_datasource and settings.prometheus_url:
+            logger.info("Creating default Prometheus datasource")
+            import uuid
+            datasource = PrometheusDatasource(
+                id=str(uuid.uuid4()),
+                name="Default Prometheus",
+                url=settings.prometheus_url,
+                description="Default Prometheus server from configuration",
+                is_default=True,
+                is_enabled=True,
+                timeout=settings.prometheus_timeout
+            )
+            db.add(datasource)
+            db.commit()
+            logger.info("Default Prometheus datasource created")
+
+        # Seed panel templates
+        from app.services.panel_template_seeder import seed_panel_templates
+        seed_panel_templates(db)
+
     finally:
         db.close()
 
@@ -141,6 +192,18 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Failed to load schedules: {e}")
     
+    # Start alert clustering jobs
+    logger.info("Starting alert clustering jobs...")
+    from app.services.clustering_worker import start_clustering_jobs
+    start_clustering_jobs(scheduler._scheduler)  # Pass APScheduler instance
+    logger.info("✅ Alert clustering jobs started")
+    
+    # Start ITSM sync background jobs
+    logger.info("Starting ITSM sync background jobs...")
+    from app.services.itsm_sync_worker import start_itsm_sync_jobs
+    start_itsm_sync_jobs(scheduler._scheduler)  # Pass APScheduler instance
+    logger.info("✅ ITSM sync jobs started")
+    
     logger.info("AIOps Platform started successfully")
     
     yield
@@ -169,6 +232,11 @@ app = FastAPI(
     lifespan=lifespan,
     redoc_url=None  # Disable default to override
 )
+
+# Add ProxyHeadersMiddleware to handle X-Forwarded-* headers from reverse proxy
+# This ensures HTTPS URLs are used in redirects when behind Nginx/SSL termination
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=["*"])
 
 @app.get("/redoc", include_in_schema=False)
 async def redoc_html():
@@ -210,9 +278,31 @@ app.include_router(scheduler.router)
 app.include_router(agent_api.router)
 app.include_router(agent_ws.router)
 app.include_router(applications.router)  # Phase 1: Application Registry
+app.include_router(application_profiles_api.router)  # Phase 3: Application Profiles
+app.include_router(grafana_datasources_api.router)  # Phase 3: Grafana Datasources
+app.include_router(observability_api.router)  # Phase 4: AI-Powered Observability
 app.include_router(knowledge.router)      # Phase 2: Knowledge Base
 app.include_router(feedback.router, prefix="/api/v1", tags=["learning"])  # Phase 3: Learning System
 app.include_router(troubleshooting.router, prefix="/api/v1", tags=["troubleshooting"])  # Phase 4: Troubleshooting Engine
+app.include_router(clusters.router)       # Week 1-2: Alert Clustering
+app.include_router(analytics.router)      # Phase 3-4: Analytics API
+app.include_router(itsm.router)           # Week 5-6: Change Correlation - ITSM
+app.include_router(changes.router)        # Week 5-6: Change Correlation - Changes
+app.include_router(prometheus.router)     # Prometheus Integration
+app.include_router(datasources_api.router)  # Prometheus Dashboard Builder - Datasources
+app.include_router(panels_api.router)       # Prometheus Dashboard Builder - Panels
+app.include_router(dashboards_api.router)   # Prometheus Dashboard Builder - Dashboards
+app.include_router(variables_api.router)    # Prometheus Dashboard Builder - Variables
+app.include_router(alerts_api.router)       # Prometheus Dashboard Builder - Alerts Integration
+app.include_router(annotations_api.router)  # Prometheus Dashboard Builder - Annotations
+app.include_router(groups_api.router)        # Group-based RBAC
+app.include_router(runbook_acl_api.router)   # Runbook ACL - resource permissions
+app.include_router(snapshots_api.router)    # Prometheus Dashboard Builder - Snapshots
+app.include_router(playlists_api.router)    # Prometheus Dashboard Builder - Playlists
+app.include_router(rows_api.router)         # Prometheus Dashboard Builder - Panel Rows
+app.include_router(query_history_api.router) # Prometheus Dashboard Builder - Query History
+app.include_router(dashboard_permissions_api.router) # Dashboard Permissions
+app.include_router(grafana_proxy.router)    # Grafana Integration - SSO Proxy
 
 
 @app.get("/profile", response_class=HTMLResponse)
@@ -266,6 +356,110 @@ async def index(
     })
 
 
+@app.get("/analytics", response_class=HTMLResponse)
+async def analytics_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    Analytics dashboard page
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    return templates.TemplateResponse("analytics.html", {
+        "request": request,
+        "user": current_user
+    })
+
+
+@app.get("/changes", response_class=HTMLResponse)
+async def changes_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    Change Correlation dashboard page
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    return templates.TemplateResponse("changes.html", {
+        "request": request,
+        "user": current_user
+    })
+
+
+@app.get("/dashboards", response_class=HTMLResponse)
+async def dashboards_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    Dashboard Builder page
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    return templates.TemplateResponse("dashboards.html", {
+        "request": request,
+        "user": current_user
+    })
+
+
+@app.get("/datasources", response_class=HTMLResponse)
+async def datasources_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    Datasources management page
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    return templates.TemplateResponse("datasources.html", {
+        "request": request,
+        "user": current_user
+    })
+
+
+@app.get("/panels", response_class=HTMLResponse)
+async def panels_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    Panels library page
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    return templates.TemplateResponse("panels.html", {
+        "request": request,
+        "user": current_user
+    })
+
+
+@app.get("/dashboard-view/{dashboard_id}", response_class=HTMLResponse)
+async def dashboard_view_page(
+    request: Request,
+    dashboard_id: str,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    View a specific Prometheus dashboard with its panels
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    return templates.TemplateResponse("dashboard_view.html", {
+        "request": request,
+        "user": current_user,
+        "dashboard_id": dashboard_id
+    })
+
+
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(
     request: Request,
@@ -276,8 +470,22 @@ async def login_page(
     """
     if current_user:
         return RedirectResponse(url="/", status_code=302)
-    
+
     return templates.TemplateResponse("login.html", {"request": request})
+
+
+@app.get("/register", response_class=HTMLResponse)
+async def register_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    Registration page
+    """
+    if current_user:
+        return RedirectResponse(url="/", status_code=302)
+
+    return templates.TemplateResponse("register.html", {"request": request})
 
 
 @app.get("/alerts", response_class=HTMLResponse)
@@ -365,7 +573,7 @@ async def settings_page(
     return templates.TemplateResponse("settings.html", {
         "request": request,
         "user": current_user,
-        "permissions": list(get_permissions_for_role(db, current_user.role)),
+        "permissions": list(get_permissions_for_user(db, current_user)),
     })
 
 
@@ -542,10 +750,218 @@ async def schedules_page(
     """
     if not current_user:
         return RedirectResponse(url="/login", status_code=302)
-    
+
     return templates.TemplateResponse("schedules.html", {
         "request": request,
         "user": current_user
+    })
+
+
+@app.get("/datasources", response_class=HTMLResponse)
+async def datasources_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    Prometheus Datasources management page
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    return templates.TemplateResponse("datasources.html", {
+        "request": request,
+        "user": current_user
+    })
+
+
+@app.get("/panels", response_class=HTMLResponse)
+async def panels_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    Prometheus Panels management page
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    return templates.TemplateResponse("panels.html", {
+        "request": request,
+        "user": current_user
+    })
+
+
+@app.get("/dashboards-builder", response_class=HTMLResponse)
+async def dashboards_builder_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    Dashboard Builder page
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    return templates.TemplateResponse("dashboards.html", {
+        "request": request,
+        "user": current_user
+    })
+
+
+@app.get("/playlists", response_class=HTMLResponse)
+async def playlists_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    Playlists management page
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    return templates.TemplateResponse("playlists.html", {
+        "request": request,
+        "user": current_user
+    })
+
+
+@app.get("/playlists/{playlist_id}/play", response_class=HTMLResponse)
+async def playlist_player_page(
+    request: Request,
+    playlist_id: str,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    Playlist player page with auto-rotation
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    return templates.TemplateResponse("playlist_player.html", {
+        "request": request,
+        "user": current_user,
+        "playlist_id": playlist_id
+    })
+
+
+@app.get("/snapshots/{snapshot_key}", response_class=HTMLResponse)
+async def snapshot_view_page(
+    request: Request,
+    snapshot_key: str
+):
+    """
+    Dashboard snapshot view page (public, no auth required)
+    Renders a frozen dashboard from a snapshot
+    """
+    return templates.TemplateResponse("snapshot_view.html", {
+        "request": request,
+        "snapshot_key": snapshot_key
+    })
+
+
+# ============== Grafana Integration Pages ==============
+
+@app.get("/logs", response_class=HTMLResponse)
+async def logs_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    Logs page powered by Loki (via Grafana iframe)
+    Provides seamless log exploration with LogQL queries
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    response = templates.TemplateResponse("grafana_logs.html", {
+        "request": request,
+        "user": current_user,
+        "active_page": "logs"
+    })
+    # Allow iframe embedding from same origin
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    response.headers["Content-Security-Policy"] = "frame-src 'self' http://localhost:8080 http://grafana:3000"
+    return response
+
+
+@app.get("/traces", response_class=HTMLResponse)
+async def traces_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    Traces page powered by Tempo (via Grafana iframe)
+    Provides distributed tracing with TraceQL queries
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    response = templates.TemplateResponse("grafana_traces.html", {
+        "request": request,
+        "user": current_user,
+        "active_page": "traces"
+    })
+    # Allow iframe embedding from same origin
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    response.headers["Content-Security-Policy"] = "frame-src 'self' http://localhost:8080 http://grafana:3000"
+    return response
+
+
+@app.get("/grafana-alerts", response_class=HTMLResponse)
+async def grafana_alerts_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    Alert Manager page (via Grafana iframe)
+    Provides alert visualization, grouping, and silencing
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    response = templates.TemplateResponse("grafana_alerts.html", {
+        "request": request,
+        "user": current_user,
+        "active_page": "grafana-alerts"
+    })
+    # Allow iframe embedding from same origin
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    response.headers["Content-Security-Policy"] = "frame-src 'self' http://localhost:8080 http://grafana:3000"
+    return response
+
+
+@app.get("/grafana-advanced", response_class=HTMLResponse)
+async def grafana_advanced_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    Advanced Grafana dashboards page
+    Provides access to full Grafana functionality including SQL datasources,
+    advanced visualizations, and community dashboards
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    response = templates.TemplateResponse("grafana_advanced.html", {
+        "request": request,
+        "user": current_user,
+        "active_page": "grafana-advanced"
+    })
+    # Allow iframe embedding from same origin
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    response.headers["Content-Security-Policy"] = "frame-src 'self' http://localhost:8080 http://grafana:3000"
+    return response
+
+
+@app.get("/grafana-diagnostic", response_class=HTMLResponse)
+async def grafana_diagnostic_page(request: Request):
+    """
+    Diagnostic page to test Grafana iframe embedding
+    Helps debug frame-busting and proxy issues
+    """
+    return templates.TemplateResponse("grafana_diagnostic.html", {
+        "request": request
     })
 
 

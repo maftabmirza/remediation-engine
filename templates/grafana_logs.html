@@ -1,0 +1,91 @@
+{% extends "layout.html" %}
+
+{% block title %}Logs - Loki{% endblock %}
+
+{% block extra_css %}
+.grafana-container {
+position: fixed !important;
+top: 6px !important;
+left: 104px !important;
+right: 24px !important;
+bottom: 24px !important;
+overflow: hidden !important;
+background: #111 !important;
+transition: left 0.3s ease;
+z-index: 10;
+border-radius: 8px;
+}
+
+.grafana-container iframe {
+border: none !important;
+display: block !important;
+width: 100% !important;
+height: 100% !important;
+min-height: 700px !important;
+}
+
+.grafana-loading {
+position: absolute;
+top: 50%;
+left: 50%;
+transform: translate(-50%, -50%);
+color: #aaa;
+font-size: 18px;
+text-align: center;
+}
+
+.grafana-loading .spinner {
+width: 50px;
+height: 50px;
+border: 4px solid #333;
+border-top-color: #1f77b4;
+border-radius: 50%;
+animation: grafana-spin 1s linear infinite;
+margin: 0 auto 20px;
+}
+
+@keyframes grafana-spin {
+to { transform: rotate(360deg); }
+}
+
+@media (max-width: 768px) {
+.grafana-container {
+left: 24px !important;
+}
+}
+{% endblock %}
+
+{% block content %}
+<div class="grafana-container">
+    <div class="grafana-loading" id="loading">
+        <div class="spinner"></div>
+        <div>Loading Loki Logs...</div>
+    </div>
+    <iframe id="grafana-iframe"
+        src="/grafana/explore?orgId=1&left=%7B%22datasource%22:%22Loki%22,%22queries%22:%5B%7B%22refId%22:%22A%22,%22expr%22:%22%7Bjob%3D~%5C%22.%2B%5C%22%7D%22%7D%5D,%22range%22:%7B%22from%22:%22now-1h%22,%22to%22:%22now%22%7D%7D&kiosk"
+        sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox"
+        onload="document.getElementById('loading').style.display='none';">
+    </iframe>
+</div>
+
+<script>
+    // Handle iframe loading errors
+    const iframe = document.getElementById('grafana-iframe');
+    iframe.onerror = function () {
+        const loading = document.getElementById('loading');
+        loading.innerHTML = '<div style="color: #f44;">Failed to load Grafana. Please check if the service is running.</div>';
+    };
+
+    // Refresh page on visibility change (helps with SSO session)
+    document.addEventListener('visibilitychange', function () {
+        if (!document.hidden && iframe.src) {
+            // Refresh iframe if page becomes visible and has been hidden for a while
+            const lastRefresh = sessionStorage.getItem('grafanaLastRefresh');
+            const now = Date.now();
+            if (!lastRefresh || (now - parseInt(lastRefresh)) > 300000) { // 5 minutes
+                sessionStorage.setItem('grafanaLastRefresh', now.toString());
+            }
+        }
+    });
+</script>
+{% endblock %}

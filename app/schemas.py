@@ -25,6 +25,11 @@ class TokenData(BaseModel):
     username: Optional[str] = None
 
 
+class ChangePasswordRequest(BaseModel):
+    current_password: str = Field(..., min_length=1)
+    new_password: str = Field(..., min_length=8, max_length=100)
+
+
 # ============== User Schemas ==============
 
 class UserBase(BaseModel):
@@ -176,14 +181,14 @@ class AlertResponse(AlertBase):
     annotations_json: Optional[Dict[str, Any]] = None
     matched_rule_id: Optional[UUID] = None
     action_taken: Optional[str] = None
-    analyzed: bool
+    analyzed: Optional[bool] = False
     analyzed_at: Optional[datetime] = None
     analyzed_by: Optional[UUID] = None
     llm_provider_id: Optional[UUID] = None
     ai_analysis: Optional[str] = None
     recommendations_json: Optional[List[str]] = None
-    analysis_count: int = 0
-    created_at: datetime
+    analysis_count: Optional[int] = 0
+    created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -233,6 +238,54 @@ class AlertmanagerWebhook(BaseModel):
     commonAnnotations: Dict[str, str] = {}
     externalURL: str = ""
     alerts: List[AlertmanagerAlert]
+
+
+# ============== Alert Cluster Schemas ==============
+
+class AlertClusterBase(BaseModel):
+    cluster_key: str
+    severity: str
+    cluster_type: str = "exact"
+
+
+class AlertClusterCreate(AlertClusterBase):
+    first_seen: datetime
+    last_seen: datetime
+    alert_count: int = 1
+
+
+class AlertClusterResponse(AlertClusterBase):
+    id: UUID
+    alert_count: int
+    first_seen: datetime
+    last_seen: datetime
+    summary: Optional[str] = None
+    is_active: bool
+    closed_at: Optional[datetime] = None
+    closed_reason: Optional[str] = None
+    cluster_metadata: Dict[str, Any] = {}
+    created_at: datetime
+    updated_at: datetime
+    duration_hours: float = 0.0
+    alerts_per_hour: float = 0.0
+
+    class Config:
+        from_attributes = True
+
+
+class AlertClusterDetail(AlertClusterResponse):
+    """Cluster with member alerts"""
+    alerts: List[AlertResponse] = []
+
+
+class AlertClusterStats(BaseModel):
+    """Dashboard statistics for clustering"""
+    total_alerts: int
+    clustered_alerts: int
+    active_clusters: int
+    noise_reduction_pct: float
+    avg_cluster_size: float
+    largest_cluster_size: int
 
 
 # ============== Stats Schemas ==============
@@ -353,5 +406,79 @@ class APICredentialProfileResponse(APICredentialProfileBase):
         from_attributes = True
 
 
+
+# ============== Incident Metrics Schemas ==============
+
+class IncidentMetricsBase(BaseModel):
+    incident_started: datetime
+    incident_detected: datetime
+    service_name: Optional[str] = None
+    severity: Optional[str] = None
+
+class IncidentMetricsCreate(IncidentMetricsBase):
+    alert_id: UUID
+
+class IncidentMetricsUpdate(BaseModel):
+    incident_acknowledged: Optional[datetime] = None
+    incident_engaged: Optional[datetime] = None
+    incident_resolved: Optional[datetime] = None
+    resolution_type: Optional[str] = None
+    assigned_to: Optional[UUID] = None
+    time_to_detect: Optional[int] = None
+    time_to_acknowledge: Optional[int] = None
+    time_to_engage: Optional[int] = None
+    time_to_resolve: Optional[int] = None
+
+class IncidentMetricsResponse(IncidentMetricsBase):
+    id: UUID
+    alert_id: UUID
+    incident_acknowledged: Optional[datetime] = None
+    incident_engaged: Optional[datetime] = None
+    incident_resolved: Optional[datetime] = None
+    time_to_detect: Optional[int] = None
+    time_to_acknowledge: Optional[int] = None
+    time_to_engage: Optional[int] = None
+    time_to_resolve: Optional[int] = None
+    resolution_type: Optional[str] = None
+    assigned_to: Optional[UUID] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+# Analytics schemas
+class MTTRAnalytics(BaseModel):
+    """MTTR analytics response"""
+    avg: float
+    p50: float
+    p95: float
+    p99: float
+    sample_size: int
+    unit: str = "seconds"
+
+class MTTRBreakdown(BaseModel):
+    """MTTR breakdown by dimension"""
+    dimension: str  # service, severity, resolution_type
+    breakdown: Dict[str, MTTRAnalytics]
+
+class TrendPoint(BaseModel):
+    """Single point in trend chart"""
+    timestamp: datetime
+    value: float
+    sample_size: int = 0
+
+class RegressionAlert(BaseModel):
+    """MTTR regression detection"""
+    service_name: str
+    metric: str  # mttr, mtta
+    current_value: float
+    previous_value: float
+    change_percent: float
+    severity: str  # critical, warning
+
+
+
 # Update forward references
 LoginResponse.model_rebuild()
+

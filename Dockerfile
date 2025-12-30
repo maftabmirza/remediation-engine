@@ -20,7 +20,7 @@ COPY static/ ./static/
 COPY migrations/ ./migrations/
 COPY alembic/ ./alembic/
 COPY alembic.ini .
-# COPY run_migrations.py .
+COPY tests/ ./tests/
 
 COPY entrypoint.sh .
 RUN chmod +x entrypoint.sh

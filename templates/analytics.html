@@ -1,0 +1,288 @@
+{% extends "layout.html" %}
+{% set active_page = 'analytics' %}
+
+{% block title %}Analytics - AIOps Platform{% endblock %}
+
+{% block head %}
+{{ super() }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+    <!-- Enterprise Standard Toolbar -->
+    <div class="dashboard-header"
+        style="padding: 12px; background: #16171b; border-bottom: 1px solid rgba(255,255,255,0.05); border-radius: 8px;">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <!-- Left: Breadcrumbs & Title -->
+            <div class="flex flex-col min-w-0">
+                <nav class="flex items-center text-xs text-gray-400 mb-1">
+                    <a href="/" class="hover:text-blue-400 transition-colors">Home</a>
+                    <span class="mx-2">/</span>
+                    <span class="text-gray-200">Analytics</span>
+                </nav>
+                <div class="flex items-center gap-3">
+                    <h1 class="text-xl font-bold text-white tracking-tight truncate">MTTR Analytics</h1>
+                </div>
+                <p class="text-xs text-gray-500 mt-1">Deep dive into incident lifecycle metrics and trends</p>
+            </div>
+
+            <!-- Right: Actions -->
+            <div class="flex items-center gap-3">
+                <div class="flex items-center space-x-2 bg-gray-700/50 rounded px-3 py-1.5 border border-gray-700">
+                    <label for="metricType" class="text-xs text-gray-400">Metric:</label>
+                    <select id="metricType"
+                        class="bg-transparent text-sm text-white focus:outline-none border-none p-0 cursor-pointer">
+                        <option value="time_to_resolve" selected>Time to Resolve</option>
+                        <option value="time_to_acknowledge">Time to Acknowledge</option>
+                        <option value="time_to_engage">Time to Engage</option>
+                        <option value="time_to_detect">Time to Detect</option>
+                    </select>
+                </div>
+
+                <div class="flex items-center space-x-2 bg-gray-700/50 rounded px-3 py-1.5 border border-gray-700">
+                    <label for="timeRange" class="text-xs text-gray-400">Range:</label>
+                    <select id="timeRange"
+                        class="bg-transparent text-sm text-white focus:outline-none border-none p-0 cursor-pointer">
+                        <option value="24h">Last 24h</option>
+                        <option value="7d">Last 7d</option>
+                        <option value="30d" selected>Last 30d</option>
+                        <option value="90d">Last 90d</option>
+                    </select>
+                </div>
+
+                <button id="refreshBtn"
+                    class="p-2 bg-gray-700 hover:bg-gray-600 rounded text-gray-300 hover:text-white transition-colors"
+                    title="Refresh Data">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Stats -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="card p-5">
+            <p class="text-gray-400 text-sm">Average</p>
+            <p class="text-3xl font-bold mt-1" id="statAvg">--</p>
+            <p class="text-xs text-gray-500 mt-1">Mean duration</p>
+        </div>
+        <div class="card p-5">
+            <p class="text-gray-400 text-sm">Median (P50)</p>
+            <p class="text-3xl font-bold mt-1" id="statP50">--</p>
+            <p class="text-xs text-gray-500 mt-1">50th percentile</p>
+        </div>
+        <div class="card p-5">
+            <p class="text-gray-400 text-sm">95th Percentile (P95)</p>
+            <p class="text-3xl font-bold mt-1 text-yellow-400" id="statP95">--</p>
+            <p class="text-xs text-gray-500 mt-1">Outliers threshold</p>
+        </div>
+        <div class="card p-5">
+            <p class="text-gray-400 text-sm">Sample Size</p>
+            <p class="text-3xl font-bold mt-1" id="statSample">--</p>
+            <p class="text-xs text-gray-500 mt-1">Total incidents</p>
+        </div>
+    </div>
+
+    <!-- Trends Chart -->
+    <div class="card p-6">
+        <h2 class="text-lg font-semibold mb-4">Historical Trend</h2>
+        <div class="h-64">
+            <canvas id="trendChart" class="w-full h-full"></canvas>
+        </div>
+    </div>
+
+    <!-- Breakdowns -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="card p-6">
+            <h2 class="text-lg font-semibold mb-4">Breakdown by Service</h2>
+            <div class="h-64">
+                <canvas id="serviceChart" class="w-full h-full"></canvas>
+            </div>
+        </div>
+        <div class="card p-6">
+            <h2 class="text-lg font-semibold mb-4">Breakdown by Severity</h2>
+            <div class="h-64">
+                <canvas id="severityChart" class="w-full h-full"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Regressions -->
+    <div class="card p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold text-red-400">Performance Regressions</h2>
+            <span class="text-xs text-gray-500">Comparing last 7d vs previous 7d</span>
+        </div>
+        <div id="regressionsList" class="space-y-3">
+            <p class="text-gray-500 text-sm">Checking for regressions...</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    let trendChartInstance = null;
+    let serviceChartInstance = null;
+    let severityChartInstance = null;
+
+    const timeRangeSelect = document.getElementById('timeRange');
+    const metricTypeSelect = document.getElementById('metricType');
+    const refreshBtn = document.getElementById('refreshBtn');
+
+    function formatDuration(seconds) {
+        if (!seconds || isNaN(seconds)) return '--';
+        if (seconds < 60) return `${seconds.toFixed(0)}s`;
+        if (seconds < 3600) return `${(seconds / 60).toFixed(1)}m`;
+        return `${(seconds / 3600).toFixed(1)}h`;
+    }
+
+    async function fetchData() {
+        const range = timeRangeSelect.value;
+        const metric = metricTypeSelect.value;
+
+        try {
+            // 1. Aggregate Stats
+            const statsRes = await apiCall(`/api/analytics/mttr/aggregate?metric_type=${metric}&time_range=${range}`);
+            if (statsRes.ok) {
+                const stats = await statsRes.json();
+                document.getElementById('statAvg').textContent = formatDuration(stats.avg);
+                document.getElementById('statP50').textContent = formatDuration(stats.p50);
+                document.getElementById('statP95').textContent = formatDuration(stats.p95);
+                document.getElementById('statSample').textContent = stats.sample_size;
+            }
+
+            // 2. Trend Data
+            const trendRes = await apiCall(`/api/analytics/mttr/trends?metric_type=${metric}&time_range=${range}&interval=day`);
+            if (trendRes.ok) {
+                const trends = await trendRes.json();
+                renderTrendChart(trends);
+            }
+
+            // 3. Service Breakdown
+            const serviceRes = await apiCall(`/api/analytics/mttr/breakdown?metric_type=${metric}&time_range=${range}&dimension=service_name`);
+            if (serviceRes.ok) {
+                const data = await serviceRes.json();
+                renderBarChart('serviceChart', data, 'Avg Duration by Service', serviceChartInstance, (chart) => serviceChartInstance = chart);
+            }
+
+            // 4. Severity Breakdown
+            const severityRes = await apiCall(`/api/analytics/mttr/breakdown?metric_type=${metric}&time_range=${range}&dimension=severity`);
+            if (severityRes.ok) {
+                const data = await severityRes.json();
+                renderBarChart('severityChart', data, 'Avg Duration by Severity', severityChartInstance, (chart) => severityChartInstance = chart);
+            }
+
+            // 5. Regressions
+            const regRes = await apiCall(`/api/analytics/mttr/regressions?metric_type=${metric}`);
+            if (regRes.ok) {
+                const regressions = await regRes.json();
+                renderRegressions(regressions);
+            }
+
+        } catch (error) {
+            console.error("Error fetching analytics:", error);
+        }
+    }
+
+    function renderTrendChart(trends) {
+        const ctx = document.getElementById('trendChart').getContext('2d');
+        const labels = trends.map(t => new Date(t.timestamp).toLocaleDateString());
+        const values = trends.map(t => t.value / 60); // Convert to minutes for chart
+
+        if (trendChartInstance) {
+            trendChartInstance.destroy();
+        }
+
+        trendChartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Avg Duration (Minutes)',
+                    data: values,
+                    borderColor: '#60a5fa',
+                    backgroundColor: 'rgba(96, 165, 250, 0.1)',
+                    tension: 0.3,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true, grid: { color: '#374151' } },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+    }
+
+    function renderBarChart(canvasId, data, label, currentInstance, setInstance) {
+        const ctx = document.getElementById(canvasId).getContext('2d');
+        const labels = Object.keys(data.breakdown);
+        // Convert avg seconds to minutes
+        const values = Object.values(data.breakdown).map(d => d.avg / 60);
+
+        if (currentInstance) {
+            currentInstance.destroy();
+        }
+
+        const newChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Avg Duration (Minutes)',
+                    data: values,
+                    backgroundColor: '#818cf8',
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true, grid: { color: '#374151' } },
+                    x: { grid: { display: false } }
+                },
+                indexAxis: 'y' // Horizontal bar chart
+            }
+        });
+        setInstance(newChart);
+    }
+
+    function renderRegressions(regressions) {
+        const container = document.getElementById('regressionsList');
+        if (!regressions || regressions.length === 0) {
+            container.innerHTML = '<p class="text-green-400 text-sm"><i class="fas fa-check-circle mr-2"></i>No regressions detected.</p>';
+            return;
+        }
+
+        container.innerHTML = regressions.map(r => `
+            <div class="p-3 bg-gray-800 rounded border-l-4 ${r.severity === 'critical' ? 'border-red-500' : 'border-yellow-500'}">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="font-semibold text-gray-200">${r.service_name}</p>
+                        <p class="text-xs text-gray-400">Increase of ${r.change_percent}% vs previous period</p>
+                    </div>
+                    <div class="text-right">
+                         <span class="text-sm font-mono text-red-300">${formatDuration(r.current_value)}</span>
+                         <p class="text-xs text-gray-500">was ${formatDuration(r.previous_value)}</p>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // Events
+    timeRangeSelect.addEventListener('change', fetchData);
+    metricTypeSelect.addEventListener('change', fetchData);
+    refreshBtn.addEventListener('click', fetchData);
+
+    // Initial Load
+    fetchData();
+</script>
+{% endblock %}

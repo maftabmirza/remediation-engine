@@ -17,12 +17,192 @@
 
         <!-- Navigation -->
         <nav class="flex-1 p-4 space-y-2 overflow-hidden">
-            <a href="/"
-                class="sidebar-item flex items-center space-x-3 px-4 py-3 rounded-lg {% if active_page == 'dashboard' %}active{% endif %}"
-                data-tooltip="Dashboard">
-                <i class="fas fa-tachometer-alt w-5 flex-shrink-0 nav-icon text-blue-400"></i>
-                <span class="sidebar-text whitespace-nowrap hidden">Dashboard</span>
-            </a>
+            <!-- Dashboard with Submenu -->
+            <div class="nav-group relative" onmouseenter="showFlyout('dashboardFlyout')"
+                onmouseleave="hideFlyout('dashboardFlyout')">
+                <button onclick="toggleSubmenu('dashboardSubmenu')"
+                    class="sidebar-item flex items-center justify-between w-full px-4 py-3 rounded-lg {% if active_page == 'dashboard' or active_page == 'analytics' or active_page == 'changes' %}active{% endif %}"
+                    data-tooltip="Dashboard" data-has-submenu="true">
+                    <div class="flex items-center space-x-3">
+                        <i class="fas fa-tachometer-alt w-5 flex-shrink-0 nav-icon text-blue-400"></i>
+                        <span class="sidebar-text whitespace-nowrap hidden">Dashboard</span>
+                    </div>
+                    <i class="fas fa-chevron-down text-xs text-gray-500 sidebar-text hidden submenu-arrow"
+                        id="dashboardSubmenuArrow"></i>
+                </button>
+                <!-- Inline submenu (shown when sidebar expanded) -->
+                <div id="dashboardSubmenu"
+                    class="submenu ml-4 mt-1 space-y-1 sidebar-text hidden overflow-hidden transition-all duration-200">
+                    <a href="/"
+                        class="sidebar-subitem flex items-center space-x-3 px-4 py-2 rounded-lg text-sm {% if active_page == 'dashboard' %}bg-gray-800 text-white{% else %}text-gray-400 hover:text-white hover:bg-gray-800{% endif %}">
+                        <i class="fas fa-home w-4 text-blue-300"></i>
+                        <span>Overview</span>
+                    </a>
+                    <a href="/analytics"
+                        class="sidebar-subitem flex items-center space-x-3 px-4 py-2 rounded-lg text-sm {% if active_page == 'analytics' %}bg-gray-800 text-white{% else %}text-gray-400 hover:text-white hover:bg-gray-800{% endif %}">
+                        <i class="fas fa-chart-line w-4 text-teal-300"></i>
+                        <span>MTTR Analytics</span>
+                    </a>
+                    <a href="/changes"
+                        class="sidebar-subitem flex items-center space-x-3 px-4 py-2 rounded-lg text-sm {% if active_page == 'changes' %}bg-gray-800 text-white{% else %}text-gray-400 hover:text-white hover:bg-gray-800{% endif %}">
+                        <i class="fas fa-code-branch w-4 text-purple-300"></i>
+                        <span>Change Correlation</span>
+                    </a>
+                </div>
+                <!-- Flyout submenu (shown on hover when sidebar collapsed) -->
+                <div id="dashboardFlyout"
+                    class="flyout-menu fixed left-20 bg-gray-900 border border-gray-700 rounded-lg shadow-xl py-2 z-50 hidden min-w-48">
+                    <div class="px-3 py-2 text-xs text-gray-500 uppercase tracking-wider border-b border-gray-700 mb-1">
+                        Dashboard</div>
+                    <a href="/"
+                        class="flex items-center space-x-3 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">
+                        <i class="fas fa-home w-4 text-blue-300"></i>
+                        <span>Overview</span>
+                    </a>
+                    <a href="/analytics"
+                        class="flex items-center space-x-3 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">
+                        <i class="fas fa-chart-line w-4 text-teal-300"></i>
+                        <span>MTTR Analytics</span>
+                    </a>
+                    <a href="/changes"
+                        class="flex items-center space-x-3 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">
+                        <i class="fas fa-code-branch w-4 text-purple-300"></i>
+                        <span>Change Correlation</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Observability with Submenu -->
+            <div class="nav-group relative" onmouseenter="showFlyout('observabilityFlyout')"
+                onmouseleave="hideFlyout('observabilityFlyout')">
+                <button onclick="toggleSubmenu('observabilitySubmenu')"
+                    class="sidebar-item flex items-center justify-between w-full px-4 py-3 rounded-lg {% if active_page == 'logs' or active_page == 'traces' or active_page == 'grafana-alerts' or active_page == 'grafana-advanced' %}active{% endif %}"
+                    data-tooltip="Observability" data-has-submenu="true">
+                    <div class="flex items-center space-x-3">
+                        <i class="fas fa-eye w-5 flex-shrink-0 nav-icon text-emerald-400"></i>
+                        <span class="sidebar-text whitespace-nowrap hidden">Observability</span>
+                    </div>
+                    <i class="fas fa-chevron-down text-xs text-gray-500 sidebar-text hidden submenu-arrow"
+                        id="observabilitySubmenuArrow"></i>
+                </button>
+                <!-- Inline submenu (shown when sidebar expanded) -->
+                <div id="observabilitySubmenu"
+                    class="submenu ml-4 mt-1 space-y-1 sidebar-text hidden overflow-hidden transition-all duration-200">
+                    <a href="/logs"
+                        class="sidebar-subitem flex items-center space-x-3 px-4 py-2 rounded-lg text-sm {% if active_page == 'logs' %}bg-gray-800 text-white{% else %}text-gray-400 hover:text-white hover:bg-gray-800{% endif %}">
+                        <i class="fas fa-file-alt w-4 text-emerald-300"></i>
+                        <span>Logs</span>
+                    </a>
+                    <a href="/traces"
+                        class="sidebar-subitem flex items-center space-x-3 px-4 py-2 rounded-lg text-sm {% if active_page == 'traces' %}bg-gray-800 text-white{% else %}text-gray-400 hover:text-white hover:bg-gray-800{% endif %}">
+                        <i class="fas fa-project-diagram w-4 text-violet-300"></i>
+                        <span>Traces</span>
+                    </a>
+                    <a href="/grafana-alerts"
+                        class="sidebar-subitem flex items-center space-x-3 px-4 py-2 rounded-lg text-sm {% if active_page == 'grafana-alerts' %}bg-gray-800 text-white{% else %}text-gray-400 hover:text-white hover:bg-gray-800{% endif %}">
+                        <i class="fas fa-exclamation-triangle w-4 text-amber-300"></i>
+                        <span>Alert Manager</span>
+                    </a>
+                    <a href="/grafana-advanced"
+                        class="sidebar-subitem flex items-center space-x-3 px-4 py-2 rounded-lg text-sm {% if active_page == 'grafana-advanced' %}bg-gray-800 text-white{% else %}text-gray-400 hover:text-white hover:bg-gray-800{% endif %}">
+                        <i class="fas fa-chart-area w-4 text-fuchsia-300"></i>
+                        <span>Advanced</span>
+                    </a>
+                </div>
+                <!-- Flyout submenu (shown on hover when sidebar collapsed) -->
+                <div id="observabilityFlyout"
+                    class="flyout-menu fixed left-20 bg-gray-900 border border-gray-700 rounded-lg shadow-xl py-2 z-50 hidden min-w-48">
+                    <div class="px-3 py-2 text-xs text-gray-500 uppercase tracking-wider border-b border-gray-700 mb-1">
+                        Observability</div>
+                    <a href="/logs"
+                        class="flex items-center space-x-3 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">
+                        <i class="fas fa-file-alt w-4 text-emerald-300"></i>
+                        <span>Logs</span>
+                    </a>
+                    <a href="/traces"
+                        class="flex items-center space-x-3 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">
+                        <i class="fas fa-project-diagram w-4 text-violet-300"></i>
+                        <span>Traces</span>
+                    </a>
+                    <a href="/grafana-alerts"
+                        class="flex items-center space-x-3 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">
+                        <i class="fas fa-exclamation-triangle w-4 text-amber-300"></i>
+                        <span>Alert Manager</span>
+                    </a>
+                    <a href="/grafana-advanced"
+                        class="flex items-center space-x-3 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">
+                        <i class="fas fa-chart-area w-4 text-fuchsia-300"></i>
+                        <span>Advanced</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Prometheus with Submenu -->
+            <div class="nav-group relative" onmouseenter="showFlyout('prometheusFlyout')"
+                onmouseleave="hideFlyout('prometheusFlyout')">
+                <button onclick="toggleSubmenu('prometheusSubmenu')"
+                    class="sidebar-item flex items-center justify-between w-full px-4 py-3 rounded-lg {% if active_page == 'dashboards' or active_page == 'datasources' or active_page == 'panels' or active_page == 'playlists' %}active{% endif %}"
+                    data-tooltip="Prometheus" data-has-submenu="true">
+                    <div class="flex items-center space-x-3">
+                        <i class="fas fa-fire w-5 flex-shrink-0 nav-icon text-orange-400"></i>
+                        <span class="sidebar-text whitespace-nowrap hidden">Prometheus</span>
+                    </div>
+                    <i class="fas fa-chevron-down text-xs text-gray-500 sidebar-text hidden submenu-arrow"
+                        id="prometheusSubmenuArrow"></i>
+                </button>
+                <!-- Inline submenu (shown when sidebar expanded) -->
+                <div id="prometheusSubmenu"
+                    class="submenu ml-4 mt-1 space-y-1 sidebar-text hidden overflow-hidden transition-all duration-200">
+                    <a href="/dashboards"
+                        class="sidebar-subitem flex items-center space-x-3 px-4 py-2 rounded-lg text-sm {% if active_page == 'dashboards' %}bg-gray-800 text-white{% else %}text-gray-400 hover:text-white hover:bg-gray-800{% endif %}">
+                        <i class="fas fa-th-large w-4 text-pink-300"></i>
+                        <span>Dashboards</span>
+                    </a>
+                    <a href="/datasources"
+                        class="sidebar-subitem flex items-center space-x-3 px-4 py-2 rounded-lg text-sm {% if active_page == 'datasources' %}bg-gray-800 text-white{% else %}text-gray-400 hover:text-white hover:bg-gray-800{% endif %}">
+                        <i class="fas fa-database w-4 text-orange-300"></i>
+                        <span>Datasources</span>
+                    </a>
+                    <a href="/panels"
+                        class="sidebar-subitem flex items-center space-x-3 px-4 py-2 rounded-lg text-sm {% if active_page == 'panels' %}bg-gray-800 text-white{% else %}text-gray-400 hover:text-white hover:bg-gray-800{% endif %}">
+                        <i class="fas fa-chart-bar w-4 text-green-300"></i>
+                        <span>Panels</span>
+                    </a>
+                    <a href="/playlists"
+                        class="sidebar-subitem flex items-center space-x-3 px-4 py-2 rounded-lg text-sm {% if active_page == 'playlists' %}bg-gray-800 text-white{% else %}text-gray-400 hover:text-white hover:bg-gray-800{% endif %}">
+                        <i class="fas fa-play-circle w-4 text-cyan-300"></i>
+                        <span>Playlists</span>
+                    </a>
+                </div>
+                <!-- Flyout submenu (shown on hover when sidebar collapsed) -->
+                <div id="prometheusFlyout"
+                    class="flyout-menu fixed left-20 bg-gray-900 border border-gray-700 rounded-lg shadow-xl py-2 z-50 hidden min-w-48">
+                    <div class="px-3 py-2 text-xs text-gray-500 uppercase tracking-wider border-b border-gray-700 mb-1">
+                        Prometheus</div>
+                    <a href="/dashboards"
+                        class="flex items-center space-x-3 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">
+                        <i class="fas fa-th-large w-4 text-pink-300"></i>
+                        <span>Dashboards</span>
+                    </a>
+                    <a href="/datasources"
+                        class="flex items-center space-x-3 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">
+                        <i class="fas fa-database w-4 text-orange-300"></i>
+                        <span>Datasources</span>
+                    </a>
+                    <a href="/panels"
+                        class="flex items-center space-x-3 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">
+                        <i class="fas fa-chart-bar w-4 text-green-300"></i>
+                        <span>Panels</span>
+                    </a>
+                    <a href="/playlists"
+                        class="flex items-center space-x-3 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">
+                        <i class="fas fa-play-circle w-4 text-cyan-300"></i>
+                        <span>Playlists</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Standalone Items -->
             <a href="/alerts"
                 class="sidebar-item flex items-center space-x-3 px-4 py-3 rounded-lg {% if active_page == 'alerts' %}active{% endif %}"
                 data-tooltip="Alerts">
@@ -35,63 +215,119 @@
                 <i class="fas fa-robot w-5 flex-shrink-0 nav-icon text-purple-400"></i>
                 <span class="sidebar-text whitespace-nowrap hidden">AI</span>
             </a>
-            <a href="/rules"
-                class="sidebar-item flex items-center space-x-3 px-4 py-3 rounded-lg {% if active_page == 'rules' %}active{% endif %}"
-                data-tooltip="Rules">
-                <i class="fas fa-cogs w-5 flex-shrink-0 nav-icon text-purple-400"></i>
-                <span class="sidebar-text whitespace-nowrap hidden">Rules</span>
-            </a>
 
-            <!-- Inventory Section -->
-            <div class="mt-4 mb-2 px-4 sidebar-text hidden">
-                <span class="text-xs text-gray-500 uppercase tracking-wider">Inventory</span>
+            <!-- Remediation with Submenu -->
+            <div class="nav-group relative" onmouseenter="showFlyout('remediationFlyout')"
+                onmouseleave="hideFlyout('remediationFlyout')">
+                <button onclick="toggleSubmenu('remediationSubmenu')"
+                    class="sidebar-item flex items-center justify-between w-full px-4 py-3 rounded-lg {% if active_page == 'runbooks' or active_page == 'executions' or active_page == 'schedules' %}active{% endif %}"
+                    data-tooltip="Remediation" data-has-submenu="true">
+                    <div class="flex items-center space-x-3">
+                        <i class="fas fa-wrench w-5 flex-shrink-0 nav-icon text-green-400"></i>
+                        <span class="sidebar-text whitespace-nowrap hidden">Remediation</span>
+                    </div>
+                    <i class="fas fa-chevron-down text-xs text-gray-500 sidebar-text hidden submenu-arrow"
+                        id="remediationSubmenuArrow"></i>
+                </button>
+                <!-- Inline submenu (shown when sidebar expanded) -->
+                <div id="remediationSubmenu"
+                    class="submenu ml-4 mt-1 space-y-1 sidebar-text hidden overflow-hidden transition-all duration-200">
+                    <a href="/runbooks"
+                        class="sidebar-subitem flex items-center space-x-3 px-4 py-2 rounded-lg text-sm {% if active_page == 'runbooks' %}bg-gray-800 text-white{% else %}text-gray-400 hover:text-white hover:bg-gray-800{% endif %}">
+                        <i class="fas fa-book w-4 text-green-300"></i>
+                        <span>Runbooks</span>
+                    </a>
+                    <a href="/executions"
+                        class="sidebar-subitem flex items-center space-x-3 px-4 py-2 rounded-lg text-sm {% if active_page == 'executions' %}bg-gray-800 text-white{% else %}text-gray-400 hover:text-white hover:bg-gray-800{% endif %}">
+                        <i class="fas fa-play-circle w-4 text-red-300"></i>
+                        <span>Executions</span>
+                    </a>
+                    <a href="/schedules"
+                        class="sidebar-subitem flex items-center space-x-3 px-4 py-2 rounded-lg text-sm {% if active_page == 'schedules' %}bg-gray-800 text-white{% else %}text-gray-400 hover:text-white hover:bg-gray-800{% endif %}">
+                        <i class="fas fa-calendar-alt w-4 text-orange-300"></i>
+                        <span>Schedules</span>
+                    </a>
+                </div>
+                <!-- Flyout submenu (shown on hover when sidebar collapsed) -->
+                <div id="remediationFlyout"
+                    class="flyout-menu fixed left-20 bg-gray-900 border border-gray-700 rounded-lg shadow-xl py-2 z-50 hidden min-w-48">
+                    <div class="px-3 py-2 text-xs text-gray-500 uppercase tracking-wider border-b border-gray-700 mb-1">
+                        Remediation</div>
+                    <a href="/runbooks"
+                        class="flex items-center space-x-3 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">
+                        <i class="fas fa-book w-4 text-green-300"></i>
+                        <span>Runbooks</span>
+                    </a>
+                    <a href="/executions"
+                        class="flex items-center space-x-3 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">
+                        <i class="fas fa-play-circle w-4 text-red-300"></i>
+                        <span>Executions</span>
+                    </a>
+                    <a href="/schedules"
+                        class="flex items-center space-x-3 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">
+                        <i class="fas fa-calendar-alt w-4 text-orange-300"></i>
+                        <span>Schedules</span>
+                    </a>
+                </div>
             </div>
-            <a href="/applications"
-                class="sidebar-item flex items-center space-x-3 px-4 py-3 rounded-lg {% if active_page == 'applications' %}active{% endif %}"
-                data-tooltip="Applications">
-                <i class="fas fa-sitemap w-5 flex-shrink-0 nav-icon text-indigo-400"></i>
-                <span class="sidebar-text whitespace-nowrap hidden">Applications</span>
-            </a>
 
-            <!-- Auto-Remediation Section -->
-            <div class="mt-4 mb-2 px-4 sidebar-text hidden">
-                <span class="text-xs text-gray-500 uppercase tracking-wider">Remediation</span>
+            <!-- Knowledge with Submenu -->
+            <div class="nav-group relative" onmouseenter="showFlyout('knowledgeFlyout')"
+                onmouseleave="hideFlyout('knowledgeFlyout')">
+                <button onclick="toggleSubmenu('knowledgeSubmenu')"
+                    class="sidebar-item flex items-center justify-between w-full px-4 py-3 rounded-lg {% if active_page == 'applications' or active_page == 'knowledge' %}active{% endif %}"
+                    data-tooltip="Knowledge" data-has-submenu="true">
+                    <div class="flex items-center space-x-3">
+                        <i class="fas fa-book-open w-5 flex-shrink-0 nav-icon text-cyan-400"></i>
+                        <span class="sidebar-text whitespace-nowrap hidden">Knowledge</span>
+                    </div>
+                    <i class="fas fa-chevron-down text-xs text-gray-500 sidebar-text hidden submenu-arrow"
+                        id="knowledgeSubmenuArrow"></i>
+                </button>
+                <!-- Inline submenu (shown when sidebar expanded) -->
+                <div id="knowledgeSubmenu"
+                    class="submenu ml-4 mt-1 space-y-1 sidebar-text hidden overflow-hidden transition-all duration-200">
+                    <a href="/applications"
+                        class="sidebar-subitem flex items-center space-x-3 px-4 py-2 rounded-lg text-sm {% if active_page == 'applications' %}bg-gray-800 text-white{% else %}text-gray-400 hover:text-white hover:bg-gray-800{% endif %}">
+                        <i class="fas fa-sitemap w-4 text-indigo-300"></i>
+                        <span>Applications</span>
+                    </a>
+                    <a href="/knowledge"
+                        class="sidebar-subitem flex items-center space-x-3 px-4 py-2 rounded-lg text-sm {% if active_page == 'knowledge' %}bg-gray-800 text-white{% else %}text-gray-400 hover:text-white hover:bg-gray-800{% endif %}">
+                        <i class="fas fa-brain w-4 text-cyan-300"></i>
+                        <span>Knowledge Base</span>
+                    </a>
+                </div>
+                <!-- Flyout submenu (shown on hover when sidebar collapsed) -->
+                <div id="knowledgeFlyout"
+                    class="flyout-menu fixed left-20 bg-gray-900 border border-gray-700 rounded-lg shadow-xl py-2 z-50 hidden min-w-48">
+                    <div class="px-3 py-2 text-xs text-gray-500 uppercase tracking-wider border-b border-gray-700 mb-1">
+                        Knowledge</div>
+                    <a href="/applications"
+                        class="flex items-center space-x-3 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">
+                        <i class="fas fa-sitemap w-4 text-indigo-300"></i>
+                        <span>Applications</span>
+                    </a>
+                    <a href="/knowledge"
+                        class="flex items-center space-x-3 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">
+                        <i class="fas fa-brain w-4 text-cyan-300"></i>
+                        <span>Knowledge Base</span>
+                    </a>
+                </div>
             </div>
-            <a href="/runbooks"
-                class="sidebar-item flex items-center space-x-3 px-4 py-3 rounded-lg {% if active_page == 'runbooks' %}active{% endif %}"
-                data-tooltip="Runbooks">
-                <i class="fas fa-book w-5 flex-shrink-0 nav-icon text-green-400"></i>
-                <span class="sidebar-text whitespace-nowrap hidden">Runbooks</span>
-            </a>
-            <a href="/executions"
-                class="sidebar-item flex items-center space-x-3 px-4 py-3 rounded-lg {% if active_page == 'executions' %}active{% endif %}"
-                data-tooltip="Executions">
-                <i class="fas fa-play-circle w-5 flex-shrink-0 nav-icon text-red-400"></i>
-                <span class="sidebar-text whitespace-nowrap hidden">Executions</span>
-            </a>
-            <a href="/schedules"
-                class="sidebar-item flex items-center space-x-3 px-4 py-3 rounded-lg {% if active_page == 'schedules' %}active{% endif %}"
-                data-tooltip="Schedules">
-                <i class="fas fa-calendar-alt w-5 flex-shrink-0 nav-icon text-orange-400"></i>
-                <span class="sidebar-text whitespace-nowrap hidden">Schedules</span>
-            </a>
 
-            <!-- Knowledge Base Section -->
-            <div class="mt-4 mb-2 px-4 sidebar-text hidden">
-                <span class="text-xs text-gray-500 uppercase tracking-wider">Knowledge</span>
-            </div>
-            <a href="/knowledge"
-                class="sidebar-item flex items-center space-x-3 px-4 py-3 rounded-lg {% if active_page == 'knowledge' %}active{% endif %}"
-                data-tooltip="Knowledge Base">
-                <i class="fas fa-book-open w-5 flex-shrink-0 nav-icon text-cyan-400"></i>
-                <span class="sidebar-text whitespace-nowrap hidden">Knowledge Base</span>
-            </a>
-
+            <!-- Settings and Rules standalone -->
             <a href="/settings"
                 class="sidebar-item flex items-center space-x-3 px-4 py-3 rounded-lg {% if active_page == 'settings' %}active{% endif %}"
                 data-tooltip="Settings">
                 <i class="fas fa-sliders-h w-5 flex-shrink-0 nav-icon text-gray-400"></i>
                 <span class="sidebar-text whitespace-nowrap hidden">Settings</span>
+            </a>
+            <a href="/rules"
+                class="sidebar-item flex items-center space-x-3 px-4 py-3 rounded-lg {% if active_page == 'rules' %}active{% endif %}"
+                data-tooltip="Rules">
+                <i class="fas fa-cogs w-5 flex-shrink-0 nav-icon text-purple-400"></i>
+                <span class="sidebar-text whitespace-nowrap hidden">Rules</span>
             </a>
             {% if user.role == 'admin' %}
             <a href="/audit"
@@ -504,11 +740,106 @@
         } catch (e) { }
         window.location.href = '/login';
     }
+
+    // Submenu toggle function
+    function toggleSubmenu(submenuId) {
+        const submenu = document.getElementById(submenuId);
+        const arrow = document.getElementById(submenuId + 'Arrow');
+
+        if (submenu.classList.contains('submenu-open')) {
+            submenu.classList.remove('submenu-open');
+            submenu.style.maxHeight = '0px';
+            if (arrow) arrow.classList.remove('rotate-180');
+        } else {
+            submenu.classList.add('submenu-open');
+            submenu.style.maxHeight = submenu.scrollHeight + 'px';
+            if (arrow) arrow.classList.add('rotate-180');
+        }
+    }
+
+    // Auto-expand submenus for active pages
+    document.addEventListener('DOMContentLoaded', function () {
+        // Check all submenus for active children
+        const submenus = [
+            { id: 'dashboardSubmenu', arrowId: 'dashboardSubmenuArrow' },
+            { id: 'observabilitySubmenu', arrowId: 'observabilitySubmenuArrow' },
+            { id: 'prometheusSubmenu', arrowId: 'prometheusSubmenuArrow' },
+            { id: 'remediationSubmenu', arrowId: 'remediationSubmenuArrow' },
+            { id: 'knowledgeSubmenu', arrowId: 'knowledgeSubmenuArrow' }
+        ];
+
+        submenus.forEach(function (config) {
+            const submenu = document.getElementById(config.id);
+            if (submenu) {
+                const hasActiveChild = submenu.querySelector('.bg-gray-800');
+                if (hasActiveChild) {
+                    submenu.classList.add('submenu-open');
+                    submenu.style.maxHeight = submenu.scrollHeight + 'px';
+                    const arrow = document.getElementById(config.arrowId);
+                    if (arrow) arrow.classList.add('rotate-180');
+                }
+            }
+        });
+    });
+
+    // Flyout menu for collapsed sidebar
+    let flyoutTimeout = null;
+
+    function showFlyout(flyoutId) {
+        const sidebar = document.getElementById('sidebar');
+        // Only show flyout when sidebar is collapsed (width 20 = 80px)
+        if (sidebar.classList.contains('w-20')) {
+            // Clear any pending hide timeout
+            if (flyoutTimeout) {
+                clearTimeout(flyoutTimeout);
+                flyoutTimeout = null;
+            }
+
+            const flyout = document.getElementById(flyoutId);
+            const trigger = flyout.closest('.nav-group').querySelector('button');
+            if (flyout && trigger) {
+                const rect = trigger.getBoundingClientRect();
+                flyout.style.top = rect.top + 'px';
+                flyout.style.left = '80px'; // Match collapsed sidebar width
+                flyout.classList.remove('hidden');
+            }
+        }
+    }
+
+    function hideFlyout(flyoutId) {
+        // Add a small delay before hiding to allow mouse to move to flyout
+        flyoutTimeout = setTimeout(() => {
+            const flyout = document.getElementById(flyoutId);
+            if (flyout) {
+                flyout.classList.add('hidden');
+            }
+        }, 150);
+    }
+
+    // Keep flyout open when mouse is over it
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.flyout-menu').forEach(flyout => {
+            flyout.addEventListener('mouseenter', () => {
+                if (flyoutTimeout) {
+                    clearTimeout(flyoutTimeout);
+                    flyoutTimeout = null;
+                }
+            });
+            flyout.addEventListener('mouseleave', () => {
+                flyout.classList.add('hidden');
+            });
+        });
+    });
 </script>
 <script>
     // --- Command Palette Logic ---
     const commands = [
         { id: 'dash', name: 'Go to Dashboard', icon: 'fa-tachometer-alt', action: () => window.location.href = '/' },
+        { id: 'dashboards', name: 'Go to Dashboards', icon: 'fa-th-large', action: () => window.location.href = '/dashboards' },
+        { id: 'logs', name: 'Go to Logs (Loki)', icon: 'fa-file-alt', action: () => window.location.href = '/logs' },
+        { id: 'traces', name: 'Go to Traces (Tempo)', icon: 'fa-project-diagram', action: () => window.location.href = '/traces' },
+        { id: 'grafana-alerts', name: 'Go to Alert Manager', icon: 'fa-exclamation-triangle', action: () => window.location.href = '/grafana-alerts' },
+        { id: 'grafana-advanced', name: 'Go to Advanced Dashboards', icon: 'fa-chart-area', action: () => window.location.href = '/grafana-advanced' },
         { id: 'alerts', name: 'Go to Alerts', icon: 'fa-bell', action: () => window.location.href = '/alerts' },
         { id: 'ai', name: 'Go to AI Assistant', icon: 'fa-robot', action: () => window.location.href = '/ai' },
         { id: 'rules', name: 'Go to Rules', icon: 'fa-cogs', action: () => window.location.href = '/rules' },

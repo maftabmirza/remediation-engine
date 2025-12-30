@@ -5,37 +5,72 @@
 
 {% block head %}
 {{ super() }}
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<!-- ECharts is loaded globally from base.html -->
 {% endblock %}
 
 {% block content %}
-<div class="space-y-6">
-    <!-- Header -->
-    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-            <h1 class="text-2xl font-bold">Operations Dashboard</h1>
-            <p class="text-gray-400">Live view of alerts, remediation, and platform readiness</p>
-        </div>
-        <div class="flex flex-wrap items-center gap-4">
-            <div class="flex items-center space-x-3 px-3 py-2 rounded-lg bg-gray-800 border border-gray-700">
-                <span id="connectionDot" class="w-2.5 h-2.5 rounded-full bg-gray-500"></span>
-                <div class="text-sm leading-tight">
-                    <div class="font-semibold text-gray-200" id="connectionStatus">Checking...</div>
-                    <div class="text-xs text-gray-400">Last sync <span id="lastSync">-</span></div>
+<div class="space-y-4">
+    <!-- Enterprise Standard Toolbar -->
+    <div class="dashboard-header"
+        style="padding: 12px; background: #16171b; border-bottom: 1px solid rgba(255,255,255,0.05);">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <!-- Left: Breadcrumbs & Title -->
+            <div class="flex flex-col min-w-0">
+                <!-- Breadcrumbs -->
+                <nav class="flex items-center text-xs text-gray-400 mb-1">
+                    <a href="/" class="hover:text-blue-400 transition-colors">Home</a>
+                    <span class="mx-2">/</span>
+                    <span class="text-gray-200">Overview</span>
+                </nav>
+                <div class="flex items-center gap-3">
+                    <h1 class="text-xl font-bold text-white tracking-tight truncate">Operations Dashboard</h1>
+                    <div class="flex items-center space-x-2 px-2 py-0.5 rounded bg-gray-800 border border-gray-700">
+                        <span id="connectionDot" class="w-2 h-2 rounded-full bg-gray-500"></span>
+                        <span class="text-[10px] text-gray-400" id="connectionStatus">Checking...</span>
+                    </div>
                 </div>
+                <p class="text-xs text-gray-500 mt-1">Live view of alerts, remediation, and platform readiness</p>
             </div>
-            <div class="flex items-center space-x-2">
-                <label for="timeRange" class="text-sm text-gray-400">Range</label>
-                <select id="timeRange" class="input-field bg-gray-900 border border-gray-700 rounded-lg text-sm py-2 px-3">
-                    <option value="24h">Last 24h</option>
-                    <option value="7d">Last 7d</option>
-                    <option value="30d">Last 30d</option>
-                </select>
+
+            <!-- Right: Toolbar Actions -->
+            <div class="flex items-center gap-2">
+                <!-- Range & Refresh Group -->
+                <div class="flex items-center bg-gray-800 rounded-lg p-1 border border-gray-700">
+                    <!-- Time Range -->
+                    <div class="relative">
+                        <select id="timeRange"
+                            class="appearance-none bg-transparent text-gray-300 text-sm pl-3 pr-8 py-1.5 focus:outline-none cursor-pointer hover:text-white transition-colors">
+                            <option value="24h">Last 24h</option>
+                            <option value="7d">Last 7d</option>
+                            <option value="30d">Last 30d</option>
+                        </select>
+                        <div
+                            class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
+                            <i class="fas fa-chevron-down text-[10px]"></i>
+                        </div>
+                    </div>
+
+                    <div class="w-px h-5 bg-gray-600 mx-1"></div>
+
+                    <!-- Refresh -->
+                    <button id="refresh-btn" onclick="refreshDashboard()"
+                        class="toolbar-btn p-1.5 rounded hover:bg-gray-700 transition-colors text-gray-400 hover:text-white"
+                        title="Refresh Data">
+                        <i class="fas fa-sync-alt text-green-400 text-sm"></i>
+                    </button>
+                </div>
+
+                <!-- Spacer for last sync -->
+                <div class="hidden lg:block text-[10px] text-gray-500 text-right ml-2 leading-tight">
+                    <div>Last sync</div>
+                    <div id="lastSync" class="text-gray-400">-</div>
+                </div>
             </div>
         </div>
     </div>
 
-    <div id="dashboardError" class="hidden bg-red-900 border border-red-700 text-red-100 p-4 rounded-lg flex items-start justify-between">
+    <div id="dashboardError"
+        class="hidden bg-red-900 border border-red-700 text-red-100 p-4 rounded-lg flex items-start justify-between">
         <div>
             <p class="font-semibold">Unable to refresh dashboard</p>
             <p class="text-sm text-red-200" id="dashboardErrorMessage"></p>
@@ -45,7 +80,8 @@
 
     <!-- Core Stats -->
     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-        <div class="card p-5">
+        <div class="rounded-lg shadow-lg p-5"
+            style="background-color: #181b1f; border: 1px solid rgba(204, 204, 220, 0.12);">
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-gray-400 text-sm">Total Alerts</p>
@@ -57,7 +93,8 @@
                 </div>
             </div>
         </div>
-        <div class="card p-5">
+        <div class="rounded-lg shadow-lg p-5"
+            style="background-color: #181b1f; border: 1px solid rgba(204, 204, 220, 0.12);">
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-gray-400 text-sm">Analyzed</p>
@@ -69,7 +106,8 @@
                 </div>
             </div>
         </div>
-        <div class="card p-5">
+        <div class="rounded-lg shadow-lg p-5"
+            style="background-color: #181b1f; border: 1px solid rgba(204, 204, 220, 0.12);">
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-gray-400 text-sm">Pending Analysis</p>
@@ -81,7 +119,8 @@
                 </div>
             </div>
         </div>
-        <div class="card p-5">
+        <div class="rounded-lg shadow-lg p-5"
+            style="background-color: #181b1f; border: 1px solid rgba(204, 204, 220, 0.12);">
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-gray-400 text-sm">Critical Alerts</p>
@@ -97,7 +136,8 @@
 
     <!-- Reliability Metrics -->
     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-        <div class="card p-5">
+        <div class="rounded-lg shadow-lg p-5"
+            style="background-color: #181b1f; border: 1px solid rgba(204, 204, 220, 0.12);">
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-gray-400 text-sm">MTTA</p>
@@ -109,7 +149,8 @@
                 </div>
             </div>
         </div>
-        <div class="card p-5">
+        <div class="rounded-lg shadow-lg p-5"
+            style="background-color: #181b1f; border: 1px solid rgba(204, 204, 220, 0.12);">
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-gray-400 text-sm">MTTR</p>
@@ -121,7 +162,8 @@
                 </div>
             </div>
         </div>
-        <div class="card p-5">
+        <div class="rounded-lg shadow-lg p-5"
+            style="background-color: #181b1f; border: 1px solid rgba(204, 204, 220, 0.12);">
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-gray-400 text-sm">Remediation Success</p>
@@ -136,7 +178,8 @@
                 <div id="remediationBar" class="h-2 rounded-full bg-green-400" style="width:0%"></div>
             </div>
         </div>
-        <div class="card p-5">
+        <div class="rounded-lg shadow-lg p-5"
+            style="background-color: #181b1f; border: 1px solid rgba(204, 204, 220, 0.12);">
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-gray-400 text-sm flex items-center gap-2">Service Reliability Index
@@ -157,9 +200,42 @@
         </div>
     </div>
 
+    <!-- Alert Clustering Stats -->
+    <div class="rounded-lg shadow-lg p-6"
+        style="background-color: #181b1f; border: 1px solid rgba(204, 204, 220, 0.12);">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h2 class="text-lg font-semibold flex items-center gap-2">
+                    <i class="fas fa-layer-group text-purple-400"></i>
+                    Alert Clustering
+                </h2>
+                <p class="text-gray-400 text-sm">Noise reduction through intelligent grouping</p>
+            </div>
+            <a href="/alerts" class="text-blue-400 text-sm hover:underline">View clusters</a>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="p-4 rounded-lg bg-gray-800 border border-gray-700">
+                <p class="text-gray-400 text-xs mb-1">Active Clusters</p>
+                <p class="text-2xl font-bold" id="statActiveClusters">--</p>
+                <p class="text-xs text-gray-500 mt-1">Grouped alerts</p>
+            </div>
+            <div class="p-4 rounded-lg bg-gray-800 border border-gray-700">
+                <p class="text-gray-400 text-xs mb-1">Noise Reduction</p>
+                <p class="text-2xl font-bold text-green-400" id="statNoiseReduction">--</p>
+                <p class="text-xs text-gray-500 mt-1">Alerts consolidated</p>
+            </div>
+            <div class="p-4 rounded-lg bg-gray-800 border border-gray-700">
+                <p class="text-gray-400 text-xs mb-1">Avg Cluster Size</p>
+                <p class="text-2xl font-bold" id="statAvgClusterSize">--</p>
+                <p class="text-xs text-gray-500 mt-1">Alerts per cluster</p>
+            </div>
+        </div>
+    </div>
+
     <!-- Trends & Distribution -->
     <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <div class="card p-6 xl:col-span-2">
+        <div class="rounded-lg shadow-lg p-6 xl:col-span-2"
+            style="background-color: #181b1f; border: 1px solid rgba(204, 204, 220, 0.12);">
             <div class="flex items-center justify-between mb-4">
                 <div>
                     <h2 class="text-lg font-semibold">Alert Trend</h2>
@@ -167,26 +243,29 @@
                 </div>
                 <span class="text-xs text-gray-500" id="trendRangeLabel"></span>
             </div>
-            <div id="trendEmptyState" class="hidden text-center text-gray-500 text-sm py-8">No alert activity for this range.</div>
-            <div class="h-32">
-                <canvas id="alertTrendChart" class="hidden w-full h-full"></canvas>
+            <div id="trendEmptyState"
+                class="hidden flex flex-col items-center justify-center py-12 text-center text-gray-500">
+                <i class="fas fa-chart-line text-4xl mb-3 text-gray-600"></i>
+                <p class="text-sm font-medium text-gray-400">No trend data available</p>
+                <p class="text-xs mt-1">Try adjusting the time range</p>
             </div>
+            <div id="alertTrendChart" class="w-full" style="height: 280px;"></div>
         </div>
-        <div class="card p-6">
+        <div class="rounded-lg shadow-lg p-6"
+            style="background-color: #181b1f; border: 1px solid rgba(204, 204, 220, 0.12);">
             <div class="flex items-center justify-between mb-4">
                 <div>
                     <h2 class="text-lg font-semibold">Severity Distribution</h2>
                     <p class="text-gray-400 text-sm">Visual breakdown by severity</p>
                 </div>
             </div>
-            <div class="h-32">
-                <canvas id="severityChart" class="w-full h-full"></canvas>
-            </div>
+            <div id="severityChart" class="w-full" style="height: 280px;"></div>
         </div>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div class="card p-6">
+        <div class="rounded-lg shadow-lg p-6"
+            style="background-color: #181b1f; border: 1px solid rgba(204, 204, 220, 0.12);">
             <div class="flex items-center justify-between mb-4">
                 <div>
                     <h2 class="text-lg font-semibold">Top Alert Sources</h2>
@@ -195,14 +274,16 @@
             </div>
             <div id="topSources" class="space-y-3 text-sm"></div>
         </div>
-        <div class="card p-6 lg:col-span-2">
+        <div class="rounded-lg shadow-lg p-6 lg:col-span-2"
+            style="background-color: #181b1f; border: 1px solid rgba(204, 204, 220, 0.12);">
             <div class="flex items-center justify-between mb-4">
                 <div>
                     <h2 class="text-lg font-semibold">Recent Alerts</h2>
                     <p class="text-gray-400 text-sm">Latest alerts for quick triage</p>
                 </div>
                 <div class="flex items-center space-x-3 text-sm text-gray-400">
-                    <span class="flex items-center space-x-1"><i class="fas fa-sync-alt"></i><span id="lastUpdated">-</span></span>
+                    <span class="flex items-center space-x-1"><i class="fas fa-sync-alt"></i><span
+                            id="lastUpdated">-</span></span>
                     <a href="/alerts" class="text-blue-400 hover:underline">View all</a>
                 </div>
             </div>
@@ -224,7 +305,8 @@
                     </div>
                 </div>
             </div>
-            <div id="recentAlertsError" class="hidden text-sm text-red-200 bg-red-900 border border-red-800 rounded-lg p-3 mt-3 flex items-center justify-between">
+            <div id="recentAlertsError"
+                class="hidden text-sm text-red-200 bg-red-900 border border-red-800 rounded-lg p-3 mt-3 flex items-center justify-between">
                 <span>Unable to load alerts.</span>
                 <button id="retryAlerts" class="btn-secondary px-3 py-1 rounded text-xs">Retry</button>
             </div>
@@ -232,7 +314,8 @@
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div class="card p-6 lg:col-span-3">
+        <div class="rounded-lg shadow-lg p-6 lg:col-span-3"
+            style="background-color: #181b1f; border: 1px solid rgba(204, 204, 220, 0.12);">
             <div class="flex items-center justify-between mb-4">
                 <h2 class="text-lg font-semibold">Active Incidents Timeline</h2>
                 <a href="/alerts" class="text-blue-400 text-sm hover:underline">View all alerts</a>
@@ -252,6 +335,84 @@
     let alertTrendChart = null;
     let severityChart = null;
     let currentRange = '24h';
+    let prometheusConfig = null;
+    let refreshIntervalId = null;
+
+    // Load Prometheus configuration
+    async function loadPrometheusConfig() {
+        try {
+            const response = await apiCall('/api/prometheus/config');
+            if (response && response.ok) {
+                prometheusConfig = await response.json();
+                console.log('Loaded Prometheus config:', prometheusConfig);
+                return prometheusConfig;
+            }
+        } catch (error) {
+            console.error('Failed to load Prometheus config:', error);
+            // Use defaults if config load fails
+            prometheusConfig = {
+                prometheus_refresh_interval: 30,
+                infrastructure_cpu_warning_threshold: 75,
+                infrastructure_cpu_critical_threshold: 90,
+                infrastructure_memory_warning_threshold: 75,
+                infrastructure_memory_critical_threshold: 90,
+                infrastructure_disk_warning_threshold: 75,
+                infrastructure_disk_critical_threshold: 90,
+                infrastructure_show_cpu: true,
+                infrastructure_show_memory: true,
+                infrastructure_show_disk: true,
+                infrastructure_metrics_enabled: true,
+                chart_enable_zoom: true,
+                chart_enable_animations: true
+            };
+        }
+        return prometheusConfig;
+    }
+
+    // ECharts Grafana-inspired Dark Theme
+    const grafanaDarkTheme = {
+        color: [
+            '#7EB26D', '#EAB839', '#6ED0E0', '#EF843C', '#E24D42',
+            '#1F78C1', '#BA43A9', '#705DA0', '#508642', '#CCA300'
+        ],
+        backgroundColor: 'transparent',
+        textStyle: {
+            color: '#D8D9DA',
+            fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto'
+        },
+        title: {
+            textStyle: { color: '#D8D9DA' },
+            subtextStyle: { color: '#9CA3AF' }
+        },
+        grid: {
+            borderColor: '#374151',
+            top: 40,
+            bottom: 60,
+            left: 60,
+            right: 20,
+            containLabel: true
+        },
+        categoryAxis: {
+            axisLine: { lineStyle: { color: '#374151' } },
+            splitLine: { show: true, lineStyle: { color: '#1F2937', type: 'dashed' } },
+            axisLabel: { color: '#9CA3AF' }
+        },
+        valueAxis: {
+            axisLine: { lineStyle: { color: '#374151' } },
+            splitLine: { show: true, lineStyle: { color: '#1F2937', type: 'dashed' } },
+            axisLabel: { color: '#9CA3AF' }
+        },
+        tooltip: {
+            backgroundColor: '#1F2937',
+            borderColor: '#374151',
+            textStyle: { color: '#D8D9DA' }
+        }
+    };
+
+    // Register theme
+    if (typeof echarts !== 'undefined') {
+        echarts.registerTheme('grafana-dark', grafanaDarkTheme);
+    }
 
     const timeRangeSelect = document.getElementById('timeRange');
     const dashboardError = document.getElementById('dashboardError');
@@ -319,14 +480,15 @@
     }
 
     function renderTrend(trendData) {
-        const chartCanvas = document.getElementById('alertTrendChart');
+        const chartContainer = document.getElementById('alertTrendChart');
         const emptyState = document.getElementById('trendEmptyState');
         const hasPoints = Array.isArray(trendData) && trendData.length > 0;
+
         if (!hasPoints) {
             emptyState.classList.remove('hidden');
-            chartCanvas.classList.add('hidden');
+            chartContainer.style.display = 'none';
             if (alertTrendChart) {
-                alertTrendChart.destroy();
+                alertTrendChart.dispose();
                 alertTrendChart = null;
             }
             return;
@@ -334,117 +496,124 @@
 
         const labels = trendData.map(p => new Date(p.bucket).toLocaleString());
         const values = trendData.map(p => p.count || 0);
+
         emptyState.classList.add('hidden');
-        chartCanvas.classList.remove('hidden');
-        const ctx = chartCanvas.getContext('2d');
-        if (alertTrendChart) {
-            alertTrendChart.data.labels = labels;
-            alertTrendChart.data.datasets[0].data = values;
-            alertTrendChart.update();
-            return;
+        chartContainer.style.display = 'block';
+
+        // Initialize or update chart
+        if (!alertTrendChart) {
+            alertTrendChart = echarts.init(chartContainer, 'grafana-dark');
         }
-        alertTrendChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels,
-                datasets: [{
-                    label: 'Alerts',
-                    data: values,
-                    borderColor: '#60a5fa',
-                    backgroundColor: 'rgba(96, 165, 250, 0.15)',
-                    tension: 0.3,
-                    fill: true,
-                }]
+
+        const option = {
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: { type: 'cross', label: { backgroundColor: '#6a7985' } }
             },
-            options: {
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: {
-                    x: { ticks: { color: '#9ca3af', maxRotation: 45, minRotation: 0 } },
-                    y: { ticks: { color: '#9ca3af' }, beginAtZero: true }
-                }
-            }
+            grid: {
+                left: '3%',
+                right: '4%',
+                bottom: '3%',
+                containLabel: true
+            },
+            xAxis: {
+                type: 'category',
+                boundaryGap: false,
+                data: labels,
+                axisLabel: { rotate: 30, fontSize: 11 }
+            },
+            yAxis: {
+                type: 'value',
+                minInterval: 1
+            },
+            series: [{
+                name: 'Alerts',
+                type: 'line',
+                smooth: true,
+                areaStyle: { opacity: 0.3 },
+                data: values,
+                itemStyle: { color: '#7EB26D' },
+                lineStyle: { width: 2 }
+            }],
+            dataZoom: [{
+                type: 'inside',
+                start: 0,
+                end: 100
+            }]
+        };
+
+        alertTrendChart.setOption(option);
+
+        // Auto resize on window resize
+        window.addEventListener('resize', () => {
+            if (alertTrendChart) alertTrendChart.resize();
         });
     }
 
     function renderSeverity(distribution) {
-        const ctx = document.getElementById('severityChart').getContext('2d');
-        
-        // Define mapping for severity to position and color
+        const chartContainer = document.getElementById('severityChart');
+
+        // Define severity colors
         const severityConfig = {
-            'critical': { x: 1, color: '#ef4444', label: 'Critical' },
-            'error': { x: 2, color: '#f97316', label: 'Error' },
-            'warning': { x: 3, color: '#eab308', label: 'Warning' },
-            'info': { x: 4, color: '#3b82f6', label: 'Info' },
-            'other': { x: 5, color: '#9ca3af', label: 'Other' }
+            'critical': { color: '#E24D42', label: 'Critical' },
+            'error': { color: '#EF843C', label: 'Error' },
+            'warning': { color: '#EAB839', label: 'Warning' },
+            'info': { color: '#6ED0E0', label: 'Info' },
+            'other': { color: '#9ca3af', label: 'Other' }
         };
 
         const data = Object.entries(distribution).map(([sev, count]) => {
             const lowSev = sev.toLowerCase();
             const config = severityConfig[lowSev] || severityConfig['other'];
-            // Scale radius: min 10, max 40, logarithmic scaling could be better but linear is simple for now
-            const radius = Math.max(10, Math.min(50, 5 + (count * 2)));
             return {
-                x: config.x,
-                y: 50, // Center vertically
-                r: radius,
-                count: count, // Store for tooltip
-                severity: config.label,
-                backgroundColor: config.color
+                name: config.label,
+                value: count,
+                itemStyle: { color: config.color }
             };
         });
 
-        if (severityChart) {
-            severityChart.destroy();
+        // Initialize or update chart
+        if (!severityChart) {
+            severityChart = echarts.init(chartContainer, 'grafana-dark');
         }
 
-        severityChart = new Chart(ctx, {
-            type: 'bubble',
-            data: {
-                datasets: [{
-                    label: 'Severity Distribution',
-                    data: data,
-                    backgroundColor: data.map(d => d.backgroundColor),
-                    borderColor: '#1f2937', // dark border
-                    borderWidth: 1
-                }]
+        const option = {
+            tooltip: {
+                trigger: 'item',
+                formatter: '{b}: {c} ({d}%)'
             },
-            options: {
-                maintainAspectRatio: false,
-                responsive: true,
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                const item = context.raw;
-                                return `${item.severity}: ${item.count}`;
-                            }
-                        }
+            legend: {
+                orient: 'horizontal',
+                bottom: '0',
+                textStyle: { color: '#9CA3AF' }
+            },
+            series: [{
+                name: 'Severity',
+                type: 'pie',
+                radius: ['40%', '70%'],
+                center: ['50%', '45%'],
+                avoidLabelOverlap: true,
+                label: {
+                    show: true,
+                    formatter: '{b}: {c}',
+                    color: '#D8D9DA'
+                },
+                emphasis: {
+                    label: {
+                        show: true,
+                        fontSize: 14,
+                        fontWeight: 'bold'
                     }
                 },
-                scales: {
-                    x: {
-                        type: 'linear',
-                        min: 0,
-                        max: 6,
-                        grid: { display: false },
-                        ticks: {
-                            callback: function(value, index, values) {
-                                // Map back from x value to label
-                                const config = Object.values(severityConfig).find(c => c.x === value);
-                                return config ? config.label : '';
-                            },
-                            color: '#9ca3af'
-                        }
-                    },
-                    y: {
-                        display: false, // Hide Y axis completely
-                        min: 0,
-                        max: 100
-                    }
-                }
-            }
+                data: data
+            }]
+        };
+
+        severityChart.setOption(option);
+
+        // Auto resize on window resize
+        window.addEventListener('resize', () => {
+            if (severityChart) severityChart.resize();
         });
     }
 
@@ -500,10 +669,28 @@
             renderSeverity(data.severity_distribution);
             renderTopSources(data.top_sources);
             renderTimeline(data.active_incidents);
+
+            // Load clustering stats
+            loadClusteringStats();
         } catch (error) {
             console.error('Failed to load dashboard', error);
             showDashboardError(error.message);
             setConnection('Offline', null, 'offline');
+        }
+    }
+
+    async function loadClusteringStats() {
+        try {
+            const response = await apiCall('/api/clusters/stats/overview');
+            if (!response || !response.ok) return;
+
+            const stats = await response.json();
+            document.getElementById('statActiveClusters').textContent = stats.active_clusters || 0;
+            document.getElementById('statNoiseReduction').textContent = `${stats.noise_reduction_pct || 0}%`;
+            document.getElementById('statAvgClusterSize').textContent = stats.avg_cluster_size ? stats.avg_cluster_size.toFixed(1) : '0.0';
+        } catch (error) {
+            console.error('Failed to load clustering stats:', error);
+            // Silently fail - don't break the dashboard
         }
     }
 
@@ -526,9 +713,10 @@
 
             if (alerts.length === 0) {
                 container.innerHTML = `
-                    <div class="text-center text-gray-400 py-8">
-                        <i class="fas fa-inbox text-2xl mb-2"></i>
-                        <p>No alerts yet</p>
+                    <div class="flex flex-col items-center justify-center py-8 text-center text-gray-500">
+                        <i class="fas fa-inbox text-3xl mb-3 text-gray-600"></i>
+                        <p class="text-sm font-medium text-gray-400">No recent alerts</p>
+                        <p class="text-xs mt-1">System is healthy</p>
                     </div>
                 `;
                 return;
@@ -545,9 +733,9 @@
                         </div>
                         <div class="flex items-center space-x-2">
                             ${alert.analyzed
-                                ? '<i class="fas fa-check-circle text-green-400" title="Analyzed"></i>'
-                                : '<i class="fas fa-clock text-yellow-400" title="Pending"></i>'
-                            }
+                    ? '<i class="fas fa-check-circle text-green-400" title="Analyzed"></i>'
+                    : '<i class="fas fa-clock text-yellow-400" title="Pending"></i>'
+                }
                         </div>
                     </div>
                     <div class="text-sm text-gray-400 mt-1">
@@ -563,15 +751,49 @@
         }
     }
 
-    // Initial load
-    refreshDashboard();
-    loadRecentAlerts();
+    // Initialize dashboard
+    async function initDashboard() {
+        // Load configuration first
+        await loadPrometheusConfig();
 
-    // Refresh every 30 seconds
-    setInterval(() => {
+        // Initial data load
         refreshDashboard();
         loadRecentAlerts();
-        document.getElementById('lastUpdated').textContent = new Date().toLocaleTimeString();
-    }, 30000);
+
+        // Load infrastructure only if enabled
+        if (prometheusConfig && prometheusConfig.infrastructure_metrics_enabled !== false) {
+            loadInfrastructureHealth();
+        }
+
+        // Setup auto-refresh with configurable interval
+        const refreshInterval = (prometheusConfig?.prometheus_refresh_interval || 30) * 1000;
+
+        // Clear any existing interval
+        if (refreshIntervalId) {
+            clearInterval(refreshIntervalId);
+        }
+
+        // Set new interval
+        refreshIntervalId = setInterval(() => {
+            refreshDashboard();
+            loadRecentAlerts();
+
+            if (prometheusConfig && prometheusConfig.infrastructure_metrics_enabled !== false) {
+                loadInfrastructureHealth();
+            }
+
+            document.getElementById('lastUpdated').textContent = new Date().toLocaleTimeString();
+        }, refreshInterval);
+
+        console.log(`Dashboard auto-refresh set to ${refreshInterval / 1000} seconds`);
+    }
+
+    // Start the dashboard
+    initDashboard();
+
+    // Placeholder for missing infrastructure health function
+    function loadInfrastructureHealth() {
+        console.warn('loadInfrastructureHealth not implemented or removed');
+    }
 </script>
 {% endblock %}

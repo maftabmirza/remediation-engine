@@ -1,6 +1,11 @@
 #!/bin/bash
 set -e
 
+
+# Run pre-flight checks
+echo "Running pre-flight checks..."
+python app/check_deps.py
+
 # Run database migrations
 echo "Running database migrations..."
 python -m alembic upgrade head

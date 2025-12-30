@@ -11,3 +11,10 @@ htmlcov/
 .coverage
 coverage.xml
 .pytest_cache/
+
+# Scripts with secrets
+create_sample_changes.ps1
+fix_jira_config.py
+get_create_meta.ps1
+get_issue_types.ps1
+test_jira.ps1

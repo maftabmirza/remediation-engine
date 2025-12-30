@@ -1,10 +1,11 @@
 """Application Registry Models
 
 SQLAlchemy ORM models for application registry, components, and dependencies.
+Includes GrafanaDatasource model for Loki, Tempo, and other observability datasources.
 """
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, Text, ForeignKey, DateTime, JSON, CheckConstraint
+from sqlalchemy import Column, String, Text, ForeignKey, DateTime, JSON, CheckConstraint, Boolean, Integer
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
@@ -118,5 +119,158 @@ class ComponentDependency(Base):
         CheckConstraint(
             "dependency_type IN ('sync', 'async', 'optional')",
             name='ck_dependencies_type'
+        ),
+    )
+
+
+class ApplicationProfile(Base):
+    """
+    Application monitoring profile for AI-powered observability.
+
+    Stores metadata about application monitoring, SLOs, and datasource mappings
+    to enable natural language queries about application health and metrics.
+    """
+    __tablename__ = "application_profiles"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    app_id = Column(UUID(as_uuid=True), ForeignKey("applications.id", ondelete="CASCADE"), nullable=False, index=True, unique=True)
+
+    # Architecture information for AI context
+    architecture_type = Column(String(50), nullable=True)  # monolith, microservices, serverless
+    framework = Column(String(100), nullable=True)  # FastAPI, Django, Spring Boot, etc.
+    language = Column(String(50), nullable=True)  # Python, Java, Go, etc.
+    architecture_info = Column(JSON, default={})  # Additional architecture details
+
+    # Service to metrics mapping
+    service_mappings = Column(JSON, default={})
+    # Example: {
+    #   "api": {"metrics_prefix": "app_api_", "log_label": "service=app-api"},
+    #   "worker": {"metrics_prefix": "app_worker_", "log_label": "service=app-worker"}
+    # }
+
+    # Default metrics to track
+    default_metrics = Column(JSON, default=[])
+    # Example: ["http_requests_total", "http_request_duration_seconds", "http_errors_total", "up"]
+
+    # Service Level Objectives (SLOs)
+    slos = Column(JSON, default={})
+    # Example: {
+    #   "availability": 0.999,
+    #   "error_rate": 0.02,
+    #   "p95_latency_ms": 500,
+    #   "p99_latency_ms": 1000
+    # }
+
+    # Datasource configurations (FK to GrafanaDatasource)
+    prometheus_datasource_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("grafana_datasources.id", ondelete="SET NULL"),
+        nullable=True
+    )
+    loki_datasource_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("grafana_datasources.id", ondelete="SET NULL"),
+        nullable=True
+    )
+    tempo_datasource_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("grafana_datasources.id", ondelete="SET NULL"),
+        nullable=True
+    )
+
+    # AI context preferences
+    default_time_range = Column(String(20), default="1h")  # Default time range for queries
+    log_patterns = Column(JSON, default={})  # Common log patterns for parsing
+    # Example: {"error_pattern": "ERROR|FATAL", "warning_pattern": "WARN|WARNING"}
+
+    created_at = Column(DateTime(timezone=True), default=utc_now)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+
+    # Relationships
+    application = relationship("Application", backref="monitoring_profile")
+    prometheus_datasource = relationship(
+        "GrafanaDatasource",
+        foreign_keys=[prometheus_datasource_id],
+        backref="prometheus_profiles"
+    )
+    loki_datasource = relationship(
+        "GrafanaDatasource",
+        foreign_keys=[loki_datasource_id],
+        backref="loki_profiles"
+    )
+    tempo_datasource = relationship(
+        "GrafanaDatasource",
+        foreign_keys=[tempo_datasource_id],
+        backref="tempo_profiles"
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "architecture_type IN ('monolith', 'microservices', 'serverless', 'hybrid', 'other')",
+            name='ck_app_profiles_architecture'
+        ),
+    )
+
+
+class GrafanaDatasource(Base):
+    """
+    Grafana datasource configuration for observability backends.
+
+    Supports multiple datasource types:
+    - loki: Log aggregation
+    - tempo: Distributed tracing
+    - prometheus: Metrics (overlaps with PrometheusDatasource but more general)
+    - mimir: Long-term metrics storage
+    - alertmanager: Alert management
+
+    This model allows applications to reference specific datasource instances
+    for AI-powered querying and observability.
+    """
+    __tablename__ = "grafana_datasources"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String(100), nullable=False, unique=True, index=True)
+    datasource_type = Column(String(50), nullable=False, index=True)  # loki, tempo, prometheus, mimir
+    url = Column(String(512), nullable=False)
+    description = Column(Text, nullable=True)
+
+    # Authentication
+    auth_type = Column(String(50), default="none")  # none, basic, bearer, oauth2
+    username = Column(String(255), nullable=True)
+    password = Column(String(512), nullable=True)  # Should be encrypted in production
+    bearer_token = Column(String(512), nullable=True)  # Should be encrypted in production
+
+    # Configuration
+    timeout = Column(Integer, default=30)  # Request timeout in seconds
+    is_default = Column(Boolean, default=False)  # Default datasource for this type
+    is_enabled = Column(Boolean, default=True)
+
+    # Type-specific configuration (JSON)
+    # For Loki: {"max_lines": 1000, "derived_fields": [...]}
+    # For Tempo: {"trace_query_type": "search", "service_map_enabled": true}
+    # For Prometheus: {"query_timeout": "30s", "default_step": "15s"}
+    config_json = Column(JSON, default={})
+
+    # Custom HTTP headers
+    custom_headers = Column(JSON, default={})
+
+    # Health status (updated by background health checks)
+    last_health_check = Column(DateTime(timezone=True), nullable=True)
+    is_healthy = Column(Boolean, default=True)
+    health_message = Column(Text, nullable=True)
+
+    # Metadata
+    created_at = Column(DateTime(timezone=True), default=utc_now)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+    created_by = Column(String(255), nullable=True)
+
+    __table_args__ = (
+        CheckConstraint(
+            "datasource_type IN ('loki', 'tempo', 'prometheus', 'mimir', 'alertmanager', 'jaeger', 'zipkin', 'elasticsearch')",
+            name='ck_datasources_type'
+        ),
+        CheckConstraint(
+            "auth_type IN ('none', 'basic', 'bearer', 'oauth2', 'api_key')",
+            name='ck_datasources_auth_type'
         ),
     )

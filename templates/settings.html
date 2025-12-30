@@ -60,6 +60,10 @@
                     <i class="fas fa-id-card"></i>
                     <span>Roles (RBAC)</span>
                 </button>
+                <button type="button" class="settings-nav-btn" data-target="section-groups">
+                    <i class="fas fa-users-cog"></i>
+                    <span>Groups</span>
+                </button>
                 {% endif %}
                 <button type="button" class="settings-nav-btn" data-target="section-providers">
                     <i class="fas fa-robot"></i>
@@ -95,12 +99,20 @@
     </div>
 
     <div class="flex-1 space-y-6">
-        <section id="section-overview" class="settings-section active space-y-6">
-            <!-- Header -->
-            <div class="flex items-center justify-between">
-                <div>
-                    <h1 class="text-2xl font-bold">Settings</h1>
-                    <p class="text-gray-400">System configuration and user management</p>
+        <section id="section-overview" class="settings-section active space-y-4">
+            <!-- Enterprise Standard Toolbar (Overview) -->
+            <div class="dashboard-header"
+                style="padding: 12px; background: #16171b; border-bottom: 1px solid rgba(255,255,255,0.05); border-radius: 8px;">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div class="flex flex-col min-w-0">
+                        <nav class="flex items-center text-xs text-gray-400 mb-1">
+                            <a href="/" class="hover:text-blue-400 transition-colors">Home</a>
+                            <span class="mx-2">/</span>
+                            <span class="text-gray-200">Settings</span>
+                        </nav>
+                        <h1 class="text-xl font-bold text-white tracking-tight truncate">System Overview</h1>
+                        <p class="text-xs text-gray-500 mt-1">Global configuration and status</p>
+                    </div>
                 </div>
             </div>
 
@@ -223,16 +235,29 @@
 
         {% if 'manage_users' in permissions %}
         <section id="section-users" class="settings-section space-y-4">
-            <div class="flex items-center justify-between">
-                <div>
-                    <h2 class="text-xl font-semibold">User Management</h2>
-                    <p class="text-sm text-gray-400">Full-width view for large directories and role changes.</p>
+            <!-- Enterprise Standard Toolbar (Users) -->
+            <div class="dashboard-header"
+                style="padding: 12px; background: #16171b; border-bottom: 1px solid rgba(255,255,255,0.05); border-radius: 8px;">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div class="flex flex-col min-w-0">
+                        <nav class="flex items-center text-xs text-gray-400 mb-1">
+                            <span class="text-gray-400">Settings</span>
+                            <span class="mx-2">/</span>
+                            <span class="text-gray-200">Users</span>
+                        </nav>
+                        <h1 class="text-xl font-bold text-white tracking-tight truncate">User Management</h1>
+                        <p class="text-xs text-gray-500 mt-1">Manage access and identities</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        {% if 'manage_users' in permissions %}
+                        <button onclick="showCreateUserModal()"
+                            class="bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded text-white text-sm flex items-center gap-2 transition-colors">
+                            <i class="fas fa-plus"></i>
+                            Add User
+                        </button>
+                        {% endif %}
+                    </div>
                 </div>
-                {% if 'manage_users' in permissions %}
-                <button onclick="showCreateUserModal()" class="btn-primary px-4 py-2 rounded">
-                    <i class="fas fa-plus mr-2"></i>Add User
-                </button>
-                {% endif %}
             </div>
             <div class="card">
                 <div class="flex flex-wrap items-center justify-between p-4 border-b border-gray-700 gap-3">
@@ -282,14 +307,27 @@
 
         {% if 'manage_users' in permissions %}
         <section id="section-roles" class="settings-section space-y-4">
-            <div class="flex items-center justify-between">
-                <div>
-                    <h2 class="text-xl font-semibold">Roles & Permissions</h2>
-                    <p class="text-sm text-gray-400">Manage system roles and granular access capabilities.</p>
+            <!-- Enterprise Standard Toolbar (Roles) -->
+            <div class="dashboard-header"
+                style="padding: 12px; background: #16171b; border-bottom: 1px solid rgba(255,255,255,0.05); border-radius: 8px;">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div class="flex flex-col min-w-0">
+                        <nav class="flex items-center text-xs text-gray-400 mb-1">
+                            <span class="text-gray-400">Settings</span>
+                            <span class="mx-2">/</span>
+                            <span class="text-gray-200">Roles</span>
+                        </nav>
+                        <h1 class="text-xl font-bold text-white tracking-tight truncate">Roles & Permissions</h1>
+                        <p class="text-xs text-gray-500 mt-1">Manage system roles and granular access capabilities</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="showCreateRoleModal()"
+                            class="bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded text-white text-sm flex items-center gap-2 transition-colors">
+                            <i class="fas fa-plus"></i>
+                            Create Role
+                        </button>
+                    </div>
                 </div>
-                <button onclick="showCreateRoleModal()" class="btn-primary px-4 py-2 rounded">
-                    <i class="fas fa-plus mr-2"></i>Create Role
-                </button>
             </div>
 
             <!-- Roles Table -->
@@ -313,19 +351,82 @@
                 </div>
             </div>
         </section>
+
+        <!-- Groups Section -->
+        <section id="section-groups" class="settings-section space-y-4">
+            <!-- Enterprise Standard Toolbar (Groups) -->
+            <div class="dashboard-header"
+                style="padding: 12px; background: #16171b; border-bottom: 1px solid rgba(255,255,255,0.05); border-radius: 8px;">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div class="flex flex-col min-w-0">
+                        <nav class="flex items-center text-xs text-gray-400 mb-1">
+                            <span class="text-gray-400">Settings</span>
+                            <span class="mx-2">/</span>
+                            <span class="text-gray-200">Groups</span>
+                        </nav>
+                        <h1 class="text-xl font-bold text-white tracking-tight truncate">User Groups</h1>
+                        <p class="text-xs text-gray-500 mt-1">Organize users and sync with Directory Services</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="showCreateGroupModal()"
+                            class="bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded text-white text-sm flex items-center gap-2 transition-colors">
+                            <i class="fas fa-plus"></i>
+                            Create Group
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Groups Table -->
+            <div class="card overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-gray-800 text-gray-400 text-xs uppercase">
+                                <th class="p-4 border-b border-gray-700">Group Name</th>
+                                <th class="p-4 border-b border-gray-700">Role</th>
+                                <th class="p-4 border-b border-gray-700">Members</th>
+                                <th class="p-4 border-b border-gray-700">AD Sync</th>
+                                <th class="p-4 border-b border-gray-700">Status</th>
+                                <th class="p-4 border-b border-gray-700 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="groupsTableBody" class="text-sm divide-y divide-gray-700">
+                            <tr>
+                                <td colspan="6" class="p-4 text-center text-gray-500">Loading groups...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
         {% endif %}
 
+
         <section id="section-providers" class="settings-section space-y-4">
-            <div class="flex items-center justify-between">
-                <div>
-                    <h2 class="text-xl font-semibold">LLM Providers</h2>
-                    <p class="text-sm text-gray-400">Focus on provider inventory with filters and bulk actions.</p>
+            <!-- Enterprise Standard Toolbar (Providers) -->
+            <div class="dashboard-header"
+                style="padding: 12px; background: #16171b; border-bottom: 1px solid rgba(255,255,255,0.05); border-radius: 8px;">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div class="flex flex-col min-w-0">
+                        <nav class="flex items-center text-xs text-gray-400 mb-1">
+                            <span class="text-gray-400">Settings</span>
+                            <span class="mx-2">/</span>
+                            <span class="text-gray-200">Providers</span>
+                        </nav>
+                        <h1 class="text-xl font-bold text-white tracking-tight truncate">LLM Providers</h1>
+                        <p class="text-xs text-gray-500 mt-1">Manage AI models and API endpoints</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        {% if 'manage_providers' in permissions %}
+                        <button onclick="showCreateProviderModal()"
+                            class="bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded text-white text-sm flex items-center gap-2 transition-colors">
+                            <i class="fas fa-plus"></i>
+                            Add Provider
+                        </button>
+                        {% endif %}
+                    </div>
                 </div>
-                {% if 'manage_providers' in permissions %}
-                <button onclick="showCreateProviderModal()" class="btn-primary px-4 py-2 rounded">
-                    <i class="fas fa-plus mr-2"></i>Add Provider
-                </button>
-                {% endif %}
             </div>
             <div class="card">
                 <div
@@ -375,16 +476,29 @@
         </section>
 
         <section id="section-servers" class="settings-section space-y-4">
-            <div class="flex items-center justify-between">
-                <div>
-                    <h2 class="text-xl font-semibold">Servers</h2>
-                    <p class="text-sm text-gray-400">Expanded credential list with filters and connection tests.</p>
+            <!-- Enterprise Standard Toolbar (Servers) -->
+            <div class="dashboard-header"
+                style="padding: 12px; background: #16171b; border-bottom: 1px solid rgba(255,255,255,0.05); border-radius: 8px;">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div class="flex flex-col min-w-0">
+                        <nav class="flex items-center text-xs text-gray-400 mb-1">
+                            <span class="text-gray-400">Settings</span>
+                            <span class="mx-2">/</span>
+                            <span class="text-gray-200">Servers</span>
+                        </nav>
+                        <h1 class="text-xl font-bold text-white tracking-tight truncate">Server Inventory</h1>
+                        <p class="text-xs text-gray-500 mt-1">Manage target nodes and connections</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        {% if 'manage_servers' in permissions %}
+                        <button onclick="showCreateServerModal()"
+                            class="bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded text-white text-sm flex items-center gap-2 transition-colors">
+                            <i class="fas fa-plus"></i>
+                            Add Server
+                        </button>
+                        {% endif %}
+                    </div>
                 </div>
-                {% if 'manage_servers' in permissions %}
-                <button onclick="showCreateServerModal()" class="btn-primary px-4 py-2 rounded">
-                    <i class="fas fa-plus mr-2"></i>Add Server
-                </button>
-                {% endif %}
             </div>
             <div class="card">
                 <div
@@ -498,15 +612,27 @@
 
         {% if 'manage_servers' in permissions %}
         <section id="section-api-credentials" class="settings-section space-y-4">
-            <div class="flex items-center justify-between">
-                <div>
-                    <h2 class="text-xl font-semibold">API Credentials</h2>
-                    <p class="text-sm text-gray-400">Manage credentials for external APIs (Ansible AWX, Jenkins,
-                        Kubernetes, etc.)</p>
+            <!-- Enterprise Standard Toolbar (API Creds) -->
+            <div class="dashboard-header"
+                style="padding: 12px; background: #16171b; border-bottom: 1px solid rgba(255,255,255,0.05); border-radius: 8px;">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div class="flex flex-col min-w-0">
+                        <nav class="flex items-center text-xs text-gray-400 mb-1">
+                            <span class="text-gray-400">Settings</span>
+                            <span class="mx-2">/</span>
+                            <span class="text-gray-200">API Keys</span>
+                        </nav>
+                        <h1 class="text-xl font-bold text-white tracking-tight truncate">API Credentials</h1>
+                        <p class="text-xs text-gray-500 mt-1">Manage credentials for external services</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="showCreateApiCredentialModal()"
+                            class="bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded text-white text-sm flex items-center gap-2 transition-colors">
+                            <i class="fas fa-plus"></i>
+                            New Credential
+                        </button>
+                    </div>
                 </div>
-                <button onclick="showCreateApiCredentialModal()" class="btn-primary px-4 py-2 rounded">
-                    <i class="fas fa-plus mr-2"></i>New API Credential
-                </button>
             </div>
 
             <div class="card">
@@ -542,14 +668,27 @@
         </section>
 
         <section id="section-credentials" class="settings-section space-y-4">
-            <div class="flex items-center justify-between">
-                <div>
-                    <h2 class="text-xl font-semibold">Credential Profiles</h2>
-                    <p class="text-sm text-gray-400">Create, rotate, and reuse secrets across server groups.</p>
+            <!-- Enterprise Standard Toolbar (Credentials) -->
+            <div class="dashboard-header"
+                style="padding: 12px; background: #16171b; border-bottom: 1px solid rgba(255,255,255,0.05); border-radius: 8px;">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div class="flex flex-col min-w-0">
+                        <nav class="flex items-center text-xs text-gray-400 mb-1">
+                            <span class="text-gray-400">Settings</span>
+                            <span class="mx-2">/</span>
+                            <span class="text-gray-200">Secrets</span>
+                        </nav>
+                        <h1 class="text-xl font-bold text-white tracking-tight truncate">Credential Profiles</h1>
+                        <p class="text-xs text-gray-500 mt-1">Manage stored secrets and vaults</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="showCreateCredentialProfileModal()"
+                            class="bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded text-white text-sm flex items-center gap-2 transition-colors">
+                            <i class="fas fa-plus"></i>
+                            New Profile
+                        </button>
+                    </div>
                 </div>
-                <button onclick="showCreateCredentialProfileModal()" class="btn-primary px-4 py-2 rounded">
-                    <i class="fas fa-plus mr-2"></i>New Credential
-                </button>
             </div>
 
             <div class="card">
@@ -584,10 +723,19 @@
 
         {% if 'manage_providers' in permissions %}
         <section id="section-auth" class="settings-section space-y-4">
-            <div class="flex items-center justify-between">
-                <div>
-                    <h2 class="text-xl font-semibold">Authentication</h2>
-                    <p class="text-sm text-gray-400">Configure LDAP/SAML with validation and test actions.</p>
+            <!-- Enterprise Standard Toolbar (Auth) -->
+            <div class="dashboard-header"
+                style="padding: 12px; background: #16171b; border-bottom: 1px solid rgba(255,255,255,0.05); border-radius: 8px;">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div class="flex flex-col min-w-0">
+                        <nav class="flex items-center text-xs text-gray-400 mb-1">
+                            <span class="text-gray-400">Settings</span>
+                            <span class="mx-2">/</span>
+                            <span class="text-gray-200">Auth</span>
+                        </nav>
+                        <h1 class="text-xl font-bold text-white tracking-tight truncate">Auth Settings</h1>
+                        <p class="text-xs text-gray-500 mt-1">Configure LDAP, SAML, and Local authentication</p>
+                    </div>
                 </div>
             </div>
             <div class="card p-6">
@@ -1092,14 +1240,25 @@
                         Role
                         <span class="info-tooltip info-tooltip-align-left">
                             <span class="info-tooltip-icon">?</span>
-                            <span class="info-tooltip-text">Assigns permissions to the user.</span>
+                            <span class="info-tooltip-text">Direct role assigned to the user.</span>
                         </span>
                     </label>
                     <select id="userRole" class="input-field w-full px-3 py-2 rounded">
-                        <option value="admin">Admin</option>
-                        <option value="editor">Editor</option>
-                        <option value="viewer">Viewer</option>
+                        <option value="">Loading roles...</option>
                     </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">
+                        Groups
+                        <span class="info-tooltip info-tooltip-align-left">
+                            <span class="info-tooltip-icon">?</span>
+                            <span class="info-tooltip-text">Groups this user belongs to. User inherits permissions from
+                                group roles.</span>
+                        </span>
+                    </label>
+                    <div id="userGroupsContainer" class="space-y-2 max-h-32 overflow-y-auto p-2 bg-gray-800 rounded">
+                        <p class="text-gray-500 text-sm">Loading groups...</p>
+                    </div>
                 </div>
                 <div>
                     <label class="block text-sm font-medium mb-1">Password</label>
@@ -1436,6 +1595,93 @@
         </form>
     </div>
 </div>
+
+<!-- Group Modal -->
+<div id="groupModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="card w-full max-w-xl m-4 max-h-[90vh] flex flex-col">
+        <div class="flex items-center justify-between p-6 pb-0 flex-shrink-0">
+            <h3 id="groupModalTitle" class="text-lg font-semibold">Create Group</h3>
+            <button onclick="closeGroupModal()" class="text-gray-400 hover:text-white">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <form id="groupForm" class="flex-1 min-h-0 flex flex-col">
+            <input type="hidden" id="groupEditingId">
+            <div class="flex-1 overflow-y-auto p-6 pt-4 space-y-4 custom-scrollbar">
+                <div>
+                    <label class="block text-sm font-medium mb-1">Group Name *</label>
+                    <input type="text" id="groupName" class="input-field w-full px-3 py-2 rounded" required
+                        placeholder="e.g. SRE-Team">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Description</label>
+                    <textarea id="groupDescription" class="input-field w-full px-3 py-2 rounded h-20"
+                        placeholder="Group purpose and responsibilities..."></textarea>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Role</label>
+                    <select id="groupRole" class="input-field w-full px-3 py-2 rounded">
+                        <option value="">No role assigned</option>
+                    </select>
+                    <p class="text-xs text-gray-400 mt-1">All group members will inherit this role's permissions.</p>
+                </div>
+
+                <!-- AD Sync Configuration -->
+                <div class="border-t border-gray-700 pt-4 space-y-3">
+                    <div class="flex items-center gap-3">
+                        <input type="checkbox" id="groupSyncEnabled" class="form-checkbox">
+                        <label for="groupSyncEnabled" class="text-sm">Enable AD Sync</label>
+                    </div>
+                    <div id="adGroupDnField" class="hidden">
+                        <label class="block text-sm font-medium mb-1">AD Group DN</label>
+                        <input type="text" id="groupAdGroupDn" class="input-field w-full px-3 py-2 rounded"
+                            placeholder="CN=SRE-Team,OU=Groups,DC=corp,DC=com">
+                        <p class="text-xs text-gray-400 mt-1">Distinguished Name of the Active Directory group to sync
+                            membership from.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div
+                class="flex justify-end space-x-2 p-6 border-t border-gray-700 flex-shrink-0 bg-gray-900 bg-opacity-95">
+                <button type="button" onclick="closeGroupModal()"
+                    class="btn-secondary px-4 py-2 rounded">Cancel</button>
+                <button type="submit" class="btn-primary px-4 py-2 rounded">Save Group</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Group Members Drawer -->
+<div id="groupMembersDrawer" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="card w-full max-w-2xl m-4 max-h-[80vh] flex flex-col">
+        <div class="flex items-center justify-between p-6 border-b border-gray-700">
+            <div>
+                <h3 id="groupMembersTitle" class="text-lg font-semibold">Group Members</h3>
+                <p class="text-sm text-gray-400" id="groupMembersSubtitle"></p>
+            </div>
+            <button onclick="closeGroupMembersDrawer()" class="text-gray-400 hover:text-white">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="flex-1 overflow-y-auto p-4">
+            <!-- Add Member -->
+            <div class="flex gap-2 mb-4">
+                <select id="addMemberUserSelect" class="input-field flex-1 px-3 py-2 rounded">
+                    <option value="">Select user to add...</option>
+                </select>
+                <button onclick="addGroupMember()" class="btn-primary px-4 py-2 rounded">
+                    <i class="fas fa-plus mr-1"></i>Add
+                </button>
+            </div>
+            <!-- Members List -->
+            <div id="groupMembersList" class="space-y-2">
+                <p class="text-gray-500 text-center py-4">Loading members...</p>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -1476,6 +1722,8 @@
     let serverPageSize = 10;
     let serverSort = { key: 'name', direction: 'asc' };
     let serverFilteredTotal = 0;
+    let groupsCache = [];
+    let currentGroupId = null;
 
     // --- Utilities ---
     function getSortIcon(key, sortState) {
@@ -3663,12 +3911,87 @@
     });
 
     // --- User Modal Functions ---
-    function showCreateUserModal() {
+    async function populateUserRoleDropdown(selectedRole = '') {
+        const select = document.getElementById('userRole');
+        select.innerHTML = '<option value="">Loading...</option>';
+        try {
+            const res = await fetch('/api/roles');
+            if (res.ok) {
+                const roles = await res.json();
+                select.innerHTML = '';
+                for (const r of roles) {
+                    const selected = r.name === selectedRole ? 'selected' : '';
+                    select.innerHTML += `<option value="${r.name}" ${selected}>${r.name}</option>`;
+                }
+            } else {
+                select.innerHTML = '<option value="operator">operator</option>';
+            }
+        } catch (e) {
+            select.innerHTML = '<option value="operator">operator</option>';
+        }
+    }
+
+    async function populateUserGroupsCheckboxes(userGroups = []) {
+        const container = document.getElementById('userGroupsContainer');
+        container.innerHTML = '<p class="text-gray-500 text-sm">Loading...</p>';
+        try {
+            const res = await fetch('/api/groups');
+            if (res.ok) {
+                const groups = await res.json();
+                if (!groups.length) {
+                    container.innerHTML = '<p class="text-gray-500 text-sm">No groups available</p>';
+                    return;
+                }
+                let html = '';
+                for (const g of groups) {
+                    const checked = userGroups.includes(g.id) ? 'checked' : '';
+                    html += `
+                        <label class="flex items-center space-x-2 cursor-pointer">
+                            <input type="checkbox" name="user_group" value="${g.id}" ${checked}
+                                class="form-checkbox text-blue-500 rounded bg-gray-700 border-gray-600">
+                            <span class="text-sm">${g.name}</span>
+                            ${g.role_name ? `<span class="text-xs text-gray-500">(${g.role_name})</span>` : ''}
+                        </label>
+                    `;
+                }
+                container.innerHTML = html;
+            } else {
+                container.innerHTML = '<p class="text-gray-500 text-sm">Error loading groups</p>';
+            }
+        } catch (e) {
+            container.innerHTML = '<p class="text-gray-500 text-sm">Error loading groups</p>';
+        }
+    }
+
+    async function getUserGroups(userId) {
+        try {
+            const res = await fetch('/api/groups');
+            if (!res.ok) return [];
+            const groups = await res.json();
+            const userGroups = [];
+            for (const g of groups) {
+                const membersRes = await fetch(`/api/groups/${g.id}/members`);
+                if (membersRes.ok) {
+                    const members = await membersRes.json();
+                    if (members.some(m => m.user_id === userId)) {
+                        userGroups.push(g.id);
+                    }
+                }
+            }
+            return userGroups;
+        } catch (e) {
+            return [];
+        }
+    }
+
+    async function showCreateUserModal() {
         document.getElementById('userModalTitle').textContent = 'Add User';
         document.getElementById('userForm').reset();
         document.getElementById('userId').value = '';
         document.getElementById('userPassword').required = true;
         document.getElementById('userPasswordHelp').classList.add('hidden');
+        await populateUserRoleDropdown('operator');
+        await populateUserGroupsCheckboxes([]);
         document.getElementById('userModal').classList.remove('hidden');
         document.getElementById('userModal').classList.add('flex');
     }
@@ -3686,13 +4009,17 @@
             document.getElementById('userUsername').value = user.username;
             document.getElementById('userEmail').value = user.email || '';
             document.getElementById('userFullName').value = user.full_name || '';
-            document.getElementById('userRole').value = user.role;
             document.getElementById('userActive').checked = user.is_active;
 
             // Password is optional for edit
             document.getElementById('userPassword').value = '';
             document.getElementById('userPassword').required = false;
             document.getElementById('userPasswordHelp').classList.remove('hidden');
+
+            // Load roles and groups
+            await populateUserRoleDropdown(user.role);
+            const userGroups = await getUserGroups(userId);
+            await populateUserGroupsCheckboxes(userGroups);
 
             document.getElementById('userModal').classList.remove('hidden');
             document.getElementById('userModal').classList.add('flex');
@@ -3738,6 +4065,31 @@
             if (!response.ok) {
                 const error = await response.json();
                 throw new Error(error.detail || 'Failed to save user');
+            }
+
+            const savedUser = await response.json();
+            const savedUserId = userId || savedUser.id;
+
+            // Handle group memberships
+            const selectedGroups = Array.from(document.querySelectorAll('input[name="user_group"]:checked')).map(cb => cb.value);
+            const currentGroups = userId ? await getUserGroups(userId) : [];
+
+            // Add to new groups
+            for (const groupId of selectedGroups) {
+                if (!currentGroups.includes(groupId)) {
+                    await fetch(`/api/groups/${groupId}/members`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ user_id: savedUserId })
+                    });
+                }
+            }
+
+            // Remove from unselected groups
+            for (const groupId of currentGroups) {
+                if (!selectedGroups.includes(groupId)) {
+                    await fetch(`/api/groups/${groupId}/members/${savedUserId}`, { method: 'DELETE' });
+                }
             }
 
             showToast(userId ? 'User updated' : 'User created', 'success');
@@ -3982,6 +4334,284 @@
         if (targetId === 'section-roles') {
             loadRoles();
         }
+        if (targetId === 'section-groups') {
+            loadGroups();
+        }
     };
+
+    // ==================== GROUPS ====================
+    async function loadGroups() {
+        try {
+            const res = await fetch('/api/groups');
+            if (!res.ok) throw new Error('Failed to load groups');
+            groupsCache = await res.json();
+            renderGroupsTable();
+        } catch (e) {
+            console.error('Error loading groups:', e);
+            document.getElementById('groupsTableBody').innerHTML =
+                '<tr><td colspan="6" class="p-4 text-center text-red-400">Error loading groups</td></tr>';
+        }
+    }
+
+    function renderGroupsTable() {
+        const container = document.getElementById('groupsTableBody');
+        if (!groupsCache.length) {
+            container.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-gray-500">No groups configured. Create one to organize users.</td></tr>';
+            return;
+        }
+        let html = '';
+        for (const g of groupsCache) {
+            const statusBadge = g.is_active
+                ? '<span class="px-2 py-1 text-xs rounded-full bg-green-900 text-green-300">Active</span>'
+                : '<span class="px-2 py-1 text-xs rounded-full bg-gray-700 text-gray-400">Inactive</span>';
+            const syncBadge = g.sync_enabled
+                ? '<span class="px-2 py-1 text-xs rounded-full bg-blue-900 text-blue-300"><i class="fas fa-sync mr-1"></i>Enabled</span>'
+                : '<span class="text-gray-500">-</span>';
+            html += `
+                <tr class="hover:bg-gray-800 transition-colors">
+                    <td class="p-4">
+                        <div class="font-medium">${g.name}</div>
+                        <div class="text-xs text-gray-500">${g.description || ''}</div>
+                    </td>
+                    <td class="p-4">
+                        ${g.role_name ? `<span class="px-2 py-1 text-xs rounded-full bg-purple-900 text-purple-300">${g.role_name}</span>` : '<span class="text-gray-500">None</span>'}
+                    </td>
+                    <td class="p-4">
+                        <button onclick="showGroupMembers('${g.id}', '${g.name}')" class="text-blue-400 hover:underline">
+                            ${g.member_count} member${g.member_count !== 1 ? 's' : ''}
+                        </button>
+                    </td>
+                    <td class="p-4">${syncBadge}</td>
+                    <td class="p-4">${statusBadge}</td>
+                    <td class="p-4 text-right space-x-2">
+                        <button onclick="editGroup('${g.id}')" class="text-blue-400 hover:text-blue-300"><i class="fas fa-edit"></i></button>
+                        <button onclick="deleteGroup('${g.id}', '${g.name}')" class="text-red-400 hover:text-red-300"><i class="fas fa-trash"></i></button>
+                    </td>
+                </tr>
+            `;
+        }
+        container.innerHTML = html;
+    }
+
+    async function populateGroupRoleDropdown() {
+        const select = document.getElementById('groupRole');
+        select.innerHTML = '<option value="">No role assigned</option>';
+        try {
+            const res = await fetch('/api/roles');
+            if (res.ok) {
+                const roles = await res.json();
+                for (const r of roles) {
+                    select.innerHTML += `<option value="${r.id}">${r.name}</option>`;
+                }
+            }
+        } catch (e) { console.error(e); }
+    }
+
+    function showCreateGroupModal() {
+        document.getElementById('groupModalTitle').textContent = 'Create Group';
+        document.getElementById('groupEditingId').value = '';
+        document.getElementById('groupName').value = '';
+        document.getElementById('groupDescription').value = '';
+        document.getElementById('groupSyncEnabled').checked = false;
+        document.getElementById('groupAdGroupDn').value = '';
+        document.getElementById('adGroupDnField').classList.add('hidden');
+        populateGroupRoleDropdown();
+        document.getElementById('groupRole').value = '';
+        document.getElementById('groupModal').classList.remove('hidden');
+        document.getElementById('groupModal').classList.add('flex');
+    }
+
+    async function editGroup(groupId) {
+        const group = groupsCache.find(g => g.id === groupId);
+        if (!group) return;
+        document.getElementById('groupModalTitle').textContent = 'Edit Group';
+        document.getElementById('groupEditingId').value = groupId;
+        document.getElementById('groupName').value = group.name;
+        document.getElementById('groupDescription').value = group.description || '';
+        document.getElementById('groupSyncEnabled').checked = group.sync_enabled;
+        document.getElementById('groupAdGroupDn').value = group.ad_group_dn || '';
+        document.getElementById('adGroupDnField').classList.toggle('hidden', !group.sync_enabled);
+        await populateGroupRoleDropdown();
+        document.getElementById('groupRole').value = group.role_id || '';
+        document.getElementById('groupModal').classList.remove('hidden');
+        document.getElementById('groupModal').classList.add('flex');
+    }
+
+    function closeGroupModal() {
+        document.getElementById('groupModal').classList.add('hidden');
+        document.getElementById('groupModal').classList.remove('flex');
+    }
+
+    document.getElementById('groupSyncEnabled').addEventListener('change', function () {
+        document.getElementById('adGroupDnField').classList.toggle('hidden', !this.checked);
+    });
+
+    document.getElementById('groupForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const groupId = document.getElementById('groupEditingId').value;
+        const payload = {
+            name: document.getElementById('groupName').value,
+            description: document.getElementById('groupDescription').value || null,
+            role_id: document.getElementById('groupRole').value || null,
+            sync_enabled: document.getElementById('groupSyncEnabled').checked,
+            ad_group_dn: document.getElementById('groupAdGroupDn').value || null
+        };
+        const method = groupId ? 'PUT' : 'POST';
+        const url = groupId ? `/api/groups/${groupId}` : '/api/groups';
+        try {
+            const res = await fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (res.ok) {
+                showToast(groupId ? 'Group updated' : 'Group created', 'success');
+                closeGroupModal();
+                loadGroups();
+            } else {
+                const err = await res.json();
+                showToast(err.detail || 'Failed to save group', 'error');
+            }
+        } catch (e) {
+            showToast('Error saving group', 'error');
+        }
+    });
+
+    function deleteGroup(groupId, groupName) {
+        showConfirmModal(
+            'Delete Group',
+            `Are you sure you want to delete group "${groupName}"? All members will be removed from this group.`,
+            async () => {
+                try {
+                    const res = await fetch(`/api/groups/${groupId}`, { method: 'DELETE' });
+                    if (res.ok) {
+                        showToast('Group deleted', 'success');
+                        loadGroups();
+                    } else {
+                        const err = await res.json();
+                        showToast(err.detail || 'Failed to delete group', 'error');
+                    }
+                } catch (e) {
+                    showToast('Error deleting group', 'error');
+                }
+            }
+        );
+    }
+
+    // ---- Group Members ----
+    async function showGroupMembers(groupId, groupName) {
+        currentGroupId = groupId;
+        document.getElementById('groupMembersTitle').textContent = `Members of ${groupName}`;
+        document.getElementById('groupMembersSubtitle').textContent = 'Add or remove users from this group';
+        document.getElementById('groupMembersDrawer').classList.remove('hidden');
+        document.getElementById('groupMembersDrawer').classList.add('flex');
+        await loadGroupMembers(groupId);
+        await populateMemberUserSelect(groupId);
+    }
+
+    function closeGroupMembersDrawer() {
+        document.getElementById('groupMembersDrawer').classList.add('hidden');
+        document.getElementById('groupMembersDrawer').classList.remove('flex');
+        currentGroupId = null;
+    }
+
+    async function loadGroupMembers(groupId) {
+        const container = document.getElementById('groupMembersList');
+        try {
+            const res = await fetch(`/api/groups/${groupId}/members`);
+            if (!res.ok) throw new Error('Failed');
+            const members = await res.json();
+            if (!members.length) {
+                container.innerHTML = '<p class="text-gray-500 text-center py-4">No members in this group.</p>';
+                return;
+            }
+            let html = '';
+            for (const m of members) {
+                const sourceBadge = m.source === 'ad_sync'
+                    ? '<span class="ml-2 px-2 py-0.5 text-xs rounded bg-blue-900 text-blue-300">AD</span>'
+                    : '<span class="ml-2 px-2 py-0.5 text-xs rounded bg-gray-700 text-gray-400">Manual</span>';
+                html += `
+                    <div class="flex items-center justify-between p-3 bg-gray-800 rounded">
+                        <div>
+                            <span class="font-medium">${m.username}</span>
+                            ${sourceBadge}
+                        </div>
+                        <button onclick="removeGroupMember('${groupId}', '${m.user_id}', '${m.username}')" class="text-red-400 hover:text-red-300">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                `;
+            }
+            container.innerHTML = html;
+        } catch (e) {
+            container.innerHTML = '<p class="text-red-400 text-center py-4">Error loading members</p>';
+        }
+    }
+
+    async function populateMemberUserSelect(groupId) {
+        const select = document.getElementById('addMemberUserSelect');
+        select.innerHTML = '<option value="">Select user to add...</option>';
+        try {
+            const [usersRes, membersRes] = await Promise.all([
+                fetch('/api/users'),
+                fetch(`/api/groups/${groupId}/members`)
+            ]);
+            if (usersRes.ok && membersRes.ok) {
+                const users = await usersRes.json();
+                const members = await membersRes.json();
+                const memberIds = new Set(members.map(m => m.user_id));
+                for (const u of users) {
+                    if (!memberIds.has(u.id)) {
+                        select.innerHTML += `<option value="${u.id}">${u.username}</option>`;
+                    }
+                }
+            }
+        } catch (e) { console.error(e); }
+    }
+
+    async function addGroupMember() {
+        const userId = document.getElementById('addMemberUserSelect').value;
+        if (!userId || !currentGroupId) return;
+        try {
+            const res = await fetch(`/api/groups/${currentGroupId}/members`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: userId })
+            });
+            if (res.ok) {
+                showToast('Member added', 'success');
+                await loadGroupMembers(currentGroupId);
+                await populateMemberUserSelect(currentGroupId);
+                loadGroups(); // Update member count
+            } else {
+                const err = await res.json();
+                showToast(err.detail || 'Failed to add member', 'error');
+            }
+        } catch (e) {
+            showToast('Error adding member', 'error');
+        }
+    }
+
+    function removeGroupMember(groupId, userId, username) {
+        showConfirmModal(
+            'Remove Member',
+            `Remove ${username} from this group?`,
+            async () => {
+                try {
+                    const res = await fetch(`/api/groups/${groupId}/members/${userId}`, { method: 'DELETE' });
+                    if (res.ok) {
+                        showToast('Member removed', 'success');
+                        await loadGroupMembers(groupId);
+                        await populateMemberUserSelect(groupId);
+                        loadGroups();
+                    } else {
+                        showToast('Failed to remove member', 'error');
+                    }
+                } catch (e) {
+                    showToast('Error removing member', 'error');
+                }
+            }
+        );
+    }
 </script>
 {% endblock %}
