@@ -1,0 +1,74 @@
+name: Restart Nginx Service (Linux)
+description: Standard procedure to restart Nginx web server on Linux systems
+category: service_recovery
+enabled: true
+auto_execute: false
+approval_required: true
+timeout_seconds: 300
+max_executions_per_hour: 5
+cooldown_minutes: 10
+
+steps:
+  - name: Check Nginx status
+    order: 1
+    description: Verify current Nginx service status
+    command: systemctl status nginx
+    executor_type: ssh
+    timeout_seconds: 30
+    continue_on_error: true
+    output_variable: nginx_status
+    
+  - name: Check Nginx configuration
+    order: 2
+    description: Validate Nginx configuration syntax
+    command: sudo nginx -t
+    executor_type: ssh
+    timeout_seconds: 30
+    continue_on_error: false
+    output_variable: config_check
+    
+  - name: Restart Nginx service
+    order: 3
+    description: Restart the Nginx service
+    command: sudo systemctl restart nginx
+    executor_type: ssh
+    timeout_seconds: 60
+    continue_on_error: false
+    retry_count: 2
+    retry_delay_seconds: 5
+    
+  - name: Wait for service to stabilize
+    order: 4
+    description: Wait 10 seconds for service to stabilize
+    command: sleep 10
+    executor_type: ssh
+    timeout_seconds: 15
+    continue_on_error: true
+    
+  - name: Verify Nginx is running
+    order: 5
+    description: Confirm Nginx service is active
+    command: systemctl is-active nginx
+    executor_type: ssh
+    timeout_seconds: 30
+    continue_on_error: false
+    expected_output: "active"
+    
+  - name: Check HTTP response
+    order: 6
+    description: Verify Nginx is responding to HTTP requests
+    command: curl -I http://localhost:80
+    executor_type: ssh
+    timeout_seconds: 30
+    continue_on_error: true
+    output_variable: http_response
+
+triggers:
+  - alert_pattern: "NginxDown"
+    severity_pattern: "*"
+    instance_pattern: "*"
+    auto_trigger: false
+    
+safety:
+  max_failures_before_circuit_open: 3
+  circuit_breaker_timeout_minutes: 30

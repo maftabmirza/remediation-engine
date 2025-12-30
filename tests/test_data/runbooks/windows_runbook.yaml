@@ -1,0 +1,82 @@
+name: Restart IIS Service (Windows)
+description: Standard procedure to restart IIS web server on Windows systems
+category: service_recovery
+enabled: true
+auto_execute: false
+approval_required: true
+timeout_seconds: 300
+max_executions_per_hour: 3
+cooldown_minutes: 15
+
+steps:
+  - name: Check IIS status
+    order: 1
+    description: Verify current IIS service status
+    command: Get-Service W3SVC | Select-Object Status, Name
+    executor_type: powershell
+    timeout_seconds: 30
+    continue_on_error: true
+    output_variable: iis_status
+    
+  - name: Stop IIS service
+    order: 2
+    description: Stop the IIS service gracefully
+    command: Stop-Service W3SVC -Force
+    executor_type: powershell
+    timeout_seconds: 60
+    continue_on_error: false
+    retry_count: 2
+    
+  - name: Clear IIS logs
+    order: 3
+    description: Clear old IIS log files
+    command: Remove-Item C:\inetpub\logs\LogFiles\* -Force -Recurse -ErrorAction SilentlyContinue
+    executor_type: powershell
+    timeout_seconds: 30
+    continue_on_error: true
+    
+  - name: Start IIS service
+    order: 4
+    description: Start the IIS service
+    command: Start-Service W3SVC
+    executor_type: powershell
+    timeout_seconds: 60
+    continue_on_error: false
+    retry_count: 2
+    retry_delay_seconds: 5
+    
+  - name: Wait for service to stabilize
+    order: 5
+    description: Wait 15 seconds for service to stabilize
+    command: Start-Sleep -Seconds 15
+    executor_type: powershell
+    timeout_seconds: 20
+    continue_on_error: true
+    
+  - name: Verify IIS is running
+    order: 6
+    description: Confirm IIS service is running
+    command: (Get-Service W3SVC).Status -eq 'Running'
+    executor_type: powershell
+    timeout_seconds: 30
+    continue_on_error: false
+    expected_output: "True"
+    
+  - name: Test HTTP endpoint
+    order: 7
+    description: Verify IIS is responding to HTTP requests
+    command: Invoke-WebRequest -Uri http://localhost -Method HEAD -UseBasicParsing
+    executor_type: powershell
+    timeout_seconds: 30
+    continue_on_error: true
+    output_variable: http_response
+
+triggers:
+  - alert_pattern: "IISDown"
+    severity_pattern: "critical"
+    instance_pattern: "*"
+    auto_trigger: false
+    
+safety:
+  max_failures_before_circuit_open: 3
+  circuit_breaker_timeout_minutes: 45

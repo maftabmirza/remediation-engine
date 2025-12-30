@@ -1,0 +1,52 @@
+{
+    "receiver": "remediation-engine",
+    "status": "resolved",
+    "alerts": [
+        {
+            "status": "resolved",
+            "labels": {
+                "alertname": "HighCPUUsage",
+                "severity": "critical",
+                "instance": "web-server-01",
+                "job": "node-exporter",
+                "datacenter": "us-east-1"
+            },
+            "annotations": {
+                "summary": "CPU usage above 90% on web-server-01",
+                "description": "The CPU usage has been above 90% for the last 5 minutes"
+            },
+            "startsAt": "2025-01-15T10:00:00Z",
+            "endsAt": "2025-01-15T10:15:00Z",
+            "generatorURL": "http://prometheus:9090/graph?g0.expr=...",
+            "fingerprint": "cpu-high-web01-12345"
+        },
+        {
+            "status": "resolved",
+            "labels": {
+                "alertname": "NginxDown",
+                "severity": "critical",
+                "instance": "web-server-02",
+                "job": "nginx-exporter",
+                "environment": "production"
+            },
+            "annotations": {
+                "summary": "Nginx is down on web-server-02",
+                "description": "Nginx service has stopped responding to health checks"
+            },
+            "startsAt": "2025-01-15T10:05:00Z",
+            "endsAt": "2025-01-15T10:10:00Z",
+            "generatorURL": "http://prometheus:9090/graph?g0.expr=...",
+            "fingerprint": "nginx-down-web02-67890"
+        }
+    ],
+    "groupLabels": {
+        "alertname": "HighCPUUsage"
+    },
+    "commonLabels": {
+        "severity": "critical"
+    },
+    "commonAnnotations": {},
+    "externalURL": "http://alertmanager:9093",
+    "version": "4",
+    "groupKey": "{}:{alertname=\"HighCPUUsage\"}"
+}

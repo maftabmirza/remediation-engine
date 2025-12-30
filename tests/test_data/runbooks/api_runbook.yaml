@@ -1,0 +1,92 @@
+name: Restart Application via API
+description: Restart application using REST API calls
+category: api_operations
+enabled: true
+auto_execute: false
+approval_required: true
+timeout_seconds: 180
+
+steps:
+  - name: Get application status
+    order: 1
+    description: Check current application status via API
+    executor_type: api
+    api_config:
+      method: GET
+      url: "https://api.example.com/v1/apps/{{app_id}}/status"
+      headers:
+        Authorization: "Bearer {{api_token}}"
+        Content-Type: "application/json"
+    timeout_seconds: 30
+    continue_on_error: true
+    output_variable: app_status
+    output_extract_pattern: '$.status'
+    
+  - name: Trigger graceful shutdown
+    order: 2
+    description: Initiate graceful application shutdown
+    executor_type: api
+    api_config:
+      method: POST
+      url: "https://api.example.com/v1/apps/{{app_id}}/shutdown"
+      headers:
+        Authorization: "Bearer {{api_token}}"
+        Content-Type: "application/json"
+      body:
+        mode: "graceful"
+        timeout: 60
+    timeout_seconds: 90
+    continue_on_error: false
+    retry_count: 2
+    expected_output: '{"status": "shutdown_initiated"}'
+    
+  - name: Wait for shutdown confirmation
+    order: 3
+    description: Poll for shutdown confirmation
+    executor_type: api
+    api_config:
+      method: GET
+      url: "https://api.example.com/v1/apps/{{app_id}}/status"
+      headers:
+        Authorization: "Bearer {{api_token}}"
+    timeout_seconds: 30
+    continue_on_error: false
+    expected_output: '{"status": "stopped"}'
+    
+  - name: Restart application
+    order: 4
+    description: Start the application
+    executor_type: api
+    api_config:
+      method: POST
+      url: "https://api.example.com/v1/apps/{{app_id}}/start"
+      headers:
+        Authorization: "Bearer {{api_token}}"
+        Content-Type: "application/json"
+    timeout_seconds: 60
+    continue_on_error: false
+    retry_count: 3
+    retry_delay_seconds: 10
+    
+  - name: Health check
+    order: 5
+    description: Verify application health
+    executor_type: api
+    api_config:
+      method: GET
+      url: "https://api.example.com/v1/apps/{{app_id}}/health"
+      headers:
+        Authorization: "Bearer {{api_token}}"
+    timeout_seconds: 30
+    continue_on_error: false
+    expected_output: '{"status": "healthy"}'
+
+triggers:
+  - alert_pattern: "ApplicationUnhealthy"
+    severity_pattern: "*"
+    instance_pattern: "*"
+    auto_trigger: false
+    
+safety:
+  max_failures_before_circuit_open: 2
+  circuit_breaker_timeout_minutes: 20

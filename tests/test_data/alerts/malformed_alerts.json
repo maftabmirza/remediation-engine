@@ -1,0 +1,10 @@
+{
+    "receiver": "remediation-engine",
+    "alerts": [
+        {
+            "labels": {
+                "alertname": "MalformedAlert"
+            }
+        }
+    ]
+}
