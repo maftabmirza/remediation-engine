@@ -173,10 +173,13 @@ def _build_server_entity(data: ServerCreate, current_user: User, db: Session) ->
     if data.credential_source == "inline" and not (ssh_key_enc or password_enc) and not data.credential_profile_id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inline credentials require a password or SSH key")
 
+    # Probe port - optional, don't block creation if it fails
     probe = _probe_port(data.hostname, data.port)
     tested_at = datetime.utcnow()
-    if probe.status != "success":
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Connection test failed: {probe.message}")
+    # Don't raise exception if probe fails, just log it
+    connection_status = probe.status
+    connection_error = None if probe.status == "success" else probe.message
+
 
     server = ServerCredential(
         name=data.name,
@@ -200,8 +203,8 @@ def _build_server_entity(data: ServerCreate, current_user: User, db: Session) ->
         group_id=data.group_id,
         created_by=current_user.id,
         last_connection_test=tested_at,
-        last_connection_status=probe.status,
-        last_connection_error=None if probe.status == "success" else probe.message,
+        last_connection_status=connection_status,
+        last_connection_error=connection_error,
     )
     return server
 
