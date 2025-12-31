@@ -1,3 +1,0 @@
-"""
-Linux remediation tests
-"""
