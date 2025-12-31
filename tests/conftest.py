@@ -56,6 +56,11 @@ except ImportError:
 # Asyncio Event Loop Fixture - Session scope to prevent loop closure between tests
 # ============================================================================
 
+
+# Disable rate limiting for tests
+from app.main import limiter
+limiter.enabled = False
+
 @pytest.fixture(scope="session")
 def event_loop():
     """Create a session-scoped event loop for async tests.

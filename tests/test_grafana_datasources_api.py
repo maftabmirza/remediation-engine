@@ -158,7 +158,7 @@ async def test_list_datasources(authenticated_client, test_db_session):
     for i in range(5):
         ds = GrafanaDatasource(
             id=uuid4(),
-            name=f"datasource-{i}",
+            name=f"datasource-{i}-{uuid4()}",
             datasource_type="loki" if i % 2 == 0 else "tempo",
             url=f"http://ds-{i}:3100"
         )

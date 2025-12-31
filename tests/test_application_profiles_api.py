@@ -219,7 +219,7 @@ async def test_list_profiles_filter_by_architecture(authenticated_client, test_d
 
     # Create profiles with different architectures
     for arch_type in ["microservices", "microservices", "monolith"]:
-        app = Application(id=uuid4(), name=f"app-{arch_type}")
+        app = Application(id=uuid4(), name=f"app-{arch_type}-{uuid4()}")
         test_db_session.add(app)
         test_db_session.commit()
 
@@ -250,7 +250,7 @@ async def test_list_profiles_filter_by_language(authenticated_client, test_db_se
 
     # Create profiles with different languages
     for lang in ["Python", "Python", "Go", "Java"]:
-        app = Application(id=uuid4(), name=f"app-{lang}")
+        app = Application(id=uuid4(), name=f"app-{lang}-{uuid4()}")
         test_db_session.add(app)
         test_db_session.commit()
 
