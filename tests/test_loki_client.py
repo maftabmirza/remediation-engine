@@ -615,7 +615,7 @@ async def test_get_labels_http_error(loki_client):
     with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
-        mock_client.__aexit__.return_value = AsyncMock()
+        mock_client.__aexit__.return_value = None
         mock_client.get = AsyncMock(return_value=mock_response)
         mock_client_class.return_value = mock_client
 
@@ -637,7 +637,7 @@ async def test_get_label_values_http_error(loki_client):
     with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
-        mock_client.__aexit__.return_value = AsyncMock()
+        mock_client.__aexit__.return_value = None
         mock_client.get = AsyncMock(return_value=mock_response)
         mock_client_class.return_value = mock_client
 

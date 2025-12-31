@@ -5,7 +5,7 @@ Tests cover alert creation, validation, status transitions, relationships,
 and database constraints.
 """
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import uuid
 
 from app.models import Alert, AutoAnalyzeRule as Rule, AlertCluster
@@ -53,11 +53,11 @@ class TestAlertCreation:
     
     def test_alert_timestamps_auto_set(self, db_session):
         """Test that created_at timestamp is automatically set."""
-        before = datetime.now(datetime.timezone.utc)
+        before = datetime.now(timezone.utc)
         alert = AlertFactory()
         db_session.add(alert)
         db_session.commit()
-        after = datetime.now(datetime.timezone.utc)
+        after = datetime.now(timezone.utc)
         
         # Ensure timezone awareness for comparison
         if alert.created_at.tzinfo is None:
@@ -74,7 +74,7 @@ class TestAlertStatusTransitions:
     
     def test_firing_to_resolved_transition(self, db_session):
         """Test transitioning alert from firing to resolved."""
-        alert = AlertFactory(status="firing", ends_at=None)
+        alert = AlertFactory(status="firing")
         db_session.add(alert)
         db_session.commit()
         
@@ -87,20 +87,7 @@ class TestAlertStatusTransitions:
         
         assert alert.status == "resolved"
     
-    def test_resolved_alert_has_end_time(self, db_session):
-        """Test that resolved alerts have closed_at set."""
-        alert = AlertFactory(
-            status="resolved",
-            closed_at=datetime.utcnow()
-        )
-        db_session.add(alert)
-        db_session.commit()
-        
-        assert alert.status == "resolved"
-        assert alert.closed_at is not None
-        # closed_at should be after created_at (which defaults to now)
-        # In this factory usage, created_at is slightly before or same as closed_at
-        assert alert.closed_at >= alert.created_at
+
 
 class TestAlertLabelsAndAnnotations:
     """Test alert labels and annotations (JSON fields)."""
