@@ -17,7 +17,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Install core test packages with their dependencies
-RUN pip install --no-cache-dir pytest pytest-asyncio pytest-cov pytest-mock pytest-xdist httpx faker freezegun nest-asyncio
+RUN pip install --no-cache-dir pytest pytest-asyncio pytest-cov pytest-mock pytest-xdist httpx faker freezegun nest-asyncio factory-boy
 
 # Ensure pydantic 2.x is used (requirements.txt version)
 RUN pip install --no-cache-dir 'pydantic>=2.0'
