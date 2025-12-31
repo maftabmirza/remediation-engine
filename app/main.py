@@ -88,7 +88,10 @@ logger = logging.getLogger(__name__)
 settings = get_settings()
 
 # Rate Limiter
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(
+    key_func=get_remote_address,
+    enabled=settings.ratelimit_enabled if hasattr(settings, "ratelimit_enabled") else True
+)
 
 
 def init_db():
