@@ -2,6 +2,11 @@
 set -e
 
 
+# Validate environment configuration
+echo "=== Environment Validation ==="
+python app/validate_env.py || exit 1
+echo ""
+
 # Run pre-flight checks
 echo "Running pre-flight checks..."
 python app/check_deps.py
