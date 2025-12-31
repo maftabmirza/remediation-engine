@@ -211,7 +211,7 @@ class TestUserLoginTracking:
     
     def test_update_last_login(self, db_session):
         """Test updating last_login timestamp."""
-        from datetime import datetime
+        from datetime import datetime, timezone
         
         user = UserFactory()
         db_session.add(user)
@@ -219,12 +219,15 @@ class TestUserLoginTracking:
         
         # Update last login
         if hasattr(user, 'last_login'):
-            login_time = datetime.utcnow()
+            # Use timezone-aware datetime
+            login_time = datetime.now(timezone.utc)
             user.last_login = login_time
             db_session.commit()
             db_session.refresh(user)
             
             assert user.last_login is not None
+            # Ensure DB returned time is also aware (it should be if mapped correctly)
+            # If not, we might need to normalize
             assert user.last_login >= login_time
 
 

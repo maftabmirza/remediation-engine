@@ -89,7 +89,7 @@ class TestAlertToRunbookExecution:
             enabled=True,
             auto_execute=True,  # Auto-execution enabled
             approval_required=False,
-            timeout_seconds=300,
+
             version=1
         )
         db_session.add(runbook)
