@@ -57,9 +57,11 @@ except ImportError:
 # ============================================================================
 
 
-# Disable rate limiting for tests
-from app.main import limiter
-limiter.enabled = False
+@pytest.fixture(autouse=True)
+def disable_rate_limiting():
+    """Disable rate limiting for all tests."""
+    from app.main import limiter
+    limiter.enabled = False
 
 @pytest.fixture(scope="session")
 def event_loop():

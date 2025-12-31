@@ -218,7 +218,7 @@ async def test_list_datasources_filter_by_type(authenticated_client, test_db_ses
     for ds_type in ["loki", "loki", "tempo", "prometheus"]:
         ds = GrafanaDatasource(
             id=uuid4(),
-            name=f"{ds_type}-ds",
+            name=f"{ds_type}-ds-{uuid4()}",
             datasource_type=ds_type,
             url=f"http://{ds_type}:3100"
         )

@@ -82,7 +82,7 @@ class TestAlertToRunbookExecution:
         """Test that an alert can trigger runbook execution."""
         # Step 1: Create runbook
         runbook = Runbook(
-            id="test-runbook-id",
+            id=str(uuid4()),
             name="Restart Nginx",
             description="Auto-restart Nginx on failure",
             category="service_recovery",
