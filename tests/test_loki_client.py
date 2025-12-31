@@ -153,7 +153,7 @@ async def test_query_success(loki_client, sample_query_response, mock_httpx_resp
     with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
-        mock_client.__aexit__.return_value = AsyncMock()
+        mock_client.__aexit__.return_value = None
         mock_client.get = AsyncMock(return_value=mock_httpx_response)
         mock_client_class.return_value = mock_client
 
@@ -184,7 +184,7 @@ async def test_query_with_time(loki_client, sample_query_response, mock_httpx_re
     with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
-        mock_client.__aexit__.return_value = AsyncMock()
+        mock_client.__aexit__.return_value = None
         mock_client.get = AsyncMock(return_value=mock_httpx_response)
         mock_client_class.return_value = mock_client
 
@@ -203,7 +203,7 @@ async def test_query_forward_direction(loki_client, sample_query_response, mock_
     with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
-        mock_client.__aexit__.return_value = AsyncMock()
+        mock_client.__aexit__.return_value = None
         mock_client.get = AsyncMock(return_value=mock_httpx_response)
         mock_client_class.return_value = mock_client
 
@@ -225,7 +225,7 @@ async def test_query_empty_results(loki_client, mock_httpx_response):
     with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
-        mock_client.__aexit__.return_value = AsyncMock()
+        mock_client.__aexit__.return_value = None
         mock_client.get = AsyncMock(return_value=mock_httpx_response)
         mock_client_class.return_value = mock_client
 
@@ -249,7 +249,7 @@ async def test_query_range_success(loki_client, sample_range_query_response, moc
     with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
-        mock_client.__aexit__.return_value = AsyncMock()
+        mock_client.__aexit__.return_value = None
         mock_client.get = AsyncMock(return_value=mock_httpx_response)
         mock_client_class.return_value = mock_client
 
@@ -287,7 +287,7 @@ async def test_query_range_with_step(loki_client, sample_range_query_response, m
     with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
-        mock_client.__aexit__.return_value = AsyncMock()
+        mock_client.__aexit__.return_value = None
         mock_client.get = AsyncMock(return_value=mock_httpx_response)
         mock_client_class.return_value = mock_client
 
@@ -314,7 +314,7 @@ async def test_get_labels_success(loki_client, sample_labels_response, mock_http
     with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
-        mock_client.__aexit__.return_value = AsyncMock()
+        mock_client.__aexit__.return_value = None
         mock_client.get = AsyncMock(return_value=mock_httpx_response)
         mock_client_class.return_value = mock_client
 
@@ -339,7 +339,7 @@ async def test_get_labels_with_time_range(loki_client, sample_labels_response, m
     with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
-        mock_client.__aexit__.return_value = AsyncMock()
+        mock_client.__aexit__.return_value = None
         mock_client.get = AsyncMock(return_value=mock_httpx_response)
         mock_client_class.return_value = mock_client
 
@@ -362,7 +362,7 @@ async def test_get_label_values_success(loki_client, sample_label_values_respons
     with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
-        mock_client.__aexit__.return_value = AsyncMock()
+        mock_client.__aexit__.return_value = None
         mock_client.get = AsyncMock(return_value=mock_httpx_response)
         mock_client_class.return_value = mock_client
 
@@ -387,7 +387,7 @@ async def test_get_label_values_with_time_range(loki_client, sample_label_values
     with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
-        mock_client.__aexit__.return_value = AsyncMock()
+        mock_client.__aexit__.return_value = None
         mock_client.get = AsyncMock(return_value=mock_httpx_response)
         mock_client_class.return_value = mock_client
 
@@ -411,7 +411,7 @@ async def test_connection_success(loki_client):
     with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
-        mock_client.__aexit__.return_value = AsyncMock()
+        mock_client.__aexit__.return_value = None
         mock_client.get = AsyncMock(return_value=mock_response)
         mock_client_class.return_value = mock_client
 
@@ -428,7 +428,7 @@ async def test_connection_failure(loki_client):
     with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
-        mock_client.__aexit__.return_value = AsyncMock()
+        mock_client.__aexit__.return_value = None
         mock_client.get = AsyncMock(side_effect=Exception("Connection refused"))
         mock_client_class.return_value = mock_client
 
@@ -468,7 +468,7 @@ async def test_count_logs_success(loki_client, mock_httpx_response):
     with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
-        mock_client.__aexit__.return_value = AsyncMock()
+        mock_client.__aexit__.return_value = None
         mock_client.get = AsyncMock(return_value=mock_httpx_response)
         mock_client_class.return_value = mock_client
 
@@ -514,7 +514,7 @@ async def test_count_logs_invalid_values(loki_client, mock_httpx_response):
     with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
-        mock_client.__aexit__.return_value = AsyncMock()
+        mock_client.__aexit__.return_value = None
         mock_client.get = AsyncMock(return_value=mock_httpx_response)
         mock_client_class.return_value = mock_client
 
@@ -547,7 +547,7 @@ async def test_query_http_error(loki_client):
     with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
-        mock_client.__aexit__.return_value = AsyncMock()
+        mock_client.__aexit__.return_value = None
         mock_client.get = AsyncMock(return_value=mock_response)
         mock_client_class.return_value = mock_client
 
@@ -567,7 +567,7 @@ async def test_query_failed_status(loki_client, mock_httpx_response):
     with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
-        mock_client.__aexit__.return_value = AsyncMock()
+        mock_client.__aexit__.return_value = None
         mock_client.get = AsyncMock(return_value=mock_httpx_response)
         mock_client_class.return_value = mock_client
 
@@ -593,7 +593,7 @@ async def test_query_range_http_error(loki_client):
     with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
-        mock_client.__aexit__.return_value = AsyncMock()
+        mock_client.__aexit__.return_value = None
         mock_client.get = AsyncMock(return_value=mock_response)
         mock_client_class.return_value = mock_client
 

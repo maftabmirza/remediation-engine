@@ -214,7 +214,7 @@ async def test_get_trace_jaeger_format(tempo_client, sample_jaeger_trace, mock_h
     with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
-        mock_client.__aexit__.return_value = AsyncMock()
+        mock_client.__aexit__.return_value = None
         mock_client.get = AsyncMock(return_value=mock_httpx_response)
         mock_client_class.return_value = mock_client
 
@@ -250,7 +250,7 @@ async def test_get_trace_otlp_format(tempo_client, sample_otlp_trace, mock_httpx
     with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
-        mock_client.__aexit__.return_value = AsyncMock()
+        mock_client.__aexit__.return_value = None
         mock_client.get = AsyncMock(return_value=mock_httpx_response)
         mock_client_class.return_value = mock_client
 
@@ -284,7 +284,7 @@ async def test_get_trace_not_found(tempo_client):
     with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
-        mock_client.__aexit__.return_value = AsyncMock()
+        mock_client.__aexit__.return_value = None
         mock_client.get = AsyncMock(return_value=mock_response)
         mock_client_class.return_value = mock_client
 
@@ -302,7 +302,7 @@ async def test_get_trace_empty_spans(tempo_client, mock_httpx_response):
     with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
-        mock_client.__aexit__.return_value = AsyncMock()
+        mock_client.__aexit__.return_value = None
         mock_client.get = AsyncMock(return_value=mock_httpx_response)
         mock_client_class.return_value = mock_client
 
@@ -323,7 +323,7 @@ async def test_search_traces_success(tempo_client, sample_search_response, mock_
     with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
-        mock_client.__aexit__.return_value = AsyncMock()
+        mock_client.__aexit__.return_value = None
         mock_client.get = AsyncMock(return_value=mock_httpx_response)
         mock_client_class.return_value = mock_client
 
@@ -355,7 +355,7 @@ async def test_search_traces_with_duration_filters(tempo_client, sample_search_r
     with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
-        mock_client.__aexit__.return_value = AsyncMock()
+        mock_client.__aexit__.return_value = None
         mock_client.get = AsyncMock(return_value=mock_httpx_response)
         mock_client_class.return_value = mock_client
 
@@ -381,7 +381,7 @@ async def test_search_traces_with_time_range(tempo_client, sample_search_respons
     with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
-        mock_client.__aexit__.return_value = AsyncMock()
+        mock_client.__aexit__.return_value = None
         mock_client.get = AsyncMock(return_value=mock_httpx_response)
         mock_client_class.return_value = mock_client
 
@@ -402,7 +402,7 @@ async def test_search_traces_with_service_name(tempo_client, sample_search_respo
     with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
-        mock_client.__aexit__.return_value = AsyncMock()
+        mock_client.__aexit__.return_value = None
         mock_client.get = AsyncMock(return_value=mock_httpx_response)
         mock_client_class.return_value = mock_client
 
@@ -420,7 +420,7 @@ async def test_search_traces_with_span_name(tempo_client, sample_search_response
     with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
-        mock_client.__aexit__.return_value = AsyncMock()
+        mock_client.__aexit__.return_value = None
         mock_client.get = AsyncMock(return_value=mock_httpx_response)
         mock_client_class.return_value = mock_client
 
@@ -439,7 +439,7 @@ async def test_search_traces_empty_results(tempo_client, mock_httpx_response):
     with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
-        mock_client.__aexit__.return_value = AsyncMock()
+        mock_client.__aexit__.return_value = None
         mock_client.get = AsyncMock(return_value=mock_httpx_response)
         mock_client_class.return_value = mock_client
 
@@ -460,7 +460,7 @@ async def test_get_tag_names_success(tempo_client, sample_tag_names_response, mo
     with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
-        mock_client.__aexit__.return_value = AsyncMock()
+        mock_client.__aexit__.return_value = None
         mock_client.get = AsyncMock(return_value=mock_httpx_response)
         mock_client_class.return_value = mock_client
 
@@ -485,7 +485,7 @@ async def test_get_tag_names_with_time_range(tempo_client, sample_tag_names_resp
     with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
-        mock_client.__aexit__.return_value = AsyncMock()
+        mock_client.__aexit__.return_value = None
         mock_client.get = AsyncMock(return_value=mock_httpx_response)
         mock_client_class.return_value = mock_client
 
@@ -508,7 +508,7 @@ async def test_get_tag_values_success(tempo_client, sample_tag_values_response, 
     with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
-        mock_client.__aexit__.return_value = AsyncMock()
+        mock_client.__aexit__.return_value = None
         mock_client.get = AsyncMock(return_value=mock_httpx_response)
         mock_client_class.return_value = mock_client
 
@@ -533,7 +533,7 @@ async def test_get_tag_values_with_time_range(tempo_client, sample_tag_values_re
     with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
-        mock_client.__aexit__.return_value = AsyncMock()
+        mock_client.__aexit__.return_value = None
         mock_client.get = AsyncMock(return_value=mock_httpx_response)
         mock_client_class.return_value = mock_client
 
@@ -557,7 +557,7 @@ async def test_connection_success(tempo_client):
     with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
-        mock_client.__aexit__.return_value = AsyncMock()
+        mock_client.__aexit__.return_value = None
         mock_client.get = AsyncMock(return_value=mock_response)
         mock_client_class.return_value = mock_client
 
@@ -574,7 +574,7 @@ async def test_connection_failure(tempo_client):
     with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
-        mock_client.__aexit__.return_value = AsyncMock()
+        mock_client.__aexit__.return_value = None
         mock_client.get = AsyncMock(side_effect=Exception("Connection refused"))
         mock_client_class.return_value = mock_client
 
@@ -592,7 +592,7 @@ async def test_connection_not_ready(tempo_client):
     with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
-        mock_client.__aexit__.return_value = AsyncMock()
+        mock_client.__aexit__.return_value = None
         mock_client.get = AsyncMock(return_value=mock_response)
         mock_client_class.return_value = mock_client
 
@@ -620,7 +620,7 @@ async def test_get_trace_http_error(tempo_client):
     with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
-        mock_client.__aexit__.return_value = AsyncMock()
+        mock_client.__aexit__.return_value = None
         mock_client.get = AsyncMock(return_value=mock_response)
         mock_client_class.return_value = mock_client
 
@@ -643,7 +643,7 @@ async def test_search_traces_http_error(tempo_client):
     with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
-        mock_client.__aexit__.return_value = AsyncMock()
+        mock_client.__aexit__.return_value = None
         mock_client.get = AsyncMock(return_value=mock_response)
         mock_client_class.return_value = mock_client
 
@@ -665,7 +665,7 @@ async def test_get_tag_names_http_error(tempo_client):
     with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
-        mock_client.__aexit__.return_value = AsyncMock()
+        mock_client.__aexit__.return_value = None
         mock_client.get = AsyncMock(return_value=mock_response)
         mock_client_class.return_value = mock_client
 

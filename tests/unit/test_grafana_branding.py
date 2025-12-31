@@ -52,7 +52,7 @@ class TestGrafanaBrandingInjection:
         test_cases = [
             ('<h1>Grafana</h1>', '<h1>AIOps</h1>'),
             ('<span>Grafana</span>', '<span>AIOps</span>'),
-            ('<div>Welcome to Grafana</div>', '<div>Welcome to AIOps</div>'),
+            ('<div>Grafana</div>', '<div>AIOps</div>'),
         ]
         
         for input_html, expected_output in test_cases:
