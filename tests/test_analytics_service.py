@@ -44,7 +44,7 @@ def test_calculate_percentiles(mock_db):
     p50, p95, p99 = service._calculate_percentiles(values)
     
     assert p50 == 30.0
-    assert p95 == 50.0 # simplified logic check
+    assert p95 == 48.0 # Linear interpolation: 0.95 * 4 = 3.8 -> index 3(40) + 0.8*(50-40) = 48
     assert p99 == 50.0
 
 def test_get_aggregate_stats_empty(mock_db):

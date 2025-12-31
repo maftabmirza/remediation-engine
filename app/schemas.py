@@ -40,6 +40,7 @@ class UserBase(BaseModel):
 
 
 class UserCreate(UserBase):
+    email: Optional[str] = Field(None, pattern=r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")
     password: str
     is_active: bool = True
 

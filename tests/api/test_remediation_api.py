@@ -25,11 +25,12 @@ class TestRunbookCRUD:
             "enabled": True,
             "auto_execute": False,
             "approval_required": True,
-            "timeout_seconds": 300,
+            "approval_required": True,
+            # "timeout_seconds": 300, # Removed from model
             "steps": [
                 {
                     "name": "Step 1",
-                    "order": 1,
+                    "step_order": 1,
                     "command": "echo 'test'",
                     "executor_type": "ssh",
                     "timeout_seconds": 30
@@ -84,7 +85,7 @@ class TestRunbookCRUD:
         
         assert response.status_code == 200
         data = response.json()
-        assert data.get("id") == runbook.id
+        assert data.get("id") == str(runbook.id)
     
     @pytest.mark.asyncio
     async def test_update_runbook(
