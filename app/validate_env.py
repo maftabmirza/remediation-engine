@@ -85,11 +85,23 @@ def validate_jwt_secret(secret: str) -> None:
     # Warn about default/weak secrets
     weak_secrets = [
         "your-super-secret-jwt-key-change-in-production",
+        "change_this_to_a_random_secret_key_at_least_32_chars",
         "change-me",
         "secret",
         "jwt-secret",
-        "12345678901234567890123456789012"  # 32 chars but obviously weak
+        "12345678901234567890123456789012",  # 32 chars but obviously weak
+        "test",
+        "testing",
+        "development"
     ]
+    
+    # Also check for common patterns
+    if any(pattern in secret.lower() for pattern in ["change", "default", "example", "todo", "fixme"]):
+        raise ValidationError(
+            f"[!] JWT_SECRET contains default/placeholder text\n"
+            f"   Generate a strong secret with:\n"
+            f"   openssl rand -hex 32"
+        )
     
     if secret.lower() in weak_secrets:
         raise ValidationError(
@@ -117,6 +129,26 @@ def validate_database_config() -> None:
     for var_name, description in required_db_vars:
         validate_required_variable(var_name, description)
     
+    # Validate password is not a default/weak value
+    db_password = os.getenv("POSTGRES_PASSWORD", "")
+    weak_db_passwords = [
+        "change_this_secure_password",
+        "password",
+        "postgres",
+        "admin",
+        "root",
+        "12345678",
+        "changeme",
+        "aiops"
+    ]
+    
+    if db_password.lower() in weak_db_passwords or any(pattern in db_password.lower() for pattern in ["change", "default", "example", "test"]):
+        raise ValidationError(
+            f"[!] POSTGRES_PASSWORD appears to be a default/weak value\n"
+            f"   Generate a strong password with:\n"
+            f"   openssl rand -base64 32"
+        )
+    
     # Validate port is numeric
     port = os.getenv("POSTGRES_PORT", "")
     try:
@@ -126,6 +158,43 @@ def validate_database_config() -> None:
     except ValueError:
         raise ValidationError(
             f"[!] POSTGRES_PORT must be a valid port number (1-65535), got: '{port}'"
+        )
+
+
+def validate_admin_password() -> None:
+    """
+    Validate admin password is not a default/weak value.
+    
+    Raises:
+        ValidationError: If admin password is weak
+    """
+    admin_password = os.getenv("ADMIN_PASSWORD", "")
+    
+    if not admin_password:
+        # Admin password is optional in some setups, but if set, must be strong
+        return
+    
+    weak_admin_passwords = [
+        "change_this_password",
+        "admin",
+        "password",
+        "admin123",
+        "passw0rd",
+        "12345678",
+        "changeme"
+    ]
+    
+    if len(admin_password) < 8:
+        raise ValidationError(
+            f"[!] ADMIN_PASSWORD is too short (minimum 8 characters)\\n"
+            f"   Use a strong password or leave empty to skip admin creation"
+        )
+    
+    if admin_password.lower() in weak_admin_passwords or any(pattern in admin_password.lower() for pattern in ["change", "default", "example"]):
+        raise ValidationError(
+            f"[!] ADMIN_PASSWORD appears to be a default/weak value\\n"
+            f"   Generate a strong password with:\\n"
+            f"   openssl rand -base64 16"
         )
 
 
@@ -151,6 +220,7 @@ def run_validation() -> None:
         ("JWT Secret", lambda: validate_jwt_secret(
             validate_required_variable("JWT_SECRET", "Used to sign authentication tokens")
         )),
+        ("Admin Password", lambda: validate_admin_password()),
     ]
     
     # Run each validation
