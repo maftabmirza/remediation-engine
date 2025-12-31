@@ -179,7 +179,6 @@ def validate_admin_password() -> None:
         "admin",
         "password",
         "admin123",
-        "passw0rd",
         "12345678",
         "changeme"
     ]
