@@ -39,14 +39,15 @@ class AlertFactory(factory.Factory):
         model = Alert
     
     id = factory.LazyFunction(lambda: str(uuid.uuid4()))
-    fingerprint = factory.LazyFunction(lambda: f"fp-{uuid.uuid4().hex[:16]}")
+    fingerprint = factory.Sequence(lambda n: f"fingerprint_{n}_{uuid.uuid4().hex[:8]}")
+    timestamp = factory.LazyFunction(lambda: datetime.utcnow())
     alert_name = fuzzy.FuzzyChoice([
-        "HighCPUUsage", "NginxDown", "DiskSpaceWarning",
-        "MemoryLeak", "DatabaseConnectionError"
+        "NginxDown", "HighCPUUsage", "HighMemoryUsage",
+        "DiskSpaceLow", "ServiceUnavailable", "DatabaseConnectionFailed"
     ])
     severity = fuzzy.FuzzyChoice(["critical", "warning", "info"])
     instance = fuzzy.FuzzyChoice([
-        "web-server-01", "web-server-02", "db-server-01",
+        "web-server-01", "db-server-01", "proxy-server-01",
         "app-server-01", "cache-server-01"
     ])
     job = fuzzy.FuzzyChoice([
@@ -54,27 +55,17 @@ class AlertFactory(factory.Factory):
         "application-metrics"
     ])
     status = fuzzy.FuzzyChoice(["firing", "resolved"])
-    summary = factory.LazyAttribute(
-        lambda obj: f"{obj.alert_name} on {obj.instance}"
-    )
-    description = factory.LazyAttribute(
-        lambda obj: f"Alert {obj.alert_name} triggered on {obj.instance}"
-    )
-    starts_at = factory.LazyFunction(
-        lambda: datetime.utcnow() - timedelta(minutes=10)
-    )
-    labels = factory.LazyAttribute(lambda obj: {
+    labels_json = factory.LazyAttribute(lambda obj: {
         "alertname": obj.alert_name,
         "severity": obj.severity,
         "instance": obj.instance,
         "job": obj.job
     })
-    annotations = factory.LazyAttribute(lambda obj: {
-        "summary": obj.summary,
-        "description": obj.description
+    annotations_json = factory.LazyAttribute(lambda obj: {
+        "summary": f"{obj.alert_name} on {obj.instance}",
+        "description": f"Alert {obj.alert_name} triggered on {obj.instance}"
     })
     analyzed = False
-    created_at = factory.LazyFunction(datetime.utcnow)
 
 
 class RuleFactory(factory.Factory):

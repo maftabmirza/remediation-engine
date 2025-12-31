@@ -25,7 +25,7 @@ class TestRunbookCreation:
             enabled=True,
             auto_execute=False,
             approval_required=True,
-            timeout_seconds=300,
+            max_executions_per_hour=5,
             version=1
         )
         
@@ -82,7 +82,7 @@ class TestRunbookVersioning:
         original_version = runbook.version
         
         # Make changes
-        runbook.timeout_seconds = 600
+        runbook.cooldown_minutes = 15
         runbook.version = original_version + 1
         db_session.commit()
         
@@ -130,11 +130,11 @@ class TestRunbookStepsRelationship:
         # Query with order
         steps = db_session.query(RunbookStep).filter(
             RunbookStep.runbook_id == runbook.id
-        ).order_by(RunbookStep.order).all()
+        ).order_by(RunbookStep.step_order).all()
         
-        assert steps[0].order == 1
-        assert steps[1].order == 2
-        assert steps[2].order == 3
+        assert steps[0].step_order == 1
+        assert steps[1].step_order == 2
+        assert steps[2].step_order == 3
         assert steps[0].name == "Step 1"
 
 
@@ -153,13 +153,13 @@ class TestRunbookSafetySettings:
         assert runbook.max_executions_per_hour == 5
         assert runbook.cooldown_minutes == 10
     
-    def test_runbook_timeout_setting(self, db_session):
-        """Test runbook timeout configuration."""
-        runbook = RunbookFactory(timeout_seconds=600)
+    def test_runbook_cooldown_setting(self, db_session):
+        """Test runbook cooldown configuration."""
+        runbook = RunbookFactory(cooldown_minutes=15)
         db_session.add(runbook)
         db_session.commit()
         
-        assert runbook.timeout_seconds == 600
+        assert runbook.cooldown_minutes == 15
     
     def test_circuit_breaker_settings(self, db_session):
         """Test circuit breaker configuration if exists."""
