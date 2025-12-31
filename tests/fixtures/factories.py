@@ -152,7 +152,7 @@ class RunbookFactory(factory.Factory):
             for i in range(1, 4):
                 step = RunbookStepFactory(
                     runbook_id=self.id,
-                    order=i,
+                    step_order=i,
                     name=f"Step {i}"
                 )
 

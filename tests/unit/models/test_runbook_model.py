@@ -99,9 +99,9 @@ class TestRunbookStepsRelationship:
         db_session.flush()  # Get runbook ID
         
         # Create steps
-        step1 = RunbookStepFactory(runbook_id=runbook.id, order=1)
-        step2 = RunbookStepFactory(runbook_id=runbook.id, order=2)
-        step3 = RunbookStepFactory(runbook_id=runbook.id, order=3)
+        step1 = RunbookStepFactory(runbook_id=runbook.id, step_order=1)
+        step2 = RunbookStepFactory(runbook_id=runbook.id, step_order=2)
+        step3 = RunbookStepFactory(runbook_id=runbook.id, step_order=3)
         
         db_session.add_all([step1, step2, step3])
         db_session.commit()
@@ -120,9 +120,9 @@ class TestRunbookStepsRelationship:
         db_session.flush()
         
         # Create steps out of order
-        step3 = RunbookStepFactory(runbook_id=runbook.id, order=3, name="Step 3")
-        step1 = RunbookStepFactory(runbook_id=runbook.id, order=1, name="Step 1")
-        step2 = RunbookStepFactory(runbook_id=runbook.id, order=2, name="Step 2")
+        step3 = RunbookStepFactory(runbook_id=runbook.id, step_order=3, name="Step 3")
+        step1 = RunbookStepFactory(runbook_id=runbook.id, step_order=1, name="Step 1")
+        step2 = RunbookStepFactory(runbook_id=runbook.id, step_order=2, name="Step 2")
         
         db_session.add_all([step3, step1, step2])
         db_session.commit()

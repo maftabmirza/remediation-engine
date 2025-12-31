@@ -349,7 +349,7 @@ class TestEndToEndAutomation:
         db_session.add(runbook)
         db_session.flush()
         
-        step = RunbookStepFactory(runbook_id=runbook.id, order=1)
+        step = RunbookStepFactory(runbook_id=runbook.id, step_order=1)
         db_session.add(step)
         
         rule = RuleFactory(
