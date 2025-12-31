@@ -115,6 +115,13 @@ def test_db_session(test_db_engine) -> Generator[Session, None, None]:
         session.close()
 
 
+# Alias for compatibility with tests that use db_session
+@pytest.fixture(scope="function")
+def db_session(test_db_session) -> Generator[Session, None, None]:
+    """Alias for test_db_session - for test compatibility."""
+    yield test_db_session
+
+
 @pytest.fixture(scope="function")
 def test_client(test_db_session) -> Generator[TestClient, None, None]:
     """Create a FastAPI test client with test database."""
@@ -220,6 +227,50 @@ def operator_auth_headers(test_operator_user):
     
     token = create_access_token(data={"sub": str(test_operator_user.id)})
     return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
+def test_viewer_user(test_db_session):
+    """Create a real viewer user in the test database."""
+    from app.services.auth_service import get_password_hash
+    from app.models import User
+    import uuid
+    
+    user = User(
+        id=str(uuid.uuid4()),
+        username=f"test_viewer_{uuid.uuid4().hex[:8]}",
+        password_hash=get_password_hash("TestPassword123!"),
+        role="viewer",
+        is_active=True
+    )
+    test_db_session.add(user)
+    test_db_session.commit()
+    test_db_session.refresh(user)
+    return user
+
+
+@pytest.fixture
+def viewer_auth_headers(test_viewer_user):
+    """Get authorization headers with a valid viewer JWT token."""
+    from app.services.auth_service import create_access_token
+    
+    token = create_access_token(data={"sub": str(test_viewer_user.id)})
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
+def expired_token():
+    """Create an expired JWT token for testing."""
+    from app.services.auth_service import create_access_token
+    from datetime import timedelta
+    
+    # Create token with negative expiration (already expired)
+    token = create_access_token(
+        data={"sub": "test-user"},
+        expires_delta=timedelta(minutes=-30)  # Expired 30 minutes ago
+    )
+    return token
+
 
 
 @pytest.fixture
