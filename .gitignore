@@ -1,4 +1,7 @@
+# Environment files (except example template)
 .env
+.env.*
+!.env.example
 __pycache__/
 *.pyc
 .DS_Store
@@ -9,8 +12,23 @@ local_setup.ps1
 # Test coverage
 htmlcov/
 .coverage
+.coverage.*
 coverage.xml
 .pytest_cache/
+.tox/
+.benchmarks/
+.hypothesis/
+*.pytest_cache
+
+# Test reports
+test-results/
+test-reports/
+junit.xml
+
+# Temporary test files
+.env.test.local
+test_*.db
+*.log
 
 # Scripts with secrets
 create_sample_changes.ps1
