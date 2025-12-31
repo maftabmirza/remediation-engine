@@ -100,9 +100,11 @@ class TestAlertToRunbookExecution:
         step1 = RunbookStep(
             id="step-1",
             runbook_id=runbook.id,
-            name="Check status",
-            order=1,
-            command="systemctl status nginx",
+            name="Check Service Status",
+            step_order=1,
+            step_type="command",
+            command_linux="systemctl status nginx",
+            target_os="linux",
             executor_type="ssh",
             timeout_seconds=30
         )
