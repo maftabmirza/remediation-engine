@@ -10,7 +10,8 @@ import json
 from pathlib import Path
 from datetime import datetime
 
-from app.models import Alert, Rule, Runbook, RunbookStep
+from app.models import Alert, AutoAnalyzeRule as Rule
+from app.models_remediation import Runbook, RunbookStep
 from tests.fixtures.factories import RuleFactory, RunbookFactory, RunbookStepFactory
 
 

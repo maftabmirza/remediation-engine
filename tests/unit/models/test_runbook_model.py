@@ -8,7 +8,7 @@ import pytest
 import uuid
 from datetime import datetime
 
-from app.models import Runbook, RunbookStep
+from app.models_remediation import Runbook, RunbookStep
 from tests.fixtures.factories import RunbookFactory, RunbookStepFactory
 
 

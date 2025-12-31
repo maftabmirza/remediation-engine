@@ -9,9 +9,11 @@ from datetime import datetime, timedelta
 import uuid
 
 from app.models import (
-    User, Alert, Rule, Runbook, RunbookStep,
-    LLMProvider, ServerCredential, DesignDocument
+    User, Alert, AlertCluster, AutoAnalyzeRule as Rule,
+    LLMProvider, ServerCredential
 )
+from app.models_remediation import Runbook, RunbookStep
+from app.models_knowledge import DesignDocument
 from app.services.auth_service import get_password_hash
 
 

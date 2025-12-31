@@ -8,7 +8,7 @@ import pytest
 from datetime import datetime, timedelta
 import uuid
 
-from app.models import Alert, Rule, AlertCluster
+from app.models import Alert, AutoAnalyzeRule as Rule, AlertCluster
 from tests.fixtures.factories import AlertFactory, RuleFactory
 
 
