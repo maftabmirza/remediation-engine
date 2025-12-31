@@ -104,16 +104,17 @@ class RunbookStepFactory(factory.Factory):
     
     id = factory.LazyFunction(lambda: str(uuid.uuid4()))
     name = factory.Sequence(lambda n: f"Step {n}")
-    order = factory.Sequence(lambda n: n)
-    command = fuzzy.FuzzyChoice([
+    step_order = factory.Sequence(lambda n: n + 1)  # Start at 1
+    step_type = "command"
+    command_linux = fuzzy.FuzzyChoice([
         "systemctl status nginx",
         "sudo systemctl restart nginx",
         "df -h",
         "free -m"
     ])
-    executor_type = fuzzy.FuzzyChoice(["ssh", "powershell", "api"])
+    target_os = "linux"
     timeout_seconds = 30
-    continue_on_error = False
+    continue_on_fail = False
 
 
 class RunbookFactory(factory.Factory):
@@ -132,11 +133,9 @@ class RunbookFactory(factory.Factory):
     enabled = True
     auto_execute = False
     approval_required = True
-    timeout_seconds = 300
     max_executions_per_hour = 5
     cooldown_minutes = 10
     version = 1
-    created_at = factory.LazyFunction(datetime.utcnow)
     
     @factory.post_generation
     def steps(self, create, extracted, **kwargs):
