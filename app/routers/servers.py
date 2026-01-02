@@ -93,6 +93,9 @@ class ServerTestRequest(BaseModel):
     # For shared credentials
     credential_source: str = "inline"
     credential_profile_id: Optional[UUID] = None
+    # WinRM specific
+    winrm_use_ssl: Optional[bool] = None
+    winrm_transport: Optional[str] = None
 
 
 class ServerTestResponse(BaseModel):
@@ -613,6 +616,15 @@ async def test_server_on_demand(
             if not profile:
                  return ServerTestResponse(status="error", message="Credential profile not found")
 
+        # Smart SSL detection for WinRM
+        use_ssl = payload.winrm_use_ssl
+        if payload.protocol == "winrm" and use_ssl is None:
+            # Default to False for port 5985 (HTTP), True otherwise (HTTPS default)
+            if payload.port == 5985:
+                use_ssl = False
+            else:
+                use_ssl = True
+
         # Construct a temporary server object for the executor
         server = ServerCredential(
             name="test-server",
@@ -623,7 +635,9 @@ async def test_server_on_demand(
             auth_type=payload.auth_type,
             credential_source=payload.credential_source,
             credential_profile_id=payload.credential_profile_id,
-            credential_profile=profile
+            credential_profile=profile,
+            winrm_use_ssl=use_ssl,
+            winrm_transport=payload.winrm_transport
         )
         
         # Set inline credentials if needed

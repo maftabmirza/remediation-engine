@@ -18,7 +18,8 @@ class PromptService:
         alert: Optional[Alert] = None,
         correlation: Optional[AlertCorrelation] = None,
         similar_incidents: List[Dict[str, Any]] = [],
-        feedback_history: List[AnalysisFeedback] = []
+        feedback_history: List[AnalysisFeedback] = [],
+        observability_context: Optional[Any] = None
     ) -> str:
         """
         Generate the system prompt for the chat assistant.
@@ -30,13 +31,15 @@ You are pair-programming with the user to resolve a production incident.
 1.  **Iterative Troubleshooting**: Do not dump a wall of text. Propose **one** step at a time.
 2.  **Command Execution**: When you need information, provide the exact `bash` command to run.
 3.  **Output Analysis**: The user will paste the command output. You must analyze it deeply.
-    - If the output confirms your hypothesis -> Propose the fix.
+    - If the output confirms your hypothesis -> Propose the fix (e.g., `systemctl restart` or `Start-Service`).
     - If the output disproves it -> Propose a new hypothesis and a new command.
+    - If a service is found STOPPED, immediately suggest starting it.
 4.  **Tone**: Professional, concise, confidence-inspiring.
 
 ## Format:
 - Use **bold** for key concepts.
 - Use `code blocks` for all commands/file paths.
+- **Windows Context**: If the user is on Windows (PowerShell), provide `PowerShell` commands.
 - Keep responses short (under 2 paragraphs) per turn unless explaining a complex solution.
 """
         
@@ -51,6 +54,50 @@ CURRENT ALERT CONTEXT:
 - Status: {alert.status}
 - Summary: {alert.annotations_json.get('summary', 'N/A')}
 - Description: {alert.annotations_json.get('description', 'N/A')}
+""")
+
+        if observability_context:
+            obs_text = []
+            
+            # Format Logs
+            if hasattr(observability_context, 'logs_results') and observability_context.logs_results:
+                logs_count = observability_context.total_logs
+                logs = []
+                for res in observability_context.logs_results:
+                    for entry in res.entries[:5]:  # Limit to 5 logs to avoid token overflow
+                        logs.append(f"[{entry.timestamp}] {entry.line[:200]}")
+                
+                if logs:
+                    obs_text.append(f"Recent Logs ({logs_count} found):\n" + "\n".join(logs))
+
+            # Format Metrics
+            if hasattr(observability_context, 'metrics_results') and observability_context.metrics_results:
+                metrics = []
+                for res in observability_context.metrics_results:
+                    if res.value is not None:
+                        metrics.append(f"{res.metric_name}: {res.value}")
+                
+                if metrics:
+                    obs_text.append("Key Metrics:\n" + "\n".join(metrics))
+
+            # Format Traces
+            if hasattr(observability_context, 'traces_results') and observability_context.traces_results:
+                failed_traces = 0
+                slow_traces = 0
+                # Simple heuristic analysis of traces
+                for res in observability_context.traces_results:
+                    for trace in res.traces:
+                        if trace.duration_ms > 1000: # Slow
+                            slow_traces += 1
+                        # If we had error info in trace summary we would use it
+
+                if slow_traces > 0:
+                     obs_text.append(f"Traces: Found {slow_traces} slow traces (>1s).")
+
+            if obs_text:
+                context_sections.append(f"""
+LIVE OBSERVABILITY DATA (Auto-fetched from Grafana Stack):
+{chr(10).join(obs_text)}
 """)
 
         if correlation:

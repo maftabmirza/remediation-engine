@@ -11,7 +11,7 @@ from starlette.websockets import WebSocketState
 import aiofiles
 
 from app.database import get_db
-from app.models import TerminalSession
+from app.models import TerminalSession, ServerCredential
 from app.services.auth_service import get_current_user_ws
 from app.services.ssh_service import get_ssh_connection
 from app.config import get_settings
@@ -224,6 +224,195 @@ async def terminal_websocket(
     tasks = []
     
     try:
+        # 0. Check server protocol - WinRM doesn't support interactive terminals
+        server = db.query(ServerCredential).filter(ServerCredential.id == server_id).first()
+        if not server:
+            logger.error(f"Server not found: {server_id}")
+            TERMINAL_CONNECTIONS.labels(status="server_not_found").inc()
+            await safe_send(websocket, f"\r\nError: Server not found\r\n")
+            await safe_close(websocket, WS_CLOSE_SERVER_NOT_FOUND)
+            return
+        
+        if server.protocol == "winrm":
+            # Handle WinRM servers with pywinrm-based pseudo-terminal (line-based execution)
+            logger.info(f"Starting WinRM pseudo-terminal for server {server_id}")
+            
+            # Import WinRMExecutor for command execution
+            from app.services.executor_factory import ExecutorFactory
+            
+            try:
+                executor = ExecutorFactory.get_executor(server)
+            except Exception as e:
+                logger.error(f"Failed to create WinRM executor: {e}")
+                await safe_send(websocket, f"\r\nError: Failed to connect to WinRM: {e}\r\n")
+                TERMINAL_CONNECTIONS.labels(status="winrm_failed").inc()
+                await safe_close(websocket, WS_CLOSE_SSH_FAILED)
+                return
+            
+            TERMINAL_CONNECTIONS.labels(status="success_winrm").inc()
+            
+            # State for pseudo-terminal
+            input_buffer = ""
+            current_dir = "C:\\Users\\" + server.username
+            command_history = []
+            history_index = 0
+            
+            # Send welcome message and initial prompt
+            welcome = f"\r\n\x1b[36m╔══════════════════════════════════════════════════════════════╗\x1b[0m\r\n"
+            welcome += f"\x1b[36m║\x1b[0m  \x1b[1;33mWindows PowerShell Terminal (via WinRM)\x1b[0m                     \x1b[36m║\x1b[0m\r\n"
+            welcome += f"\x1b[36m║\x1b[0m  Connected to: \x1b[32m{server.hostname}:{server.port}\x1b[0m                          \x1b[36m║\x1b[0m\r\n"
+            welcome += f"\x1b[36m╚══════════════════════════════════════════════════════════════╝\x1b[0m\r\n\r\n"
+            await safe_send(websocket, welcome)
+            
+            # Show initial prompt
+            prompt = f"\x1b[32mPS {current_dir}>\x1b[0m "
+            await safe_send(websocket, prompt)
+            
+            async def handle_winrm_input():
+                """Handle input from WebSocket and execute commands via WinRM."""
+                nonlocal input_buffer, current_dir, command_history, history_index
+                
+                try:
+                    while True:
+                        data = await websocket.receive_text()
+                        
+                        # Check for control messages
+                        if data.startswith('{"type":'):
+                            try:
+                                msg = json.loads(data)
+                                if msg.get("type") in ("resize", "ping", "pong"):
+                                    continue
+                            except json.JSONDecodeError:
+                                pass
+                        
+                        # Process each character
+                        for char in data:
+                            if char == '\r' or char == '\n':
+                                # Execute command
+                                command = input_buffer.strip()
+                                input_buffer = ""
+                                await safe_send(websocket, "\r\n")
+                                
+                                if command:
+                                    # Add to history
+                                    command_history.append(command)
+                                    history_index = len(command_history)
+                                    
+                                    # Handle special commands
+                                    if command.lower() == 'exit':
+                                        await safe_send(websocket, "\x1b[33mSession closed.\x1b[0m\r\n")
+                                        return
+                                    
+                                    # Execute via WinRM
+                                    try:
+                                        # Wrap command to get working directory after execution
+                                        # Set ProgressPreference to silence 'Preparing modules...' CLIXML noise
+                                        full_cmd = f"$ProgressPreference = 'SilentlyContinue'; cd '{current_dir}' 2>$null; {command}; Write-Output '___PWD___'; (Get-Location).Path"
+                                        
+                                        # WinRMExecutor.execute is async, await it directly
+                                        result = await executor.execute(full_cmd, timeout=60)
+                                        
+                                        output = result.stdout or ''
+                                        stderr_text = result.stderr or ''
+                                        
+                                        # Filter out CLIXML garbage if valid output exists alongside it
+                                        if "#< CLIXML" in output:
+                                            # Strip CLIXML block from output
+                                            import re
+                                            output = re.sub(r"#< CLIXML[\s\S]*?\&lt;/Objs>", "", output).strip()
+                                        if "#< CLIXML" in stderr_text:
+                                            stderr_text = re.sub(r"#< CLIXML[\s\S]*?\&lt;/Objs>", "", stderr_text).strip()
+                                        
+                                        # Extract new working directory
+                                        if '___PWD___' in output:
+                                            parts = output.split('___PWD___')
+                                            output = parts[0].strip()
+                                            if len(parts) > 1:
+                                                new_dir = parts[1].strip()
+                                                if new_dir:
+                                                    current_dir = new_dir
+                                        
+                                        # Display output
+                                        if output:
+                                            # Normalize line endings for terminal
+                                            output = output.replace('\r\n', '\r\n').replace('\n', '\r\n')
+                                            await safe_send(websocket, output)
+                                            if not output.endswith('\r\n'):
+                                                await safe_send(websocket, "\r\n")
+                                        
+                                        if stderr_text:
+                                            stderr_text = stderr_text.replace('\r\n', '\r\n').replace('\n', '\r\n')
+                                            await safe_send(websocket, f"\x1b[31m{stderr_text}\x1b[0m")
+                                            if not stderr_text.endswith('\r\n'):
+                                                await safe_send(websocket, "\r\n")
+                                        
+                                    except Exception as e:
+                                        await safe_send(websocket, f"\x1b[31mError executing command: {e}\x1b[0m\r\n")
+                                
+                                # Show new prompt
+                                prompt = f"\x1b[32mPS {current_dir}>\x1b[0m "
+                                await safe_send(websocket, prompt)
+                                
+                            elif char == '\x7f' or char == '\x08':  # Backspace
+                                if input_buffer:
+                                    input_buffer = input_buffer[:-1]
+                                    # Move cursor back, write space, move back again
+                                    await safe_send(websocket, "\x08 \x08")
+                            elif char == '\x03':  # Ctrl+C
+                                input_buffer = ""
+                                await safe_send(websocket, "^C\r\n")
+                                prompt = f"\x1b[32mPS {current_dir}>\x1b[0m "
+                                await safe_send(websocket, prompt)
+                            elif char == '\x1b':  # Escape sequence (arrows, etc.)
+                                # Skip escape sequences for now (no arrow key support)
+                                continue
+                            elif ord(char) >= 32:  # Printable characters
+                                input_buffer += char
+                                await safe_send(websocket, char)
+                                
+                except WebSocketDisconnect:
+                    logger.debug(f"WebSocket disconnected for WinRM terminal {server_id}")
+                except asyncio.CancelledError:
+                    raise
+                except Exception as e:
+                    logger.debug(f"WinRM terminal input ended: {e}")
+            
+            async def winrm_heartbeat():
+                """Send periodic pings to keep connection alive."""
+                try:
+                    while True:
+                        await asyncio.sleep(30)
+                        if not await safe_send(websocket, '{"type":"ping"}'):
+                            break
+                except asyncio.CancelledError:
+                    raise
+                except Exception:
+                    pass
+            
+            # Run WinRM terminal tasks
+            winrm_tasks = [
+                asyncio.create_task(handle_winrm_input()),
+                asyncio.create_task(winrm_heartbeat())
+            ]
+            
+            try:
+                done, pending = await asyncio.wait(
+                    winrm_tasks,
+                    return_when=asyncio.FIRST_COMPLETED
+                )
+                
+                for task in pending:
+                    task.cancel()
+                    try:
+                        await task
+                    except asyncio.CancelledError:
+                        pass
+            finally:
+                TERMINAL_SESSIONS.dec()
+                logger.info(f"WinRM pseudo-terminal ended for {server_id}")
+            
+            return  # Exit after WinRM session ends
+
         # 1. Get SSH Connection
         try:
             ssh_client = await get_ssh_connection(db, server_id)

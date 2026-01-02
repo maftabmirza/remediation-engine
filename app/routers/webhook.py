@@ -54,7 +54,7 @@ async def perform_auto_remediation(alert_id: str):
             
             # Match alert against runbook triggers
             trigger_matcher = AlertTriggerMatcher(db)
-            remediation_result = await trigger_matcher.process_alert_for_remediation(alert)
+            remediation_result = await trigger_matcher.process_alert_for_remediation(alert, executor_service=True)
             
             if remediation_result.get("auto_executed"):
                 logger.info(
@@ -180,6 +180,11 @@ async def receive_alertmanager_webhook(
                     "action": "updated",
                     "id": str(existing.id)
                 })
+                # Check for auto-remediation triggers on update
+                background_tasks.add_task(
+                    perform_auto_remediation,
+                    str(existing.id)
+                )
                 continue
             
             # Find matching rule
@@ -216,6 +221,7 @@ async def receive_alertmanager_webhook(
             db.commit()
             db.refresh(alert)
             
+            
             # Create incident metrics
             metric = IncidentMetrics(
                 alert_id=alert.id,
@@ -230,6 +236,34 @@ async def receive_alertmanager_webhook(
             
             logger.info(f"Stored alert: {alert_name} (action: {action})")
             
+            # --- Semantic History: Generate Embedding ---
+            try:
+                from app.services.embedding_service import EmbeddingService
+                embedding_service = EmbeddingService()
+                if embedding_service.is_configured():
+                    embedding = embedding_service.generate_for_alert(alert)
+                    if embedding:
+                        alert.embedding = embedding
+                        # Store the text used for embedding for future reference
+                        # (We reconstruct it here to store it, matching logic in service)
+                        parts = [
+                            f"Alert: {alert.alert_name}",
+                            f"Severity: {alert.severity or 'unknown'}",
+                        ]
+                        if alert.labels_json:
+                             parts.append(f"Labels: {alert.labels_json}")
+                        if alert.annotations_json:
+                             parts.append(f"Annotations: {alert.annotations_json}")
+                        if alert.instance:
+                             parts.append(f"Instance: {alert.instance}")
+                        
+                        alert.embedding_text = '\n'.join(parts)
+                        db.commit()
+                        logger.info(f"Generated semantic embedding for alert: {alert_name}")
+            except Exception as e:
+                logger.error(f"Failed to generate embedding for alert {alert_name}: {e}")
+            # ------------------------------------------
+
             # Queue auto-analysis if needed
             if action == "auto_analyze":
                 background_tasks.add_task(

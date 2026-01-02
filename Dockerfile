@@ -7,7 +7,13 @@ RUN apt-get update && apt-get install -y \
     gcc \
     libpq-dev \
     git \
+    wget \
+    apt-transport-https \
+    ca-certificates \
+    gnupg \
     && rm -rf /var/lib/apt/lists/*
+
+# PowerShell installation removed - using pywinrm for Windows connections
 
 # Copy requirements first for caching
 COPY requirements.txt .

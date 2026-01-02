@@ -532,7 +532,7 @@ class AlertTriggerMatcher:
             trigger_id=match.trigger.id,
             alert_id=alert.id,
             server_id=server_id,
-            status="pending",
+            status="queued",
             execution_mode="auto",
             variables_json=match.match_details.get("extracted_variables", {})
         )

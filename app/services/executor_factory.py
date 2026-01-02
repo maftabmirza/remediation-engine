@@ -34,7 +34,7 @@ class ExecutorFactory:
     _executors: Dict[str, Type[BaseExecutor]] = {
         "ssh": SSHExecutor,
         "api": APIExecutor,
-        # "winrm": WinRMExecutor,  # Added in Phase 7
+        "winrm": None, # Lazy import handled in get_executor
     }
     
     # Connection pool for reuse
@@ -78,8 +78,8 @@ class ExecutorFactory:
         os_type = getattr(server, 'os_type', 'linux') or 'linux'
         
         # Get executor class
-        executor_class = cls._executors.get(protocol)
-        if not executor_class:
+        # Get executor class (check if protocol is supported)
+        if protocol not in cls._executors:
             raise ValueError(f"Unsupported protocol: {protocol}")
         
         # Decrypt credentials
@@ -164,8 +164,29 @@ class ExecutorFactory:
             )
 
         elif protocol == "winrm":
-            # WinRM executor (Phase 7)
-            raise NotImplementedError("WinRM executor not yet implemented")
+            from .executor_winrm import WinRMExecutor
+            
+            # Smart SSL Logc:
+            # - If port is 5985 (WinRM HTTP), force use_ssl=False (overriding DB default of True)
+            # - Otherwise allow DB setting or default to True (HTTPS/5986)
+            current_port = server.port or 5985
+            use_ssl = server.winrm_use_ssl
+            
+            if current_port == 5985:
+                use_ssl = False
+            elif use_ssl is None:
+                use_ssl = True
+
+            return WinRMExecutor(
+                hostname=server.hostname,
+                port=current_port,
+                username=server.username,
+                password=password,
+                timeout=60,
+                transport=server.winrm_transport or 'ntlm',
+                use_ssl=use_ssl,
+                cert_validation=server.winrm_cert_validation if server.winrm_cert_validation is not None else True
+            )
 
         else:
             raise ValueError(f"Unknown protocol: {protocol}")

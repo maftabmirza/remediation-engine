@@ -3443,7 +3443,7 @@
         if (protocol === 'ssh') {
             portField.value = '22';
         } else if (protocol === 'winrm') {
-            portField.value = '5986';
+            portField.value = '5985';  // HTTP WinRM (more common in dev/test)
         }
 
         // Show appropriate auth fields

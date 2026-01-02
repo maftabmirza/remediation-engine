@@ -18,6 +18,7 @@ from app.services.ollama_service import ollama_completion_stream
 from app.services.prompt_service import PromptService
 from app.services.similarity_service import SimilarityService
 from app.models_troubleshooting import AlertCorrelation
+from app.services.observability_orchestrator import get_observability_orchestrator, ObservabilityQueryResult
 
 async def get_chat_llm(provider: LLMProvider):
     """
@@ -40,6 +41,28 @@ async def get_chat_llm(provider: LLMProvider):
     )
     
     return llm
+
+
+async def fetch_observability_context(alert: Alert) -> Optional[ObservabilityQueryResult]:
+    """
+    Generates and executes a query based on alert context.
+    """
+    try:
+        query = f"Show health and errors for {alert.alert_name}"
+        # If we have labels, be more specific
+        if alert.labels_json:
+            if isinstance(alert.labels_json, dict):
+                 service = alert.labels_json.get('job') or alert.labels_json.get('app') or alert.labels_json.get('service')
+                 if service:
+                     query = f"Show error logs and metrics for {service} service"
+    
+        orchestrator = get_observability_orchestrator()
+        # Default to 1h context
+        return await orchestrator.query(query)
+    except Exception as e:
+        # Don't fail chat if observability query fails
+        print(f"Failed to fetch observability context: {e}")
+        return None
 
 
 
@@ -90,8 +113,12 @@ async def stream_chat_response(
     alert = session.alert
     correlation = None
     similar_incidents = []
+    observability_context = None
     
     if alert:
+        # Fetch Observability Context (Metrics/Logs)
+        observability_context = await fetch_observability_context(alert)
+
         if alert.correlation_id:
             correlation = db.query(AlertCorrelation).filter(AlertCorrelation.id == alert.correlation_id).first()
             
@@ -108,7 +135,8 @@ async def stream_chat_response(
     system_prompt = PromptService.get_system_prompt(
         alert=alert, 
         correlation=correlation, 
-        similar_incidents=similar_incidents
+        similar_incidents=similar_incidents,
+        observability_context=observability_context
     )
     
     messages.append({"role": "system", "content": system_prompt})

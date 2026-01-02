@@ -25,3 +25,4 @@ f31aa60d7f60   prom/alertmanager:v0.26.0           "/bin/alertmanager -…"   5 
 c9dfbeb87ee7   prom/node-exporter:v1.7.0           "/bin/node_exporter …"   5 days ago     Up 5 days               0.0.0.0:9100->9100/tcp, [::]:9100->9100/tcp   node-exporter
 4. We can access web site http://172.234.217.11:8080
 5. Web site user name is admin and password is Passw0rd
+

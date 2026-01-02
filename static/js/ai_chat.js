@@ -665,17 +665,32 @@ async function openServerModal() {
             list.innerHTML = '<p class="text-gray-400 text-sm p-2">No servers configured.</p>';
             return;
         }
-        list.innerHTML = servers.map(server => `
-            <div class="p-3 bg-gray-800 rounded cursor-pointer hover:bg-gray-700 transition-colors" onclick="connectTerminal('${server.id}')">
+        list.innerHTML = servers.map(server => {
+            const isWinRM = server.protocol === 'winrm';
+            const icon = isWinRM ? 'fa-windows' : 'fa-linux';
+            const iconColor = isWinRM ? 'text-blue-400' : 'text-green-400';
+            const protoBadge = isWinRM ? 'PowerShell' : 'SSH';
+            const protoBadgeColor = isWinRM ? 'bg-blue-900/50 text-blue-300' : 'bg-green-900/50 text-green-300';
+            // Both SSH and WinRM now use connectTerminal - backend handles WinRM via PowerShell
+            const connectAction = `connectTerminal('${server.id}')`;
+            return `
+            <div class="p-3 bg-gray-800 rounded cursor-pointer hover:bg-gray-700 transition-colors" onclick="${connectAction}">
                 <div class="flex justify-between items-center">
-                    <div class="font-bold text-blue-400">${server.name}</div>
-                    <span class="text-xs bg-gray-700 px-2 py-1 rounded">${server.environment}</span>
+                    <div class="flex items-center">
+                        <i class="fab ${icon} ${iconColor} mr-2"></i>
+                        <span class="font-bold text-blue-400">${server.name}</span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-xs ${protoBadgeColor} px-2 py-0.5 rounded">${protoBadge}</span>
+                        <span class="text-xs bg-gray-700 px-2 py-1 rounded">${server.environment}</span>
+                    </div>
                 </div>
                 <div class="text-xs text-gray-400 mt-1">
                     <i class="fas fa-server mr-1"></i>${server.username}@${server.hostname}:${server.port}
                 </div>
+                ${isWinRM ? '<div class="text-xs text-blue-300 mt-1"><i class="fas fa-terminal mr-1"></i>Interactive PowerShell (WinRM)</div>' : ''}
             </div>
-        `).join('');
+        `}).join('');
     } catch (error) {
         list.innerHTML = `<p class="text-red-400 text-sm p-2">Error: ${error.message}</p>`;
     }
@@ -687,6 +702,41 @@ function closeServerModal() {
     modal.classList.remove('flex');
     // Reset to saved servers tab
     switchServerTab('saved');
+}
+
+/**
+ * Connect to a WinRM server for API-only command execution.
+ * WinRM doesn't support interactive terminals, so we only set the server ID
+ * for use with the /execute API endpoint.
+ */
+function connectWinRMServer(serverId, serverName) {
+    closeServerModal();
+    currentServerId = serverId;
+
+    // Update terminal status to show WinRM mode
+    const termStatus = document.getElementById('termStatus');
+    if (termStatus) {
+        termStatus.textContent = `WinRM: ${serverName}`;
+        termStatus.className = 'text-xs text-blue-400';
+    }
+
+    // Show a helpful message in the terminal area
+    initTerminal();
+    if (term) {
+        term.reset();
+        term.write('\x1b[34m╔══════════════════════════════════════════════════════════════╗\x1b[0m\r\n');
+        term.write('\x1b[34m║\x1b[0m  \x1b[1;36mWindows Server Connected (WinRM)\x1b[0m                            \x1b[34m║\x1b[0m\r\n');
+        term.write('\x1b[34m╠══════════════════════════════════════════════════════════════╣\x1b[0m\r\n');
+        term.write('\x1b[34m║\x1b[0m  \x1b[33mInteractive terminal is not available for WinRM.\x1b[0m            \x1b[34m║\x1b[0m\r\n');
+        term.write('\x1b[34m║\x1b[0m                                                              \x1b[34m║\x1b[0m\r\n');
+        term.write('\x1b[34m║\x1b[0m  \x1b[32mCommand execution via AI Chat is available:\x1b[0m                 \x1b[34m║\x1b[0m\r\n');
+        term.write('\x1b[34m║\x1b[0m    • Ask AI to run PowerShell commands                       \x1b[34m║\x1b[0m\r\n');
+        term.write('\x1b[34m║\x1b[0m    • Click "Run in Terminal" on suggested commands           \x1b[34m║\x1b[0m\r\n');
+        term.write('\x1b[34m║\x1b[0m    • Commands execute via WinRM API                          \x1b[34m║\x1b[0m\r\n');
+        term.write('\x1b[34m╚══════════════════════════════════════════════════════════════╝\x1b[0m\r\n\r\n');
+    }
+
+    showToast(`Connected to ${serverName} (WinRM - API only)`, 'success');
 }
 
 function switchServerTab(tab) {
@@ -828,27 +878,60 @@ async function executeCommandWithOutput(cardId, command) {
         showToast('No server connected. Connect to a server first.', 'error');
         return;
     }
+
+    // Detect if connected via WinRM (no terminal socket, termStatus shows WinRM)
+    const termStatus = document.getElementById('termStatus');
+    const isWinRM = termStatus && termStatus.textContent.startsWith('WinRM:');
+    const execMethod = isWinRM ? 'WinRM' : 'SSH';
+
     const actionsDiv = card.querySelector('.cmd-actions');
-    actionsDiv.innerHTML = '<div class="flex-1 flex items-center justify-center text-blue-400 text-sm py-2"><i class="fas fa-spinner fa-spin mr-2"></i>Executing via SSH...</div>';
+    actionsDiv.innerHTML = `<div class="flex-1 flex items-center justify-center text-blue-400 text-sm py-2"><i class="fas fa-spinner fa-spin mr-2"></i>Executing via ${execMethod}...</div>`;
     try {
         const response = await apiCall(`/api/servers/${currentServerId}/execute`, {
             method: 'POST',
             body: JSON.stringify({ command: command, timeout: 60 })
         });
         const result = await response.json();
-        if (terminalSocket && terminalSocket.readyState === WebSocket.OPEN) {
+
+        // Only send to terminal for SSH connections (not WinRM)
+        if (!isWinRM && terminalSocket && terminalSocket.readyState === WebSocket.OPEN) {
             terminalSocket.send(command + '\r');
         }
+
         const isSuccess = (result.exit_code === 0) || (result.success === true);
         const output = result.stdout || result.stderr || (isSuccess ? 'Command completed successfully' : (result.error || 'Command failed'));
         showCommandOutputInCard(cardId, command, output, isSuccess, result.exit_code);
+
+        // Auto-feed output back to AI for analysis
+        if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+            const contextMsg = `[SYSTEM: User executed command \`${command}\`. Output follows:]\n\`\`\`\n${output}\n\`\`\`\n\n[INSTRUCTION: Analyze this output. If it fixes the issue, say so. If not, suggest the next step.]`;
+
+            // Add a small delay to allow UI to update first, then send to AI
+            setTimeout(() => {
+                appendUserMessage(`*Ran command:* \`${command}\``);
+                chatSocket.send(contextMsg);
+                showTypingIndicator();
+            }, 500);
+        }
+
     } catch (error) {
         console.error('Command execution failed:', error);
-        if (terminalSocket && terminalSocket.readyState === WebSocket.OPEN) {
+        // Fallback to terminal only for SSH (not WinRM)
+        if (!isWinRM && terminalSocket && terminalSocket.readyState === WebSocket.OPEN) {
             terminalSocket.send(command + '\r');
             term.focus();
         }
         showToast('Command execution failed: ' + error.message, 'error');
+
+        // Feed error back to AI
+        if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+            const errorMsg = `[SYSTEM: Command \`${command}\` failed with error:]\n${error.message}\n\n[INSTRUCTION: suggest how to fix this error.]`;
+            setTimeout(() => {
+                appendUserMessage(`*Command failed:* \`${command}\``);
+                chatSocket.send(errorMsg);
+                showTypingIndicator();
+            }, 500);
+        }
     }
 }
 
@@ -901,7 +984,8 @@ function addRunButtons(element) {
         if (pre.querySelector('.code-actions') || pre.closest('.command-card')) return;
         const lang = block.className.match(/language-(\w+)/)?.[1] || '';
         const content = block.innerText.trim();
-        const isExplicitShell = ['shell', 'bash', 'sh', 'zsh', 'fish'].includes(lang);
+        // Include PowerShell for Windows command execution
+        const isExplicitShell = ['shell', 'bash', 'sh', 'zsh', 'fish', 'powershell', 'ps1', 'pwsh', 'cmd', 'batch', 'dos'].includes(lang);
         const isUnmarked = lang === '';
         if (isExplicitShell || (isUnmarked && isActualCommand(content))) {
             createCommandCard(pre, content);
@@ -1155,7 +1239,7 @@ function handleAgentMessage(data) {
     console.log('Agent message:', data.type, data);
     switch (data.type) {
         case 'connected': updateAgentStatus('thinking', 'Analyzing goal...'); break;
-        case 'status_changed': updateAgentStatus(data.status); break;
+        case 'status_changed': updateAgentStatus(data.status, data.text); break;
         case 'step_created': addAgentStep(data.step); break;
         case 'step_updated': updateAgentStep(data.step); break;
         case 'complete': handleAgentComplete(data); break;
@@ -1294,7 +1378,15 @@ async function stopAgent() {
         }
     } catch (error) {
         console.error('Failed to stop agent:', error);
-        showToast('Failed to stop agent', 'error');
+        showToast('Force stopping agent UI...', 'warning');
+        updateAgentStatus('stopped');
+        const container = document.getElementById('agentSteps');
+        if (container) {
+            const exitBtn = document.createElement('div');
+            exitBtn.className = 'text-center mt-4';
+            exitBtn.innerHTML = '<button onclick="exitAgentMode()" class="btn-secondary px-4 py-2 rounded"><i class="fas fa-arrow-left mr-2"></i>Return to Chat (Force)</button>';
+            container.appendChild(exitBtn);
+        }
     }
 }
 

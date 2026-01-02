@@ -13,7 +13,7 @@ import json
 import logging
 import re
 from datetime import datetime
-from typing import Optional, Dict, Any, AsyncGenerator, Callable, Awaitable
+from typing import Optional, Dict, Any, AsyncGenerator, Callable, Awaitable, List
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -22,13 +22,15 @@ from app.models import LLMProvider, Alert
 from app.models_chat import ChatSession, ChatMessage
 from app.models_agent import AgentSession, AgentStep, AgentStatus, StepType, StepStatus
 from app.services.llm_service import get_api_key_for_provider
-from app.services.ssh_service import SSHClient, get_ssh_connection
+from app.services.executor_factory import ExecutorFactory, BaseExecutor
 from app.services.ollama_service import ollama_completion_stream
 from langchain_community.chat_models import ChatLiteLLM
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
 logger = logging.getLogger(__name__)
 
+from app.models import ServerCredential, Alert
+from app.services.knowledge_search_service import KnowledgeSearchService
 
 # Agent system prompt for structured output
 AGENT_SYSTEM_PROMPT = """You are an autonomous SRE Agent called Antigravity. You are given a troubleshooting goal and must accomplish it step by step.
@@ -56,6 +58,8 @@ You MUST respond with valid JSON in this exact format - NO other text before or 
 4. If a command fails, try an alternative approach before giving up.
 5. When the goal is achieved, use "complete" action with a summary of what was done.
 6. Use "question" sparingly - only when you absolutely need user input.
+7. **Use Server Context**: You are provided with the OS and version. Do NOT guess. Use appropriate syntax (PowerShell for Windows, Bash for Linux).
+8. **Follow SOPs**: If Knowledge Base articles are provided, PRIORITIZE their instructions.
 
 ## Safety:
 - Do NOT run destructive commands (rm -rf /, drop database, etc.) without explicit user confirmation.
@@ -65,6 +69,8 @@ You MUST respond with valid JSON in this exact format - NO other text before or 
 ## Context Format:
 You will receive:
 - GOAL: The objective to achieve
+- SERVER_CONTEXT: OS type, version, and details
+- KNOWLEDGE_BASE: Relevant SOPs and docs (if any)
 - ALERT_CONTEXT: Information about the alert being investigated (if any)
 - COMMAND_HISTORY: Previous commands and their outputs from this session
 - CURRENT_OUTPUT: The output from the most recent command (if any)
@@ -73,12 +79,44 @@ Analyze all context carefully before deciding your next action.
 """
 
 
-def get_agent_system_prompt(goal: str, alert: Optional[Alert] = None) -> str:
+def get_agent_system_prompt(
+    goal: str,
+    server: Optional[ServerCredential] = None,
+    knowledge: List[Dict[str, Any]] = None,
+    alert: Optional[Alert] = None,
+    open_alerts: List[Alert] = None,
+    historical_alerts: List[Alert] = None
+) -> str:
     """Build the complete system prompt with goal and alert context."""
     prompt = AGENT_SYSTEM_PROMPT
     
     prompt += f"\n\n## GOAL:\n{goal}\n"
     
+    if server:
+        prompt += f"""
+## SERVER_CONTEXT:
+- Hostname: {server.hostname}
+- OS Type: {server.os_type or 'Unknown'}
+- Protocol: {getattr(server, 'protocol', 'ssh')}
+"""
+    
+    # Open Alerts on this server
+    if open_alerts:
+        prompt += "\n## OPEN_ALERTS_CONTEXT (Active issues on this server):\n"
+        for a in open_alerts:
+            prompt += f"- [{a.severity}] {a.alert_name} (Status: {a.status}, Started: {a.timestamp})\n"
+
+    # Historical Alerts (Patterns)
+    if historical_alerts:
+        prompt += "\n## HISTORICAL_ALERTS_CONTEXT (Past incidents on this server):\n"
+        for a in historical_alerts:
+            prompt += f"- [{a.severity}] {a.alert_name} (Resolved: {a.closed_at or 'Unknown'})\n"
+
+    if knowledge:
+        prompt += "\n## KNOWLEDGE_BASE_CONTEXT (RELEVANT SOPs/DOCS):\n"
+        for idx, item in enumerate(knowledge, 1):
+            prompt += f"{idx}. [{item.get('source_title', 'Doc')}]: {item.get('content', '')[:500]}...\n"
+
     if alert:
         prompt += f"""
 ## ALERT_CONTEXT:
@@ -94,6 +132,7 @@ def get_agent_system_prompt(goal: str, alert: Optional[Alert] = None) -> str:
 """
     
     return prompt
+
 
 
 def parse_agent_response(response_text: str) -> Dict[str, Any]:
@@ -144,7 +183,6 @@ def parse_agent_response(response_text: str) -> Dict[str, Any]:
         'content': data.get('content', ''),
         'reasoning': data.get('reasoning', '')
     }
-
 
 class AgentService:
     """
@@ -242,10 +280,114 @@ class AgentService:
         
         # Get alert context if available
         chat_session = session.chat_session
-        alert = chat_session.alert if chat_session else None
+        trigger_alert = chat_session.alert if chat_session else None
         
-        # Build system prompt
-        system_prompt = get_agent_system_prompt(session.goal, alert)
+        # Get Server Context
+        server = None
+        if session.server_id:
+            server = self.db.query(ServerCredential).filter(ServerCredential.id == session.server_id).first()
+            
+        # --- Deep Context Gathering ---
+        
+        # 1. Open Alerts
+        open_alerts = []
+        if server:
+            await self.notify("status_changed", {
+                "session_id": str(session.id), 
+                "status": "thinking", 
+                "text": "Checking open alerts..."
+            })
+            try:
+                # Find alerts matching hostname or IP in instance field
+                open_alerts = self.db.query(Alert).filter(
+                    Alert.status == 'firing',
+                    Alert.instance.ilike(f"%{server.hostname}%")
+                ).limit(5).all()
+            except Exception as e:
+                logger.error(f"Failed to fetch open alerts: {e}")
+
+        # 2. Historical Alerts (Last 7 Days OR Semantic Search)
+        historical_alerts = []
+        if server:
+            await self.notify("status_changed", {
+                "session_id": str(session.id), 
+                "status": "thinking", 
+                "text": "Analyzing incident history..."
+            })
+            try:
+                # Try Semantic Search first if available
+                from app.services.embedding_service import EmbeddingService
+                from sqlalchemy import text
+                
+                embedding_service = EmbeddingService()
+                if embedding_service.is_configured():
+                    # Generate embedding for the current situation
+                    context_text = f"Goal: {session.goal}"
+                    if trigger_alert:
+                        context_text += f"\nAlert: {trigger_alert.alert_name}\nSummary: {trigger_alert.annotations_json.get('summary', '')}"
+                    
+                    query_embedding = embedding_service.generate_embedding(context_text)
+                    
+                    if query_embedding:
+                        # Vector search for similar resolved alerts
+                        # Note: We filter by resolved status to find solutions
+                        sql = text("""
+                            SELECT * FROM alerts 
+                            WHERE status = 'resolved' 
+                            AND embedding IS NOT NULL
+                            ORDER BY embedding <=> CAST(:query_embedding AS vector)
+                            LIMIT 5
+                        """)
+                        result = self.db.execute(sql, {'query_embedding': query_embedding})
+                        historical_alerts = result.fetchall()
+                        logger.info(f"Found {len(historical_alerts)} semantically similar historical alerts")
+
+                # Fallback to simple time-based search if no results or not configured
+                if not historical_alerts:
+                    from datetime import timedelta
+                    seven_days_ago = datetime.utcnow() - timedelta(days=7)
+                    historical_alerts = self.db.query(Alert).filter(
+                        Alert.status == 'resolved',
+                        Alert.instance.ilike(f"%{server.hostname}%"),
+                        Alert.created_at >= seven_days_ago
+                    ).order_by(Alert.created_at.desc()).limit(5).all()
+                    
+            except Exception as e:
+                logger.error(f"Failed to fetch historical alerts: {e}")
+
+        # 3. Knowledge Base
+        knowledge = []
+        if session.current_step_number == 0:
+            await self.notify("status_changed", {
+                "session_id": str(session.id), 
+                "status": "thinking", 
+                "text": "Searching Knowledge Base..."
+            })
+            try:
+                knowledge_service = KnowledgeSearchService(self.db)
+                # Search using goal + alert info
+                query = f"{session.goal} {trigger_alert.alert_name if trigger_alert else ''}"
+                knowledge = knowledge_service.search_similar(query, limit=3)
+                logger.info(f"Found {len(knowledge)} relevant docs for agent session {session.id}")
+            except Exception as e:
+                logger.error(f"Knowledge search failed: {e}")
+        
+        # Reset status to generic thinking
+        await self.notify("status_changed", {
+            "session_id": str(session.id), 
+            "status": "thinking", 
+            "text": "Planning next step..."
+        })
+
+        # Build system prompt with all context
+        system_prompt = get_agent_system_prompt(
+            goal=session.goal,
+            server=server,
+            knowledge=knowledge,
+            alert=trigger_alert,
+            open_alerts=open_alerts,
+            historical_alerts=historical_alerts
+        )
         
         # Build context from history
         context = self.build_context(session)
@@ -259,7 +401,7 @@ class AgentService:
         
         # Add instruction to generate next step
         if session.current_step_number == 0:
-            user_content_parts.append("The agent session has started. Analyze the goal and alert context, then provide your first action as JSON.")
+            user_content_parts.append("The agent session has started. Analyze the goal, server context, open alerts, history, and knowledge base. Provide your first action as JSON.")
         else:
             last_step = session.steps[-1] if session.steps else None
             if last_step and last_step.output:
@@ -364,7 +506,7 @@ class AgentService:
         self,
         session: AgentSession,
         step: AgentStep,
-        ssh_client: SSHClient
+        executor: BaseExecutor
     ) -> tuple[str, int]:
         """
         Execute a command on the server and capture output.
@@ -380,18 +522,15 @@ class AgentService:
         logger.info(f"Agent executing command: {command}")
         
         try:
-            # Ensure connection is established
-            if not ssh_client.conn:
-                await ssh_client.connect()
-            
-            # Run command
-            result = await ssh_client.conn.run(command, check=False, timeout=60)
+            # Execute command using the provided executor
+            result = await executor.execute(command, timeout=60)
             
             output = result.stdout or ""
             if result.stderr:
                 output += f"\n[STDERR]: {result.stderr}"
             
-            exit_code = result.exit_status
+            # Use success flag or exit code
+            exit_code = result.exit_code if result.exit_code is not None else (0 if result.success else 1)
             
             step.output = output
             step.exit_code = exit_code
@@ -411,13 +550,6 @@ class AgentService:
             })
             
             return output, exit_code
-            
-        except asyncio.TimeoutError:
-            step.output = "[ERROR: Command timed out after 60 seconds]"
-            step.exit_code = -1
-            step.status = StepStatus.FAILED.value
-            self.db.commit()
-            return step.output, -1
             
         except Exception as e:
             error_msg = f"[ERROR: {type(e).__name__}: {str(e)}]"
@@ -486,13 +618,10 @@ class AgentService:
         self,
         session: AgentSession,
         provider: LLMProvider,
-        ssh_client: SSHClient
+        executor: BaseExecutor
     ) -> AsyncGenerator[dict, None]:
         """
         Main agent loop - runs until complete, failed, or stopped.
-        
-        This is a generator that yields events for each step.
-        It pauses when awaiting approval.
         """
         logger.info(f"Starting agent loop for session {session.id}")
         
@@ -551,7 +680,7 @@ class AgentService:
                             if step.status == StepStatus.APPROVED.value:
                                 # Execute the command
                                 output, exit_code = await self.execute_command(
-                                    session, step, ssh_client
+                                    session, step, executor
                                 )
                                 yield {
                                     "type": "executed",
@@ -571,7 +700,7 @@ class AgentService:
                     else:
                         # Auto-approve mode - execute immediately
                         output, exit_code = await self.execute_command(
-                            session, step, ssh_client
+                            session, step, executor
                         )
                         yield {
                             "type": "executed",

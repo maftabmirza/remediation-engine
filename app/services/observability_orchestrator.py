@@ -300,7 +300,7 @@ class ObservabilityOrchestrator:
         time_range: str,
         start_time: Optional[datetime],
         end_time: Optional[datetime]
-    ) -> tuple[datetime, datetime]:
+    ) -> "tuple[datetime, datetime]":
         """Calculate start and end time from time range string."""
         if start_time and end_time:
             return start_time, end_time
