@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y \
     libpq-dev \
     git \
     wget \
+    curl \
     apt-transport-https \
     ca-certificates \
     gnupg \
