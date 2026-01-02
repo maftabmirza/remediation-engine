@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.models import LLMProvider, Alert
-from app.utils.crypto import decrypt_value
+from app.utils.crypto import decrypt_value, DecryptionError, CryptoError
 from app.metrics import LLM_REQUESTS, LLM_DURATION, LLM_TOKENS
 from app.services.ollama_service import ollama_completion
 
@@ -20,8 +20,11 @@ settings = get_settings()
 
 def get_api_key_for_provider(provider: LLMProvider) -> Optional[str]:
     """Get API key for a provider."""
-    if provider.api_key_encrypted:
-        return decrypt_value(provider.api_key_encrypted)
+    try:
+        if provider.api_key_encrypted:
+            return decrypt_value(provider.api_key_encrypted)
+    except (DecryptionError, CryptoError) as e:
+        logger.error(f"Failed to decrypt API key for provider {provider.name}: {e}. Falling back to environment variables.")
     
     if provider.provider_type == "anthropic":
         return settings.anthropic_api_key
