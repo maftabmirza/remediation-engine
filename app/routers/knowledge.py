@@ -52,6 +52,9 @@ async def create_document(
     
     Supports text, markdown, PDF, and image uploads.
     """
+    if not app_id:
+        raise HTTPException(status_code=400, detail="Application ID is required")
+        
     logger.info(f"=== UPLOAD REQUEST ===")
     logger.info(f"Title: '{title}' (type: {type(title)})")
     logger.info(f"Doc Type: '{doc_type}' (type: {type(doc_type)})")

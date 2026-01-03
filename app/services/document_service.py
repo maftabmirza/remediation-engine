@@ -52,6 +52,18 @@ class DocumentService:
                 if not para:
                     continue
                 
+                # If a single paragraph is larger than chunk_size, split it forcibly
+                if len(para) > chunk_size:
+                    # Flush current chunk if it exists
+                    if current_chunk:
+                        chunks.append(current_chunk.strip())
+                        current_chunk = ""
+                    
+                    # Split the large paragraph using character-based chunking
+                    sub_chunks = self.chunk_text(para, chunk_size, overlap, preserve_paragraphs=False)
+                    chunks.extend(sub_chunks)
+                    continue
+
                 # If adding this paragraph exceeds chunk size
                 if len(current_chunk) + len(para) + 2 > chunk_size and current_chunk:
                     chunks.append(current_chunk.strip())

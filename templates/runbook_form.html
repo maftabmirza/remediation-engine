@@ -647,7 +647,9 @@
 {% endblock %}
 
 {% block scripts %}
+{{ super() }}
 <!-- CodeMirror JS -->
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/shell/shell.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/powershell/powershell.min.js"></script>
@@ -659,7 +661,7 @@
     // Global state
     let stepCounter = 0;
     let triggerCounter = 0;
-    let codeMirrorInstances = {};
+    var codeMirrorInstances = window.codeMirrorInstances = {};
     let servers = [];
     let apiProfiles = [];
     let groups = [];
@@ -1980,5 +1982,4 @@
         }
     };
 </script>
-{{ super() }}
 {% endblock %}

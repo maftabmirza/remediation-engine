@@ -1,5 +1,9 @@
 {% extends "base.html" %}
 
+{% block head %}
+<link href="/static/css/agent_widget.css" rel="stylesheet">
+{% endblock %}
+
 {% block body %}
 <div class="flex min-h-screen">
     <!-- Sidebar -->
@@ -600,9 +604,45 @@
         </div>
     </div>
 </div>
+</div>
+</div>
+
+<!-- AI Helper Agent Widget -->
+<div id="agent-fab" class="shadow-lg hover:shadow-xl transition-all">
+    <i class="fas fa-robot text-xl"></i>
+</div>
+
+<div id="agent-chat-window" class="flex flex-col">
+    <div class="agent-header">
+        <div class="agent-title">
+            <div class="agent-avatar">
+                <i class="fas fa-robot"></i>
+            </div>
+            <div>
+                <div class="agent-name">Antigravity</div>
+                <div class="agent-status">Online</div>
+            </div>
+        </div>
+        <button id="agent-close-btn" class="text-gray-400 hover:text-white transition-colors">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+
+    <div id="agent-messages" class="agent-messages custom-scrollbar">
+        <!-- Messages will be injected here -->
+    </div>
+
+    <div class="agent-input-area">
+        <textarea id="agent-input" rows="1" placeholder="Ask about this page..."></textarea>
+        <button id="agent-send-btn" disabled>
+            <i class="fas fa-paper-plane"></i>
+        </button>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
+<script src="/static/js/agent_widget.js?v=10"></script>
 <script>
     function showThemeModal() {
         document.getElementById('themeModal').classList.remove('hidden');

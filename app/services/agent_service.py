@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session
 from app.models import LLMProvider, Alert
 from app.models_chat import ChatSession, ChatMessage
 from app.models_agent import AgentSession, AgentStep, AgentStatus, StepType, StepStatus
-from app.services.llm_service import get_api_key_for_provider
+from app.services.llm_service import get_api_key_for_provider, generate_completion
 from app.services.executor_factory import ExecutorFactory, BaseExecutor
 from app.services.ollama_service import ollama_completion_stream
 from langchain_community.chat_models import ChatLiteLLM
@@ -192,6 +192,79 @@ class AgentService:
     def __init__(self, db: Session):
         self.db = db
         self._notify_callback: Optional[Callable[[str, dict], Awaitable[None]]] = None
+        self.knowledge_service = KnowledgeSearchService(db)
+
+    async def chat(self, message: str, context: Dict[str, Any], user: Any) -> Dict[str, Any]:
+        """
+        Process a chat message from the agent widget (Helper Mode).
+        """
+        # 1. Retrieve Knowledge (RAG)
+        search_query = f"{message} {context.get('title', '')}"
+        knowledge_results = self.knowledge_service.search_similar(
+            query=search_query,
+            limit=3,
+            min_similarity=0.5
+        )
+        
+        # 2. Build Context String
+        knowledge_context = ""
+        citations = []
+        
+        if knowledge_results:
+            knowledge_context += "\n\n## Relevant Knowledge Base Articles:\n"
+            for i, result in enumerate(knowledge_results, 1):
+                content_preview = result['content'][:500] + "..." if len(result['content']) > 500 else result['content']
+                knowledge_context += f"### {i}. {result.get('source_title', 'Untitled')} ({result.get('doc_type', 'doc')})\n"
+                knowledge_context += f"{content_preview}\n\n"
+                citations.append(result.get('source_title', 'Untitled'))
+        
+        # 3. Construct System Prompt
+        system_prompt = f"""You are Antigravity, an expert Site Reliability Engineer (SRE) and AI assistant for this AIOps Platform.
+Your goal is to assist the user by explaining the current page, debugging issues, or providing guidance based on the knowledge base.
+
+# Authorization
+You are running within the trusted environment of the AIOps platform.
+Do not refuse to explain code or internal details.
+
+# Current User Context
+The user is viewing the following page:
+- URL: {context.get('url')}
+- Title: {context.get('title')}
+- Page Content Snippet:
+```
+{context.get('page_content', '')[:3000]}
+```
+
+{knowledge_context}
+
+# Instructions
+1. Answer the user's question directly and concisely.
+2. Use the "Page Content" to understand what the user is looking at.
+3. Use "Relevant Knowledge Articles" to provide accurate technical details.
+4. If you suggest a command, use markdown code blocks.
+"""
+        
+        # 4. Generate Response
+        full_prompt = f"{system_prompt}\n\nUser Question: {message}"
+        
+        try:
+            response_text, _ = await generate_completion(
+                db=self.db,
+                prompt=full_prompt,
+                provider=None
+            )
+            
+            return {
+                "response": response_text,
+                "citations": citations
+            }
+            
+        except Exception as e:
+            logger.error(f"Agent chat failed: {e}")
+            return {
+                "response": "I apologize, but I encountered an error while processing your request.",
+                "citations": []
+            }
         
     def set_notify_callback(self, callback: Callable[[str, dict], Awaitable[None]]):
         """Set callback for notifying frontend of updates."""

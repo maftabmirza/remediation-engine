@@ -76,6 +76,8 @@ class GitSyncService:
                             logger.error(f"Failed to process {file}: {e}")
                             stats["errors"] += 1
                             
+            # Commit all changes
+            self.db.commit()
             return stats
             
         finally:
@@ -93,7 +95,7 @@ class GitSyncService:
         # This is simplified; a robust calc would handle different hosts.
         rel_path = file_path.name # This is just filename, ideally should be relative to root
         
-        self.doc_service.create_document(
+        document = self.doc_service.create_document(
             title=title,
             doc_type="design_doc",
             content=content,
@@ -102,3 +104,7 @@ class GitSyncService:
             user_id=user_id,
             source_type="git"
         )
+        
+        # Create chunks
+        self.doc_service.create_chunks_for_document(document, chunk_size=1000, overlap=200)
+

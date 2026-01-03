@@ -3,6 +3,103 @@
 
 {% block title %}Knowledge Base - AIOps Platform{% endblock %}
 
+{% block head %}
+{{ super() }}
+<style>
+    /* Grafana-aligned Panel Card */
+    .panel-card {
+        background-color: #181b1f;
+        border: 1px solid rgba(204, 204, 220, 0.12);
+        border-radius: 4px;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .panel-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        border-color: rgba(204, 204, 220, 0.2);
+    }
+
+    /* Grafana-style Badges */
+    .badge {
+        padding: 2px 8px;
+        border-radius: 2px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+
+    .badge-architecture {
+        background-color: #b877d9;
+        color: white;
+    }
+
+    .badge-runbook {
+        background-color: #3d71d9;
+        color: white;
+    }
+
+    .badge-sop {
+        background-color: #1a7f4b;
+        color: white;
+    }
+
+    .badge-troubleshooting {
+        background-color: #eb7b18;
+        color: white;
+    }
+
+    .badge-api_spec {
+        background-color: #6e9fff;
+        color: #111217;
+    }
+
+    .badge-deployment {
+        background-color: #d10e5c;
+        color: white;
+    }
+
+    .badge-config {
+        background-color: #6ccf8e;
+        color: #111217;
+    }
+
+    .badge-design_doc {
+        background-color: #fce96a;
+        color: #111217;
+    }
+
+    .badge-active {
+        background-color: #1a7f4b;
+        color: white;
+    }
+
+    .badge-draft {
+        background-color: #8e8e8e;
+        color: white;
+    }
+
+    .badge-archived {
+        background-color: #ff5286;
+        color: white;
+    }
+
+    /* Search Results */
+    #searchResults {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: #181b1f;
+        border: 1px solid rgba(204, 204, 220, 0.12);
+        border-radius: 4px;
+        z-index: 50;
+        max-height: 400px;
+        overflow-y: auto;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="space-y-4">
     <!-- Enterprise Standard Toolbar -->
@@ -11,7 +108,6 @@
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <!-- Left: Breadcrumbs & Title -->
             <div class="flex flex-col min-w-0">
-                <!-- Breadcrumbs -->
                 <nav class="flex items-center text-xs text-gray-400 mb-1">
                     <a href="/" class="hover:text-blue-400 transition-colors">Home</a>
                     <span class="mx-2">/</span>
@@ -25,6 +121,11 @@
 
             <!-- Right: Actions -->
             <div class="flex items-center gap-2">
+                <button onclick="showGitSyncModal()"
+                    class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1.5 rounded text-sm flex items-center gap-2 transition-colors border border-gray-600">
+                    <i class="fab fa-git-alt"></i>
+                    Sync from Git
+                </button>
                 <button onclick="showUploadModal()"
                     class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded text-sm flex items-center gap-2 transition-colors">
                     <i class="fas fa-plus"></i>
@@ -34,167 +135,231 @@
         </div>
     </div>
 
-    <!-- Stats Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div class="card p-4">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm text-gray-400">Total Documents</p>
-                    <p id="totalDocs" class="text-2xl font-bold">-</p>
-                </div>
-                <i class="fas fa-file-alt text-3xl text-blue-400"></i>
+    <!-- Stats and Search -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <!-- Search Box (Larger) -->
+        <div class="md:col-span-2 relative">
+            <div class="relative">
+                <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                <input type="text" id="searchQuery"
+                    class="w-full bg-gray-700 border border-gray-600 rounded pl-10 pr-4 py-2.5 text-white focus:outline-none focus:border-blue-500"
+                    placeholder="Search knowledge base (semantic search)..."
+                    onkeypress="if(event.key === 'Enter') searchKnowledge()">
             </div>
+            <div id="searchResults" class="hidden mt-1"></div>
         </div>
-        <div class="card p-4">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm text-gray-400">Total Chunks</p>
-                    <p id="totalChunks" class="text-2xl font-bold">-</p>
-                </div>
-                <i class="fas fa-puzzle-piece text-3xl text-green-400"></i>
-            </div>
-        </div>
-        <div class="card p-4">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm text-gray-400">Embedding Status</p>
-                    <p id="embeddingStatus" class="text-2xl font-bold">-</p>
-                </div>
-                <i class="fas fa-brain text-3xl text-purple-400"></i>
-            </div>
-        </div>
-    </div>
 
-    <!-- Search Bar -->
-    <div class="card p-4">
-        <div class="flex gap-4">
-            <input type="text" id="searchQuery" class="input-field px-4 py-2 rounded flex-1"
-                placeholder="Search knowledge base..." onkeypress="if(event.key === 'Enter') searchKnowledge()">
-            <button onclick="searchKnowledge()" class="btn-primary px-6 py-2 rounded">
-                <i class="fas fa-search mr-2"></i> Search
-            </button>
-        </div>
-        <div id="searchResults" class="mt-4 hidden"></div>
-    </div>
-
-    <!-- Filter Bar -->
-    <div class="card p-4">
-        <div class="flex flex-wrap gap-4 items-center">
+        <!-- Quick Stats -->
+        <div class="card p-3 flex items-center justify-between bg-[#181b1f] border border-[rgba(204,204,220,0.12)]">
             <div>
-                <label class="text-sm text-gray-400 block mb-1">Document Type</label>
-                <select id="filterDocType" class="input-field px-3 py-2 rounded" onchange="loadDocuments()">
-                    <option value="">All Types</option>
-                    <option value="architecture">Architecture</option>
-                    <option value="api_spec">API Specification</option>
-                    <option value="runbook">Runbook</option>
-                    <option value="sop">SOP</option>
-                    <option value="troubleshooting">Troubleshooting</option>
-                    <option value="deployment">Deployment</option>
-                    <option value="config">Configuration</option>
-                </select>
+                <p class="text-xs text-gray-400">Total Documents</p>
+                <p id="totalDocs" class="text-xl font-bold text-white">-</p>
             </div>
+            <i class="fas fa-file-alt text-2xl text-blue-400 opacity-50"></i>
+        </div>
+        <div class="card p-3 flex items-center justify-between bg-[#181b1f] border border-[rgba(204,204,220,0.12)]">
             <div>
-                <label class="text-sm text-gray-400 block mb-1">Status</label>
-                <select id="filterStatus" class="input-field px-3 py-2 rounded" onchange="loadDocuments()">
-                    <option value="">All</option>
-                    <option value="active">Active</option>
-                    <option value="draft">Draft</option>
-                    <option value="archived">Archived</option>
-                </select>
+                <p class="text-xs text-gray-400">Chunks / Embedding</p>
+                <div class="flex items-center gap-2">
+                    <p id="totalChunks" class="text-xl font-bold text-white">-</p>
+                    <span id="embeddingStatus" class="text-xs text-gray-400"></span>
+                </div>
             </div>
-            <div class="flex-1"></div>
-            <button onclick="loadDocuments()" class="btn-secondary px-4 py-2 rounded">
-                <i class="fas fa-sync-alt mr-2"></i> Refresh
-            </button>
+            <i class="fas fa-brain text-2xl text-purple-400 opacity-50"></i>
         </div>
     </div>
 
-    <!-- Documents List -->
-    <div class="card">
-        <div id="documentsList" class="divide-y divide-gray-700">
-            <div class="p-8 text-center">
-                <div class="loading-spinner mx-auto mb-2"></div>
-                <p class="text-gray-400">Loading documents...</p>
-            </div>
+    <!-- Filters -->
+    <div class="card p-4 flex flex-wrap gap-4 items-center">
+        <select id="filterApp" onchange="loadDocuments()"
+            class="bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+            <option value="">All Applications</option>
+            <!-- Populated by JS -->
+        </select>
+
+        <select id="filterDocType" onchange="loadDocuments()"
+            class="bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+            <option value="">All Types</option>
+            <option value="architecture">Architecture</option>
+            <option value="api_spec">API Specification</option>
+            <option value="runbook">Runbook</option>
+            <option value="sop">SOP</option>
+            <option value="troubleshooting">Troubleshooting</option>
+            <option value="deployment">Deployment</option>
+            <option value="config">Configuration</option>
+        </select>
+
+        <select id="filterStatus" onchange="loadDocuments()"
+            class="bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+            <option value="">All Status</option>
+            <option value="active">Active</option>
+            <option value="draft">Draft</option>
+            <option value="archived">Archived</option>
+        </select>
+
+        <div class="flex-1"></div>
+        <button onclick="loadDocuments()" class="text-gray-400 hover:text-white transition-colors">
+            <i class="fas fa-sync-alt"></i>
+        </button>
+    </div>
+
+    <!-- Documents Table -->
+    <div class="card overflow-hidden">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="bg-[#181b1f] text-left text-[#8e8e8e]"
+                    style="border-bottom: 1px solid rgba(204, 204, 220, 0.07);">
+                    <th class="px-4 py-3 font-medium w-10"></th>
+                    <th class="px-4 py-3 font-medium">Title</th>
+                    <th class="px-4 py-3 font-medium">Application</th>
+                    <th class="px-4 py-3 font-medium">Type</th>
+                    <th class="px-4 py-3 font-medium">Status</th>
+                    <th class="px-4 py-3 font-medium hidden md:table-cell">Created</th>
+                    <th class="px-4 py-3 font-medium text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="documentsList" class="text-[#ccccdc]">
+                <!-- Populated by JavaScript -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    <div id="pagination-container" class="flex items-center justify-between mt-4 text-sm">
+        <div class="text-[#8e8e8e]">
+            Showing <span id="showing-start">0</span>-<span id="showing-end">0</span> of <span id="total-count">0</span>
+            docs
+        </div>
+        <div class="flex items-center gap-2">
+            <button onclick="changePage(-1)" id="prev-page-btn" disabled
+                class="px-3 py-1.5 rounded border border-[rgba(204,204,220,0.12)] bg-[#181b1f] text-[#ccccdc] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#22252b] transition-colors">
+                <i class="fas fa-angle-left"></i>
+            </button>
+            <span class="px-3 py-1.5 text-[#ccccdc]">Page <span id="current-page">1</span></span>
+            <button onclick="changePage(1)" id="next-page-btn" disabled
+                class="px-3 py-1.5 rounded border border-[rgba(204,204,220,0.12)] bg-[#181b1f] text-[#ccccdc] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#22252b] transition-colors">
+                <i class="fas fa-angle-right"></i>
+            </button>
         </div>
     </div>
 </div>
 
 <!-- Upload Modal -->
 <div id="uploadModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-    <div class="card p-6 w-full max-w-2xl max-h-screen overflow-y-auto m-4">
-        <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-semibold">Add Document</h3>
+    <div class="card p-6 w-full max-w-3xl max-h-screen overflow-y-auto m-4 bg-[#181b1f] border border-gray-700">
+        <div class="flex items-center justify-between mb-6">
+            <h3 class="text-xl font-bold text-white">Add Document</h3>
             <button onclick="closeUploadModal()" class="text-gray-400 hover:text-white">
                 <i class="fas fa-times"></i>
             </button>
         </div>
 
         <form id="uploadForm" onsubmit="uploadDocument(event)" class="space-y-4">
-            <div>
-                <label class="block text-sm text-gray-400 mb-1">Title *</label>
-                <input type="text" name="title" required class="input-field w-full px-3 py-2 rounded"
-                    placeholder="e.g., Database Backup Procedure">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-1">Title *</label>
+                    <input type="text" name="title" required class="input-field w-full px-3 py-2 rounded"
+                        placeholder="e.g., Database Backup Procedure">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-1">Application *</label>
+                    <div class="flex gap-2">
+                        <select name="app_id" id="uploadAppId" required class="input-field w-full px-3 py-2 rounded">
+                            <option value="">Select Application...</option>
+                            <!-- Populated by JS -->
+                        </select>
+                        <button type="button" onclick="showCreateAppModal()"
+                            class="px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded text-white" title="New Application">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                </div>
             </div>
 
-            <div>
-                <label class="block text-sm text-gray-400 mb-1">Document Type *</label>
-                <select name="doc_type" required class="input-field w-full px-3 py-2 rounded">
-                    <option value="">Select type...</option>
-                    <option value="architecture">Architecture Diagram</option>
-                    <option value="api_spec">API Specification</option>
-                    <option value="runbook">Runbook</option>
-                    <option value="sop">Standard Operating Procedure</option>
-                    <option value="troubleshooting">Troubleshooting Guide</option>
-                    <option value="deployment">Deployment Guide</option>
-                    <option value="config">Configuration</option>
-                </select>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-1">Document Type *</label>
+                    <select name="doc_type" required class="input-field w-full px-3 py-2 rounded">
+                        <option value="">Select type...</option>
+                        <option value="architecture">Architecture Diagram</option>
+                        <option value="api_spec">API Specification</option>
+                        <option value="runbook">Runbook</option>
+                        <option value="sop">Standard Operating Procedure</option>
+                        <option value="troubleshooting">Troubleshooting Guide</option>
+                        <option value="deployment">Deployment Guide</option>
+                        <option value="config">Configuration</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-1">Source URL (Optional)</label>
+                    <input type="url" name="source_url" class="input-field w-full px-3 py-2 rounded"
+                        placeholder="https://...">
+                </div>
             </div>
 
             <!-- File Upload Option -->
             <div class="border border-gray-600 rounded-lg p-4 bg-gray-800/30">
-                <label class="block text-sm text-gray-400 mb-2">
+                <label class="block text-sm font-medium text-gray-300 mb-2">
                     <i class="fas fa-file-upload mr-1"></i> Upload File (Optional)
                 </label>
                 <input type="file" id="fileUpload" accept=".md,.txt,.markdown,.pdf,.jpg,.jpeg,.png,.gif"
-                    class="input-field w-full px-3 py-2 rounded text-sm" onchange="handleFileUpload(event)">
+                    class="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700"
+                    onchange="handleFileUpload(event)">
                 <p class="text-xs text-gray-500 mt-2">
-                    📄 Documents: .md, .txt, .pdf<br>
-                    🖼️ Images: .jpg, .png, .gif (AI analysis)
+                    Supports Markdown, Text, PDF, and Images for Vision AI analysis.
                 </p>
             </div>
 
             <div>
-                <label class="block text-sm text-gray-400 mb-1">Content</label>
-                <textarea name="content" id="docContent" rows="10"
-                    class="input-field w-full px-3 py-2 rounded font-mono text-sm"
+                <label class="block text-sm font-medium text-gray-300 mb-1">Content</label>
+                <textarea name="content" id="docContent" rows="8"
+                    class="input-field w-full px-3 py-2 rounded font-mono text-sm bg-[#111217]"
                     placeholder="# Document Title&#10;&#10;## Overview&#10;Write your documentation in Markdown format..."></textarea>
-                <p class="text-xs text-gray-500 mt-1">Required for manual paste, auto-filled for file uploads</p>
             </div>
 
-            <div id="formatField">
-                <label class="block text-sm text-gray-400 mb-1">Format</label>
-                <select name="format" class="input-field w-full px-3 py-2 rounded">
-                    <option value="markdown">Markdown</option>
-                    <option value="html">HTML</option>
-                    <option value="text">Plain Text</option>
-                </select>
-                <p class="text-xs text-gray-500 mt-1">Only for manual paste - files auto-detect</p>
+            <div id="formatField" class="hidden">
+                <input type="hidden" name="format" value="markdown">
             </div>
 
-            <div>
-                <label class="block text-sm text-gray-400 mb-1">Source URL (optional)</label>
-                <input type="url" name="source_url" class="input-field w-full px-3 py-2 rounded"
-                    placeholder="https://...">
-            </div>
-
-            <div class="flex justify-end space-x-2 pt-4">
-                <button type="button" onclick="closeUploadModal()" class="btn-secondary px-4 py-2 rounded">
+            <div class="flex justify-end space-x-2 pt-4 border-t border-gray-700">
+                <button type="button" onclick="closeUploadModal()"
+                    class="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded text-white">
                     Cancel
                 </button>
-                <button type="submit" class="btn-primary px-4 py-2 rounded">
-                    <i class="fas fa-upload mr-2"></i> Upload
+                <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white">
+                    <i class="fas fa-upload mr-2"></i> Upload Document
                 </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Create Application Modal -->
+<div id="createAppModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50"
+    style="z-index: 200 !important;">
+
+    <div class="card p-6 w-full max-w-sm m-4 bg-[#181b1f] border border-gray-700">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold text-white">Create Application</h3>
+            <button onclick="closeCreateAppModal()" class="text-gray-400 hover:text-white">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <form onsubmit="createApplication(event)" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-1">Name *</label>
+                <input type="text" name="name" required class="input-field w-full px-3 py-2 rounded"
+                    placeholder="App Name">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-1">Description</label>
+                <textarea name="description" rows="3" class="input-field w-full px-3 py-2 rounded"></textarea>
+            </div>
+            <div class="flex justify-end space-x-2 pt-2">
+                <button type="button" onclick="closeCreateAppModal()"
+                    class="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 rounded text-white text-sm">Cancel</button>
+                <button type="submit"
+                    class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded text-white text-sm">Create</button>
             </div>
         </form>
     </div>
@@ -202,9 +367,9 @@
 
 <!-- View Document Modal -->
 <div id="viewModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-    <div class="card p-6 w-full max-w-4xl max-h-screen overflow-y-auto m-4">
+    <div class="card p-6 w-full max-w-4xl max-h-screen overflow-y-auto m-4 bg-[#181b1f] border border-gray-700">
         <div class="flex items-center justify-between mb-4">
-            <h3 id="viewTitle" class="text-lg font-semibold"></h3>
+            <h3 id="viewTitle" class="text-lg font-semibold text-white"></h3>
             <button onclick="closeViewModal()" class="text-gray-400 hover:text-white">
                 <i class="fas fa-times"></i>
             </button>
@@ -212,12 +377,279 @@
         <div id="viewContent" class="prose prose-invert max-w-none"></div>
     </div>
 </div>
+
+<!-- Git Sync Modal -->
+<div id="gitSyncModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="card p-6 w-full max-w-md m-4 bg-[#181b1f] border border-gray-700">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold text-white">Sync from Git</h3>
+            <button onclick="closeGitSyncModal()" class="text-gray-400 hover:text-white">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <form id="gitSyncForm" onsubmit="handleGitSync(event)" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-1">Application *</label>
+                <div class="flex gap-2">
+                    <select name="app_id" id="syncAppId" required class="input-field w-full px-3 py-2 rounded">
+                        <option value="">Select Application...</option>
+                        <!-- Populated by JS -->
+                    </select>
+                    <button type="button" onclick="showCreateAppModal()"
+                        class="px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded text-white" title="New Application">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+                <p class="text-xs text-gray-500 mt-1">Files will be associated with this app</p>
+
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-1">Repository URL *</label>
+                <input type="url" name="repo_url" required class="input-field w-full px-3 py-2 rounded"
+                    placeholder="https://github.com/username/repo.git">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-1">Branch</label>
+                <input type="text" name="branch" value="main" class="input-field w-full px-3 py-2 rounded"
+                    placeholder="main">
+            </div>
+
+            <div class="bg-blue-500/10 border border-blue-500/30 rounded p-3 text-xs text-blue-300">
+                <i class="fas fa-info-circle mr-1"></i>
+                This will clone the repo, ingest all <code>.md</code> files, and intelligently chunk them into the
+                knowledge base.
+            </div>
+
+            <div class="flex justify-end space-x-2 pt-2">
+                <button type="button" onclick="closeGitSyncModal()"
+                    class="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded text-white">
+                    Cancel
+                </button>
+                <button type="submit" id="gitSyncBtn"
+                    class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white">
+                    <i class="fas fa-sync mr-2"></i> Sync Now
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
 <script>
-    let currentDocId = null;
+    let applications = [];
+    let currentPage = 1;
+    let pageSize = 50;
+
+    // --- Utility ---
+    function escapeHtml(text) {
+        if (!text) return text;
+        return text
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+    // --- Data Loading ---
+
+    async function initialize() {
+        await loadApplications();
+        await loadDocuments();
+        await loadStats();
+    }
+
+    async function loadApplications() {
+        try {
+            const response = await apiCall('/api/applications?page_size=100');
+            if (!response) return;
+            const data = await response.json();
+            applications = data.items || [];
+
+            // Populate Dropdowns
+            populateAppSelect('filterApp', 'All Applications');
+            populateAppSelect('uploadAppId', 'Select Application...');
+            populateAppSelect('syncAppId', 'Select Application...');
+
+        } catch (error) {
+            console.error('Failed to load applications:', error);
+        }
+    }
+
+    function populateAppSelect(elementId, defaultText) {
+        const select = document.getElementById(elementId);
+        if (!select) return;
+        select.innerHTML = `<option value="">${defaultText}</option>` +
+            applications.map(app => `<option value="${app.id}">${escapeHtml(app.name)}</option>`).join('');
+    }
+
+    function getAppName(appId) {
+        const app = applications.find(a => a.id === appId);
+        return app ? escapeHtml(app.name) : '<span class="text-orange-400 text-xs italic">Unassigned</span>';
+    }
+
+    async function createApplication(event) {
+        event.preventDefault();
+        const form = event.target;
+        const name = form.name.value;
+        const description = form.description.value;
+
+        try {
+            const response = await apiCall('/api/applications', {
+                method: 'POST',
+                body: JSON.stringify({ name, description })
+            });
+            if (response.ok) {
+                showToast('Application created', 'success');
+                closeCreateAppModal();
+                await loadApplications();
+                const newApp = await response.json();
+                document.getElementById('uploadAppId').value = newApp.id; // Auto select new app
+                if (document.getElementById('syncAppId')) document.getElementById('syncAppId').value = newApp.id;
+
+                form.reset();
+            } else {
+                throw new Error('Failed to create application');
+            }
+        } catch (e) {
+            showToast(e.message, 'error');
+        }
+    }
+
+    // --- Stats & Documents ---
+
+    async function loadStats() {
+        try {
+            const response = await apiCall('/api/knowledge/stats');
+            if (!response) return;
+            const stats = await response.json();
+            document.getElementById('totalDocs').textContent = stats.total_documents;
+            document.getElementById('totalChunks').textContent = stats.total_chunks;
+            const statusEl = document.getElementById('embeddingStatus');
+            statusEl.textContent = stats.embedding_configured ? '✓ OK' : '⚠ No Embeddings';
+            statusEl.className = stats.embedding_configured ? 'text-green-400 text-xs' : 'text-yellow-400 text-xs';
+        } catch (error) {
+            console.error('Failed to load stats:', error);
+        }
+    }
+
+    async function loadDocuments() {
+        const docType = document.getElementById('filterDocType').value;
+        const status = document.getElementById('filterStatus').value;
+        const appId = document.getElementById('filterApp').value;
+
+        const skip = (currentPage - 1) * pageSize;
+        let url = `/api/knowledge/documents?status=${status}&limit=${pageSize}&skip=${skip}`;
+        if (docType) url += `&doc_type=${docType}`;
+        if (appId) url += `&app_id=${appId}`;
+
+        try {
+            const response = await apiCall(url);
+            if (!response) return;
+            const data = await response.json();
+
+            renderDocumentsTable(data.items);
+            updatePagination(data);
+
+        } catch (error) {
+            console.error('Failed to load documents:', error);
+            document.getElementById('documentsList').innerHTML = `
+                <tr><td colspan="7" class="p-8 text-center text-red-400">
+                    <i class="fas fa-exclamation-circle mb-2"></i> Failed to load documents
+                </td></tr>`;
+        }
+    }
+
+    function renderDocumentsTable(documents) {
+        const tbody = document.getElementById('documentsList');
+
+        if (documents.length === 0) {
+            tbody.innerHTML = `
+                <tr><td colspan="7" class="p-8 text-center text-gray-400">
+                    <i class="fas fa-folder-open text-2xl mb-2 opacity-50"></i>
+                    <p>No documents found</p>
+                </td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = documents.map(doc => `
+            <tr class="border-b border-[rgba(204,204,220,0.07)] hover:bg-[rgba(204,204,220,0.04)] transition-colors">
+                <td class="px-4 py-3 text-center">
+                    <i class="fas ${getDocIcon(doc.doc_type)} text-gray-400"></i>
+                </td>
+                <td class="px-4 py-3">
+                    <div class="font-medium text-white">${escapeHtml(doc.title)}</div>
+                    <div class="text-xs text-[#8e8e8e] mt-0.5 truncate max-w-xs">${escapeHtml(doc.slug)}</div>
+                </td>
+                <td class="px-4 py-3">
+                     <span class="text-sm text-gray-300 py-1 px-2 rounded bg-gray-800/50 border border-gray-700/50">${getAppName(doc.app_id)}</span>
+                </td>
+                <td class="px-4 py-3">
+                    <span class="badge badge-${doc.doc_type}">${doc.doc_type}</span>
+                </td>
+                <td class="px-4 py-3">
+                    <span class="badge badge-${doc.status}">${doc.status}</span>
+                </td>
+                <td class="px-4 py-3 text-[#8e8e8e] text-xs hidden md:table-cell">
+                    ${new Date(doc.created_at).toLocaleDateString()}
+                </td>
+                <td class="px-4 py-3 text-right">
+                    <div class="flex justify-end gap-1">
+                        <button onclick="viewDocument('${doc.id}')" 
+                            class="p-1.5 hover:bg-[#22252b] rounded transition-colors text-blue-400" 
+                            title="View">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button onclick="deleteDocument('${doc.id}')" 
+                            class="p-1.5 hover:bg-[#22252b] rounded transition-colors text-red-400" 
+                            title="Delete">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    function getDocIcon(type) {
+        const map = {
+            'architecture': 'fa-project-diagram',
+            'api_spec': 'fa-code',
+            'runbook': 'fa-book',
+            'sop': 'fa-clipboard-list',
+            'troubleshooting': 'fa-wrench',
+            'deployment': 'fa-rocket',
+            'config': 'fa-cogs',
+            'design_doc': 'fa-file-alt'
+        };
+        return map[type] || 'fa-file';
+    }
+
+    function updatePagination(data) {
+        const total = data.total;
+        const start = (currentPage - 1) * pageSize + 1;
+        const end = Math.min(currentPage * pageSize, total);
+
+        document.getElementById('showing-start').textContent = total > 0 ? start : 0;
+        document.getElementById('showing-end').textContent = end;
+        document.getElementById('total-count').textContent = total;
+        document.getElementById('current-page').textContent = currentPage;
+
+        document.getElementById('prev-page-btn').disabled = currentPage <= 1;
+        document.getElementById('next-page-btn').disabled = end >= total;
+    }
+
+    function changePage(delta) {
+        currentPage += delta;
+        loadDocuments();
+    }
+
+    // --- Search ---
 
     async function searchKnowledge() {
         const query = document.getElementById('searchQuery').value.trim();
@@ -228,188 +660,98 @@
             return;
         }
 
+        resultsDiv.classList.remove('hidden');
+        resultsDiv.innerHTML = '<div class="p-4 text-center text-gray-400"><i class="fas fa-spinner fa-spin mr-2"></i> Searching...</div>';
+
         try {
             const response = await apiCall('/api/knowledge/search', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     query: query,
-                    limit: 10
+                    limit: 8
                 })
             });
-
-            if (!response.ok) throw new Error('Search failed');
-
-            const data = await response.json();
-
-            // Show results
-            resultsDiv.classList.remove('hidden');
-
-            if (data.results && data.results.length > 0) {
-                resultsDiv.innerHTML = `
-                    <div class="mb-3 text-sm text-gray-400">
-                        Found ${data.total_found} result(s) in ${data.processing_time_ms}ms
-                    </div>
-                    <div class="space-y-3">
-                        ${data.results.map(result => `
-                            <div class="p-4 bg-gray-700/50 rounded border border-gray-600 hover:border-blue-500 cursor-pointer"
-                                 onclick="viewDocument('${result.source_id}')">
-                                <div class="flex items-start justify-between mb-2">
-                                    <div class="flex-1">
-                                        <h4 class="font-medium text-blue-400">${result.source_title || 'Untitled'}</h4>
-                                        <span class="text-xs text-gray-500">${result.doc_type || result.source_type}</span>
-                                    </div>
-                                    <span class="text-xs px-2 py-1 bg-blue-500/20 text-blue-300 rounded">
-                                        ${Math.round((result.similarity || 0) * 100)}% match
-                                    </span>
-                                </div>
-                                <p class="text-sm text-gray-300 line-clamp-3">${result.content}</p>
-                            </div>
-                        `).join('')}
-                    </div>
-                `;
-            } else {
-                resultsDiv.innerHTML = `
-                    <div class="p-8 text-center text-gray-400">
-                        <i class="fas fa-search text-3xl mb-2"></i>
-                        <p>No results found for "${query}"</p>
-                    </div>
-                `;
-            }
-        } catch (error) {
-            console.error('Search failed:', error);
-            resultsDiv.innerHTML = `
-                <div class="p-4 bg-red-500/20 border border-red-500 rounded text-red-300">
-                    <i class="fas fa-exclamation-circle mr-2"></i>
-                    Search failed. Please try again.
-                </div>
-            `;
-        }
-    }
-
-    async function loadStats() {
-        try {
-            const response = await apiCall('/api/knowledge/stats');
-            if (!response) return;
-
-            const stats = await response.json();
-            document.getElementById('totalDocs').textContent = stats.total_documents;
-            document.getElementById('totalChunks').textContent = stats.total_chunks;
-            document.getElementById('embeddingStatus').textContent = stats.embedding_configured ? '✓ Ready' : '⚠ Not Configured';
-
-        } catch (error) {
-            console.error('Failed to load stats:', error);
-        }
-    }
-
-    async function loadDocuments() {
-        const docType = document.getElementById('filterDocType').value;
-        const status = document.getElementById('filterStatus').value;
-
-        let url = `/api/knowledge/documents?status=${status}&limit=50`;
-        if (docType) url += `&doc_type=${docType}`;
-
-        try {
-            const response = await apiCall(url);
-            if (!response) return;
-
-            const data = await response.json();
-            renderDocuments(data.items);
-
-        } catch (error) {
-            console.error('Failed to load documents:', error);
-            document.getElementById('documentsList').innerHTML = `
-                <div class="p-8 text-center text-red-400">
-                    <i class="fas fa-exclamation-circle text-2xl mb-2"></i>
-                    <p>Failed to load documents</p>
-                </div>
-            `;
-        }
-    }
-
-    function renderDocuments(documents) {
-        const container = document.getElementById('documentsList');
-
-        if (documents.length === 0) {
-            container.innerHTML = `
-                <div class="p-8 text-center text-gray-400">
-                    <i class="fas fa-folder-open text-4xl mb-3"></i>
-                    <p>No documents found</p>
-                    <button onclick="showUploadModal()" class="btn-primary mt-4 px-4 py-2 rounded">
-                        <i class="fas fa-plus mr-2"></i> Add Your First Document
-                    </button>
-                </div>
-            `;
-            return;
-        }
-
-        container.innerHTML = documents.map(doc => `
-            <div class="p-4 hover:bg-gray-800 transition">
-                <div class="flex items-start justify-between">
-                    <div class="flex-1">
-                        <div class="flex items-center space-x-3 mb-2">
-                            <span class="badge-primary px-2 py-1 rounded text-xs uppercase">${doc.doc_type}</span>
-                            <span class="text-sm text-gray-400">${new Date(doc.created_at).toLocaleDateString()}</span>
-                        </div>
-                        <h3 class="font-semibold text-lg">${doc.title}</h3>
-                        <p class="text-sm text-gray-400 mt-1">
-                            <i class="fas fa-tag mr-1"></i> ${doc.slug}
-                        </p>
-                    </div>
-                    <div class="flex space-x-2 ml-4">
-                        <button onclick="viewDocument('${doc.id}')" class="btn-secondary px-3 py-1 rounded text-sm">
-                            <i class="fas fa-eye mr-1"></i> View
-                        </button>
-                        <button onclick="deleteDocument('${doc.id}')" class="btn-secondary px-3 py-1 rounded text-sm text-red-400 hover:bg-red-900/20">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        `).join('');
-    }
-
-    async function searchKnowledge() {
-        const query = document.getElementById('searchQuery').value.trim();
-        if (!query) return;
-
-        const resultsDiv = document.getElementById('searchResults');
-        resultsDiv.classList.remove('hidden');
-        resultsDiv.innerHTML = '<div class="text-center py-4"><div class="loading-spinner mx-auto"></div></div>';
-
-        try {
-            const response = await apiCall('/api/knowledge/search', {
-                method: 'POST',
-                body: JSON.stringify({ query, limit: 10 })
-            });
-
-            if (!response) return;
-
             const data = await response.json();
 
             if (data.results.length === 0) {
-                resultsDiv.innerHTML = '<p class="text-gray-400 text-center py-4">No results found</p>';
+                resultsDiv.innerHTML = '<div class="p-4 text-center text-gray-500">No results found</div>';
                 return;
             }
 
-            resultsDiv.innerHTML = `
-                <div class="space-y-3">
-                    <p class="text-sm text-gray-400">Found ${data.total_found} results in ${data.processing_time_ms}ms</p>
-                    ${data.results.map(result => `
-                        <div class="p-3 bg-gray-800 rounded">
-                            <div class="flex items-center justify-between mb-2">
-                                <span class="text-sm font-semibold text-blue-400">${result.source_title || 'Unknown'}</span>
-                                <span class="text-xs text-gray-500">Similarity: ${(result.similarity * 100).toFixed(1)}%</span>
-                            </div>
-                            <p class="text-sm text-gray-300">${result.content.substring(0, 200)}...</p>
-                        </div>
-                    `).join('')}
+            resultsDiv.innerHTML = data.results.map(r => `
+                <div class="p-3 border-b border-gray-700 hover:bg-gray-700/50 cursor-pointer transition-colors"
+                     onclick="viewDocument('${r.source_id}')">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="font-medium text-blue-400 text-sm">${escapeHtml(r.source_title)}</span>
+                        <span class="text-xs text-gray-500">${Math.round(r.similarity * 100)}% match</span>
+                    </div>
+                    <p class="text-xs text-gray-400 line-clamp-2">${escapeHtml(r.content)}</p>
                 </div>
-            `;
+            `).join('');
+
+            // Close search on click outside
+            document.addEventListener('click', function closeSearch(e) {
+                if (!e.target.closest('#searchQuery') && !e.target.closest('#searchResults')) {
+                    resultsDiv.classList.add('hidden');
+                    document.removeEventListener('click', closeSearch);
+                }
+            });
 
         } catch (error) {
-            console.error('Search failed:', error);
-            resultsDiv.innerHTML = '<p class="text-red-400 text-center py-4">Search failed</p>';
+            console.error('Search error:', error);
+            resultsDiv.innerHTML = '<div class="p-4 text-center text-red-500">Search failed</div>';
+        }
+    }
+
+    // --- Modals ---
+
+    function showGitSyncModal() {
+        document.getElementById('gitSyncModal').classList.remove('hidden');
+        document.getElementById('gitSyncModal').classList.add('flex');
+    }
+
+    function closeGitSyncModal() {
+        document.getElementById('gitSyncModal').classList.add('hidden');
+        document.getElementById('gitSyncModal').classList.remove('flex');
+    }
+
+    async function handleGitSync(event) {
+        event.preventDefault();
+        const btn = document.getElementById('gitSyncBtn');
+        const form = event.target;
+        const repo_url = form.repo_url.value;
+        const branch = form.branch.value;
+        const app_id = form.app_id.value;
+
+        if (!app_id) {
+            showToast('Please select an application', 'error');
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Syncing...';
+
+        try {
+            const response = await apiCall('/api/knowledge/sync/git', {
+                method: 'POST',
+                body: JSON.stringify({ repo_url, branch, app_id })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                showToast(`Sync complete! Found: ${data.stats.found}, Processed: ${data.stats.processed}`, 'success');
+                closeGitSyncModal();
+                loadDocuments();
+                loadStats();
+            } else {
+                throw new Error('Sync failed');
+            }
+        } catch (error) {
+            console.error(error);
+            showToast('Git sync failed', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-sync mr-2"></i> Sync Now';
         }
     }
 
@@ -424,46 +766,38 @@
         document.getElementById('uploadForm').reset();
     }
 
+    // App Creation Modal
+    function showCreateAppModal() {
+        document.getElementById('createAppModal').classList.remove('hidden');
+        document.getElementById('createAppModal').classList.add('flex');
+    }
+
+    function closeCreateAppModal() {
+        document.getElementById('createAppModal').classList.add('hidden');
+        document.getElementById('createAppModal').classList.remove('flex');
+    }
+
     async function uploadDocument(event) {
         event.preventDefault();
 
         const form = event.target;
+        const appId = form.app_id.value;
+
+        if (!appId) {
+            showToast('Application is mandatory for all documents', 'error');
+            return;
+        }
+
         const formData = new FormData(form);
-        // Handle file upload
+
+        // Handle explicit file input if present ...
         const fileInput = document.getElementById('fileUpload');
         if (fileInput && fileInput.files[0]) {
-            const file = fileInput.files[0];
-            formData.set('file', file);
-
-            // Detect format from file extension
-            const ext = file.name.split('.').pop().toLowerCase();
-            if (ext === 'pdf') {
-                formData.set('format', 'pdf');
-            } else if (['jpg', 'jpeg', 'png', 'gif'].includes(ext)) {
-                formData.set('format', 'image');
-            } else if (ext === 'md' || ext === 'markdown') {
-                formData.set('format', 'markdown');
-            } else if (ext === 'txt') {
-                formData.set('format', 'text');
-            }
-
-            // Clear placeholder content for files
-            const content = formData.get('content');
-            if (content && (content.includes('📷') || content.includes('📄'))) {
-                formData.set('content', '');
-            }
+            formData.set('file', fileInput.files[0]);
+            const ext = fileInput.files[0].name.split('.').pop().toLowerCase();
+            if (['md', 'markdown'].includes(ext)) formData.set('format', 'markdown');
+            else if (['pdf'].includes(ext)) formData.set('format', 'pdf');
         }
-
-        // DEBUG: Log what we're sending
-        console.log('=== UPLOADING ===');
-        for (let [key, value] of formData.entries()) {
-            if (value instanceof File) {
-                console.log(key + ':', value.name, '(', value.size, 'bytes)');
-            } else {
-                console.log(key + ':', value);
-            }
-        }
-        console.log('================');
 
         try {
             const response = await apiCall('/api/knowledge/documents', {
@@ -471,47 +805,43 @@
                 body: formData,
                 isFormData: true
             });
-
-            if (!response.ok) {
-                throw new Error('Upload failed');
+            if (response.ok) {
+                showToast('Document created successfully', 'success');
+                closeUploadModal();
+                loadDocuments();
+                loadStats();
+            } else {
+                const error = await response.json();
+                throw new Error(error.detail || 'Upload failed');
             }
-
-            showToast('Document uploaded successfully!', 'success');
-            closeUploadModal();
-            loadDocuments();
-            loadStats();
-
-        } catch (error) {
-            console.error('Upload failed:', error);
-            showToast('Failed to upload document', 'error');
+        } catch (e) {
+            showToast(e.message, 'error');
         }
     }
 
+    // View & Delete Modal/Functions
     async function viewDocument(docId) {
         try {
             const response = await apiCall(`/api/knowledge/documents/${docId}`);
             if (!response) return;
-
             const doc = await response.json();
-
             document.getElementById('viewTitle').textContent = doc.title;
             document.getElementById('viewContent').innerHTML = `
                 <div class="space-y-4">
-                    <div class="text-sm text-gray-400">
-                        <span class="badge-primary px-2 py-1 rounded mr-2">${doc.doc_type}</span>
-                        <span>Created: ${new Date(doc.created_at).toLocaleString()}</span>
+                    <div class="flex items-center gap-2 text-sm text-gray-400">
+                        <span class="badge badge-${doc.doc_type}">${doc.doc_type}</span>
+                        <span>App: ${getAppName(doc.app_id)}</span>
+                        <span class="mx-2">•</span>
+                        <span>${new Date(doc.created_at).toLocaleString()}</span>
                     </div>
-                    <pre class="whitespace-pre-wrap bg-gray-900 p-4 rounded text-sm overflow-x-auto">${doc.raw_content || 'No content available'}</pre>
+                    <div class="prose prose-invert max-w-none bg-[#111217] p-6 rounded border border-gray-700">
+                        <pre class="whitespace-pre-wrap font-mono text-sm">${escapeHtml(doc.raw_content)}</pre>
+                    </div>
                 </div>
             `;
-
             document.getElementById('viewModal').classList.remove('hidden');
             document.getElementById('viewModal').classList.add('flex');
-
-        } catch (error) {
-            console.error('Failed to load document:', error);
-            showToast('Failed to load document', 'error');
-        }
+        } catch (e) { console.error(e); }
     }
 
     function closeViewModal() {
@@ -520,36 +850,25 @@
     }
 
     async function deleteDocument(docId) {
-        if (!confirm('Are you sure you want to delete this document? This will also delete all associated chunks.')) {
-            return;
-        }
-
+        if (!confirm('Delete this document?')) return;
         try {
-            const response = await apiCall(`/api/knowledge/documents/${docId}`, {
-                method: 'DELETE'
-            });
-
-            if (!response) return;
-
-            showToast('Document deleted successfully', 'success');
+            await apiCall(`/api/knowledge/documents/${docId}`, { method: 'DELETE' });
+            showToast('Document deleted', 'success');
             loadDocuments();
-            loadStats();
-
-        } catch (error) {
-            console.error('Delete failed:', error);
-            showToast('Failed to delete document', 'error');
-        }
+            loadStats(); // Update stats as well
+        } catch (e) { showToast('Failed to delete', 'error'); }
     }
 
-    // Initial load
-    loadStats();
-    loadDocuments();
+    // Initialize
+    initialize();
 
-    // Close modals on escape
+    // Escape key
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
             closeUploadModal();
+            closeGitSyncModal();
             closeViewModal();
+            closeCreateAppModal();
         }
     });
 
@@ -566,35 +885,24 @@
         const titleInput = document.querySelector('input[name="title"]');
         const contentField = document.getElementById('docContent');
 
-        // Auto-fill title
         if (!titleInput.value) {
             titleInput.value = file.name.replace(/\.(md|txt|markdown|pdf|jpg|jpeg|png|gif)$/i, '');
         }
-        const formatField = document.getElementById('formatField');
-        if (formatField) formatField.style.display = 'none';
 
-        // Text files: read content
         if (isText) {
             const reader = new FileReader();
             reader.onload = (e) => {
                 contentField.value = e.target.result;
-                contentField.readOnly = false;
                 showToast('File loaded: ' + file.name, 'success');
             };
             reader.onerror = () => showToast('Failed to read file', 'error');
             reader.readAsText(file);
         }
-        // Images: show info
         else if (isImage) {
             contentField.value = `📷 Image: ${file.name}\n\nWill be analyzed by Vision AI`;
-            contentField.readOnly = true;
-            showToast('Image selected', 'info');
         }
-        // PDFs: show info
         else if (isPDF) {
             contentField.value = `📄 PDF: ${file.name}\n\nText will be extracted`;
-            contentField.readOnly = true;
-            showToast('PDF selected', 'info');
         }
     };
 </script>
