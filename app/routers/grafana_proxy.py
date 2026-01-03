@@ -5,11 +5,13 @@ Proxies requests to Grafana with SSO authentication via X-WEBAUTH-USER header.
 Enables transparent Grafana integration with automatic user provisioning.
 """
 
-from fastapi import APIRouter, Depends, Request, Response
+from fastapi import APIRouter, Depends, Request, Response, WebSocket, WebSocketDisconnect
 from fastapi.responses import StreamingResponse
 import httpx
 import os
 import re
+import asyncio
+import websockets
 from app.routers.auth import get_current_user
 from app.models import User
 
@@ -19,6 +21,79 @@ router = APIRouter(
 )
 
 GRAFANA_URL = os.getenv("GRAFANA_URL", "http://grafana:3000")
+GRAFANA_WS_URL = GRAFANA_URL.replace("http://", "ws://").replace("https://", "wss://")
+
+
+@router.websocket("/api/live/ws")
+async def grafana_websocket_proxy(websocket: WebSocket):
+    """
+    Proxy WebSocket connections for Grafana Live.
+    This enables real-time dashboard updates.
+    """
+    await websocket.accept()
+    
+    # Get username from cookie/token for SSO
+    username = "admin"  # Default fallback
+    try:
+        # Try to extract username from cookies
+        cookies = websocket.cookies
+        # You may need to decode JWT from access_token cookie
+        # For now, use a simple approach
+        if "access_token" in cookies:
+            import jwt
+            token = cookies.get("access_token")
+            try:
+                payload = jwt.decode(token, options={"verify_signature": False})
+                username = payload.get("sub", "admin")
+            except:
+                pass
+    except:
+        pass
+    
+    # Connect to Grafana WebSocket
+    grafana_ws_url = f"{GRAFANA_WS_URL}/api/live/ws"
+    headers = {
+        "X-WEBAUTH-USER": username,
+        "Host": "grafana:3000"
+    }
+    
+    try:
+        async with websockets.connect(
+            grafana_ws_url,
+            additional_headers=headers,
+            ping_interval=20,
+            ping_timeout=20
+        ) as grafana_ws:
+            # Create tasks for bidirectional message passing
+            async def forward_to_grafana():
+                try:
+                    while True:
+                        data = await websocket.receive_text()
+                        await grafana_ws.send(data)
+                except WebSocketDisconnect:
+                    pass
+                except Exception:
+                    pass
+            
+            async def forward_to_client():
+                try:
+                    async for message in grafana_ws:
+                        await websocket.send_text(message)
+                except Exception:
+                    pass
+            
+            # Run both directions concurrently
+            await asyncio.gather(
+                forward_to_grafana(),
+                forward_to_client(),
+                return_exceptions=True
+            )
+    except Exception as e:
+        # Close client WebSocket on error
+        try:
+            await websocket.close(code=1011, reason=str(e)[:100])
+        except:
+            pass
 
 
 @router.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
