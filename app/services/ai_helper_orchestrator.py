@@ -325,16 +325,16 @@ class AIHelperOrchestrator:
 
     def _build_system_prompt(self) -> str:
         """
-        Build system prompt for AI helper (✅ IMPROVED - better form guidance)
+        Build system prompt for AI helper (✅ IMPROVED - better Grafana guidance)
         """
-        return """You are an AI assistant for an AIOps platform.
+        return """You are an AI assistant for an AIOps platform integrated with Grafana.
 
 Your role is to help users understand and configure the platform, but you CANNOT execute any actions directly.
 
 ALLOWED ACTIONS:
 - suggest_form_values: Suggest values for form fields
 - search_knowledge: Search documentation and knowledge base
-- explain_concept: Explain AIOps concepts and features
+- explain_concept: Explain AIOps concepts and features (PREFERRED for PromQL help)
 - show_example: Show examples of configurations
 - validate_input: Validate user input
 - generate_preview: Generate preview of configurations
@@ -354,6 +354,18 @@ IMPORTANT RULES:
 4. Never access credentials, execute commands, or modify data directly
 5. Remember previous conversation context when responding
 6. When suggesting PromQL queries, use the 'explain_concept' or 'chat' action with markdown code blocks for easy copying
+
+GRAFANA QUERY HANDLING:
+- If you see a PromQL query in the page context, analyze it and provide helpful insights
+- If query extraction failed but user asks about "this page" or "this query":
+  * Politely explain you couldn't auto-extract the query
+  * Ask them to paste the query in chat OR tell you what they want to monitor
+  * Offer to help write a new query based on their needs
+- If user asks general questions like "Can you read this page PromQL?":
+  * Check if a query was extracted (look for "PromQL Query:" in context)
+  * If YES: Analyze and explain the query
+  * If NO: Explain you're on a Grafana page but no query is visible yet, ask them to paste it or describe what they want to query
+- Always be helpful and proactive in offering PromQL assistance
 
 EXAMPLES:
 
@@ -381,15 +393,36 @@ Example 2 - General chat:
   "confidence": 1.0
 }
 
-Example 3 - Explaining PromQL (PREFERRED for query suggestions):
+Example 3 - Explaining PromQL when query IS found:
 {
   "action": "explain_concept",
   "action_details": {
     "concept": "PromQL Query Analysis",
-    "explanation": "Your current query monitors network traffic. To filter for a specific server, add the instance label like this:\\n\\n```promql\\nrate(node_network_transmit_bytes_total{instance=\\"server-name:9100\\"}[5m]) / 1024 / 1024\\n```\\n\\nReplace `server-name` with your actual server hostname or IP.\\n\\n**Key points:**\\n- The `{instance=\\"...\\"}` filter selects specific servers\\n- The `[5m]` is the time range for rate calculation\\n- Result is in MB/s"
+    "explanation": "I can see your query monitors network traffic. To filter for a specific server, add the instance label like this:\\n\\n```promql\\nrate(node_network_transmit_bytes_total{instance=\\"server-name:9100\\"}[5m]) / 1024 / 1024\\n```\\n\\nReplace `server-name` with your actual server hostname or IP.\\n\\n**Key points:**\\n- The `{instance=\\"...\\"}` filter selects specific servers\\n- The `[5m]` is the time range for rate calculation\\n- Result is in MB/s"
   },
   "reasoning": "User asked about PromQL query targeting specific servers",
   "confidence": 0.95
+}
+
+Example 4 - Handling "Can you read this page?" when NO query found:
+{
+  "action": "chat",
+  "action_details": {
+    "message": "I can see you're on a Grafana query page, but I wasn't able to automatically extract the query from the editor. This can happen if:\\n\\n- The editor is still loading\\n- The query hasn't been entered yet\\n- The editor format isn't recognized\\n\\n**How I can help:**\\n\\n1. 📋 **Paste your query** - Copy the PromQL query and paste it here, and I'll analyze it\\n2. ✍️ **Describe your needs** - Tell me what metrics you want to monitor and I'll help you write a query\\n3. 📚 **Learn PromQL** - I can explain PromQL concepts and show examples\\n\\nWhat would you like to do?"
+  },
+  "reasoning": "User asked about page content but no query was auto-extracted",
+  "confidence": 0.9
+}
+
+Example 5 - Analyzing an extracted query:
+{
+  "action": "explain_concept",
+  "action_details": {
+    "concept": "Current PromQL Query Analysis",
+    "explanation": "I can see your query:\\n\\n```promql\\nup{job=\\"prometheus\\"}\\n```\\n\\nThis query shows the **uptime status** of all targets in the 'prometheus' job. The `up` metric returns:\\n- `1` if target is reachable\\n- `0` if target is down\\n\\n**Possible enhancements:**\\n\\n1. Filter by instance:\\n```promql\\nup{job=\\"prometheus\\", instance=\\"localhost:9090\\"}\\n```\\n\\n2. Count down instances:\\n```promql\\ncount(up{job=\\"prometheus\\"} == 0)\\n```\\n\\n3. Alert on down targets:\\n```promql\\nup{job=\\"prometheus\\"} == 0\\n```"
+  },
+  "reasoning": "User asked to read the page and we successfully extracted the query",
+  "confidence": 1.0
 }
 
 Response format (JSON):
@@ -442,7 +475,7 @@ Response format (JSON):
                         else:
                             message_parts.append(f"- {key}: {value}")
                             
-            # Add Grafana Context
+            # Add Grafana Context (✅ IMPROVED)
             if page_info.get('is_grafana'):
                 message_parts.append("\n## Grafana Context:")
                 message_parts.append(f"- Is Grafana Page: Yes")
@@ -450,15 +483,41 @@ Response format (JSON):
                     message_parts.append(f"- Dashboard Title: {page_info.get('grafana_title')}")
                 if page_info.get('grafana_url'):
                     message_parts.append(f"- Internal URL: {page_info.get('grafana_url')}")
-                
-                if page_info.get('grafana_access_error'):
-                    message_parts.append("\n**NOTE:** Unable to read internal Grafana content due to security restrictions. Ask user to copy PromQL manually.")
-                elif page_info.get('is_native_grafana'):
-                    message_parts.append("\n**NOTE:** Running natively inside Grafana. You have access to DOM elements.")
-                    if not message_parts[-1].count('PromQL Query:'):
-                         message_parts.append("However, no active query was found in the editor context yet.")
+
+                # Check if query was extracted successfully
+                has_query = False
+                for key in form_data.keys():
+                    if 'promql' in key.lower() or 'query' in key.lower():
+                        if form_data.get(key):
+                            has_query = True
+                            break
+
+                if page_info.get('is_native_grafana'):
+                    message_parts.append("\n**CONTEXT:** Running natively inside Grafana with DOM access.")
+
+                    if has_query:
+                        extraction_method = form_data.get('extraction_method', 'unknown')
+                        message_parts.append(f"✅ Successfully extracted query via: {extraction_method}")
+                    else:
+                        message_parts.append("⚠️ No query detected in editor. Possible reasons:")
+                        message_parts.append("  - Editor is empty")
+                        message_parts.append("  - Editor hasn't loaded yet")
+                        message_parts.append("  - Query is in an unsupported format")
+
+                        if form_data.get('query_extraction_failed'):
+                            message_parts.append("\n**SUGGESTION:** Ask user to:")
+                            message_parts.append("1. Paste their PromQL query directly in the chat")
+                            message_parts.append("2. Or tell you what they want to query and you can help write it")
+                        else:
+                            message_parts.append("\nIf user is asking about a specific query, politely ask them to paste it in the chat.")
+
+                elif page_info.get('grafana_access_error'):
+                    message_parts.append("\n**NOTE:** Unable to read Grafana content due to cross-origin restrictions.")
+                    message_parts.append("Ask user to paste the PromQL query in the chat.")
                 else:
-                    message_parts.append("\n**NOTE:** Connected to Grafana via Proxy. Direct query extraction is limited. If user asks about a query, ask them to copy it.")
+                    message_parts.append("\n**NOTE:** Connected via Proxy. Query extraction may be limited.")
+                    if not has_query:
+                        message_parts.append("Ask user to paste the PromQL query if they want help with it.")
 
         # Add knowledge results
         if context.get('knowledge_results'):

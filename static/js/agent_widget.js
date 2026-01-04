@@ -183,59 +183,147 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            // Try to read textual queries from Monaco Editor (New Grafana)
-            // Try getting content from Monaco Editor (Global)
+            // Enhanced PromQL Query Extraction with Multiple Strategies
+            let queryFound = false;
+
+            // Strategy 1: Try Monaco Editor API (Most Reliable)
             if (window.monaco && window.monaco.editor) {
                 try {
                     const models = window.monaco.editor.getModels();
-                    if (models.length > 0) {
-                        // Filter for likely query models (non-empty)
-                        const relevantModels = models.filter(m => m.getValue().trim().length > 0);
-                        // Enhance: Join with separator to distinguish multiple queries if present
-                        const code = relevantModels.map(m => m.getValue()).join('\n\n---\n\n');
+                    console.log(`[AI Agent] Monaco models found: ${models.length}`);
 
-                        // We relax the check: if there is ANY code, we take it.
-                        if (code && code.trim().length > 0) {
-                            context.form_data['monaco_query'] = code;
-                            context.form_data['promql_query'] = code;
+                    if (models.length > 0) {
+                        // Try ALL models, not just non-empty (editor might have placeholder)
+                        const allQueries = [];
+                        models.forEach((model, idx) => {
+                            const value = model.getValue();
+                            console.log(`[AI Agent] Model ${idx}: "${value.substring(0, 50)}..." (${value.length} chars)`);
+                            if (value.trim().length > 0) {
+                                allQueries.push(value.trim());
+                            }
+                        });
+
+                        if (allQueries.length > 0) {
+                            const combinedQuery = allQueries.join('\n\n');
+                            context.form_data['promql_query'] = combinedQuery;
+                            context.form_data['extraction_method'] = 'monaco_api';
+                            queryFound = true;
+                            console.log(`[AI Agent] Extracted via Monaco API: ${combinedQuery.substring(0, 100)}`);
                         }
                     }
                 } catch (e) {
-                    console.log('Error accessing Monaco models:', e);
+                    console.log('[AI Agent] Error accessing Monaco models:', e);
                 }
             }
 
-            // Fallback: Scrape text from Monaco DOM lines (Visual scraping)
-            // Only runs if we haven't found a query yet from the official API
-            if (!context.form_data['promql_query']) {
-                const monacoLines = document.querySelectorAll('.monaco-editor .view-lines');
-                let fullText = "";
-                monacoLines.forEach(lines => {
-                    fullText += lines.innerText + "\n";
-                    // Add newline after each line div
-                });
+            // Strategy 2: Visual DOM Scraping (More Aggressive)
+            if (!queryFound) {
+                console.log('[AI Agent] Trying visual DOM scraping...');
 
-                // Also check for Slate editor (used in some explore/prometheus views)
-                if (!fullText) {
-                    const slateLines = document.querySelectorAll('[data-slate-editor="true"]');
+                // Try multiple selectors for Monaco Editor
+                const selectors = [
+                    '.monaco-editor .view-lines .view-line',  // Individual lines
+                    '.monaco-editor .view-lines',             // Container
+                    '[data-mprt="5"] .view-lines',           // Grafana specific
+                    '.query-editor-row .monaco-editor',      // Query row
+                ];
+
+                for (const selector of selectors) {
+                    const elements = document.querySelectorAll(selector);
+                    if (elements.length > 0) {
+                        let extractedText = "";
+
+                        elements.forEach(el => {
+                            const text = el.innerText || el.textContent || '';
+                            if (text.trim()) {
+                                extractedText += text.trim() + '\n';
+                            }
+                        });
+
+                        extractedText = extractedText.trim();
+                        console.log(`[AI Agent] Selector "${selector}" found ${elements.length} elements, text: "${extractedText.substring(0, 50)}"`);
+
+                        if (extractedText.length > 1) {  // Even single char queries like "up" are valid
+                            context.form_data['promql_query'] = extractedText;
+                            context.form_data['extraction_method'] = `dom_scrape:${selector}`;
+                            queryFound = true;
+                            console.log(`[AI Agent] Extracted via DOM scraping (${selector}): ${extractedText.substring(0, 100)}`);
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // Strategy 3: Slate Editor (Prometheus Explore)
+            if (!queryFound) {
+                const slateLines = document.querySelectorAll('[data-slate-editor="true"]');
+                if (slateLines.length > 0) {
+                    let slateText = "";
                     slateLines.forEach(line => {
-                        fullText += line.innerText + "\n";
+                        slateText += (line.innerText || line.textContent || '') + '\n';
                     });
-                }
+                    slateText = slateText.trim();
 
-                // Generous check: If we have > 2 chars, it might be a query (e.g. "up")
-                if (fullText && fullText.trim().length > 2) {
-                    context.form_data['promql_query'] = fullText.trim();
+                    if (slateText.length > 1) {
+                        context.form_data['promql_query'] = slateText;
+                        context.form_data['extraction_method'] = 'slate_editor';
+                        queryFound = true;
+                        console.log(`[AI Agent] Extracted via Slate: ${slateText.substring(0, 100)}`);
+                    }
                 }
             }
 
-            // General textarea fallback
-            const textareas = document.querySelectorAll('textarea');
-            textareas.forEach(ta => {
-                if (ta.value && (ta.value.includes('rate(') || ta.value.includes('{') || ta.value.length > 10)) {
-                    context.form_data['potential_promql'] = ta.value;
-                }
-            });
+            // Strategy 4: Textarea Fallback
+            if (!queryFound) {
+                const textareas = document.querySelectorAll('textarea');
+                console.log(`[AI Agent] Found ${textareas.length} textareas`);
+
+                textareas.forEach((ta, idx) => {
+                    if (ta.value && ta.value.trim().length > 0) {
+                        console.log(`[AI Agent] Textarea ${idx}: "${ta.value.substring(0, 50)}..."`);
+
+                        // Check if it looks like PromQL
+                        const looksLikePromql = ta.value.includes('(') ||
+                                               ta.value.includes('{') ||
+                                               ta.value.includes('[') ||
+                                               ta.value.match(/\w+\{.*\}/) ||
+                                               ta.value.length > 5;
+
+                        if (looksLikePromql) {
+                            context.form_data['promql_query'] = ta.value.trim();
+                            context.form_data['extraction_method'] = 'textarea';
+                            queryFound = true;
+                            console.log(`[AI Agent] Extracted via textarea: ${ta.value.substring(0, 100)}`);
+                        }
+                    }
+                });
+            }
+
+            // Strategy 5: Input fields (last resort)
+            if (!queryFound) {
+                const inputs = document.querySelectorAll('input[type="text"]');
+                inputs.forEach((inp, idx) => {
+                    if (inp.value && inp.value.trim().length > 2) {
+                        const looksLikeQuery = inp.value.includes('(') || inp.value.includes('{');
+                        if (looksLikeQuery) {
+                            console.log(`[AI Agent] Found query-like text in input ${idx}: ${inp.value}`);
+                            if (!context.form_data['promql_query']) {
+                                context.form_data['promql_query'] = inp.value.trim();
+                                context.form_data['extraction_method'] = 'input_field';
+                                queryFound = true;
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Log final result
+            if (queryFound) {
+                console.log(`[AI Agent] ✅ Query extracted successfully via ${context.form_data['extraction_method']}`);
+            } else {
+                console.log('[AI Agent] ❌ No query found on page');
+                context.form_data['query_extraction_failed'] = true;
+            }
         }
 
         return context;
