@@ -42,54 +42,79 @@ class GitSyncService:
             logger.error(f"Git command failed: {e.stderr}")
             raise Exception(f"Git command failed: {e.stderr}")
 
-    def sync_repository(self, repo_url: str, app_id: Optional[UUID] = None, branch: str = "main", user_id: Optional[UUID] = None) -> dict:
+    def sync_repository(self, repo_url: str, app_id: Optional[UUID] = None, branch: str = "main", user_id: Optional[UUID] = None, sync_mode: str = "all") -> dict:
         """
         Clone/pull a repo and import markdown files.
-        
-        Args:
-            repo_url: URL of the git repository
-            app_id: Optional Application ID to link documents to
-            branch: Branch to checkout
-            user_id: ID of the user initiating the sync
-            
-        Returns:
-            Dict with sync stats
+        sync_mode: 'all', 'docs_only', 'code_only'
         """
         temp_dir = tempfile.mkdtemp(prefix="kb_sync_")
         stats = {"found": 0, "processed": 0, "errors": 0}
         
         try:
-            logger.info(f"Cloning {repo_url} to {temp_dir}...")
+            logger.info(f"Cloning {repo_url} (branch: {branch}) to {temp_dir}...")
             self._run_git_command(["clone", "--depth", "1", "--branch", branch, repo_url, temp_dir])
             
-            # Walk the directory
-            extensions = (
-                # Docs
-                '.md', '.txt', '.markdown',
-                # Code
-                '.py', '.js', '.ts', '.go', '.java', '.cpp', '.h', '.cs', '.rb', '.php', '.html', '.css',
-                # Config/Scripts
+            # Define extension groups
+            docs_exts = ('.md', '.txt', '.markdown')
+            code_exts = (
+                '.py', '.js', '.ts', '.go', '.java', '.cpp', '.h', '.cs', '.rb', '.php', '.html', '.css', 
                 '.yaml', '.yml', '.json', '.toml', '.xml', '.properties', '.dockerfile', '.sql', '.sh', '.bat', '.ps1'
             )
             
+            # Determine active extensions based on sync_mode
+            active_extensions = []
+            if sync_mode == 'all':
+                active_extensions = docs_exts + code_exts
+            elif sync_mode == 'docs_only':
+                active_extensions = docs_exts
+            elif sync_mode == 'code_only':
+                active_extensions = code_exts
+            else:
+                active_extensions = docs_exts + code_exts # Fallback
+                
+            active_extensions = tuple(active_extensions)
+            logger.info(f"=== GIT SYNC DEBUG ===")
+            logger.info(f"Repo: {repo_url}")
+            logger.info(f"Branch: {branch}")
+            logger.info(f"Sync Mode: '{sync_mode}'")
+            logger.info(f"Active Extensions: {active_extensions}")
+            
+            # Walk the directory
+            file_count = 0
             for root, _, files in os.walk(temp_dir):
+                file_count += len(files)
                 for file in files:
                     lower_name = file.lower()
-                    if lower_name.endswith(extensions) or lower_name == 'dockerfile':
+                    
+                    # Check if file matches active extensions or specific filenames
+                    is_match = False
+                    if lower_name.endswith(active_extensions):
+                        is_match = True
+                    elif (sync_mode in ['all', 'code_only']) and lower_name == 'dockerfile':
+                        is_match = True
+                        
+                    if is_match:
                         file_path = Path(root) / file
                         stats["found"] += 1
+                        logger.info(f"[MATCH] Processing file: {file} (Ext: {file_path.suffix})")
                         
                         try:
                             self._process_file(file_path, repo_url, app_id, user_id, branch)
                             stats["processed"] += 1
                         except Exception as e:
-                            logger.error(f"Failed to process {file}: {e}")
+                            logger.error(f"[ERROR] Failed to process {file}: {e}")
                             stats["errors"] += 1
-                            
+                    else:
+                        # Log missed files for debugging only if they look like code/docs
+                        if lower_name.endswith(('.py', '.md', '.json', '.yaml')):
+                             logger.info(f"[SKIP] File skipped due to filter: {file}")
+
+            logger.info(f"=== SYNC COMPLETE ===")
+            logger.info(f"Total files seen: {file_count}")
+            logger.info(f"Stats: {stats}")
             return stats
             
         finally:
-            # Cleanup
             if os.path.exists(temp_dir):
                 shutil.rmtree(temp_dir)
 
