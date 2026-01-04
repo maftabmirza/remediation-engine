@@ -268,14 +268,16 @@ class AIHelperOrchestrator:
         }
 
         try:
-            # Search knowledge base
+            # Search knowledge base using semantic search
             rag_start = datetime.utcnow()
-            knowledge_results = await self.knowledge_service.search(
+            knowledge_results = self.knowledge_service.search_similar(
                 query=query,
                 limit=5,
                 app_id=page_context.get('app_id') if page_context else None
             )
             rag_time = int((datetime.utcnow() - rag_start).total_seconds() * 1000)
+            
+            logger.info(f"[RAG] Found {len(knowledge_results)} knowledge chunks in {rag_time}ms")
 
             context['knowledge_results'] = knowledge_results
             context['knowledge_chunks_used'] = len(knowledge_results)
