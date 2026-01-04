@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  # Target App: Nginx Web Server
+  # Simulates a critical business application
+  web-target:
+    image: nginx:latest
+    container_name: web-target
+    ports:
+      - "8080:80"
+    restart: always
+
+  # Target Database: Redis
+  # Simulates a backend data store
+  db-target:
+    image: redis:alpine
+    container_name: db-target
+    ports:
+      - "6379:6379"
+    restart: always
+
+  # Stress Container
+  # Used for simulated CPU spikes via docker exec
+  stress-target:
+    image: polinux/stress
+    container_name: stress-target
+    # Run a sleep loop so the container stays alive, waiting for stress commands
+    command: [ "/bin/sh", "-c", "while true; do sleep 30; done;" ]
+    restart: always

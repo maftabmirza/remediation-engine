@@ -1,0 +1,51 @@
+groups:
+  - name: lab_vm_alerts
+    interval: 30s
+    rules:
+      # Alert when the Lab VM web target is down
+      - alert: LabWebTargetDown
+        expr: up{job="lab-vm"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          environment: test
+          component: web-target
+        annotations:
+          summary: "Lab VM web target is down"
+          description: "The web target on Lab VM (15.204.233.209) has been unreachable for more than 1 minute."
+          
+      # Alert when Lab VM CPU is high
+      - alert: LabVMHighCPU
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{job="lab-vm",mode="idle"}[5m])) * 100) > 80
+        for: 2m
+        labels:
+          severity: warning
+          environment: test
+          component: host
+        annotations:
+          summary: "Lab VM CPU usage is high"
+          description: "CPU usage on Lab VM ({{ $labels.instance }}) is above 80% (current: {{ $value }}%)"
+          
+      # Alert when Lab VM memory is high
+      - alert: LabVMHighMemory
+        expr: (1 - (node_memory_MemAvailable_bytes{job="lab-vm"} / node_memory_MemTotal_bytes{job="lab-vm"})) * 100 > 85
+        for: 2m
+        labels:
+          severity: warning
+          environment: test
+          component: host
+        annotations:
+          summary: "Lab VM memory usage is high"
+          description: "Memory usage on Lab VM is above 85% (current: {{ $value }}%)"
+          
+      # Alert when Lab VM disk is filling up
+      - alert: LabVMDiskSpaceLow
+        expr: (1 - (node_filesystem_avail_bytes{job="lab-vm",mountpoint="/"} / node_filesystem_size_bytes{job="lab-vm",mountpoint="/"})) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          environment: test
+          component: host
+        annotations:
+          summary: "Lab VM disk space is low"
+          description: "Disk usage on Lab VM root filesystem is above 85% (current: {{ $value }}%)"

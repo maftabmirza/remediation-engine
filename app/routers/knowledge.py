@@ -380,6 +380,7 @@ class GitSyncRequest(BaseModel):
     repo_url: str
     branch: str = "main"
     app_id: Optional[UUID] = None
+    sync_mode: str = "all"  # 'all', 'docs_only', 'code_only'
 
 @router.post("/sync/git", status_code=status.HTTP_200_OK)
 async def sync_git_repository(
@@ -397,7 +398,8 @@ async def sync_git_repository(
             repo_url=sync_req.repo_url,
             app_id=sync_req.app_id,
             branch=sync_req.branch,
-            user_id=current_user.id
+            user_id=current_user.id,
+            sync_mode=sync_req.sync_mode
         )
         return {
             "message": "Git sync completed",
