@@ -4,6 +4,7 @@ CRITICAL: Enforces action whitelist, no auto-execution, mandatory user approval
 FIXED: Conversation history now persists across messages
 """
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
 from typing import Optional, List, Dict, Any, Tuple
 from decimal import Decimal
 from uuid import UUID, uuid4
@@ -547,6 +548,9 @@ Response format (JSON):
 
             # Keep only last 20 messages (10 conversation turns)
             session.context['history'] = history[-20:]
+            
+            # Force SQLAlchemy to detect change in JSON field
+            flag_modified(session, "context")
 
             self.db.commit()
             logger.debug(f"Session {session_id} updated with conversation history (total messages: {len(session.context['history'])})")
