@@ -63,14 +63,24 @@ class GitSyncService:
             self._run_git_command(["clone", "--depth", "1", "--branch", branch, repo_url, temp_dir])
             
             # Walk the directory
+            extensions = (
+                # Docs
+                '.md', '.txt', '.markdown',
+                # Code
+                '.py', '.js', '.ts', '.go', '.java', '.cpp', '.h', '.cs', '.rb', '.php', '.html', '.css',
+                # Config/Scripts
+                '.yaml', '.yml', '.json', '.toml', '.xml', '.properties', '.dockerfile', '.sql', '.sh', '.bat', '.ps1'
+            )
+            
             for root, _, files in os.walk(temp_dir):
                 for file in files:
-                    if file.lower().endswith(".md"):
+                    lower_name = file.lower()
+                    if lower_name.endswith(extensions) or lower_name == 'dockerfile':
                         file_path = Path(root) / file
                         stats["found"] += 1
                         
                         try:
-                            self._process_file(file_path, repo_url, app_id, user_id)
+                            self._process_file(file_path, repo_url, app_id, user_id, branch)
                             stats["processed"] += 1
                         except Exception as e:
                             logger.error(f"Failed to process {file}: {e}")
@@ -83,22 +93,49 @@ class GitSyncService:
             if os.path.exists(temp_dir):
                 shutil.rmtree(temp_dir)
 
-    def _process_file(self, file_path: Path, repo_url: str, app_id: Optional[UUID], user_id: Optional[UUID]):
+    def _process_file(self, file_path: Path, repo_url: str, app_id: Optional[UUID], user_id: Optional[UUID], branch: str = "main"):
         """Read and import a single file."""
-        content = file_path.read_text(encoding="utf-8")
-        title = file_path.stem.replace("-", " ").title()
+        try:
+            content = file_path.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            logger.warning(f"Skipping binary or non-utf8 file: {file_path}")
+            return
+
+        title = file_path.name
         
-        # Calculate a source URL (approximate for now)
-        # e.g. https://github.com/user/repo.git -> https://github.com/user/repo/blob/main/filename.md
-        # This is simplified; a robust calc would handle different hosts.
-        rel_path = file_path.name # This is just filename, ideally should be relative to root
+        # Determine doc_type based on extension
+        ext = file_path.suffix.lower()
+        if ext in ['.md', '.txt', '.markdown']:
+            doc_type = "design_doc"
+            title = file_path.stem.replace("-", " ").title()
+        elif ext in ['.yaml', '.yml', '.json', '.toml', '.xml', '.properties', '.dockerfile'] or file_path.name.lower() == 'dockerfile':
+            doc_type = "config"
+        else:
+            doc_type = "source_code"
         
+        # Calculate source URL
+        # GitHub convention: blob/branch/path
+        # We need the relative path from the temp dir root, but here we only have the full path.
+        # This is a limitation of this simple implementation. Ideally we'd pass the temp_root to this method.
+        # For now, we'll store the filename, but we should improve this to store relative path.
+        # Hack: Since we don't have temp_root passed easily without changing signature drastically, 
+        # we will assume the file_path contains the temp dir name "kb_sync_" and split.
+        
+        rel_path = file_path.name
+        parts = str(file_path).split("kb_sync_")
+        if len(parts) > 1:
+             # parts[1] starts with some random chars then path separator. 
+             # let's try to find the standard separator
+             path_parts = parts[1].split(os.sep)
+             if len(path_parts) > 1:
+                 rel_path = "/".join(path_parts[1:]) # Skip the random dir part
+
         self.doc_service.create_document(
             title=title,
-            doc_type="design_doc",
+            doc_type=doc_type,
             content=content,
             app_id=app_id,
-            source_url=f"{repo_url}::{file_path.name}",
+            source_url=f"{repo_url}/blob/{branch}/{rel_path}",
             user_id=user_id,
             source_type="git"
         )
