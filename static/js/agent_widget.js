@@ -132,15 +132,30 @@ document.addEventListener('DOMContentLoaded', () => {
             removeTyping();
 
             // Extract the actual message content based on AIHelperResponse schema
-            let aiText = "I'm not sure how to respond to that.";
+            let aiText = "";
 
-            if (data.action === 'chat' && data.action_details.message) {
-                aiText = data.action_details.message;
-            } else if (data.reasoning) {
+            // 1. Try to get a user-friendly message/explanation
+            if (data.action_details) {
+                if (data.action_details.message) {
+                    aiText = data.action_details.message;
+                } else if (data.action_details.explanation) {
+                    aiText = data.action_details.explanation;
+                }
+            }
+
+            // 2. If we have form fields, append them nicely
+            if (data.action === 'suggest_form_values' && data.action_details && data.action_details.form_fields) {
+                aiText += "\n\n**Suggested Values:**\n```json\n" + JSON.stringify(data.action_details.form_fields, null, 2) + "\n```";
+            }
+
+            // 3. Fallback to reasoning if text is still empty
+            if (!aiText && data.reasoning) {
                 aiText = data.reasoning;
-            } else if (data.action_details && Object.keys(data.action_details).length > 0) {
-                // If no reasoning but we have action details, visualize them nicely
-                aiText = "Here are the details I found:\n\n```json\n" + JSON.stringify(data.action_details, null, 2) + "\n```";
+            } else if (!aiText && data.action_details && Object.keys(data.action_details).length > 0) {
+                // If no text but we have details, visualize them
+                aiText = "Here are the details:\n\n```json\n" + JSON.stringify(data.action_details, null, 2) + "\n```";
+            } else if (!aiText) {
+                aiText = "I processed your request but have no specific response to show.";
             }
 
             if (data.warning) {
