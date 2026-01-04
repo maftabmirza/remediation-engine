@@ -3,12 +3,13 @@ import shutil
 import subprocess
 import logging
 import tempfile
-from typing import List, Optional
+from typing import List, Optional, Dict
 from uuid import UUID
 from pathlib import Path
 
 from sqlalchemy.orm import Session
 from app.services.document_service import DocumentService
+from app.services.embedding_service import EmbeddingService
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +19,7 @@ class GitSyncService:
     def __init__(self, db: Session):
         self.db = db
         self.doc_service = DocumentService(db)
+        self.embedding_service = EmbeddingService()
 
     def _run_git_command(self, args: List[str], cwd: Optional[str] = None) -> str:
         """Run a git command and return output."""
@@ -160,7 +162,7 @@ class GitSyncService:
                 logger.info(f"[SKIP] Document already exists: {title}")
                 return
             
-            self.doc_service.create_document(
+            document = self.doc_service.create_document(
                 title=title,
                 doc_type=doc_type,
                 content=content,
@@ -169,6 +171,24 @@ class GitSyncService:
                 user_id=user_id,
                 source_type="git"
             )
+            
+            # Create chunks for the document
+            chunks = self.doc_service.create_chunks_for_document(document)
+            logger.info(f"[CHUNKS] Created {len(chunks)} chunks for {title}")
+            
+            # Generate embeddings if configured
+            if self.embedding_service.is_configured() and chunks:
+                chunk_texts = [chunk.content for chunk in chunks]
+                embeddings = self.embedding_service.generate_embeddings_batch(chunk_texts)
+                
+                # Assign embeddings to chunks
+                embedded_count = 0
+                for chunk, embedding in zip(chunks, embeddings):
+                    if embedding:
+                        chunk.embedding = embedding
+                        embedded_count += 1
+                        
+                logger.info(f"[EMBED] Generated {embedded_count} embeddings for {title}")
             
             # Commit each document individually
             self.db.commit()
