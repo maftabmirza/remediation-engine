@@ -25,6 +25,11 @@
 
             <!-- Right: Actions -->
             <div class="flex items-center gap-2">
+                <button onclick="showGitSyncModal()"
+                    class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1.5 rounded text-sm flex items-center gap-2 transition-colors border border-gray-600">
+                    <i class="fab fa-git-alt"></i>
+                    Git Sync
+                </button>
                 <button onclick="showUploadModal()"
                     class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded text-sm flex items-center gap-2 transition-colors">
                     <i class="fas fa-plus"></i>
@@ -34,219 +39,167 @@
         </div>
     </div>
 
-    <!-- Stats Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div class="card p-4">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm text-gray-400">Total Documents</p>
-                    <p id="totalDocs" class="text-2xl font-bold">-</p>
-                </div>
-                <i class="fas fa-file-alt text-3xl text-blue-400"></i>
-            </div>
-        </div>
-        <div class="card p-4">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm text-gray-400">Total Chunks</p>
-                    <p id="totalChunks" class="text-2xl font-bold">-</p>
-                </div>
-                <i class="fas fa-puzzle-piece text-3xl text-green-400"></i>
-            </div>
-        </div>
-        <div class="card p-4">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm text-gray-400">Embedding Status</p>
-                    <p id="embeddingStatus" class="text-2xl font-bold">-</p>
-                </div>
-                <i class="fas fa-brain text-3xl text-purple-400"></i>
-            </div>
-        </div>
-    </div>
+    <!-- ... existing content ... -->
 
-    <!-- Search Bar -->
-    <div class="card p-4">
-        <div class="flex gap-4">
-            <input type="text" id="searchQuery" class="input-field px-4 py-2 rounded flex-1"
-                placeholder="Search knowledge base..." onkeypress="if(event.key === 'Enter') searchKnowledge()">
-            <button onclick="searchKnowledge()" class="btn-primary px-6 py-2 rounded">
-                <i class="fas fa-search mr-2"></i> Search
-            </button>
-        </div>
-        <div id="searchResults" class="mt-4 hidden"></div>
-    </div>
-
-    <!-- Filter Bar -->
-    <div class="card p-4">
-        <div class="flex flex-wrap gap-4 items-center">
-            <div>
-                <label class="text-sm text-gray-400 block mb-1">Document Type</label>
-                <select id="filterDocType" class="input-field px-3 py-2 rounded" onchange="loadDocuments()">
-                    <option value="">All Types</option>
-                    <option value="architecture">Architecture</option>
-                    <option value="api_spec">API Specification</option>
-                    <option value="runbook">Runbook</option>
-                    <option value="sop">SOP</option>
-                    <option value="troubleshooting">Troubleshooting</option>
-                    <option value="deployment">Deployment</option>
-                    <option value="config">Configuration</option>
-                </select>
-            </div>
-            <div>
-                <label class="text-sm text-gray-400 block mb-1">Status</label>
-                <select id="filterStatus" class="input-field px-3 py-2 rounded" onchange="loadDocuments()">
-                    <option value="">All</option>
-                    <option value="active">Active</option>
-                    <option value="draft">Draft</option>
-                    <option value="archived">Archived</option>
-                </select>
-            </div>
-            <div class="flex-1"></div>
-            <button onclick="loadDocuments()" class="btn-secondary px-4 py-2 rounded">
-                <i class="fas fa-sync-alt mr-2"></i> Refresh
-            </button>
-        </div>
-    </div>
-
-    <!-- Documents List -->
-    <div class="card">
-        <div id="documentsList" class="divide-y divide-gray-700">
-            <div class="p-8 text-center">
-                <div class="loading-spinner mx-auto mb-2"></div>
-                <p class="text-gray-400">Loading documents...</p>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Upload Modal -->
-<div id="uploadModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-    <div class="card p-6 w-full max-w-2xl max-h-screen overflow-y-auto m-4">
-        <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-semibold">Add Document</h3>
-            <button onclick="closeUploadModal()" class="text-gray-400 hover:text-white">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-
-        <form id="uploadForm" onsubmit="uploadDocument(event)" class="space-y-4">
-            <div>
-                <label class="block text-sm text-gray-400 mb-1">Title *</label>
-                <input type="text" name="title" required class="input-field w-full px-3 py-2 rounded"
-                    placeholder="e.g., Database Backup Procedure">
-            </div>
-
-            <div>
-                <label class="block text-sm text-gray-400 mb-1">Document Type *</label>
-                <select name="doc_type" required class="input-field w-full px-3 py-2 rounded">
-                    <option value="">Select type...</option>
-                    <option value="architecture">Architecture Diagram</option>
-                    <option value="api_spec">API Specification</option>
-                    <option value="runbook">Runbook</option>
-                    <option value="sop">Standard Operating Procedure</option>
-                    <option value="troubleshooting">Troubleshooting Guide</option>
-                    <option value="deployment">Deployment Guide</option>
-                    <option value="config">Configuration</option>
-                </select>
-            </div>
-
-            <!-- File Upload Option -->
-            <div class="border border-gray-600 rounded-lg p-4 bg-gray-800/30">
-                <label class="block text-sm text-gray-400 mb-2">
-                    <i class="fas fa-file-upload mr-1"></i> Upload File (Optional)
-                </label>
-                <input type="file" id="fileUpload" accept=".md,.txt,.markdown,.pdf,.jpg,.jpeg,.png,.gif"
-                    class="input-field w-full px-3 py-2 rounded text-sm" onchange="handleFileUpload(event)">
-                <p class="text-xs text-gray-500 mt-2">
-                    📄 Documents: .md, .txt, .pdf<br>
-                    🖼️ Images: .jpg, .png, .gif (AI analysis)
-                </p>
-            </div>
-
-            <div>
-                <label class="block text-sm text-gray-400 mb-1">Content</label>
-                <textarea name="content" id="docContent" rows="10"
-                    class="input-field w-full px-3 py-2 rounded font-mono text-sm"
-                    placeholder="# Document Title&#10;&#10;## Overview&#10;Write your documentation in Markdown format..."></textarea>
-                <p class="text-xs text-gray-500 mt-1">Required for manual paste, auto-filled for file uploads</p>
-            </div>
-
-            <div id="formatField">
-                <label class="block text-sm text-gray-400 mb-1">Format</label>
-                <select name="format" class="input-field w-full px-3 py-2 rounded">
-                    <option value="markdown">Markdown</option>
-                    <option value="html">HTML</option>
-                    <option value="text">Plain Text</option>
-                </select>
-                <p class="text-xs text-gray-500 mt-1">Only for manual paste - files auto-detect</p>
-            </div>
-
-            <div>
-                <label class="block text-sm text-gray-400 mb-1">Source URL (optional)</label>
-                <input type="url" name="source_url" class="input-field w-full px-3 py-2 rounded"
-                    placeholder="https://...">
-            </div>
-
-            <div class="flex justify-end space-x-2 pt-4">
-                <button type="button" onclick="closeUploadModal()" class="btn-secondary px-4 py-2 rounded">
-                    Cancel
-                </button>
-                <button type="submit" class="btn-primary px-4 py-2 rounded">
-                    <i class="fas fa-upload mr-2"></i> Upload
+    <!-- Git Sync Modal -->
+    <div id="gitSyncModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="card p-6 w-full max-w-md m-4">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold">Sync from Git</h3>
+                <button onclick="closeGitSyncModal()" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times"></i>
                 </button>
             </div>
-        </form>
-    </div>
-</div>
-
-<!-- View Document Modal -->
-<div id="viewModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-    <div class="card p-6 w-full max-w-4xl max-h-screen overflow-y-auto m-4">
-        <div class="flex items-center justify-between mb-4">
-            <h3 id="viewTitle" class="text-lg font-semibold"></h3>
-            <button onclick="closeViewModal()" class="text-gray-400 hover:text-white">
-                <i class="fas fa-times"></i>
-            </button>
+            <form onsubmit="syncGitRepo(event)" class="space-y-4">
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">Repository URL *</label>
+                    <input type="url" id="gitRepoUrl" required class="input-field w-full px-3 py-2 rounded"
+                        placeholder="https://github.com/user/repo.git">
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">Branch</label>
+                    <input type="text" id="gitBranch" value="main" class="input-field w-full px-3 py-2 rounded"
+                        placeholder="main">
+                </div>
+                <div class="flex justify-end space-x-2 pt-4">
+                    <button type="button" onclick="closeGitSyncModal()" class="btn-secondary px-4 py-2 rounded">
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn-primary px-4 py-2 rounded">
+                        <i class="fas fa-sync mr-2"></i> Sync Now
+                    </button>
+                </div>
+            </form>
         </div>
-        <div id="viewContent" class="prose prose-invert max-w-none"></div>
     </div>
-</div>
-{% endblock %}
 
-{% block scripts %}
-{{ super() }}
-<script>
-    let currentDocId = null;
+    <!-- Upload Modal -->
+    <div id="uploadModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="card p-6 w-full max-w-2xl max-h-screen overflow-y-auto m-4">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold">Add Document</h3>
+                <button onclick="closeUploadModal()" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
 
-    async function searchKnowledge() {
-        const query = document.getElementById('searchQuery').value.trim();
-        const resultsDiv = document.getElementById('searchResults');
+            <form id="uploadForm" onsubmit="uploadDocument(event)" class="space-y-4">
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">Title *</label>
+                    <input type="text" name="title" required class="input-field w-full px-3 py-2 rounded"
+                        placeholder="e.g., Database Backup Procedure">
+                </div>
 
-        if (!query) {
-            resultsDiv.classList.add('hidden');
-            return;
-        }
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">Document Type *</label>
+                    <select name="doc_type" required class="input-field w-full px-3 py-2 rounded">
+                        <option value="">Select type...</option>
+                        <option value="architecture">Architecture Diagram</option>
+                        <option value="api_spec">API Specification</option>
+                        <option value="runbook">Runbook</option>
+                        <option value="sop">Standard Operating Procedure</option>
+                        <option value="troubleshooting">Troubleshooting Guide</option>
+                        <option value="deployment">Deployment Guide</option>
+                        <option value="config">Configuration</option>
+                    </select>
+                </div>
 
-        try {
-            const response = await apiCall('/api/knowledge/search', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    query: query,
-                    limit: 10
-                })
-            });
+                <!-- File Upload Option -->
+                <div class="border border-gray-600 rounded-lg p-4 bg-gray-800/30">
+                    <label class="block text-sm text-gray-400 mb-2">
+                        <i class="fas fa-file-upload mr-1"></i> Upload File (Optional)
+                    </label>
+                    <input type="file" id="fileUpload" accept=".md,.txt,.markdown,.pdf,.jpg,.jpeg,.png,.gif"
+                        class="input-field w-full px-3 py-2 rounded text-sm" onchange="handleFileUpload(event)">
+                    <p class="text-xs text-gray-500 mt-2">
+                        📄 Documents: .md, .txt, .pdf<br>
+                        🖼️ Images: .jpg, .png, .gif (AI analysis)
+                    </p>
+                </div>
 
-            if (!response.ok) throw new Error('Search failed');
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">Content</label>
+                    <textarea name="content" id="docContent" rows="10"
+                        class="input-field w-full px-3 py-2 rounded font-mono text-sm"
+                        placeholder="# Document Title&#10;&#10;## Overview&#10;Write your documentation in Markdown format..."></textarea>
+                    <p class="text-xs text-gray-500 mt-1">Required for manual paste, auto-filled for file uploads</p>
+                </div>
 
-            const data = await response.json();
+                <div id="formatField">
+                    <label class="block text-sm text-gray-400 mb-1">Format</label>
+                    <select name="format" class="input-field w-full px-3 py-2 rounded">
+                        <option value="markdown">Markdown</option>
+                        <option value="html">HTML</option>
+                        <option value="text">Plain Text</option>
+                    </select>
+                    <p class="text-xs text-gray-500 mt-1">Only for manual paste - files auto-detect</p>
+                </div>
 
-            // Show results
-            resultsDiv.classList.remove('hidden');
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">Source URL (optional)</label>
+                    <input type="url" name="source_url" class="input-field w-full px-3 py-2 rounded"
+                        placeholder="https://...">
+                </div>
 
-            if (data.results && data.results.length > 0) {
-                resultsDiv.innerHTML = `
+                <div class="flex justify-end space-x-2 pt-4">
+                    <button type="button" onclick="closeUploadModal()" class="btn-secondary px-4 py-2 rounded">
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn-primary px-4 py-2 rounded">
+                        <i class="fas fa-upload mr-2"></i> Upload
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- View Document Modal -->
+    <div id="viewModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="card p-6 w-full max-w-4xl max-h-screen overflow-y-auto m-4">
+            <div class="flex items-center justify-between mb-4">
+                <h3 id="viewTitle" class="text-lg font-semibold"></h3>
+                <button onclick="closeViewModal()" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div id="viewContent" class="prose prose-invert max-w-none"></div>
+        </div>
+    </div>
+    {% endblock %}
+
+    {% block scripts %}
+    {{ super() }}
+    <script>
+        let currentDocId = null;
+
+        async function searchKnowledge() {
+            const query = document.getElementById('searchQuery').value.trim();
+            const resultsDiv = document.getElementById('searchResults');
+
+            if (!query) {
+                resultsDiv.classList.add('hidden');
+                return;
+            }
+
+            try {
+                const response = await apiCall('/api/knowledge/search', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        query: query,
+                        limit: 10
+                    })
+                });
+
+                if (!response.ok) throw new Error('Search failed');
+
+                const data = await response.json();
+
+                // Show results
+                resultsDiv.classList.remove('hidden');
+
+                if (data.results && data.results.length > 0) {
+                    resultsDiv.innerHTML = `
                     <div class="mb-3 text-sm text-gray-400">
                         Found ${data.total_found} result(s) in ${data.processing_time_ms}ms
                     </div>
@@ -268,70 +221,70 @@
                         `).join('')}
                     </div>
                 `;
-            } else {
-                resultsDiv.innerHTML = `
+                } else {
+                    resultsDiv.innerHTML = `
                     <div class="p-8 text-center text-gray-400">
                         <i class="fas fa-search text-3xl mb-2"></i>
                         <p>No results found for "${query}"</p>
                     </div>
                 `;
-            }
-        } catch (error) {
-            console.error('Search failed:', error);
-            resultsDiv.innerHTML = `
+                }
+            } catch (error) {
+                console.error('Search failed:', error);
+                resultsDiv.innerHTML = `
                 <div class="p-4 bg-red-500/20 border border-red-500 rounded text-red-300">
                     <i class="fas fa-exclamation-circle mr-2"></i>
                     Search failed. Please try again.
                 </div>
             `;
+            }
         }
-    }
 
-    async function loadStats() {
-        try {
-            const response = await apiCall('/api/knowledge/stats');
-            if (!response) return;
+        async function loadStats() {
+            try {
+                const response = await apiCall('/api/knowledge/stats');
+                if (!response) return;
 
-            const stats = await response.json();
-            document.getElementById('totalDocs').textContent = stats.total_documents;
-            document.getElementById('totalChunks').textContent = stats.total_chunks;
-            document.getElementById('embeddingStatus').textContent = stats.embedding_configured ? '✓ Ready' : '⚠ Not Configured';
+                const stats = await response.json();
+                document.getElementById('totalDocs').textContent = stats.total_documents;
+                document.getElementById('totalChunks').textContent = stats.total_chunks;
+                document.getElementById('embeddingStatus').textContent = stats.embedding_configured ? '✓ Ready' : '⚠ Not Configured';
 
-        } catch (error) {
-            console.error('Failed to load stats:', error);
+            } catch (error) {
+                console.error('Failed to load stats:', error);
+            }
         }
-    }
 
-    async function loadDocuments() {
-        const docType = document.getElementById('filterDocType').value;
-        const status = document.getElementById('filterStatus').value;
+        async function loadDocuments() {
+            const docType = document.getElementById('filterDocType').value;
+            const status = document.getElementById('filterStatus').value;
 
-        let url = `/api/knowledge/documents?status=${status}&limit=50`;
-        if (docType) url += `&doc_type=${docType}`;
+            let url = `/api/knowledge/documents?status=${status}&limit=50`;
+            if (docType) url += `&doc_type=${docType}`;
 
-        try {
-            const response = await apiCall(url);
-            if (!response) return;
+            try {
+                const response = await apiCall(url);
+                if (!response) return;
 
-            const data = await response.json();
-            renderDocuments(data.items);
+                const data = await response.json();
+                renderDocuments(data.items);
 
-        } catch (error) {
-            console.error('Failed to load documents:', error);
-            document.getElementById('documentsList').innerHTML = `
+            } catch (error) {
+                console.error('Failed to load documents:', error);
+                document.getElementById('documentsList').innerHTML = `
                 <div class="p-8 text-center text-red-400">
                     <i class="fas fa-exclamation-circle text-2xl mb-2"></i>
                     <p>Failed to load documents</p>
                 </div>
             `;
+            }
         }
-    }
 
-    function renderDocuments(documents) {
-        const container = document.getElementById('documentsList');
+        function renderDocuments(documents) {
+            const container = document.getElementById('documentsList');
 
-        if (documents.length === 0) {
-            container.innerHTML = `
+            if (documents.length === 0) {
+                container.innerHTML = `
                 <div class="p-8 text-center text-gray-400">
                     <i class="fas fa-folder-open text-4xl mb-3"></i>
                     <p>No documents found</p>
@@ -340,10 +293,10 @@
                     </button>
                 </div>
             `;
-            return;
-        }
+                return;
+            }
 
-        container.innerHTML = documents.map(doc => `
+            container.innerHTML = documents.map(doc => `
             <div class="p-4 hover:bg-gray-800 transition">
                 <div class="flex items-start justify-between">
                     <div class="flex-1">
@@ -367,32 +320,32 @@
                 </div>
             </div>
         `).join('');
-    }
+        }
 
-    async function searchKnowledge() {
-        const query = document.getElementById('searchQuery').value.trim();
-        if (!query) return;
+        async function searchKnowledge() {
+            const query = document.getElementById('searchQuery').value.trim();
+            if (!query) return;
 
-        const resultsDiv = document.getElementById('searchResults');
-        resultsDiv.classList.remove('hidden');
-        resultsDiv.innerHTML = '<div class="text-center py-4"><div class="loading-spinner mx-auto"></div></div>';
+            const resultsDiv = document.getElementById('searchResults');
+            resultsDiv.classList.remove('hidden');
+            resultsDiv.innerHTML = '<div class="text-center py-4"><div class="loading-spinner mx-auto"></div></div>';
 
-        try {
-            const response = await apiCall('/api/knowledge/search', {
-                method: 'POST',
-                body: JSON.stringify({ query, limit: 10 })
-            });
+            try {
+                const response = await apiCall('/api/knowledge/search', {
+                    method: 'POST',
+                    body: JSON.stringify({ query, limit: 10 })
+                });
 
-            if (!response) return;
+                if (!response) return;
 
-            const data = await response.json();
+                const data = await response.json();
 
-            if (data.results.length === 0) {
-                resultsDiv.innerHTML = '<p class="text-gray-400 text-center py-4">No results found</p>';
-                return;
-            }
+                if (data.results.length === 0) {
+                    resultsDiv.innerHTML = '<p class="text-gray-400 text-center py-4">No results found</p>';
+                    return;
+                }
 
-            resultsDiv.innerHTML = `
+                resultsDiv.innerHTML = `
                 <div class="space-y-3">
                     <p class="text-sm text-gray-400">Found ${data.total_found} results in ${data.processing_time_ms}ms</p>
                     ${data.results.map(result => `
@@ -407,95 +360,95 @@
                 </div>
             `;
 
-        } catch (error) {
-            console.error('Search failed:', error);
-            resultsDiv.innerHTML = '<p class="text-red-400 text-center py-4">Search failed</p>';
-        }
-    }
-
-    function showUploadModal() {
-        document.getElementById('uploadModal').classList.remove('hidden');
-        document.getElementById('uploadModal').classList.add('flex');
-    }
-
-    function closeUploadModal() {
-        document.getElementById('uploadModal').classList.add('hidden');
-        document.getElementById('uploadModal').classList.remove('flex');
-        document.getElementById('uploadForm').reset();
-    }
-
-    async function uploadDocument(event) {
-        event.preventDefault();
-
-        const form = event.target;
-        const formData = new FormData(form);
-        // Handle file upload
-        const fileInput = document.getElementById('fileUpload');
-        if (fileInput && fileInput.files[0]) {
-            const file = fileInput.files[0];
-            formData.set('file', file);
-
-            // Detect format from file extension
-            const ext = file.name.split('.').pop().toLowerCase();
-            if (ext === 'pdf') {
-                formData.set('format', 'pdf');
-            } else if (['jpg', 'jpeg', 'png', 'gif'].includes(ext)) {
-                formData.set('format', 'image');
-            } else if (ext === 'md' || ext === 'markdown') {
-                formData.set('format', 'markdown');
-            } else if (ext === 'txt') {
-                formData.set('format', 'text');
-            }
-
-            // Clear placeholder content for files
-            const content = formData.get('content');
-            if (content && (content.includes('📷') || content.includes('📄'))) {
-                formData.set('content', '');
+            } catch (error) {
+                console.error('Search failed:', error);
+                resultsDiv.innerHTML = '<p class="text-red-400 text-center py-4">Search failed</p>';
             }
         }
 
-        // DEBUG: Log what we're sending
-        console.log('=== UPLOADING ===');
-        for (let [key, value] of formData.entries()) {
-            if (value instanceof File) {
-                console.log(key + ':', value.name, '(', value.size, 'bytes)');
-            } else {
-                console.log(key + ':', value);
+        function showUploadModal() {
+            document.getElementById('uploadModal').classList.remove('hidden');
+            document.getElementById('uploadModal').classList.add('flex');
+        }
+
+        function closeUploadModal() {
+            document.getElementById('uploadModal').classList.add('hidden');
+            document.getElementById('uploadModal').classList.remove('flex');
+            document.getElementById('uploadForm').reset();
+        }
+
+        async function uploadDocument(event) {
+            event.preventDefault();
+
+            const form = event.target;
+            const formData = new FormData(form);
+            // Handle file upload
+            const fileInput = document.getElementById('fileUpload');
+            if (fileInput && fileInput.files[0]) {
+                const file = fileInput.files[0];
+                formData.set('file', file);
+
+                // Detect format from file extension
+                const ext = file.name.split('.').pop().toLowerCase();
+                if (ext === 'pdf') {
+                    formData.set('format', 'pdf');
+                } else if (['jpg', 'jpeg', 'png', 'gif'].includes(ext)) {
+                    formData.set('format', 'image');
+                } else if (ext === 'md' || ext === 'markdown') {
+                    formData.set('format', 'markdown');
+                } else if (ext === 'txt') {
+                    formData.set('format', 'text');
+                }
+
+                // Clear placeholder content for files
+                const content = formData.get('content');
+                if (content && (content.includes('📷') || content.includes('📄'))) {
+                    formData.set('content', '');
+                }
+            }
+
+            // DEBUG: Log what we're sending
+            console.log('=== UPLOADING ===');
+            for (let [key, value] of formData.entries()) {
+                if (value instanceof File) {
+                    console.log(key + ':', value.name, '(', value.size, 'bytes)');
+                } else {
+                    console.log(key + ':', value);
+                }
+            }
+            console.log('================');
+
+            try {
+                const response = await apiCall('/api/knowledge/documents', {
+                    method: 'POST',
+                    body: formData,
+                    isFormData: true
+                });
+
+                if (!response.ok) {
+                    throw new Error('Upload failed');
+                }
+
+                showToast('Document uploaded successfully!', 'success');
+                closeUploadModal();
+                loadDocuments();
+                loadStats();
+
+            } catch (error) {
+                console.error('Upload failed:', error);
+                showToast('Failed to upload document', 'error');
             }
         }
-        console.log('================');
 
-        try {
-            const response = await apiCall('/api/knowledge/documents', {
-                method: 'POST',
-                body: formData,
-                isFormData: true
-            });
+        async function viewDocument(docId) {
+            try {
+                const response = await apiCall(`/api/knowledge/documents/${docId}`);
+                if (!response) return;
 
-            if (!response.ok) {
-                throw new Error('Upload failed');
-            }
+                const doc = await response.json();
 
-            showToast('Document uploaded successfully!', 'success');
-            closeUploadModal();
-            loadDocuments();
-            loadStats();
-
-        } catch (error) {
-            console.error('Upload failed:', error);
-            showToast('Failed to upload document', 'error');
-        }
-    }
-
-    async function viewDocument(docId) {
-        try {
-            const response = await apiCall(`/api/knowledge/documents/${docId}`);
-            if (!response) return;
-
-            const doc = await response.json();
-
-            document.getElementById('viewTitle').textContent = doc.title;
-            document.getElementById('viewContent').innerHTML = `
+                document.getElementById('viewTitle').textContent = doc.title;
+                document.getElementById('viewContent').innerHTML = `
                 <div class="space-y-4">
                     <div class="text-sm text-gray-400">
                         <span class="badge-primary px-2 py-1 rounded mr-2">${doc.doc_type}</span>
@@ -505,97 +458,150 @@
                 </div>
             `;
 
-            document.getElementById('viewModal').classList.remove('hidden');
-            document.getElementById('viewModal').classList.add('flex');
+                document.getElementById('viewModal').classList.remove('hidden');
+                document.getElementById('viewModal').classList.add('flex');
 
-        } catch (error) {
-            console.error('Failed to load document:', error);
-            showToast('Failed to load document', 'error');
-        }
-    }
-
-    function closeViewModal() {
-        document.getElementById('viewModal').classList.add('hidden');
-        document.getElementById('viewModal').classList.remove('flex');
-    }
-
-    async function deleteDocument(docId) {
-        if (!confirm('Are you sure you want to delete this document? This will also delete all associated chunks.')) {
-            return;
+            } catch (error) {
+                console.error('Failed to load document:', error);
+                showToast('Failed to load document', 'error');
+            }
         }
 
-        try {
-            const response = await apiCall(`/api/knowledge/documents/${docId}`, {
-                method: 'DELETE'
-            });
-
-            if (!response) return;
-
-            showToast('Document deleted successfully', 'success');
-            loadDocuments();
-            loadStats();
-
-        } catch (error) {
-            console.error('Delete failed:', error);
-            showToast('Failed to delete document', 'error');
+        function closeViewModal() {
+            document.getElementById('viewModal').classList.add('hidden');
+            document.getElementById('viewModal').classList.remove('flex');
         }
-    }
 
-    // Initial load
-    loadStats();
-    loadDocuments();
+        async function deleteDocument(docId) {
+            if (!confirm('Are you sure you want to delete this document? This will also delete all associated chunks.')) {
+                return;
+            }
 
-    // Close modals on escape
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') {
-            closeUploadModal();
-            closeViewModal();
+            try {
+                const response = await apiCall(`/api/knowledge/documents/${docId}`, {
+                    method: 'DELETE'
+                });
+
+                if (!response) return;
+
+                showToast('Document deleted successfully', 'success');
+                loadDocuments();
+                loadStats();
+
+            } catch (error) {
+                console.error('Delete failed:', error);
+                showToast('Failed to delete document', 'error');
+            }
         }
-    });
 
-    // File upload handler
-    window.handleFileUpload = function (event) {
-        const file = event.target.files[0];
-        if (!file) return;
+        // Initial load
+        loadStats();
+        loadDocuments();
 
-        const ext = file.name.split('.').pop().toLowerCase();
-        const isImage = ['jpg', 'jpeg', 'png', 'gif'].includes(ext);
-        const isPDF = ext === 'pdf';
-        const isText = ['md', 'txt', 'markdown'].includes(ext);
+        // Close modals on escape
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeUploadModal();
+                closeViewModal();
+            }
+        });
 
-        const titleInput = document.querySelector('input[name="title"]');
-        const contentField = document.getElementById('docContent');
+        // File upload handler
+        window.handleFileUpload = function (event) {
+            const file = event.target.files[0];
+            if (!file) return;
 
-        // Auto-fill title
-        if (!titleInput.value) {
-            titleInput.value = file.name.replace(/\.(md|txt|markdown|pdf|jpg|jpeg|png|gif)$/i, '');
+            const ext = file.name.split('.').pop().toLowerCase();
+            const isImage = ['jpg', 'jpeg', 'png', 'gif'].includes(ext);
+            const isPDF = ext === 'pdf';
+            const isText = ['md', 'txt', 'markdown'].includes(ext);
+
+            const titleInput = document.querySelector('input[name="title"]');
+            const contentField = document.getElementById('docContent');
+
+            // Auto-fill title
+            if (!titleInput.value) {
+                titleInput.value = file.name.replace(/\.(md|txt|markdown|pdf|jpg|jpeg|png|gif)$/i, '');
+            }
+            const formatField = document.getElementById('formatField');
+            if (formatField) formatField.style.display = 'none';
+
+            // Text files: read content
+            if (isText) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    contentField.value = e.target.result;
+                    contentField.readOnly = false;
+                    showToast('File loaded: ' + file.name, 'success');
+                };
+                reader.onerror = () => showToast('Failed to read file', 'error');
+                reader.readAsText(file);
+            }
+            // Images: show info
+            else if (isImage) {
+                contentField.value = `📷 Image: ${file.name}\n\nWill be analyzed by Vision AI`;
+                contentField.readOnly = true;
+                showToast('Image selected', 'info');
+            }
+            // PDFs: show info
+            else if (isPDF) {
+                contentField.value = `📄 PDF: ${file.name}\n\nText will be extracted`;
+                contentField.readOnly = true;
+                showToast('PDF selected', 'info');
+            }
+        };
+
+        // Git Sync Functions
+        function showGitSyncModal() {
+            document.getElementById('gitSyncModal').classList.remove('hidden');
+            document.getElementById('gitSyncModal').classList.add('flex');
         }
-        const formatField = document.getElementById('formatField');
-        if (formatField) formatField.style.display = 'none';
 
-        // Text files: read content
-        if (isText) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                contentField.value = e.target.result;
-                contentField.readOnly = false;
-                showToast('File loaded: ' + file.name, 'success');
-            };
-            reader.onerror = () => showToast('Failed to read file', 'error');
-            reader.readAsText(file);
+        function closeGitSyncModal() {
+            document.getElementById('gitSyncModal').classList.add('hidden');
+            document.getElementById('gitSyncModal').classList.remove('flex');
+            document.getElementById('gitRepoUrl').value = '';
         }
-        // Images: show info
-        else if (isImage) {
-            contentField.value = `📷 Image: ${file.name}\n\nWill be analyzed by Vision AI`;
-            contentField.readOnly = true;
-            showToast('Image selected', 'info');
+
+        async function syncGitRepo(event) {
+            event.preventDefault();
+
+            const repoUrl = document.getElementById('gitRepoUrl').value.trim();
+            const branch = document.getElementById('gitBranch').value.trim() || 'main';
+
+            if (!repoUrl) return;
+
+            const btn = event.submitter;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<div class="loading-spinner w-4 h-4 inline-block mr-2"></div> Syncing...';
+            btn.disabled = true;
+
+            try {
+                const response = await apiCall('/api/knowledge/sync/git', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        repo_url: repoUrl,
+                        branch: branch
+                    })
+                });
+
+                if (!response.ok) throw new Error('Sync failed');
+
+                const data = await response.json();
+
+                showToast(`Sync complete! Added/Updated ${data.stats.processed} documents.`, 'success');
+                closeGitSyncModal();
+                loadDocuments();
+                loadStats();
+
+            } catch (error) {
+                console.error('Git sync failed:', error);
+                showToast('Git sync failed. Check URL and try again.', 'error');
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
         }
-        // PDFs: show info
-        else if (isPDF) {
-            contentField.value = `📄 PDF: ${file.name}\n\nText will be extracted`;
-            contentField.readOnly = true;
-            showToast('PDF selected', 'info');
-        }
-    };
-</script>
-{% endblock %}
+    </script>
+    {% endblock %}
