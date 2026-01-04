@@ -135,3 +135,49 @@
         transform: translateY(-4px);
     }
 }
+
+/* Code block wrapping */
+.agent-message pre {
+    white-space: pre-wrap;
+    word-break: break-word;
+    background: #0f172a;
+    padding: 0.5rem;
+    border-radius: 0.25rem;
+    overflow-x: hidden;
+    max-width: 100%;
+}
+
+.agent-message code {
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: 'Fira Code', monospace;
+    font-size: 0.8em;
+}
+
+/* Resize Handle */
+.resize-handle {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 10px;
+    cursor: ew-resize;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #475569;
+}
+
+.resize-handle::after {
+    content: "";
+    height: 20px;
+    width: 2px;
+    background-color: currentColor;
+    border-radius: 1px;
+}
+
+.resize-handle:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+    color: #94a3b8;
+}

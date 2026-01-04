@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const widgetHTML = `
             <div id="agent-widget">
                 <div id="agent-window">
+                    <div id="agent-resize-handle" class="resize-handle"></div>
                     <div class="agent-header">
                         <div class="flex items-center gap-2">
                             <div class="w-2 h-2 rounded-full bg-green-400"></div>
@@ -159,10 +160,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 aiText = "I processed your request but have no specific response to show.";
             }
 
-            if (data.warning) {
-                aiText = `> [!WARNING]\n> ${data.warning}\n\n` + aiText;
-            }
-
             addMessage(aiText, 'ai');
 
         } catch (error) {
@@ -179,4 +176,50 @@ document.addEventListener('DOMContentLoaded', () => {
     input.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') sendMessage();
     });
+
+    // Resize Logic
+    const resizeHandle = document.getElementById('agent-resize-handle');
+    let isResizing = false;
+    let startX, startWidth;
+
+    if (resizeHandle) {
+        resizeHandle.addEventListener('mousedown', initResize);
+    }
+
+    function initResize(e) {
+        isResizing = true;
+        startX = e.clientX;
+        startWidth = parseInt(document.defaultView.getComputedStyle(agentWindow).width, 10);
+
+        document.documentElement.addEventListener('mousemove', doResize);
+        document.documentElement.addEventListener('mouseup', stopResize);
+
+        // Prevent selection during resize
+        document.body.style.userSelect = 'none';
+        agentWindow.style.transition = 'none'; // Disable transition during drag
+    }
+
+    function doResize(e) {
+        if (!isResizing) return;
+
+        // Calculate new width (drag left increases width)
+        // delta is (startX - currentX) because we are dragging the left edge
+        const newWidth = startWidth + (startX - e.clientX);
+
+        // Min width 300px, Max width 800px or window width - 40px
+        const maxWidth = Math.min(800, window.innerWidth - 40);
+
+        if (newWidth >= 300 && newWidth <= maxWidth) {
+            agentWindow.style.width = newWidth + 'px';
+        }
+    }
+
+    function stopResize() {
+        isResizing = false;
+        document.documentElement.removeEventListener('mousemove', doResize);
+        document.documentElement.removeEventListener('mouseup', stopResize);
+        document.body.style.userSelect = '';
+        agentWindow.style.transition = ''; // Restore transition
+    }
+
 });
