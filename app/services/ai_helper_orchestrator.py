@@ -355,17 +355,23 @@ IMPORTANT RULES:
 5. Remember previous conversation context when responding
 6. When suggesting PromQL queries, use the 'explain_concept' or 'chat' action with markdown code blocks for easy copying
 
-GRAFANA QUERY HANDLING:
-- If you see a PromQL query in the page context, analyze it and provide helpful insights
-- If query extraction failed but user asks about "this page" or "this query":
-  * Politely explain you couldn't auto-extract the query
-  * Ask them to paste the query in chat OR tell you what they want to monitor
-  * Offer to help write a new query based on their needs
-- If user asks general questions like "Can you read this page PromQL?":
-  * Check if a query was extracted (look for "PromQL Query:" in context)
-  * If YES: Analyze and explain the query
-  * If NO: Explain you're on a Grafana page but no query is visible yet, ask them to paste it or describe what they want to query
-- Always be helpful and proactive in offering PromQL assistance
+GRAFANA QUERY HANDLING (Multi-Datasource Support):
+- Supports: Prometheus (PromQL), Loki (LogQL), Tempo (TraceQL), Mimir (PromQL)
+- Check context for: query_language, data_source_type, builder_mode_detected
+- If query extracted successfully:
+  * Analyze based on query_language (PromQL, LogQL, or TraceQL)
+  * Provide insights specific to the data source type
+  * Show relevant examples and optimizations
+- If builder_mode_detected is true:
+  * Explain that Grafana is in Builder mode (visual query builder)
+  * Recommend switching to Code mode for AI assistance: Click "Code" button in query editor
+  * Offer to help write queries once they switch to Code mode
+  * Still be helpful if they paste a query manually
+- If query extraction failed:
+  * Ask user to paste the query OR switch to Code mode
+  * Offer to help write a new query based on their monitoring needs
+  * Be specific about which query language based on data_source_type
+- Always be helpful and proactive in offering query assistance for all Grafana stack components
 
 EXAMPLES:
 
@@ -404,24 +410,45 @@ Example 3 - Explaining PromQL when query IS found:
   "confidence": 0.95
 }
 
-Example 4 - Handling "Can you read this page?" when NO query found:
+Example 4 - Handling "Can you read this page?" in Builder mode:
 {
   "action": "chat",
   "action_details": {
-    "message": "I can see you're on a Grafana query page, but I wasn't able to automatically extract the query from the editor. This can happen if:\\n\\n- The editor is still loading\\n- The query hasn't been entered yet\\n- The editor format isn't recognized\\n\\n**How I can help:**\\n\\n1. 📋 **Paste your query** - Copy the PromQL query and paste it here, and I'll analyze it\\n2. ✍️ **Describe your needs** - Tell me what metrics you want to monitor and I'll help you write a query\\n3. 📚 **Learn PromQL** - I can explain PromQL concepts and show examples\\n\\nWhat would you like to do?"
+    "message": "I can see you're in Grafana's **Builder mode** (visual query builder). The AI Agent works best with queries in **Code mode**.\\n\\n**To get AI assistance:**\\n\\n1. 🔄 **Switch to Code mode** - Click the \\"Code\\" button in your query editor\\n2. 📋 **Or paste your query** - Copy your query and paste it here\\n\\n**Once in Code mode, I can:**\\n- Analyze your PromQL/LogQL/TraceQL queries\\n- Suggest optimizations and improvements\\n- Explain query syntax and behavior\\n- Help troubleshoot issues\\n\\n**Or I can help you write a query from scratch!** Just tell me what you want to monitor."
   },
-  "reasoning": "User asked about page content but no query was auto-extracted",
+  "reasoning": "User in Builder mode, extraction not possible",
+  "confidence": 0.95
+}
+
+Example 5 - Handling query extraction failure (not Builder mode):
+{
+  "action": "chat",
+  "action_details": {
+    "message": "I can see you're on a Grafana query page, but I wasn't able to automatically extract the query from the editor. This can happen if:\\n\\n- The editor is still loading\\n- The query hasn't been entered yet\\n- The editor format isn't recognized\\n\\n**How I can help:**\\n\\n1. 📋 **Paste your query** - Copy the query and paste it here, and I'll analyze it\\n2. ✍️ **Describe your needs** - Tell me what you want to monitor and I'll help write a query\\n3. 📚 **Learn query languages** - I can explain PromQL, LogQL, or TraceQL\\n\\nWhat would you like to do?"
+  },
+  "reasoning": "Query extraction failed but not in Builder mode",
   "confidence": 0.9
 }
 
-Example 5 - Analyzing an extracted query:
+Example 6 - Analyzing PromQL query (Prometheus/Mimir):
 {
   "action": "explain_concept",
   "action_details": {
-    "concept": "Current PromQL Query Analysis",
-    "explanation": "I can see your query:\\n\\n```promql\\nup{job=\\"prometheus\\"}\\n```\\n\\nThis query shows the **uptime status** of all targets in the 'prometheus' job. The `up` metric returns:\\n- `1` if target is reachable\\n- `0` if target is down\\n\\n**Possible enhancements:**\\n\\n1. Filter by instance:\\n```promql\\nup{job=\\"prometheus\\", instance=\\"localhost:9090\\"}\\n```\\n\\n2. Count down instances:\\n```promql\\ncount(up{job=\\"prometheus\\"} == 0)\\n```\\n\\n3. Alert on down targets:\\n```promql\\nup{job=\\"prometheus\\"} == 0\\n```"
+    "concept": "PromQL Query Analysis",
+    "explanation": "I can see your **PromQL** query:\\n\\n```promql\\nup{instance=\\"remediation-engine:8080\\"}\\n```\\n\\n**What it does:**\\nThis query monitors the **uptime status** of a specific target. The `up` metric returns:\\n- `1` if target is reachable\\n- `0` if target is down\\n\\n**Current filter:**\\n- `instance=\\"remediation-engine:8080\\"` - Monitoring only this specific instance\\n\\n**Possible enhancements:**\\n\\n1. Monitor multiple instances:\\n```promql\\nup{instance=~\\"remediation-engine.*\\"}\\n```\\n\\n2. Alert on down instances:\\n```promql\\nup{instance=\\"remediation-engine:8080\\"} == 0\\n```\\n\\n3. Add job filter:\\n```promql\\nup{job=\\"app\\", instance=\\"remediation-engine:8080\\"}\\n```"
   },
-  "reasoning": "User asked to read the page and we successfully extracted the query",
+  "reasoning": "Extracted PromQL query successfully from Code mode",
+  "confidence": 1.0
+}
+
+Example 7 - Analyzing LogQL query (Loki):
+{
+  "action": "explain_concept",
+  "action_details": {
+    "concept": "LogQL Query Analysis",
+    "explanation": "I can see your **LogQL** query for Loki:\\n\\n```logql\\n{job=\\"varlogs\\"} |= \\"error\\" | json\\n```\\n\\n**What it does:**\\n1. `{job=\\"varlogs\\"}` - Select log streams from 'varlogs' job\\n2. `|= \\"error\\"` - Filter lines containing \\"error\\" (case-sensitive)\\n3. `| json` - Parse logs as JSON\\n\\n**Possible improvements:**\\n\\n1. Case-insensitive search:\\n```logql\\n{job=\\"varlogs\\"} |~ \\"(?i)error\\" | json\\n```\\n\\n2. Count errors per minute:\\n```logql\\nsum(count_over_time({job=\\"varlogs\\"} |= \\"error\\" [1m]))\\n```\\n\\n3. Extract JSON fields:\\n```logql\\n{job=\\"varlogs\\"} | json | level=\\"error\\"\\n```"
+  },
+  "reasoning": "Detected LogQL query from Loki data source",
   "confidence": 1.0
 }
 
@@ -463,22 +490,37 @@ Response format (JSON):
             if page_info.get('form_id'):
                 message_parts.append(f"Form ID: {page_info.get('form_id')}")
             
-            # Add form data if present (includes PromQL queries!)
+            # Add form data if present (includes queries!)
             form_data = page_info.get('form_data', {})
             if form_data:
+                # Detect query language
+                query_language = form_data.get('query_language', 'PromQL')
+                data_source = form_data.get('data_source_type', 'unknown')
+
                 message_parts.append("\n## Form Data on Page:")
                 for key, value in form_data.items():
                     if value:  # Only add non-empty values
-                        # Special formatting for PromQL
-                        if 'promql' in key.lower() or 'query' in key.lower():
-                            message_parts.append(f"\n**PromQL Query:**\n```promql\n{value}\n```")
-                        else:
+                        # Special formatting for queries
+                        if key in ['query', 'promql_query'] and not isinstance(value, bool):
+                            # Use detected query language for syntax highlighting
+                            lang_hint = query_language.lower().replace('ql', '')  # promql -> prom, logql -> log
+                            message_parts.append(f"\n**{query_language} Query** (Data source: {data_source}):\n```{lang_hint}\n{value}\n```")
+                        elif key not in ['extraction_method', 'query_language', 'data_source_type', 'builder_mode_detected', 'query_extraction_failed']:
+                            # Skip internal metadata fields
                             message_parts.append(f"- {key}: {value}")
                             
-            # Add Grafana Context (✅ IMPROVED)
+            # Add Grafana Context (✅ IMPROVED - Multi-datasource & Builder mode support)
             if page_info.get('is_grafana'):
                 message_parts.append("\n## Grafana Context:")
                 message_parts.append(f"- Is Grafana Page: Yes")
+
+                # Add data source information
+                query_language = form_data.get('query_language', 'PromQL')
+                data_source = form_data.get('data_source_type', 'unknown')
+                if data_source != 'unknown':
+                    message_parts.append(f"- Data Source: {data_source.capitalize()}")
+                    message_parts.append(f"- Query Language: {query_language}")
+
                 if page_info.get('grafana_title'):
                     message_parts.append(f"- Dashboard Title: {page_info.get('grafana_title')}")
                 if page_info.get('grafana_url'):
@@ -487,17 +529,28 @@ Response format (JSON):
                 # Check if query was extracted successfully
                 has_query = False
                 for key in form_data.keys():
-                    if 'promql' in key.lower() or 'query' in key.lower():
-                        if form_data.get(key):
+                    if key in ['query', 'promql_query']:
+                        val = form_data.get(key)
+                        if val and not isinstance(val, bool):
                             has_query = True
                             break
 
                 if page_info.get('is_native_grafana'):
                     message_parts.append("\n**CONTEXT:** Running natively inside Grafana with DOM access.")
 
-                    if has_query:
+                    # Check for Builder mode
+                    builder_mode = form_data.get('builder_mode_detected', False)
+
+                    if builder_mode:
+                        message_parts.append("⚠️ **BUILDER MODE DETECTED** - User is in visual query builder")
+                        message_parts.append("\n**IMPORTANT INSTRUCTION:**")
+                        message_parts.append("- Explain that AI Agent works best in Code mode")
+                        message_parts.append("- Guide user to click the 'Code' button in the query editor")
+                        message_parts.append("- Offer to help write queries from scratch if they describe what they want")
+                        message_parts.append("- Still accept pasted queries if user provides them")
+                    elif has_query:
                         extraction_method = form_data.get('extraction_method', 'unknown')
-                        message_parts.append(f"✅ Successfully extracted query via: {extraction_method}")
+                        message_parts.append(f"✅ Successfully extracted {query_language} query via: {extraction_method}")
                     else:
                         message_parts.append("⚠️ No query detected in editor. Possible reasons:")
                         message_parts.append("  - Editor is empty")
@@ -505,19 +558,19 @@ Response format (JSON):
                         message_parts.append("  - Query is in an unsupported format")
 
                         if form_data.get('query_extraction_failed'):
-                            message_parts.append("\n**SUGGESTION:** Ask user to:")
-                            message_parts.append("1. Paste their PromQL query directly in the chat")
+                            message_parts.append(f"\n**SUGGESTION:** Ask user to:")
+                            message_parts.append(f"1. Paste their {query_language} query directly in the chat")
                             message_parts.append("2. Or tell you what they want to query and you can help write it")
                         else:
                             message_parts.append("\nIf user is asking about a specific query, politely ask them to paste it in the chat.")
 
                 elif page_info.get('grafana_access_error'):
                     message_parts.append("\n**NOTE:** Unable to read Grafana content due to cross-origin restrictions.")
-                    message_parts.append("Ask user to paste the PromQL query in the chat.")
+                    message_parts.append(f"Ask user to paste the {query_language} query in the chat.")
                 else:
                     message_parts.append("\n**NOTE:** Connected via Proxy. Query extraction may be limited.")
                     if not has_query:
-                        message_parts.append("Ask user to paste the PromQL query if they want help with it.")
+                        message_parts.append(f"Ask user to paste the {query_language} query if they want help with it.")
 
         # Add knowledge results
         if context.get('knowledge_results'):
