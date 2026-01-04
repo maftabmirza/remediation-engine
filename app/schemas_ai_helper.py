@@ -47,6 +47,7 @@ class AIAction(str, Enum):
     SHOW_EXAMPLE = "show_example"
     VALIDATE_INPUT = "validate_input"
     GENERATE_PREVIEW = "generate_preview"
+    CHAT = "chat"
 
 
 class UserAction(str, Enum):

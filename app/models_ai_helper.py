@@ -123,7 +123,7 @@ class AIHelperAuditLog(Base):
     # User & Session Context
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     username = Column(String(255), nullable=False)
-    session_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    session_id = Column(UUID(as_uuid=True), ForeignKey("ai_helper_sessions.id", ondelete="SET NULL"), nullable=True, index=True)
     correlation_id = Column(UUID(as_uuid=True), nullable=True, index=True)
 
     # Request Context

@@ -4,6 +4,7 @@ CRITICAL: Enforces action whitelist, no auto-execution, mandatory user approval
 """
 from sqlalchemy.orm import Session
 from typing import Optional, List, Dict, Any, Tuple
+from decimal import Decimal
 from uuid import UUID, uuid4
 from datetime import datetime
 import logging
@@ -31,7 +32,8 @@ ALLOWED_ACTIONS = {
     "explain_concept",
     "show_example",
     "validate_input",
-    "generate_preview"
+    "generate_preview",
+    "chat"
 }
 
 # FORBIDDEN ACTIONS (Will be blocked)
@@ -331,6 +333,7 @@ ALLOWED ACTIONS:
 - show_example: Show examples of configurations
 - validate_input: Validate user input
 - generate_preview: Generate preview of configurations
+- chat: Have a general conversation with the user (put message in action_details.message)
 
 FORBIDDEN ACTIONS (You must NEVER suggest these):
 - execute_runbook: Cannot execute runbooks
@@ -438,7 +441,8 @@ Response format (JSON):
             session.last_activity_at = datetime.utcnow()
             session.total_queries += 1
             session.total_tokens_used += llm_response.get('usage', {}).get('total_tokens', 0)
-            session.total_cost_usd += self._calculate_cost(llm_response)
+            cost_float = self._calculate_cost(llm_response)
+            session.total_cost_usd += Decimal(str(cost_float))
             self.db.commit()
 
     async def _get_config(self) -> Dict[str, Any]:

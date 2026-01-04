@@ -202,7 +202,7 @@ class AIAuditService:
 
             # Calculate total duration
             if audit_log.timestamp:
-                duration = (datetime.utcnow() - audit_log.timestamp).total_seconds() * 1000
+                duration = (datetime.utcnow() - audit_log.timestamp.replace(tzinfo=None)).total_seconds() * 1000
                 audit_log.total_duration_ms = int(duration)
 
             self.db.commit()

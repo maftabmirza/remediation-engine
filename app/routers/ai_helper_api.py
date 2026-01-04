@@ -29,7 +29,7 @@ from app.schemas_ai_helper import (
 from app.services.ai_helper_orchestrator import AIHelperOrchestrator
 from app.services.ai_audit_service import AIAuditService
 from app.services.knowledge_git_sync_service import KnowledgeGitSyncService
-from app.utils.auth import get_current_user
+from app.services.auth_service import get_current_user
 
 router = APIRouter(prefix="/api/ai-helper", tags=["AI Helper"])
 

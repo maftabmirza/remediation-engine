@@ -251,10 +251,153 @@ def get_available_providers(db: Session) -> List[LLMProvider]:
     ).all()
 
 
+
 def get_default_provider(db: Session) -> Optional[LLMProvider]:
     """Get the default LLM provider."""
     return db.query(LLMProvider).filter(
         LLMProvider.is_default == True,
         LLMProvider.is_enabled == True
     ).first()
+
+
+class LLMService:
+    """
+    LLM Service class for AI Orchestrator.
+    Provides methods for chat completion and structured responses.
+    """
+
+    def __init__(self, db: Session):
+        self.db = db
+        self.provider = None
+        self.model = None
+
+    async def generate_completion(
+        self,
+        messages: List[Dict[str, str]],
+        provider: Optional[LLMProvider] = None,
+        max_tokens: int = 2000,
+        temperature: float = 0.7,
+        json_mode: bool = False
+    ) -> Dict[str, Any]:
+        """
+        Generate completion for chat messages.
+        Returns full response object.
+        """
+        if not provider:
+            provider = get_default_provider(self.db)
+            if not provider:
+                # Fallback to any enabled
+                provider = self.db.query(LLMProvider).filter(LLMProvider.is_enabled == True).first()
+        
+        if not provider:
+            raise ValueError("No LLM provider configured or enabled")
+            
+        self.provider = provider.name
+        self.model = provider.model_id
+        
+        api_key = get_api_key_for_provider(provider)
+        if not api_key and provider.provider_type not in ["ollama"]:
+            raise ValueError(f"No API key configured for provider: {provider.name}")
+            
+        config = provider.config_json or {}
+        # Override config with params if provided
+        
+        try:
+            logger.info(f"LLMService calling provider: {provider.name} (type: {provider.provider_type})")
+            start_time = time.time()
+            
+            # Handle Ollama
+            if provider.provider_type == "ollama":
+                # Ollama service returns just text usually, we need to wrap it to match OpenAI format
+                # for the orchestrator to parse it correctly: choices[0].message.content
+                analysis = await ollama_completion(
+                    provider=provider,
+                    messages=messages,
+                    temperature=temperature,
+                    max_tokens=max_tokens
+                )
+                
+                duration = time.time() - start_time
+                
+                # Mock OpenAI-like response
+                response = {
+                    "choices": [{
+                        "message": {
+                            "content": analysis,
+                            "role": "assistant"
+                        }
+                    }],
+                    "usage": {
+                        "prompt_tokens": 0, # functions don't return this yet
+                        "completion_tokens": 0,
+                        "total_tokens": 0
+                    }
+                }
+                
+                # Record metrics
+                LLM_REQUESTS.labels(
+                    provider=provider.provider_type,
+                    model=self.model,
+                    status="success"
+                ).inc()
+                LLM_DURATION.labels(
+                    provider=provider.provider_type,
+                    model=self.model
+                ).observe(duration)
+                
+                return response
+
+            else:
+                # Use LiteLLM
+                kwargs = {
+                    "model": self.model,
+                    "messages": messages,
+                    "temperature": temperature,
+                    "max_tokens": max_tokens,
+                }
+
+                if json_mode and provider.provider_type not in ["anthropic"]:
+                     kwargs["response_format"] = { "type": "json_object" }
+                
+                if api_key:
+                    kwargs["api_key"] = api_key
+                    
+                if provider.api_base_url:
+                    kwargs["api_base"] = provider.api_base_url
+
+                response = await acompletion(**kwargs)
+                duration = time.time() - start_time
+                
+                # Record metrics
+                LLM_REQUESTS.labels(
+                    provider=provider.provider_type,
+                    model=self.model,
+                    status="success"
+                ).inc()
+                LLM_DURATION.labels(
+                    provider=provider.provider_type,
+                    model=self.model
+                ).observe(duration)
+                
+                # Convert to dict if it's a ModelResponse object
+                if hasattr(response, 'model_dump'):
+                    return response.model_dump()
+                elif hasattr(response, 'dict'):
+                    return response.dict()
+                else:
+                    return response
+
+        except Exception as e:
+            duration = time.time() - start_time
+            if self.model:
+                LLM_REQUESTS.labels(
+                    provider=provider.provider_type if provider else "unknown",
+                    model=self.model,
+                    status="error"
+                ).inc()
+                LLM_DURATION.labels(
+                    provider=provider.provider_type if provider else "unknown",
+                    model=self.model
+                ).observe(duration)
+            raise RuntimeError(f"LLM API call failed: {str(e)}")
 

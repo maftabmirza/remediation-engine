@@ -959,7 +959,13 @@
         }
 
         /* Extra CSS from child templates */
-        {% block extra_css %}{% endblock %}
+            {
+            % block extra_css %
+        }
+
+            {
+            % endblock %
+        }
     </style>
 
     <!-- Apache ECharts for advanced visualizations -->
@@ -1102,6 +1108,9 @@
     <!-- marked.js for Markdown rendering -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     {% block scripts %}{% endblock %}
+    <!-- AI Agent Widget -->
+    <link href="/static/css/agent_widget.css" rel="stylesheet">
+    <script src="/static/js/agent_widget.js"></script>
 </body>
 
 </html>
