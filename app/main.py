@@ -18,6 +18,7 @@ import app.models_application  # noqa: F401
 import app.models_knowledge  # noqa: F401
 import app.models_learning  # noqa: F401 - Phase 3: Learning System
 import app.models_dashboards  # noqa: F401 - Prometheus Dashboard Builder
+import app.models_ai_helper  # noqa: F401 - AI Helper with Security Controls
 from app.services.auth_service import (
     get_current_user_optional,
     create_user,
@@ -70,7 +71,8 @@ from app.routers import (
     rows_api,  # Prometheus Dashboard Builder - Panel Rows
     query_history_api,  # Prometheus Dashboard Builder - Query History
     dashboard_permissions_api,  # Dashboard Permissions
-    grafana_proxy  # Grafana Integration - SSO Proxy
+    grafana_proxy,  # Grafana Integration - SSO Proxy
+    ai_helper_api  # AI Helper with Security Controls
 )
 from app import api_credential_profiles
 from app.services.execution_worker import start_execution_worker, stop_execution_worker
@@ -303,6 +305,7 @@ app.include_router(rows_api.router)         # Prometheus Dashboard Builder - Pan
 app.include_router(query_history_api.router) # Prometheus Dashboard Builder - Query History
 app.include_router(dashboard_permissions_api.router) # Dashboard Permissions
 app.include_router(grafana_proxy.router)    # Grafana Integration - SSO Proxy
+app.include_router(ai_helper_api.router)    # AI Helper with Security Controls
 
 
 @app.get("/profile", response_class=HTMLResponse)

@@ -1,0 +1,143 @@
+# =============================================================================
+# AI Helper Configuration
+# =============================================================================
+
+ai_helper:
+  # Enable/disable AI helper globally
+  enabled: true
+
+  # Strict mode: Enforce mandatory user approval for all actions
+  strict_mode: true
+
+  # Allowed AI actions (whitelist)
+  allowed_actions:
+    - suggest_form_values
+    - search_knowledge
+    - explain_concept
+    - show_example
+    - validate_input
+    - generate_preview
+
+  # Blocked AI actions (blacklist - NEVER allowed)
+  blocked_actions:
+    - execute_runbook
+    - ssh_connect
+    - submit_form
+    - api_call_modify
+    - auto_execute_any
+    - direct_db_access
+    - credential_access
+
+  # Rate limiting
+  rate_limiting:
+    enabled: true
+    per_user_per_minute: 10
+    per_user_per_day: 500
+    per_session_max_queries: 100
+
+  # Audit logging
+  logging:
+    enabled: true
+    log_llm_requests: true      # Log full LLM request payloads
+    log_llm_responses: true     # Log full LLM response payloads
+    retention_days: 365         # Keep logs for 1 year
+    export_format: json         # json or csv
+
+  # LLM provider configuration
+  llm:
+    provider: anthropic          # anthropic, openai, ollama
+    model: claude-3-sonnet-20240229
+    max_tokens: 1024
+    temperature: 0.7
+    timeout_seconds: 30
+
+    # Fallback provider if primary fails
+    fallback:
+      enabled: true
+      provider: ollama
+      model: llama2
+
+    # Cost management
+    cost_limits:
+      per_user_per_day_usd: 5.0
+      per_query_max_tokens: 2048
+
+  # Knowledge base configuration
+  knowledge:
+    # Enable code understanding
+    code_understanding_enabled: true
+    code_index_mode: metadata_only  # metadata_only or full_code
+
+    # Search configuration
+    max_search_results: 5
+    min_similarity_score: 0.7
+
+    # Context assembly
+    max_context_tokens: 4000
+    include_session_history: true
+    max_history_messages: 5
+
+  # Security
+  security:
+    # Require MFA for admin actions
+    require_mfa_for_admin: false
+
+    # Block suspicious patterns
+    block_patterns:
+      - "rm -rf"
+      - "DROP TABLE"
+      - "DELETE FROM"
+      - "--password"
+      - "export AWS_"
+
+    # IP whitelisting (optional)
+    ip_whitelist: []
+
+    # Anomaly detection
+    anomaly_detection:
+      enabled: true
+      max_failed_attempts: 5
+      lockout_duration_minutes: 15
+
+  # UI configuration
+  ui:
+    # Show AI helper widget on these pages
+    enabled_pages:
+      - /runbooks
+      - /alerts
+      - /dashboards
+      - /schedules
+      - /applications
+
+    # Widget position
+    position: bottom-right  # bottom-right, bottom-left, top-right, top-left
+
+    # Widget theme
+    theme: dark  # dark or light
+
+    # Show confidence scores
+    show_confidence: true
+
+    # Auto-expand widget
+    auto_expand: false
+
+  # Knowledge sources (default configurations)
+  default_knowledge_sources:
+    - name: "AIOps Documentation"
+      type: git_docs
+      enabled: true
+      config:
+        repo: ""  # Configure in admin UI
+        branch: "main"
+        path: "/docs"
+      sync_schedule: "0 */6 * * *"  # Every 6 hours
+
+    - name: "AIOps Code Reference"
+      type: git_code
+      enabled: false  # Disabled by default
+      config:
+        repo: ""  # Configure in admin UI
+        branch: "main"
+        path: "/app"
+        index_mode: "metadata_only"
+      sync_schedule: "0 */1 * * *"  # Every hour
