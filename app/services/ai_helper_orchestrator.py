@@ -1,6 +1,7 @@
 """
 AI Helper Orchestrator - Core service with strict security controls
 CRITICAL: Enforces action whitelist, no auto-execution, mandatory user approval
+FIXED: Conversation history now persists across messages
 """
 from sqlalchemy.orm import Session
 from typing import Optional, List, Dict, Any, Tuple
@@ -168,8 +169,8 @@ class AIHelperOrchestrator:
                 context_assembly_ms=context_assembly_ms
             )
 
-            # STEP 6: Update session
-            await self._update_session(session_id, llm_response)
+            # STEP 6: Update session WITH CONVERSATION HISTORY (✅ FIXED)
+            await self._update_session(session_id, query, llm_response, ai_action)
 
             # STEP 7: Build response
             response = AIHelperResponse(
@@ -261,7 +262,8 @@ class AIHelperOrchestrator:
             'knowledge_chunks_used': 0,
             'rag_search_time_ms': 0,
             'code_files_referenced': [],
-            'code_functions_referenced': []
+            'code_functions_referenced': [],
+            'session_history': []
         }
 
         try:
@@ -278,13 +280,13 @@ class AIHelperOrchestrator:
             context['knowledge_chunks_used'] = len(knowledge_results)
             context['rag_search_time_ms'] = rag_time
 
-            # Get session history (last 5 interactions)
+            # Get session history (✅ FIXED - retrieve from session.context)
             session = self.db.query(AIHelperSession).filter(
                 AIHelperSession.id == session_id
             ).first()
 
             if session and session.context:
-                context['session_history'] = session.context.get('history', [])[-5:]
+                context['session_history'] = session.context.get('history', [])[-10:]  # Last 10 messages (5 turns)
 
         except Exception as e:
             logger.warning(f"Error assembling context: {e}")
@@ -303,7 +305,7 @@ class AIHelperOrchestrator:
         # Build system prompt
         system_prompt = self._build_system_prompt()
 
-        # Build user message
+        # Build user message (✅ IMPROVED - better history formatting)
         user_message = self._build_user_message(query, context)
 
         # Call LLM
@@ -320,7 +322,7 @@ class AIHelperOrchestrator:
 
     def _build_system_prompt(self) -> str:
         """
-        Build system prompt for AI helper
+        Build system prompt for AI helper (✅ IMPROVED - better form guidance)
         """
         return """You are an AI assistant for an AIOps platform.
 
@@ -333,7 +335,7 @@ ALLOWED ACTIONS:
 - show_example: Show examples of configurations
 - validate_input: Validate user input
 - generate_preview: Generate preview of configurations
-- chat: Have a general conversation with the user (put message in action_details.message)
+- chat: Have a general conversation with the user
 
 FORBIDDEN ACTIONS (You must NEVER suggest these):
 - execute_runbook: Cannot execute runbooks
@@ -345,8 +347,53 @@ FORBIDDEN ACTIONS (You must NEVER suggest these):
 IMPORTANT RULES:
 1. You can only SUGGEST actions, never execute them
 2. User must always approve and execute manually
-3. For form assistance, suggest values but user must fill and submit
+3. For form assistance, provide SPECIFIC field values in structured format
 4. Never access credentials, execute commands, or modify data directly
+5. Remember previous conversation context when responding
+
+EXAMPLES:
+
+Example 1 - Suggesting form values for a runbook:
+{
+  "action": "suggest_form_values",
+  "action_details": {
+    "form_fields": {
+      "name": "Apache2 Restart Runbook",
+      "description": "Automatically restart Apache2 service when it fails",
+      "server": "t-aisop-01",
+      "steps": [
+        {"command": "systemctl status apache2", "description": "Check current status"},
+        {"command": "systemctl restart apache2", "description": "Restart service"},
+        {"command": "systemctl status apache2", "description": "Verify restart succeeded"}
+      ],
+      "notification_enabled": true
+    },
+    "explanation": "These values will create a runbook to restart Apache2 on server t-aisop-01. The user needs to fill these values in the form and click 'Create'."
+  },
+  "reasoning": "User requested a runbook to restart Apache2 on t-aisop-01",
+  "confidence": 0.9
+}
+
+Example 2 - General chat:
+{
+  "action": "chat",
+  "action_details": {
+    "message": "Hello! I can help you with creating runbooks, configuring alerts, understanding the platform features, and more. What would you like help with?"
+  },
+  "reasoning": "User greeted me",
+  "confidence": 1.0
+}
+
+Example 3 - Explaining a concept:
+{
+  "action": "explain_concept",
+  "action_details": {
+    "concept": "runbooks",
+    "explanation": "Runbooks are automated remediation scripts that execute predefined steps to resolve issues. They can check service status, restart services, or perform other maintenance tasks."
+  },
+  "reasoning": "User asking about what runbooks are",
+  "confidence": 1.0
+}
 
 Response format (JSON):
 {
@@ -358,25 +405,40 @@ Response format (JSON):
 
     def _build_user_message(self, query: str, context: Dict[str, Any]) -> str:
         """
-        Build user message with context
+        Build user message with context (✅ IMPROVED - better history formatting)
         """
-        message_parts = [f"User query: {query}"]
+        message_parts = []
+
+        # Add conversation history FIRST if available (✅ CRITICAL for context continuity)
+        if context.get('session_history'):
+            message_parts.append("## Previous Conversation:")
+            for msg in context['session_history'][-6:]:  # Last 6 messages (3 turns)
+                role = msg.get('role', 'user').capitalize()
+                content = msg.get('content', '')
+                # Truncate long messages
+                if len(content) > 500:
+                    content = content[:500] + "..."
+                message_parts.append(f"{role}: {content}")
+            message_parts.append("\n---\n")
+
+        # Current query
+        message_parts.append(f"## Current User Query:\n{query}")
 
         # Add page context
         if context.get('page_context'):
-            message_parts.append(f"\nCurrent page: {context['page_context']}")
+            page_info = context['page_context']
+            message_parts.append(f"\n## Current Page Context:")
+            message_parts.append(f"URL: {page_info.get('url', 'unknown')}")
+            message_parts.append(f"Page Type: {page_info.get('page_type', 'unknown')}")
+            if page_info.get('form_id'):
+                message_parts.append(f"Form ID: {page_info.get('form_id')}")
 
         # Add knowledge results
         if context.get('knowledge_results'):
-            message_parts.append("\nRelevant documentation:")
-            for result in context['knowledge_results'][:3]:
-                message_parts.append(f"- {result.get('content', '')[:200]}")
-
-        # Add session history
-        if context.get('session_history'):
-            message_parts.append("\nRecent conversation:")
-            for msg in context['session_history'][-3:]:
-                message_parts.append(f"- {msg}")
+            message_parts.append("\n## Relevant Documentation:")
+            for i, result in enumerate(context['knowledge_results'][:3], 1):
+                content = result.get('content', '')[:200]
+                message_parts.append(f"{i}. {content}...")
 
         return "\n".join(message_parts)
 
@@ -398,16 +460,22 @@ Response format (JSON):
                 if '```json' in content:
                     json_str = content.split('```json')[1].split('```')[0].strip()
                     parsed = json.loads(json_str)
+                elif '```' in content:
+                    # Try any code block
+                    json_str = content.split('```')[1].strip()
+                    if json_str.startswith('json'):
+                        json_str = json_str[4:].strip()
+                    parsed = json.loads(json_str)
                 else:
-                    # Default fallback
+                    # Default fallback - treat as chat
                     parsed = {
-                        "action": "explain_concept",
-                        "action_details": {"explanation": content},
-                        "reasoning": "Providing general explanation",
-                        "confidence": 0.5
+                        "action": "chat",
+                        "action_details": {"message": content},
+                        "reasoning": "Providing conversational response",
+                        "confidence": 0.7
                     }
 
-            action = parsed.get('action', 'explain_concept')
+            action = parsed.get('action', 'chat')
             action_details = parsed.get('action_details', {})
             reasoning = parsed.get('reasoning', '')
             confidence = parsed.get('confidence', 0.5)
@@ -416,7 +484,7 @@ Response format (JSON):
 
         except Exception as e:
             logger.error(f"Error parsing LLM response: {e}")
-            return "explain_concept", {"error": "Failed to parse response"}, str(e), 0.0
+            return "chat", {"message": "I encountered an error processing your request.", "error": str(e)}, "Error fallback", 0.0
 
     async def _create_session(self, user_id: UUID) -> UUID:
         """Create new AI helper session"""
@@ -424,15 +492,23 @@ Response format (JSON):
             user_id=user_id,
             session_type='general',
             status='active',
-            context={}
+            context={'history': []}  # ✅ Initialize with empty history
         )
         self.db.add(session)
         self.db.commit()
         self.db.refresh(session)
         return session.id
 
-    async def _update_session(self, session_id: UUID, llm_response: Dict[str, Any]):
-        """Update session with latest interaction"""
+    async def _update_session(
+        self,
+        session_id: UUID,
+        user_query: str,              # ✅ FIXED: Need the query
+        llm_response: Dict[str, Any],
+        ai_action: str                # ✅ FIXED: Need the action
+    ):
+        """
+        Update session with latest interaction (✅ FIXED - now saves conversation history)
+        """
         session = self.db.query(AIHelperSession).filter(
             AIHelperSession.id == session_id
         ).first()
@@ -443,7 +519,37 @@ Response format (JSON):
             session.total_tokens_used += llm_response.get('usage', {}).get('total_tokens', 0)
             cost_float = self._calculate_cost(llm_response)
             session.total_cost_usd += Decimal(str(cost_float))
+
+            # ✅ CRITICAL FIX: Save conversation history to session.context
+            if not session.context:
+                session.context = {'history': []}
+
+            history = session.context.get('history', [])
+
+            # Add user query
+            history.append({
+                'role': 'user',
+                'content': user_query,
+                'timestamp': datetime.utcnow().isoformat()
+            })
+
+            # Add AI response
+            llm_content = ""
+            if llm_response.get('choices'):
+                llm_content = llm_response['choices'][0].get('message', {}).get('content', '')
+
+            history.append({
+                'role': 'assistant',
+                'content': llm_content,
+                'action': ai_action,
+                'timestamp': datetime.utcnow().isoformat()
+            })
+
+            # Keep only last 20 messages (10 conversation turns)
+            session.context['history'] = history[-20:]
+
             self.db.commit()
+            logger.debug(f"Session {session_id} updated with conversation history (total messages: {len(session.context['history'])})")
 
     async def _get_config(self) -> Dict[str, Any]:
         """Get AI helper configuration"""
@@ -466,6 +572,8 @@ Response format (JSON):
         # Remove full content, keep only metadata
         if 'knowledge_results' in sanitized:
             sanitized['knowledge_results'] = f"{len(sanitized['knowledge_results'])} results"
+        if 'session_history' in sanitized:
+            sanitized['session_history'] = f"{len(sanitized['session_history'])} messages"
         return sanitized
 
     def _calculate_cost(self, llm_response: Dict[str, Any]) -> float:
