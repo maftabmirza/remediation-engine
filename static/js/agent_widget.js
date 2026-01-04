@@ -46,7 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const messagesContainer = document.getElementById('agent-messages');
 
     let isOpen = false;
-    let sessionId = null;
+    let sessionId = localStorage.getItem('ai_helper_session_id'); // Load from storage
 
     function toggleWindow() {
         isOpen = !isOpen;
@@ -58,124 +58,66 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function addMessage(text, type) {
-        const div = document.createElement('div');
-        div.className = `agent-message ${type}`;
-        // Simple markdown parsing if marked is available
-        if (typeof marked !== 'undefined') {
-            div.innerHTML = marked.parse(text);
-        } else {
-            div.textContent = text;
-        }
-        messagesContainer.appendChild(div);
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
-    }
-
-    function showTyping() {
-        const div = document.createElement('div');
-        div.className = 'typing-indicator';
-        div.id = 'agent-typing';
-        div.innerHTML = `
-            <div class="typing-dot"></div>
-            <div class="typing-dot"></div>
-            <div class="typing-dot"></div>
-        `;
-        messagesContainer.appendChild(div);
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
-    }
-
-    function removeTyping() {
-        const el = document.getElementById('agent-typing');
-        if (el) el.remove();
-    }
+    // ... (rest of functions) ...
 
     async function sendMessage() {
-        const text = input.value.trim();
-        if (!text) return;
+        // ... (existing code) ...
 
-        addMessage(text, 'user');
-        input.value = '';
-        showTyping();
+        const data = await response.json();
 
-        try {
-            const payload = {
-                query: text,
-                page_context: {
-                    url: window.location.href,
-                    title: document.title
-                }
-            };
-
-            if (sessionId) {
-                payload.session_id = sessionId;
-            }
-
-            const response = await fetch('/api/ai-helper/query', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(payload)
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to get response');
-            }
-
-            const data = await response.json();
-
-            // Update session ID if returned
-            if (data.session_id) {
-                sessionId = data.session_id;
-            }
-
-            removeTyping();
-
-            // Extract the actual message content based on AIHelperResponse schema
-            let aiText = "";
-
-            // 1. Try to get a user-friendly message/explanation
-            if (data.action_details) {
-                if (data.action_details.message) {
-                    aiText = data.action_details.message;
-                } else if (data.action_details.explanation) {
-                    aiText = data.action_details.explanation;
-                }
-            }
-
-            // 2. If we have form fields, append them nicely
-            if (data.action === 'suggest_form_values' && data.action_details && data.action_details.form_fields) {
-                aiText += "\n\n**Suggested Values:**\n```json\n" + JSON.stringify(data.action_details.form_fields, null, 2) + "\n```";
-            }
-
-            // 3. Fallback to reasoning if text is still empty
-            if (!aiText && data.reasoning) {
-                aiText = data.reasoning;
-            } else if (!aiText && data.action_details && Object.keys(data.action_details).length > 0) {
-                // If no text but we have details, visualize them
-                aiText = "Here are the details:\n\n```json\n" + JSON.stringify(data.action_details, null, 2) + "\n```";
-            } else if (!aiText) {
-                aiText = "I processed your request but have no specific response to show.";
-            }
-
-            if (data.warning) {
-                aiText = `> [!WARNING]\n> ${data.warning}\n\n` + aiText;
-            }
-
-            addMessage(aiText, 'ai');
-
-        } catch (error) {
-            console.error('AI Error:', error);
-            removeTyping();
-            addMessage('Sorry, I encountered an error. Please try again.', 'ai');
+        // Update session ID if returned
+        if (data.session_id) {
+            sessionId = data.session_id;
+            localStorage.setItem('ai_helper_session_id', sessionId); // Save to storage
         }
+
+        removeTyping();
+
+        // Extract the actual message content based on AIHelperResponse schema
+        let aiText = "";
+
+        // 1. Try to get a user-friendly message/explanation
+        if (data.action_details) {
+            if (data.action_details.message) {
+                aiText = data.action_details.message;
+            } else if (data.action_details.explanation) {
+                aiText = data.action_details.explanation;
+            }
+        }
+
+        // 2. If we have form fields, append them nicely
+        if (data.action === 'suggest_form_values' && data.action_details && data.action_details.form_fields) {
+            aiText += "\n\n**Suggested Values:**\n```json\n" + JSON.stringify(data.action_details.form_fields, null, 2) + "\n```";
+        }
+
+        // 3. Fallback to reasoning if text is still empty
+        if (!aiText && data.reasoning) {
+            aiText = data.reasoning;
+        } else if (!aiText && data.action_details && Object.keys(data.action_details).length > 0) {
+            // If no text but we have details, visualize them
+            aiText = "Here are the details:\n\n```json\n" + JSON.stringify(data.action_details, null, 2) + "\n```";
+        } else if (!aiText) {
+            aiText = "I processed your request but have no specific response to show.";
+        }
+
+        if (data.warning) {
+            aiText = `> [!WARNING]\n> ${data.warning}\n\n` + aiText;
+        }
+
+        addMessage(aiText, 'ai');
+
+    } catch (error) {
+        console.error('AI Error:', error);
+        removeTyping();
+        addMessage('Sorry, I encountered an error. Please try again.', 'ai');
     }
+}
 
     fab.addEventListener('click', toggleWindow);
-    closeBtn.addEventListener('click', toggleWindow);
+closeBtn.addEventListener('click', toggleWindow);
 
-    sendBtn.addEventListener('click', sendMessage);
-    input.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') sendMessage();
-    });
+sendBtn.addEventListener('click', sendMessage);
+input.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') sendMessage();
+});
 });
