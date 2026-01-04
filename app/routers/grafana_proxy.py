@@ -56,8 +56,8 @@ async def grafana_proxy(
 
     # Copy important headers
     for header_name, header_value in request.headers.items():
-        # Skip headers that shouldn't be forwarded
-        if header_name.lower() not in ['host', 'connection', 'content-length']:
+        # Skip headers that shouldn't be forwarded or might cause compression/encoding issues
+        if header_name.lower() not in ['host', 'connection', 'content-length', 'accept-encoding']:
             headers[header_name] = header_value
 
     # Add SSO authentication header
@@ -73,7 +73,6 @@ async def grafana_proxy(
 
     # Proxy the request to Grafana
     # IMPORTANT: Do NOT follow redirects - let the browser handle them
-    # This preserves authentication when Grafana redirects (e.g., / -> /login)
     async with httpx.AsyncClient(timeout=30.0, follow_redirects=False) as client:
         try:
             response = await client.request(
@@ -88,40 +87,37 @@ async def grafana_proxy(
             for header_name, header_value in response.headers.items():
                 # Skip headers that cause issues with proxying or iframe embedding
                 if header_name.lower() not in [
-                    'content-encoding',
-                    'content-length',
+                    'content-encoding', # We want to serve decoded content if we modify it
+                    'content-length',   # Length changes after modification
                     'transfer-encoding',
-                    'x-frame-options',  # Remove frame-busting header
-                    'content-security-policy',  # Remove CSP that restricts iframes
-                    'x-content-security-policy',  # Legacy CSP header
-                    'x-webkit-csp'  # WebKit CSP header
+                    'x-frame-options',
+                    'content-security-policy',
+                    'x-content-security-policy',
+                    'x-webkit-csp'
                 ]:
                     # Rewrite Location headers to go through our proxy
                     if header_name.lower() == 'location':
-                        # Grafana returns URLs with its configured root URL
-                        # e.g., http://localhost:8080/grafana/ or http://grafana:3000/...
-                        # We need to extract just the path and keep it relative to /grafana
-                        
-                        # Check if URL contains /grafana (Grafana's external URL pattern)
                         if '/grafana' in header_value:
-                            # Extract everything after /grafana
                             idx = header_value.find('/grafana')
-                            header_value = header_value[idx:]  # Keeps /grafana/...
+                            header_value = header_value[idx:]
                         elif header_value.startswith(GRAFANA_URL):
-                            # Internal Grafana URL - rewrite to external
                             header_value = header_value.replace(GRAFANA_URL, '/grafana')
                         elif header_value.startswith('/'):
-                            # Relative redirect - prefix with /grafana
                             header_value = f'/grafana{header_value}'
                     response_headers[header_name] = header_value
 
             # Process HTML responses for branding injection
             response_content = response.content
-            if 'text/html' in response.headers.get('content-type', ''):
+            
+            # Check for HTML content type (case-insensitive)
+            content_type = response.headers.get('content-type', '').lower()
+            if 'text/html' in content_type:
                 try:
+                    # httpx handles encoding if accessed via .text, but .content is raw bytes
+                    # Since we stripped Accept-Encoding, it should be plain text (utf-8 usually)
                     html_content = response.content.decode('utf-8')
                     
-                    # Inject inline CSS to hide Grafana branding and logo
+                    # Inject inline CSS to hide Grafana branding
                     custom_css = '''<style>
                     /* Hide Grafana logo and branding */
                     .css-1drra8y, [href*="grafana.com"], img[src*="grafana_icon.svg"],
@@ -140,9 +136,7 @@ async def grafana_proxy(
                     }
                     </style>
                     <script>
-                    // Hide Grafana branding elements by exact text content
                     function hideGrafanaBranding() {
-                        // Only target specific heading elements with exact text match
                         document.querySelectorAll('h1, h2, h3').forEach(el => {
                             const text = (el.textContent || '').trim();
                             if (text === 'Welcome to Grafana' || text === 'Welcome to AIOps' || 
@@ -150,9 +144,7 @@ async def grafana_proxy(
                                 el.style.display = 'none';
                             }
                         });
-                        // Hide the news/blog section container - look for specific patterns
                         document.querySelectorAll('section, article, div').forEach(el => {
-                            // Check direct children for blog heading
                             const heading = el.querySelector(':scope > h1, :scope > h2, :scope > h3, :scope > h4');
                             if (heading) {
                                 const text = (heading.textContent || '').trim();
@@ -162,28 +154,45 @@ async def grafana_proxy(
                             }
                         });
                     }
-                    // Run after content loads - careful timing
                     setTimeout(hideGrafanaBranding, 1000);
                     setTimeout(hideGrafanaBranding, 2500);
                     setTimeout(hideGrafanaBranding, 5000);
                     </script>'''
+                    
                     if '</head>' in html_content:
                         html_content = html_content.replace('</head>', f'{custom_css}</head>')
                     
-                    # Replace "Grafana" text with "AIOps" in specific contexts only
-                    # Target title tags specifically to avoid unintended replacements
-                    # Replace in title tags
+                    # Replace "Grafana" text with "AIOps"
                     html_content = re.sub(r'<title>([^<]*?)Grafana([^<]*?)</title>', 
                                          r'<title>\1AIOps\2</title>', 
                                          html_content, flags=re.IGNORECASE)
-                    # Replace in visible text (between tags) but not in attributes or scripts
                     html_content = re.sub(r'>(\s*)Grafana(\s*)<', 
                                          r'>\1AIOps\2<', 
                                          html_content)
+
+                    # INJECT AI AGENT WIDGET
+                    ai_agent_injection = '''
+                    <!-- AI Agent Widget Injection -->
+                    <link href="/static/css/agent_widget.css" rel="stylesheet">
+                    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+                    <script src="/static/js/agent_widget.js"></script>
+                    <!-- End AI Agent Widget -->
+                    '''
+                    
+                    # More robust injection: Try closing body tag, then case-insensitive regex, then append
+                    if '</body>' in html_content:
+                        html_content = html_content.replace('</body>', f'{ai_agent_injection}</body>')
+                    else:
+                        # Case insensitive regex replacement
+                        html_content, count = re.subn(r'</body>', f'{ai_agent_injection}</body>', html_content, count=1, flags=re.IGNORECASE)
+                        if count == 0:
+                            # Fallback: Just append to end
+                            html_content += ai_agent_injection
                     
                     response_content = html_content.encode('utf-8')
-                except (UnicodeDecodeError, AttributeError):
-                    # If decoding fails, use original content
+                except Exception as e:
+                    print(f"Error injecting content into Grafana response: {e}")
+                    # Fallback to original content
                     response_content = response.content
 
             # Return proxied response

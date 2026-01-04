@@ -1108,9 +1108,11 @@
     <!-- marked.js for Markdown rendering -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     {% block scripts %}{% endblock %}
+    {% block ai_agent %}
     <!-- AI Agent Widget -->
     <link href="/static/css/agent_widget.css" rel="stylesheet">
     <script src="/static/js/agent_widget.js"></script>
+    {% endblock %}
 </body>
 
 </html>

@@ -2,57 +2,61 @@
 
 {% block title %}Logs - Loki{% endblock %}
 
-{% block extra_css %}
-.grafana-container {
-position: fixed !important;
-top: 6px !important;
-left: 104px !important;
-right: 24px !important;
-bottom: 24px !important;
-overflow: hidden !important;
-background: #111 !important;
-transition: left 0.3s ease;
-z-index: 10;
-border-radius: 8px;
-}
+{% block head %}
+{{ super() }}
+<style>
+    .grafana-container {
+        position: fixed !important;
+        top: 0 !important;
+        left: 80px !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        overflow: hidden !important;
+        background: #111 !important;
+        transition: left 0.3s ease;
+        z-index: 10;
+    }
 
-.grafana-container iframe {
-border: none !important;
-display: block !important;
-width: 100% !important;
-height: 100% !important;
-min-height: 700px !important;
-}
+    .grafana-container iframe {
+        border: none !important;
+        display: block !important;
+        width: 100% !important;
+        height: 100% !important;
+        min-height: 700px !important;
+    }
 
-.grafana-loading {
-position: absolute;
-top: 50%;
-left: 50%;
-transform: translate(-50%, -50%);
-color: #aaa;
-font-size: 18px;
-text-align: center;
-}
+    .grafana-loading {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: #aaa;
+        font-size: 18px;
+        text-align: center;
+    }
 
-.grafana-loading .spinner {
-width: 50px;
-height: 50px;
-border: 4px solid #333;
-border-top-color: #1f77b4;
-border-radius: 50%;
-animation: grafana-spin 1s linear infinite;
-margin: 0 auto 20px;
-}
+    .grafana-loading .spinner {
+        width: 50px;
+        height: 50px;
+        border: 4px solid #333;
+        border-top-color: #1f77b4;
+        border-radius: 50%;
+        animation: grafana-spin 1s linear infinite;
+        margin: 0 auto 20px;
+    }
 
-@keyframes grafana-spin {
-to { transform: rotate(360deg); }
-}
+    @keyframes grafana-spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
 
-@media (max-width: 768px) {
-.grafana-container {
-left: 24px !important;
-}
-}
+    @media (max-width: 768px) {
+        .grafana-container {
+            left: 0 !important;
+        }
+    }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -88,4 +92,8 @@ left: 24px !important;
         }
     });
 </script>
+{% endblock %}
+
+{% block ai_agent %}
+<!-- AI Agent disabled in wrapper (injected inside iframe) -->
 {% endblock %}

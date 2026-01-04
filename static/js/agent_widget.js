@@ -90,6 +90,157 @@ document.addEventListener('DOMContentLoaded', () => {
         if (el) el.remove();
     }
 
+    // Extract rich page context for AI Helper
+    function getPageContext() {
+        const context = {
+            url: window.location.href,
+            title: document.title,
+            page_type: 'unknown',
+            form_data: {},
+            visible_content: {}
+        };
+
+        // Detect page type
+        if (window.location.pathname.includes('/panels')) {
+            context.page_type = 'panels';
+        } else if (window.location.pathname.includes('/runbooks')) {
+            context.page_type = 'runbooks';
+        } else if (window.location.pathname.includes('/alerts')) {
+            context.page_type = 'alerts';
+        } else if (window.location.pathname.includes('/knowledge')) {
+            context.page_type = 'knowledge';
+        } else if (window.location.pathname.includes('/dashboards')) {
+            context.page_type = 'dashboards';
+        }
+
+        // Extract form data if a modal is open
+        const modal = document.querySelector('.fixed:not(.hidden)');
+        if (modal) {
+            // Get all input fields
+            const inputs = modal.querySelectorAll('input:not([type="hidden"]), textarea, select');
+            inputs.forEach(input => {
+                const label = input.id || input.name;
+                if (label && input.value) {
+                    context.form_data[label] = input.value;
+                }
+            });
+
+            // Special handling for CodeMirror editors (PromQL query)
+            const cmEditors = modal.querySelectorAll('.CodeMirror');
+            cmEditors.forEach((cm, idx) => {
+                if (cm.CodeMirror) {
+                    const query = cm.CodeMirror.getValue();
+                    if (query) {
+                        context.form_data['promql_query'] = query;
+                    }
+                }
+            });
+        }
+
+        // Also check for global queryEditor (panels page specific)
+        if (typeof queryEditor !== 'undefined' && queryEditor && typeof queryEditor.getValue === 'function') {
+            const query = queryEditor.getValue();
+            if (query) {
+                context.form_data['promql_query'] = query;
+            }
+        }
+
+        // Check for Grafana Iframe (Same-Origin via Proxy)
+        const grafanaIframe = document.getElementById('grafana-iframe');
+        if (grafanaIframe) {
+            context.is_grafana = true;
+            try {
+                // Try to access iframe content (only works if same-origin)
+                const iframeDoc = grafanaIframe.contentDocument || grafanaIframe.contentWindow.document;
+                if (iframeDoc) {
+                    context.grafana_url = iframeDoc.location.href;
+                    context.grafana_title = iframeDoc.title;
+
+                    // Try to finding queries in Grafana (very specific selectors, might change)
+                    const queryInputs = iframeDoc.querySelectorAll('textarea[class*="query"], .monaco-editor');
+                    if (queryInputs.length > 0) {
+                        context.has_grafana_query_editor = true;
+                    }
+                }
+            } catch (e) {
+                console.log('Cannot access Grafana iframe content (likely cross-origin restriction even with proxy):', e);
+                context.grafana_access_error = true;
+            }
+        }
+
+        // Check if running INSIDE Grafana (Native Injection)
+        if (window.location.pathname.startsWith('/grafana/')) {
+            context.is_grafana = true;
+            context.is_native_grafana = true; // Flag to indicate we are inside
+
+            // We can access DOM directly!
+            // Try to find CodeMirror editors (Old Grafana / Specific Plugins)
+            const codeMirrors = document.querySelectorAll('.CodeMirror');
+            codeMirrors.forEach(cm => {
+                if (cm.CodeMirror) {
+                    const query = cm.CodeMirror.getValue();
+                    if (query) context.form_data['promql_query'] = query;
+                }
+            });
+
+            // Try to read textual queries from Monaco Editor (New Grafana)
+            // Try getting content from Monaco Editor (Global)
+            if (window.monaco && window.monaco.editor) {
+                try {
+                    const models = window.monaco.editor.getModels();
+                    if (models.length > 0) {
+                        // Filter for likely query models (non-empty)
+                        const relevantModels = models.filter(m => m.getValue().trim().length > 0);
+                        // Enhance: Join with separator to distinguish multiple queries if present
+                        const code = relevantModels.map(m => m.getValue()).join('\n\n---\n\n');
+
+                        // We relax the check: if there is ANY code, we take it.
+                        if (code && code.trim().length > 0) {
+                            context.form_data['monaco_query'] = code;
+                            context.form_data['promql_query'] = code;
+                        }
+                    }
+                } catch (e) {
+                    console.log('Error accessing Monaco models:', e);
+                }
+            }
+
+            // Fallback: Scrape text from Monaco DOM lines (Visual scraping)
+            // Only runs if we haven't found a query yet from the official API
+            if (!context.form_data['promql_query']) {
+                const monacoLines = document.querySelectorAll('.monaco-editor .view-lines');
+                let fullText = "";
+                monacoLines.forEach(lines => {
+                    fullText += lines.innerText + "\n";
+                    // Add newline after each line div
+                });
+
+                // Also check for Slate editor (used in some explore/prometheus views)
+                if (!fullText) {
+                    const slateLines = document.querySelectorAll('[data-slate-editor="true"]');
+                    slateLines.forEach(line => {
+                        fullText += line.innerText + "\n";
+                    });
+                }
+
+                // Generous check: If we have > 2 chars, it might be a query (e.g. "up")
+                if (fullText && fullText.trim().length > 2) {
+                    context.form_data['promql_query'] = fullText.trim();
+                }
+            }
+
+            // General textarea fallback
+            const textareas = document.querySelectorAll('textarea');
+            textareas.forEach(ta => {
+                if (ta.value && (ta.value.includes('rate(') || ta.value.includes('{') || ta.value.length > 10)) {
+                    context.form_data['potential_promql'] = ta.value;
+                }
+            });
+        }
+
+        return context;
+    }
+
     async function sendMessage() {
         const text = input.value.trim();
         if (!text) return;
@@ -101,10 +252,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const payload = {
                 query: text,
-                page_context: {
-                    url: window.location.href,
-                    title: document.title
-                }
+                page_context: getPageContext()
             };
 
             if (sessionId) {

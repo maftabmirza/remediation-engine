@@ -353,6 +353,7 @@ IMPORTANT RULES:
 3. For form assistance, provide SPECIFIC field values in structured format
 4. Never access credentials, execute commands, or modify data directly
 5. Remember previous conversation context when responding
+6. When suggesting PromQL queries, use the 'explain_concept' or 'chat' action with markdown code blocks for easy copying
 
 EXAMPLES:
 
@@ -362,18 +363,11 @@ Example 1 - Suggesting form values for a runbook:
   "action_details": {
     "form_fields": {
       "name": "Apache2 Restart Runbook",
-      "description": "Automatically restart Apache2 service when it fails",
-      "server": "t-aisop-01",
-      "steps": [
-        {"command": "systemctl status apache2", "description": "Check current status"},
-        {"command": "systemctl restart apache2", "description": "Restart service"},
-        {"command": "systemctl status apache2", "description": "Verify restart succeeded"}
-      ],
-      "notification_enabled": true
+      "description": "Automatically restart Apache2 service when it fails"
     },
-    "explanation": "These values will create a runbook to restart Apache2 on server t-aisop-01. The user needs to fill these values in the form and click 'Create'."
+    "explanation": "These values will create a runbook. Copy them to the form."
   },
-  "reasoning": "User requested a runbook to restart Apache2 on t-aisop-01",
+  "reasoning": "User requested a runbook to restart Apache2",
   "confidence": 0.9
 }
 
@@ -387,15 +381,15 @@ Example 2 - General chat:
   "confidence": 1.0
 }
 
-Example 3 - Explaining a concept:
+Example 3 - Explaining PromQL (PREFERRED for query suggestions):
 {
   "action": "explain_concept",
   "action_details": {
-    "concept": "runbooks",
-    "explanation": "Runbooks are automated remediation scripts that execute predefined steps to resolve issues. They can check service status, restart services, or perform other maintenance tasks."
+    "concept": "PromQL Query Analysis",
+    "explanation": "Your current query monitors network traffic. To filter for a specific server, add the instance label like this:\\n\\n```promql\\nrate(node_network_transmit_bytes_total{instance=\\"server-name:9100\\"}[5m]) / 1024 / 1024\\n```\\n\\nReplace `server-name` with your actual server hostname or IP.\\n\\n**Key points:**\\n- The `{instance=\\"...\\"}` filter selects specific servers\\n- The `[5m]` is the time range for rate calculation\\n- Result is in MB/s"
   },
-  "reasoning": "User asking about what runbooks are",
-  "confidence": 1.0
+  "reasoning": "User asked about PromQL query targeting specific servers",
+  "confidence": 0.95
 }
 
 Response format (JSON):
@@ -435,6 +429,36 @@ Response format (JSON):
             message_parts.append(f"Page Type: {page_info.get('page_type', 'unknown')}")
             if page_info.get('form_id'):
                 message_parts.append(f"Form ID: {page_info.get('form_id')}")
+            
+            # Add form data if present (includes PromQL queries!)
+            form_data = page_info.get('form_data', {})
+            if form_data:
+                message_parts.append("\n## Form Data on Page:")
+                for key, value in form_data.items():
+                    if value:  # Only add non-empty values
+                        # Special formatting for PromQL
+                        if 'promql' in key.lower() or 'query' in key.lower():
+                            message_parts.append(f"\n**PromQL Query:**\n```promql\n{value}\n```")
+                        else:
+                            message_parts.append(f"- {key}: {value}")
+                            
+            # Add Grafana Context
+            if page_info.get('is_grafana'):
+                message_parts.append("\n## Grafana Context:")
+                message_parts.append(f"- Is Grafana Page: Yes")
+                if page_info.get('grafana_title'):
+                    message_parts.append(f"- Dashboard Title: {page_info.get('grafana_title')}")
+                if page_info.get('grafana_url'):
+                    message_parts.append(f"- Internal URL: {page_info.get('grafana_url')}")
+                
+                if page_info.get('grafana_access_error'):
+                    message_parts.append("\n**NOTE:** Unable to read internal Grafana content due to security restrictions. Ask user to copy PromQL manually.")
+                elif page_info.get('is_native_grafana'):
+                    message_parts.append("\n**NOTE:** Running natively inside Grafana. You have access to DOM elements.")
+                    if not message_parts[-1].count('PromQL Query:'):
+                         message_parts.append("However, no active query was found in the editor context yet.")
+                else:
+                    message_parts.append("\n**NOTE:** Connected to Grafana via Proxy. Direct query extraction is limited. If user asks about a query, ask them to copy it.")
 
         # Add knowledge results
         if context.get('knowledge_results'):

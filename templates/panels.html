@@ -537,6 +537,7 @@
 <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/addon/hint/show-hint.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/addon/edit/matchbrackets.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/addon/edit/closebrackets.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/keymap/sublime.min.js"></script>
 
 <script>
     let panels = [];
@@ -794,6 +795,8 @@
                 matchBrackets: true,
                 autoCloseBrackets: true,
                 lineWrapping: true,
+                keyMap: 'sublime',  // Enable sublime keybindings (Ctrl+C, Ctrl+V, etc.)
+                inputStyle: 'contenteditable',  // Better clipboard support
                 placeholder: 'Example: rate(http_requests_total[5m])'
             });
         } else {
