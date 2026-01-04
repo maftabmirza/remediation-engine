@@ -44,10 +44,11 @@ class GitSyncService:
             logger.error(f"Git command failed: {e.stderr}")
             raise Exception(f"Git command failed: {e.stderr}")
 
-    def sync_repository(self, repo_url: str, app_id: Optional[UUID] = None, branch: str = "main", user_id: Optional[UUID] = None, sync_mode: str = "all") -> dict:
+    def sync_repository(self, repo_url: str, app_id: Optional[UUID] = None, branch: str = "main", user_id: Optional[UUID] = None, sync_mode: str = "all", force_update: bool = False) -> dict:
         """
         Clone/pull a repo and import markdown files.
         sync_mode: 'all', 'docs_only', 'code_only'
+        force_update: If True, update existing documents instead of skipping
         """
         temp_dir = tempfile.mkdtemp(prefix="kb_sync_")
         stats = {"found": 0, "processed": 0, "errors": 0}
@@ -101,7 +102,7 @@ class GitSyncService:
                         logger.info(f"[MATCH] Processing file: {file} (Ext: {file_path.suffix})")
                         
                         try:
-                            self._process_file(file_path, repo_url, app_id, user_id, branch)
+                            self._process_file(file_path, repo_url, app_id, user_id, branch, force_update)
                             stats["processed"] += 1
                         except Exception as e:
                             logger.error(f"[ERROR] Failed to process {file}: {e}")
@@ -120,7 +121,7 @@ class GitSyncService:
             if os.path.exists(temp_dir):
                 shutil.rmtree(temp_dir)
 
-    def _process_file(self, file_path: Path, repo_url: str, app_id: Optional[UUID], user_id: Optional[UUID], branch: str = "main"):
+    def _process_file(self, file_path: Path, repo_url: str, app_id: Optional[UUID], user_id: Optional[UUID], branch: str = "main", force_update: bool = False):
         """Read and import a single file."""
         try:
             content = file_path.read_text(encoding="utf-8")
@@ -152,14 +153,43 @@ class GitSyncService:
         source_url = f"{repo_url}/blob/{branch}/{rel_path}"
         
         # Check if document with this source_url already exists
-        from app.models_knowledge import DesignDocument
+        from app.models_knowledge import DesignDocument, DesignChunk
         try:
             existing = self.db.query(DesignDocument).filter(
                 DesignDocument.source_url == source_url
             ).first()
             
             if existing:
-                logger.info(f"[SKIP] Document already exists: {title}")
+                if force_update:
+                    # Update existing document
+                    logger.info(f"[UPDATE] Updating existing document: {title}")
+                    existing.raw_content = content
+                    existing.title = title
+                    
+                    # Delete old chunks
+                    self.db.query(DesignChunk).filter(
+                        DesignChunk.source_type == 'document',
+                        DesignChunk.source_id == existing.id
+                    ).delete()
+                    
+                    # Create new chunks
+                    chunks = self.doc_service.create_chunks_for_document(existing)
+                    logger.info(f"[CHUNKS] Created {len(chunks)} chunks for {title}")
+                    
+                    # Generate embeddings
+                    if self.embedding_service.is_configured() and chunks:
+                        chunk_texts = [chunk.content for chunk in chunks]
+                        embeddings = self.embedding_service.generate_embeddings_batch(chunk_texts)
+                        embedded_count = 0
+                        for chunk, embedding in zip(chunks, embeddings):
+                            if embedding:
+                                chunk.embedding = embedding
+                                embedded_count += 1
+                        logger.info(f"[EMBED] Generated {embedded_count} embeddings for {title}")
+                    
+                    self.db.commit()
+                else:
+                    logger.info(f"[SKIP] Document already exists: {title}")
                 return
             
             document = self.doc_service.create_document(
@@ -197,3 +227,4 @@ class GitSyncService:
             # Rollback and continue with next file
             self.db.rollback()
             raise e
+

@@ -159,9 +159,10 @@
         </div>
         <div class="card p-3 flex items-center justify-between bg-[#181b1f] border border-[rgba(204,204,220,0.12)]">
             <div>
-                <p class="text-xs text-gray-400">Chunks / Embedding</p>
+                <p class="text-xs text-gray-400">Chunks / Embeddings</p>
                 <div class="flex items-center gap-2">
-                    <p id="totalChunks" class="text-xl font-bold text-white">-</p>
+                    <p class="text-xl font-bold text-white"><span id="totalChunks">-</span> / <span
+                            id="totalEmbeddings">-</span></p>
                     <span id="embeddingStatus" class="text-xs text-gray-400"></span>
                 </div>
             </div>
@@ -426,10 +427,17 @@
                 </select>
             </div>
 
+            <div class="flex items-center gap-2">
+                <input type="checkbox" name="force_update" id="syncForceUpdate"
+                    class="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500">
+                <label for="syncForceUpdate" class="text-sm text-gray-300">Force Update</label>
+                <span class="text-xs text-gray-500">(Re-sync changed files)</span>
+            </div>
+
             <div class="bg-blue-500/10 border border-blue-500/30 rounded p-3 text-xs text-blue-300">
                 <i class="fas fa-info-circle mr-1"></i>
-                This will clone the repo, ingest all <code>.md</code> files, and intelligently chunk them into the
-                knowledge base.
+                Syncs code and docs into the knowledge base. <strong>Force Update</strong> will re-import and update
+                existing files.
             </div>
 
             <div class="flex justify-end space-x-2 pt-2">
@@ -539,9 +547,18 @@
             const stats = await response.json();
             document.getElementById('totalDocs').textContent = stats.total_documents;
             document.getElementById('totalChunks').textContent = stats.total_chunks;
+            document.getElementById('totalEmbeddings').textContent = stats.total_embeddings || 0;
             const statusEl = document.getElementById('embeddingStatus');
-            statusEl.textContent = stats.embedding_configured ? '✓ OK' : '⚠ No Embeddings';
-            statusEl.className = stats.embedding_configured ? 'text-green-400 text-xs' : 'text-yellow-400 text-xs';
+            if (stats.total_embeddings === stats.total_chunks && stats.total_chunks > 0) {
+                statusEl.textContent = '✓';
+                statusEl.className = 'text-green-400 text-xs';
+            } else if (!stats.embedding_configured) {
+                statusEl.textContent = '⚠ No API Key';
+                statusEl.className = 'text-yellow-400 text-xs';
+            } else {
+                statusEl.textContent = '';
+                statusEl.className = 'text-gray-400 text-xs';
+            }
         } catch (error) {
             console.error('Failed to load stats:', error);
         }
@@ -732,6 +749,7 @@
         const branch = form.branch.value;
         const app_id = form.app_id.value;
         const sync_mode = form.sync_mode.value;
+        const force_update = form.force_update.checked;
 
         if (!app_id) {
             showToast('Please select an application', 'error');
@@ -744,7 +762,7 @@
         try {
             const response = await apiCall('/api/knowledge/sync/git', {
                 method: 'POST',
-                body: JSON.stringify({ repo_url, branch, app_id, sync_mode })
+                body: JSON.stringify({ repo_url, branch, app_id, sync_mode, force_update })
             });
 
             if (response.ok) {

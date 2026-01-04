@@ -354,6 +354,10 @@ async def get_knowledge_stats(
     total_documents = doc_query.count()
     total_chunks = chunk_query.count()
     
+    # Count embeddings (chunks with non-null embedding)
+    embedding_query = chunk_query.filter(DesignChunk.embedding != None)
+    total_embeddings = embedding_query.count()
+    
     # Count by doc type
     docs_by_type = db.query(
         DesignDocument.doc_type,
@@ -363,10 +367,12 @@ async def get_knowledge_stats(
     return {
         "total_documents": total_documents,
         "total_chunks": total_chunks,
+        "total_embeddings": total_embeddings,
         "documents_by_type": {doc_type: count for doc_type, count in docs_by_type},
         "embedding_model": EmbeddingService().get_embedding_model(),
         "embedding_configured": EmbeddingService().is_configured()
     }
+
 
 
 # ============================================================================
@@ -381,6 +387,7 @@ class GitSyncRequest(BaseModel):
     branch: str = "main"
     app_id: Optional[UUID] = None
     sync_mode: str = "all"  # 'all', 'docs_only', 'code_only'
+    force_update: bool = False  # If true, update existing documents
 
 @router.post("/sync/git", status_code=status.HTTP_200_OK)
 async def sync_git_repository(
@@ -399,7 +406,8 @@ async def sync_git_repository(
             app_id=sync_req.app_id,
             branch=sync_req.branch,
             user_id=current_user.id,
-            sync_mode=sync_req.sync_mode
+            sync_mode=sync_req.sync_mode,
+            force_update=sync_req.force_update
         )
         return {
             "message": "Git sync completed",
