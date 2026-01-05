@@ -397,9 +397,12 @@ async def test_datasource(
                 message=f"Connection timeout after {datasource.timeout}s"
             )
         except httpx.ConnectError:
+            msg = f"Cannot connect to {datasource.url}"
+            if "localhost" in datasource.url or "127.0.0.1" in datasource.url:
+                msg += ". If running in Docker, try 'http://prometheus:9090' instead of localhost."
             return DatasourceTestResult(
                 success=False,
-                message=f"Cannot connect to {datasource.url}"
+                message=msg
             )
         except Exception as e:
             return DatasourceTestResult(

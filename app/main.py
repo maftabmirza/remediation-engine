@@ -72,6 +72,7 @@ from app.routers import (
     query_history_api,  # Prometheus Dashboard Builder - Query History
     dashboard_permissions_api,  # Dashboard Permissions
     grafana_proxy,  # Grafana Integration - SSO Proxy
+    prometheus_proxy,  # Prometheus Integration - Proxy
     ai_helper_api  # AI Helper with Security Controls
 )
 from app import api_credential_profiles
@@ -305,6 +306,7 @@ app.include_router(rows_api.router)         # Prometheus Dashboard Builder - Pan
 app.include_router(query_history_api.router) # Prometheus Dashboard Builder - Query History
 app.include_router(dashboard_permissions_api.router) # Dashboard Permissions
 app.include_router(grafana_proxy.router)    # Grafana Integration - SSO Proxy
+app.include_router(prometheus_proxy.router) # Prometheus Integration - Proxy
 app.include_router(ai_helper_api.router)    # AI Helper with Security Controls
 
 
@@ -965,6 +967,26 @@ async def grafana_diagnostic_page(request: Request):
     """
     return templates.TemplateResponse("grafana_diagnostic.html", {
         "request": request
+    })
+
+
+# ============== Prometheus View Page ==============
+
+@app.get("/prometheus-view", response_class=HTMLResponse)
+async def prometheus_view_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    View Prometheus UI via Proxy
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    return templates.TemplateResponse("prometheus_view.html", {
+        "request": request,
+        "user": current_user,
+        "active_page": "prometheus-view" 
     })
 
 
