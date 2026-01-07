@@ -18,7 +18,8 @@ class PromptService:
         alert: Optional[Alert] = None,
         correlation: Optional[AlertCorrelation] = None,
         similar_incidents: List[Dict[str, Any]] = [],
-        feedback_history: List[AnalysisFeedback] = []
+        feedback_history: List[AnalysisFeedback] = [],
+        ranked_solutions: Optional[Dict[str, Any]] = None  # NEW
     ) -> str:
         """
         Generate the system prompt for the chat assistant.
@@ -41,6 +42,25 @@ You are pair-programming with the user to resolve a production incident.
 """
         
         context_sections = []
+
+        # NEW: Solution formatting instructions
+        if ranked_solutions:
+            solutions = ranked_solutions.get('solutions', [])
+            strategy = ranked_solutions.get('presentation_strategy', 'single_solution')
+            
+            context_sections.append(f"""
+## RUNBOOK CONTEXT:
+
+You have {len(solutions)} runbook(s) available from our knowledge base.
+These are pre-formatted and ready to use - the links are correct.
+
+**Your Decision:**
+- If the runbook is relevant to the user's question, include it in your response
+- If it's not relevant, ignore it and answer with your own knowledge
+- You may add your own assessment or additional context
+
+The runbook content will be provided in a separate context block.
+""")
 
         if alert:
             context_sections.append(f"""

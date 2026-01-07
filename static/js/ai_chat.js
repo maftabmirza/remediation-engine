@@ -824,31 +824,54 @@ function connectTerminal(serverId) {
 // Command Execution (simplified - uses API)
 async function executeCommandWithOutput(cardId, command) {
     const card = document.getElementById(cardId);
-    if (!card || !currentServerId) {
+
+    // Check if we have a connection (either managed Server ID OR active Ad-hoc socket)
+    const isSocketOpen = terminalSocket && terminalSocket.readyState === WebSocket.OPEN;
+
+    if (!card || (!currentServerId && !isSocketOpen)) {
         showToast('No server connected. Connect to a server first.', 'error');
         return;
     }
+
     const actionsDiv = card.querySelector('.cmd-actions');
-    actionsDiv.innerHTML = '<div class="flex-1 flex items-center justify-center text-blue-400 text-sm py-2"><i class="fas fa-spinner fa-spin mr-2"></i>Executing via SSH...</div>';
+    actionsDiv.innerHTML = '<div class="flex-1 flex items-center justify-center text-blue-400 text-sm py-2"><i class="fas fa-spinner fa-spin mr-2"></i>Executing...</div>';
+
     try {
-        const response = await apiCall(`/api/servers/${currentServerId}/execute`, {
-            method: 'POST',
-            body: JSON.stringify({ command: command, timeout: 60 })
-        });
-        const result = await response.json();
-        if (terminalSocket && terminalSocket.readyState === WebSocket.OPEN) {
-            terminalSocket.send(command + '\r');
+        let result = { exit_code: 0, success: true, stdout: '' };
+
+        // Only call API if we have a managed server ID
+        if (currentServerId) {
+            const response = await apiCall(`/api/servers/${currentServerId}/execute`, {
+                method: 'POST',
+                body: JSON.stringify({ command: command, timeout: 60 })
+            });
+            result = await response.json();
+        } else {
+            // Ad-hoc mode: We cannot use the API execute endpoint (it requires server_id).
+            // We rely purely on the WebSocket interaction.
+            // We simulate a "success" result because we can't easily capture exit code from raw socket stream here without complex logic.
+            // visual feedback will come from the terminal itself.
+            console.log('Ad-hoc mode: Skipping API audit log, sending to socket only.');
         }
-        const isSuccess = (result.exit_code === 0) || (result.success === true);
-        const output = result.stdout || result.stderr || (isSuccess ? 'Command completed successfully' : (result.error || 'Command failed'));
-        showCommandOutputInCard(cardId, command, output, isSuccess, result.exit_code);
-    } catch (error) {
-        console.error('Command execution failed:', error);
+
         if (terminalSocket && terminalSocket.readyState === WebSocket.OPEN) {
             terminalSocket.send(command + '\r');
             term.focus();
         }
-        showToast('Command execution failed: ' + error.message, 'error');
+
+        const isSuccess = (result.exit_code === 0) || (result.success === true);
+        const output = result.stdout || result.stderr || (currentServerId ? (isSuccess ? 'Command completed successfully' : (result.error || 'Command failed')) : 'Sent to terminal');
+
+        showCommandOutputInCard(cardId, command, output, isSuccess, result.exit_code);
+
+    } catch (error) {
+        console.error('Command execution failed:', error);
+        // Even if API fails, try sending to socket if open (fallback)
+        if (terminalSocket && terminalSocket.readyState === WebSocket.OPEN) {
+            terminalSocket.send(command + '\r');
+            term.focus();
+        }
+        showToast('Command execution error: ' + error.message, 'error');
     }
 }
 

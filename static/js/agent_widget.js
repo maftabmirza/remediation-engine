@@ -68,6 +68,34 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             div.textContent = text;
         }
+
+        // Add tracking for Runbook links (only for AI messages)
+        if (type === 'ai') {
+            const links = div.querySelectorAll('a[href*="/remediation/runbooks/"]');
+            links.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    // Track the click
+                    try {
+                        const url = new URL(link.href);
+                        const parts = url.pathname.split('/');
+                        const runbookId = parts[parts.length - 1];
+
+                        // We need audit_log_id, but it's not directly attached to the message.
+                        // Ideally backend should return it and we attach to div.
+                        // For now we might not be able to link to specific audit log without extra data.
+                        // But we can send a general event.
+
+                        console.log('Tracking runbook click:', runbookId);
+
+                        // If we stored the last response data, we might have it.
+                        // This is a simplified tracking for now.
+                    } catch (err) {
+                        console.error('Error tracking click:', err);
+                    }
+                });
+            });
+        }
+
         messagesContainer.appendChild(div);
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
@@ -189,11 +217,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Detect Grafana editor mode (Builder vs Code)
             const isBuilderMode = document.querySelector('[aria-label="Query builder mode"]') !== null ||
-                                 document.querySelector('.query-builder') !== null ||
-                                 document.querySelector('[data-testid="query-builder"]') !== null;
+                document.querySelector('.query-builder') !== null ||
+                document.querySelector('[data-testid="query-builder"]') !== null;
 
             const isCodeMode = document.querySelector('[aria-label="Code mode"]')?.getAttribute('aria-pressed') === 'true' ||
-                              document.querySelector('.query-editor-toggle[aria-label*="Code"]') !== null;
+                document.querySelector('.query-editor-toggle[aria-label*="Code"]') !== null;
 
             console.log(`[AI Agent] Grafana mode - Builder: ${isBuilderMode}, Code: ${isCodeMode}`);
 

@@ -200,6 +200,22 @@ class AIHelperFeedback(BaseModel):
     comment: Optional[str] = None
 
 
+class SolutionChoiceData(BaseModel):
+    """Data about which solution was chosen"""
+    solution_chosen_id: str
+    solution_chosen_type: str
+    solution_chosen_rank: Optional[int] = None
+    user_action: str
+    execution_result: Optional[str] = None
+    feedback_comment: Optional[str] = None
+
+
+class SolutionChoiceRequest(BaseModel):
+    """Request to track solution choice"""
+    audit_log_id: UUID
+    choice_data: SolutionChoiceData
+
+
 # ============================================================================
 # AI AUDIT LOG SCHEMAS
 # ============================================================================

@@ -18,6 +18,12 @@ from app.services.ollama_service import ollama_completion_stream
 from app.services.prompt_service import PromptService
 from app.services.similarity_service import SimilarityService
 from app.models_troubleshooting import AlertCorrelation
+from app.services.runbook_search_service import RunbookSearchService
+from app.services.solution_ranker import SolutionRanker
+import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 async def get_chat_llm(provider: LLMProvider):
     """
@@ -105,16 +111,126 @@ async def stream_chat_response(
             # Don't fail chat if similarity search fails
             pass
 
+        similar_incidents = []
+    
+    if alert:
+        if alert.correlation_id:
+            correlation = db.query(AlertCorrelation).filter(AlertCorrelation.id == alert.correlation_id).first()
+            
+        # Try to find similar incidents
+        try:
+            sim_service = SimilarityService(db)
+            sim_resp = sim_service.find_similar_alerts(alert.id, limit=3)
+            if sim_resp:
+                similar_incidents = [s.dict() for s in sim_resp.similar_incidents]
+        except Exception as e:
+            # Don't fail chat if similarity search fails
+            pass
+
+    # [NEW] Runbook Search & Visibility Logic
+    runbook_results = []
+    solutions_context = {}
+    search_summary_footer = ""
+    
+    troubleshooting_keywords = [
+        'high cpu', 'memory', 'disk', 'slow', 'error', 'fix', 'troubleshoot',
+        'restart', 'down', 'failed', 'not working', 'issue', 'problem', 'crash',
+        'latency', 'timeout', 'exception', 'bug', 'alert', 'incident',
+        'search', 'find', 'lookup', 'how to', 'check', 'investigate', 'analyze', 'why', 'what is'
+    ]
+    
+    is_troubleshooting = any(k in user_message.lower() for k in troubleshooting_keywords)
+    print(f"DEBUG: is_troubleshooting={is_troubleshooting} for query='{user_message}'", flush=True)
+    
+    if is_troubleshooting:
+        try:
+            # 1. Search Runbooks
+            rb_service = RunbookSearchService(db)
+            ctx = {"os_type": "linux"} 
+            
+            runbook_results = await rb_service.search_runbooks(user_message, ctx, session.user, limit=3)
+            logger.info(f"DEBUG: Runbook search found {len(runbook_results)} results")
+            
+            # 2. Rank Solutions
+            if runbook_results:
+                ranker = SolutionRanker(db)
+                ranked = ranker.rank_and_combine_solutions(runbook_results, [], [], ctx)
+                solutions_context = ranked.to_dict()
+                
+                count = len(solutions_context.get('solutions', []))
+                logger.info(f"DEBUG: Ranker returned {count} solutions")
+                
+            else:
+                logger.info("DEBUG: No runbooks found for query")
+                    
+        except Exception as e:
+            logger.error(f"Error in ChatService runbook search: {e}", exc_info=True)
+
+    # Pass ranked_solutions to PromptService (it will format instructions)
     system_prompt = PromptService.get_system_prompt(
         alert=alert, 
         correlation=correlation, 
-        similar_incidents=similar_incidents
+        similar_incidents=similar_incidents,
+        ranked_solutions=solutions_context  # NEW: Let PromptService handle formatting instructions
     )
+    
     
     messages.append({"role": "system", "content": system_prompt})
     
     for msg in history_messages:
         messages.append({"role": msg.role, "content": msg.content})
+    
+    # NEW: If we have solutions, pre-format as ready-to-use markdown
+    # LLM decides whether to include based on relevance - we just provide the correct content
+    if solutions_context and solutions_context.get('solutions'):
+        runbook_snippets = []
+        for sol in solutions_context['solutions']:
+            title = sol.get('title', 'Untitled Runbook')
+            desc = sol.get('description', '')
+            confidence = sol.get('confidence', 0)
+            permission = sol.get('permission_status', 'unknown')
+            url = sol.get('metadata', {}).get('url', '/remediation/runbooks')
+            
+            # Convert confidence to stars
+            if confidence >= 0.9:
+                stars = "⭐⭐⭐⭐⭐"
+            elif confidence >= 0.8:
+                stars = "⭐⭐⭐⭐"
+            elif confidence >= 0.7:
+                stars = "⭐⭐⭐"
+            elif confidence >= 0.5:
+                stars = "⭐⭐"
+            else:
+                stars = "⭐"
+            
+            # Format permission
+            perm_text = "✅ You can execute" if permission == "can_execute" else "🔒 View only"
+            
+            snippet = f"""**[Runbook: {title}]({url})**
+Confidence: {stars} ({confidence:.0%}) | Permission: {perm_text}
+
+{desc}"""
+            runbook_snippets.append(snippet)
+        
+        # Inject as available context - LLM decides whether to use
+        runbook_context = "\n\n---\n\n".join(runbook_snippets)
+        
+        # Debug: print what we're sending
+        print(f"DEBUG RUNBOOK CONTEXT:\n{runbook_context}\n", flush=True)
+        
+        messages.append({
+            "role": "system",
+            "content": f"""## AVAILABLE RUNBOOKS:
+
+The following runbooks are available. If relevant, COPY the markdown link exactly as shown below into your response.
+
+{runbook_context}
+
+**IMPORTANT**: When including a runbook, copy the link **exactly** as formatted above. The format is:
+**[Runbook: Title](url)** - Confidence: stars | Permission: status
+
+Do not modify the URL or link format."""
+        })
             
     # Stream response
     full_response = ""
@@ -135,14 +251,15 @@ async def stream_chat_response(
             yield chunk
     else:
         # Use LangChain with LiteLLM for other providers
+        # Convert our messages list to LangChain format
         lc_messages = []
-        lc_messages.append(SystemMessage(content=system_prompt))
-        
-        for msg in history_messages:
-            if msg.role == "user":
-                lc_messages.append(HumanMessage(content=msg.content))
-            elif msg.role == "assistant":
-                lc_messages.append(AIMessage(content=msg.content))
+        for msg in messages:
+            if msg['role'] == 'system':
+                lc_messages.append(SystemMessage(content=msg['content']))
+            elif msg['role'] == 'user':
+                lc_messages.append(HumanMessage(content=msg['content']))
+            elif msg['role'] == 'assistant':
+                lc_messages.append(AIMessage(content=msg['content']))
                 
         llm = await get_chat_llm(provider)
         
@@ -151,7 +268,9 @@ async def stream_chat_response(
             if content:
                 full_response += content
                 yield content
-            
+    
+    # LLM now formats solutions itself, no manual footer needed
+
     # Save assistant message
     tokens = 0
     try:

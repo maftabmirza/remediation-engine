@@ -1,0 +1,555 @@
+{% extends "layout.html" %}
+{% set active_page = 'runbooks' %}
+
+{% block title %}Runbook Details - AIOps Platform{% endblock %}
+
+{% block head %}
+<style>
+    .detail-card {
+        background-color: #181b1f;
+        border: 1px solid rgba(204, 204, 220, 0.12);
+        border-radius: 8px;
+        padding: 24px;
+    }
+
+    .badge {
+        padding: 4px 12px;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        display: inline-block;
+    }
+
+    .badge-active {
+        background-color: #1a7f4b;
+        color: white;
+    }
+
+    .badge-draft {
+        background-color: #eb7b18;
+        color: white;
+    }
+
+    .badge-disabled {
+        background-color: #565656;
+        color: #d3d3d3;
+    }
+
+    .badge-infrastructure {
+        background-color: #3d71d9;
+        color: white;
+    }
+
+    .badge-application {
+        background-color: #b877d9;
+        color: white;
+    }
+
+    .badge-database {
+        background-color: #d10e5c;
+        color: white;
+    }
+
+    .badge-network {
+        background-color: #6e9fff;
+        color: #111217;
+    }
+
+    .badge-security {
+        background-color: #ff5286;
+        color: white;
+    }
+
+    .badge-troubleshooting {
+        background-color: #6ccf8e;
+        color: #111217;
+    }
+
+    .step-card {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(204, 204, 220, 0.08);
+        border-radius: 6px;
+        padding: 16px;
+    }
+
+    .step-number {
+        width: 28px;
+        height: 28px;
+        background: #3d71d9;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 0.875rem;
+        color: white;
+    }
+
+    .command-block {
+        background: #0d1117;
+        border: 1px solid rgba(204, 204, 220, 0.1);
+        border-radius: 4px;
+        padding: 12px;
+        font-family: 'Monaco', 'Menlo', monospace;
+        font-size: 0.875rem;
+        color: #e6edf3;
+        overflow-x: auto;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-6" id="runbook-container">
+    <!-- Header with Breadcrumbs -->
+    <div class="dashboard-header"
+        style="padding: 12px; background: #16171b; border-bottom: 1px solid rgba(255,255,255,0.05);">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="flex flex-col min-w-0">
+                <nav class="flex items-center text-xs text-gray-400 mb-1">
+                    <a href="/" class="hover:text-blue-400 transition-colors">Home</a>
+                    <span class="mx-2">/</span>
+                    <a href="/runbooks" class="hover:text-blue-400 transition-colors">Runbooks</a>
+                    <span class="mx-2">/</span>
+                    <span class="text-gray-200" id="breadcrumb-name">Loading...</span>
+                </nav>
+                <h1 class="text-xl font-bold text-white tracking-tight truncate" id="runbook-title">Loading...</h1>
+                <p class="text-xs text-gray-500 mt-1" id="runbook-description">-</p>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <a href="/runbooks/{{ runbook_id }}/edit"
+                    class="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 px-4 py-2 rounded text-sm flex items-center gap-2 transition-colors">
+                    <i class="fas fa-edit"></i>
+                    <span>Edit</span>
+                </a>
+                <button onclick="openExecuteModal()" id="execute-btn"
+                    class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded text-white text-sm flex items-center gap-2 transition-colors">
+                    <i class="fas fa-play"></i>
+                    <span>Execute</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Left: Runbook Info -->
+        <div class="lg:col-span-2 space-y-6">
+            <!-- Runbook Details Card -->
+            <div class="detail-card">
+                <h2 class="text-lg font-semibold text-white mb-4">
+                    <i class="fas fa-info-circle text-blue-400 mr-2"></i>Runbook Details
+                </h2>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div>
+                        <p class="text-gray-500 mb-1">Status</p>
+                        <span class="badge" id="status-badge">-</span>
+                    </div>
+                    <div>
+                        <p class="text-gray-500 mb-1">Category</p>
+                        <span class="badge" id="category-badge">-</span>
+                    </div>
+                    <div>
+                        <p class="text-gray-500 mb-1">Approval</p>
+                        <p class="text-white" id="approval-type">-</p>
+                    </div>
+                    <div>
+                        <p class="text-gray-500 mb-1">Max Executions/Hour</p>
+                        <p class="text-white" id="max-executions">-</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Steps Card -->
+            <div class="detail-card">
+                <h2 class="text-lg font-semibold text-white mb-4">
+                    <i class="fas fa-list-ol text-green-400 mr-2"></i>Steps
+                </h2>
+                <div class="space-y-4" id="steps-container">
+                    <p class="text-gray-500">Loading steps...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Sidebar -->
+        <div class="space-y-6">
+            <!-- Quick Stats -->
+            <div class="detail-card">
+                <h2 class="text-lg font-semibold text-white mb-4">
+                    <i class="fas fa-chart-bar text-purple-400 mr-2"></i>Statistics
+                </h2>
+                <div class="space-y-3 text-sm">
+                    <div class="flex justify-between">
+                        <span class="text-gray-500">Total Executions</span>
+                        <span class="text-white font-medium" id="stat-executions">0</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-500">Success Rate</span>
+                        <span class="text-green-400 font-medium" id="stat-success">-</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-500">Avg Duration</span>
+                        <span class="text-white font-medium" id="stat-duration">-</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-500">Last Executed</span>
+                        <span class="text-white font-medium" id="stat-last-exec">Never</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Triggers Card -->
+            <div class="detail-card">
+                <h2 class="text-lg font-semibold text-white mb-4">
+                    <i class="fas fa-bolt text-yellow-400 mr-2"></i>Triggers
+                </h2>
+                <div class="space-y-2" id="triggers-container">
+                    <p class="text-gray-500 text-sm">No triggers configured</p>
+                </div>
+            </div>
+
+            <!-- Metadata -->
+            <div class="detail-card">
+                <h2 class="text-lg font-semibold text-white mb-4">
+                    <i class="fas fa-clock text-gray-400 mr-2"></i>Metadata
+                </h2>
+                <div class="space-y-3 text-sm">
+                    <div>
+                        <p class="text-gray-500">Created</p>
+                        <p class="text-white" id="meta-created">-</p>
+                    </div>
+                    <div>
+                        <p class="text-gray-500">Updated</p>
+                        <p class="text-white" id="meta-updated">-</p>
+                    </div>
+                    <div>
+                        <p class="text-gray-500">ID</p>
+                        <p class="text-gray-400 font-mono text-xs break-all">{{ runbook_id }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Execute Modal -->
+<div id="executeModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
+    <div class="detail-card w-full max-w-md">
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-xl font-bold text-white">Execute Runbook</h2>
+            <button onclick="closeExecuteModal()" class="text-gray-400 hover:text-white">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <form id="executeForm" onsubmit="executeRunbook(event)">
+            <p class="text-gray-400 mb-4">Are you sure you want to execute <strong class="text-white"
+                    id="exec-runbook-name">this runbook</strong>?</p>
+
+            <div class="mb-4">
+                <label class="block text-gray-400 text-sm mb-1">Server Credential</label>
+                <select id="executeServerId"
+                    class="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white">
+                    <option value="">Use runbook default / alert context</option>
+                </select>
+            </div>
+
+            <div class="mb-4 flex items-center gap-2">
+                <input type="checkbox" id="executeDryRun" class="h-4 w-4">
+                <label for="executeDryRun" class="text-sm text-gray-400">Dry run (validate only)</label>
+            </div>
+
+            <div class="mb-6">
+                <label class="block text-gray-400 text-sm mb-1">Parameters (JSON)</label>
+                <textarea id="executeParams" rows="3"
+                    class="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white font-mono text-sm"
+                    placeholder='{"key": "value"}'></textarea>
+            </div>
+
+            <div class="flex justify-end gap-3">
+                <button type="button" onclick="closeExecuteModal()"
+                    class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded">
+                    Cancel
+                </button>
+                <button type="submit"
+                    class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded flex items-center gap-2">
+                    <i class="fas fa-play"></i>Execute
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Loading/Error States -->
+<div id="loading-state" class="card p-12 text-center hidden">
+    <i class="fas fa-spinner fa-spin text-4xl text-blue-400 mb-4"></i>
+    <p class="text-gray-400">Loading runbook...</p>
+</div>
+
+<div id="error-state" class="card p-12 text-center hidden">
+    <i class="fas fa-exclamation-triangle text-4xl text-red-400 mb-4"></i>
+    <h3 class="text-lg font-medium text-white mb-2">Runbook Not Found</h3>
+    <p class="text-gray-400 mb-4">The requested runbook could not be found.</p>
+    <a href="/runbooks" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
+        Back to Runbooks
+    </a>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    const runbookId = "{{ runbook_id }}";
+    let runbook = null;
+    let servers = [];
+
+    document.addEventListener('DOMContentLoaded', function () {
+        loadRunbook();
+        loadServers();
+    });
+
+    async function loadRunbook() {
+        document.getElementById('loading-state').classList.remove('hidden');
+        document.getElementById('runbook-container').classList.add('hidden');
+
+        try {
+            const response = await fetch(`/api/remediation/runbooks/${runbookId}`);
+            if (!response.ok) {
+                throw new Error('Runbook not found');
+            }
+
+            runbook = await response.json();
+            renderRunbook();
+            loadExecutionStats();
+
+            document.getElementById('loading-state').classList.add('hidden');
+            document.getElementById('runbook-container').classList.remove('hidden');
+        } catch (error) {
+            console.error('Error loading runbook:', error);
+            document.getElementById('loading-state').classList.add('hidden');
+            document.getElementById('error-state').classList.remove('hidden');
+        }
+    }
+
+    async function loadExecutionStats() {
+        try {
+            const response = await fetch(`/api/remediation/runbooks/${runbookId}/executions?limit=100`);
+            if (response.ok) {
+                const executions = await response.json();
+                updateStats(executions);
+            }
+        } catch (error) {
+            console.error('Error loading execution stats:', error);
+        }
+    }
+
+    function updateStats(executions) {
+        if (!executions || executions.length === 0) {
+            return;
+        }
+
+        document.getElementById('stat-executions').textContent = executions.length;
+
+        const successful = executions.filter(e => e.status === 'success').length;
+        const successRate = Math.round((successful / executions.length) * 100);
+        document.getElementById('stat-success').textContent = successRate + '%';
+
+        // Calculate average duration for completed executions
+        const completed = executions.filter(e => e.completed_at && e.started_at);
+        if (completed.length > 0) {
+            let totalSeconds = 0;
+            completed.forEach(e => {
+                const start = new Date(e.started_at);
+                const end = new Date(e.completed_at);
+                totalSeconds += (end - start) / 1000;
+            });
+            const avgSeconds = Math.round(totalSeconds / completed.length);
+            if (avgSeconds < 60) {
+                document.getElementById('stat-duration').textContent = avgSeconds + 's';
+            } else {
+                document.getElementById('stat-duration').textContent = Math.round(avgSeconds / 60) + 'm';
+            }
+        }
+
+        // Last execution
+        const lastExec = executions[0];
+        if (lastExec && lastExec.queued_at) {
+            document.getElementById('stat-last-exec').textContent = formatDate(lastExec.queued_at);
+        }
+    }
+
+    async function loadServers() {
+        try {
+            const response = await fetch('/api/servers');
+            if (response.ok) {
+                servers = await response.json();
+                populateServerOptions();
+            }
+        } catch (error) {
+            console.error('Error loading servers:', error);
+        }
+    }
+
+    function populateServerOptions() {
+        const select = document.getElementById('executeServerId');
+        servers.forEach(server => {
+            const option = document.createElement('option');
+            option.value = server.id;
+            option.textContent = `${server.name} (${server.hostname || server.ip_address})`;
+            select.appendChild(option);
+        });
+    }
+
+    function renderRunbook() {
+        // Basic info
+        document.getElementById('breadcrumb-name').textContent = runbook.name;
+        document.getElementById('runbook-title').textContent = runbook.name;
+        document.getElementById('runbook-description').textContent = runbook.description || 'No description';
+        document.getElementById('exec-runbook-name').textContent = runbook.name;
+
+        // Status badge
+        const status = runbook.enabled ? (runbook.auto_execute ? 'active' : 'draft') : 'disabled';
+        const statusBadge = document.getElementById('status-badge');
+        statusBadge.textContent = status.toUpperCase();
+        statusBadge.className = `badge badge-${status}`;
+
+        // Category badge
+        const category = runbook.category || 'infrastructure';
+        const categoryBadge = document.getElementById('category-badge');
+        categoryBadge.textContent = category.toUpperCase();
+        categoryBadge.className = `badge badge-${category}`;
+
+        // Other details
+        document.getElementById('approval-type').textContent = runbook.approval_required ? 'Required' : 'Not required';
+        document.getElementById('max-executions').textContent = runbook.max_executions_per_hour || 5;
+
+        // Stats
+        document.getElementById('stat-executions').textContent = runbook.executions_count || 0;
+
+        // Metadata
+        document.getElementById('meta-created').textContent = formatDate(runbook.created_at);
+        document.getElementById('meta-updated').textContent = formatDate(runbook.updated_at || runbook.created_at);
+
+        // Render steps
+        renderSteps(runbook.steps || []);
+
+        // Render triggers
+        renderTriggers(runbook.triggers || []);
+
+        // Disable execute if not enabled
+        if (!runbook.enabled) {
+            document.getElementById('execute-btn').disabled = true;
+            document.getElementById('execute-btn').classList.add('opacity-50', 'cursor-not-allowed');
+        }
+    }
+
+    function renderSteps(steps) {
+        const container = document.getElementById('steps-container');
+
+        if (!steps || steps.length === 0) {
+            container.innerHTML = '<p class="text-gray-500 text-sm">No steps defined</p>';
+            return;
+        }
+
+        container.innerHTML = steps.map((step, index) => `
+            <div class="step-card">
+                <div class="flex items-start gap-3">
+                    <div class="step-number">${step.order || index + 1}</div>
+                    <div class="flex-1 min-w-0">
+                        <h4 class="font-medium text-white mb-1">${escapeHtml(step.name || 'Step ' + (index + 1))}</h4>
+                        <p class="text-gray-400 text-sm mb-3">${escapeHtml(step.description || '')}</p>
+                        <div class="command-block">
+                            ${step.command_linux ? `<div class="text-green-400 mb-1">Linux:</div><code>${escapeHtml(step.command_linux)}</code>` : ''}
+                            ${step.command_windows ? `<div class="text-blue-400 mt-2 mb-1">Windows:</div><code>${escapeHtml(step.command_windows)}</code>` : ''}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function renderTriggers(triggers) {
+        const container = document.getElementById('triggers-container');
+
+        if (!triggers || triggers.length === 0) {
+            container.innerHTML = '<p class="text-gray-500 text-sm">No triggers configured</p>';
+            return;
+        }
+
+        container.innerHTML = triggers.map(trigger => `
+            <div class="flex items-center gap-2 text-sm">
+                <i class="fas fa-bolt text-yellow-400"></i>
+                <span class="text-white">${escapeHtml(trigger.name || trigger.alert_name_pattern || 'Unnamed trigger')}</span>
+            </div>
+        `).join('');
+    }
+
+    function formatDate(dateStr) {
+        if (!dateStr) return '-';
+        return new Date(dateStr).toLocaleDateString('en-US', {
+            month: 'short', day: 'numeric', year: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+        });
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // Execute Modal
+    function openExecuteModal() {
+        document.getElementById('executeModal').classList.remove('hidden');
+    }
+
+    function closeExecuteModal() {
+        document.getElementById('executeModal').classList.add('hidden');
+    }
+
+    async function executeRunbook(event) {
+        event.preventDefault();
+
+        const serverId = document.getElementById('executeServerId').value;
+        const dryRun = document.getElementById('executeDryRun').checked;
+        const paramsText = document.getElementById('executeParams').value;
+
+        let params = {};
+        if (paramsText.trim()) {
+            try {
+                params = JSON.parse(paramsText);
+            } catch (e) {
+                showToast('Invalid JSON parameters', 'error');
+                return;
+            }
+        }
+
+        try {
+            // Note: runbook_id is a query parameter, not in body
+            const response = await fetch(`/api/remediation/executions?runbook_id=${runbookId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    server_id: serverId || null,
+                    dry_run: dryRun,
+                    variables: params
+                })
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                showToast('Execution started successfully', 'success');
+                closeExecuteModal();
+                // Redirect to execution details
+                window.location.href = `/executions`;
+            } else {
+                const error = await response.json();
+                showToast(error.detail || 'Failed to start execution', 'error');
+            }
+        } catch (error) {
+            console.error('Error executing runbook:', error);
+            showToast('Error executing runbook', 'error');
+        }
+    }
+</script>
+{% endblock %}

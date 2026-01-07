@@ -12,6 +12,7 @@ from sqlalchemy import (
     DateTime, JSON, CheckConstraint, UniqueConstraint, Index
 )
 from sqlalchemy.dialects.postgresql import UUID, ARRAY
+from pgvector.sqlalchemy import Vector
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -59,6 +60,7 @@ class Runbook(Base):
     description = Column(Text, nullable=True)
     category = Column(String(50), nullable=True, index=True)  # e.g., "web-services", "database", "infrastructure"
     tags = Column(ARRAY(String), default=[])  # For filtering/search
+    embedding = Column(Vector(1536), nullable=True)  # Vector embedding for semantic search
     
     # Execution Settings
     enabled = Column(Boolean, default=True, index=True)

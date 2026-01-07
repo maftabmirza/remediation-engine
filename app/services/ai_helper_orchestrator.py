@@ -23,6 +23,8 @@ from app.schemas_ai_helper import (
 from app.services.ai_audit_service import AIAuditService
 from app.services.llm_service import LLMService
 from app.services.knowledge_search_service import KnowledgeSearchService
+from app.services.runbook_search_service import RunbookSearchService
+from app.services.solution_ranker import SolutionRanker
 
 logger = logging.getLogger(__name__)
 
@@ -94,7 +96,7 @@ class AIHelperOrchestrator:
 
             # STEP 1: Assemble context
             context_start = datetime.utcnow()
-            context = await self._assemble_context(query, page_context, session_id)
+            context = await self._assemble_context(query, page_context, session_id, user)
             context_assembly_ms = int((datetime.utcnow() - context_start).total_seconds() * 1000)
 
             # STEP 2: Call LLM
@@ -106,6 +108,23 @@ class AIHelperOrchestrator:
             ai_action, action_details, reasoning, confidence = await self._parse_llm_response(
                 llm_response
             )
+
+            # [VISIBILITY] Add Search Summary Footer
+            try:
+                search_summary = []
+                if context.get('knowledge_chunks_used', 0) > 0:
+                    search_summary.append(f"📚 Found {context.get('knowledge_chunks_used')} knowledge articles")
+                
+                if context.get('ranked_solutions'):
+                     count = len(context['ranked_solutions'].get('solutions', []))
+                     if count > 0:
+                         search_summary.append(f"🛠️ Found {count} runbook solutions")
+                
+                if search_summary and action_details and "message" in action_details:
+                    footer = "\n\n---\n*" + " | ".join(search_summary) + "*"
+                    action_details["message"] += footer
+            except Exception as e:
+                logger.warning(f"Failed to append search summary: {e}")
 
             # STEP 4: SECURITY CHECK - Validate action
             is_allowed, block_reason = await self._validate_action(ai_action)
@@ -250,7 +269,8 @@ class AIHelperOrchestrator:
         self,
         query: str,
         page_context: Optional[Dict[str, Any]],
-        session_id: UUID
+        session_id: UUID,
+        user: Optional[User] = None
     ) -> Dict[str, Any]:
         """
         Assemble context for LLM
@@ -263,8 +283,10 @@ class AIHelperOrchestrator:
             'knowledge_chunks_used': 0,
             'rag_search_time_ms': 0,
             'code_files_referenced': [],
+            'code_files_referenced': [],
             'code_functions_referenced': [],
-            'session_history': []
+            'session_history': [],
+            'ranked_solutions': None
         }
 
         try:
@@ -283,6 +305,30 @@ class AIHelperOrchestrator:
             context['knowledge_chunks_used'] = len(knowledge_results)
             context['rag_search_time_ms'] = rag_time
 
+            # NEW: Runbook search (parallel with knowledge search - conceptually)
+            if user and self._is_troubleshooting_query(query, page_context):
+                try:
+                    runbook_service = RunbookSearchService(self.db)
+                    runbook_results = await runbook_service.search_runbooks(
+                        query=query,
+                        context=page_context or {},
+                        user=user,
+                        limit=3
+                    )
+                    
+                    if runbook_results:
+                        ranker = SolutionRanker(self.db)
+                        ranked_solutions = ranker.rank_and_combine_solutions(
+                            runbooks=runbook_results,
+                            manual_solutions=[],
+                            knowledge_refs=knowledge_results,
+                            user_context=page_context or {}
+                        )
+                        context['ranked_solutions'] = ranked_solutions.to_dict()
+                        logger.info(f"Found {len(ranked_solutions.solutions)} solutions for troubleshooting query")
+                except Exception as e:
+                    logger.error(f"Error in solution search: {e}")
+
             # Get session history (✅ FIXED - retrieve from session.context)
             session = self.db.query(AIHelperSession).filter(
                 AIHelperSession.id == session_id
@@ -295,6 +341,19 @@ class AIHelperOrchestrator:
             logger.warning(f"Error assembling context: {e}")
 
         return context
+
+    def _is_troubleshooting_query(self, query: str, page_context: Optional[Dict] = None) -> bool:
+        """Detect if this is a troubleshooting query that needs runbook search."""
+        troubleshooting_keywords = [
+            'high cpu', 'memory', 'disk', 'slow', 'error', 'fix', 'troubleshoot',
+            'restart', 'down', 'failed', 'not working', 'issue', 'problem', 'crash',
+            'latency', 'timeout', 'exception', 'bug', 'alert', 'incident',
+            # Expanded for visibility/general search
+            'search', 'find', 'lookup', 'how to', 'check', 'investigate', 'analyze', 'why', 'what is'
+        ]
+        
+        query_lower = query.lower()
+        return any(keyword in query_lower for keyword in troubleshooting_keywords)
 
     async def _call_llm(
         self,
@@ -354,6 +413,27 @@ IMPORTANT RULES:
 4. Never access credentials, execute commands, or modify data directly
 5. Remember previous conversation context when responding
 6. When suggesting PromQL queries, use the 'explain_concept' or 'chat' action with markdown code blocks for easy copying
+
+SOLUTION PRESENTATION (Runbook-First Troubleshooting):
+When context includes 'ranked_solutions':
+  - You have been provided with pre-ranked solutions (runbooks + manual)
+  - DO NOT re-rank or re-decide - use the ranking provided
+  - Your job is to FORMAT these solutions into markdown
+  - Follow the presentation_strategy from ranked_solutions:
+      * 'single_solution': Show one clear recommendation
+      * 'primary_with_alternatives': Lead with primary, mention alternatives exist
+      * 'multiple_options': Show 2-3 options, let user choose
+      * 'experimental_options': Show options but warn about low confidence
+      * 'primary_plus_one': Show primary + one backup option
+
+  Markdown Format Guidelines:
+  - Use headings (## for sections, ### for options)
+  - Use code blocks with language hints for commands
+  - Use markdown links [Runbook Title](/runbooks/{id}) for runbooks. IMPORTANT: Use this exact link format.
+  - Use simple text ratings (⭐⭐⭐ for confidence)
+  - Use emojis sparingly (✅ for permissions, ⚠️ for warnings, 💡 for tips)
+  - NO HTML, NO interactive buttons, NO forms
+  - For Runbooks: Show permission status (✅ or 🔒) and success rate.
 
 GRAFANA QUERY HANDLING (Multi-Datasource Support):
 - Supports: Prometheus (PromQL), Loki (LogQL), Tempo (TraceQL), Mimir (PromQL)
@@ -465,6 +545,13 @@ Response format (JSON):
         Build user message with context (✅ IMPROVED - better history formatting)
         """
         message_parts = []
+        
+        # Add ranked solutions FIRST if available
+        if context.get('ranked_solutions'):
+            solutions_data = context['ranked_solutions']
+            message_parts.append("## Determined Solutions (Use these to answer):")
+            message_parts.append(json.dumps(solutions_data, indent=2))
+            message_parts.append("\nFormat the above solutions into markdown based on presentation_strategy.\n")
 
         # Add conversation history FIRST if available (✅ CRITICAL for context continuity)
         if context.get('session_history'):
@@ -589,35 +676,48 @@ Response format (JSON):
         Parse LLM response to extract action, details, reasoning, confidence
         """
         try:
+            response_data = {}
             content = llm_response.get('choices', [{}])[0].get('message', {}).get('content', '{}')
 
             # Try to parse as JSON
             try:
-                parsed = json.loads(content)
-            except:
-                # Fallback: extract JSON from markdown code block
-                if '```json' in content:
-                    json_str = content.split('```json')[1].split('```')[0].strip()
-                    parsed = json.loads(json_str)
-                elif '```' in content:
-                    # Try any code block
-                    json_str = content.split('```')[1].strip()
-                    if json_str.startswith('json'):
-                        json_str = json_str[4:].strip()
-                    parsed = json.loads(json_str)
+                # If wrapped in JSON manually (sometimes small models do this)
+                if isinstance(content, str) and content.strip().startswith('{'):
+                    # Try to extract JSON from markdown block if present
+                    if "```json" in content:
+                        json_str = content.split("```json")[1].split("```")[0].strip()
+                        response_data = json.loads(json_str)
+                    elif "```" in content:
+                        # Try any code block
+                        json_str = content.split("```")[1].strip()
+                        if json_str.startswith('json'):
+                            json_str = json_str[4:].strip()
+                        response_data = json.loads(json_str)
+                    else:
+                        response_data = json.loads(content)
                 else:
-                    # Default fallback - treat as chat
-                    parsed = {
-                        "action": "chat",
-                        "action_details": {"message": content},
-                        "reasoning": "Providing conversational response",
-                        "confidence": 0.7
-                    }
+                    # Assume it's already a dict if not a string starting with '{'
+                    # This path might be taken if llm_response.content is already a dict
+                    # or if the LLM response object itself is structured.
+                    # For consistency with the original, we'll try to parse the 'content' string.
+                    pass # If content is not a string starting with '{', response_data remains empty for now.
+            except Exception:
+                pass
 
-            action = parsed.get('action', 'chat')
-            action_details = parsed.get('action_details', {})
-            reasoning = parsed.get('reasoning', '')
-            confidence = parsed.get('confidence', 0.5)
+            # Fallback if parsing failed or response_data is still empty
+            if not response_data:
+                # Treat as simple chat
+                response_data = {
+                    "action": "chat",
+                    "action_details": {"message": content},
+                    "reasoning": "Parsed as direct response",
+                    "confidence": 0.8
+                }
+
+            action = response_data.get('action', 'chat')
+            action_details = response_data.get('action_details', {})
+            reasoning = response_data.get('reasoning', '')
+            confidence = response_data.get('confidence', 0.5)
 
             return action, action_details, reasoning, confidence
 

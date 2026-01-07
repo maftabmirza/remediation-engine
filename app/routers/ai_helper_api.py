@@ -4,13 +4,14 @@ Endpoints for AI helper with strict security enforcement
 """
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
 from typing import List, Optional
 from uuid import UUID
 from datetime import datetime, timedelta
 
 from app.database import get_db
 from app.models import User
-from app.models_ai_helper import KnowledgeSource
+from app.models_ai_helper import KnowledgeSource, AIHelperAuditLog
 from app.schemas_ai_helper import (
     AIHelperQuery,
     AIHelperResponse,
@@ -24,7 +25,8 @@ from app.schemas_ai_helper import (
     AIAuditLogResponse,
     AIHelperAnalytics,
     AIHelperConfigResponse,
-    AIHelperConfigUpdate
+    AIHelperConfigUpdate,
+    SolutionChoiceRequest
 )
 from app.services.ai_helper_orchestrator import AIHelperOrchestrator
 from app.services.ai_audit_service import AIAuditService
@@ -137,6 +139,49 @@ async def submit_feedback(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to record feedback: {str(e)}"
         )
+
+
+@router.post("/track-choice")
+async def track_solution_choice(
+    request: SolutionChoiceRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Track which solution the user chose.
+    Updates ai_helper_audit_logs.user_modifications.
+    """
+    audit_log = db.query(AIHelperAuditLog).filter(
+        AIHelperAuditLog.id == request.audit_log_id
+    ).first()
+
+    if not audit_log:
+        raise HTTPException(status_code=404, detail="Audit log not found")
+
+    # Update user_modifications field
+    modifications = audit_log.user_modifications or {}
+    
+    # Merge existing modifications with new choice data
+    choice_dict = request.choice_data.dict()
+    choice_dict['chosen_at'] = datetime.utcnow().isoformat()
+    
+    # Calculate time to decision if timestamp available
+    if audit_log.timestamp:
+        choice_dict['time_to_decision_seconds'] = (
+            datetime.utcnow() - audit_log.timestamp
+        ).total_seconds()
+
+    modifications.update(choice_dict)
+    audit_log.user_modifications = modifications
+    flag_modified(audit_log, "user_modifications")
+
+    # Update user action if not already set or more specific
+    if request.choice_data.user_action:
+        audit_log.user_action = request.choice_data.user_action
+    
+    db.commit()
+
+    return {"status": "tracked", "audit_log_id": str(audit_log.id)}
 
 
 # ============================================================================

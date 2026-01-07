@@ -655,6 +655,25 @@ async def runbook_create_page(
     })
 
 
+@app.get("/runbooks/{runbook_id}", response_class=HTMLResponse)
+async def runbook_detail_page(
+    request: Request,
+    runbook_id: str,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    Runbook detail page - view runbook and execute
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    return templates.TemplateResponse("runbook_detail.html", {
+        "request": request,
+        "user": current_user,
+        "runbook_id": runbook_id
+    })
+
+
 @app.get("/runbooks/{runbook_id}/edit", response_class=HTMLResponse)
 async def runbook_edit_page(
     request: Request,
