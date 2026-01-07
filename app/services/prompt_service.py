@@ -49,17 +49,18 @@ You are pair-programming with the user to resolve a production incident.
             strategy = ranked_solutions.get('presentation_strategy', 'single_solution')
             
             context_sections.append(f"""
-## RUNBOOK CONTEXT:
+## KNOWLEDGE BASE:
 
-You have {len(solutions)} runbook(s) available from our knowledge base.
-These are pre-formatted and ready to use - the links are correct.
+Our organization has {len(solutions)} documented runbook(s) that match this query.
+These runbooks represent **tested, approved procedures** from our knowledge base.
 
-**Your Decision:**
-- If the runbook is relevant to the user's question, include it in your response
-- If it's not relevant, ignore it and answer with your own knowledge
-- You may add your own assessment or additional context
+**Decision Framework:**
+1. If a runbook directly answers the user's question → Reference it and explain why it applies
+2. If the runbook is related but not exact → Mention it as additional context
+3. If the runbook is not relevant → Use your own expertise
 
-The runbook content will be provided in a separate context block.
+When referencing a runbook, include the link so the user can execute it.
+The runbook details will be provided below.
 """)
 
         if alert:

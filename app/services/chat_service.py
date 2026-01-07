@@ -160,6 +160,34 @@ async def stream_chat_response(
                 count = len(solutions_context.get('solutions', []))
                 logger.info(f"DEBUG: Ranker returned {count} solutions")
                 
+                # Filter to only high-confidence runbooks (>= 50%)
+                filtered_solutions = [
+                    s for s in solutions_context.get('solutions', []) 
+                    if s.get('confidence', 0) >= 0.5
+                ]
+                solutions_context['solutions'] = filtered_solutions
+                logger.info(f"DEBUG: After filtering: {len(filtered_solutions)} solutions above 50% confidence")
+                
+                # Build footer with runbook links (always shown)
+                footer_parts = ["\n\n---\n\n**📚 Related Runbooks:**\n"]
+                for sol in solutions_context.get('solutions', []):
+                    title = sol.get('title', 'Untitled')
+                    url = sol.get('metadata', {}).get('url', '#')
+                    confidence = sol.get('confidence', 0)
+                    
+                    # Convert confidence to visual indicator
+                    if confidence >= 0.7:
+                        indicator = "⭐⭐⭐"
+                    elif confidence >= 0.5:
+                        indicator = "⭐⭐"
+                    else:
+                        indicator = "⭐"
+                    
+                    footer_parts.append(f"- **[{title}]({url})** {indicator} ({confidence:.0%} match)")
+                
+                search_summary_footer = "\n".join(footer_parts)
+                logger.info(f"DEBUG: Built footer with {count} runbook links")
+                
             else:
                 logger.info("DEBUG: No runbooks found for query")
                     
@@ -175,13 +203,8 @@ async def stream_chat_response(
     )
     
     
-    messages.append({"role": "system", "content": system_prompt})
-    
-    for msg in history_messages:
-        messages.append({"role": msg.role, "content": msg.content})
-    
-    # NEW: If we have solutions, pre-format as ready-to-use markdown
-    # LLM decides whether to include based on relevance - we just provide the correct content
+    # [MODIFIED] Merge Runbook Context into System Prompt
+    runbook_system_part = ""
     if solutions_context and solutions_context.get('solutions'):
         runbook_snippets = []
         for sol in solutions_context['solutions']:
@@ -192,16 +215,11 @@ async def stream_chat_response(
             url = sol.get('metadata', {}).get('url', '/remediation/runbooks')
             
             # Convert confidence to stars
-            if confidence >= 0.9:
-                stars = "⭐⭐⭐⭐⭐"
-            elif confidence >= 0.8:
-                stars = "⭐⭐⭐⭐"
-            elif confidence >= 0.7:
-                stars = "⭐⭐⭐"
-            elif confidence >= 0.5:
-                stars = "⭐⭐"
-            else:
-                stars = "⭐"
+            if confidence >= 0.9: stars = "⭐⭐⭐⭐⭐"
+            elif confidence >= 0.8: stars = "⭐⭐⭐⭐"
+            elif confidence >= 0.7: stars = "⭐⭐⭐"
+            elif confidence >= 0.5: stars = "⭐⭐"
+            else: stars = "⭐"
             
             # Format permission
             perm_text = "✅ You can execute" if permission == "can_execute" else "🔒 View only"
@@ -212,25 +230,31 @@ Confidence: {stars} ({confidence:.0%}) | Permission: {perm_text}
 {desc}"""
             runbook_snippets.append(snippet)
         
-        # Inject as available context - LLM decides whether to use
+        # Inject as available context
         runbook_context = "\n\n---\n\n".join(runbook_snippets)
-        
-        # Debug: print what we're sending
-        print(f"DEBUG RUNBOOK CONTEXT:\n{runbook_context}\n", flush=True)
-        
-        messages.append({
-            "role": "system",
-            "content": f"""## AVAILABLE RUNBOOKS:
+        logger.info(f"DEBUG: Injecting {len(runbook_snippets)} runbooks into context")
 
-The following runbooks are available. If relevant, COPY the markdown link exactly as shown below into your response.
+    # Use base system prompt only (keep it clean)
+    messages.append({"role": "system", "content": system_prompt})
+    
+    # Add history (excluding the last user message which we'll enhance)
+    for msg in history_messages[:-1] if history_messages else []:
+        messages.append({"role": msg.role, "content": msg.content})
+    
+    # Enhance the user message with runbook context (positions it for maximum attention)
+    if solutions_context and solutions_context.get('solutions'):
+        enhanced_user_message = f"""[CONTEXT FROM KNOWLEDGE BASE]
+Our documentation has the following relevant runbooks for this query:
 
 {runbook_context}
 
-**IMPORTANT**: When including a runbook, copy the link **exactly** as formatted above. The format is:
-**[Runbook: Title](url)** - Confidence: stars | Permission: status
+When a runbook directly addresses my question, please reference it with its link.
 
-Do not modify the URL or link format."""
-        })
+[USER QUESTION]
+{user_message}"""
+        messages.append({"role": "user", "content": enhanced_user_message})
+    else:
+        messages.append({"role": "user", "content": user_message})
             
     # Stream response
     full_response = ""
@@ -269,9 +293,13 @@ Do not modify the URL or link format."""
                 full_response += content
                 yield content
     
-    # LLM now formats solutions itself, no manual footer needed
+    
+    # Append runbook footer if available (guarantees visibility)
+    if search_summary_footer:
+        full_response += search_summary_footer
+        yield search_summary_footer
 
-    # Save assistant message
+    # Save assistant message (with footer)
     tokens = 0
     try:
         tokens = token_counter(model=provider.model_id, messages=messages)

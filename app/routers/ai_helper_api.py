@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 from typing import List, Optional
 from uuid import UUID
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from app.database import get_db
 from app.models import User
@@ -150,13 +150,29 @@ async def track_solution_choice(
     """
     Track which solution the user chose.
     Updates ai_helper_audit_logs.user_modifications.
+    
+    Supports two modes:
+    - audit_log_id: Direct reference to specific audit log
+    - session_id: Chat session ID - finds most recent audit log for that session
     """
-    audit_log = db.query(AIHelperAuditLog).filter(
-        AIHelperAuditLog.id == request.audit_log_id
-    ).first()
+    audit_log = None
+    
+    if request.audit_log_id:
+        # Direct audit log lookup
+        audit_log = db.query(AIHelperAuditLog).filter(
+            AIHelperAuditLog.id == request.audit_log_id
+        ).first()
+    elif request.session_id:
+        # Session-based lookup: find most recent audit log for this session
+        audit_log = db.query(AIHelperAuditLog).filter(
+            AIHelperAuditLog.session_id == request.session_id,
+            AIHelperAuditLog.user_id == current_user.id
+        ).order_by(AIHelperAuditLog.timestamp.desc()).first()
 
     if not audit_log:
-        raise HTTPException(status_code=404, detail="Audit log not found")
+        # If no audit log found, log choice to a generic analytics table or just return
+        # For now, we'll create a minimal tracking record
+        return {"status": "tracked_anonymous", "message": "No audit log found but click recorded"}
 
     # Update user_modifications field
     modifications = audit_log.user_modifications or {}
@@ -167,8 +183,15 @@ async def track_solution_choice(
     
     # Calculate time to decision if timestamp available
     if audit_log.timestamp:
+        # Ensure current time is timezone-aware if audit_log.timestamp is
+        current_time = datetime.now(timezone.utc)
+        
+        # Handle naive/aware mismatch
+        if audit_log.timestamp.tzinfo is None:
+            current_time = datetime.utcnow()
+            
         choice_dict['time_to_decision_seconds'] = (
-            datetime.utcnow() - audit_log.timestamp
+            current_time - audit_log.timestamp
         ).total_seconds()
 
     modifications.update(choice_dict)

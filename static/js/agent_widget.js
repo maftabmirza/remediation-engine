@@ -59,9 +59,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function addMessage(text, type) {
+    function addMessage(text, type, queryId = null) {
         const div = document.createElement('div');
         div.className = `agent-message ${type}`;
+
+        // Store queryId (audit_log_id) for tracking
+        if (queryId) {
+            div.dataset.queryId = queryId;
+        }
+
         // Simple markdown parsing if marked is available
         if (typeof marked !== 'undefined') {
             div.innerHTML = marked.parse(text);
@@ -71,24 +77,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Add tracking for Runbook links (only for AI messages)
         if (type === 'ai') {
-            const links = div.querySelectorAll('a[href*="/remediation/runbooks/"]');
+            // Match new runbook URL format (/runbooks/{id})
+            const links = div.querySelectorAll('a[href*="/runbooks/"]');
             links.forEach(link => {
                 link.addEventListener('click', (e) => {
                     // Track the click
                     try {
-                        const url = new URL(link.href);
+                        const url = new URL(link.href, window.location.origin);
                         const parts = url.pathname.split('/');
                         const runbookId = parts[parts.length - 1];
+                        // Get queryId from this message div or fallback to global/parent
+                        const logId = div.dataset.queryId;
 
-                        // We need audit_log_id, but it's not directly attached to the message.
-                        // Ideally backend should return it and we attach to div.
-                        // For now we might not be able to link to specific audit log without extra data.
-                        // But we can send a general event.
-
-                        console.log('Tracking runbook click:', runbookId);
-
-                        // If we stored the last response data, we might have it.
-                        // This is a simplified tracking for now.
+                        if (logId && runbookId) {
+                            console.log('Tracking runbook click:', runbookId, 'for log:', logId);
+                            trackSolutionChoice(logId, {
+                                solution_chosen_id: runbookId,
+                                solution_chosen_type: 'runbook',
+                                user_action: 'clicked_link'
+                            });
+                        } else {
+                            console.warn('Cannot track click: missing queryId or runbookId');
+                        }
                     } catch (err) {
                         console.error('Error tracking click:', err);
                     }
@@ -98,6 +108,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
         messagesContainer.appendChild(div);
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    async function trackSolutionChoice(auditLogId, choiceData) {
+        try {
+            await fetch('/api/ai-helper/track-choice', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    audit_log_id: auditLogId,
+                    choice_data: choiceData
+                })
+            });
+        } catch (err) {
+            console.error('Failed to track solution choice:', err);
+        }
     }
 
     function showTyping() {
@@ -529,11 +554,13 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (!aiText && data.action_details && Object.keys(data.action_details).length > 0) {
                 // If no text but we have details, visualize them
                 aiText = "Here are the details:\n\n```json\n" + JSON.stringify(data.action_details, null, 2) + "\n```";
-            } else if (!aiText) {
+            }
+
+            if (!aiText) {
                 aiText = "I processed your request but have no specific response to show.";
             }
 
-            addMessage(aiText, 'ai');
+            addMessage(aiText, 'ai', data.query_id);
 
         } catch (error) {
             console.error('AI Error:', error);

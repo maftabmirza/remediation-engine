@@ -57,6 +57,7 @@ class UserAction(str, Enum):
     MODIFIED = "modified"
     IGNORED = "ignored"
     PENDING = "pending"
+    CLICKED_LINK = "clicked_link"
 
 
 class ExecutionResult(str, Enum):
@@ -212,7 +213,8 @@ class SolutionChoiceData(BaseModel):
 
 class SolutionChoiceRequest(BaseModel):
     """Request to track solution choice"""
-    audit_log_id: UUID
+    audit_log_id: Optional[UUID] = None
+    session_id: Optional[UUID] = None  # Chat session ID for chat page tracking
     choice_data: SolutionChoiceData
 
 

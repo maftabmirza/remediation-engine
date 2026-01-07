@@ -394,6 +394,8 @@ function appendAIMessage(text, skipRunButtons = false) {
     if (!skipRunButtons) {
         addRunButtons(currentMessageDiv);
     }
+    // Track runbook link clicks for analytics
+    trackRunbookClicks(currentMessageDiv);
     container.scrollTop = container.scrollHeight;
 }
 
@@ -500,6 +502,44 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// Track runbook link clicks for analytics
+function trackRunbookClicks(container) {
+    const links = container.querySelectorAll('a[href*="/runbooks/"]');
+    links.forEach(link => {
+        // Avoid duplicate listeners
+        if (link.dataset.tracked) return;
+        link.dataset.tracked = 'true';
+
+        link.addEventListener('click', (e) => {
+            try {
+                const url = new URL(link.href, window.location.origin);
+                const parts = url.pathname.split('/');
+                const runbookId = parts[parts.length - 1];
+
+                // Use session ID for correlation (chat session -> audit log via user_id)
+                if (currentSessionId && runbookId) {
+                    console.log('Tracking runbook click:', runbookId, 'for session:', currentSessionId);
+
+                    fetch('/api/ai-helper/track-choice', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            session_id: currentSessionId,  // Use chat session ID
+                            choice_data: {
+                                solution_chosen_id: runbookId,
+                                solution_chosen_type: 'runbook',
+                                user_action: 'clicked_link'
+                            }
+                        })
+                    }).catch(err => console.error('Failed to track click:', err));
+                }
+            } catch (err) {
+                console.error('Error tracking runbook click:', err);
+            }
+        });
+    });
 }
 
 function copyToClipboard(text) {

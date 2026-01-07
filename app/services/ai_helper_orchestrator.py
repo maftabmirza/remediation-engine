@@ -126,6 +126,14 @@ class AIHelperOrchestrator:
             except Exception as e:
                 logger.warning(f"Failed to append search summary: {e}")
 
+            # [AUDIT] Store ranked solutions for analysis
+            if context.get('ranked_solutions'):
+                try:
+                    action_details['solutions_presented'] = context['ranked_solutions'].get('solutions', [])
+                    action_details['presentation_strategy'] = context['ranked_solutions'].get('presentation_strategy')
+                except Exception as e:
+                    logger.warning(f"Failed to store solutions for audit: {e}")
+
             # STEP 4: SECURITY CHECK - Validate action
             is_allowed, block_reason = await self._validate_action(ai_action)
 

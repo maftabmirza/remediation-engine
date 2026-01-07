@@ -199,7 +199,7 @@ class AIHelperAuditLog(Base):
 
     __table_args__ = (
         CheckConstraint(
-            user_action.in_(['approved', 'rejected', 'modified', 'ignored', 'pending']),
+            user_action.in_(['approved', 'rejected', 'modified', 'ignored', 'pending', 'clicked_link']),
             name='ck_ai_audit_user_action'
         ),
         CheckConstraint(
