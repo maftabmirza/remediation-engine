@@ -10,6 +10,7 @@ from app.models import User, LLMProvider
 from app.models_chat import ChatSession
 from app.services.auth_service import get_current_user_ws
 from app.services.chat_service import stream_chat_response
+from app.services.agentic.orchestrator import stream_agentic_chat_response
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Chat"])
@@ -46,11 +47,16 @@ async def chat_websocket(
     websocket: WebSocket,
     session_id: UUID,
     token: str = Query(...),
+    agentic: bool = Query(default=True, description="Use agentic RAG mode with tool calling"),
     db: Session = Depends(get_db)
 ):
     """
     WebSocket endpoint for real-time chat.
-    
+
+    Query Parameters:
+        - token: Authentication token (required)
+        - agentic: Enable agentic RAG mode with tool calling (default: true)
+
     Close codes:
         - 4001: Authentication failed
         - 4004: Chat session not found or access denied
@@ -107,16 +113,25 @@ async def chat_websocket(
                 await safe_send(websocket, '{"type":"error","message":"Empty message"}')
                 continue
             
-            # Stream response
+            # Stream response - use agentic mode if enabled
             try:
-                async for chunk in stream_chat_response(db, session_id, data, provider):
-                    if not await safe_send(websocket, chunk):
-                        logger.debug("Client disconnected during streaming")
-                        return
-                        
+                if agentic:
+                    # Use agentic RAG with tool calling
+                    logger.info(f"Using agentic mode for session {session_id}")
+                    async for chunk in stream_agentic_chat_response(db, session_id, data, provider):
+                        if not await safe_send(websocket, chunk):
+                            logger.debug("Client disconnected during streaming")
+                            return
+                else:
+                    # Use traditional chat mode (no tool calling)
+                    async for chunk in stream_chat_response(db, session_id, data, provider):
+                        if not await safe_send(websocket, chunk):
+                            logger.debug("Client disconnected during streaming")
+                            return
+
                 # Send end-of-stream marker
                 await safe_send(websocket, "[DONE]")
-                
+
             except Exception as e:
                 logger.error(f"Error streaming chat response: {e}", exc_info=True)
                 error_msg = '{"type":"error","message":"Failed to generate response"}'
