@@ -215,7 +215,19 @@ class SolutionChoiceRequest(BaseModel):
     """Request to track solution choice"""
     audit_log_id: Optional[UUID] = None
     session_id: Optional[UUID] = None  # Chat session ID for chat page tracking
+    source: Optional[str] = None  # 'chat_page', 'agent_widget', 'alert_detail'
     choice_data: SolutionChoiceData
+
+
+class FeedbackRequest(BaseModel):
+    """Request to submit thumbs up/down feedback"""
+    session_id: Optional[UUID] = None
+    runbook_id: Optional[UUID] = None      # For runbook feedback
+    message_id: Optional[UUID] = None      # For LLM response feedback
+    feedback_type: str                     # 'thumbs_up' or 'thumbs_down'
+    target_type: str                       # 'runbook' or 'llm_response'
+    query_text: Optional[str] = None       # What the user asked
+    response_text: Optional[str] = None    # The AI response (for context)
 
 
 # ============================================================================

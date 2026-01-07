@@ -117,6 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     audit_log_id: auditLogId,
+                    source: 'agent_widget',
                     choice_data: choiceData
                 })
             });

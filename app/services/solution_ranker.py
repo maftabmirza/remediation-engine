@@ -36,6 +36,15 @@ class RankedSolutionList:
 class SolutionRanker:
     def __init__(self, db):
         self.db = db
+        # Lazy import to avoid circular dependencies
+        self._analytics_service = None
+    
+    @property
+    def analytics_service(self):
+        if self._analytics_service is None:
+            from app.services.runbook_analytics_service import RunbookAnalyticsService
+            self._analytics_service = RunbookAnalyticsService(self.db)
+        return self._analytics_service
 
     def rank_and_combine_solutions(
         self,
@@ -46,14 +55,41 @@ class SolutionRanker:
     ) -> RankedSolutionList:
         """
         Combine and rank all solution types.
+        Includes popularity bonus based on click analytics.
         """
         all_solutions = []
+        
+        # Get popularity and feedback scores for all runbooks in one batch query
+        runbook_ids = [rr.runbook.id for rr in runbooks]
+        popularity_scores = {}
+        feedback_scores = {}
+        try:
+            if runbook_ids:
+                popularity_scores = self.analytics_service.get_popularity_scores_batch(runbook_ids)
+                feedback_scores = self.analytics_service.get_feedback_scores_batch(runbook_ids)
+        except Exception as e:
+            # Don't fail ranking if analytics fails
+            import logging
+            logging.getLogger(__name__).warning(f"Failed to get analytics scores: {e}")
 
         # Convert runbooks to Solutions
         for rr in runbooks:
-            # Automation bonus: slightly boost confidence for automated solutions
-            confidence = rr.score + 0.15
-            confidence = min(confidence, 1.0)
+            # Base confidence from semantic search
+            base_confidence = rr.score
+            
+            # Automation bonus: slightly boost for automated solutions
+            automation_bonus = 0.15
+            
+            # Popularity bonus: boost runbooks that users click on (max 10%)
+            popularity_bonus = popularity_scores.get(str(rr.runbook.id), 0.0) * 0.10
+            
+            # Feedback bonus: boost/demote based on thumbs up/down (max +/- 15%)
+            # Score is -1.0 to 1.0, so mapped to -0.15 to +0.15
+            feedback_raw = feedback_scores.get(str(rr.runbook.id), 0.0)
+            feedback_bonus = feedback_raw * 0.15
+            
+            # Final confidence (capped at 1.0, min 0.1)
+            confidence = max(0.1, min(1.0, base_confidence + automation_bonus + popularity_bonus + feedback_bonus))
             
             sol = Solution(
                 type='runbook',
@@ -67,7 +103,9 @@ class SolutionRanker:
                 metadata={
                     'runbook_id': str(rr.runbook.id),
                     'url': f'/runbooks/{rr.runbook.id}',
-                    'automation_level': 'automated'
+                    'automation_level': 'automated',
+                    'popularity_score': popularity_scores.get(str(rr.runbook.id), 0.0),
+                    'feedback_score': feedback_raw
                 }
             )
             all_solutions.append(sol)

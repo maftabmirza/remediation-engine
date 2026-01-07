@@ -2,7 +2,7 @@
 AI Helper API Router
 Endpoints for AI helper with strict security enforcement
 """
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Body, status
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 from typing import List, Optional
@@ -12,6 +12,7 @@ from datetime import datetime, timedelta, timezone
 from app.database import get_db
 from app.models import User
 from app.models_ai_helper import KnowledgeSource, AIHelperAuditLog
+from app.models_learning import RunbookClick, AIFeedback
 from app.schemas_ai_helper import (
     AIHelperQuery,
     AIHelperResponse,
@@ -26,7 +27,8 @@ from app.schemas_ai_helper import (
     AIHelperAnalytics,
     AIHelperConfigResponse,
     AIHelperConfigUpdate,
-    SolutionChoiceRequest
+    SolutionChoiceRequest,
+    FeedbackRequest
 )
 from app.services.ai_helper_orchestrator import AIHelperOrchestrator
 from app.services.ai_audit_service import AIAuditService
@@ -114,31 +116,7 @@ async def submit_approval(
         )
 
 
-@router.post("/feedback")
-async def submit_feedback(
-    feedback: AIHelperFeedback,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """
-    Submit user feedback on AI response
-    """
-    try:
-        audit_service = AIAuditService(db)
 
-        await audit_service.log_user_response(
-            audit_log_id=feedback.query_id,
-            feedback="helpful" if feedback.helpful else "not_helpful",
-            feedback_comment=feedback.comment
-        )
-
-        return {"status": "success", "message": "Feedback recorded"}
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to record feedback: {str(e)}"
-        )
 
 
 @router.post("/track-choice")
@@ -170,9 +148,34 @@ async def track_solution_choice(
         ).order_by(AIHelperAuditLog.timestamp.desc()).first()
 
     if not audit_log:
-        # If no audit log found, log choice to a generic analytics table or just return
-        # For now, we'll create a minimal tracking record
-        return {"status": "tracked_anonymous", "message": "No audit log found but click recorded"}
+        # No audit log found - still track the click in runbook_clicks
+        pass
+    
+    # Always save to runbook_clicks table for analytics
+    if request.choice_data.solution_chosen_id and request.choice_data.solution_chosen_type == 'runbook':
+        try:
+            from uuid import UUID as UUIDtype
+            runbook_uuid = UUIDtype(request.choice_data.solution_chosen_id)
+            
+            click_record = RunbookClick(
+                runbook_id=runbook_uuid,
+                user_id=current_user.id,
+                session_id=request.session_id,
+                source=request.source or 'unknown',
+                query_text=None,  # Could extract from audit_log if available
+                confidence_shown=None,
+                rank_shown=request.choice_data.solution_chosen_rank,
+                context_json={'user_action': request.choice_data.user_action}
+            )
+            db.add(click_record)
+            db.commit()
+        except Exception as e:
+            # Don't fail the request if click tracking fails
+            import logging
+            logging.getLogger(__name__).warning(f"Failed to save runbook click: {e}")
+    
+    if not audit_log:
+        return {"status": "tracked_anonymous", "message": "Click recorded to analytics"}
 
     # Update user_modifications field
     modifications = audit_log.user_modifications or {}
@@ -205,6 +208,54 @@ async def track_solution_choice(
     db.commit()
 
     return {"status": "tracked", "audit_log_id": str(audit_log.id)}
+
+
+@router.post("/feedback")
+async def submit_feedback(
+    feedback_data: FeedbackRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Log user feedback (thumbs up/down) for runbooks or LLM responses.
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+
+    # Validate at least one ID is present
+    if not feedback_data.runbook_id and not feedback_data.message_id:
+        raise HTTPException(
+            status_code=400, 
+            detail="Either runbook_id or message_id must be provided"
+        )
+    
+    try:
+        feedback = AIFeedback(
+            user_id=current_user.id,
+            session_id=feedback_data.session_id,
+            runbook_id=feedback_data.runbook_id,
+            message_id=feedback_data.message_id,
+            feedback_type=feedback_data.feedback_type,
+            target_type=feedback_data.target_type,
+            query_text=feedback_data.query_text,
+            response_text=feedback_data.response_text
+        )
+        db.add(feedback)
+        db.commit()
+        db.refresh(feedback)
+        
+        return {
+            "status": "feedback_recorded",
+            "feedback_id": str(feedback.id),
+            "target_type": feedback_data.target_type,
+            "feedback_type": feedback_data.feedback_type
+        }
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to save feedback: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to save feedback")
+
+
 
 
 # ============================================================================

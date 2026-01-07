@@ -4,8 +4,8 @@ Tracks user feedback and execution outcomes for continuous improvement
 """
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, Boolean, Integer, Text, ForeignKey, DateTime, CheckConstraint, Index
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Column, String, Boolean, Integer, Float, Text, ForeignKey, DateTime, CheckConstraint, Index
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -101,4 +101,104 @@ class ExecutionOutcome(Base):
         Index('idx_execution_outcomes_alert_id', 'alert_id'),
         Index('idx_execution_outcomes_user_id', 'user_id'),
         Index('idx_execution_outcomes_created_at', 'created_at'),
+    )
+
+
+class RunbookClick(Base):
+    """
+    Tracks all runbook link clicks from AI recommendations.
+    Used for learning user preferences and boosting recommendation confidence.
+    """
+    __tablename__ = "runbook_clicks"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    runbook_id = Column(UUID(as_uuid=True), ForeignKey("runbooks.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    
+    # Session tracking (can be chat session or AI helper session)
+    session_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    
+    # Source identification
+    source = Column(String(50), nullable=False, default='unknown')  # 'chat_page', 'agent_widget', 'alert_detail'
+    
+    # Context at time of click
+    query_text = Column(Text, nullable=True)  # What the user asked
+    confidence_shown = Column(Float, nullable=True)  # Confidence score shown to user (0.0-1.0)
+    rank_shown = Column(Integer, nullable=True)  # Position in list (1 = first)
+    
+    # Timestamp
+    clicked_at = Column(DateTime(timezone=True), default=utc_now, index=True)
+    
+    # Additional context (os_type, alert_id, etc.)
+    context_json = Column(JSONB, nullable=True)
+
+    # Relationships
+    runbook = relationship("Runbook")
+    user = relationship("User")
+
+    __table_args__ = (
+        CheckConstraint(
+            "source IN ('chat_page', 'agent_widget', 'alert_detail', 'runbook_list', 'unknown')",
+            name='ck_runbook_clicks_source'
+        ),
+        CheckConstraint(
+            'confidence_shown IS NULL OR (confidence_shown >= 0.0 AND confidence_shown <= 1.0)',
+            name='ck_runbook_clicks_confidence_range'
+        ),
+        CheckConstraint(
+            'rank_shown IS NULL OR rank_shown >= 1',
+            name='ck_runbook_clicks_rank_positive'
+        ),
+        Index('idx_runbook_clicks_runbook_id', 'runbook_id'),
+        Index('idx_runbook_clicks_user_id', 'user_id'),
+        Index('idx_runbook_clicks_clicked_at', 'clicked_at'),
+        Index('idx_runbook_clicks_source', 'source'),
+    )
+
+
+class AIFeedback(Base):
+    """
+    Tracks user thumbs up/down feedback on both:
+    - Runbook suggestions (affects ranking)
+    - LLM responses (for analytics/prompt tuning)
+    """
+    __tablename__ = "ai_feedback"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    session_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    
+    # Feedback target (one of these is set based on target_type)
+    runbook_id = Column(UUID(as_uuid=True), ForeignKey("runbooks.id", ondelete="CASCADE"), nullable=True, index=True)
+    message_id = Column(UUID(as_uuid=True), nullable=True, index=True)  # For LLM response feedback
+    
+    # Feedback data
+    feedback_type = Column(String(20), nullable=False)  # 'thumbs_up', 'thumbs_down'
+    target_type = Column(String(20), nullable=False)    # 'runbook', 'llm_response'
+    
+    # Context
+    query_text = Column(Text, nullable=True)     # What the user asked
+    response_text = Column(Text, nullable=True)  # The AI response (for LLM feedback)
+    
+    # Timestamp
+    created_at = Column(DateTime(timezone=True), default=utc_now, index=True)
+
+    # Relationships
+    runbook = relationship("Runbook")
+    user = relationship("User")
+
+    __table_args__ = (
+        CheckConstraint(
+            "feedback_type IN ('thumbs_up', 'thumbs_down')",
+            name='ck_ai_feedback_type'
+        ),
+        CheckConstraint(
+            "target_type IN ('runbook', 'llm_response')",
+            name='ck_ai_feedback_target_type'
+        ),
+        Index('idx_ai_feedback_runbook_id', 'runbook_id'),
+        Index('idx_ai_feedback_user_id', 'user_id'),
+        Index('idx_ai_feedback_created_at', 'created_at'),
+        Index('idx_ai_feedback_feedback_type', 'feedback_type'),
+        Index('idx_ai_feedback_target_type', 'target_type'),
     )

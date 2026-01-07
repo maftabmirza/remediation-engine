@@ -365,8 +365,10 @@ function appendAIMessage(text, skipRunButtons = false) {
     removeTypingIndicator();
     const container = document.getElementById('chatMessages');
     if (lastMessageRole !== 'assistant' || !currentMessageDiv) {
+        const messageId = generateUUID();
         const wrapper = document.createElement('div');
         wrapper.className = 'flex justify-start w-full pr-2';
+        wrapper.dataset.messageId = messageId;
         wrapper.innerHTML = `
             <div class="ai-message-wrapper w-full">
                 <div class="flex items-center mb-2">
@@ -376,11 +378,25 @@ function appendAIMessage(text, skipRunButtons = false) {
                     <span class="text-xs text-gray-400">AI Assistant</span>
                 </div>
                 <div class="bg-gray-800/80 rounded-lg p-4 border border-gray-700 text-sm ai-message-content shadow-lg" data-full-text=""></div>
+                <div class="feedback-buttons flex items-center gap-2 mt-2 pl-1">
+                    <span class="text-xs text-gray-500">Was this helpful?</span>
+                    <button class="feedback-btn thumbs-up text-gray-400 hover:text-green-400 transition-colors" data-type="thumbs_up" title="Helpful">
+                        <i class="fas fa-thumbs-up"></i>
+                    </button>
+                    <button class="feedback-btn thumbs-down text-gray-400 hover:text-red-400 transition-colors" data-type="thumbs_down" title="Not helpful">
+                        <i class="fas fa-thumbs-down"></i>
+                    </button>
+                </div>
             </div>
         `;
         container.appendChild(wrapper);
         currentMessageDiv = wrapper.querySelector('.ai-message-content');
         lastMessageRole = 'assistant';
+
+        // Wire up feedback button handlers
+        wrapper.querySelectorAll('.feedback-btn').forEach(btn => {
+            btn.addEventListener('click', () => handleResponseFeedback(wrapper, btn.dataset.type));
+        });
     }
     if (!currentMessageDiv) {
         console.error('Failed to create message container');
@@ -527,6 +543,7 @@ function trackRunbookClicks(container) {
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             session_id: currentSessionId,  // Use chat session ID
+                            source: 'chat_page',
                             choice_data: {
                                 solution_chosen_id: runbookId,
                                 solution_chosen_type: 'runbook',
@@ -540,6 +557,34 @@ function trackRunbookClicks(container) {
             }
         });
     });
+}
+
+// Handle thumbs up/down feedback on AI responses
+function handleResponseFeedback(wrapper, feedbackType) {
+    const messageId = wrapper.dataset.messageId;
+    const responseText = wrapper.querySelector('.ai-message-content')?.getAttribute('data-full-text') || '';
+
+    // Send feedback to server
+    fetch('/api/ai-helper/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            session_id: currentSessionId,
+            message_id: messageId,
+            feedback_type: feedbackType,
+            target_type: 'llm_response',
+            response_text: responseText.substring(0, 500)  // Limit to 500 chars
+        })
+    }).then(res => {
+        if (res.ok) {
+            // Update UI to show feedback was recorded
+            const buttonsDiv = wrapper.querySelector('.feedback-buttons');
+            if (buttonsDiv) {
+                const icon = feedbackType === 'thumbs_up' ? 'fa-check text-green-400' : 'fa-check text-red-400';
+                buttonsDiv.innerHTML = `<span class="text-xs text-gray-500"><i class="fas ${icon} mr-1"></i>Feedback recorded</span>`;
+            }
+        }
+    }).catch(err => console.error('Failed to submit feedback:', err));
 }
 
 function copyToClipboard(text) {
@@ -1383,3 +1428,18 @@ function handleAgentComplete(data) {
     else showToast(data.message || 'Agent failed', 'error');
 }
 
+
+// Helper to generate UUIDs even in non-secure contexts (http)
+function generateUUID() {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+        try {
+            return crypto.randomUUID();
+        } catch (e) {
+            console.warn('crypto.randomUUID failed, using fallback');
+        }
+    }
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+        var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+}
