@@ -214,16 +214,38 @@ async def stream_chat_response(
 
     # [NEW] Determine Server OS for Prompt Context
     server_os = 'linux'
+    detected_hostname = None
+    
+    # Method 1: From alert instance
     if alert and alert.instance:
+        detected_hostname = alert.instance.split(':')[0]
+    
+    # Method 2: Fallback - Parse terminal context from user message
+    # Look for patterns like "Connected to X.X.X.X via WinRM" or "PS user@hostname>"
+    if not detected_hostname:
+        import re
+        # Match IP addresses
+        ip_match = re.search(r'Connected to (\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})', user_message)
+        if ip_match:
+            detected_hostname = ip_match.group(1)
+            logger.info(f"Detected server IP from terminal context: {detected_hostname}")
+        else:
+            # Match PS prompt pattern like "PS administrator@15.204.229.116>"
+            ps_match = re.search(r'PS\s+\w+@([\d\.]+)>', user_message)
+            if ps_match:
+                detected_hostname = ps_match.group(1)
+                logger.info(f"Detected server IP from PS prompt: {detected_hostname}")
+    
+    # Lookup server in database
+    if detected_hostname:
         try:
-            # Strip port if present (e.g., 10.0.0.1:9100 -> 10.0.0.1)
-            hostname = alert.instance.split(':')[0]
-            server_cred = db.query(ServerCredential).filter(ServerCredential.hostname == hostname).first()
+            server_cred = db.query(ServerCredential).filter(ServerCredential.hostname == detected_hostname).first()
             if server_cred:
                 server_os = getattr(server_cred, 'os_type', 'linux') or 'linux'
                 # Infer from protocol if os_type missing
                 if getattr(server_cred, 'protocol', '') == 'winrm':
                     server_os = 'windows'
+                logger.info(f"Resolved server OS for {detected_hostname}: {server_os}")
         except Exception as e:
             logger.error(f"Error resolving server OS: {e}")
 
