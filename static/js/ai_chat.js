@@ -565,14 +565,22 @@ function addRunButtons(container) {
         if (commandText.startsWith('{') || commandText.startsWith('[')) return;
         if (commandText.includes(' - ') && commandText.includes(':')) return; // Likely a description
 
-        // Check if it looks like a command (starts with common command patterns)
-        const looksLikeCommand = /^(Get-|Set-|New-|Remove-|Stop-|Start-|Restart-|Test-|df |ls |cd |cat |grep |ps |top |free |sudo |apt |yum |dnf |systemctl |docker |kubectl |git |npm |pip |python |node |curl |wget |tar |chmod |chown |mkdir |rm |mv |cp |echo |tail |head |find |awk |sed |netstat |ss |ping |traceroute |nslookup |dig |hostname )/i.test(commandText) ||
-            commandText.includes('-') || // Has flags
-            commandText.includes('/') || // Has paths
-            (lines.length === 1 && !commandText.includes(' ') && commandText.length > 5); // Single word like a command name
+        // Skip if it starts with # (comment or disabled config line)
+        if (commandText.startsWith('#')) return;
 
-        if (!looksLikeCommand && lines.length === 1 && commandText.split(' ').length > 5) {
-            // Looks like a sentence, not a command
+        // Skip if it looks like a config file line (inetd, service definitions, etc)
+        if (/\b(stream|dgram)\s+(tcp|udp)\b/i.test(commandText)) return; // inetd config
+        if (/\b(nowait|wait)\s+\w+\s+\//.test(commandText)) return; // inetd service line
+        if (/^\s*\w+\s+\w+\s+\w+\s+\w+\s+\w+\s+\//.test(commandText)) return; // Multiple fields + path = config
+
+        // Check if it looks like a command (starts with common command patterns)
+        const looksLikeCommand = /^(Get-|Set-|New-|Remove-|Stop-|Start-|Restart-|Test-|Invoke-|Write-|Read-|Add-|Clear-|df |ls |cd |cat |grep |ps |top |free |sudo |apt |yum |dnf |systemctl |docker |kubectl |git |npm |pip |python |node |curl |wget |tar |chmod |chown |mkdir |rm |mv |cp |echo |tail |head |find |awk |sed |netstat |ss |ping |traceroute |nslookup |dig |hostname |service |ssh |scp |rsync |make |gcc |\.\/)/i.test(commandText);
+
+        // More lenient: also accept if it looks like a shell command with flags at start
+        const hasCommandFlags = /^[a-z][a-z0-9_-]*\s+-/.test(commandText);
+
+        if (!looksLikeCommand && !hasCommandFlags) {
+            // Not a recognized command pattern
             return;
         }
 
