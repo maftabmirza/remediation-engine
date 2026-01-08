@@ -21,6 +21,7 @@ anthropic==0.18.1
 langchain==0.1.16
 langchain-community==0.0.34
 asyncssh==2.14.2
+pywinrm==0.4.3
 
 # Templates
 jinja2==3.1.3
