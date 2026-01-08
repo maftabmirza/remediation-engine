@@ -1463,6 +1463,9 @@ function addAgentStep(step) {
     const stepEl = document.createElement('div');
     stepEl.id = `agent-step-${step.id}`;
     stepEl.className = 'bg-gray-800 rounded-lg p-4 border border-gray-700';
+
+    console.log('[addAgentStep] Step', step.step_number, 'type:', step.step_type, 'content:', step.content?.substring(0, 50));
+
     if (step.step_type === 'command') {
         stepEl.innerHTML = `<div class="flex items-start"><div class="w-6 h-6 rounded-full bg-blue-600/30 flex items-center justify-center mr-3 mt-0.5 flex-shrink-0"><i class="fas fa-terminal text-blue-400 text-xs"></i></div><div class="flex-grow min-w-0"><div class="text-xs text-gray-400 mb-1">Step ${step.step_number} - Command</div><div class="bg-gray-900 rounded p-2 font-mono text-sm text-green-400 break-all">${escapeHtml(step.content)}</div>${step.reasoning ? `<div class="text-xs text-gray-500 mt-2"><i class="fas fa-lightbulb text-yellow-500 mr-1"></i>${escapeHtml(step.reasoning)}</div>` : ''}<div id="step-output-${step.id}" class="mt-2 hidden"><div class="text-xs text-gray-400 mb-1">Output:</div><pre class="bg-gray-900 rounded p-2 text-xs text-gray-300 overflow-x-auto max-h-40 overflow-y-auto"></pre></div><div id="step-status-${step.id}" class="mt-2 flex items-center text-xs text-gray-400"><i class="fas fa-clock mr-1"></i>Pending...</div></div></div>`;
         if (step.status === 'pending') showApprovalPanel(step);
@@ -1472,6 +1475,10 @@ function addAgentStep(step) {
     } else if (step.step_type === 'failed') {
         stepEl.className = 'bg-red-900/30 rounded-lg p-4 border border-red-500/30';
         stepEl.innerHTML = `<div class="flex items-start"><div class="w-6 h-6 rounded-full bg-red-600/30 flex items-center justify-center mr-3 mt-0.5 flex-shrink-0"><i class="fas fa-times text-red-400 text-xs"></i></div><div class="flex-grow"><div class="text-xs text-red-400 mb-1 font-semibold">Agent Failed</div><div class="text-sm text-gray-300">${escapeHtml(step.content)}</div></div></div>`;
+    } else {
+        // Fallback for unknown step types - render content generically
+        console.warn('[addAgentStep] Unknown step_type:', step.step_type, 'for step', step.step_number);
+        stepEl.innerHTML = `<div class="flex items-start"><div class="w-6 h-6 rounded-full bg-gray-600/30 flex items-center justify-center mr-3 mt-0.5 flex-shrink-0"><i class="fas fa-cog text-gray-400 text-xs"></i></div><div class="flex-grow min-w-0"><div class="text-xs text-gray-400 mb-1">Step ${step.step_number} - ${escapeHtml(step.step_type || 'Processing')}</div><div class="text-sm text-gray-300">${step.content ? escapeHtml(step.content) : '<span class="text-gray-500 italic">Step in progress...</span>'}</div>${step.reasoning ? `<div class="text-xs text-gray-500 mt-2"><i class="fas fa-lightbulb text-yellow-500 mr-1"></i>${escapeHtml(step.reasoning)}</div>` : ''}<div id="step-output-${step.id}" class="mt-2 hidden"><div class="text-xs text-gray-400 mb-1">Output:</div><pre class="bg-gray-900 rounded p-2 text-xs text-gray-300 overflow-x-auto max-h-40 overflow-y-auto"></pre></div><div id="step-status-${step.id}" class="mt-2 flex items-center text-xs text-gray-400"><i class="fas fa-spinner fa-spin mr-1"></i>Processing...</div></div></div>`;
     }
     container.appendChild(stepEl);
     container.scrollTop = container.scrollHeight;
