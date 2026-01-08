@@ -1065,20 +1065,44 @@ async function executeCommandWithOutput(cardId, command) {
             terminalSocket.send(command + '\r');
             term.focus();
 
-            // Wait for command to execute and capture output from terminal buffer
-            await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds for output
-
-            // Get terminal buffer content (last 50 lines)
-            const buffer = term.buffer.active;
+            // Smart wait: Check every 500ms for up to 10 seconds for command to complete
+            // Command is "done" when we see a prompt character ($ > #) at end of output
             let output = '';
-            const startLine = Math.max(0, buffer.cursorY - 30);
-            for (let i = startLine; i <= buffer.cursorY; i++) {
-                const line = buffer.getLine(i);
-                if (line) {
-                    output += line.translateToString(true) + '\n';
+            let attempts = 0;
+            const maxAttempts = 20; // 20 * 500ms = 10 seconds max wait
+
+            while (attempts < maxAttempts) {
+                await new Promise(resolve => setTimeout(resolve, 500));
+                attempts++;
+
+                // Get terminal buffer content
+                const buffer = term.buffer.active;
+                output = '';
+                const startLine = Math.max(0, buffer.cursorY - 40);
+                for (let i = startLine; i <= buffer.cursorY; i++) {
+                    const line = buffer.getLine(i);
+                    if (line) {
+                        output += line.translateToString(true) + '\n';
+                    }
+                }
+                output = output.trim();
+
+                // Check if we see a prompt at the end (command finished)
+                // Common prompts end with: $ > # or PS C:\>
+                const lastLine = output.split('\n').pop() || '';
+                const hasPrompt = /[$#>]\s*$/.test(lastLine) || /PS\s+[A-Z]:\\.*>\s*$/.test(lastLine);
+
+                if (hasPrompt && attempts >= 2) {
+                    // Found prompt and waited at least 1 second - command is done
+                    console.log('[executeCommandWithOutput] Command completed (found prompt after', attempts * 500, 'ms)');
+                    break;
                 }
             }
-            output = output.trim();
+
+            if (attempts >= maxAttempts) {
+                console.log('[executeCommandWithOutput] Timeout waiting for command completion');
+                output += '\n[Note: Command may still be running. Output captured after 10 seconds.]';
+            }
 
             // Show in card (assume success since we can't easily get exit code from PTY)
             showCommandOutputInCard(cardId, command, output || 'Command sent to terminal', true, 0);
