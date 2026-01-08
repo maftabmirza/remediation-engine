@@ -26,6 +26,7 @@ from app.models_remediation import *
 from app.models_runbook_acl import *
 from app.models_scheduler import *
 from app.models_troubleshooting import *
+from app.models_ai_helper import *
 
 # This is the Alembic Config object
 config = context.config
@@ -41,6 +42,12 @@ target_metadata = Base.metadata
 settings = get_settings()
 db_url = os.environ.get("DATABASE_URL") or settings.database_url
 config.set_main_option("sqlalchemy.url", db_url)
+
+
+def include_object(object, name, type_, reflected, compare_to):
+    if type_ == "table" and name == "apscheduler_jobs":
+        return False
+    return True
 
 
 def run_migrations_offline() -> None:
@@ -61,7 +68,8 @@ def run_migrations_offline() -> None:
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
         compare_type=True,
-        compare_server_default=True,
+        compare_server_default=False,
+        include_object=include_object,
     )
 
     with context.begin_transaction():
@@ -85,7 +93,8 @@ def run_migrations_online() -> None:
             connection=connection,
             target_metadata=target_metadata,
             compare_type=True,
-            compare_server_default=True,
+            compare_server_default=False,
+            include_object=include_object,
         )
 
         with context.begin_transaction():

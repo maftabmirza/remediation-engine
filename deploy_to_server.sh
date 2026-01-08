@@ -18,7 +18,7 @@ ssh $SERVER << 'ENDSSH'
   echo ""
   
   echo "Step 2: Pull latest code from git..."
-  git pull origin codex/suggest-improvements-for-dashboard-ux
+  git pull origin claude/review-grafana-docs-xr3h8-PDXto
   
   echo ""
   echo "Step 3: Rebuild and restart containers..."

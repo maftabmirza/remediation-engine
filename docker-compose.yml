@@ -55,8 +55,8 @@ services:
       - ./app:/app/app:ro
       - ./static:/app/static:ro
       - ./templates:/app/templates:ro
-      - ./alembic.ini:/app/alembic.ini:ro
-      - ./alembic:/app/alembic:ro
+      - ./alembic.ini:/app/alembic.ini
+      - ./alembic:/app/alembic
       - ./entrypoint.sh:/app/entrypoint.sh:ro
       - ./storage:/app/storage
     networks:
