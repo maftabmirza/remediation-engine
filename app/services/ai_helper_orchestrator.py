@@ -675,6 +675,43 @@ Response format (JSON):
                     if not has_query:
                         message_parts.append(f"Ask user to paste the {query_language} query if they want help with it.")
 
+            # Add Server Context for troubleshooting (WinRM/SSH awareness)
+            server_id = page_info.get('server_id')
+            server_protocol = page_info.get('server_protocol') or page_info.get('protocol')
+            server_os_type = page_info.get('server_os_type') or page_info.get('os_type')
+            
+            # If we have a server_id but no os_type, try to look it up
+            if server_id and not server_os_type:
+                try:
+                    from app.models import ServerCredential
+                    server = self.db.query(ServerCredential).filter(
+                        ServerCredential.id == server_id
+                    ).first()
+                    if server:
+                        server_protocol = getattr(server, 'protocol', 'ssh') or 'ssh'
+                        server_os_type = getattr(server, 'os_type', None)
+                        # Infer OS from protocol if not set
+                        if not server_os_type:
+                            server_os_type = 'windows' if server_protocol == 'winrm' else 'linux'
+                except Exception as e:
+                    logger.debug(f"Could not look up server: {e}")
+            
+            # If we have any server context, add it to the message
+            if server_protocol or server_os_type:
+                message_parts.append("\n## Server Context:")
+                if server_os_type:
+                    message_parts.append(f"- **OS Type**: {server_os_type.upper()}")
+                if server_protocol:
+                    message_parts.append(f"- **Protocol**: {server_protocol}")
+                
+                if server_os_type and server_os_type.lower() == 'windows':
+                    message_parts.append("\n**IMPORTANT**: This is a **WINDOWS** server.")
+                    message_parts.append("- Use **PowerShell** or **CMD** commands (Get-Volume, Get-Process, wmic, systeminfo)")
+                    message_parts.append("- Do NOT suggest Linux commands (df, ps, top, free, etc.)")
+                elif server_os_type and server_os_type.lower() == 'linux':
+                    message_parts.append("\n**IMPORTANT**: This is a **LINUX** server.")
+                    message_parts.append("- Use **bash/shell** commands (df, ps, top, free, etc.)")
+
         # Add knowledge results
         if context.get('knowledge_results'):
             message_parts.append("\n## Relevant Documentation:")
