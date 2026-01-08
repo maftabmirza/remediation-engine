@@ -579,10 +579,18 @@ function addRunButtons(container) {
         // Determine if this is a pre block or inline code
         const isPreBlock = codeBlock.tagName === 'PRE';
         const isCodeInPre = codeBlock.tagName === 'CODE' && codeBlock.parentElement.tagName === 'PRE';
+        const isInlineCode = codeBlock.tagName === 'CODE' && codeBlock.parentElement.tagName !== 'PRE';
         const targetBlock = isCodeInPre ? codeBlock.parentElement : codeBlock;
 
+        // SKIP inline code (single backticks) - these are typically references in analysis text
+        // Only create command cards for pre blocks (triple backticks code blocks)
+        if (isInlineCode) {
+            console.log('[addRunButtons] Skipping inline code (analysis reference):', commandText.substring(0, 30));
+            return;
+        }
+
         // For pre blocks (code blocks), use the nice command card with Run/Skip buttons
-        if (isPreBlock || (codeBlock.tagName === 'CODE' && codeBlock.parentElement.tagName !== 'PRE')) {
+        if (isPreBlock) {
             // Check if there's already a command card wrapping this
             if (targetBlock.closest('.command-card')) return;
 
