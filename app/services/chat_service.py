@@ -29,6 +29,8 @@ async def get_chat_llm(provider: LLMProvider):
     """
     Get a LangChain Chat Model for the given provider.
     """
+    import litellm  # Import to set API key directly
+    
     api_key = get_api_key_for_provider(provider)
     
     # DEBUG: Log what key we're using
@@ -38,6 +40,18 @@ async def get_chat_llm(provider: LLMProvider):
     model_name = provider.model_id
     if provider.provider_type == "ollama" and not model_name.startswith("ollama/"):
         model_name = f"ollama/{model_name}"
+    
+    # FIX: Set API key directly on litellm module to override env var fallback
+    # ChatLiteLLM ignores the api_key param, so we need to set it at module level
+    if api_key:
+        if provider.provider_type == "anthropic":
+            litellm.anthropic_key = api_key
+        elif provider.provider_type == "openai":
+            litellm.openai_key = api_key
+        elif provider.provider_type == "google":
+            litellm.gemini_key = api_key
+        # Generic fallback
+        litellm.api_key = api_key
         
     # Configure LiteLLM via LangChain
     llm = ChatLiteLLM(
