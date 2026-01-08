@@ -581,25 +581,30 @@ function addRunButtons(container) {
         const isCodeInPre = codeBlock.tagName === 'CODE' && codeBlock.parentElement.tagName === 'PRE';
         const targetBlock = isCodeInPre ? codeBlock.parentElement : codeBlock;
 
-        // For inline code, create a wrapper with inline-flex display
-        const wrapper = document.createElement('span');
-        wrapper.className = isPreBlock ? 'run-command-wrapper relative group my-2 block' : 'run-command-wrapper relative inline-flex items-center gap-1';
+        // For pre blocks (code blocks), use the nice command card with Run/Skip buttons
+        if (isPreBlock || (codeBlock.tagName === 'CODE' && codeBlock.parentElement.tagName !== 'PRE')) {
+            // Check if there's already a command card wrapping this
+            if (targetBlock.closest('.command-card')) return;
 
+            // Use createCommandCard for the nice UI with Run/Skip buttons
+            if (typeof createCommandCard === 'function') {
+                console.log('[addRunButtons] Creating command card for:', commandText.substring(0, 50));
+                createCommandCard(targetBlock, commandText);
+                return;
+            }
+        }
+
+        // Fallback: For inline code or if createCommandCard not available, use simple button
+        const wrapper = document.createElement('span');
+        wrapper.className = 'run-command-wrapper relative inline-flex items-center gap-1';
         targetBlock.parentNode.insertBefore(wrapper, targetBlock);
         wrapper.appendChild(targetBlock);
 
-        // Create the Run button - always visible for inline code
         const runButton = document.createElement('button');
-        if (isPreBlock) {
-            runButton.className = 'run-terminal-btn absolute right-2 top-2 bg-green-600 hover:bg-green-500 text-white text-xs px-3 py-1.5 rounded shadow-lg transition-all duration-200 flex items-center gap-1.5 z-10';
-        } else {
-            // Inline code - simpler button
-            runButton.className = 'run-terminal-btn bg-green-600 hover:bg-green-500 text-white text-xs px-2 py-0.5 rounded ml-1 inline-flex items-center gap-1';
-        }
+        runButton.className = 'run-terminal-btn bg-green-600 hover:bg-green-500 text-white text-xs px-2 py-0.5 rounded ml-1 inline-flex items-center gap-1';
         runButton.innerHTML = '<i class="fas fa-play text-[10px]"></i><span class="hidden sm:inline">Run</span>';
         runButton.title = 'Run this command in the connected terminal';
 
-        // Add click handler
         runButton.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
