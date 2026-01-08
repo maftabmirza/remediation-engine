@@ -343,7 +343,13 @@ function connectChatWebSocket(sessionId) {
     };
     chatSocket.onmessage = (event) => {
         const msg = event.data;
-        if (msg === '[DONE]') return;
+        if (msg === '[DONE]') {
+            // Stream complete - now add Run buttons to the finalized message
+            if (currentMessageDiv) {
+                addRunButtons(currentMessageDiv);
+            }
+            return;
+        }
         appendAIMessage(msg);
     };
     chatSocket.onclose = () => {
@@ -406,8 +412,7 @@ function appendAIMessage(text, skipRunButtons = false) {
     const newText = currentText + text;
     currentMessageDiv.setAttribute('data-full-text', newText);
     currentMessageDiv.innerHTML = marked.parse(newText);
-    // Add "Run in Terminal" buttons to code blocks (all modes)
-    addRunButtons(currentMessageDiv);
+    // Note: addRunButtons is called when [DONE] is received, not during streaming
     // Track runbook link clicks for analytics
     trackRunbookClicks(currentMessageDiv);
     container.scrollTop = container.scrollHeight;
