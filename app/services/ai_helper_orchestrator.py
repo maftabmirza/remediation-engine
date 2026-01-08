@@ -431,6 +431,7 @@ IMPORTANT RULES:
 4. Never access credentials, execute commands, or modify data directly
 5. Remember previous conversation context when responding
 6. When suggesting PromQL queries, use the 'explain_concept' or 'chat' action with markdown code blocks for easy copying
+7. WHENEVER you suggest a terminal command (like ls, df, Get-Volume), you MUST use the 'suggest_command' action so the user can run it easily. Do NOT strictly paste the command in 'chat'.
 
 SOLUTION PRESENTATION (Runbook-First Troubleshooting):
 When context includes 'ranked_solutions':
@@ -717,13 +718,13 @@ Response format (JSON):
                 if server_protocol:
                     message_parts.append(f"- **Protocol**: {server_protocol}")
                 
-                if server_os_type and server_os_type.lower() == 'windows':
+                elif server_os_type and server_os_type.lower() == 'windows':
                     message_parts.append("\n**IMPORTANT**: This is a **WINDOWS** server.")
-                    message_parts.append("- Use **PowerShell** or **CMD** commands (Get-Volume, Get-Process, wmic, systeminfo)")
-                    message_parts.append("- Do NOT suggest Linux commands (df, ps, top, free, etc.)")
+                    message_parts.append("- Use 'suggest_command' with **PowerShell** commands (Get-Volume, Get-Process, etc.)")
+                    message_parts.append("- Do NOT suggest Linux commands")
                 elif server_os_type and server_os_type.lower() == 'linux':
                     message_parts.append("\n**IMPORTANT**: This is a **LINUX** server.")
-                    message_parts.append("- Use **bash/shell** commands (df, ps, top, free, etc.)")
+                    message_parts.append("- Use 'suggest_command' with **bash** commands (df, ps, top, etc.)")
 
         # Add knowledge results
         if context.get('knowledge_results'):
