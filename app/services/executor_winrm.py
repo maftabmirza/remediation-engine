@@ -82,15 +82,20 @@ class WinRMExecutor(BaseExecutor):
         if not self._connected or not self._session:
             self._create_session_sync()
             
-        # Use run_ps if command looks like powershell, else run_cmd
-        # Use run_ps if command looks like powershell, else run_cmd
-        cmd_lower = command.lower()
-        if "gci" in cmd_lower or "get-" in cmd_lower or "select-object" in cmd_lower or "start-service" in cmd_lower or "stop-service" in cmd_lower or "restart-service" in cmd_lower or "$" in cmd_lower:
-             return self._session.run_ps(command)
-        else:
-             # Default to CMD but maybe should default to PS for everything on Windows?
-             # For now, let's just make detection better
+        # Detect if this is likely a CMD command (starts with cmd /c or similar)
+        # Otherwise default to PowerShell for better experience and consistency
+        cmd_lower = command.lower().strip()
+        use_cmd = cmd_lower.startswith("cmd") or cmd_lower.startswith("dir") and not cmd_lower.startswith("gci")
+        
+        if use_cmd:
              return self._session.run_cmd(command)
+        else:
+             # Use PowerShell by default
+             # Prepend progress suppression to avoid CLIXML garbage in stderr
+             ps_command = f"$ProgressPreference = 'SilentlyContinue'; {command}"
+             # Encode command to avoid issues with special chars if needed, but pywinrm handles basic strings well
+             # We rely on run_ps which handles wrapping
+             return self._session.run_ps(ps_command)
 
     async def execute(
         self,
