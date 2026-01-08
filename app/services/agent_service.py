@@ -73,9 +73,31 @@ Analyze all context carefully before deciding your next action.
 """
 
 
-def get_agent_system_prompt(goal: str, alert: Optional[Alert] = None) -> str:
-    """Build the complete system prompt with goal and alert context."""
+def get_agent_system_prompt(goal: str, alert: Optional[Alert] = None, server_info: Optional[Dict] = None) -> str:
+    """Build the complete system prompt with goal, alert, and server context."""
     prompt = AGENT_SYSTEM_PROMPT
+    
+    # Add server context if available
+    if server_info:
+        os_type = server_info.get('os_type', 'linux')
+        protocol = server_info.get('protocol', 'ssh')
+        hostname = server_info.get('hostname', 'server')
+        
+        prompt += f"""
+## SERVER CONTEXT:
+- Hostname: {hostname}
+- OS Type: {os_type}
+- Protocol: {protocol}
+
+**IMPORTANT**: This is a **{os_type.upper()}** server.
+"""
+        if os_type.lower() == 'windows':
+            prompt += """- Use **PowerShell** or **CMD** commands (e.g., Get-Volume, Get-Process, wmic, systeminfo)
+- Do NOT use Linux commands like df, ps, top, etc.
+"""
+        else:
+            prompt += """- Use **bash/shell** commands (e.g., df, ps, top, free, etc.)
+"""
     
     prompt += f"\n\n## GOAL:\n{goal}\n"
     
@@ -244,8 +266,20 @@ class AgentService:
         chat_session = session.chat_session
         alert = chat_session.alert if chat_session else None
         
-        # Build system prompt
-        system_prompt = get_agent_system_prompt(session.goal, alert)
+        # Get server info for OS-aware commands
+        server_info = None
+        if session.server_id:
+            from app.models import ServerCredential
+            server = self.db.query(ServerCredential).filter(ServerCredential.id == session.server_id).first()
+            if server:
+                server_info = {
+                    'hostname': server.hostname,
+                    'os_type': getattr(server, 'os_type', 'linux') or 'linux',
+                    'protocol': getattr(server, 'protocol', 'ssh') or 'ssh'
+                }
+        
+        # Build system prompt with server context
+        system_prompt = get_agent_system_prompt(session.goal, alert, server_info)
         
         # Build context from history
         context = self.build_context(session)

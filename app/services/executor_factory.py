@@ -166,13 +166,20 @@ class ExecutorFactory:
 
         elif protocol == "winrm":
             # WinRM executor
+            port = server.port or 5985  # Default to HTTP port
+            
+            # Auto-detect SSL based on port if not explicitly set
+            use_ssl = getattr(server, 'winrm_use_ssl', None)
+            if use_ssl is None:
+                use_ssl = (port == 5986)  # HTTPS on 5986, HTTP on 5985
+            
             return WinRMExecutor(
                 hostname=server.hostname,
-                port=server.port or 5986,
+                port=port,
                 username=server.username or "Administrator",
                 password=password,
                 transport=getattr(server, 'winrm_transport', 'ntlm') or 'ntlm',
-                use_ssl=getattr(server, 'winrm_use_ssl', True),
+                use_ssl=use_ssl,
                 cert_validation=getattr(server, 'winrm_cert_validation', False)
             )
 
