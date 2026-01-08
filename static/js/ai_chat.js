@@ -406,10 +406,8 @@ function appendAIMessage(text, skipRunButtons = false) {
     const newText = currentText + text;
     currentMessageDiv.setAttribute('data-full-text', newText);
     currentMessageDiv.innerHTML = marked.parse(newText);
-    // Skip adding "Run in Terminal" buttons for inquiry mode responses
-    if (!skipRunButtons) {
-        addRunButtons(currentMessageDiv);
-    }
+    // Add "Run in Terminal" buttons to code blocks (all modes)
+    addRunButtons(currentMessageDiv);
     // Track runbook link clicks for analytics
     trackRunbookClicks(currentMessageDiv);
     container.scrollTop = container.scrollHeight;
@@ -1122,23 +1120,8 @@ function rerunCommand(command) {
     }
 }
 
-// Command Card Functions (for AI-suggested commands)
-function addRunButtons(element) {
-    const blocks = element.querySelectorAll('pre code');
-    blocks.forEach(block => {
-        const pre = block.parentElement;
-        if (pre.querySelector('.code-actions') || pre.closest('.command-card')) return;
-        const lang = block.className.match(/language-(\w+)/)?.[1] || '';
-        const content = block.innerText.trim();
-        const isExplicitShell = ['shell', 'bash', 'sh', 'zsh', 'fish'].includes(lang);
-        const isUnmarked = lang === '';
-        if (isExplicitShell || (isUnmarked && isActualCommand(content))) {
-            createCommandCard(pre, content);
-        } else {
-            addCopyButton(pre, block, lang || 'text');
-        }
-    });
-}
+// Note: addRunButtons function is defined above at line 527
+// This duplicate was removed to fix the overwriting issue
 
 function isActualCommand(content) {
     if (!content || content.length < 2) return false;
