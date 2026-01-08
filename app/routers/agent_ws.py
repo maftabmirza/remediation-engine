@@ -15,7 +15,8 @@ from app.models import User, LLMProvider
 from app.models_agent import AgentSession, AgentStatus
 from app.services.auth_service import get_current_user_ws
 from app.services.agent_service import AgentService
-from app.services.ssh_service import get_ssh_connection
+from app.services.executor_factory import ExecutorFactory
+from app.models import ServerCredential
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Agent"])
@@ -24,7 +25,7 @@ router = APIRouter(tags=["Agent"])
 WS_CLOSE_AUTH_FAILED = 4001
 WS_CLOSE_SESSION_NOT_FOUND = 4004
 WS_CLOSE_NO_PROVIDER = 4010
-WS_CLOSE_SSH_FAILED = 4011
+WS_CLOSE_CONNECTION_FAILED = 4011
 WS_CLOSE_INTERNAL_ERROR = 4500
 
 # Track active connections per session
@@ -131,21 +132,28 @@ async def agent_websocket(
         active_connections[session_id] = set()
     active_connections[session_id].add(websocket)
     
-    # Create SSH connection
-    ssh_client = None
+    # Create executor connection (SSH or WinRM based on server protocol)
+    executor = None
     try:
         if session.server_id:
-            ssh_client = await get_ssh_connection(db, session.server_id)
-            await ssh_client.connect()
-            logger.info(f"SSH connected for agent session {session_id}")
+            server = db.query(ServerCredential).filter(ServerCredential.id == session.server_id).first()
+            if not server:
+                await safe_send(websocket, {"type": "error", "message": "Server not found"})
+                await safe_close(websocket, WS_CLOSE_CONNECTION_FAILED)
+                return
+            
+            executor = ExecutorFactory.get_executor(server)
+            await executor.connect()
+            protocol = getattr(server, 'protocol', 'ssh')
+            logger.info(f"Executor connected ({protocol}) for agent session {session_id}")
         else:
             await safe_send(websocket, {"type": "error", "message": "No server configured"})
-            await safe_close(websocket, WS_CLOSE_SSH_FAILED)
+            await safe_close(websocket, WS_CLOSE_CONNECTION_FAILED)
             return
     except Exception as e:
-        logger.error(f"SSH connection failed: {e}")
-        await safe_send(websocket, {"type": "error", "message": f"SSH connection failed: {str(e)}"})
-        await safe_close(websocket, WS_CLOSE_SSH_FAILED)
+        logger.error(f"Connection failed: {e}")
+        await safe_send(websocket, {"type": "error", "message": f"Connection failed: {str(e)}"})
+        await safe_close(websocket, WS_CLOSE_CONNECTION_FAILED)
         return
     
     # Create agent service with notification callback
@@ -168,7 +176,7 @@ async def agent_websocket(
         
         # Start the agent loop in a background task
         loop_task = asyncio.create_task(
-            run_agent_loop(service, session, provider, ssh_client, websocket)
+            run_agent_loop(service, session, provider, executor, websocket)
         )
         
         # Handle incoming messages (for control commands)
@@ -238,8 +246,8 @@ async def agent_websocket(
             if not active_connections[session_id]:
                 del active_connections[session_id]
         
-        if ssh_client:
-            await ssh_client.close()
+        if executor:
+            await executor.disconnect()
         
         await safe_close(websocket)
         logger.debug(f"Agent WebSocket closed: session={session_id}")
@@ -249,14 +257,14 @@ async def run_agent_loop(
     service: AgentService,
     session: AgentSession,
     provider: LLMProvider,
-    ssh_client,
+    executor,
     websocket: WebSocket
 ):
     """
     Run the agent loop and handle events.
     """
     try:
-        async for event in service.run_loop(session, provider, ssh_client):
+        async for event in service.run_loop(session, provider, executor):
             # Log the event
             logger.debug(f"Agent event: {event.get('type')}")
             

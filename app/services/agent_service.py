@@ -22,7 +22,7 @@ from app.models import LLMProvider, Alert
 from app.models_chat import ChatSession, ChatMessage
 from app.models_agent import AgentSession, AgentStep, AgentStatus, StepType, StepStatus
 from app.services.llm_service import get_api_key_for_provider
-from app.services.ssh_service import SSHClient, get_ssh_connection
+from app.services.executor_base import BaseExecutor
 from app.services.ollama_service import ollama_completion_stream
 from langchain_community.chat_models import ChatLiteLLM
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
@@ -364,7 +364,7 @@ class AgentService:
         self,
         session: AgentSession,
         step: AgentStep,
-        ssh_client: SSHClient
+        executor: BaseExecutor
     ) -> tuple[str, int]:
         """
         Execute a command on the server and capture output.
@@ -381,17 +381,17 @@ class AgentService:
         
         try:
             # Ensure connection is established
-            if not ssh_client.conn:
-                await ssh_client.connect()
+            if not executor.is_connected:
+                await executor.connect()
             
-            # Run command
-            result = await ssh_client.conn.run(command, check=False, timeout=60)
+            # Run command using executor (works for SSH and WinRM)
+            result = await executor.execute(command, timeout=60)
             
             output = result.stdout or ""
             if result.stderr:
                 output += f"\n[STDERR]: {result.stderr}"
             
-            exit_code = result.exit_status
+            exit_code = result.exit_code
             
             step.output = output
             step.exit_code = exit_code
@@ -486,7 +486,7 @@ class AgentService:
         self,
         session: AgentSession,
         provider: LLMProvider,
-        ssh_client: SSHClient
+        executor: BaseExecutor
     ) -> AsyncGenerator[dict, None]:
         """
         Main agent loop - runs until complete, failed, or stopped.
@@ -551,7 +551,7 @@ class AgentService:
                             if step.status == StepStatus.APPROVED.value:
                                 # Execute the command
                                 output, exit_code = await self.execute_command(
-                                    session, step, ssh_client
+                                    session, step, executor
                                 )
                                 yield {
                                     "type": "executed",
@@ -571,7 +571,7 @@ class AgentService:
                     else:
                         # Auto-approve mode - execute immediately
                         output, exit_code = await self.execute_command(
-                            session, step, ssh_client
+                            session, step, executor
                         )
                         yield {
                             "type": "executed",
