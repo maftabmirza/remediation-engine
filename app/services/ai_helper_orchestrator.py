@@ -37,7 +37,8 @@ ALLOWED_ACTIONS = {
     "show_example",
     "validate_input",
     "generate_preview",
-    "chat"
+    "chat",
+    "suggest_command"
 }
 
 # FORBIDDEN ACTIONS (Will be blocked)
@@ -414,6 +415,7 @@ ALLOWED ACTIONS:
 - validate_input: Validate user input
 - generate_preview: Generate preview of configurations
 - chat: Have a general conversation with the user
+- suggest_command: Suggest a command for the user to execute (skill mode)
 
 FORBIDDEN ACTIONS (You must NEVER suggest these):
 - execute_runbook: Cannot execute runbooks
@@ -495,7 +497,18 @@ Example 2 - General chat:
   "confidence": 1.0
 }
 
-Example 3 - Explaining PromQL when query IS found:
+Example 3 - Suggesting a command (Skill Mode):
+{
+  "action": "suggest_command",
+  "action_details": {
+    "command": "Get-Volume",
+    "description": "Check disk space on Windows server"
+  },
+  "reasoning": "User asked to check disk space on Windows",
+  "confidence": 0.95
+}
+
+Example 4 - Explaining PromQL when query IS found:
 {
   "action": "explain_concept",
   "action_details": {
