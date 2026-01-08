@@ -331,6 +331,17 @@ class AgentService:
                 api_key = get_api_key_for_provider(provider)
                 model_name = provider.model_id
                 
+                print(f"[DEBUG agent_service] Using API key for {provider.name}: {api_key[:15] if api_key else 'None'}...")
+                
+                # LiteLLM ignores api_key param and reads from env vars, so we must set them
+                import os
+                if provider.provider_type == "anthropic":
+                    os.environ["ANTHROPIC_API_KEY"] = api_key or ""
+                elif provider.provider_type == "openai":
+                    os.environ["OPENAI_API_KEY"] = api_key or ""
+                elif provider.provider_type == "google":
+                    os.environ["GOOGLE_API_KEY"] = api_key or ""
+                
                 llm = ChatLiteLLM(
                     model=model_name,
                     api_key=api_key,
