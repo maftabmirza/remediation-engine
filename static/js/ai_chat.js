@@ -1078,6 +1078,24 @@ async function executeCommandWithOutput(cardId, command) {
 
         showCommandOutputInCard(cardId, command, output, isSuccess, result.exit_code);
 
+        // Automatically send the command output to the AI for analysis
+        if (output && chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+            // Format the output message for AI analysis
+            const outputForAI = `\n[Command executed: ${command}]\n[Exit code: ${result.exit_code || 0}]\n[Output below]\n\`\`\`\n${output.length > 2000 ? output.substring(0, 2000) + '\n... (truncated)' : output}\n\`\`\`\nPlease analyze this output and suggest the next step if needed.`;
+
+            console.log('[executeCommandWithOutput] Sending output to AI for analysis');
+
+            // Append user message showing we ran the command
+            appendUserMessage(`Ran command: \`${command}\``);
+
+            // Send to AI via WebSocket
+            if (typeof sendChatMessage === 'function') {
+                sendChatMessage(outputForAI);
+            } else if (chatSocket) {
+                // Fallback: send directly to websocket
+                chatSocket.send(JSON.stringify({ type: 'message', content: outputForAI }));
+            }
+        }
     } catch (error) {
         console.error('Command execution failed:', error);
         // Even if API fails, try sending to socket if open (fallback)
