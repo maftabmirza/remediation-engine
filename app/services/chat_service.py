@@ -31,6 +31,10 @@ async def get_chat_llm(provider: LLMProvider):
     """
     api_key = get_api_key_for_provider(provider)
     
+    # DEBUG: Log what key we're using
+    key_preview = api_key[:20] if api_key else "NONE"
+    logger.info(f"[DEBUG] get_chat_llm: provider={provider.name}, key_preview={key_preview}...")
+    
     model_name = provider.model_id
     if provider.provider_type == "ollama" and not model_name.startswith("ollama/"):
         model_name = f"ollama/{model_name}"
