@@ -527,19 +527,27 @@ function escapeHtml(text) {
 function addRunButtons(container) {
     if (!container) return;
 
-    // Find all code blocks (either inline <code> or <pre><code>)
-    const codeBlocks = container.querySelectorAll('pre code, pre');
+    // Find all code blocks: pre>code, pre, and standalone code elements
+    const codeBlocks = container.querySelectorAll('pre code, pre, code');
 
     codeBlocks.forEach((codeBlock, index) => {
         // Skip if already processed
         if (codeBlock.dataset.runButtonAdded) return;
         codeBlock.dataset.runButtonAdded = 'true';
 
+        // Skip if this is a code inside pre (we'll handle the pre instead)
+        if (codeBlock.tagName === 'CODE' && codeBlock.parentElement.tagName === 'PRE') {
+            return; // Let the 'pre' selector handle this
+        }
+
         // Get the command text
         const commandText = codeBlock.textContent.trim();
 
         // Skip if empty or too long (likely not a command)
         if (!commandText || commandText.length > 500) return;
+
+        // Skip if it's just a short word (likely not a command)
+        if (commandText.length < 3) return;
 
         // Skip if it looks like multi-line prose or JSON output
         const lines = commandText.split('\n');
@@ -549,26 +557,44 @@ function addRunButtons(container) {
         if (commandText.startsWith('{') || commandText.startsWith('[')) return;
         if (commandText.includes(' - ') && commandText.includes(':')) return; // Likely a description
 
-        // Create a wrapper div for the code block + button
-        const wrapper = document.createElement('div');
-        wrapper.className = 'run-command-wrapper relative group my-2';
+        // Check if it looks like a command (starts with common command patterns)
+        const looksLikeCommand = /^(Get-|Set-|New-|Remove-|Stop-|Start-|Restart-|Test-|df |ls |cd |cat |grep |ps |top |free |sudo |apt |yum |dnf |systemctl |docker |kubectl |git |npm |pip |python |node |curl |wget |tar |chmod |chown |mkdir |rm |mv |cp |echo |tail |head |find |awk |sed |netstat |ss |ping |traceroute |nslookup |dig |hostname )/i.test(commandText) ||
+            commandText.includes('-') || // Has flags
+            commandText.includes('/') || // Has paths
+            (lines.length === 1 && !commandText.includes(' ') && commandText.length > 5); // Single word like a command name
 
-        // Move the pre/code block into the wrapper
-        const parent = codeBlock.parentElement;
-        const isPreCode = codeBlock.tagName === 'CODE' && parent.tagName === 'PRE';
-        const targetBlock = isPreCode ? parent : codeBlock;
+        if (!looksLikeCommand && lines.length === 1 && commandText.split(' ').length > 5) {
+            // Looks like a sentence, not a command
+            return;
+        }
+
+        // Determine if this is a pre block or inline code
+        const isPreBlock = codeBlock.tagName === 'PRE';
+        const isCodeInPre = codeBlock.tagName === 'CODE' && codeBlock.parentElement.tagName === 'PRE';
+        const targetBlock = isCodeInPre ? codeBlock.parentElement : codeBlock;
+
+        // For inline code, create a wrapper with inline-flex display
+        const wrapper = document.createElement('span');
+        wrapper.className = isPreBlock ? 'run-command-wrapper relative group my-2 block' : 'run-command-wrapper relative inline-flex items-center gap-1';
 
         targetBlock.parentNode.insertBefore(wrapper, targetBlock);
         wrapper.appendChild(targetBlock);
 
-        // Create the Run button
+        // Create the Run button - always visible for inline code
         const runButton = document.createElement('button');
-        runButton.className = 'run-terminal-btn absolute right-2 top-2 bg-green-600 hover:bg-green-500 text-white text-xs px-3 py-1.5 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center gap-1.5 z-10';
-        runButton.innerHTML = '<i class="fas fa-play"></i> Run in Terminal';
+        if (isPreBlock) {
+            runButton.className = 'run-terminal-btn absolute right-2 top-2 bg-green-600 hover:bg-green-500 text-white text-xs px-3 py-1.5 rounded shadow-lg transition-all duration-200 flex items-center gap-1.5 z-10';
+        } else {
+            // Inline code - simpler button
+            runButton.className = 'run-terminal-btn bg-green-600 hover:bg-green-500 text-white text-xs px-2 py-0.5 rounded ml-1 inline-flex items-center gap-1';
+        }
+        runButton.innerHTML = '<i class="fas fa-play text-[10px]"></i><span class="hidden sm:inline">Run</span>';
         runButton.title = 'Run this command in the connected terminal';
 
         // Add click handler
-        runButton.addEventListener('click', () => {
+        runButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
             runCommandInTerminal(commandText, runButton);
         });
 
