@@ -7,7 +7,7 @@ from typing import List, Optional
 from uuid import UUID
 from sqlalchemy.orm import Session
 
-from app.models import Alert
+from app.models import Alert, ServerCredential
 from app.models_troubleshooting import FailurePattern
 from app.schemas_troubleshooting import InvestigationPath, InvestigationStep
 from app.services.prompt_service import PromptService
@@ -31,8 +31,21 @@ class TroubleshootingService:
         if not alert:
             return None
 
-        # Generate prompt
-        prompt = PromptService.get_investigation_plan_prompt(alert)
+        # Resolve Server OS for OS-aware prompts
+        server_os = 'linux'
+        if alert.instance:
+            try:
+                hostname = alert.instance.split(':')[0]
+                server_cred = self.db.query(ServerCredential).filter(ServerCredential.hostname == hostname).first()
+                if server_cred:
+                    server_os = getattr(server_cred, 'os_type', 'linux') or 'linux'
+                    if getattr(server_cred, 'protocol', '') == 'winrm':
+                        server_os = 'windows'
+            except Exception as e:
+                logger.debug(f"Could not resolve server OS: {e}")
+
+        # Generate prompt with OS context
+        prompt = PromptService.get_investigation_plan_prompt(alert, server_os=server_os)
         
         try:
             # Call LLM
@@ -76,7 +89,7 @@ class TroubleshootingService:
                         action="Check Logs", 
                         description="LLM generation failed, check logs manually.", 
                         component=alert.instance, 
-                        command_to_run="tail -n 50 /var/log/syslog"
+                        command_to_run="Get-EventLog -LogName System -Newest 50" if server_os == 'windows' else "tail -n 50 /var/log/syslog"
                     )
                 ],
                 estimated_time_minutes=5

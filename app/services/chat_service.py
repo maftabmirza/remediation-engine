@@ -10,7 +10,7 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.output_parsers import StrOutputParser
 from litellm import token_counter
 
-from app.models import LLMProvider, Alert, AuditLog
+from app.models import LLMProvider, Alert, AuditLog, ServerCredential
 from app.models_chat import ChatSession, ChatMessage
 from app.services.llm_service import get_api_key_for_provider
 from app.services.ollama_service import ollama_completion_stream
@@ -212,12 +212,28 @@ async def stream_chat_response(
         except Exception as e:
             logger.error(f"Error in ChatService runbook search: {e}", exc_info=True)
 
-    # Pass ranked_solutions to PromptService (it will format instructions)
+    # [NEW] Determine Server OS for Prompt Context
+    server_os = 'linux'
+    if alert and alert.instance:
+        try:
+            # Strip port if present (e.g., 10.0.0.1:9100 -> 10.0.0.1)
+            hostname = alert.instance.split(':')[0]
+            server_cred = db.query(ServerCredential).filter(ServerCredential.hostname == hostname).first()
+            if server_cred:
+                server_os = getattr(server_cred, 'os_type', 'linux') or 'linux'
+                # Infer from protocol if os_type missing
+                if getattr(server_cred, 'protocol', '') == 'winrm':
+                    server_os = 'windows'
+        except Exception as e:
+            logger.error(f"Error resolving server OS: {e}")
+
+    # Pass ranked_solutions and server_os to PromptService
     system_prompt = PromptService.get_system_prompt(
         alert=alert, 
         correlation=correlation, 
         similar_incidents=similar_incidents,
-        ranked_solutions=solutions_context  # NEW: Let PromptService handle formatting instructions
+        ranked_solutions=solutions_context,
+        server_os=server_os  # NEW: Pass resolved OS type
     )
     
     

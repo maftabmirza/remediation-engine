@@ -19,17 +19,22 @@ class PromptService:
         correlation: Optional[AlertCorrelation] = None,
         similar_incidents: List[Dict[str, Any]] = [],
         feedback_history: List[AnalysisFeedback] = [],
-        ranked_solutions: Optional[Dict[str, Any]] = None  # NEW
+        ranked_solutions: Optional[Dict[str, Any]] = None,
+        server_os: str = 'linux'  # NEW: 'linux' or 'windows'
     ) -> str:
         """
         Generate the system prompt for the chat assistant.
         """
-        base_prompt = """You are Antigravity, an advanced SRE AI Agent.
-You are pair-programming with the user to resolve a production incident.
+        # Select command language based on OS
+        cmd_lang = "PowerShell" if server_os.lower() == 'windows' else "bash"
+        os_name = "Windows" if server_os.lower() == 'windows' else "Linux"
+
+        base_prompt = f"""You are Antigravity, an advanced SRE AI Agent.
+You are pair-programming with the user to resolve a production incident on a {os_name} server.
 
 ## Your Operating Mode:
 1.  **Iterative Troubleshooting**: Do not dump a wall of text. Propose **one** step at a time.
-2.  **Command Execution**: When you need information, provide the exact `bash` command to run.
+2.  **Command Execution**: When you need information, provide the exact `{cmd_lang}` command to run.
 3.  **Output Analysis**: The user will paste the command output. You must analyze it deeply.
     - If the output confirms your hypothesis -> Propose the fix.
     - If the output disproves it -> Propose a new hypothesis and a new command.
@@ -143,10 +148,13 @@ OUTPUT JSON FORMAT ONLY:
 """
 
     @staticmethod
-    def get_investigation_plan_prompt(alert: Alert) -> str:
+    def get_investigation_plan_prompt(alert: Alert, server_os: str = 'linux') -> str:
         """
         Generate prompt for Investigation Path.
         """
+        cmd_lang = "PowerShell" if server_os.lower() == 'windows' else "bash"
+        os_name = "Windows" if server_os.lower() == 'windows' else "Linux"
+
         return f"""
 Create a step-by-step investigation plan for this alert:
 Alert: {alert.alert_name}
@@ -154,8 +162,8 @@ Instance: {alert.instance}
 Description: {alert.annotations_json.get('description', '')}
 
 INSTRUCTIONS:
-1. Provide 3-5 logical steps to diagnose the issue.
-2. For each step, provide a specific `bash` command to run on Linux.
+1. Provide 3-5 logical steps to diagnose the issue on this {os_name} server.
+2. For each step, provide a specific `{cmd_lang}` command to run.
 3. Be concise.
 
 OUTPUT JSON FORMAT ONLY:
