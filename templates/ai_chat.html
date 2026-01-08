@@ -53,11 +53,11 @@
                     <!-- Mode Toggle: General Inquiry (default) | Troubleshooting -->
                     <div class="flex border border-gray-600 rounded-lg mr-3" title="Chat Mode">
                         <button id="modeGeneralBtn" onclick="switchChatMode('general')"
-                            class="px-3 py-1 text-xs font-medium bg-blue-600 text-white rounded-l-lg border-r border-gray-600 flex items-center">
+                            class="px-3 py-1 text-xs font-medium bg-transparent text-gray-400 rounded-l-lg border-r border-gray-600 hover:text-white hover:bg-gray-700 flex items-center">
                             <i class="fas fa-search mr-1.5"></i>Inquiry
                         </button>
                         <button id="modeTroubleshootBtn" onclick="switchChatMode('troubleshoot')"
-                            class="px-3 py-1 text-xs font-medium bg-transparent text-gray-400 rounded-r-lg hover:text-white hover:bg-gray-700 flex items-center">
+                            class="px-3 py-1 text-xs font-medium bg-blue-600 text-white rounded-r-lg flex items-center">
                             <i class="fas fa-terminal mr-1.5"></i>Troubleshoot
                         </button>
                     </div>
@@ -431,14 +431,14 @@
 
 {% block scripts %}
 {{ super() }}
-<script src="/static/js/ai_chat.js?v=1.4"></script>
+<script src="/static/js/ai_chat.js?v=1.5"></script>
 <script>
     // ============================================================================
     // Right Pane Toggle (Terminal / Data Output)
     // ============================================================================
 
     let currentRightPane = 'terminal'; // Default to terminal
-    let currentChatMode = 'general'; // Default to general inquiry mode
+    let currentChatMode = 'troubleshoot'; // Default to troubleshoot mode (enables Run buttons)
 
     // ============================================================================
     // Inquiry Session Management
