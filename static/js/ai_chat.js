@@ -520,6 +520,96 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+/**
+ * Add "Run in Terminal" buttons to code blocks in AI responses
+ * @param {HTMLElement} container - The container element with AI message content
+ */
+function addRunButtons(container) {
+    if (!container) return;
+
+    // Find all code blocks (either inline <code> or <pre><code>)
+    const codeBlocks = container.querySelectorAll('pre code, pre');
+
+    codeBlocks.forEach((codeBlock, index) => {
+        // Skip if already processed
+        if (codeBlock.dataset.runButtonAdded) return;
+        codeBlock.dataset.runButtonAdded = 'true';
+
+        // Get the command text
+        const commandText = codeBlock.textContent.trim();
+
+        // Skip if empty or too long (likely not a command)
+        if (!commandText || commandText.length > 500) return;
+
+        // Skip if it looks like multi-line prose or JSON output
+        const lines = commandText.split('\n');
+        if (lines.length > 5) return; // Skip long multi-line blocks
+
+        // Skip if it looks like JSON or a description
+        if (commandText.startsWith('{') || commandText.startsWith('[')) return;
+        if (commandText.includes(' - ') && commandText.includes(':')) return; // Likely a description
+
+        // Create a wrapper div for the code block + button
+        const wrapper = document.createElement('div');
+        wrapper.className = 'run-command-wrapper relative group my-2';
+
+        // Move the pre/code block into the wrapper
+        const parent = codeBlock.parentElement;
+        const isPreCode = codeBlock.tagName === 'CODE' && parent.tagName === 'PRE';
+        const targetBlock = isPreCode ? parent : codeBlock;
+
+        targetBlock.parentNode.insertBefore(wrapper, targetBlock);
+        wrapper.appendChild(targetBlock);
+
+        // Create the Run button
+        const runButton = document.createElement('button');
+        runButton.className = 'run-terminal-btn absolute right-2 top-2 bg-green-600 hover:bg-green-500 text-white text-xs px-3 py-1.5 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center gap-1.5 z-10';
+        runButton.innerHTML = '<i class="fas fa-play"></i> Run in Terminal';
+        runButton.title = 'Run this command in the connected terminal';
+
+        // Add click handler
+        runButton.addEventListener('click', () => {
+            runCommandInTerminal(commandText, runButton);
+        });
+
+        wrapper.appendChild(runButton);
+    });
+}
+
+/**
+ * Run a command in the connected terminal
+ * @param {string} command - The command to run
+ * @param {HTMLElement} button - The button that was clicked (for UI feedback)
+ */
+function runCommandInTerminal(command, button) {
+    // Check if terminal is connected
+    if (!terminalSocket || terminalSocket.readyState !== WebSocket.OPEN) {
+        showToast('Not connected to a terminal. Please connect to a server first.', 'error');
+        return;
+    }
+
+    // Send command to terminal
+    terminalSocket.send(command + '\r');
+
+    // Focus terminal
+    if (term) term.focus();
+
+    // Visual feedback on button
+    const originalHTML = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-check"></i> Sent!';
+    button.className = button.className.replace('bg-green-600 hover:bg-green-500', 'bg-blue-600');
+
+    setTimeout(() => {
+        button.innerHTML = originalHTML;
+        button.className = button.className.replace('bg-blue-600', 'bg-green-600 hover:bg-green-500');
+    }, 2000);
+
+    // Add to command history
+    addToCommandHistory(command, '(sent to terminal)', 0, true);
+
+    showToast('Command sent to terminal', 'success');
+}
+
 // Track runbook link clicks for analytics
 function trackRunbookClicks(container) {
     const links = container.querySelectorAll('a[href*="/runbooks/"]');
