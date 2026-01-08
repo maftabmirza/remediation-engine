@@ -16,6 +16,7 @@ from ..models import ServerCredential, APICredentialProfile
 from .executor_base import BaseExecutor, ExecutionResult, ErrorType
 from .executor_ssh import SSHExecutor
 from .executor_api import APIExecutor
+from .executor_winrm import WinRMExecutor
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +35,7 @@ class ExecutorFactory:
     _executors: Dict[str, Type[BaseExecutor]] = {
         "ssh": SSHExecutor,
         "api": APIExecutor,
-        # "winrm": WinRMExecutor,  # Added in Phase 7
+        "winrm": WinRMExecutor,
     }
     
     # Connection pool for reuse
@@ -164,8 +165,16 @@ class ExecutorFactory:
             )
 
         elif protocol == "winrm":
-            # WinRM executor (Phase 7)
-            raise NotImplementedError("WinRM executor not yet implemented")
+            # WinRM executor
+            return WinRMExecutor(
+                hostname=server.hostname,
+                port=server.port or 5986,
+                username=server.username or "Administrator",
+                password=password,
+                transport=getattr(server, 'winrm_transport', 'ntlm') or 'ntlm',
+                use_ssl=getattr(server, 'winrm_use_ssl', True),
+                cert_validation=getattr(server, 'winrm_cert_validation', False)
+            )
 
         else:
             raise ValueError(f"Unknown protocol: {protocol}")
