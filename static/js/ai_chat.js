@@ -1056,53 +1056,49 @@ async function executeCommandWithOutput(cardId, command) {
     }
 
     const actionsDiv = card.querySelector('.cmd-actions');
-    actionsDiv.innerHTML = '<div class="flex-1 flex items-center justify-center text-blue-400 text-sm py-2"><i class="fas fa-spinner fa-spin mr-2"></i>Executing...</div>';
+    actionsDiv.innerHTML = '<div class="flex-1 flex items-center justify-center text-blue-400 text-sm py-2"><i class="fas fa-spinner fa-spin mr-2"></i>Executing in terminal...</div>';
 
     try {
-        let result = { exit_code: 0, success: true, stdout: '' };
-
-        // Only call API if we have a managed server ID
-        if (currentServerId) {
-            const response = await apiCall(`/api/servers/${currentServerId}/execute`, {
-                method: 'POST',
-                body: JSON.stringify({ command: command, timeout: 60 })
-            });
-            result = await response.json();
-        } else {
-            // Ad-hoc mode: We cannot use the API execute endpoint (it requires server_id).
-            // We rely purely on the WebSocket interaction.
-            // We simulate a "success" result because we can't easily capture exit code from raw socket stream here without complex logic.
-            // visual feedback will come from the terminal itself.
-            console.log('Ad-hoc mode: Skipping API audit log, sending to socket only.');
-        }
-
+        // Send command directly to terminal WebSocket (skip background API)
         if (terminalSocket && terminalSocket.readyState === WebSocket.OPEN) {
+            console.log('[executeCommandWithOutput] Sending command to terminal:', command);
             terminalSocket.send(command + '\r');
             term.focus();
-        }
 
-        const isSuccess = (result.exit_code === 0) || (result.success === true);
-        const output = result.stdout || result.stderr || (currentServerId ? (isSuccess ? 'Command completed successfully' : (result.error || 'Command failed')) : 'Sent to terminal');
+            // Wait for command to execute and capture output from terminal buffer
+            await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds for output
 
-        showCommandOutputInCard(cardId, command, output, isSuccess, result.exit_code);
-
-        // Automatically send the command output to the AI for analysis
-        if (output && chatSocket && chatSocket.readyState === WebSocket.OPEN) {
-            // Format the output message for AI analysis
-            const outputForAI = `\n[Command executed: ${command}]\n[Exit code: ${result.exit_code || 0}]\n[Output below]\n\`\`\`\n${output.length > 2000 ? output.substring(0, 2000) + '\n... (truncated)' : output}\n\`\`\`\nPlease analyze this output and suggest the next step if needed.`;
-
-            console.log('[executeCommandWithOutput] Sending output to AI for analysis');
-
-            // Append user message showing we ran the command
-            appendUserMessage(`Ran command: \`${command}\``);
-
-            // Send to AI via WebSocket
-            if (typeof sendChatMessage === 'function') {
-                sendChatMessage(outputForAI);
-            } else if (chatSocket) {
-                // Fallback: send directly to websocket
-                chatSocket.send(JSON.stringify({ type: 'message', content: outputForAI }));
+            // Get terminal buffer content (last 50 lines)
+            const buffer = term.buffer.active;
+            let output = '';
+            const startLine = Math.max(0, buffer.cursorY - 30);
+            for (let i = startLine; i <= buffer.cursorY; i++) {
+                const line = buffer.getLine(i);
+                if (line) {
+                    output += line.translateToString(true) + '\n';
+                }
             }
+            output = output.trim();
+
+            // Show in card (assume success since we can't easily get exit code from PTY)
+            showCommandOutputInCard(cardId, command, output || 'Command sent to terminal', true, 0);
+
+            // Send output to AI for analysis
+            if (output && chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+                const outputForAI = `\n[Command executed: ${command}]\n[Output below]\n\`\`\`\n${output.length > 2000 ? output.substring(0, 2000) + '\n... (truncated)' : output}\n\`\`\`\nPlease analyze this output and suggest the next step if needed.`;
+
+                console.log('[executeCommandWithOutput] Sending output to AI for analysis');
+                appendUserMessage(`Ran command: \`${command}\``);
+
+                if (typeof sendChatMessage === 'function') {
+                    sendChatMessage(outputForAI);
+                } else if (chatSocket) {
+                    chatSocket.send(JSON.stringify({ type: 'message', content: outputForAI }));
+                }
+            }
+        } else {
+            showToast('Terminal not connected. Please connect to a server first.', 'error');
+            actionsDiv.innerHTML = '<div class="flex-1 flex items-center text-red-400 text-sm py-2"><i class="fas fa-exclamation-circle mr-2"></i>Terminal not connected</div>';
         }
     } catch (error) {
         console.error('Command execution failed:', error);
