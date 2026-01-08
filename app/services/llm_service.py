@@ -19,10 +19,23 @@ settings = get_settings()
 
 
 def get_api_key_for_provider(provider: LLMProvider) -> Optional[str]:
-    """Get API key for a provider."""
+    """Get API key for a provider, with decryption support."""
+    # Try to get encrypted key first
     if provider.api_key_encrypted:
-        return decrypt_value(provider.api_key_encrypted)
+        try:
+            decrypted = decrypt_value(provider.api_key_encrypted)
+            if decrypted:
+                logger.debug(f"Using decrypted API key for provider {provider.name}")
+                return decrypted
+            logger.warning(f"Decryption returned None for provider {provider.name}")
+        except Exception as e:
+            logger.error(f"Failed to decrypt API key for provider {provider.name}: {e}")
+            # Fall through to environment variable fallback
+    else:
+        logger.debug(f"No encrypted key for provider {provider.name}, trying env var fallback")
     
+    # Fallback to environment variables
+    logger.warning(f"Using environment variable fallback for {provider.provider_type} (this may be a placeholder)")
     if provider.provider_type == "anthropic":
         return settings.anthropic_api_key
     elif provider.provider_type == "openai":
