@@ -691,24 +691,45 @@ Response format (JSON):
 
             # Add Server Context for troubleshooting (WinRM/SSH awareness)
             server_id = page_info.get('server_id')
-            server_protocol = page_info.get('server_protocol') or page_info.get('protocol')
-            server_os_type = page_info.get('server_os_type') or page_info.get('os_type')
             
-            # If we have a server_id but no os_type, try to look it up
-            if server_id and not server_os_type:
+            # Always look up fresh server details from DB if we have an ID
+            # This prevents stale frontend context (e.g. old protocol) from confusing the AI
+            if server_id:
                 try:
                     from app.models import ServerCredential
+                    # Handle potential string vs UUID format
+                    server_uuid = server_id
+                    if isinstance(server_id, str):
+                        try:
+                            server_uuid = UUID(server_id)
+                        except ValueError:
+                            pass # Keep as string if not UUID
+                            
                     server = self.db.query(ServerCredential).filter(
-                        ServerCredential.id == server_id
+                        ServerCredential.id == server_uuid
                     ).first()
+                    
                     if server:
+                        # db source of truth
                         server_protocol = getattr(server, 'protocol', 'ssh') or 'ssh'
                         server_os_type = getattr(server, 'os_type', None)
-                        # Infer OS from protocol if not set
+                        
+                        # Infer OS from protocol if not explicitly set
                         if not server_os_type:
                             server_os_type = 'windows' if server_protocol == 'winrm' else 'linux'
+                    else:
+                        # Fallback to page context if DB lookup fails
+                        server_protocol = page_info.get('server_protocol') or page_info.get('protocol')
+                        server_os_type = page_info.get('server_os_type') or page_info.get('os_type')
+                        
                 except Exception as e:
                     logger.debug(f"Could not look up server: {e}")
+                    # Fallback on error
+                    server_protocol = page_info.get('server_protocol') or page_info.get('protocol')
+                    server_os_type = page_info.get('server_os_type') or page_info.get('os_type')
+            else:
+                 server_protocol = page_info.get('server_protocol') or page_info.get('protocol')
+                 server_os_type = page_info.get('server_os_type') or page_info.get('os_type')
             
             # If we have any server context, add it to the message
             if server_protocol or server_os_type:
