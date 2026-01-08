@@ -89,6 +89,14 @@ class AIHelperOrchestrator:
             # Get or create session
             if not session_id:
                 session_id = await self._create_session(user_id)
+            else:
+                # Validate session exists - if not, create a new one
+                existing_session = self.db.query(AIHelperSession).filter(
+                    AIHelperSession.id == session_id
+                ).first()
+                if not existing_session:
+                    logger.warning(f"Session {session_id} not found, creating new session")
+                    session_id = await self._create_session(user_id)
 
             # Get configuration
             config = await self._get_config()
