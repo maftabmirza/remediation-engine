@@ -20,22 +20,24 @@ settings = get_settings()
 
 def get_api_key_for_provider(provider: LLMProvider) -> Optional[str]:
     """Get API key for a provider, with decryption support."""
+    print(f"[DEBUG get_api_key_for_provider] Provider: {provider.name}, has_encrypted: {bool(provider.api_key_encrypted)}")
+    
     # Try to get encrypted key first
     if provider.api_key_encrypted:
         try:
             decrypted = decrypt_value(provider.api_key_encrypted)
             if decrypted:
-                logger.debug(f"Using decrypted API key for provider {provider.name}")
+                print(f"[DEBUG get_api_key_for_provider] Decryption SUCCESS for {provider.name}, key_start: {decrypted[:10]}...")
                 return decrypted
-            logger.warning(f"Decryption returned None for provider {provider.name}")
+            print(f"[DEBUG get_api_key_for_provider] Decryption returned None for {provider.name}")
         except Exception as e:
-            logger.error(f"Failed to decrypt API key for provider {provider.name}: {e}")
+            print(f"[DEBUG get_api_key_for_provider] Decryption FAILED for {provider.name}: {e}")
             # Fall through to environment variable fallback
     else:
-        logger.debug(f"No encrypted key for provider {provider.name}, trying env var fallback")
+        print(f"[DEBUG get_api_key_for_provider] No encrypted key for {provider.name}")
     
     # Fallback to environment variables
-    logger.warning(f"Using environment variable fallback for {provider.provider_type} (this may be a placeholder)")
+    print(f"[DEBUG get_api_key_for_provider] FALLBACK to env var for {provider.provider_type}")
     if provider.provider_type == "anthropic":
         return settings.anthropic_api_key
     elif provider.provider_type == "openai":
