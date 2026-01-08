@@ -525,10 +525,15 @@ function escapeHtml(text) {
  * @param {HTMLElement} container - The container element with AI message content
  */
 function addRunButtons(container) {
-    if (!container) return;
+    console.log('[addRunButtons] Called with container:', container);
+    if (!container) {
+        console.log('[addRunButtons] No container, returning');
+        return;
+    }
 
     // Find all code blocks: pre>code, pre, and standalone code elements
     const codeBlocks = container.querySelectorAll('pre code, pre, code');
+    console.log('[addRunButtons] Found', codeBlocks.length, 'code blocks');
 
     codeBlocks.forEach((codeBlock, index) => {
         // Skip if already processed
