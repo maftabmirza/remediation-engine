@@ -11,9 +11,10 @@ from starlette.websockets import WebSocketState
 import aiofiles
 
 from app.database import get_db
-from app.models import TerminalSession
+from app.models import TerminalSession, ServerCredential
 from app.services.auth_service import get_current_user_ws
 from app.services.ssh_service import get_ssh_connection
+from app.services.executor_factory import ExecutorFactory
 from app.config import get_settings
 from app.metrics import TERMINAL_SESSIONS, TERMINAL_CONNECTIONS
 
@@ -27,7 +28,7 @@ os.makedirs(RECORDING_DIR, exist_ok=True)
 # WebSocket close codes
 WS_CLOSE_AUTH_FAILED = 4001
 WS_CLOSE_SERVER_NOT_FOUND = 4004
-WS_CLOSE_SSH_FAILED = 4010
+WS_CLOSE_CONNECTION_FAILED = 4010
 WS_CLOSE_INTERNAL_ERROR = 4500
 
 
@@ -96,7 +97,7 @@ async def terminal_adhoc_websocket(
             logger.error(f"Ad-hoc SSH connection failed to {host}: {e}")
             TERMINAL_CONNECTIONS.labels(status="ssh_failed").inc()
             await safe_send(websocket, f"\r\nSSH Connection Error: {str(e)}\r\n")
-            await safe_close(websocket, WS_CLOSE_SSH_FAILED)
+            await safe_close(websocket, WS_CLOSE_CONNECTION_FAILED)
             return
         
         try:
@@ -105,7 +106,7 @@ async def terminal_adhoc_websocket(
         except Exception as e:
             logger.error(f"Failed to start shell on {host}: {e}")
             await safe_send(websocket, f"\r\nFailed to start shell: {str(e)}\r\n")
-            await safe_close(websocket, WS_CLOSE_SSH_FAILED)
+            await safe_close(websocket, WS_CLOSE_CONNECTION_FAILED)
             return
         
         async def forward_output():
@@ -196,12 +197,12 @@ async def terminal_websocket(
     db: Session = Depends(get_db)
 ):
     """
-    WebSocket endpoint for SSH terminal.
+    WebSocket endpoint for terminal (SSH PTY or WinRM command mode).
     
     Close codes:
         - 4001: Authentication failed
         - 4004: Server not found
-        - 4010: SSH connection failed
+        - 4010: Connection failed
         - 4500: Internal server error
     """
     # Authenticate
@@ -214,8 +215,131 @@ async def terminal_websocket(
 
     await websocket.accept()
     logger.info(f"Terminal WebSocket connected: user={user.username}, server={server_id}")
-    TERMINAL_SESSIONS.inc()  # Increment active sessions
+    TERMINAL_SESSIONS.inc()
     
+    # Get server to check protocol
+    server = db.query(ServerCredential).filter(ServerCredential.id == server_id).first()
+    if not server:
+        await safe_send(websocket, f"\r\nError: Server not found\r\n")
+        await safe_close(websocket, WS_CLOSE_SERVER_NOT_FOUND)
+        TERMINAL_SESSIONS.dec()
+        return
+    
+    protocol = getattr(server, 'protocol', 'ssh') or 'ssh'
+    
+    # Route to appropriate terminal handler
+    if protocol == "winrm":
+        await _handle_winrm_terminal(websocket, server, user, db)
+    else:
+        await _handle_ssh_terminal(websocket, server_id, user, cols, rows, db)
+
+
+async def _handle_winrm_terminal(websocket: WebSocket, server, user, db: Session):
+    """
+    WinRM command-based terminal - simulates terminal experience.
+    
+    User types commands (ending with Enter), we execute via WinRM and show output.
+    """
+    executor = None
+    command_buffer = ""
+    
+    try:
+        # Create WinRM executor
+        executor = ExecutorFactory.get_executor(server)
+        await executor.connect()
+        TERMINAL_CONNECTIONS.labels(status="success").inc()
+        
+        hostname = server.hostname
+        username = server.username or "Administrator"
+        
+        # Send welcome message
+        welcome = f"\r\n\033[1;32mConnected to {hostname} via WinRM\033[0m\r\n"
+        welcome += f"\033[90mType commands and press Enter to execute.\033[0m\r\n\r\n"
+        welcome += f"PS {username}@{hostname}> "
+        await safe_send(websocket, welcome)
+        
+        # Command loop
+        while True:
+            try:
+                data = await websocket.receive_text()
+                
+                # Handle JSON control messages
+                if data.startswith('{"type":'):
+                    try:
+                        msg = json.loads(data)
+                        if msg.get("type") == "ping":
+                            continue
+                        if msg.get("type") == "resize":
+                            continue  # WinRM doesn't support resize
+                    except json.JSONDecodeError:
+                        pass
+                
+                # Process character input
+                for char in data:
+                    if char == '\r' or char == '\n':
+                        # Execute command on Enter
+                        if command_buffer.strip():
+                            cmd = command_buffer.strip()
+                            await safe_send(websocket, '\r\n')
+                            
+                            # Execute command via WinRM
+                            try:
+                                result = await executor.execute(cmd, timeout=60)
+                                output = result.stdout or ""
+                                if result.stderr:
+                                    output += f"\r\n\033[31m{result.stderr}\033[0m"
+                                if output:
+                                    # Convert newlines for terminal display
+                                    output = output.replace('\n', '\r\n')
+                                    await safe_send(websocket, output)
+                                if not output.endswith('\n'):
+                                    await safe_send(websocket, '\r\n')
+                            except Exception as e:
+                                await safe_send(websocket, f"\033[31mError: {str(e)}\033[0m\r\n")
+                        else:
+                            await safe_send(websocket, '\r\n')
+                        
+                        # Show new prompt
+                        await safe_send(websocket, f"PS {username}@{hostname}> ")
+                        command_buffer = ""
+                        
+                    elif char == '\x7f' or char == '\b':
+                        # Backspace
+                        if command_buffer:
+                            command_buffer = command_buffer[:-1]
+                            await safe_send(websocket, '\b \b')
+                            
+                    elif char == '\x03':
+                        # Ctrl+C
+                        await safe_send(websocket, '^C\r\n')
+                        await safe_send(websocket, f"PS {username}@{hostname}> ")
+                        command_buffer = ""
+                        
+                    elif char >= ' ' and char <= '~':
+                        # Printable character
+                        command_buffer += char
+                        await safe_send(websocket, char)
+                        
+            except WebSocketDisconnect:
+                logger.info(f"WinRM terminal disconnected: {server.hostname}")
+                break
+                
+    except Exception as e:
+        logger.error(f"WinRM terminal error: {e}", exc_info=True)
+        await safe_send(websocket, f"\r\n\033[31mConnection Error: {str(e)}\033[0m\r\n")
+        
+    finally:
+        TERMINAL_SESSIONS.dec()
+        if executor:
+            try:
+                await executor.disconnect()
+            except Exception:
+                pass
+        await safe_close(websocket)
+
+
+async def _handle_ssh_terminal(websocket: WebSocket, server_id: UUID, user, cols: int, rows: int, db: Session):
+    """Original SSH PTY terminal handler."""
     ssh_client = None
     process = None
     session_record = None
@@ -240,7 +364,7 @@ async def terminal_websocket(
             logger.error(f"SSH connection failed to {server_id}: {e}")
             TERMINAL_CONNECTIONS.labels(status="ssh_failed").inc()
             await safe_send(websocket, f"\r\nSSH Connection Error: {str(e)}\r\n")
-            await safe_close(websocket, WS_CLOSE_SSH_FAILED)
+            await safe_close(websocket, WS_CLOSE_CONNECTION_FAILED)
             return
         
         # 2. Start Shell
@@ -250,7 +374,7 @@ async def terminal_websocket(
         except Exception as e:
             logger.error(f"Failed to start shell on {server_id}: {e}")
             await safe_send(websocket, f"\r\nFailed to start shell: {str(e)}\r\n")
-            await safe_close(websocket, WS_CLOSE_SSH_FAILED)
+            await safe_close(websocket, WS_CLOSE_CONNECTION_FAILED)
             return
         
         # 3. Create Session Record & Recording File
