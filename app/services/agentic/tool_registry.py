@@ -12,6 +12,7 @@ from uuid import UUID
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
+import sqlalchemy as sa
 
 logger = logging.getLogger(__name__)
 
@@ -341,6 +342,59 @@ class ToolRegistry:
             self._get_alert_details
         )
 
+        # 11. Suggest Server Command
+        self._register_tool(
+            Tool(
+                name="suggest_ssh_command",
+                description="Suggest a command for the user to run on a server. Use this when you need to gather info or perform an action. The USER will execute it and paste the output. Do NOT try to execute paths yourself.",
+                parameters=[
+                    ToolParameter(
+                        name="server",
+                        type="string",
+                        description="Server IP address or hostname",
+                        required=True
+                    ),
+                    ToolParameter(
+                        name="command",
+                        type="string",
+                        description="Shell command to suggest (Bash for Linux, PowerShell for Windows)",
+                        required=True
+                    ),
+                    ToolParameter(
+                        name="explanation",
+                        type="string",
+                        description="Brief explanation of why this command is needed",
+                        required=True
+                    )
+                ]
+            ),
+            self._suggest_ssh_command
+        )
+
+        # 12. Get Proven Solutions (Learning System)
+        self._register_tool(
+            Tool(
+                name="get_proven_solutions",
+                description="Find solutions that WORKED for similar problems in the past. Returns commands, runbooks, or knowledge docs that successfully resolved similar issues. Use this before suggesting new solutions to check if we've solved this before.",
+                parameters=[
+                    ToolParameter(
+                        name="problem_description",
+                        type="string",
+                        description="Description of the current problem to find similar past solutions",
+                        required=True
+                    ),
+                    ToolParameter(
+                        name="limit",
+                        type="integer",
+                        description="Maximum number of solutions to return (default 5)",
+                        required=False,
+                        default=5
+                    )
+                ]
+            ),
+            self._get_proven_solutions
+        )
+
     def _register_tool(self, tool: Tool, handler: Callable):
         """Register a tool with its handler"""
         self._tools[tool.name] = tool
@@ -526,7 +580,7 @@ class ToolRegistry:
             return "Error: Either service or alert_type parameter is required"
 
         try:
-            query = self.db.query(Runbook).filter(Runbook.is_active == True)
+            query = self.db.query(Runbook).filter(Runbook.enabled == True)
 
             if service:
                 query = query.filter(
@@ -874,8 +928,6 @@ class ToolRegistry:
                 for key, value in labels.items():
                     output.append(f"  - {key}: {value}")
 
-            # Analysis if available
-            if alert.ai_analysis:
                 output.append(f"\n**Previous AI Analysis:**")
                 output.append(f"{alert.ai_analysis[:500]}...")
 
@@ -884,3 +936,86 @@ class ToolRegistry:
         except Exception as e:
             logger.error(f"Alert details error: {e}")
             return f"Error fetching alert details: {str(e)}"
+
+
+    async def _suggest_ssh_command(self, args: Dict[str, Any]) -> str:
+        """Suggest a command for the user to run"""
+        server = args.get("server", "").strip()
+        command = args.get("command", "").strip()
+        explanation = args.get("explanation", "").strip()
+
+        if not server or not command:
+            return "Error: server and command are required"
+
+        # Return a response that FORCES the Agent to understand:
+        # 1. A command has been suggested
+        # 2. It MUST wait for output
+        # 3. It should NOT suggest more commands
+        
+        return (
+            f"✓ Command suggestion recorded.\n"
+            f"Server: {server}\n"
+            f"Command: {command}\n"
+            f"Explanation: {explanation}\n\n"
+            f"⚠️ CRITICAL INSTRUCTION: You have suggested ONE command. You MUST now:\n"
+            f"1. Display the command to the user in a markdown code block\n"
+            f"2. STOP your response immediately after displaying the command\n"
+            f"3. DO NOT suggest additional commands\n"
+            f"4. DO NOT write 'Once you run that...' or 'After that...'\n"
+            f"5. WAIT for the user to provide the command output\n\n"
+            f"Status: Waiting for user execution and output..."
+        )
+
+    async def _get_proven_solutions(self, args: Dict[str, Any]) -> str:
+        """Find solutions that worked for similar problems in the past."""
+        problem_description = args.get("problem_description", "").strip()
+        limit = args.get("limit", 5)
+
+        if not problem_description:
+            return "Error: problem_description is required"
+
+        try:
+            from app.models import SolutionOutcome
+            from sqlalchemy import func
+            
+            # Query for successful solutions
+            results = (
+                self.db.query(
+                    SolutionOutcome.solution_type,
+                    SolutionOutcome.solution_reference,
+                    SolutionOutcome.solution_summary,
+                    SolutionOutcome.problem_description,
+                    func.count().label('total_uses'),
+                    func.sum(func.cast(SolutionOutcome.success == True, type_=sa.Integer)).label('success_count')
+                )
+                .filter(SolutionOutcome.success == True)
+                .group_by(
+                    SolutionOutcome.solution_type,
+                    SolutionOutcome.solution_reference,
+                    SolutionOutcome.solution_summary,
+                    SolutionOutcome.problem_description
+                )
+                .order_by(func.count().desc())
+                .limit(limit)
+                .all()
+            )
+
+            if not results:
+                return "No proven solutions found in the learning database yet. This is a new problem - proceed with your own analysis."
+
+            output_parts = ["**Proven Solutions from Past Success:**\n"]
+            for i, r in enumerate(results, 1):
+                success_rate = 100  # We filtered for success=True
+                output_parts.append(
+                    f"{i}. **{r.solution_type.title()}**: `{r.solution_reference[:100] if r.solution_reference else 'N/A'}`\n"
+                    f"   - Original problem: {r.problem_description[:100] if r.problem_description else 'N/A'}...\n"
+                    f"   - Used {r.total_uses} time(s), all successful\n"
+                )
+
+            output_parts.append("\n*These solutions worked before - consider trying them first.*")
+            return "\n".join(output_parts)
+
+        except Exception as e:
+            logger.error(f"Error in get_proven_solutions: {e}")
+            return f"Error searching proven solutions: {str(e)}"
+

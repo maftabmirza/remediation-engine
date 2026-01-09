@@ -881,3 +881,169 @@ async def delete_server(
     db.commit()
 
     return {"message": "Server deleted successfully"}
+
+
+# Interactive Command Execution (for SSH only)
+
+class InteractiveExecuteRequest(BaseModel):
+    """Request to execute a command that may be interactive."""
+    command: str
+    initial_timeout: int = 5  # Seconds to wait before assuming interactive
+
+
+class InteractiveExecuteResponse(BaseModel):
+    """Response from interactive command execution."""
+    completed: bool
+    needs_input: bool
+    output: str = ""
+    error: str = ""
+    exit_code: Optional[int] = None
+    process_id: Optional[str] = None
+
+
+class SendInputRequest(BaseModel):
+    """Request to send input to an interactive process."""
+    process_id: str
+    user_input: str
+    wait_timeout: int = 3
+
+
+@router.post("/{server_id}/execute-interactive", response_model=InteractiveExecuteResponse)
+async def execute_command_interactive(
+    server_id: UUID,
+    payload: InteractiveExecuteRequest,
+    current_user: User = Depends(require_permission(["read"])),
+    db: Session = Depends(get_db),
+):
+    """
+    Execute a command with interactive input detection (SSH only).
+    
+    Tries to execute the command. If it doesn't complete within initial_timeout,
+    returns with needs_input=True and a process_id for sending stdin.
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    try:
+        server = db.query(ServerCredential).filter(ServerCredential.id == server_id).first()
+        if not server:
+            raise HTTPException(status_code=404, detail="Server not found")
+        
+        if server.protocol != "ssh":
+            raise HTTPException(
+                status_code=400, 
+                detail="Interactive execution only supported for SSH protocol"
+            )
+        
+        # Get executor
+        executor = ExecutorFactory.get_executor(server)
+        
+        # Check if executor supports interactive execution
+        if not hasattr(executor, 'execute_interactive'):
+            raise HTTPException(
+                status_code=400,
+                detail="This executor does not support interactive execution"
+            )
+        
+        # Execute with interactive detection
+        result = await executor.execute_interactive(
+            command=payload.command,
+            initial_timeout=payload.initial_timeout
+        )
+        
+        return InteractiveExecuteResponse(**result)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Interactive execution error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{server_id}/send-input", response_model=InteractiveExecuteResponse)
+async def send_input_to_process(
+    server_id: UUID,
+    payload: SendInputRequest,
+    current_user: User = Depends(require_permission(["read"])),
+    db: Session = Depends(get_db),
+):
+    """
+    Send input to a running interactive process (SSH only).
+    
+    Uses the process_id returned from execute_command_interactive.
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    try:
+        server = db.query(ServerCredential).filter(ServerCredential.id == server_id).first()
+        if not server:
+            raise HTTPException(status_code=404, detail="Server not  found")
+        
+        if server.protocol != "ssh":
+            raise HTTPException(
+                status_code=400,
+                detail="Interactive execution only supported for SSH protocol"
+            )
+        
+        # Get executor (should be the same one that started the process)
+        executor = ExecutorFactory.get_executor(server)
+        
+        if not hasattr(executor, 'send_input_to_process'):
+            raise HTTPException(
+                status_code=400,
+                detail="This executor does not support interactive execution"
+            )
+        
+        # Send input
+        result = await executor.send_input_to_process(
+            process_id=payload.process_id,
+            user_input=payload.user_input,
+            wait_timeout=payload.wait_timeout
+        )
+        
+        return InteractiveExecuteResponse(**result)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Send input error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{server_id}/cancel-process")
+async def cancel_interactive_process(
+    server_id: UUID,
+    process_id: str,
+    current_user: User = Depends(require_permission(["read"])),
+    db: Session = Depends(get_db),
+):
+    """Cancel a running interactive process (SSH only)."""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    try:
+        server = db.query(ServerCredential).filter(ServerCredential.id == server_id).first()
+        if not server:
+            raise HTTPException(status_code=404, detail="Server not found")
+        
+        executor = ExecutorFactory.get_executor(server)
+        
+        if not hasattr(executor, 'cancel_interactive_process'):
+            raise HTTPException(
+                status_code=400,
+                detail="This executor does not support interactive execution"
+            )
+        
+        success = await executor.cancel_interactive_process(process_id)
+        
+        if success:
+            return {"message": "Process cancelled successfully"}
+        else:
+            raise HTTPException(status_code=404, detail="Process not found or already completed")
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Cancel process error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
