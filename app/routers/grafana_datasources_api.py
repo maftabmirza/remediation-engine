@@ -8,7 +8,7 @@ Provides CRUD operations, health checks, and connection testing.
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from uuid import UUID
 from datetime import datetime, timezone
 import time
@@ -47,7 +47,7 @@ async def test_datasource_connection(
     username: Optional[str] = None,
     password: Optional[str] = None,
     bearer_token: Optional[str] = None
-) -> tuple[bool, str, Optional[float]]:
+) -> Tuple[bool, str, Optional[float]]:
     """
     Test connection to a datasource.
 

@@ -45,7 +45,7 @@ class ReActAgent:
 
     # Pattern to extract action and action input
     ACTION_PATTERN = re.compile(
-        r"Action:\s*(\w+)\s*\n"
+        r"Action:\s*(\w+)\s*"
         r"Action Input:\s*(\{.*?\}|\S+)",
         re.DOTALL | re.IGNORECASE
     )

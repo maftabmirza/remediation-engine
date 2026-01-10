@@ -331,7 +331,7 @@ class TestToolRegistryIntegration:
     @pytest.mark.asyncio
     async def test_search_knowledge_integration(self, mock_db):
         """Test search_knowledge with mocked KnowledgeSearchService"""
-        with patch('app.services.agentic.tool_registry.KnowledgeSearchService') as MockService:
+        with patch('app.services.knowledge_search_service.KnowledgeSearchService') as MockService:
             mock_service = MagicMock()
             mock_service.search_similar.return_value = [
                 {

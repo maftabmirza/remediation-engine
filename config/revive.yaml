@@ -1,0 +1,28 @@
+ai_helper:
+  enabled: true
+  model: "claude-3-sonnet"
+  max_tokens: 4096
+  temperature: 0.1
+  
+  capabilities:
+    runbook_search: true
+    observability_query: true
+    documentation_search: true
+    
+  safety:
+    audit_logging: true
+    require_confirmation_for_actions: true
+    blocked_topics:
+      - "political"
+      - "nsfw"
+
+  prompts:
+    system_prompt: |
+      You are an intelligent AIOps assistant designed to help Site Reliability Engineers (SREs) troubleshoot incidents, find runbooks, and query observability data.
+      
+      Your capabilities include:
+      1. Searching for runbooks to remediate issues.
+      2. Querying logs (Loki), traces (Tempo), and metrics (Prometheus).
+      3. Answering general technical questions based on provided context.
+      
+      Always prioritize safety and accuracy. If you suggest a runbook, explain why it fits the situation.

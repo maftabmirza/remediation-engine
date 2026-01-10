@@ -34,21 +34,17 @@ from app.routers import (
     servers,
     users,
     auth_config,
-    chat_ws,
-    chat_api,
     terminal_ws,
     audit,
     metrics,
     remediation,
     roles,
     scheduler,
-    agent_api,
-    agent_ws,
     applications,
     application_profiles_api,  # Phase 3: Application Profiles
     grafana_datasources_api,  # Phase 3: Grafana Datasources
     observability_api,  # Phase 4: AI-Powered Observability Queries
-    ai_helper_api,  # AI Helper Widget
+    revive_api,  # RE-VIVE Widget
     knowledge,  # Phase 2: Knowledge Base
     feedback,  # Phase 3: Learning System
     troubleshooting,  # Phase 4: Troubleshooting Engine
@@ -266,8 +262,6 @@ app.include_router(alerts.router)
 app.include_router(rules.router)
 app.include_router(webhook.router)
 app.include_router(settings_router_module.router)
-app.include_router(chat_ws.router)
-app.include_router(chat_api.router)
 app.include_router(terminal_ws.router)
 app.include_router(servers.router)
 app.include_router(audit.router)
@@ -276,13 +270,12 @@ app.include_router(remediation.router)
 app.include_router(api_credential_profiles.router)
 app.include_router(roles.router)
 app.include_router(scheduler.router)
-app.include_router(agent_api.router)
-app.include_router(agent_ws.router)
+
 app.include_router(applications.router)  # Phase 1: Application Registry
 app.include_router(application_profiles_api.router)  # Phase 3: Application Profiles
 app.include_router(grafana_datasources_api.router)  # Phase 3: Grafana Datasources
 app.include_router(observability_api.router)  # Phase 4: AI-Powered Observability
-app.include_router(ai_helper_api.router)  # AI Helper Widget
+app.include_router(revive_api.router)  # RE-VIVE Widget
 app.include_router(knowledge.router)      # Phase 2: Knowledge Base
 app.include_router(feedback.router, prefix="/api/v1", tags=["learning"])  # Phase 3: Learning System
 app.include_router(troubleshooting.router, prefix="/api/v1", tags=["troubleshooting"])  # Phase 4: Troubleshooting Engine

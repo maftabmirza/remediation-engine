@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import User, AuditLog, Alert, AutoAnalyzeRule, ServerCredential, SystemConfig, TerminalSession
-from app.models_chat import ChatSession
+
 from app.schemas import UserCreate, UserUpdate, UserResponse
 from app.services.auth_service import (
     require_permission,
@@ -140,13 +140,7 @@ async def delete_user(
         db.query(ServerCredential).filter(ServerCredential.created_by == user_id).update({ServerCredential.created_by: None}, synchronize_session=False)
         db.query(SystemConfig).filter(SystemConfig.updated_by == user_id).update({SystemConfig.updated_by: None}, synchronize_session=False)
         
-        # 2. Delete records where user_id is NOT nullable (Cascade)
-        # Explicitly delete chat messages first if cascade is not working
-        from app.models_chat import ChatMessage
-        subquery = db.query(ChatSession.id).filter(ChatSession.user_id == user_id)
-        db.query(ChatMessage).filter(ChatMessage.session_id.in_(subquery)).delete(synchronize_session=False)
-        
-        db.query(ChatSession).filter(ChatSession.user_id == user_id).delete(synchronize_session=False)
+
         db.query(TerminalSession).filter(TerminalSession.user_id == user_id).delete(synchronize_session=False)
         
         # 3. Delete the user

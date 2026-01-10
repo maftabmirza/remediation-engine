@@ -9,7 +9,7 @@ Analyzes natural language queries to determine:
 - Aggregation requirements
 """
 
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Tuple
 from datetime import datetime, timedelta
 from pydantic import BaseModel
 import re
@@ -282,7 +282,7 @@ class QueryIntentParser:
 
         return quoted + meaningful[:5]  # Limit to 5 terms
 
-    def _extract_aggregation(self, query: str) -> tuple[Optional[str], List[str]]:
+    def _extract_aggregation(self, query: str) -> Tuple[Optional[str], List[str]]:
         """Extract aggregation function and group by fields."""
         agg_function = None
 

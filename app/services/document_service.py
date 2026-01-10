@@ -3,7 +3,7 @@ Document Processing Service
 Handles document upload, text chunking, and content processing
 """
 import re
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 from uuid import UUID
 import hashlib
 
@@ -256,7 +256,7 @@ class DocumentService:
         status: str = 'active',
         skip: int = 0,
         limit: int = 50
-    ) -> tuple[List[DesignDocument], int]:
+    ) -> Tuple[List[DesignDocument], int]:
         """
         List documents with filters.
         

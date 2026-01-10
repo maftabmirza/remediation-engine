@@ -9,7 +9,7 @@ from pgvector.sqlalchemy import Vector
 
 from app.database import Base
 if TYPE_CHECKING:
-    from app.models_chat import ChatSession, ChatMessage
+    pass
 else:
     # Avoid runtime circular import but allow SQLAlchemy to find models if needed
     pass
@@ -38,7 +38,6 @@ class User(Base):
     default_llm_provider = relationship("LLMProvider", foreign_keys=[default_llm_provider_id])
     rules_created = relationship("AutoAnalyzeRule", back_populates="created_by_user")
     alerts_analyzed = relationship("Alert", back_populates="analyzed_by_user")
-    chat_sessions = relationship("ChatSession", back_populates="user")
 
 
 class Role(Base):

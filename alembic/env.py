@@ -14,9 +14,8 @@ from app.database import Base
 
 # Import all models so Alembic can detect them
 from app.models import *
-from app.models_agent import *
 from app.models_application import *
-from app.models_chat import *
+
 from app.models_dashboards import *
 from app.models_group import *
 from app.models_itsm import *
