@@ -63,9 +63,18 @@ async def submit_solution_feedback(
     """
     import uuid
     
+    # Parse session_id safely (may be None or invalid UUID format)
+    parsed_session_id = None
+    if feedback.session_id:
+        try:
+            parsed_session_id = UUID(feedback.session_id)
+        except (ValueError, AttributeError):
+            logger.warning(f"Invalid session_id format: {feedback.session_id[:50]}... - ignoring")
+            parsed_session_id = None
+    
     # Create solution outcome record
     outcome = SolutionOutcome(
-        session_id=UUID(feedback.session_id) if feedback.session_id else None,
+        session_id=parsed_session_id,
         problem_description=feedback.problem_description or f"User ran: {feedback.solution_reference}",
         solution_type=feedback.solution_type,
         solution_reference=feedback.solution_reference,
