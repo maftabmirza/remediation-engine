@@ -5,12 +5,13 @@ Proxies requests to Grafana with SSO authentication via X-WEBAUTH-USER header.
 Enables transparent Grafana integration with automatic user provisioning.
 """
 
-from fastapi import APIRouter, Depends, Request, Response
+from fastapi import APIRouter, Depends, Request, Response, WebSocket, WebSocketDisconnect
 from fastapi.responses import StreamingResponse
 import httpx
 import os
 import re
 from app.routers.auth import get_current_user
+from app.services.auth_service import get_current_user_optional
 from app.models import User
 
 router = APIRouter(
@@ -21,11 +22,23 @@ router = APIRouter(
 GRAFANA_URL = os.getenv("GRAFANA_URL", "http://grafana:3000")
 
 
+# WebSocket endpoint to gracefully handle Grafana live connections
+@router.websocket("/api/live/ws")
+async def grafana_websocket(websocket: WebSocket):
+    """
+    Handle Grafana WebSocket connections.
+    
+    Grafana's live update feature requires WebSocket support which is not
+    implemented in this proxy. Close connections gracefully.
+    """
+    await websocket.close(code=1000, reason="WebSocket not supported through proxy")
+
+
 @router.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
 async def grafana_proxy(
     path: str,
     request: Request,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user_optional)
 ):
     """
     Proxy all Grafana requests with SSO authentication.
@@ -44,6 +57,21 @@ async def grafana_proxy(
     Returns:
         Proxied response from Grafana
     """
+    # Handle WebSocket connections - they fail auth so reject them gracefully
+    if "websocket" in request.headers.get("upgrade", "").lower() or path.startswith("api/live/ws"):
+        return Response(
+            content="WebSocket live updates not supported through proxy",
+            status_code=404,
+            headers={"Content-Type": "text/plain"}
+        )
+    
+    # Require authentication for non-WebSocket requests
+    if not current_user:
+        return Response(
+            content="Authentication required",
+            status_code=401,
+            headers={"Content-Type": "text/plain"}
+        )
     # Build target URL
     url = f"{GRAFANA_URL}/{path}"
 

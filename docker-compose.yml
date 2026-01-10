@@ -156,8 +156,10 @@ services:
       - GF_ANALYTICS_CHECK_FOR_UPDATES=false
       - GF_NEWS_NEWS_FEED_ENABLED=false
 
-      # Disable OpenFeature to prevent OFREP console errors
-      - GF_FEATURE_TOGGLES_ENABLE=publicDashboards:false,enable_openfeature:false
+      # Disable OpenFeature and Live updates to prevent console errors and WebSocket issues
+      - GF_FEATURE_TOGGLES_ENABLE=publicDashboards:false,enable_openfeature:false,live:false
+      - GF_LIVE_ALLOWED_ORIGINS=
+      - GF_LIVE_MAX_CONNECTIONS=0
     volumes:
       - grafana-data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
@@ -186,6 +188,20 @@ services:
       - ./loki/loki-config.yaml:/etc/loki/local-config.yaml:ro
     networks:
       - aiops-network
+
+  # Promtail for collecting and forwarding logs to Loki
+  promtail:
+    image: grafana/promtail:latest
+    container_name: aiops-promtail
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./promtail/promtail-config.yaml:/etc/promtail/config.yaml:ro
+    command: -config.file=/etc/promtail/config.yaml
+    networks:
+      - aiops-network
+    depends_on:
+      - loki
 
   # Tempo for distributed tracing
   tempo:

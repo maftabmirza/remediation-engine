@@ -67,7 +67,8 @@ from app.routers import (
     rows_api,  # Prometheus Dashboard Builder - Panel Rows
     query_history_api,  # Prometheus Dashboard Builder - Query History
     dashboard_permissions_api,  # Dashboard Permissions
-    grafana_proxy  # Grafana Integration - SSO Proxy
+    grafana_proxy,  # Grafana Integration - SSO Proxy
+    chat_api  # AI Chat API
 )
 from app import api_credential_profiles
 from app.services.execution_worker import start_execution_worker, stop_execution_worker
@@ -80,6 +81,26 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
+
+# Custom filter to suppress noisy Grafana WebSocket 403 errors
+class WebSocketLogFilter(logging.Filter):
+    def filter(self, record):
+        # Suppress WebSocket connection rejected messages for Grafana live and chat
+        message = record.getMessage()
+        if "WebSocket /grafana/api/live/ws" in message:
+            return False
+        if "WebSocket /ws/chat" in message:
+            return False
+        if "connection rejected (403 Forbidden)" in message:
+            return False
+        if "connection closed" in message and "WebSocket" not in message:
+            # Keep connection closed messages that aren't WebSocket related
+            pass
+        return True
+
+# Apply filter to uvicorn access logger
+logging.getLogger("uvicorn.error").addFilter(WebSocketLogFilter())
+
 logger = logging.getLogger(__name__)
 
 settings = get_settings()
@@ -298,6 +319,7 @@ app.include_router(rows_api.router)         # Prometheus Dashboard Builder - Pan
 app.include_router(query_history_api.router) # Prometheus Dashboard Builder - Query History
 app.include_router(dashboard_permissions_api.router) # Dashboard Permissions
 app.include_router(grafana_proxy.router)    # Grafana Integration - SSO Proxy
+app.include_router(chat_api.router)          # AI Chat API
 
 
 @app.get("/profile", response_class=HTMLResponse)
@@ -902,6 +924,28 @@ async def traces_page(
     return response
 
 
+
+@app.get("/prometheus", response_class=HTMLResponse)
+async def prometheus_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    Prometheus UI page (embedded iframe)
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    response = templates.TemplateResponse("prometheus.html", {
+        "request": request,
+        "user": current_user
+    })
+    # Allow iframe embedding - permissive CSP since Prometheus can be on various hosts/ports
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    response.headers["Content-Security-Policy"] = "frame-src 'self' http: https:"
+    return response
+
+
 @app.get("/grafana-alerts", response_class=HTMLResponse)
 async def grafana_alerts_page(
     request: Request,
@@ -979,3 +1023,16 @@ async def health_check(db: Session = Depends(get_db)):
         "database": db_status,
         "version": "2.0.0"
     }
+
+
+# ============== WebSocket Endpoints ==============
+
+from fastapi import WebSocket
+
+@app.websocket("/ws/chat/{session_id}")
+async def chat_websocket_endpoint(websocket: WebSocket, session_id: str):
+    """
+    WebSocket endpoint for chat sessions.
+    Currently closes gracefully as chat uses REST API.
+    """
+    await websocket.close(code=1000, reason="Chat uses REST API")

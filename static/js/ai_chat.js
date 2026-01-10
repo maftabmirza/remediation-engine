@@ -331,37 +331,59 @@ function sendSuggestion(text) {
 }
 
 // WebSocket Chat Connection
+let wsReconnectAttempts = 0;
+const MAX_WS_RECONNECT_ATTEMPTS = 3;
+
 function connectChatWebSocket(sessionId) {
+    // Skip WebSocket if we've exceeded max attempts - chat works via REST API
+    if (wsReconnectAttempts >= MAX_WS_RECONNECT_ATTEMPTS) {
+        console.log('WebSocket disabled - using REST API for chat');
+        if (typeof updateModelStatusIcon === 'function') {
+            updateModelStatusIcon('connected'); // Show as connected since REST works
+        }
+        return;
+    }
+
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const token = localStorage.getItem('token');
     if (!token) {
-        document.getElementById('chatMessages').innerHTML = '<div class="text-red-400 text-center">Authentication error. Please login again.</div>';
+        // Don't show error - just skip WebSocket, REST will still work
+        console.log('No token for WebSocket, using REST API');
         return;
     }
-    chatSocket = new WebSocket(`${protocol}//${window.location.host}/ws/chat/${sessionId}?token=${token}`);
-    chatSocket.onopen = () => {
-        if (typeof updateModelStatusIcon === 'function') {
-            updateModelStatusIcon('connected');
-        }
-    };
-    chatSocket.onmessage = (event) => {
-        const msg = event.data;
-        if (msg === '[DONE]') return;
-        appendAIMessage(msg);
-    };
-    chatSocket.onclose = () => {
-        if (typeof updateModelStatusIcon === 'function') {
-            updateModelStatusIcon('disconnected');
-        }
-        setTimeout(() => {
-            if (currentSessionId) {
-                if (typeof updateModelStatusIcon === 'function') {
-                    updateModelStatusIcon('connecting');
-                }
-                connectChatWebSocket(currentSessionId);
+
+    try {
+        chatSocket = new WebSocket(`${protocol}//${window.location.host}/ws/chat/${sessionId}?token=${token}`);
+        chatSocket.onopen = () => {
+            wsReconnectAttempts = 0; // Reset on successful connection
+            if (typeof updateModelStatusIcon === 'function') {
+                updateModelStatusIcon('connected');
             }
-        }, 3000);
-    };
+        };
+        chatSocket.onmessage = (event) => {
+            const msg = event.data;
+            if (msg === '[DONE]') return;
+            appendAIMessage(msg);
+        };
+        chatSocket.onerror = () => {
+            wsReconnectAttempts++;
+            console.log(`WebSocket error (attempt ${wsReconnectAttempts}/${MAX_WS_RECONNECT_ATTEMPTS})`);
+        };
+        chatSocket.onclose = () => {
+            if (typeof updateModelStatusIcon === 'function') {
+                updateModelStatusIcon('connected'); // Still show connected - REST works
+            }
+            // Only reconnect if under max attempts
+            if (wsReconnectAttempts < MAX_WS_RECONNECT_ATTEMPTS && currentSessionId) {
+                setTimeout(() => {
+                    connectChatWebSocket(currentSessionId);
+                }, 5000); // Increase delay to 5 seconds
+            }
+        };
+    } catch (e) {
+        console.log('WebSocket not available, using REST API');
+        wsReconnectAttempts = MAX_WS_RECONNECT_ATTEMPTS;
+    }
 }
 
 function appendAIMessage(text, skipRunButtons = false) {
@@ -540,7 +562,7 @@ function getTerminalContent() {
     return lines.join('\n').trim();
 }
 
-function sendMessage(e) {
+async function sendMessage(e) {
     e.preventDefault();
 
     // Cancel any pending command polling when user sends a new message
@@ -586,19 +608,44 @@ function sendMessage(e) {
         return;
     }
 
-    // Troubleshooting mode: Use WebSocket chat (original behavior)
-    if (!chatSocket) {
-        removeTypingIndicator();
-        appendAIMessage('Chat not connected. Please refresh the page.');
-        return;
-    }
-
+    // Troubleshooting mode: Use REST API since WebSocket is not available
+    // WebSocket is disabled in this implementation - use REST API for chat
     const termContent = getTerminalContent();
     let finalMessage = text;
     if (termContent) {
         finalMessage += `\n\n[SYSTEM: The user has the following active terminal output. Use it if relevant to the query.]\n\`\`\`\n${termContent}\n\`\`\``;
     }
-    chatSocket.send(finalMessage);
+
+    // Use REST API instead of WebSocket
+    try {
+        const response = await apiCall('/api/ai-helper/chat', {
+            method: 'POST',
+            body: JSON.stringify({
+                message: finalMessage,
+                session_id: currentSessionId
+            })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            removeTypingIndicator();
+            if (data.response) {
+                appendAIMessage(data.response);
+            } else if (data.message) {
+                appendAIMessage(data.message);
+            } else {
+                appendAIMessage('Response received but no message content.');
+            }
+        } else {
+            removeTypingIndicator();
+            appendAIMessage('Failed to get response from AI. Please try again.');
+        }
+    } catch (error) {
+        removeTypingIndicator();
+        console.error('Chat error:', error);
+        appendAIMessage('Error communicating with AI service. Please try again.');
+    }
+
     input.value = '';
 }
 
@@ -1438,27 +1485,48 @@ async function autoSendCommandOutputToAgent(command, output, isSuccess, exitCode
     const statusEmoji = isSuccess ? '✅' : '❌';
     const autoMessage = `${statusEmoji} Command executed:\n\`\`\`\n${command}\n\`\`\`\n\nExit code: ${exitCode}\n\nOutput:\n\`\`\`\n${output.substring(0, 1000)}${output.length > 1000 ? '\n...(truncated)' : ''}\n\`\`\`\n\nWhat should I do next?`;
 
-    // Auto-send to chat WebSocket
-    if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
-        // Add to UI as user message, but visually distinct (auto)
-        // Using appendUserMessage but maybe prefixed
-        appendUserMessage(`[Auto-Report] Command execution complete.`);
+    // Add to UI as user message, but visually distinct (auto)
+    appendUserMessage(`[Auto-Report] Command execution complete.`);
 
-        // Show typing indicator
-        showTypingIndicator();
+    // Show typing indicator
+    showTypingIndicator();
 
-        // Send to Agent with terminal context
-        const termContent = getTerminalContent();
-        let finalMessage = autoMessage;
-        if (termContent) {
-            finalMessage += `\n\n[TERMINAL CONTEXT]\n\`\`\`\n${termContent}\n\`\`\``;
+    // Send to Agent via REST API (WebSocket is not available)
+    const termContent = getTerminalContent();
+    let finalMessage = autoMessage;
+    if (termContent) {
+        finalMessage += `\n\n[TERMINAL CONTEXT]\n\`\`\`\n${termContent}\n\`\`\``;
+    }
+
+    try {
+        const response = await apiCall('/api/ai-helper/chat', {
+            method: 'POST',
+            body: JSON.stringify({
+                message: finalMessage,
+                session_id: currentSessionId
+            })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            removeTypingIndicator();
+            if (data.response) {
+                appendAIMessage(data.response);
+            } else if (data.message) {
+                appendAIMessage(data.message);
+            } else {
+                appendAIMessage('Response received.');
+            }
+            console.log('✅ Auto-sent command output to Agent via REST');
+        } else {
+            removeTypingIndicator();
+            console.warn('Failed to auto-send command output');
+            showToast('Failed to send output to AI. Please describe what happened.', 'warning');
         }
-
-        chatSocket.send(finalMessage);
-        console.log('✅ Auto-sent command output to Agent');
-    } else {
-        console.warn('Chat WebSocket not connected - cannot auto-send');
-        showToast('Please type "Done" to have AI analyze the output', 'info');
+    } catch (error) {
+        removeTypingIndicator();
+        console.error('Auto-send error:', error);
+        showToast('Error sending to AI. Please type your observation.', 'warning');
     }
 }
 

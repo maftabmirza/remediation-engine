@@ -439,4 +439,53 @@ async def clear_cache(
     return {"message": "Cache cleared successfully"}
 
 
+# ============================================================================
+# GET /api/observability/inquiry/sessions - Get Inquiry Sessions
+# ============================================================================
 
+@router.get("/inquiry/sessions")
+async def get_inquiry_sessions(
+    limit: int = 10,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get recent observability inquiry sessions.
+    Returns empty list for now - sessions are handled client-side.
+    """
+    return {"sessions": [], "count": 0}
+
+
+@router.post("/inquiry/sessions")
+async def create_inquiry_session(
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Create a new observability inquiry session.
+    """
+    import uuid
+    session_id = str(uuid.uuid4())
+    return {
+        "id": session_id,
+        "user_id": str(current_user.id),
+        "created_at": datetime.utcnow().isoformat() if 'datetime' in dir() else None
+    }
+
+
+@router.get("/inquiry/sessions/{session_id}")
+async def get_inquiry_session(
+    session_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get a specific observability inquiry session.
+    Returns a placeholder session if not found.
+    """
+    if session_id == "null" or not session_id:
+        return {"sessions": [], "count": 0}
+    
+    return {
+        "id": session_id,
+        "user_id": str(current_user.id),
+        "messages": [],
+        "created_at": None
+    }

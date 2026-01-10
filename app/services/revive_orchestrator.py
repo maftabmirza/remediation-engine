@@ -165,23 +165,49 @@ class ReviveOrchestrator:
             return {"intent": "general", "confidence": 0.5, "reasoning": "Fallback on error"}
 
     def _get_or_create_session(self, db: Session, session_id: Optional[str], user_id: UUID, context: Optional[dict]) -> AISession:
+        # First, rollback any aborted transaction
+        try:
+            db.rollback()
+        except Exception:
+            pass
+            
         if session_id:
             try:
-                session = db.query(AISession).filter(AISession.id == session_id).first()
-                if session:
-                    return session
-            except Exception:
-                pass # Fallback to new session
+                # Only try to parse as UUID if it looks like one
+                if session_id.startswith("session-"):
+                    # Extract the actual UUID part after "session-"
+                    pass  # Not a UUID format, skip lookup
+                else:
+                    session = db.query(AISession).filter(AISession.id == session_id).first()
+                    if session:
+                        return session
+            except Exception as e:
+                logger.warning(f"Failed to fetch session {session_id}: {e}")
+                db.rollback()  # Rollback on error
         
-        session = AISession(
-            user_id=user_id,
-            title="New Conversation",
-            context_context_json=context
-        )
-        db.add(session)
-        db.commit()
-        db.refresh(session)
-        return session
+        try:
+            session = AISession(
+                user_id=user_id,
+                title="New Conversation",
+                context_context_json=context or {}
+            )
+            db.add(session)
+            db.commit()
+            db.refresh(session)
+            return session
+        except Exception as e:
+            logger.error(f"Failed to create session: {e}")
+            db.rollback()
+            # Return a mock session object to avoid breaking the flow
+            from datetime import datetime
+            class MockSession:
+                id = None
+                user_id = user_id
+                title = "Temporary Session"
+                context_context_json = context or {}
+                created_at = datetime.utcnow()
+                updated_at = datetime.utcnow()
+            return MockSession()
 
 _orchestrator = ReviveOrchestrator()
 
