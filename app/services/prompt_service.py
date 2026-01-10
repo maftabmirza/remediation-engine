@@ -174,9 +174,22 @@ Your goal is to help the user understand the data they are resolving on the scre
             context_str += f"- **Page Title:** {page_title}\n"
             context_str += f"- **Page Type:** {page_type}\n"
             context_str += f"- **URL:** {url}\n"
+
+            # Expose Active Query (PromQL/LogQL/TraceQL)
+            if context.get('query'):
+                context_str += f"- **Active Query:** `{context.get('query')}`\n"
             
-            # Add Grafana expertise if on Grafana page
-            if context.get('is_grafana') or context.get('is_native_grafana'):
+            # Expose Dashboard Structure
+            if context.get('dashboard'):
+                dash = context.get('dashboard')
+                context_str += f"- **Dashboard Name:** {dash.get('name', 'Unknown')}\n"
+                if dash.get('panels'):
+                    # Limit panels to avoid token overflow
+                    panels_list = dash.get('panels', [])[:20]
+                    context_str += f"- **Visible Panels:** {', '.join(panels_list)}\n"
+            
+            # Add Grafana expertise if on Grafana page (Broadened check)
+            if context.get('is_grafana') or context.get('is_native_grafana') or 'grafana' in page_type or 'prometheus' in page_type:
                 context_str += "\n### Grafana Stack Expertise\n"
                 context_str += "You are an expert in the Grafana observability stack:\n"
                 context_str += "- **PromQL** (Prometheus/Mimir) for metrics\n"

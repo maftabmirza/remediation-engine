@@ -661,6 +661,25 @@
 
 {% block scripts %}
 <script>
+    // Listen for RE-VIVE toggle messages from iframes
+    window.addEventListener('message', function (event) {
+        if (event.data && event.data.type === 'REVIVE_TOGGLE') {
+            const isOpen = event.data.isOpen;
+            // Resize Grafana/Prometheus containers
+            const containers = document.querySelectorAll('.grafana-container, .prometheus-container');
+            containers.forEach(container => {
+                if (isOpen) {
+                    container.style.setProperty('right', '380px', 'important');
+                    container.style.setProperty('width', 'calc(100% - 80px - 380px)', 'important');
+                } else {
+                    container.style.setProperty('right', '0', 'important');
+                    container.style.setProperty('width', 'calc(100% - 80px)', 'important');
+                }
+            });
+        }
+    });
+</script>
+<script>
     function showThemeModal() {
         document.getElementById('themeModal').classList.remove('hidden');
         document.getElementById('themeModal').classList.add('flex');

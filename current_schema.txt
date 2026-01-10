@@ -1,0 +1,1809 @@
+Database Schema Dump - aiops
+==================================================
+
+Table: ai_feedback
+------------------
+Columns:
+  - id (UUID) NOT NULL 
+  - user_id (UUID) NULL 
+  - session_id (UUID) NULL 
+  - runbook_id (UUID) NULL 
+  - message_id (UUID) NULL 
+  - feedback_type (VARCHAR(20)) NOT NULL 
+  - target_type (VARCHAR(20)) NOT NULL 
+  - query_text (TEXT) NULL 
+  - response_text (TEXT) NULL 
+  - created_at (TIMESTAMP) NULL 
+Primary Key: id
+Foreign Keys:
+  - ['runbook_id'] -> runbooks.['id']
+  - ['user_id'] -> users.['id']
+Indexes:
+  - idx_ai_feedback_created_at: (created_at)
+  - idx_ai_feedback_feedback_type: (feedback_type)
+  - idx_ai_feedback_runbook_id: (runbook_id)
+  - idx_ai_feedback_target_type: (target_type)
+  - idx_ai_feedback_user_id: (user_id)
+  - ix_ai_feedback_created_at: (created_at)
+  - ix_ai_feedback_message_id: (message_id)
+  - ix_ai_feedback_runbook_id: (runbook_id)
+  - ix_ai_feedback_session_id: (session_id)
+  - ix_ai_feedback_user_id: (user_id)
+
+==================================================
+
+Table: ai_helper_audit_logs
+---------------------------
+Columns:
+  - id (UUID) NOT NULL 
+  - user_id (UUID) NOT NULL 
+  - username (VARCHAR(255)) NOT NULL 
+  - session_id (UUID) NULL 
+  - correlation_id (UUID) NULL 
+  - timestamp (TIMESTAMP) NOT NULL DEFAULT now()
+  - user_query (TEXT) NOT NULL 
+  - page_context (JSONB) NULL 
+  - llm_provider (VARCHAR(50)) NULL 
+  - llm_model (VARCHAR(100)) NULL 
+  - llm_request (JSONB) NULL 
+  - llm_response (JSONB) NULL 
+  - llm_tokens_input (INTEGER) NULL 
+  - llm_tokens_output (INTEGER) NULL 
+  - llm_tokens_total (INTEGER) NULL 
+  - llm_latency_ms (INTEGER) NULL 
+  - llm_cost_usd (NUMERIC(10, 6)) NULL 
+  - knowledge_sources_used (ARRAY) NULL 
+  - knowledge_chunks_used (INTEGER) NULL 
+  - rag_search_time_ms (INTEGER) NULL 
+  - code_files_referenced (ARRAY) NULL 
+  - code_functions_referenced (ARRAY) NULL 
+  - ai_suggested_action (VARCHAR(100)) NULL 
+  - ai_action_details (JSONB) NULL 
+  - ai_confidence_score (NUMERIC(3, 2)) NULL 
+  - ai_reasoning (TEXT) NULL 
+  - user_action (VARCHAR(50)) NULL 
+  - user_action_timestamp (TIMESTAMP) NULL 
+  - user_modifications (JSONB) NULL 
+  - user_feedback (VARCHAR(20)) NULL 
+  - user_feedback_comment (TEXT) NULL 
+  - executed (BOOLEAN) NULL 
+  - execution_timestamp (TIMESTAMP) NULL 
+  - execution_result (VARCHAR(50)) NULL 
+  - execution_details (JSONB) NULL 
+  - affected_resources (JSONB) NULL 
+  - action_blocked (BOOLEAN) NULL 
+  - block_reason (VARCHAR(255)) NULL 
+  - permission_checked (BOOLEAN) NULL 
+  - permissions_required (ARRAY) NULL 
+  - permissions_granted (ARRAY) NULL 
+  - ip_address (INET) NULL 
+  - user_agent (TEXT) NULL 
+  - request_id (VARCHAR(255)) NULL 
+  - total_duration_ms (INTEGER) NULL 
+  - context_assembly_ms (INTEGER) NULL 
+  - is_error (BOOLEAN) NULL 
+  - error_type (VARCHAR(100)) NULL 
+  - error_message (TEXT) NULL 
+  - error_stack_trace (TEXT) NULL 
+Primary Key: id
+Foreign Keys:
+  - ['session_id'] -> ai_helper_sessions.['id']
+  - ['user_id'] -> users.['id']
+Indexes:
+  - idx_ai_audit_llm_request: (llm_request)
+  - idx_ai_audit_page_context: (page_context)
+  - ix_ai_helper_audit_logs_action_blocked: (action_blocked)
+  - ix_ai_helper_audit_logs_ai_suggested_action: (ai_suggested_action)
+  - ix_ai_helper_audit_logs_correlation_id: (correlation_id)
+  - ix_ai_helper_audit_logs_executed: (executed)
+  - ix_ai_helper_audit_logs_execution_result: (execution_result)
+  - ix_ai_helper_audit_logs_is_error: (is_error)
+  - ix_ai_helper_audit_logs_session_id: (session_id)
+  - ix_ai_helper_audit_logs_timestamp: (timestamp)
+  - ix_ai_helper_audit_logs_user_action: (user_action)
+  - ix_ai_helper_audit_logs_user_id: (user_id)
+
+==================================================
+
+Table: ai_helper_config
+-----------------------
+Columns:
+  - id (UUID) NOT NULL 
+  - config_key (VARCHAR(255)) NOT NULL 
+  - config_value (JSONB) NOT NULL 
+  - description (TEXT) NULL 
+  - config_type (VARCHAR(50)) NULL 
+  - schema (JSONB) NULL 
+  - is_encrypted (BOOLEAN) NULL 
+  - enabled (BOOLEAN) NULL 
+  - created_by (UUID) NULL 
+  - created_at (TIMESTAMP) NULL DEFAULT now()
+  - updated_at (TIMESTAMP) NULL DEFAULT now()
+  - updated_by (UUID) NULL 
+Primary Key: id
+Foreign Keys:
+  - ['created_by'] -> users.['id']
+  - ['updated_by'] -> users.['id']
+Indexes:
+  - ix_ai_helper_config_config_key: UNIQUE (config_key)
+  - ix_ai_helper_config_config_type: (config_type)
+
+==================================================
+
+Table: ai_helper_sessions
+-------------------------
+Columns:
+  - id (UUID) NOT NULL 
+  - user_id (UUID) NOT NULL 
+  - session_type (VARCHAR(50)) NULL 
+  - context (JSONB) NULL 
+  - status (VARCHAR(50)) NULL 
+  - total_queries (INTEGER) NULL 
+  - total_tokens_used (INTEGER) NULL 
+  - total_cost_usd (NUMERIC(10, 6)) NULL 
+  - started_at (TIMESTAMP) NOT NULL DEFAULT now()
+  - last_activity_at (TIMESTAMP) NULL DEFAULT now()
+  - ended_at (TIMESTAMP) NULL 
+  - duration_seconds (INTEGER) NULL 
+  - created_at (TIMESTAMP) NULL DEFAULT now()
+Primary Key: id
+Foreign Keys:
+  - ['user_id'] -> users.['id']
+Indexes:
+  - ix_ai_helper_sessions_last_activity_at: (last_activity_at)
+  - ix_ai_helper_sessions_status: (status)
+  - ix_ai_helper_sessions_user_id: (user_id)
+
+==================================================
+
+Table: ai_messages
+------------------
+Columns:
+  - id (UUID) NOT NULL 
+  - session_id (UUID) NOT NULL 
+  - role (VARCHAR(20)) NOT NULL 
+  - content (TEXT) NOT NULL 
+  - metadata_json (JSON) NULL 
+  - created_at (TIMESTAMP) NULL 
+Primary Key: id
+Foreign Keys:
+  - ['session_id'] -> ai_sessions.['id']
+
+==================================================
+
+Table: ai_sessions
+------------------
+Columns:
+  - id (UUID) NOT NULL 
+  - user_id (UUID) NULL 
+  - title (VARCHAR(255)) NULL 
+  - context_context_json (JSON) NULL 
+  - created_at (TIMESTAMP) NULL 
+  - updated_at (TIMESTAMP) NULL 
+Primary Key: id
+Foreign Keys:
+  - ['user_id'] -> users.['id']
+
+==================================================
+
+Table: alembic_version
+----------------------
+Columns:
+  - version_num (VARCHAR(255)) NOT NULL 
+Primary Key: version_num
+
+==================================================
+
+Table: alert_clusters
+---------------------
+Columns:
+  - id (UUID) NOT NULL 
+  - cluster_key (VARCHAR(255)) NOT NULL 
+  - alert_count (INTEGER) NOT NULL 
+  - first_seen (TIMESTAMP) NOT NULL 
+  - last_seen (TIMESTAMP) NOT NULL 
+  - severity (VARCHAR(20)) NOT NULL 
+  - cluster_type (VARCHAR(50)) NOT NULL 
+  - summary (TEXT) NULL 
+  - is_active (BOOLEAN) NOT NULL 
+  - closed_at (TIMESTAMP) NULL 
+  - closed_reason (VARCHAR(100)) NULL 
+  - cluster_metadata (JSON) NULL 
+  - created_at (TIMESTAMP) NULL 
+  - updated_at (TIMESTAMP) NULL 
+Primary Key: id
+Indexes:
+  - ix_alert_clusters_cluster_key: UNIQUE (cluster_key)
+  - ix_alert_clusters_first_seen: (first_seen)
+  - ix_alert_clusters_is_active: (is_active)
+  - ix_alert_clusters_last_seen: (last_seen)
+  - ix_alert_clusters_severity: (severity)
+
+==================================================
+
+Table: alert_correlations
+-------------------------
+Columns:
+  - id (UUID) NOT NULL 
+  - summary (VARCHAR(255)) NOT NULL 
+  - root_cause_analysis (TEXT) NULL 
+  - status (VARCHAR(50)) NOT NULL 
+  - confidence_score (DOUBLE PRECISION) NULL 
+  - created_at (TIMESTAMP) NULL 
+  - updated_at (TIMESTAMP) NULL 
+Primary Key: id
+Indexes:
+  - ix_alert_correlations_created_at: (created_at)
+
+==================================================
+
+Table: alerts
+-------------
+Columns:
+  - id (UUID) NOT NULL 
+  - fingerprint (VARCHAR(100)) NULL 
+  - timestamp (TIMESTAMP) NOT NULL 
+  - alert_name (VARCHAR(255)) NOT NULL 
+  - severity (VARCHAR(50)) NULL 
+  - instance (VARCHAR(255)) NULL 
+  - job (VARCHAR(100)) NULL 
+  - status (VARCHAR(20)) NULL 
+  - labels_json (JSON) NULL 
+  - annotations_json (JSON) NULL 
+  - raw_alert_json (JSON) NULL 
+  - matched_rule_id (UUID) NULL 
+  - action_taken (VARCHAR(20)) NULL 
+  - analyzed (BOOLEAN) NULL 
+  - analyzed_at (TIMESTAMP) NULL 
+  - analyzed_by (UUID) NULL 
+  - llm_provider_id (UUID) NULL 
+  - ai_analysis (TEXT) NULL 
+  - recommendations_json (JSON) NULL 
+  - analysis_count (INTEGER) NULL 
+  - created_at (TIMESTAMP) NULL 
+  - app_id (UUID) NULL 
+  - component_id (UUID) NULL 
+  - embedding_text (TEXT) NULL 
+  - embedding (NULL) NULL 
+  - correlation_id (UUID) NULL 
+  - cluster_id (UUID) NULL 
+  - clustered_at (TIMESTAMP) NULL 
+Primary Key: id
+Foreign Keys:
+  - ['analyzed_by'] -> users.['id']
+  - ['app_id'] -> applications.['id']
+  - ['component_id'] -> application_components.['id']
+  - ['correlation_id'] -> alert_correlations.['id']
+  - ['llm_provider_id'] -> llm_providers.['id']
+  - ['matched_rule_id'] -> auto_analyze_rules.['id']
+  - ['cluster_id'] -> alert_clusters.['id']
+Indexes:
+  - ix_alerts_action_taken: (action_taken)
+  - ix_alerts_alert_name: (alert_name)
+  - ix_alerts_analyzed: (analyzed)
+  - ix_alerts_app_id: (app_id)
+  - ix_alerts_cluster_id: (cluster_id)
+  - ix_alerts_component_id: (component_id)
+  - ix_alerts_correlation_id: (correlation_id)
+  - ix_alerts_fingerprint: (fingerprint)
+  - ix_alerts_severity: (severity)
+  - ix_alerts_status: (status)
+
+==================================================
+
+Table: analysis_feedback
+------------------------
+Columns:
+  - id (UUID) NOT NULL 
+  - alert_id (UUID) NOT NULL 
+  - user_id (UUID) NULL 
+  - helpful (BOOLEAN) NULL 
+  - rating (INTEGER) NULL 
+  - accuracy (VARCHAR(30)) NULL 
+  - what_was_missing (TEXT) NULL 
+  - what_actually_worked (TEXT) NULL 
+  - created_at (TIMESTAMP) NULL 
+Primary Key: id
+Foreign Keys:
+  - ['alert_id'] -> alerts.['id']
+  - ['user_id'] -> users.['id']
+Indexes:
+  - idx_analysis_feedback_alert_id: (alert_id)
+  - idx_analysis_feedback_created_at: (created_at)
+  - idx_analysis_feedback_user_id: (user_id)
+  - ix_analysis_feedback_alert_id: (alert_id)
+  - ix_analysis_feedback_created_at: (created_at)
+  - ix_analysis_feedback_user_id: (user_id)
+
+==================================================
+
+Table: api_credential_profiles
+------------------------------
+Columns:
+  - id (UUID) NOT NULL 
+  - name (VARCHAR(255)) NOT NULL 
+  - description (TEXT) NULL 
+  - credential_type (VARCHAR(50)) NULL 
+  - base_url (VARCHAR(500)) NOT NULL 
+  - auth_type (VARCHAR(30)) NULL 
+  - auth_header (VARCHAR(100)) NULL 
+  - token_encrypted (TEXT) NULL 
+  - username (VARCHAR(255)) NULL 
+  - verify_ssl (BOOLEAN) NULL 
+  - timeout_seconds (INTEGER) NULL 
+  - default_headers (JSON) NULL 
+  - oauth_token_url (VARCHAR(500)) NULL 
+  - oauth_client_id (VARCHAR(255)) NULL 
+  - oauth_client_secret_encrypted (TEXT) NULL 
+  - oauth_scope (TEXT) NULL 
+  - tags (JSON) NULL 
+  - profile_metadata (JSON) NULL 
+  - enabled (BOOLEAN) NULL 
+  - created_at (TIMESTAMP) NULL 
+  - updated_at (TIMESTAMP) NULL 
+  - created_by (UUID) NULL 
+  - last_used_at (TIMESTAMP) NULL 
+Primary Key: id
+Foreign Keys:
+  - ['created_by'] -> users.['id']
+Indexes:
+  - ix_api_credential_profiles_auth_type: (auth_type)
+  - ix_api_credential_profiles_credential_type: (credential_type)
+  - ix_api_credential_profiles_enabled: (enabled)
+  - ix_api_credential_profiles_name: UNIQUE (name)
+
+==================================================
+
+Table: application_components
+-----------------------------
+Columns:
+  - id (UUID) NOT NULL 
+  - app_id (UUID) NOT NULL 
+  - name (VARCHAR(100)) NOT NULL 
+  - component_type (VARCHAR(50)) NULL 
+  - description (TEXT) NULL 
+  - endpoints (JSON) NULL 
+  - alert_label_matchers (JSON) NULL 
+  - criticality (VARCHAR(20)) NULL 
+  - created_at (TIMESTAMP) NULL 
+  - updated_at (TIMESTAMP) NULL 
+  - hostname (VARCHAR(255)) NULL 
+  - ip_address (VARCHAR(45)) NULL 
+  - subtype (VARCHAR(50)) NULL 
+Primary Key: id
+Foreign Keys:
+  - ['app_id'] -> applications.['id']
+Indexes:
+  - ix_application_components_app_id: (app_id)
+
+==================================================
+
+Table: application_profiles
+---------------------------
+Columns:
+  - id (UUID) NOT NULL 
+  - app_id (UUID) NOT NULL 
+  - architecture_type (VARCHAR(50)) NULL 
+  - framework (VARCHAR(100)) NULL 
+  - language (VARCHAR(50)) NULL 
+  - architecture_info (JSON) NULL 
+  - service_mappings (JSON) NULL 
+  - default_metrics (JSON) NULL 
+  - slos (JSON) NULL 
+  - prometheus_datasource_id (UUID) NULL 
+  - loki_datasource_id (UUID) NULL 
+  - tempo_datasource_id (UUID) NULL 
+  - default_time_range (VARCHAR(20)) NULL 
+  - log_patterns (JSON) NULL 
+  - created_at (TIMESTAMP) NULL 
+  - updated_at (TIMESTAMP) NULL 
+Primary Key: id
+Foreign Keys:
+  - ['app_id'] -> applications.['id']
+  - ['loki_datasource_id'] -> grafana_datasources.['id']
+  - ['prometheus_datasource_id'] -> grafana_datasources.['id']
+  - ['tempo_datasource_id'] -> grafana_datasources.['id']
+Indexes:
+  - ix_application_profiles_app_id: UNIQUE (app_id)
+
+==================================================
+
+Table: applications
+-------------------
+Columns:
+  - id (UUID) NOT NULL 
+  - name (VARCHAR(100)) NOT NULL 
+  - display_name (VARCHAR(200)) NULL 
+  - description (TEXT) NULL 
+  - team_owner (VARCHAR(100)) NULL 
+  - criticality (VARCHAR(20)) NULL 
+  - tech_stack (JSON) NULL 
+  - alert_label_matchers (JSON) NULL 
+  - created_at (TIMESTAMP) NULL 
+  - updated_at (TIMESTAMP) NULL 
+Primary Key: id
+Indexes:
+  - ix_applications_name: UNIQUE (name)
+
+==================================================
+
+Table: apscheduler_jobs
+-----------------------
+Columns:
+  - id (VARCHAR(191)) NOT NULL 
+  - next_run_time (DOUBLE PRECISION) NULL 
+  - job_state (BYTEA) NOT NULL 
+Primary Key: id
+Indexes:
+  - ix_apscheduler_jobs_next_run_time: (next_run_time)
+
+==================================================
+
+Table: audit_log
+----------------
+Columns:
+  - id (UUID) NOT NULL 
+  - user_id (UUID) NULL 
+  - action (VARCHAR(50)) NOT NULL 
+  - resource_type (VARCHAR(50)) NULL 
+  - resource_id (UUID) NULL 
+  - details_json (JSON) NULL 
+  - ip_address (VARCHAR(45)) NULL 
+  - created_at (TIMESTAMP) NULL 
+Primary Key: id
+Foreign Keys:
+  - ['user_id'] -> users.['id']
+Indexes:
+  - ix_audit_log_action: (action)
+  - ix_audit_log_created_at: (created_at)
+  - ix_audit_log_resource_type: (resource_type)
+  - ix_audit_log_user_id: (user_id)
+
+==================================================
+
+Table: auto_analyze_rules
+-------------------------
+Columns:
+  - id (UUID) NOT NULL 
+  - name (VARCHAR(100)) NOT NULL 
+  - description (TEXT) NULL 
+  - priority (INTEGER) NULL 
+  - condition_json (JSON) NULL 
+  - alert_name_pattern (VARCHAR(255)) NULL 
+  - severity_pattern (VARCHAR(50)) NULL 
+  - instance_pattern (VARCHAR(255)) NULL 
+  - job_pattern (VARCHAR(255)) NULL 
+  - action (VARCHAR(20)) NULL 
+  - enabled (BOOLEAN) NULL 
+  - created_by (UUID) NULL 
+  - created_at (TIMESTAMP) NULL 
+  - updated_at (TIMESTAMP) NULL 
+Primary Key: id
+Foreign Keys:
+  - ['created_by'] -> users.['id']
+Indexes:
+  - ix_auto_analyze_rules_enabled: (enabled)
+  - ix_auto_analyze_rules_priority: (priority)
+
+==================================================
+
+Table: blackout_windows
+-----------------------
+Columns:
+  - id (UUID) NOT NULL 
+  - name (VARCHAR(100)) NOT NULL 
+  - description (TEXT) NULL 
+  - recurrence (VARCHAR(20)) NULL 
+  - start_time (TIMESTAMP) NULL 
+  - end_time (TIMESTAMP) NULL 
+  - daily_start_time (VARCHAR(5)) NULL 
+  - daily_end_time (VARCHAR(5)) NULL 
+  - days_of_week (ARRAY) NULL 
+  - days_of_month (ARRAY) NULL 
+  - timezone (VARCHAR(50)) NULL 
+  - applies_to (VARCHAR(20)) NULL 
+  - applies_to_runbook_ids (ARRAY) NULL 
+  - enabled (BOOLEAN) NULL 
+  - created_by (UUID) NULL 
+  - created_at (TIMESTAMP) NULL 
+  - updated_at (TIMESTAMP) NULL 
+Primary Key: id
+Foreign Keys:
+  - ['created_by'] -> users.['id']
+Indexes:
+  - blackout_windows_name_key: UNIQUE (name)
+  - idx_blackout_enabled: (enabled)
+  - ix_blackout_windows_enabled: (enabled)
+
+==================================================
+
+Table: change_events
+--------------------
+Columns:
+  - id (UUID) NOT NULL 
+  - change_id (VARCHAR(255)) NOT NULL 
+  - change_type (VARCHAR(50)) NOT NULL 
+  - service_name (VARCHAR(255)) NULL 
+  - description (TEXT) NULL 
+  - timestamp (TIMESTAMP) NOT NULL 
+  - source (VARCHAR(100)) NULL 
+  - change_metadata (JSONB) NULL 
+  - correlation_score (DOUBLE PRECISION) NULL 
+  - impact_level (VARCHAR(20)) NULL 
+  - created_at (TIMESTAMP) NULL 
+  - start_time (TIMESTAMP) NULL 
+  - end_time (TIMESTAMP) NULL 
+  - associated_cis (JSONB) NULL 
+  - application (VARCHAR(255)) NULL 
+Primary Key: id
+Indexes:
+  - ix_change_events_application: (application)
+  - ix_change_events_change_id: UNIQUE (change_id)
+  - ix_change_events_correlation_score: (correlation_score)
+  - ix_change_events_service_name: (service_name)
+  - ix_change_events_source: (source)
+  - ix_change_events_timestamp: (timestamp)
+
+==================================================
+
+Table: change_impact_analysis
+-----------------------------
+Columns:
+  - id (UUID) NOT NULL 
+  - change_event_id (UUID) NOT NULL 
+  - incidents_after (INTEGER) NULL 
+  - critical_incidents (INTEGER) NULL 
+  - correlation_score (DOUBLE PRECISION) NOT NULL 
+  - impact_level (VARCHAR(20)) NOT NULL 
+  - recommendation (TEXT) NULL 
+  - analyzed_at (TIMESTAMP) NULL 
+Primary Key: id
+Foreign Keys:
+  - ['change_event_id'] -> change_events.['id']
+Indexes:
+  - ix_change_impact_analysis_correlation_score: (correlation_score)
+
+==================================================
+
+Table: circuit_breakers
+-----------------------
+Columns:
+  - id (UUID) NOT NULL 
+  - scope (VARCHAR(20)) NOT NULL 
+  - scope_id (UUID) NULL 
+  - state (VARCHAR(20)) NULL 
+  - failure_count (INTEGER) NULL 
+  - success_count (INTEGER) NULL 
+  - last_failure_at (TIMESTAMP) NULL 
+  - last_success_at (TIMESTAMP) NULL 
+  - opened_at (TIMESTAMP) NULL 
+  - closes_at (TIMESTAMP) NULL 
+  - failure_threshold (INTEGER) NULL 
+  - failure_window_minutes (INTEGER) NULL 
+  - open_duration_minutes (INTEGER) NULL 
+  - manually_opened (BOOLEAN) NULL 
+  - manually_opened_by (UUID) NULL 
+  - manually_opened_reason (TEXT) NULL 
+  - updated_at (TIMESTAMP) NULL 
+Primary Key: id
+Foreign Keys:
+  - ['manually_opened_by'] -> users.['id']
+Indexes:
+  - idx_circuit_breaker_state: (state)
+  - uq_circuit_breaker_scope: UNIQUE (scope, scope_id)
+
+==================================================
+
+Table: command_allowlist
+------------------------
+Columns:
+  - id (UUID) NOT NULL 
+  - pattern (VARCHAR(500)) NOT NULL 
+  - pattern_type (VARCHAR(20)) NULL 
+  - os_type (VARCHAR(10)) NULL 
+  - description (TEXT) NULL 
+  - category (VARCHAR(50)) NULL 
+  - enabled (BOOLEAN) NULL 
+  - created_at (TIMESTAMP) NULL 
+Primary Key: id
+Indexes:
+  - command_allowlist_pattern_key: UNIQUE (pattern)
+  - idx_allowlist_enabled_os: (enabled, os_type)
+
+==================================================
+
+Table: command_blocklist
+------------------------
+Columns:
+  - id (UUID) NOT NULL 
+  - pattern (VARCHAR(500)) NOT NULL 
+  - pattern_type (VARCHAR(20)) NULL 
+  - os_type (VARCHAR(10)) NULL 
+  - description (TEXT) NULL 
+  - severity (VARCHAR(20)) NULL 
+  - enabled (BOOLEAN) NULL 
+  - created_at (TIMESTAMP) NULL 
+Primary Key: id
+Indexes:
+  - command_blocklist_pattern_key: UNIQUE (pattern)
+  - idx_blocklist_enabled_os: (enabled, os_type)
+
+==================================================
+
+Table: component_dependencies
+-----------------------------
+Columns:
+  - id (UUID) NOT NULL 
+  - from_component_id (UUID) NOT NULL 
+  - to_component_id (UUID) NOT NULL 
+  - dependency_type (VARCHAR(20)) NULL 
+  - failure_impact (TEXT) NULL 
+  - created_at (TIMESTAMP) NULL 
+Primary Key: id
+Foreign Keys:
+  - ['from_component_id'] -> application_components.['id']
+  - ['to_component_id'] -> application_components.['id']
+Indexes:
+  - ix_component_dependencies_from_component_id: (from_component_id)
+  - ix_component_dependencies_to_component_id: (to_component_id)
+
+==================================================
+
+Table: credential_profiles
+--------------------------
+Columns:
+  - id (UUID) NOT NULL 
+  - name (VARCHAR(120)) NOT NULL 
+  - description (TEXT) NULL 
+  - username (VARCHAR(100)) NULL 
+  - credential_type (VARCHAR(30)) NULL 
+  - backend (VARCHAR(30)) NULL 
+  - secret_encrypted (TEXT) NULL 
+  - metadata_json (JSON) NULL 
+  - last_rotated (TIMESTAMP) NULL 
+  - group_id (UUID) NULL 
+  - created_by (UUID) NULL 
+  - created_at (TIMESTAMP) NULL 
+  - updated_at (TIMESTAMP) NULL 
+Primary Key: id
+Foreign Keys:
+  - ['created_by'] -> users.['id']
+  - ['group_id'] -> server_groups.['id']
+Indexes:
+  - ix_credential_profiles_backend: (backend)
+  - ix_credential_profiles_credential_type: (credential_type)
+  - ix_credential_profiles_name: UNIQUE (name)
+  - ix_credential_profiles_username: (username)
+
+==================================================
+
+Table: dashboard_annotations
+----------------------------
+Columns:
+  - id (VARCHAR(36)) NOT NULL 
+  - dashboard_id (VARCHAR(36)) NULL 
+  - panel_id (VARCHAR(36)) NULL 
+  - time (TIMESTAMP) NOT NULL 
+  - time_end (TIMESTAMP) NULL 
+  - text (TEXT) NOT NULL 
+  - title (VARCHAR(255)) NULL 
+  - tags (JSON) NULL 
+  - color (VARCHAR(50)) NULL 
+  - icon (VARCHAR(50)) NULL 
+  - created_at (TIMESTAMP) NULL 
+  - updated_at (TIMESTAMP) NULL 
+  - created_by (VARCHAR(255)) NULL 
+Primary Key: id
+Foreign Keys:
+  - ['dashboard_id'] -> dashboards.['id']
+  - ['panel_id'] -> prometheus_panels.['id']
+Indexes:
+  - ix_dashboard_annotations_time: (time)
+
+==================================================
+
+Table: dashboard_links
+----------------------
+Columns:
+  - id (VARCHAR(36)) NOT NULL 
+  - dashboard_id (VARCHAR(36)) NOT NULL 
+  - title (VARCHAR(255)) NOT NULL 
+  - url (VARCHAR(512)) NOT NULL 
+  - icon (VARCHAR(50)) NULL 
+  - type (VARCHAR(50)) NULL 
+  - sort_order (INTEGER) NULL 
+  - open_in_new_tab (BOOLEAN) NULL 
+  - created_at (TIMESTAMP) NULL 
+  - updated_at (TIMESTAMP) NULL 
+Primary Key: id
+Foreign Keys:
+  - ['dashboard_id'] -> dashboards.['id']
+
+==================================================
+
+Table: dashboard_panels
+-----------------------
+Columns:
+  - id (VARCHAR(36)) NOT NULL 
+  - dashboard_id (VARCHAR(36)) NOT NULL 
+  - panel_id (VARCHAR(36)) NOT NULL 
+  - grid_x (INTEGER) NULL 
+  - grid_y (INTEGER) NULL 
+  - grid_width (INTEGER) NULL 
+  - grid_height (INTEGER) NULL 
+  - override_time_range (VARCHAR(50)) NULL 
+  - override_refresh_interval (INTEGER) NULL 
+  - display_order (INTEGER) NULL 
+  - row_id (VARCHAR(36)) NULL 
+Primary Key: id
+Foreign Keys:
+  - ['dashboard_id'] -> dashboards.['id']
+  - ['panel_id'] -> prometheus_panels.['id']
+  - ['row_id'] -> panel_rows.['id']
+
+==================================================
+
+Table: dashboard_permissions
+----------------------------
+Columns:
+  - id (VARCHAR(36)) NOT NULL 
+  - dashboard_id (VARCHAR(36)) NOT NULL 
+  - user_id (VARCHAR(36)) NULL 
+  - role (VARCHAR(50)) NULL 
+  - permission (VARCHAR(20)) NOT NULL 
+  - created_at (TIMESTAMP) NULL 
+  - created_by (VARCHAR(255)) NULL 
+Primary Key: id
+Foreign Keys:
+  - ['dashboard_id'] -> dashboards.['id']
+
+==================================================
+
+Table: dashboard_snapshots
+--------------------------
+Columns:
+  - id (VARCHAR(36)) NOT NULL 
+  - dashboard_id (VARCHAR(36)) NOT NULL 
+  - name (VARCHAR(255)) NOT NULL 
+  - key (VARCHAR(64)) NOT NULL 
+  - snapshot_data (JSON) NOT NULL 
+  - is_public (BOOLEAN) NULL 
+  - expires_at (TIMESTAMP) NULL 
+  - created_at (TIMESTAMP) NULL 
+  - created_by (VARCHAR(255)) NULL 
+Primary Key: id
+Foreign Keys:
+  - ['dashboard_id'] -> dashboards.['id']
+Indexes:
+  - ix_dashboard_snapshots_key: UNIQUE (key)
+
+==================================================
+
+Table: dashboard_variables
+--------------------------
+Columns:
+  - id (VARCHAR(36)) NOT NULL 
+  - dashboard_id (VARCHAR(36)) NOT NULL 
+  - name (VARCHAR(100)) NOT NULL 
+  - label (VARCHAR(255)) NULL 
+  - type (VARCHAR(50)) NOT NULL 
+  - query (TEXT) NULL 
+  - datasource_id (VARCHAR(36)) NULL 
+  - regex (VARCHAR(255)) NULL 
+  - custom_values (JSON) NULL 
+  - default_value (TEXT) NULL 
+  - current_value (TEXT) NULL 
+  - multi_select (BOOLEAN) NULL 
+  - include_all (BOOLEAN) NULL 
+  - all_value (VARCHAR(255)) NULL 
+  - hide (INTEGER) NULL 
+  - sort (INTEGER) NULL 
+  - created_at (TIMESTAMP) NULL 
+  - updated_at (TIMESTAMP) NULL 
+  - depends_on (JSON) NULL 
+Primary Key: id
+Foreign Keys:
+  - ['dashboard_id'] -> dashboards.['id']
+  - ['datasource_id'] -> prometheus_datasources.['id']
+
+==================================================
+
+Table: dashboards
+-----------------
+Columns:
+  - id (VARCHAR(36)) NOT NULL 
+  - name (VARCHAR(255)) NOT NULL 
+  - description (TEXT) NULL 
+  - layout (JSON) NULL 
+  - time_range (VARCHAR(50)) NULL 
+  - refresh_interval (INTEGER) NULL 
+  - auto_refresh (BOOLEAN) NULL 
+  - tags (JSON) NULL 
+  - folder (VARCHAR(255)) NULL 
+  - is_public (BOOLEAN) NULL 
+  - is_favorite (BOOLEAN) NULL 
+  - is_home (BOOLEAN) NULL 
+  - created_at (TIMESTAMP) NULL 
+  - updated_at (TIMESTAMP) NULL 
+  - created_by (VARCHAR(255)) NULL 
+Primary Key: id
+Indexes:
+  - ix_dashboards_name: (name)
+
+==================================================
+
+Table: design_chunks
+--------------------
+Columns:
+  - id (UUID) NOT NULL 
+  - app_id (UUID) NULL 
+  - source_type (VARCHAR(50)) NOT NULL 
+  - source_id (UUID) NOT NULL 
+  - chunk_index (INTEGER) NULL 
+  - content (TEXT) NOT NULL 
+  - content_type (VARCHAR(50)) NOT NULL 
+  - embedding (NULL) NULL 
+  - chunk_metadata (JSONB) NULL 
+  - created_at (TIMESTAMP) NULL 
+Primary Key: id
+Foreign Keys:
+  - ['app_id'] -> applications.['id']
+Indexes:
+  - design_chunks_metadata_idx: (chunk_metadata)
+  - design_chunks_source_idx: (source_type, source_id)
+  - ix_design_chunks_app_id: (app_id)
+
+==================================================
+
+Table: design_documents
+-----------------------
+Columns:
+  - id (UUID) NOT NULL 
+  - app_id (UUID) NULL 
+  - title (VARCHAR(500)) NOT NULL 
+  - slug (VARCHAR(500)) NULL 
+  - doc_type (VARCHAR(50)) NOT NULL 
+  - format (VARCHAR(20)) NOT NULL 
+  - raw_content (TEXT) NULL 
+  - source_url (VARCHAR(1000)) NULL 
+  - source_type (VARCHAR(50)) NULL 
+  - version (INTEGER) NULL 
+  - status (VARCHAR(20)) NULL 
+  - created_by (UUID) NULL 
+  - created_at (TIMESTAMP) NULL 
+  - updated_at (TIMESTAMP) NULL 
+Primary Key: id
+Foreign Keys:
+  - ['app_id'] -> applications.['id']
+  - ['created_by'] -> users.['id']
+Indexes:
+  - ix_design_documents_app_id: (app_id)
+  - ix_design_documents_doc_type: (doc_type)
+  - ix_design_documents_slug: UNIQUE (slug)
+  - ix_design_documents_status: (status)
+
+==================================================
+
+Table: design_images
+--------------------
+Columns:
+  - id (UUID) NOT NULL 
+  - app_id (UUID) NULL 
+  - document_id (UUID) NULL 
+  - title (VARCHAR(500)) NOT NULL 
+  - image_type (VARCHAR(50)) NOT NULL 
+  - storage_path (VARCHAR(1000)) NOT NULL 
+  - thumbnail_path (VARCHAR(1000)) NULL 
+  - file_size_bytes (INTEGER) NULL 
+  - mime_type (VARCHAR(100)) NULL 
+  - ai_description (TEXT) NULL 
+  - extracted_text (TEXT) NULL 
+  - identified_components (JSONB) NULL 
+  - identified_connections (JSONB) NULL 
+  - failure_scenarios (JSONB) NULL 
+  - processing_status (VARCHAR(20)) NULL 
+  - processed_at (TIMESTAMP) NULL 
+  - created_by (UUID) NULL 
+  - created_at (TIMESTAMP) NULL 
+Primary Key: id
+Foreign Keys:
+  - ['app_id'] -> applications.['id']
+  - ['created_by'] -> users.['id']
+  - ['document_id'] -> design_documents.['id']
+Indexes:
+  - ix_design_images_app_id: (app_id)
+  - ix_design_images_document_id: (document_id)
+  - ix_design_images_image_type: (image_type)
+  - ix_design_images_processing_status: (processing_status)
+
+==================================================
+
+Table: execution_outcomes
+-------------------------
+Columns:
+  - id (UUID) NOT NULL 
+  - execution_id (UUID) NOT NULL 
+  - alert_id (UUID) NULL 
+  - user_id (UUID) NULL 
+  - resolved_issue (BOOLEAN) NULL 
+  - resolution_type (VARCHAR(30)) NULL 
+  - time_to_resolution_minutes (INTEGER) NULL 
+  - recommendation_followed (BOOLEAN) NULL 
+  - manual_steps_taken (TEXT) NULL 
+  - improvement_suggestion (TEXT) NULL 
+  - created_at (TIMESTAMP) NULL 
+Primary Key: id
+Foreign Keys:
+  - ['alert_id'] -> alerts.['id']
+  - ['execution_id'] -> runbook_executions.['id']
+  - ['user_id'] -> users.['id']
+Indexes:
+  - idx_execution_outcomes_alert_id: (alert_id)
+  - idx_execution_outcomes_created_at: (created_at)
+  - idx_execution_outcomes_execution_id: (execution_id)
+  - idx_execution_outcomes_user_id: (user_id)
+  - ix_execution_outcomes_alert_id: (alert_id)
+  - ix_execution_outcomes_created_at: (created_at)
+  - ix_execution_outcomes_execution_id: (execution_id)
+  - ix_execution_outcomes_user_id: (user_id)
+
+==================================================
+
+Table: execution_rate_limits
+----------------------------
+Columns:
+  - id (UUID) NOT NULL 
+  - scope (VARCHAR(20)) NOT NULL 
+  - scope_id (UUID) NULL 
+  - window_start (TIMESTAMP) NOT NULL 
+  - window_end (TIMESTAMP) NOT NULL 
+  - execution_count (INTEGER) NULL 
+  - last_execution_at (TIMESTAMP) NULL 
+Primary Key: id
+Indexes:
+  - idx_rate_limit_scope_window: (scope, scope_id, window_start)
+  - uq_rate_limit_window: UNIQUE (scope, scope_id, window_start)
+
+==================================================
+
+Table: failure_patterns
+-----------------------
+Columns:
+  - id (UUID) NOT NULL 
+  - pattern_signature (TEXT) NOT NULL 
+  - root_cause_type (VARCHAR(100)) NOT NULL 
+  - description (TEXT) NULL 
+  - recommended_action (TEXT) NULL 
+  - confidence_score (DOUBLE PRECISION) NULL 
+  - occurrence_count (INTEGER) NULL 
+  - last_seen_at (TIMESTAMP) NULL 
+  - created_at (TIMESTAMP) NULL 
+Primary Key: id
+Indexes:
+  - ix_failure_patterns_root_cause_type: (root_cause_type)
+
+==================================================
+
+Table: grafana_datasources
+--------------------------
+Columns:
+  - id (UUID) NOT NULL 
+  - name (VARCHAR(100)) NOT NULL 
+  - datasource_type (VARCHAR(50)) NOT NULL 
+  - url (VARCHAR(512)) NOT NULL 
+  - description (TEXT) NULL 
+  - auth_type (VARCHAR(50)) NULL 
+  - username (VARCHAR(255)) NULL 
+  - password (VARCHAR(512)) NULL 
+  - bearer_token (VARCHAR(512)) NULL 
+  - timeout (INTEGER) NULL 
+  - is_default (BOOLEAN) NULL 
+  - is_enabled (BOOLEAN) NULL 
+  - config_json (JSON) NULL 
+  - custom_headers (JSON) NULL 
+  - last_health_check (TIMESTAMP) NULL 
+  - is_healthy (BOOLEAN) NULL 
+  - health_message (TEXT) NULL 
+  - created_at (TIMESTAMP) NULL 
+  - updated_at (TIMESTAMP) NULL 
+  - created_by (VARCHAR(255)) NULL 
+Primary Key: id
+Indexes:
+  - ix_grafana_datasources_datasource_type: (datasource_type)
+  - ix_grafana_datasources_name: UNIQUE (name)
+
+==================================================
+
+Table: group_members
+--------------------
+Columns:
+  - id (UUID) NOT NULL 
+  - group_id (UUID) NOT NULL 
+  - user_id (UUID) NOT NULL 
+  - source (VARCHAR(20)) NULL 
+  - joined_at (TIMESTAMP) NULL 
+Primary Key: id
+Foreign Keys:
+  - ['group_id'] -> groups.['id']
+  - ['user_id'] -> users.['id']
+Indexes:
+  - ix_group_members_group_id: (group_id)
+  - ix_group_members_source: (source)
+  - ix_group_members_user_id: (user_id)
+  - uq_group_member: UNIQUE (group_id, user_id)
+
+==================================================
+
+Table: groups
+-------------
+Columns:
+  - id (UUID) NOT NULL 
+  - name (VARCHAR(100)) NOT NULL 
+  - description (TEXT) NULL 
+  - role_id (UUID) NULL 
+  - ad_group_dn (VARCHAR(500)) NULL 
+  - sync_enabled (BOOLEAN) NULL 
+  - last_synced (TIMESTAMP) NULL 
+  - is_active (BOOLEAN) NULL 
+  - created_at (TIMESTAMP) NULL 
+  - updated_at (TIMESTAMP) NULL 
+  - created_by (UUID) NULL 
+Primary Key: id
+Foreign Keys:
+  - ['created_by'] -> users.['id']
+  - ['role_id'] -> roles.['id']
+Indexes:
+  - ix_groups_is_active: (is_active)
+  - ix_groups_name: UNIQUE (name)
+  - ix_groups_sync_enabled: (sync_enabled)
+
+==================================================
+
+Table: incident_metrics
+-----------------------
+Columns:
+  - id (UUID) NOT NULL DEFAULT gen_random_uuid()
+  - alert_id (UUID) NOT NULL 
+  - incident_started (TIMESTAMP) NOT NULL 
+  - incident_detected (TIMESTAMP) NOT NULL DEFAULT now()
+  - incident_acknowledged (TIMESTAMP) NULL 
+  - incident_engaged (TIMESTAMP) NULL 
+  - incident_resolved (TIMESTAMP) NULL 
+  - time_to_detect (INTEGER) NULL 
+  - time_to_acknowledge (INTEGER) NULL 
+  - time_to_engage (INTEGER) NULL 
+  - time_to_resolve (INTEGER) NULL 
+  - service_name (VARCHAR(255)) NULL 
+  - severity (VARCHAR(20)) NULL 
+  - resolution_type (VARCHAR(50)) NULL 
+  - assigned_to (UUID) NULL 
+  - created_at (TIMESTAMP) NULL 
+  - updated_at (TIMESTAMP) NULL 
+Primary Key: id
+Foreign Keys:
+  - ['alert_id'] -> alerts.['id']
+  - ['assigned_to'] -> users.['id']
+Indexes:
+  - ix_incident_metrics_resolution_type: (resolution_type)
+  - ix_incident_metrics_service_name: (service_name)
+  - ix_incident_metrics_severity: (severity)
+  - uq_incident_metrics_alert_id: UNIQUE (alert_id)
+
+==================================================
+
+Table: itsm_integrations
+------------------------
+Columns:
+  - id (UUID) NOT NULL 
+  - name (VARCHAR(255)) NOT NULL 
+  - connector_type (VARCHAR(50)) NOT NULL 
+  - config_encrypted (TEXT) NOT NULL 
+  - is_enabled (BOOLEAN) NOT NULL 
+  - last_sync (TIMESTAMP) NULL 
+  - last_sync_status (VARCHAR(50)) NULL 
+  - last_error (TEXT) NULL 
+  - created_at (TIMESTAMP) NULL 
+  - updated_at (TIMESTAMP) NULL 
+Primary Key: id
+Indexes:
+  - ix_itsm_integrations_is_enabled: (is_enabled)
+  - ix_itsm_integrations_last_sync: (last_sync)
+
+==================================================
+
+Table: knowledge_sources
+------------------------
+Columns:
+  - id (UUID) NOT NULL 
+  - tenant_id (UUID) NULL 
+  - name (VARCHAR(255)) NOT NULL 
+  - description (TEXT) NULL 
+  - source_type (VARCHAR(50)) NOT NULL 
+  - config (JSONB) NOT NULL DEFAULT '{}'::jsonb
+  - enabled (BOOLEAN) NULL 
+  - sync_schedule (VARCHAR(100)) NULL 
+  - auto_sync (BOOLEAN) NULL 
+  - last_sync_at (TIMESTAMP) NULL 
+  - last_commit_sha (VARCHAR(64)) NULL 
+  - last_sync_status (VARCHAR(50)) NULL 
+  - last_sync_error (TEXT) NULL 
+  - sync_count (INTEGER) NULL 
+  - total_documents (INTEGER) NULL 
+  - total_chunks (INTEGER) NULL 
+  - status (VARCHAR(50)) NULL 
+  - created_by (UUID) NULL 
+  - created_at (TIMESTAMP) NULL DEFAULT now()
+  - updated_at (TIMESTAMP) NULL DEFAULT now()
+Primary Key: id
+Foreign Keys:
+  - ['created_by'] -> users.['id']
+Indexes:
+  - ix_knowledge_sources_enabled: (enabled)
+  - ix_knowledge_sources_source_type: (source_type)
+  - ix_knowledge_sources_status: (status)
+  - ix_knowledge_sources_tenant_id: (tenant_id)
+
+==================================================
+
+Table: knowledge_sync_history
+-----------------------------
+Columns:
+  - id (UUID) NOT NULL 
+  - source_id (UUID) NOT NULL 
+  - started_at (TIMESTAMP) NOT NULL DEFAULT now()
+  - completed_at (TIMESTAMP) NULL 
+  - status (VARCHAR(50)) NOT NULL 
+  - previous_commit_sha (VARCHAR(64)) NULL 
+  - new_commit_sha (VARCHAR(64)) NULL 
+  - documents_added (INTEGER) NULL 
+  - documents_updated (INTEGER) NULL 
+  - documents_deleted (INTEGER) NULL 
+  - chunks_created (INTEGER) NULL 
+  - error_message (TEXT) NULL 
+  - error_details (JSONB) NULL 
+  - duration_ms (INTEGER) NULL 
+  - created_at (TIMESTAMP) NULL DEFAULT now()
+Primary Key: id
+Foreign Keys:
+  - ['source_id'] -> knowledge_sources.['id']
+Indexes:
+  - ix_knowledge_sync_history_source_id: (source_id)
+
+==================================================
+
+Table: llm_providers
+--------------------
+Columns:
+  - id (UUID) NOT NULL 
+  - name (VARCHAR(100)) NOT NULL 
+  - provider_type (VARCHAR(50)) NOT NULL 
+  - model_id (VARCHAR(100)) NOT NULL 
+  - api_key_encrypted (TEXT) NULL 
+  - api_base_url (VARCHAR(255)) NULL 
+  - is_default (BOOLEAN) NULL 
+  - is_enabled (BOOLEAN) NULL 
+  - config_json (JSON) NULL 
+  - created_at (TIMESTAMP) NULL 
+  - updated_at (TIMESTAMP) NULL 
+Primary Key: id
+Indexes:
+  - ix_llm_providers_is_default: (is_default)
+  - ix_llm_providers_is_enabled: (is_enabled)
+  - ix_llm_providers_provider_type: (provider_type)
+
+==================================================
+
+Table: panel_rows
+-----------------
+Columns:
+  - id (VARCHAR(36)) NOT NULL 
+  - dashboard_id (VARCHAR(36)) NOT NULL 
+  - title (VARCHAR(255)) NOT NULL 
+  - description (TEXT) NULL 
+  - order (INTEGER) NULL 
+  - is_collapsed (BOOLEAN) NULL 
+  - created_at (TIMESTAMP) NULL 
+  - updated_at (TIMESTAMP) NULL 
+Primary Key: id
+Foreign Keys:
+  - ['dashboard_id'] -> dashboards.['id']
+
+==================================================
+
+Table: playlist_items
+---------------------
+Columns:
+  - id (VARCHAR(36)) NOT NULL 
+  - playlist_id (VARCHAR(36)) NOT NULL 
+  - dashboard_id (VARCHAR(36)) NOT NULL 
+  - order (INTEGER) NULL 
+  - custom_interval (INTEGER) NULL 
+Primary Key: id
+Foreign Keys:
+  - ['dashboard_id'] -> dashboards.['id']
+  - ['playlist_id'] -> playlists.['id']
+
+==================================================
+
+Table: playlists
+----------------
+Columns:
+  - id (VARCHAR(36)) NOT NULL 
+  - name (VARCHAR(255)) NOT NULL 
+  - description (TEXT) NULL 
+  - interval (INTEGER) NULL 
+  - loop (BOOLEAN) NULL 
+  - created_at (TIMESTAMP) NULL 
+  - updated_at (TIMESTAMP) NULL 
+  - created_by (VARCHAR(255)) NULL 
+Primary Key: id
+
+==================================================
+
+Table: prometheus_datasources
+-----------------------------
+Columns:
+  - id (VARCHAR(36)) NOT NULL 
+  - name (VARCHAR(255)) NOT NULL 
+  - url (VARCHAR(512)) NOT NULL 
+  - description (TEXT) NULL 
+  - auth_type (VARCHAR(50)) NULL 
+  - username (VARCHAR(255)) NULL 
+  - password (VARCHAR(512)) NULL 
+  - bearer_token (VARCHAR(512)) NULL 
+  - timeout (INTEGER) NULL 
+  - is_default (BOOLEAN) NULL 
+  - is_enabled (BOOLEAN) NULL 
+  - custom_headers (JSON) NULL 
+  - created_at (TIMESTAMP) NULL 
+  - updated_at (TIMESTAMP) NULL 
+  - created_by (VARCHAR(255)) NULL 
+Primary Key: id
+Indexes:
+  - ix_prometheus_datasources_name: UNIQUE (name)
+
+==================================================
+
+Table: prometheus_panels
+------------------------
+Columns:
+  - id (VARCHAR(36)) NOT NULL 
+  - name (VARCHAR(255)) NOT NULL 
+  - description (TEXT) NULL 
+  - datasource_id (VARCHAR(36)) NOT NULL 
+  - promql_query (TEXT) NOT NULL 
+  - legend_format (VARCHAR(255)) NULL 
+  - time_range (VARCHAR(50)) NULL 
+  - refresh_interval (INTEGER) NULL 
+  - step (VARCHAR(20)) NULL 
+  - panel_type (VARCHAR(50)) NULL 
+  - visualization_config (JSON) NULL 
+  - thresholds (JSON) NULL 
+  - tags (JSON) NULL 
+  - is_public (BOOLEAN) NULL 
+  - is_template (BOOLEAN) NULL 
+  - created_at (TIMESTAMP) NULL 
+  - updated_at (TIMESTAMP) NULL 
+  - created_by (VARCHAR(255)) NULL 
+Primary Key: id
+Foreign Keys:
+  - ['datasource_id'] -> prometheus_datasources.['id']
+Indexes:
+  - ix_prometheus_panels_name: (name)
+
+==================================================
+
+Table: query_history
+--------------------
+Columns:
+  - id (VARCHAR(36)) NOT NULL 
+  - query (TEXT) NOT NULL 
+  - datasource_id (VARCHAR(36)) NULL 
+  - dashboard_id (VARCHAR(36)) NULL 
+  - panel_id (VARCHAR(36)) NULL 
+  - time_range (VARCHAR(50)) NULL 
+  - execution_time_ms (INTEGER) NULL 
+  - series_count (INTEGER) NULL 
+  - status (VARCHAR(20)) NULL 
+  - error_message (TEXT) NULL 
+  - executed_by (VARCHAR(255)) NULL 
+  - is_favorite (BOOLEAN) NULL 
+  - executed_at (TIMESTAMP) NULL 
+Primary Key: id
+Foreign Keys:
+  - ['dashboard_id'] -> dashboards.['id']
+  - ['datasource_id'] -> prometheus_datasources.['id']
+  - ['panel_id'] -> prometheus_panels.['id']
+Indexes:
+  - ix_query_history_executed_at: (executed_at)
+
+==================================================
+
+Table: roles
+------------
+Columns:
+  - id (UUID) NOT NULL 
+  - name (VARCHAR(50)) NOT NULL 
+  - description (TEXT) NULL 
+  - permissions (JSON) NOT NULL 
+  - is_custom (BOOLEAN) NULL 
+  - created_at (TIMESTAMP) NULL 
+  - updated_at (TIMESTAMP) NULL 
+Primary Key: id
+Indexes:
+  - ix_roles_name: UNIQUE (name)
+
+==================================================
+
+Table: runbook_acls
+-------------------
+Columns:
+  - id (UUID) NOT NULL 
+  - runbook_id (UUID) NOT NULL 
+  - group_id (UUID) NOT NULL 
+  - can_view (BOOLEAN) NULL 
+  - can_edit (BOOLEAN) NULL 
+  - can_execute (BOOLEAN) NULL 
+  - created_by (UUID) NULL 
+  - created_at (TIMESTAMP) NULL 
+  - updated_at (TIMESTAMP) NULL 
+Primary Key: id
+Foreign Keys:
+  - ['created_by'] -> users.['id']
+  - ['group_id'] -> groups.['id']
+  - ['runbook_id'] -> runbooks.['id']
+Indexes:
+  - idx_runbook_acl_group: (group_id)
+  - idx_runbook_acl_runbook: (runbook_id)
+  - uq_runbook_group_acl: UNIQUE (runbook_id, group_id)
+
+==================================================
+
+Table: runbook_clicks
+---------------------
+Columns:
+  - id (UUID) NOT NULL 
+  - runbook_id (UUID) NOT NULL 
+  - user_id (UUID) NULL 
+  - session_id (UUID) NULL 
+  - source (VARCHAR(50)) NOT NULL 
+  - query_text (TEXT) NULL 
+  - confidence_shown (DOUBLE PRECISION) NULL 
+  - rank_shown (INTEGER) NULL 
+  - clicked_at (TIMESTAMP) NULL 
+  - context_json (JSONB) NULL 
+Primary Key: id
+Foreign Keys:
+  - ['runbook_id'] -> runbooks.['id']
+  - ['user_id'] -> users.['id']
+Indexes:
+  - idx_runbook_clicks_clicked_at: (clicked_at)
+  - idx_runbook_clicks_runbook_id: (runbook_id)
+  - idx_runbook_clicks_source: (source)
+  - idx_runbook_clicks_user_id: (user_id)
+  - ix_runbook_clicks_clicked_at: (clicked_at)
+  - ix_runbook_clicks_runbook_id: (runbook_id)
+  - ix_runbook_clicks_session_id: (session_id)
+  - ix_runbook_clicks_user_id: (user_id)
+
+==================================================
+
+Table: runbook_executions
+-------------------------
+Columns:
+  - id (UUID) NOT NULL 
+  - runbook_id (UUID) NOT NULL 
+  - runbook_version (INTEGER) NOT NULL 
+  - runbook_snapshot_json (JSON) NULL 
+  - alert_id (UUID) NULL 
+  - server_id (UUID) NULL 
+  - trigger_id (UUID) NULL 
+  - execution_mode (VARCHAR(20)) NULL 
+  - status (VARCHAR(20)) NULL 
+  - dry_run (BOOLEAN) NULL 
+  - triggered_by (UUID) NULL 
+  - triggered_by_system (BOOLEAN) NULL 
+  - approval_required (BOOLEAN) NULL 
+  - approval_token (VARCHAR(64)) NULL 
+  - approval_requested_at (TIMESTAMP) NULL 
+  - approval_expires_at (TIMESTAMP) NULL 
+  - approved_by (UUID) NULL 
+  - approved_at (TIMESTAMP) NULL 
+  - rejection_reason (TEXT) NULL 
+  - queued_at (TIMESTAMP) NULL 
+  - started_at (TIMESTAMP) NULL 
+  - completed_at (TIMESTAMP) NULL 
+  - result_summary (TEXT) NULL 
+  - error_message (TEXT) NULL 
+  - steps_total (INTEGER) NULL 
+  - steps_completed (INTEGER) NULL 
+  - steps_failed (INTEGER) NULL 
+  - rollback_executed (BOOLEAN) NULL 
+  - rollback_execution_id (UUID) NULL 
+  - variables_json (JSON) NULL 
+Primary Key: id
+Foreign Keys:
+  - ['alert_id'] -> alerts.['id']
+  - ['approved_by'] -> users.['id']
+  - ['runbook_id'] -> runbooks.['id']
+  - ['server_id'] -> server_credentials.['id']
+  - ['trigger_id'] -> runbook_triggers.['id']
+  - ['triggered_by'] -> users.['id']
+Indexes:
+  - idx_executions_alert: (alert_id)
+  - idx_executions_approval_token: (approval_token)
+  - idx_executions_queued_at: (queued_at)
+  - idx_executions_runbook_status: (runbook_id, status)
+  - idx_executions_status: (status)
+  - ix_runbook_executions_status: (status)
+  - runbook_executions_approval_token_key: UNIQUE (approval_token)
+
+==================================================
+
+Table: runbook_steps
+--------------------
+Columns:
+  - id (UUID) NOT NULL 
+  - runbook_id (UUID) NOT NULL 
+  - step_order (INTEGER) NOT NULL 
+  - name (VARCHAR(100)) NOT NULL 
+  - description (TEXT) NULL 
+  - step_type (VARCHAR(20)) NULL 
+  - command_linux (TEXT) NULL 
+  - command_windows (TEXT) NULL 
+  - target_os (VARCHAR(10)) NULL 
+  - api_credential_profile_id (UUID) NULL 
+  - api_method (VARCHAR(10)) NULL 
+  - api_endpoint (TEXT) NULL 
+  - api_headers_json (JSON) NULL 
+  - api_body (TEXT) NULL 
+  - api_body_type (VARCHAR(30)) NULL 
+  - api_query_params_json (JSON) NULL 
+  - api_expected_status_codes (ARRAY) NULL 
+  - api_response_extract_json (JSON) NULL 
+  - api_follow_redirects (BOOLEAN) NULL 
+  - api_retry_on_status_codes (ARRAY) NULL 
+  - timeout_seconds (INTEGER) NULL 
+  - requires_elevation (BOOLEAN) NULL 
+  - working_directory (VARCHAR(255)) NULL 
+  - environment_json (JSON) NULL 
+  - continue_on_fail (BOOLEAN) NULL 
+  - retry_count (INTEGER) NULL 
+  - retry_delay_seconds (INTEGER) NULL 
+  - expected_exit_code (INTEGER) NULL 
+  - expected_output_pattern (VARCHAR(500)) NULL 
+  - rollback_command_linux (TEXT) NULL 
+  - rollback_command_windows (TEXT) NULL 
+  - output_variable (VARCHAR(100)) NULL 
+  - output_extract_pattern (VARCHAR(500)) NULL 
+  - run_if_variable (VARCHAR(100)) NULL 
+  - run_if_value (VARCHAR(500)) NULL 
+Primary Key: id
+Foreign Keys:
+  - ['api_credential_profile_id'] -> api_credential_profiles.['id']
+  - ['runbook_id'] -> runbooks.['id']
+Indexes:
+  - idx_runbook_steps_runbook_id: (runbook_id)
+  - idx_runbook_steps_type: (step_type)
+  - uq_runbook_step_order: UNIQUE (runbook_id, step_order)
+
+==================================================
+
+Table: runbook_triggers
+-----------------------
+Columns:
+  - id (UUID) NOT NULL 
+  - runbook_id (UUID) NOT NULL 
+  - alert_name_pattern (VARCHAR(255)) NULL 
+  - severity_pattern (VARCHAR(50)) NULL 
+  - instance_pattern (VARCHAR(255)) NULL 
+  - job_pattern (VARCHAR(255)) NULL 
+  - label_matchers_json (JSON) NULL 
+  - annotation_matchers_json (JSON) NULL 
+  - min_duration_seconds (INTEGER) NULL 
+  - min_occurrences (INTEGER) NULL 
+  - priority (INTEGER) NULL 
+  - enabled (BOOLEAN) NULL 
+  - created_at (TIMESTAMP) NULL 
+  - updated_at (TIMESTAMP) NULL 
+Primary Key: id
+Foreign Keys:
+  - ['runbook_id'] -> runbooks.['id']
+Indexes:
+  - idx_triggers_alert_name: (alert_name_pattern)
+  - idx_triggers_enabled_priority: (enabled, priority)
+  - ix_runbook_triggers_enabled: (enabled)
+  - ix_runbook_triggers_priority: (priority)
+
+==================================================
+
+Table: runbooks
+---------------
+Columns:
+  - id (UUID) NOT NULL 
+  - name (VARCHAR(100)) NOT NULL 
+  - description (TEXT) NULL 
+  - category (VARCHAR(50)) NULL 
+  - tags (ARRAY) NULL 
+  - enabled (BOOLEAN) NULL 
+  - auto_execute (BOOLEAN) NULL 
+  - approval_required (BOOLEAN) NULL 
+  - approval_roles (ARRAY) NULL 
+  - approval_timeout_minutes (INTEGER) NULL 
+  - max_executions_per_hour (INTEGER) NULL 
+  - cooldown_minutes (INTEGER) NULL 
+  - default_server_id (UUID) NULL 
+  - target_os_filter (ARRAY) NULL 
+  - target_from_alert (BOOLEAN) NULL 
+  - target_alert_label (VARCHAR(50)) NULL 
+  - version (INTEGER) NULL 
+  - source (VARCHAR(20)) NULL 
+  - source_path (VARCHAR(255)) NULL 
+  - checksum (VARCHAR(64)) NULL 
+  - notifications_json (JSON) NULL 
+  - documentation_url (VARCHAR(500)) NULL 
+  - created_by (UUID) NULL 
+  - created_at (TIMESTAMP) NULL 
+  - updated_at (TIMESTAMP) NULL 
+  - embedding (NULL) NULL 
+Primary Key: id
+Foreign Keys:
+  - ['created_by'] -> users.['id']
+  - ['default_server_id'] -> server_credentials.['id']
+Indexes:
+  - idx_runbooks_category: (category)
+  - idx_runbooks_enabled_auto: (enabled, auto_execute)
+  - ix_runbooks_auto_execute: (auto_execute)
+  - ix_runbooks_category: (category)
+  - ix_runbooks_enabled: (enabled)
+  - runbooks_name_key: UNIQUE (name)
+
+==================================================
+
+Table: schedule_execution_history
+---------------------------------
+Columns:
+  - id (UUID) NOT NULL 
+  - scheduled_job_id (UUID) NOT NULL 
+  - runbook_execution_id (UUID) NULL 
+  - scheduled_at (TIMESTAMP) NOT NULL 
+  - executed_at (TIMESTAMP) NULL 
+  - completed_at (TIMESTAMP) NULL 
+  - status (VARCHAR(50)) NOT NULL 
+  - error_message (TEXT) NULL 
+  - duration_ms (INTEGER) NULL 
+  - created_at (TIMESTAMP) NULL 
+Primary Key: id
+Foreign Keys:
+  - ['runbook_execution_id'] -> runbook_executions.['id']
+  - ['scheduled_job_id'] -> scheduled_jobs.['id']
+
+==================================================
+
+Table: scheduled_jobs
+---------------------
+Columns:
+  - id (UUID) NOT NULL 
+  - runbook_id (UUID) NOT NULL 
+  - name (VARCHAR(255)) NOT NULL 
+  - description (TEXT) NULL 
+  - schedule_type (VARCHAR(50)) NOT NULL 
+  - cron_expression (VARCHAR(100)) NULL 
+  - interval_seconds (INTEGER) NULL 
+  - start_date (TIMESTAMP) NULL 
+  - end_date (TIMESTAMP) NULL 
+  - timezone (VARCHAR(50)) NULL 
+  - target_server_id (UUID) NULL 
+  - execution_params (JSON) NULL 
+  - max_instances (INTEGER) NULL 
+  - misfire_grace_time (INTEGER) NULL 
+  - enabled (BOOLEAN) NULL 
+  - last_run_at (TIMESTAMP) NULL 
+  - last_run_status (VARCHAR(50)) NULL 
+  - next_run_at (TIMESTAMP) NULL 
+  - run_count (INTEGER) NULL 
+  - failure_count (INTEGER) NULL 
+  - created_by (UUID) NULL 
+  - created_at (TIMESTAMP) NULL 
+  - updated_at (TIMESTAMP) NULL 
+Primary Key: id
+Foreign Keys:
+  - ['created_by'] -> users.['id']
+  - ['runbook_id'] -> runbooks.['id']
+  - ['target_server_id'] -> server_credentials.['id']
+
+==================================================
+
+Table: server_credentials
+-------------------------
+Columns:
+  - id (UUID) NOT NULL 
+  - name (VARCHAR(100)) NOT NULL 
+  - hostname (VARCHAR(255)) NOT NULL 
+  - port (INTEGER) NULL 
+  - username (VARCHAR(100)) NOT NULL 
+  - os_type (VARCHAR(20)) NULL 
+  - protocol (VARCHAR(20)) NULL 
+  - auth_type (VARCHAR(20)) NULL 
+  - ssh_key_encrypted (TEXT) NULL 
+  - password_encrypted (TEXT) NULL 
+  - credential_source (VARCHAR(30)) NULL 
+  - credential_profile_id (UUID) NULL 
+  - credential_metadata (JSON) NULL 
+  - winrm_transport (VARCHAR(20)) NULL 
+  - winrm_use_ssl (BOOLEAN) NULL 
+  - winrm_cert_validation (BOOLEAN) NULL 
+  - domain (VARCHAR(100)) NULL 
+  - api_base_url (VARCHAR(500)) NULL 
+  - api_auth_type (VARCHAR(30)) NULL 
+  - api_auth_header (VARCHAR(100)) NULL 
+  - api_token_encrypted (TEXT) NULL 
+  - api_verify_ssl (BOOLEAN) NULL 
+  - api_timeout_seconds (INTEGER) NULL 
+  - api_headers_json (JSON) NULL 
+  - api_metadata_json (JSON) NULL 
+  - environment (VARCHAR(50)) NULL 
+  - tags (JSON) NULL 
+  - group_id (UUID) NULL 
+  - last_connection_test (TIMESTAMP) NULL 
+  - last_connection_status (VARCHAR(20)) NULL 
+  - last_connection_error (TEXT) NULL 
+  - created_by (UUID) NULL 
+  - created_at (TIMESTAMP) NULL 
+  - updated_at (TIMESTAMP) NULL 
+Primary Key: id
+Foreign Keys:
+  - ['created_by'] -> users.['id']
+  - ['credential_profile_id'] -> credential_profiles.['id']
+  - ['group_id'] -> server_groups.['id']
+Indexes:
+  - ix_server_credentials_credential_profile_id: (credential_profile_id)
+  - ix_server_credentials_credential_source: (credential_source)
+  - ix_server_credentials_environment: (environment)
+  - ix_server_credentials_group_id: (group_id)
+  - ix_server_credentials_hostname: (hostname)
+  - ix_server_credentials_os_type: (os_type)
+  - ix_server_credentials_protocol: (protocol)
+
+==================================================
+
+Table: server_groups
+--------------------
+Columns:
+  - id (UUID) NOT NULL 
+  - name (VARCHAR(100)) NOT NULL 
+  - description (TEXT) NULL 
+  - parent_id (UUID) NULL 
+  - path (VARCHAR(255)) NULL 
+  - created_at (TIMESTAMP) NULL 
+Primary Key: id
+Foreign Keys:
+  - ['parent_id'] -> server_groups.['id']
+Indexes:
+  - ix_server_groups_name: (name)
+  - ix_server_groups_parent_id: (parent_id)
+  - ix_server_groups_path: (path)
+
+==================================================
+
+Table: solution_outcomes
+------------------------
+Columns:
+  - id (UUID) NOT NULL DEFAULT gen_random_uuid()
+  - session_id (UUID) NULL 
+  - problem_description (TEXT) NOT NULL 
+  - problem_embedding (NULL) NULL 
+  - alert_id (UUID) NULL 
+  - server_id (UUID) NULL 
+  - solution_type (VARCHAR(50)) NOT NULL 
+  - solution_reference (TEXT) NULL 
+  - solution_summary (TEXT) NULL 
+  - success (BOOLEAN) NULL 
+  - auto_detected (BOOLEAN) NULL 
+  - user_feedback (TEXT) NULL 
+  - feedback_timestamp (TIMESTAMP) NULL 
+  - created_at (TIMESTAMP) NULL DEFAULT now()
+Primary Key: id
+Foreign Keys:
+  - ['alert_id'] -> alerts.['id']
+  - ['server_id'] -> server_credentials.['id']
+Indexes:
+  - idx_solution_outcomes_embedding: (problem_embedding)
+  - ix_solution_outcomes_alert_id: (alert_id)
+  - ix_solution_outcomes_created_at: (created_at)
+  - ix_solution_outcomes_server_id: (server_id)
+  - ix_solution_outcomes_session_id: (session_id)
+
+==================================================
+
+Table: step_executions
+----------------------
+Columns:
+  - id (UUID) NOT NULL 
+  - execution_id (UUID) NOT NULL 
+  - step_id (UUID) NULL 
+  - step_order (INTEGER) NOT NULL 
+  - step_name (VARCHAR(100)) NOT NULL 
+  - status (VARCHAR(20)) NULL 
+  - command_executed (TEXT) NULL 
+  - stdout (TEXT) NULL 
+  - stderr (TEXT) NULL 
+  - exit_code (INTEGER) NULL 
+  - http_status_code (INTEGER) NULL 
+  - http_response_headers_json (JSON) NULL 
+  - http_response_body (TEXT) NULL 
+  - http_request_url (TEXT) NULL 
+  - http_request_method (VARCHAR(10)) NULL 
+  - extracted_values_json (JSON) NULL 
+  - started_at (TIMESTAMP) NULL 
+  - completed_at (TIMESTAMP) NULL 
+  - duration_ms (INTEGER) NULL 
+  - retry_attempt (INTEGER) NULL 
+  - error_type (VARCHAR(50)) NULL 
+  - error_message (TEXT) NULL 
+Primary Key: id
+Foreign Keys:
+  - ['execution_id'] -> runbook_executions.['id']
+  - ['step_id'] -> runbook_steps.['id']
+Indexes:
+  - idx_step_executions_execution_id: (execution_id)
+  - idx_step_executions_status: (status)
+
+==================================================
+
+Table: system_config
+--------------------
+Columns:
+  - key (VARCHAR(50)) NOT NULL 
+  - value_json (JSON) NOT NULL 
+  - updated_at (TIMESTAMP) NULL 
+  - updated_by (UUID) NULL 
+Primary Key: key
+Foreign Keys:
+  - ['updated_by'] -> users.['id']
+
+==================================================
+
+Table: terminal_sessions
+------------------------
+Columns:
+  - id (UUID) NOT NULL 
+  - user_id (UUID) NOT NULL 
+  - server_credential_id (UUID) NOT NULL 
+  - alert_id (UUID) NULL 
+  - started_at (TIMESTAMP) NULL 
+  - ended_at (TIMESTAMP) NULL 
+  - recording_path (VARCHAR(255)) NULL 
+Primary Key: id
+Foreign Keys:
+  - ['alert_id'] -> alerts.['id']
+  - ['server_credential_id'] -> server_credentials.['id']
+  - ['user_id'] -> users.['id']
+Indexes:
+  - ix_terminal_sessions_started_at: (started_at)
+  - ix_terminal_sessions_user_id: (user_id)
+
+==================================================
+
+Table: users
+------------
+Columns:
+  - id (UUID) NOT NULL 
+  - username (VARCHAR(50)) NOT NULL 
+  - email (VARCHAR(255)) NULL 
+  - full_name (VARCHAR(100)) NULL 
+  - password_hash (VARCHAR(255)) NOT NULL 
+  - role (VARCHAR(20)) NULL 
+  - default_llm_provider_id (UUID) NULL 
+  - is_active (BOOLEAN) NULL 
+  - created_at (TIMESTAMP) NULL 
+  - last_login (TIMESTAMP) NULL 
+Primary Key: id
+Foreign Keys:
+  - ['default_llm_provider_id'] -> llm_providers.['id']
+Indexes:
+  - ix_users_username: UNIQUE (username)
+  - users_email_key: UNIQUE (email)
+
+==================================================
+

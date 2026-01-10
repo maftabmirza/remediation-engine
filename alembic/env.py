@@ -25,6 +25,8 @@ from app.models_remediation import *
 from app.models_runbook_acl import *
 from app.models_scheduler import *
 from app.models_troubleshooting import *
+from app.models_revive import *
+from app.models_zombies import *
 
 # This is the Alembic Config object
 config = context.config

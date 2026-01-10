@@ -93,8 +93,8 @@ services:
     image: grafana/grafana-enterprise:latest
     container_name: aiops-grafana
     restart: unless-stopped
-    # ports:
-    #   - "3000:3000"
+    ports:
+      - "3000:3000"
     environment:
       # SSO Authentication via Auth Proxy
       - GF_AUTH_PROXY_ENABLED=true
