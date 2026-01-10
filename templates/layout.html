@@ -108,6 +108,11 @@
                         <i class="fas fa-chart-area w-4 text-fuchsia-300"></i>
                         <span>Advanced</span>
                     </a>
+                    <a href="/prometheus-view"
+                        class="sidebar-subitem flex items-center space-x-3 px-4 py-2 rounded-lg text-sm {% if active_page == 'prometheus-view' %}bg-gray-800 text-white{% else %}text-gray-400 hover:text-white hover:bg-gray-800{% endif %}">
+                        <i class="fas fa-fire w-4 text-orange-500"></i>
+                        <span>Prometheus</span>
+                    </a>
                 </div>
                 <!-- Flyout submenu (shown on hover when sidebar collapsed) -->
                 <div id="observabilityFlyout"
@@ -133,6 +138,11 @@
                         class="flex items-center space-x-3 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">
                         <i class="fas fa-chart-area w-4 text-fuchsia-300"></i>
                         <span>Advanced</span>
+                    </a>
+                    <a href="/prometheus-view"
+                        class="flex items-center space-x-3 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">
+                        <i class="fas fa-fire w-4 text-orange-500"></i>
+                        <span>Prometheus</span>
                     </a>
                 </div>
             </div>
@@ -403,10 +413,57 @@
         </div>
     </aside>
 
-    <!-- Main content -->
-    <main id="main-content" class="flex-1 ml-20 p-6 h-screen overflow-y-auto flex flex-col transition-all duration-300">
-        {% block content %}{% endblock %}
-    </main>
+    <!-- Main content container -->
+    <div id="main-wrapper" class="flex-1 ml-20 h-screen flex flex-col transition-all duration-300">
+        <!-- Enterprise Standard Global Header -->
+        <header id="global-header"
+            class="dashboard-header flex-shrink-0 flex items-center bg-[#16171b] border-b border-gray-800 h-14 px-4 shadow-sm z-10">
+            <div class="flex items-center justify-between w-full">
+                <!-- Left: Title & Context -->
+                <div class="flex flex-col justify-center gap-0.5">
+                    <!-- Title Region (Clean, No Border) -->
+                    <div class="flex items-center text-white gap-2" id="header-title-container">
+                        {% block header_title %}
+                        <span class="text-sm font-semibold tracking-wide">AIOps Platform</span>
+                        {% endblock %}
+                    </div>
+
+                    <!-- Breadcrumbs (2nd line) -->
+                    <nav class="flex items-center text-[10px] text-gray-500 space-x-1 leading-none">
+                        <a href="/" class="hover:text-blue-400 transition-colors">Home</a>
+                        {% block breadcrumbs %}
+                        <span class="mx-1">/</span>
+                        <span>Page</span>
+                        {% endblock %}
+                    </nav>
+                </div>
+
+                <!-- Right: Actions & Tools -->
+                <div class="flex items-center gap-3">
+                    <!-- Page Actions -->
+                    <div class="flex items-center gap-2">
+                        {% block header_actions %}{% endblock %}
+                    </div>
+
+                    <!-- Divider -->
+                    <div class="h-4 w-px bg-gray-700/50 mx-1"></div>
+
+                    <!-- AI Assistant Toggle -->
+                    <button id="ai-helper-toggle"
+                        class="flex items-center gap-2 px-3 py-1.5 rounded text-xs font-medium text-gray-300 hover:text-white hover:bg-gray-800 transition-colors border border-transparent hover:border-gray-700"
+                        title="Toggle RE-VIVE assistant">
+                        <i class="fas fa-robot text-purple-400"></i>
+                        <span class="hidden sm:inline">RE-VIVE</span>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Content Area -->
+        <main id="main-content" class="flex-1 px-6 pb-6 pt-4 overflow-y-auto transition-all duration-300">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
 </div>
 
 <!-- Theme Selection Modal -->

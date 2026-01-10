@@ -3,6 +3,28 @@
 
 {% block title %}Alert Details - AIOps Platform{% endblock %}
 
+{% block breadcrumbs %}
+<span class="mx-2">/</span>
+<a href="/alerts" class="hover:text-blue-400 transition-colors">Alerts</a>
+<span class="mx-2">/</span>
+<span class="text-gray-200">Details</span>
+{% endblock %}
+
+{% block header_title %}
+<div class="flex items-center gap-3">
+    <i class="fas fa-exclamation-triangle text-pink-400"></i>
+    <span id="header_alert_name" class="text-sm font-semibold text-white tracking-tight truncate">Loading alert...</span>
+</div>
+{% endblock %}
+
+{% block header_actions %}
+<div id="header_actions_container" class="flex items-center gap-2 hidden">
+    <button onclick="deleteAlert()" class="bg-gray-800 hover:bg-red-900/40 text-red-500 px-3 py-1 text-[11px] rounded flex items-center gap-2 border border-gray-700 transition-all">
+        <i class="fas fa-trash"></i> Delete
+    </button>
+</div>
+{% endblock %}
+
 {% block content %}
 <style>
     /* Fix user message code blocks to respect parent width */

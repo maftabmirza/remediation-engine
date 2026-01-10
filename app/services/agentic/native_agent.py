@@ -19,7 +19,7 @@ import anthropic
 
 from app.models import LLMProvider, Alert
 from app.services.llm_service import get_api_key_for_provider
-from app.services.agentic.tool_registry import ToolRegistry
+from app.services.agentic.tools.registry import CompositeToolRegistry, create_full_registry
 
 logger = logging.getLogger(__name__)
 
@@ -83,7 +83,7 @@ class NativeToolAgent:
 
         # Initialize tool registry
         alert_id = alert.id if alert else None
-        self.tool_registry = ToolRegistry(db, alert_id=alert_id)
+        self.tool_registry = create_full_registry(db, alert_id=alert_id)
 
         # Conversation history
         self.messages: List[Dict[str, Any]] = []

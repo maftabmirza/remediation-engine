@@ -68,7 +68,9 @@ from app.routers import (
     query_history_api,  # Prometheus Dashboard Builder - Query History
     dashboard_permissions_api,  # Dashboard Permissions
     grafana_proxy,  # Grafana Integration - SSO Proxy
-    chat_api  # AI Chat API
+    chat_api,  # AI Chat API
+    prometheus_proxy,  # Prometheus Integration - Proxy
+    troubleshoot_api  # Troubleshooting Mode API (separated from revive_api)
 )
 from app import api_credential_profiles
 from app.services.execution_worker import start_execution_worker, stop_execution_worker
@@ -320,6 +322,8 @@ app.include_router(query_history_api.router) # Prometheus Dashboard Builder - Qu
 app.include_router(dashboard_permissions_api.router) # Dashboard Permissions
 app.include_router(grafana_proxy.router)    # Grafana Integration - SSO Proxy
 app.include_router(chat_api.router)          # AI Chat API
+app.include_router(prometheus_proxy.router) # Prometheus Integration - Proxy
+app.include_router(troubleshoot_api.router)  # Troubleshooting Mode API
 
 
 @app.get("/profile", response_class=HTMLResponse)
@@ -1001,6 +1005,26 @@ async def grafana_diagnostic_page(request: Request):
     """
     return templates.TemplateResponse("grafana_diagnostic.html", {
         "request": request
+    })
+
+
+# ============== Prometheus View Page ==============
+
+@app.get("/prometheus-view", response_class=HTMLResponse)
+async def prometheus_view_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    View Prometheus UI via Proxy
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    return templates.TemplateResponse("prometheus_view.html", {
+        "request": request,
+        "user": current_user,
+        "active_page": "prometheus-view" 
     })
 
 

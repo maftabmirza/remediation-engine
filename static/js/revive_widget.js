@@ -40,6 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const fab = document.getElementById('agent-fab');
+    const topToggle = document.getElementById('ai-helper-toggle');
     const agentWindow = document.getElementById('agent-window');
     const closeBtn = document.getElementById('agent-close');
     const input = document.getElementById('agent-input');
@@ -49,14 +50,25 @@ document.addEventListener('DOMContentLoaded', () => {
     let isOpen = false;
     let sessionId = localStorage.getItem('ai_helper_session_id'); // Load from storage
 
-    function toggleWindow() {
-        isOpen = !isOpen;
+    function setOpen(nextOpen) {
+        isOpen = !!nextOpen;
         if (isOpen) {
             agentWindow.classList.add('visible');
-            input.focus();
+            document.body.classList.add('ai-helper-open');
+            // Allow clicks through only when panel is open
+            const widget = document.getElementById('agent-widget');
+            if (widget) widget.style.pointerEvents = 'auto';
+            setTimeout(() => input?.focus(), 0);
         } else {
             agentWindow.classList.remove('visible');
+            document.body.classList.remove('ai-helper-open');
+            const widget = document.getElementById('agent-widget');
+            if (widget) widget.style.pointerEvents = 'none';
         }
+    }
+
+    function toggleWindow() {
+        setOpen(!isOpen);
     }
 
     function addMessage(text, type, queryId = null) {
@@ -108,6 +120,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
         messagesContainer.appendChild(div);
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    // Wire toggles
+    if (topToggle) {
+        topToggle.addEventListener('click', (e) => {
+            e.preventDefault();
+            toggleWindow();
+        });
+    }
+
+    // Keep backward compatibility: if fab exists on any pages, clicking it toggles.
+    if (fab) {
+        fab.addEventListener('click', (e) => {
+            e.preventDefault();
+            toggleWindow();
+        });
+    }
+
+    if (closeBtn) {
+        closeBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            setOpen(false);
+        });
     }
 
     async function trackSolutionChoice(auditLogId, choiceData) {
@@ -599,9 +634,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    fab.addEventListener('click', toggleWindow);
-    closeBtn.addEventListener('click', toggleWindow);
-
     sendBtn.addEventListener('click', sendMessage);
     input.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') sendMessage();
@@ -641,6 +673,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (newWidth >= 300 && newWidth <= maxWidth) {
             agentWindow.style.width = newWidth + 'px';
+            document.documentElement.style.setProperty('--ai-helper-width', `${newWidth}px`);
         }
     }
 

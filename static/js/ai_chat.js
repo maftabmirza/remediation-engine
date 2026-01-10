@@ -618,7 +618,7 @@ async function sendMessage(e) {
 
     // Use REST API instead of WebSocket
     try {
-        const response = await apiCall('/api/ai-helper/chat', {
+        const response = await apiCall('/api/troubleshoot/chat', {
             method: 'POST',
             body: JSON.stringify({
                 message: finalMessage,
@@ -1499,7 +1499,7 @@ async function autoSendCommandOutputToAgent(command, output, isSuccess, exitCode
     }
 
     try {
-        const response = await apiCall('/api/ai-helper/chat', {
+        const response = await apiCall('/api/troubleshoot/chat', {
             method: 'POST',
             body: JSON.stringify({
                 message: finalMessage,

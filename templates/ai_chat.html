@@ -3,6 +3,16 @@
 
 {% block title %}AI Assistant - AIOps Platform{% endblock %}
 
+{% block breadcrumbs %}
+<span class="mx-2">/</span>
+<span class="text-gray-200 truncate">AI Assistant</span>
+{% endblock %}
+
+{% block header_title %}
+<i class="fas fa-robot text-purple-400"></i>
+<span class="text-sm font-semibold text-white tracking-tight">AI Assistant</span>
+{% endblock %}
+
 {% block content %}
 <style>
     .user-message-content pre,
@@ -19,30 +29,6 @@
 </style>
 
 <div id="aiChatContent" class="flex flex-col h-full overflow-hidden">
-    <!-- Enterprise Standard Toolbar -->
-    <div class="dashboard-header mb-4 rounded-lg"
-        style="padding: 12px; background: #16171b; border-bottom: 1px solid rgba(255,255,255,0.05);">
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <!-- Left: Breadcrumbs & Title -->
-            <div class="flex flex-col min-w-0">
-                <nav class="flex items-center text-xs text-gray-400 mb-1">
-                    <a href="/" class="hover:text-blue-400 transition-colors">Home</a>
-                    <span class="mx-2">/</span>
-                    <span class="text-gray-200">AI Assistant</span>
-                </nav>
-                <div class="flex items-center gap-3">
-                    <i class="fas fa-robot text-purple-400 text-2xl"></i>
-                    <h1 class="text-xl font-bold text-white tracking-tight truncate">AI Assistant</h1>
-                </div>
-                <p class="text-xs text-gray-500 mt-1">Chat with AI and execute commands on servers</p>
-            </div>
-            <!-- Right: Actions -->
-            <div class="flex items-center gap-2">
-
-            </div>
-        </div>
-    </div>
-
     <!-- 2-Pane Layout (Chat 40% | Terminal 60%) -->
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-1 min-h-0 overflow-hidden">
 

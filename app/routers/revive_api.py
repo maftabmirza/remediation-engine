@@ -64,84 +64,21 @@ async def ai_helper_query(
 
 
 @router.post("/chat")
-async def ai_helper_chat(
+async def ai_helper_chat_deprecated(
     request: dict,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
-    Handle troubleshooting chat messages via REST API.
+    DEPRECATED: Use /api/troubleshoot/chat instead.
     
-    This endpoint uses the NativeToolAgent for troubleshooting conversations
-    with tool calling capabilities (run commands, analyze logs, etc.)
+    This endpoint redirects to the new troubleshoot API for backwards compatibility.
+    Will be removed in a future version.
     """
-    from app.models import LLMProvider
-    from app.services.agentic.native_agent import NativeToolAgent
+    from fastapi.responses import RedirectResponse
+    from app.routers.troubleshoot_api import troubleshoot_chat
     
-    message = request.get("message", "")
-    session_id = request.get("session_id", "")
+    logger.warning("Deprecated endpoint /api/ai-helper/chat called - please use /api/troubleshoot/chat")
     
-    logger.info(f"AI Helper chat from {current_user.username}: {message[:100]}...")
-    
-    try:
-        # Get the default LLM provider
-        provider = db.query(LLMProvider).filter(
-            LLMProvider.is_default == True,
-            LLMProvider.is_enabled == True
-        ).first()
-        
-        if not provider:
-            provider = db.query(LLMProvider).filter(
-                LLMProvider.is_enabled == True
-            ).first()
-        
-        if not provider:
-            return {
-                "response": "No LLM provider is configured. Please configure an LLM provider in Settings.",
-                "message": "No LLM provider is configured. Please configure an LLM provider in Settings.",
-                "session_id": session_id
-            }
-        
-        # Create the Native Tool Agent for troubleshooting
-        agent = NativeToolAgent(
-            db=db,
-            provider=provider,
-            alert=None,  # No specific alert context
-            max_iterations=5,
-            temperature=0.3
-        )
-        
-        # Use stream() to get CMD_CARD markers for command buttons
-        # Collect all streamed chunks into a single response
-        full_response = ""
-        tool_calls = []
-        
-        async for chunk in agent.stream(message):
-            full_response += chunk
-        
-        # Get tool calls made
-        if hasattr(agent, 'tool_calls_made'):
-            tool_calls = agent.tool_calls_made
-        
-        # Debug: Log the full response to verify CMD_CARD markers
-        logger.info(f"AI Helper chat response length: {len(full_response)}")
-        if "[CMD_CARD]" in full_response:
-            logger.info("✅ CMD_CARD markers found in response")
-        else:
-            logger.warning("⚠️ No CMD_CARD markers in response")
-        
-        return {
-            "response": full_response,
-            "message": full_response,
-            "session_id": session_id,
-            "tool_calls": tool_calls
-        }
-        
-    except Exception as e:
-        logger.error(f"AI Helper chat failed: {e}", exc_info=True)
-        return {
-            "response": f"I apologize, but I encountered an error: {str(e)}",
-            "message": f"I apologize, but I encountered an error: {str(e)}",
-            "session_id": session_id
-        }
-
+    # Forward the request to the new endpoint
+    return await troubleshoot_chat(request, db, current_user)

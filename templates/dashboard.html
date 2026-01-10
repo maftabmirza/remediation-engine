@@ -8,67 +8,46 @@
 <!-- ECharts is loaded globally from base.html -->
 {% endblock %}
 
-{% block content %}
-<div class="space-y-4">
-    <!-- Enterprise Standard Toolbar -->
-    <div class="dashboard-header"
-        style="padding: 12px; background: #16171b; border-bottom: 1px solid rgba(255,255,255,0.05);">
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <!-- Left: Breadcrumbs & Title -->
-            <div class="flex flex-col min-w-0">
-                <!-- Breadcrumbs -->
-                <nav class="flex items-center text-xs text-gray-400 mb-1">
-                    <a href="/" class="hover:text-blue-400 transition-colors">Home</a>
-                    <span class="mx-2">/</span>
-                    <span class="text-gray-200">Overview</span>
-                </nav>
-                <div class="flex items-center gap-3">
-                    <h1 class="text-xl font-bold text-white tracking-tight truncate">Operations Dashboard</h1>
-                    <div class="flex items-center space-x-2 px-2 py-0.5 rounded bg-gray-800 border border-gray-700">
-                        <span id="connectionDot" class="w-2 h-2 rounded-full bg-gray-500"></span>
-                        <span class="text-[10px] text-gray-400" id="connectionStatus">Checking...</span>
-                    </div>
-                </div>
-                <p class="text-xs text-gray-500 mt-1">Live view of alerts, remediation, and platform readiness</p>
-            </div>
+{% block breadcrumbs %}
+<span class="mx-2">/</span>
+<span class="text-gray-200">Overview</span>
+{% endblock %}
 
-            <!-- Right: Toolbar Actions -->
-            <div class="flex items-center gap-2">
-                <!-- Range & Refresh Group -->
-                <div class="flex items-center bg-gray-800 rounded-lg p-1 border border-gray-700">
-                    <!-- Time Range -->
-                    <div class="relative">
-                        <select id="timeRange"
-                            class="appearance-none bg-transparent text-gray-300 text-sm pl-3 pr-8 py-1.5 focus:outline-none cursor-pointer hover:text-white transition-colors">
-                            <option value="24h">Last 24h</option>
-                            <option value="7d">Last 7d</option>
-                            <option value="30d">Last 30d</option>
-                        </select>
-                        <div
-                            class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
-                            <i class="fas fa-chevron-down text-[10px]"></i>
-                        </div>
-                    </div>
+{% block header_title %}
+<div class="flex items-center gap-3">
+    <i class="fas fa-tachometer-alt text-blue-400"></i>
+    <span class="text-sm font-semibold text-white tracking-tight">Operations Dashboard</span>
+    <div class="flex items-center space-x-2 px-1.5 py-0.5">
+        <span id="connectionDot" class="w-1.5 h-1.5 rounded-full bg-gray-500"></span>
+        <span class="text-[9px] text-gray-400" id="connectionStatus">Checking...</span>
+    </div>
+</div>
+{% endblock %}
 
-                    <div class="w-px h-5 bg-gray-600 mx-1"></div>
-
-                    <!-- Refresh -->
-                    <button id="refresh-btn" onclick="refreshDashboard()"
-                        class="toolbar-btn p-1.5 rounded hover:bg-gray-700 transition-colors text-gray-400 hover:text-white"
-                        title="Refresh Data">
-                        <i class="fas fa-sync-alt text-green-400 text-sm"></i>
-                    </button>
-                </div>
-
-                <!-- Spacer for last sync -->
-                <div class="hidden lg:block text-[10px] text-gray-500 text-right ml-2 leading-tight">
-                    <div>Last sync</div>
-                    <div id="lastSync" class="text-gray-400">-</div>
-                </div>
-            </div>
+{% block header_actions %}
+<div class="flex items-center bg-gray-800 rounded-lg p-1 border border-gray-700 h-8">
+    <div class="relative">
+        <select id="timeRange"
+            class="appearance-none bg-transparent text-gray-300 text-xs pl-3 pr-7 py-1 focus:outline-none cursor-pointer hover:text-white transition-colors">
+            <option value="24h">Last 24h</option>
+            <option value="7d">Last 7d</option>
+            <option value="30d">Last 30d</option>
+        </select>
+        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
+            <i class="fas fa-chevron-down text-[9px]"></i>
         </div>
     </div>
+    <div class="w-px h-4 bg-gray-600 mx-1"></div>
+    <button id="refresh-btn" onclick="refreshDashboard()"
+        class="toolbar-btn p-1 rounded hover:bg-gray-700 transition-colors text-gray-400 hover:text-white"
+        title="Refresh Data">
+        <i class="fas fa-sync-alt text-green-400 text-xs"></i>
+    </button>
+</div>
+{% endblock %}
 
+{% block content %}
+<div class="space-y-4">
     <div id="dashboardError"
         class="hidden bg-red-900 border border-red-700 text-red-100 p-4 rounded-lg flex items-start justify-between">
         <div>
@@ -419,7 +398,6 @@
     const dashboardErrorMessage = document.getElementById('dashboardErrorMessage');
     const connectionDot = document.getElementById('connectionDot');
     const connectionStatus = document.getElementById('connectionStatus');
-    const lastSync = document.getElementById('lastSync');
     const trendRangeLabel = document.getElementById('trendRangeLabel');
 
     timeRangeSelect.addEventListener('change', () => {
@@ -432,7 +410,7 @@
 
     function setConnection(statusText, lastSyncTime, statusState = 'online') {
         connectionStatus.textContent = statusText;
-        lastSync.textContent = lastSyncTime || '-';
+        // lastSync element removed from UI
         connectionDot.classList.remove('bg-green-500', 'bg-yellow-500', 'bg-red-500');
         const colorClass = statusState === 'online' ? 'bg-green-500' : statusState === 'degraded' ? 'bg-yellow-500' : 'bg-red-500';
         connectionDot.classList.add(colorClass);

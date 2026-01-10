@@ -3,6 +3,36 @@
 
 {% block title %}Runbooks - AIOps Platform{% endblock %}
 
+{% block breadcrumbs %}
+<span class="mx-2">/</span>
+<span class="text-gray-200">Runbooks</span>
+{% endblock %}
+
+{% block header_title %}
+<i class="fas fa-book text-blue-400"></i>
+<span class="text-sm font-semibold text-white tracking-tight">Runbook Library</span>
+{% endblock %}
+
+{% block header_actions %}
+<div class="flex items-center gap-2">
+    <button onclick="openTemplatesModal()"
+        class="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 px-3 py-1 text-[11px] rounded flex items-center gap-1.5 transition-colors">
+        <i class="fas fa-layer-group text-teal-400"></i>
+        <span>Templates</span>
+    </button>
+    <button onclick="openImportModal()"
+        class="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 px-3 py-1 text-[11px] rounded flex items-center gap-1.5 transition-colors">
+        <i class="fas fa-file-import text-blue-400"></i>
+        <span>Import</span>
+    </button>
+    <a href="/runbooks/new"
+        class="bg-blue-600 hover:bg-blue-500 px-3 py-1 text-[11px] rounded text-white flex items-center gap-1.5 transition-colors">
+        <i class="fas fa-plus"></i>
+        <span>Create</span>
+    </a>
+</div>
+{% endblock %}
+
 {% block head %}
 <style>
     /* Grafana-aligned Panel/Table Style */
@@ -76,44 +106,7 @@
 
 {% block content %}
 <div class="space-y-4">
-    <!-- Enterprise Standard Toolbar -->
-    <div class="dashboard-header"
-        style="padding: 12px; background: #16171b; border-bottom: 1px solid rgba(255,255,255,0.05);">
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <!-- Left: Breadcrumbs & Title -->
-            <div class="flex flex-col min-w-0">
-                <!-- Breadcrumbs -->
-                <nav class="flex items-center text-xs text-gray-400 mb-1">
-                    <a href="/" class="hover:text-blue-400 transition-colors">Home</a>
-                    <span class="mx-2">/</span>
-                    <span class="text-gray-200">Runbooks</span>
-                </nav>
-                <div class="flex items-center gap-3">
-                    <h1 class="text-xl font-bold text-white tracking-tight truncate">Runbook Library</h1>
-                </div>
-                <p class="text-xs text-gray-500 mt-1">Manage automated remediation runbooks</p>
-            </div>
-
-            <!-- Right: Actions -->
-            <div class="flex items-center gap-2">
-                <button onclick="openTemplatesModal()"
-                    class="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 px-3 py-1.5 rounded text-sm flex items-center gap-2 transition-colors">
-                    <i class="fas fa-layer-group"></i>
-                    <span>Templates</span>
-                </button>
-                <button onclick="openImportModal()"
-                    class="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 px-3 py-1.5 rounded text-sm flex items-center gap-2 transition-colors">
-                    <i class="fas fa-file-import"></i>
-                    <span>Import</span>
-                </button>
-                <a href="/runbooks/new"
-                    class="bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded text-white text-sm flex items-center gap-2 transition-colors">
-                    <i class="fas fa-plus"></i>
-                    <span>Create</span>
-                </a>
-            </div>
-        </div>
-    </div>
+    <div id="runbooksGrid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
 
     <!-- Filters & Bulk Actions -->
     <div class="card p-4 flex flex-wrap gap-4 items-center">
