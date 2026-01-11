@@ -12,10 +12,10 @@ logger = logging.getLogger(__name__)
 class EmbeddingService:
     """Service for generating text embeddings using OpenAI."""
     
-    def __init__(self):
+    def __init__(self, api_key: Optional[str] = None):
         self.model = os.getenv('EMBEDDING_MODEL', 'text-embedding-3-small')
         self.dimensions = int(os.getenv('EMBEDDING_DIMENSIONS', '1536'))
-        self.api_key = os.getenv('OPENAI_API_KEY')
+        self.api_key = api_key or os.getenv('OPENAI_API_KEY')
         
         if not self.api_key:
             logger.warning("OPENAI_API_KEY not set - embeddings will not work")

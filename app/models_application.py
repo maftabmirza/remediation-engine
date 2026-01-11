@@ -42,6 +42,9 @@ class Application(Base):
     design_documents = relationship("DesignDocument", back_populates="application", cascade="all, delete-orphan")
     design_images = relationship("DesignImage", back_populates="application", cascade="all, delete-orphan")
     design_chunks = relationship("DesignChunk", back_populates="application", cascade="all, delete-orphan")
+    
+    # Knowledge config
+    knowledge_config = relationship("ApplicationKnowledgeConfig", back_populates="application", uselist=False, cascade="all, delete-orphan")
 
     __table_args__ = (
         CheckConstraint(

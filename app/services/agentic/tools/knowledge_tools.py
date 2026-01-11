@@ -213,6 +213,7 @@ class KnowledgeTools(ToolModule):
     async def _get_runbook(self, args: Dict[str, Any]) -> str:
         """Get runbook for service/alert type"""
         from app.models_remediation import Runbook, RunbookStep
+        from sqlalchemy.orm import selectinload
 
         service = args.get("service")
         alert_type = args.get("alert_type")
@@ -221,18 +222,22 @@ class KnowledgeTools(ToolModule):
             return "Error: Either service or alert_type parameter is required"
 
         try:
-            query = self.db.query(Runbook).filter(Runbook.enabled == True)
+            query = self.db.query(Runbook).options(
+                selectinload(Runbook.steps)
+            ).filter(Runbook.enabled == True)
 
+            # Search by service name in name/description/tags
             if service:
                 query = query.filter(
                     Runbook.name.ilike(f"%{service}%") |
                     Runbook.description.ilike(f"%{service}%")
                 )
 
+            # Search by alert_type in name/description  
             if alert_type:
                 query = query.filter(
                     Runbook.name.ilike(f"%{alert_type}%") |
-                    Runbook.trigger_conditions.cast(str).ilike(f"%{alert_type}%")
+                    Runbook.description.ilike(f"%{alert_type}%")
                 )
 
             runbooks = query.limit(3).all()
@@ -244,22 +249,21 @@ class KnowledgeTools(ToolModule):
             for runbook in runbooks:
                 output.append(f"## {runbook.name}")
                 output.append(f"Description: {runbook.description or 'No description'}")
-                output.append(f"Severity: {runbook.severity}")
+                output.append(f"Category: {runbook.category or 'Uncategorized'}")
                 output.append(f"Auto-execute: {'Yes' if runbook.auto_execute else 'No'}")
                 output.append("\n**Steps:**")
 
-                # Get steps
-                steps = self.db.query(RunbookStep).filter(
-                    RunbookStep.runbook_id == runbook.id
-                ).order_by(RunbookStep.order).all()
+                # Get steps using relationship (already loaded via selectinload)
+                sorted_steps = sorted(runbook.steps, key=lambda s: s.step_order)
 
-                for step in steps:
-                    output.append(f"\n{step.order}. **{step.name}**")
-                    output.append(f"   Type: {step.step_type}")
+                for step in sorted_steps:
+                    output.append(f"\n{step.step_order}. **{step.name}**")
                     if step.description:
                         output.append(f"   {step.description}")
-                    if step.command:
-                        output.append(f"   Command: `{step.command}`")
+                    if step.command_linux:
+                        output.append(f"   Linux: `{step.command_linux[:100]}`")
+                    if step.command_windows:
+                        output.append(f"   Windows: `{step.command_windows[:100]}`")
 
                 output.append("\n---\n")
 

@@ -270,6 +270,8 @@ class SearchResult(BaseModel):
     source_title: Optional[str] = None
     source_url: Optional[str] = None
     app_id: Optional[UUID] = None
+    doc_type: Optional[str] = None
+    view_url: Optional[str] = None
 
 
 class SearchResponse(BaseModel):
