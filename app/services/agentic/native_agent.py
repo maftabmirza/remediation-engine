@@ -861,9 +861,11 @@ Tools called so far will be tracked. If you try to suggest a command without suf
                     tool_results = await self._execute_tool_calls(tool_calls)
 
                     # Check for suggest_ssh_command and yield structured card
+                    command_suggested = False
                     for tc in tool_calls:
                         tool_name = tc.function.name if hasattr(tc, 'function') else tc.get('name', 'unknown')
                         if tool_name == "suggest_ssh_command":
+                            command_suggested = True
                             try:
                                 args = json.loads(tc.function.arguments) if hasattr(tc, 'function') else {}
                                 card_data = {
@@ -879,6 +881,11 @@ Tools called so far will be tracked. If you try to suggest a command without suf
                     for result in tool_results:
                         self.messages.append(result)
 
+                    # If command was suggested, we're done - don't continue the loop
+                    if command_suggested:
+                        logger.info("Command suggested via tool, ending agent loop")
+                        return
+
                     continue
 
                 else:
@@ -891,7 +898,7 @@ Tools called so far will be tracked. If you try to suggest a command without suf
                             "role": "user",
                             "content": f"[SYSTEM]: You attempted to provide a final answer but have only called {len(self.tool_calls_made)} tool(s). You MUST call at least 2 tools to gather evidence before suggesting any action. Please continue investigating using the available tools. Focus on the current state tools (query_grafana_metrics, query_grafana_logs, or get_recent_changes) and historical tools (get_similar_incidents, get_proven_solutions)."
                         })
-                        yield f"\n*Need more evidence ({len(self.tool_calls_made)}/2 minimum tools called)...*\n"
+                        # Don't show internal message to user - just continue silently
                         continue
                     
                     # Final response - yield content

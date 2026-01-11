@@ -178,7 +178,7 @@ class ObservabilityTools(ToolModule):
                 start_time = end_time - timedelta(hours=1)
 
             entries = await client.query_range(
-                query=logql,
+                logql=logql,
                 start=start_time,
                 end=end_time,
                 limit=limit
