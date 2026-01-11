@@ -289,6 +289,24 @@ If a tool output includes a runbook `view_url`, you MUST include a clickable Mar
 - **Summary:** {(self.alert.annotations_json or {}).get('summary', 'N/A')}
 """
             base_prompt += alert_context
+        else:
+            base_prompt += """
+## Context:
+No alert context - this is a user-initiated request. Focus on what the user is asking for.
+
+**IMPORTANT for user-initiated requests:**
+- If user asks to "restart apache" → suggest `systemctl restart apache2`, NOT something else
+- If user asks to "check disk space" → suggest `df -h`, NOT something else
+- HONOR the user's request. Don't add unsolicited commands or second-guess their intent.
+- Still gather evidence (minimum 2 tools) before suggesting, but stay focused on their request.
+"""
+
+        # Add minimum tool requirement reminder
+        base_prompt += """
+## MANDATORY REQUIREMENT:
+You MUST call at least 2 tools to gather evidence before suggesting any command.
+Tools called so far will be tracked. If you try to suggest a command without sufficient evidence, you will be asked to continue investigating.
+"""
 
         return base_prompt
 
@@ -685,6 +703,16 @@ If a tool output includes a runbook `view_url`, you MUST include a clickable Mar
 
                 else:
                     # No tool calls - final response
+                    # Enforce minimum 2 tool calls before allowing final answer
+                    if len(self.tool_calls_made) < 2:
+                        logger.warning(f"Agent tried to finish with only {len(self.tool_calls_made)} tool calls, forcing more investigation")
+                        # Add system message to force more investigation
+                        self.messages.append({
+                            "role": "user",
+                            "content": f"[SYSTEM]: You attempted to provide a final answer but have only called {len(self.tool_calls_made)} tool(s). You MUST call at least 2 tools to gather evidence before suggesting any action. Please continue investigating using the available tools. Focus on the current state tools (query_grafana_metrics, query_grafana_logs, or get_recent_changes) and historical tools (get_similar_incidents, get_proven_solutions)."
+                        })
+                        continue
+                    
                     final_content = self._ensure_runbook_links_in_final(message.content or "")
 
                     # Add to messages
@@ -840,6 +868,18 @@ If a tool output includes a runbook `view_url`, you MUST include a clickable Mar
                     continue
 
                 else:
+                    # No tool calls - final response
+                    # Enforce minimum 2 tool calls before allowing final answer
+                    if len(self.tool_calls_made) < 2:
+                        logger.warning(f"Stream: Agent tried to finish with only {len(self.tool_calls_made)} tool calls, forcing more investigation")
+                        # Add system message to force more investigation
+                        self.messages.append({
+                            "role": "user",
+                            "content": f"[SYSTEM]: You attempted to provide a final answer but have only called {len(self.tool_calls_made)} tool(s). You MUST call at least 2 tools to gather evidence before suggesting any action. Please continue investigating using the available tools. Focus on the current state tools (query_grafana_metrics, query_grafana_logs, or get_recent_changes) and historical tools (get_similar_incidents, get_proven_solutions)."
+                        })
+                        yield f"\n*Need more evidence ({len(self.tool_calls_made)}/2 minimum tools called)...*\n"
+                        continue
+                    
                     # Final response - yield content
                     final_content = self._ensure_runbook_links_in_final(message.content or "")
 

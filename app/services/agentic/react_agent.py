@@ -102,67 +102,109 @@ You have access to the following tools:
 
 {tools_desc}
 
-## EXECUTION PROTOCOL (5 Phases)
+## MANDATORY EXECUTION PROTOCOL (5 Phases)
 
-Follow this protocol for every troubleshooting session:
+You MUST follow ALL phases in order. DO NOT skip phases. Show progress for each phase.
 
-**PHASE 1: IDENTIFY** — What are we troubleshooting?
-- If alert context exists: Use get_alert_details
-- If app mentioned but no server: Use search_knowledge to find servers
-- If ambiguous: Ask user for clarification
+**PHASE 1: IDENTIFY** 🔍
+- Parse what we're troubleshooting (service, server, issue)
+- If user specifies a target → accept it (don't second-guess)
+- If ambiguous → ask for clarification BEFORE proceeding
+- Output: Server name, service name, OS type, request source
 
-**PHASE 2: VERIFY** — Confirm environment
-- Check knowledge base for OS, environment details
-- If not found, suggest verification command
+**PHASE 2: VERIFY** ✅
+- Confirm the target exists and is accessible
+- If OS unknown, state "OS: Unknown (will verify)"
+- Output: Confirmation of target environment
 
-**PHASE 3: INVESTIGATE** — Gather evidence
-- Current State (FACTS): query_grafana_metrics, query_grafana_logs, get_recent_changes
-- Historical (HINTS, may not apply): get_similar_incidents, get_proven_solutions, get_runbook
+**PHASE 3: INVESTIGATE** 📊 (MINIMUM 2 TOOLS REQUIRED)
+- You MUST call at least 2 tools before suggesting any command
+- Current State Tools (results are FACTS - trustworthy):
+  * query_grafana_metrics → actual metric values
+  * query_grafana_logs → actual log entries  
+  * get_recent_changes → actual change records
+  * get_alert_details → actual alert data
+- Historical Tools (results are HINTS - may not apply to current situation):
+  * get_similar_incidents → past incidents (context may differ)
+  * get_proven_solutions → what worked before (may need adaptation)
+  * get_runbook → documented procedures (may be outdated)
+  * get_feedback_history → past feedback (context-dependent)
 
-**PHASE 4: PLAN** — Analyze and decide
-- Rank likely causes based on evidence
-- Check if past solutions match current context
+**PHASE 4: PLAN** 🧠
+- Analyze tool results (cite specific data from each tool)
+- Form hypothesis based on FACTS, informed by HINTS
+- Rank likely causes
 
-**PHASE 5: ACT** — Suggest command
-- Use suggest_ssh_command (validated by safety filter)
-- ONE command per turn, wait for output
+**PHASE 5: ACT** 🛠️
+- Suggest ONE command using suggest_ssh_command
+- HONOR USER REQUESTS: If user asked for a specific action, DO IT
+  * "restart apache" → suggest restart command, not something else
+  * "check disk space" → suggest df command
+  * Don't add unsolicited commands (like daemon-reload when restart was requested)
 
 ## How to Use Tools:
 
-When you need information, use this EXACT format:
+Use this EXACT format:
 
 Thought: [Your reasoning about what information you need]
 Action: [tool_name]
 Action Input: {{"param": "value"}}
 
-After each action, you will receive an Observation with the tool's output.
-Continue this process until you have enough information to answer.
+After each action, you receive an Observation. Continue until you have enough evidence.
 
-When you're ready to provide your final response, use:
+When ready for final response:
 
-Thought: I now have enough information to answer
-Final Answer: [Your complete response to the user]
+Thought: I have completed all phases and gathered sufficient evidence
+Final Answer: [Your complete structured response]
 
 ## CRITICAL RULES:
-1. **Never assume target** — If ambiguous, ASK
-2. **Never act without evidence** — Gather context first (minimum 2 tools)
-3. **Cite sources** — Reference which tool provided each fact
-4. **Historical data = hints** — Past solutions may or may not work
-5. **One command per turn** — Wait for output before next command
+1. **Follow all 5 phases** — DO NOT skip any phase
+2. **Minimum 2 tools** — Call at least 2 tools before suggesting commands
+3. **Honor user requests** — If user asks for X, suggest X (not something else)
+4. **Cite actual data** — Include real values from tool results, not "result"
+5. **Classify evidence** — Mark each piece as FACT or HINT
+6. **One command per turn** — Wait for output before next command
+7. **Never assume** — If something is unknown, say so
 
-## Data Classification:
-- **FACTS**: Metrics, logs, changes, alert details (trustworthy)
-- **HINTS**: Similar incidents, proven solutions (verify applicability)
-- **REFERENCE**: Runbooks, knowledge docs (may need adaptation)
+## Data Classification (MUST USE):
+- **← FACT**: Data from metrics, logs, changes, alerts (current, verified)
+- **← HINT**: Data from similar incidents, proven solutions (historical, may not apply)
+- **← REFERENCE**: Runbooks, docs (may need adaptation)
 
-## Output Format for Final Answer:
-1. Alert Summary: [one-line]
-2. Target: [server + OS + source]
-3. Evidence Gathered: [with tool citations]
-4. Hypothesis: [ranked causes]
-5. Recommended Action: [single command]
-6. Risks & Rollback: [what could go wrong]
-7. Verification: [how to confirm success]
+## REQUIRED Output Format for Final Answer:
+
+```
+**Alert Summary:** [one-line description or "No alert - user-reported issue"]
+
+**Target:**
+- Server: [server name]
+- OS: [Linux/Windows/Unknown]
+- Source: [Alert/User specified/Knowledge base]
+
+**Evidence Gathered:**
+
+Current State (verified):
+- [tool_name]: [ACTUAL DATA from tool] ← FACT
+- [tool_name]: [ACTUAL DATA from tool] ← FACT
+
+Historical Reference (may or may not apply):
+- [tool_name]: [summary of findings] ← HINT
+- [tool_name]: [summary of findings] ← HINT
+
+**Hypothesis:**
+[Your analysis based on the evidence above]
+
+**Recommended Action:**
+- Server: [target server]
+- Command: `[the exact command]`
+- Explanation: [why this command]
+
+**Risks & Rollback:**
+[What could go wrong and how to recover]
+
+**Verification:**
+[Command or check to confirm success]
+```
 
 ## Runbook Link Rule:
 If you reference a runbook and a view URL is available, include a clickable Markdown link (e.g., `View: [Open runbook](/runbooks/<id>/view)`).
@@ -179,6 +221,23 @@ If you reference a runbook and a view URL is available, include a clickable Mark
 - Summary: {(self.alert.annotations_json or {}).get('summary', 'N/A')}
 """
             base_prompt += alert_context
+        else:
+            base_prompt += """
+## Context:
+No alert context - this is a user-initiated request. Focus on what the user is asking for.
+"""
+
+        # Add phase reminder
+        base_prompt += """
+## REMINDER: You MUST show progress through each phase:
+1. 🔍 IDENTIFY - State what we're troubleshooting
+2. ✅ VERIFY - Confirm target environment  
+3. 📊 INVESTIGATE - Call tools and gather evidence (minimum 2 tools!)
+4. 🧠 PLAN - Analyze evidence with citations
+5. 🛠️ ACT - Suggest the command the user asked for
+
+DO NOT jump to Phase 4 or 5 without completing Phases 1-3 first.
+"""
 
         return base_prompt
 
@@ -280,9 +339,19 @@ If you reference a runbook and a view URL is available, include a clickable Mark
                 iterations += 1
                 logger.info(f"ReAct iteration {iterations}")
 
-                # Add instruction to continue
+                # Add instruction to continue with phase awareness
                 if iterations == 1:
-                    prompt = self.context + "Begin your investigation. Remember to use the Thought/Action/Action Input format.\n\nThought:"
+                    prompt = self.context + """Begin your investigation by following the 5-phase protocol.
+
+Start with PHASE 1: IDENTIFY - State what we're troubleshooting.
+Then use tools to gather evidence before suggesting any action.
+Remember: You MUST call at least 2 tools before your Final Answer.
+
+Thought:"""
+                elif len(self.tool_calls_made) < 2 and iterations > 1:
+                    prompt = self.context + f"""\nYou have called {len(self.tool_calls_made)} tool(s) so far. 
+You MUST call at least 2 tools before providing a Final Answer.
+Continue investigating.\n\nThought:"""
                 else:
                     prompt = self.context + "\nThought:"
 
@@ -295,6 +364,14 @@ If you reference a runbook and a view URL is available, include a clickable Mark
                 # Check for final answer
                 final_answer = self._parse_final_answer(response)
                 if final_answer:
+                    # Enforce minimum 2 tool calls before allowing final answer
+                    if len(self.tool_calls_made) < 2:
+                        logger.warning(f"Agent tried to finish with only {len(self.tool_calls_made)} tool calls, forcing more investigation")
+                        self.context += f"""\n\n[SYSTEM]: You attempted to provide a Final Answer but have only called {len(self.tool_calls_made)} tool(s).
+You MUST call at least 2 tools to gather evidence before suggesting any action.
+Please continue investigating using the available tools.\n\nThought:"""
+                        continue
+                    
                     return AgentResponse(
                         content=final_answer,
                         tool_calls_made=self.tool_calls_made,
@@ -378,9 +455,19 @@ If you reference a runbook and a view URL is available, include a clickable Mark
             while iterations < self.max_iterations:
                 iterations += 1
 
-                # Add instruction to continue
+                # Add instruction to continue with phase awareness
                 if iterations == 1:
-                    prompt = self.context + "Begin your investigation. Remember to use the Thought/Action/Action Input format.\n\nThought:"
+                    prompt = self.context + """Begin your investigation by following the 5-phase protocol.
+
+Start with PHASE 1: IDENTIFY - State what we're troubleshooting.
+Then use tools to gather evidence before suggesting any action.
+Remember: You MUST call at least 2 tools before your Final Answer.
+
+Thought:"""
+                elif len(self.tool_calls_made) < 2 and iterations > 1:
+                    prompt = self.context + f"""\nYou have called {len(self.tool_calls_made)} tool(s) so far. 
+You MUST call at least 2 tools before providing a Final Answer.
+Continue investigating.\n\nThought:"""
                 else:
                     prompt = self.context + "\nThought:"
 
@@ -393,6 +480,12 @@ If you reference a runbook and a view URL is available, include a clickable Mark
                 # Check for final answer
                 final_answer = self._parse_final_answer(response)
                 if final_answer:
+                    # Enforce minimum 2 tool calls before allowing final answer
+                    if len(self.tool_calls_made) < 2:
+                        self.context += f"""\n\n[SYSTEM]: You attempted to provide a Final Answer but have only called {len(self.tool_calls_made)} tool(s).
+You MUST call at least 2 tools to gather evidence before suggesting any action.
+Please continue investigating using the available tools.\n\nThought:"""
+                        continue
                     yield final_answer
                     return
 
@@ -402,8 +495,13 @@ If you reference a runbook and a view URL is available, include a clickable Mark
                     action_name, arguments = action
                     self.tool_calls_made.append(action_name)
 
-                    # Notify about tool call
-                    yield f"\n🔍 *Calling tool: {action_name}...*\n"
+                    # Get data classification for this tool
+                    from app.services.agentic.progress_messages import get_data_classification, get_tool_message
+                    classification = get_data_classification(action_name)
+                    tool_msg = get_tool_message(action_name)
+
+                    # Notify about tool call with classification
+                    yield f"\n{tool_msg}\n"
 
                     # Execute tool
                     result = await self.tool_registry.execute(action_name, arguments)
@@ -415,6 +513,12 @@ If you reference a runbook and a view URL is available, include a clickable Mark
 
                 # No action and no final answer
                 if "recommend" in response.lower() or "suggest" in response.lower():
+                    # Enforce minimum 2 tool calls even for implicit final answers
+                    if len(self.tool_calls_made) < 2:
+                        self.context += f"""\n\n[SYSTEM]: You are trying to make a recommendation but have only called {len(self.tool_calls_made)} tool(s).
+You MUST call at least 2 tools to gather evidence first.
+Please continue investigating.\n\nThought:"""
+                        continue
                     yield response
                     return
 

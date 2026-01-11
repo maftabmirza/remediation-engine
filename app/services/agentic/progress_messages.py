@@ -31,36 +31,46 @@ class PhaseProgress:
     details: Optional[Dict[str, str]] = None
 
 
-# Phase display configuration
+# Phase display configuration with order numbers for enforcement
+PHASE_ORDER = {
+    TroubleshootingPhase.IDENTIFY: 1,
+    TroubleshootingPhase.VERIFY: 2,
+    TroubleshootingPhase.INVESTIGATE: 3,
+    TroubleshootingPhase.PLAN: 4,
+    TroubleshootingPhase.ACT: 5,
+    TroubleshootingPhase.WAITING: 6,
+    TroubleshootingPhase.COMPLETE: 7,
+}
+
 PHASE_MESSAGES: Dict[TroubleshootingPhase, PhaseProgress] = {
     TroubleshootingPhase.IDENTIFY: PhaseProgress(
         phase=TroubleshootingPhase.IDENTIFY,
         emoji="🔍",
-        title="Identifying target...",
+        title="Phase 1: Identifying target...",
         subtitle="Determining what we're troubleshooting"
     ),
     TroubleshootingPhase.VERIFY: PhaseProgress(
         phase=TroubleshootingPhase.VERIFY,
         emoji="✅",
-        title="Verifying environment...",
+        title="Phase 2: Verifying environment...",
         subtitle="Confirming target server and OS"
     ),
     TroubleshootingPhase.INVESTIGATE: PhaseProgress(
         phase=TroubleshootingPhase.INVESTIGATE,
         emoji="📊",
-        title="Gathering evidence...",
-        subtitle="Querying metrics, logs, and history"
+        title="Phase 3: Gathering evidence...",
+        subtitle="Querying metrics, logs, and history (minimum 2 tools)"
     ),
     TroubleshootingPhase.PLAN: PhaseProgress(
         phase=TroubleshootingPhase.PLAN,
         emoji="🧠",
-        title="Analyzing findings...",
+        title="Phase 4: Analyzing findings...",
         subtitle="Forming hypothesis based on evidence"
     ),
     TroubleshootingPhase.ACT: PhaseProgress(
         phase=TroubleshootingPhase.ACT,
         emoji="🛠️",
-        title="Suggesting command...",
+        title="Phase 5: Suggesting command...",
         subtitle="Preparing recommended action"
     ),
     TroubleshootingPhase.WAITING: PhaseProgress(
@@ -179,15 +189,50 @@ def format_evidence_section(
     current_state: Dict[str, str],
     historical: Dict[str, str]
 ) -> str:
-    """Format the evidence gathered section"""
-    output = ["📊 Gathering evidence...\n"]
+    """Format the evidence gathered section with proper FACT/HINT labels"""
+    output = ["**Evidence Gathered:**\n"]
     
-    output.append("   CURRENT STATE (verified):")
+    output.append("Current State (verified):")
     for tool, result in current_state.items():
-        output.append(f"   ├─ {TOOL_PROGRESS_MESSAGES.get(tool, tool)} → {result}")
+        classification = get_data_classification(tool)
+        output.append(f"- {tool}: {result} ← {classification}")
     
-    output.append("\n   HISTORICAL CONTEXT (reference only, may not apply):")
+    output.append("\nHistorical Reference (may or may not apply):")
     for tool, result in historical.items():
-        output.append(f"   ├─ {TOOL_PROGRESS_MESSAGES.get(tool, tool)} → {result}")
+        classification = get_data_classification(tool)
+        output.append(f"- {tool}: {result} ← {classification}")
     
     return "\n".join(output)
+
+
+def format_tool_result(tool_name: str, result: str) -> str:
+    """Format a single tool result with classification label"""
+    classification = get_data_classification(tool_name)
+    return f"{tool_name}: {result} ← {classification}"
+
+
+def get_phase_order(phase: TroubleshootingPhase) -> int:
+    """Get the order number of a phase for enforcement"""
+    return PHASE_ORDER.get(phase, 0)
+
+
+def can_proceed_to_phase(current: TroubleshootingPhase, target: TroubleshootingPhase) -> bool:
+    """Check if transition from current to target phase is valid"""
+    current_order = get_phase_order(current)
+    target_order = get_phase_order(target)
+    # Can only advance by one phase or stay at same phase
+    return target_order <= current_order + 1
+
+
+def format_phase_progress(phase: TroubleshootingPhase, tool_calls_made: int = 0) -> str:
+    """Format phase progress with tool call count for investigate phase"""
+    progress = get_phase_message(phase)
+    output = f"{progress.emoji} {progress.title}"
+    
+    if phase == TroubleshootingPhase.INVESTIGATE:
+        output += f" [{tool_calls_made}/2 minimum tools]"
+    
+    if progress.subtitle:
+        output += f"\n   └─ {progress.subtitle}"
+    
+    return output
