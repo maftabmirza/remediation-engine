@@ -7,6 +7,7 @@ Uses native function/tool calling capabilities of LLM providers
 
 import json
 import logging
+import re
 from typing import Dict, List, Any, Optional, AsyncGenerator, Union
 from dataclasses import dataclass
 from uuid import UUID
@@ -232,6 +233,39 @@ When you have enough information to respond:
             base_prompt += alert_context
 
         return base_prompt
+
+    def _extract_runbook_view_links(self) -> List[str]:
+        """Extract unique runbook view URLs from tool outputs."""
+        pattern = re.compile(r"\[Open runbook\]\(([^)]+)\)")
+        seen: set[str] = set()
+        links: List[str] = []
+
+        for msg in self.messages:
+            if msg.get("role") != "tool":
+                continue
+            content = str(msg.get("content") or "")
+            for url in pattern.findall(content):
+                if url not in seen:
+                    seen.add(url)
+                    links.append(url)
+
+        return links
+
+    def _ensure_runbook_links_in_final(self, final_content: str) -> str:
+        """Append runbook view links to the final response if missing."""
+        links = self._extract_runbook_view_links()
+        if not links:
+            return final_content
+
+        missing = [url for url in links if url and url not in (final_content or "")]
+        if not missing:
+            return final_content
+
+        suffix_lines = ["", "**Runbook links:**"]
+        for url in missing[:10]:
+            suffix_lines.append(f"- [Open runbook]({url})")
+
+        return (final_content or "").rstrip() + "\n" + "\n".join(suffix_lines) + "\n"
 
     async def _get_tools_for_provider(self) -> List[Dict[str, Any]]:
         """
@@ -593,7 +627,7 @@ When you have enough information to respond:
 
                 else:
                     # No tool calls - final response
-                    final_content = message.content or ""
+                    final_content = self._ensure_runbook_links_in_final(message.content or "")
 
                     # Add to messages
                     self.messages.append({
@@ -749,7 +783,7 @@ When you have enough information to respond:
 
                 else:
                     # Final response - yield content
-                    final_content = message.content or ""
+                    final_content = self._ensure_runbook_links_in_final(message.content or "")
 
                     # Add to messages
                     self.messages.append({
