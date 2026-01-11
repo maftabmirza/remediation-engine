@@ -181,24 +181,29 @@
         }
 
         try {
-            const response = await fetch(`/api/remediation/execute`, {
+            const response = await fetch(`/api/remediation/executions?runbook_id={{ runbook.id }}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    runbook_id: "{{ runbook.id }}",
-                    server_id: serverId,
-                    source: "manual_web"
+                    server_id: serverId
                 })
             });
 
             if (response.ok) {
-                const result = await response.json();
                 window.location.href = `/executions`;
             } else {
-                const error = await response.json();
-                alert('Execution failed: ' + error.detail);
+                let detail = `HTTP ${response.status}`;
+                try {
+                    const error = await response.json();
+                    if (error && error.detail) {
+                        detail = error.detail;
+                    }
+                } catch (e) {
+                    // ignore JSON parse errors
+                }
+                alert('Execution failed: ' + detail);
             }
         } catch (e) {
             alert('Error: ' + e.message);

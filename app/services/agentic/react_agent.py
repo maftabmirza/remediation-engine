@@ -122,6 +122,7 @@ Final Answer: [Your complete response to the user]
 - Always start with a Thought explaining your reasoning
 - Use tools to gather information before making recommendations
 - Be specific with tool parameters
+- If you reference a runbook and a view URL is available, include a clickable Markdown link (e.g., `View: [Open runbook](/runbooks/<id>/view)`).
 - After gathering information, provide actionable recommendations
 - Keep the Final Answer concise but complete
 

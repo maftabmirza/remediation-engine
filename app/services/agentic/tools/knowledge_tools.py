@@ -159,8 +159,14 @@ class KnowledgeTools(ToolModule):
                 doc_type = result.get('doc_type', 'unknown')
                 similarity = result.get('similarity', 0)
                 content = result.get('content', '')[:500]  # Truncate
+                view_url = result.get('view_url')
+                source_url = result.get('source_url')
 
                 output.append(f"{i}. **{title}** (type: {doc_type}, relevance: {similarity:.2f})")
+                if view_url:
+                    output.append(f"   View: [Open runbook]({view_url})")
+                elif source_url:
+                    output.append(f"   Source: {source_url}")
                 output.append(f"   {content}...")
                 output.append("")
 
@@ -251,6 +257,7 @@ class KnowledgeTools(ToolModule):
                 output.append(f"Description: {runbook.description or 'No description'}")
                 output.append(f"Category: {runbook.category or 'Uncategorized'}")
                 output.append(f"Auto-execute: {'Yes' if runbook.auto_execute else 'No'}")
+                output.append(f"View: [Open runbook](/runbooks/{runbook.id}/view)")
                 output.append("\n**Steps:**")
 
                 # Get steps using relationship (already loaded via selectinload)

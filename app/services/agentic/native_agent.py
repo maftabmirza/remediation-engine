@@ -115,6 +115,10 @@ You can call tools to:
 - Get correlated alerts and root cause analysis
 - Find service dependencies
 
+## Runbook Link Rule (IMPORTANT):
+If a tool output includes a runbook `view_url`, or you recommend/reference a runbook, you MUST include a clickable Markdown link to the runbook view page (e.g., `View: [Open runbook](/runbooks/<id>/view)`).
+This ensures the user can immediately click through to the full runbook page.
+
 ## Tool Purpose Guide - What Each Tool Provides:
 
 ### Quick Solutions (check first for problems):
