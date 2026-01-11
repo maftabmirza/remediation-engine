@@ -22,6 +22,8 @@ class RunbookKnowledgeService:
     Enables AI to find and recommend relevant runbooks for issues.
     """
     
+    # NOTE: design_chunks.source_type is constrained to values like 'document'/'image'.
+    # Runbooks are indexed as source_type='document' with chunk_metadata.doc_type='runbook'.
     CHUNK_SOURCE_TYPE = "document"
     
     def __init__(self, db: Session):
@@ -117,7 +119,8 @@ class RunbookKnowledgeService:
                         "runbook_id": str(runbook.id),
                         "runbook_name": runbook.name,
                         "trigger_id": str(trigger.id),
-                        "trigger_id": str(trigger.id),
+                        "doc_type": "runbook",
+                        "view_url": f"/runbooks/{runbook.id}/view",
                         "alert_patterns": {
                             "name_pattern": trigger.alert_name_pattern,
                             "severity_pattern": trigger.severity_pattern,
@@ -134,10 +137,16 @@ class RunbookKnowledgeService:
     
     def remove_runbook_from_index(self, runbook_id: UUID) -> int:
         """Remove runbook from knowledge base index."""
-        result = self.db. query(DesignChunk).filter(
-            DesignChunk. source_type == self.CHUNK_SOURCE_TYPE,
-            DesignChunk.source_id == runbook_id
-        ).delete()
+        # Only delete chunks that were created for runbooks.
+        result = (
+            self.db.query(DesignChunk)
+            .filter(
+                DesignChunk.source_type == self.CHUNK_SOURCE_TYPE,
+                DesignChunk.source_id == runbook_id,
+                DesignChunk.chunk_metadata["doc_type"].astext == "runbook",
+            )
+            .delete()
+        )
         self.db.commit()
         return result
     
@@ -197,7 +206,8 @@ class RunbookKnowledgeService:
                 c.chunk_metadata as metadata,
                 1 - (c.embedding <=> CAST(: query_embedding AS vector)) as similarity
             FROM design_chunks c
-            WHERE c.source_type = 'runbook'
+            WHERE c.source_type = 'document'
+                AND c.chunk_metadata->>'doc_type' = 'runbook'
                 AND c.embedding IS NOT NULL
                 AND 1 - (c.embedding <=> CAST(:query_embedding AS vector)) >= :min_similarity
             ORDER BY c.embedding <=> CAST(: query_embedding AS vector)
