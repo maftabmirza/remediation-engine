@@ -383,13 +383,46 @@ class TroubleshootingTools(ToolModule):
             return f"Error fetching alert details: {str(e)}"
 
     async def _suggest_ssh_command(self, args: Dict[str, Any]) -> str:
-        """Suggest a command for the user to run"""
+        """Suggest a command for the user to run, with safety validation"""
+        from app.services.command_validator import CommandValidator, ValidationResult
+        
         server = args.get("server", "").strip()
         command = args.get("command", "").strip()
         explanation = args.get("explanation", "").strip()
 
         if not server or not command:
             return "Error: server and command are required"
+
+        # Detect OS type from server name or default to linux
+        # Simple heuristic: if server contains 'win' or ends with Windows-like patterns
+        os_type = "windows" if any(x in server.lower() for x in ['win', 'windows']) else "linux"
+        
+        # Validate command using CommandValidator
+        validator = CommandValidator()
+        validation = validator.validate_command(command, os_type)
+        
+        # Handle validation result
+        if validation.result == ValidationResult.BLOCKED:
+            return (
+                f"⛔ COMMAND BLOCKED\n\n"
+                f"The command you attempted to suggest has been blocked by the safety filter.\n\n"
+                f"**Reason:** {validation.reason}\n"
+                f"**Risk Level:** {validation.risk_level.upper()}\n"
+                f"**Pattern Matched:** `{validation.matched_pattern}`\n\n"
+                f"⚠️ INSTRUCTION: You MUST suggest a safer alternative command.\n"
+                f"Do NOT attempt to bypass this filter. Think of another approach to accomplish the goal safely."
+            )
+        
+        # Build response based on validation result
+        safety_indicator = ""
+        if validation.result == ValidationResult.SUSPICIOUS:
+            safety_indicator = (
+                f"\n\n⚠️ **Warning:** {validation.reason}\n"
+                f"This command requires elevated privileges or modifies system state. "
+                f"Proceed with caution."
+            )
+        else:
+            safety_indicator = "\n\n✅ **Safe** (read-only or low-risk command)"
 
         # Return a response that FORCES the Agent to understand:
         # 1. A command has been suggested
@@ -400,12 +433,14 @@ class TroubleshootingTools(ToolModule):
             f"✓ Command suggestion recorded.\n"
             f"Server: {server}\n"
             f"Command: {command}\n"
-            f"Explanation: {explanation}\n\n"
+            f"Explanation: {explanation}\n"
+            f"{safety_indicator}\n\n"
             f"⚠️ CRITICAL INSTRUCTION: You have suggested ONE command. You MUST now:\n"
             f"1. Display the command to the user in a markdown code block\n"
-            f"2. STOP your response immediately after displaying the command\n"
-            f"3. DO NOT suggest additional commands\n"
-            f"4. DO NOT write 'Once you run that...' or 'After that...'\n"
-            f"5. WAIT for the user to provide the command output\n\n"
-            f"Status: Waiting for user execution and output..."
+            f"2. Include the safety indicator (✅ Safe or ⚠️ Warning)\n"
+            f"3. STOP your response immediately after displaying the command\n"
+            f"4. DO NOT suggest additional commands\n"
+            f"5. DO NOT write 'Once you run that...' or 'After that...'\n"
+            f"6. WAIT for the user to provide the command output\n\n"
+            f"Status: ⏳ Waiting for user execution and output..."
         )
