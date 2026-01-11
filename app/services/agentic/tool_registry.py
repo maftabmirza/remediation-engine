@@ -213,18 +213,24 @@ class ToolRegistry:
         self._register_tool(
             Tool(
                 name="get_runbook",
-                description="Get a specific runbook for a service or alert type. Returns step-by-step remediation procedures.",
+                description="Get a specific runbook for a service, server, or alert type. Returns step-by-step remediation procedures. ALWAYS check for runbooks when user asks to restart/check/fix something!",
                 parameters=[
                     ToolParameter(
                         name="service",
                         type="string",
-                        description="Service name to find runbook for",
+                        description="Service name to find runbook for (e.g., 'apache', 'nginx', 'mysql')",
                         required=False
                     ),
                     ToolParameter(
                         name="alert_type",
                         type="string",
                         description="Alert type/name to find runbook for",
+                        required=False
+                    ),
+                    ToolParameter(
+                        name="server",
+                        type="string",
+                        description="Server name to find runbook for (e.g., 't-aiops-01')",
                         required=False
                     )
                 ]
@@ -575,33 +581,49 @@ class ToolRegistry:
 
         service = args.get("service")
         alert_type = args.get("alert_type")
+        server = args.get("server")  # Also search by server name
 
-        if not service and not alert_type:
-            return "Error: Either service or alert_type parameter is required"
+        if not service and not alert_type and not server:
+            return "Error: At least one parameter (service, alert_type, or server) is required"
 
         try:
             query = self.db.query(Runbook).filter(Runbook.enabled == True)
 
+            # Build search conditions - use OR to match any
+            conditions = []
+            from sqlalchemy import or_
+            
             if service:
-                query = query.filter(
-                    Runbook.name.ilike(f"%{service}%") |
-                    Runbook.description.ilike(f"%{service}%")
-                )
+                conditions.append(Runbook.name.ilike(f"%{service}%"))
+                conditions.append(Runbook.description.ilike(f"%{service}%"))
 
             if alert_type:
-                query = query.filter(
-                    Runbook.name.ilike(f"%{alert_type}%") |
-                    Runbook.trigger_conditions.cast(str).ilike(f"%{alert_type}%")
-                )
+                conditions.append(Runbook.name.ilike(f"%{alert_type}%"))
+                conditions.append(Runbook.trigger_conditions.cast(str).ilike(f"%{alert_type}%"))
+            
+            if server:
+                conditions.append(Runbook.name.ilike(f"%{server}%"))
+                conditions.append(Runbook.description.ilike(f"%{server}%"))
+
+            if conditions:
+                query = query.filter(or_(*conditions))
 
             runbooks = query.limit(3).all()
 
             if not runbooks:
-                return f"No runbooks found for service='{service}' or alert_type='{alert_type}'"
+                search_terms = []
+                if service:
+                    search_terms.append(f"service='{service}'")
+                if alert_type:
+                    search_terms.append(f"alert_type='{alert_type}'")
+                if server:
+                    search_terms.append(f"server='{server}'")
+                return f"No runbooks found for {', '.join(search_terms)}"
 
             output = [f"Found {len(runbooks)} relevant runbooks:\n"]
             for runbook in runbooks:
                 output.append(f"## {runbook.name}")
+                output.append(f"**View:** [Open runbook](/runbooks/{runbook.id}/view)")
                 output.append(f"Description: {runbook.description or 'No description'}")
                 output.append(f"Severity: {runbook.severity}")
                 output.append(f"Auto-execute: {'Yes' if runbook.auto_execute else 'No'}")
