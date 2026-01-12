@@ -835,7 +835,7 @@ Tools called so far will be tracked. If you try to suggest a command without suf
                         tool_name = tc.function.name if hasattr(tc, 'function') else tc.get('name', 'unknown')
                         if tool_name != "suggest_ssh_command":
                             friendly_msg = friendly_tool_names.get(tool_name, f"🔍 Using {tool_name}...")
-                            yield f"\n*{friendly_msg}*\n"
+                            yield f"\n\n*{friendly_msg}*  \n"  # Double newline before + trailing spaces for markdown line break
 
                     # Add assistant message with tool calls
                     self.messages.append({
