@@ -15,6 +15,7 @@ from sqlalchemy.dialects.postgresql import UUID, ARRAY
 from sqlalchemy.orm import relationship
 
 from app.database import Base
+from app.models_scheduler import ScheduledJob
 
 
 def utc_now():

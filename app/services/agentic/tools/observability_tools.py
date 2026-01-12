@@ -119,7 +119,7 @@ class ObservabilityTools(ToolModule):
                 step = "5m"
 
             result = await client.query_range(
-                query=promql,
+                promql=promql,
                 start=start_time,
                 end=end_time,
                 step=step
@@ -130,7 +130,8 @@ class ObservabilityTools(ToolModule):
 
             output = [f"Metrics query: `{promql}` (last {time_range})\n"]
 
-            for series in result[:5]:  # Limit to 5 series
+            series_list = result.get("result", [])
+            for series in series_list[:5]:  # Limit to 5 series
                 metric = series.get("metric", {})
                 values = series.get("values", [])
 

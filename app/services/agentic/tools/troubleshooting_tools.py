@@ -252,13 +252,13 @@ class TroubleshootingTools(ToolModule):
             # Search architecture documents
             docs = self.db.query(DesignDocument).filter(
                 DesignDocument.doc_type == "architecture",
-                DesignDocument.content.ilike(f"%{service}%")
+                DesignDocument.raw_content.ilike(f"%{service}%")
             ).limit(3).all()
 
             # Search analyzed architecture images
             images = self.db.query(DesignImage).filter(
                 DesignImage.image_type == "architecture",
-                DesignImage.ai_analysis.cast(str).ilike(f"%{service}%")
+                DesignImage.ai_description.ilike(f"%{service}%")
             ).limit(2).all()
 
             if not docs and not images:
@@ -269,7 +269,7 @@ class TroubleshootingTools(ToolModule):
             for doc in docs:
                 output.append(f"**From: {doc.title}**")
                 # Extract relevant section (simplified)
-                content = doc.content or ""
+                content = doc.raw_content or ""
                 # Find paragraphs mentioning the service
                 paragraphs = content.split('\n\n')
                 relevant = [p for p in paragraphs if service.lower() in p.lower()][:2]
@@ -279,13 +279,15 @@ class TroubleshootingTools(ToolModule):
 
             for img in images:
                 output.append(f"**From Architecture Diagram: {img.title}**")
-                analysis = img.ai_analysis or {}
-
-                # Extract components and connections
-                components = analysis.get("components", [])
-                connections = analysis.get("connections", [])
+                
+                # Extract components and connections from correct columns
+                components = img.identified_components or []
+                connections = img.identified_connections or []
 
                 if components:
+                    # JSONB might be list or dict depending on storage, handle both if safely known, 
+                    # but looking at earlier code it expects list of strings or dicts?
+                    # Assuming list of strings based on usage str(c)
                     relevant_components = [c for c in components if service.lower() in str(c).lower()]
                     if relevant_components:
                         output.append(f"  Components: {relevant_components[:5]}")

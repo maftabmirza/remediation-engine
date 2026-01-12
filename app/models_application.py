@@ -10,6 +10,8 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
 from app.database import Base
+from app.models import Alert
+from app.models_application_knowledge import ApplicationKnowledgeConfig
 
 
 def utc_now():

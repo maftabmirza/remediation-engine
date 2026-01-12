@@ -12,7 +12,8 @@ if TYPE_CHECKING:
     pass
 else:
     # Avoid runtime circular import but allow SQLAlchemy to find models if needed
-    pass
+    from app.models_learning import AnalysisFeedback
+    from app.models_troubleshooting import AlertCorrelation
 
 
 def utc_now():

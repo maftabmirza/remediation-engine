@@ -11,6 +11,7 @@ import uuid
 from datetime import datetime, timezone
 
 from app.database import Base
+from app.models_application import Application
 
 
 def utc_now():

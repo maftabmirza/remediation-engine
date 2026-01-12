@@ -78,7 +78,7 @@ async def troubleshoot_chat(
             db=db,
             provider=provider,
             alert=None,  # No specific alert context
-            max_iterations=5,
+            max_iterations=15,
             temperature=0.3
         )
         
