@@ -27,6 +27,8 @@ let currentSelection = '';
 let analysisButton = null;
 let autoAnalyzeTimer = null;
 let pendingCommandCancelled = false;  // Flag to cancel pending command polling
+let currentStreamController = null;   // AbortController for streaming requests
+let isStreaming = false;              // Flag to track if streaming is active
 
 // Command History Functions
 function addToCommandHistory(command, output, exitCode, success) {
@@ -408,8 +410,24 @@ function appendAIMessage(text, skipRunButtons = false) {
         }
     }
 
-    // Remove CMD_CARD markers from text for display
+    // Check for SUGGESTIONS markers and extract them
+    const suggestionsRegex = /\[SUGGESTIONS\](.*?)\[\/SUGGESTIONS\]/gs;
+    let suggestionsList = [];
+    let suggestMatch;
+    while ((suggestMatch = suggestionsRegex.exec(text)) !== null) {
+        try {
+            const suggestions = JSON.parse(suggestMatch[1]);
+            if (Array.isArray(suggestions)) {
+                suggestionsList = suggestionsList.concat(suggestions);
+            }
+        } catch (e) {
+            console.error('Failed to parse SUGGESTIONS:', e);
+        }
+    }
+
+    // Remove CMD_CARD and SUGGESTIONS markers from text for display
     let cleanText = text.replace(cmdCardRegex, '');
+    cleanText = cleanText.replace(suggestionsRegex, '');
 
     // When CMD_CARD is present, aggressively clean up duplicate command text
     if (hasCards) {
@@ -470,7 +488,61 @@ function appendAIMessage(text, skipRunButtons = false) {
         renderCommandCard(cardData.command, cardData.server, cardData.explanation);
     }
 
+    // RENDER FOLLOW-UP SUGGESTIONS
+    if (suggestionsList.length > 0) {
+        renderSuggestionButtons(suggestionsList);
+    }
+
     container.scrollTop = container.scrollHeight;
+}
+
+// Render follow-up suggestion buttons
+function renderSuggestionButtons(suggestions) {
+    const container = document.getElementById('chatMessages');
+    
+    const wrapper = document.createElement('div');
+    wrapper.className = 'flex justify-start w-full pr-2 my-3';
+    wrapper.innerHTML = `
+        <div class="w-full">
+            <div class="text-xs text-gray-500 mb-2"><i class="fas fa-lightbulb mr-1"></i>Suggested next steps:</div>
+            <div class="flex flex-wrap gap-2 suggestion-buttons">
+                ${suggestions.map(s => `
+                    <button onclick="sendSuggestionAction('${escapeHtml(s.text || s).replace(/'/g, "\\'")}')" 
+                            class="bg-gray-700 hover:bg-gray-600 text-gray-200 text-sm px-3 py-2 rounded-lg border border-gray-600 hover:border-purple-500 transition-all flex items-center gap-2">
+                        <i class="fas ${getIconForSuggestion(s.text || s)} text-purple-400"></i>
+                        <span>${escapeHtml(s.text || s)}</span>
+                    </button>
+                `).join('')}
+            </div>
+        </div>
+    `;
+    container.appendChild(wrapper);
+    lastMessageRole = 'suggestions';
+}
+
+// Get appropriate icon for suggestion type
+function getIconForSuggestion(text) {
+    const lower = text.toLowerCase();
+    if (lower.includes('log') || lower.includes('check')) return 'fa-search';
+    if (lower.includes('restart') || lower.includes('start')) return 'fa-play';
+    if (lower.includes('stop') || lower.includes('kill')) return 'fa-stop';
+    if (lower.includes('status')) return 'fa-info-circle';
+    if (lower.includes('fix') || lower.includes('repair')) return 'fa-wrench';
+    if (lower.includes('close') || lower.includes('done') || lower.includes('resolved')) return 'fa-check-circle';
+    if (lower.includes('config')) return 'fa-cog';
+    if (lower.includes('metric') || lower.includes('monitor')) return 'fa-chart-line';
+    return 'fa-arrow-right';
+}
+
+// Send a suggestion as user input
+function sendSuggestionAction(text) {
+    const input = document.getElementById('chatInput');
+    input.value = text;
+    // Trigger the form submit
+    const form = document.getElementById('chatForm');
+    if (form) {
+        form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    }
 }
 
 // Render a structured command card from [CMD_CARD] data
@@ -611,42 +683,152 @@ async function sendMessage(e) {
         return;
     }
 
-    // Troubleshooting mode: Use REST API since WebSocket is not available
-    // WebSocket is disabled in this implementation - use REST API for chat
+    // Troubleshooting mode: Use SSE streaming for real-time responses
     const termContent = getTerminalContent();
     let finalMessage = text;
     if (termContent) {
         finalMessage += `\n\n[SYSTEM: The user has the following active terminal output. Use it if relevant to the query.]\n\`\`\`\n${termContent}\n\`\`\``;
     }
 
-    // Use REST API instead of WebSocket
+    // Use SSE streaming endpoint
+    await sendStreamingMessage(finalMessage);
+}
+
+// Send message using SSE streaming for real-time token display
+async function sendStreamingMessage(message) {
+    // Create abort controller for cancel functionality
+    currentStreamController = new AbortController();
+    isStreaming = true;
+    
     try {
-        const response = await apiCall('/api/troubleshoot/chat', {
+        const token = localStorage.getItem('auth_token');
+        const response = await fetch('/api/troubleshoot/chat/stream', {
             method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
             body: JSON.stringify({
-                message: finalMessage,
+                message: message,
                 session_id: currentSessionId
-            })
+            }),
+            signal: currentStreamController.signal
         });
 
-        if (response.ok) {
-            const data = await response.json();
-            removeTypingIndicator();
-            if (data.response) {
-                appendAIMessage(data.response);
-            } else if (data.message) {
-                appendAIMessage(data.message);
-            } else {
-                appendAIMessage('Response received but no message content.');
-            }
-        } else {
+        if (!response.ok) {
             removeTypingIndicator();
             appendAIMessage('Failed to get response from AI. Please try again.');
+            return;
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let fullResponse = '';
+
+        // Remove typing indicator and prepare for streaming content
+        removeTypingIndicator();
+        
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
+
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    try {
+                        const data = JSON.parse(line.slice(6));
+                        
+                        if (data.type === 'session') {
+                            currentSessionId = data.session_id;
+                        } else if (data.type === 'chunk') {
+                            fullResponse += data.content;
+                            // Stream content to UI - update existing message
+                            appendStreamingChunk(data.content);
+                        } else if (data.type === 'done') {
+                            // Finalize the message and render suggestions
+                            finalizeStreamingMessage(fullResponse);
+                        } else if (data.type === 'error') {
+                            appendAIMessage(`Error: ${data.content}`);
+                        } else if (data.type === 'cancelled') {
+                            appendAIMessage('*Response cancelled by user.*');
+                        }
+                    } catch (e) {
+                        console.error('Failed to parse SSE data:', e);
+                    }
+                }
+            }
         }
     } catch (error) {
+        if (error.name === 'AbortError') {
+            console.log('Stream aborted by user');
+        } else {
+            removeTypingIndicator();
+            console.error('Streaming error:', error);
+            appendAIMessage('Error communicating with AI service. Please try again.');
+        }
+    } finally {
+        isStreaming = false;
+        currentStreamController = null;
         removeTypingIndicator();
-        console.error('Chat error:', error);
-        appendAIMessage('Error communicating with AI service. Please try again.');
+    }
+}
+
+// Append streaming chunk to current message
+function appendStreamingChunk(chunk) {
+    const container = document.getElementById('chatMessages');
+    
+    if (lastMessageRole !== 'assistant' || !currentMessageDiv) {
+        // Create new message wrapper
+        const wrapper = document.createElement('div');
+        wrapper.className = 'flex justify-start w-full pr-2';
+        wrapper.innerHTML = `
+            <div class="ai-message-wrapper w-full">
+                <div class="flex items-center mb-2">
+                    <div class="w-6 h-6 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center mr-2">
+                        <i class="fas fa-robot text-white text-xs"></i>
+                    </div>
+                    <span class="text-xs text-gray-400">AI Assistant</span>
+                </div>
+                <div class="bg-gray-800/80 rounded-lg p-4 border border-gray-700 text-sm ai-message-content shadow-lg streaming-message" data-full-text=""></div>
+            </div>
+        `;
+        container.appendChild(wrapper);
+        currentMessageDiv = wrapper.querySelector('.ai-message-content');
+        lastMessageRole = 'assistant';
+    }
+    
+    if (currentMessageDiv) {
+        const currentText = currentMessageDiv.getAttribute('data-full-text') || '';
+        const newText = currentText + chunk;
+        currentMessageDiv.setAttribute('data-full-text', newText);
+        
+        // Clean CMD_CARD markers for display (will be rendered at end)
+        let displayText = newText.replace(/\[CMD_CARD\].*?\[\/CMD_CARD\]/gs, '');
+        currentMessageDiv.innerHTML = marked.parse(displayText);
+    }
+    
+    container.scrollTop = container.scrollHeight;
+}
+
+// Finalize streaming message - render command cards and suggestions
+function finalizeStreamingMessage(fullText) {
+    if (currentMessageDiv) {
+        currentMessageDiv.classList.remove('streaming-message');
+    }
+    
+    // Now process the full response for CMD_CARDs and suggestions
+    appendAIMessage(fullText, true);  // skipRunButtons = true since we handle cards
+}
+
+// Cancel ongoing streaming request
+function cancelStreaming() {
+    if (currentStreamController && isStreaming) {
+        currentStreamController.abort();
+        showToast('Response cancelled', 'info');
     }
 }
 
@@ -656,13 +838,16 @@ function showTypingIndicator() {
     indicator.id = 'typingIndicator';
     indicator.className = 'flex justify-start my-2';
     indicator.innerHTML = `
-        <div class="bg-gray-700 rounded-lg px-4 py-3 flex items-center space-x-2">
+        <div class="bg-gray-700 rounded-lg px-4 py-3 flex items-center space-x-3">
             <div class="flex space-x-1">
                 <div class="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style="animation-delay: 0ms"></div>
                 <div class="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style="animation-delay: 150ms"></div>
                 <div class="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style="animation-delay: 300ms"></div>
             </div>
             <span class="text-gray-400 text-xs">AI is thinking...</span>
+            <button onclick="cancelStreaming()" class="ml-2 text-red-400 hover:text-red-300 text-xs px-2 py-1 border border-red-400/50 rounded hover:bg-red-400/10 transition-colors" title="Stop generating">
+                <i class="fas fa-stop mr-1"></i>Stop
+            </button>
         </div>
     `;
     container.appendChild(indicator);
@@ -1492,43 +1677,16 @@ async function autoSendCommandOutputToAgent(command, output, isSuccess, exitCode
     // Show typing indicator
     showTypingIndicator();
 
-    // Send to Agent via REST API (WebSocket is not available)
+    // Send to Agent via SSE streaming (same as regular messages)
     const termContent = getTerminalContent();
     let finalMessage = autoMessage;
     if (termContent) {
         finalMessage += `\n\n[TERMINAL CONTEXT]\n\`\`\`\n${termContent}\n\`\`\``;
     }
 
-    try {
-        const response = await apiCall('/api/troubleshoot/chat', {
-            method: 'POST',
-            body: JSON.stringify({
-                message: finalMessage,
-                session_id: currentSessionId
-            })
-        });
-
-        if (response.ok) {
-            const data = await response.json();
-            removeTypingIndicator();
-            if (data.response) {
-                appendAIMessage(data.response);
-            } else if (data.message) {
-                appendAIMessage(data.message);
-            } else {
-                appendAIMessage('Response received.');
-            }
-            console.log('✅ Auto-sent command output to Agent via REST');
-        } else {
-            removeTypingIndicator();
-            console.warn('Failed to auto-send command output');
-            showToast('Failed to send output to AI. Please describe what happened.', 'warning');
-        }
-    } catch (error) {
-        removeTypingIndicator();
-        console.error('Auto-send error:', error);
-        showToast('Error sending to AI. Please type your observation.', 'warning');
-    }
+    // Use streaming for auto-send as well
+    await sendStreamingMessage(finalMessage);
+    console.log('✅ Auto-sent command output to Agent via SSE stream');
 }
 
 function showCommandOutputInCard(cardId, command, output, success, exitCode) {

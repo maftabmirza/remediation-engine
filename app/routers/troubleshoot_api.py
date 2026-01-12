@@ -6,11 +6,14 @@ Uses NativeToolAgent for interactive terminal + AI conversations
 with tool-calling capabilities.
 """
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, AsyncGenerator
 import logging
 import uuid
+import json
+import asyncio
 
 from app.database import get_db
 from app.services.auth_service import get_current_user
@@ -174,6 +177,142 @@ async def troubleshoot_chat(
             "session_id": session_id,
             "mode": "troubleshoot"
         }
+
+
+@router.post("/chat/stream")
+async def troubleshoot_chat_stream(
+    request: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Streaming endpoint for troubleshooting chat using Server-Sent Events (SSE).
+    
+    Returns real-time token-by-token responses for better UX.
+    Each SSE event is a JSON object with type and content.
+    """
+    from app.services.agentic.native_agent import NativeToolAgent
+    
+    message = request.get("message", "")
+    session_id = request.get("session_id", "")
+    
+    logger.info(f"Troubleshoot stream from {current_user.username}: {message[:100]}...")
+    
+    async def generate_stream() -> AsyncGenerator[str, None]:
+        nonlocal session_id
+        full_response = ""
+        tool_calls = []
+        
+        try:
+            # Get the default LLM provider
+            provider = db.query(LLMProvider).filter(
+                LLMProvider.is_default == True,
+                LLMProvider.is_enabled == True
+            ).first()
+            
+            if not provider:
+                provider = db.query(LLMProvider).filter(
+                    LLMProvider.is_enabled == True
+                ).first()
+            
+            if not provider:
+                yield f"data: {json.dumps({'type': 'error', 'content': 'No LLM provider configured'})}\n\n"
+                return
+            
+            # === SESSION PERSISTENCE ===
+            ai_session = None
+            initial_messages = []
+            
+            if session_id:
+                try:
+                    session_uuid = uuid.UUID(session_id)
+                    ai_session = db.query(AISession).filter(AISession.id == session_uuid).first()
+                except (ValueError, TypeError):
+                    pass
+            
+            if not ai_session:
+                ai_session = AISession(
+                    user_id=current_user.id,
+                    title=message[:100] if message else "Troubleshooting Session"
+                )
+                db.add(ai_session)
+                db.commit()
+                db.refresh(ai_session)
+                session_id = str(ai_session.id)
+            else:
+                existing_messages = db.query(AIMessage).filter(
+                    AIMessage.session_id == ai_session.id
+                ).order_by(AIMessage.created_at).all()
+                
+                for msg in existing_messages:
+                    initial_messages.append({
+                        "role": msg.role,
+                        "content": msg.content
+                    })
+            
+            # Send session_id first
+            yield f"data: {json.dumps({'type': 'session', 'session_id': session_id})}\n\n"
+            
+            # Save user message
+            user_msg = AIMessage(
+                session_id=ai_session.id,
+                role="user",
+                content=message
+            )
+            db.add(user_msg)
+            db.commit()
+            
+            # Create agent with history
+            agent = NativeToolAgent(
+                db=db,
+                provider=provider,
+                alert=None,
+                max_iterations=15,
+                temperature=0.3,
+                initial_messages=initial_messages
+            )
+            
+            # Stream chunks to client
+            async for chunk in agent.stream(message):
+                full_response += chunk
+                # Send each chunk as SSE event
+                yield f"data: {json.dumps({'type': 'chunk', 'content': chunk})}\n\n"
+                # Small delay to prevent overwhelming the client
+                await asyncio.sleep(0.01)
+            
+            # Get tool calls
+            if hasattr(agent, 'tool_calls_made'):
+                tool_calls = agent.tool_calls_made
+            
+            # Save assistant response
+            assistant_msg = AIMessage(
+                session_id=ai_session.id,
+                role="assistant",
+                content=full_response,
+                metadata_json={"tool_calls": tool_calls} if tool_calls else None
+            )
+            db.add(assistant_msg)
+            db.commit()
+            
+            # Send completion event
+            yield f"data: {json.dumps({'type': 'done', 'tool_calls': tool_calls})}\n\n"
+            
+        except asyncio.CancelledError:
+            logger.info("Stream cancelled by client")
+            yield f"data: {json.dumps({'type': 'cancelled'})}\n\n"
+        except Exception as e:
+            logger.error(f"Stream error: {e}", exc_info=True)
+            yield f"data: {json.dumps({'type': 'error', 'content': str(e)})}\n\n"
+    
+    return StreamingResponse(
+        generate_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
 
 
 @router.get("/sessions")
