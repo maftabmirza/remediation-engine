@@ -102,8 +102,8 @@ function updateCommandHistoryPanel() {
                     <span class="font-mono text-xs text-gray-300 truncate">${escapeHtml(entry.command)}</span>
                 </div>
                 <div class="flex items-center space-x-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onclick="rerunCommand('${escapeHtml(entry.command).replace(/'/g, "\\'")}')" class="text-blue-400 hover:text-blue-300 text-xs px-1" title="Re-run"><i class="fas fa-redo"></i></button>
-                    <button onclick="copyToClipboard('${escapeHtml(entry.command).replace(/'/g, "\\'")}')" class="text-gray-400 hover:text-white text-xs px-1" title="Copy"><i class="fas fa-copy"></i></button>
+                    <button data-cmd="${escapeHtml(entry.command)}" onclick="rerunCommand(this.dataset.cmd)" class="text-blue-400 hover:text-blue-300 text-xs px-1" title="Re-run"><i class="fas fa-redo"></i></button>
+                    <button data-cmd="${escapeHtml(entry.command)}" onclick="copyToClipboard(this.dataset.cmd)" class="text-gray-400 hover:text-white text-xs px-1" title="Copy"><i class="fas fa-copy"></i></button>
                 </div>
             </div>
             <div class="text-[10px] text-gray-500 mt-1">${entry.displayTime} • exit ${entry.exitCode}</div>
@@ -495,16 +495,16 @@ function renderCommandCard(command, server, explanation) {
                     <i class="fas fa-info-circle mr-1"></i>${escapeHtml(explanation)}
                 </div>
                 <div class="cmd-actions flex gap-2">
-                    <button onclick="executeCommandWithOutput('${cardId}', '${escapeHtml(command).replace(/'/g, "\\'")}')" 
+                    <button data-cmd="${escapeHtml(command)}" onclick="executeCommandWithOutput('${cardId}', this.dataset.cmd)" 
                             class="flex-1 bg-green-600 hover:bg-green-500 text-white text-sm px-4 py-2 rounded font-medium transition-colors flex items-center justify-center">
                         <i class="fas fa-play mr-2"></i>Run in Terminal
                     </button>
-                    <button onclick="skipCommand('${cardId}', '${escapeHtml(command).replace(/'/g, "\\'")}')" 
+                    <button data-cmd="${escapeHtml(command)}" onclick="skipCommand('${cardId}', this.dataset.cmd)" 
                             class="bg-yellow-600 hover:bg-yellow-500 text-white text-sm px-3 py-2 rounded font-medium transition-colors"
                             title="Skip this command">
                         <i class="fas fa-forward"></i>
                     </button>
-                    <button onclick="copyToClipboard('${escapeHtml(command).replace(/'/g, "\\'")}')" 
+                    <button data-cmd="${escapeHtml(command)}" onclick="copyToClipboard(this.dataset.cmd)" 
                             class="bg-gray-600 hover:bg-gray-500 text-white text-sm px-3 py-2 rounded font-medium transition-colors"
                             title="Copy command">
                         <i class="fas fa-copy"></i>
