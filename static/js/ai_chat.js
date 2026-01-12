@@ -390,18 +390,19 @@ function appendAIMessage(text, skipRunButtons = false) {
     removeTypingIndicator();
     const container = document.getElementById('chatMessages');
 
-    // Check for CMD_CARD markers and extract them
+    // Check for CMD_CARD markers and extract them (but don't render yet)
     const cmdCardRegex = /\[CMD_CARD\](.*?)\[\/CMD_CARD\]/g;
     let match;
     let hasCards = false;
     let extractedCommands = [];
+    let cardDataList = [];  // Store cards to render AFTER text
 
     while ((match = cmdCardRegex.exec(text)) !== null) {
         hasCards = true;
         try {
             const cardData = JSON.parse(match[1]);
             extractedCommands.push(cardData.command);
-            renderCommandCard(cardData.command, cardData.server, cardData.explanation);
+            cardDataList.push(cardData);  // Save for later rendering
         } catch (e) {
             console.error('Failed to parse CMD_CARD:', e);
         }
@@ -431,42 +432,44 @@ function appendAIMessage(text, skipRunButtons = false) {
     cleanText = cleanText.replace(/(\*Calling tool:.*?\*.*?)\n(sudo\s+\S+.*)/g, '$1');
     cleanText = cleanText.replace(/\n(sudo\s+\S+[^\n]*)\n\n🔍/g, '\n\n🔍');
 
-    // If only CMD_CARD (no meaningful text), skip normal message rendering
-    if (hasCards && cleanText.trim() === '') {
-        return;
+    // RENDER TEXT FIRST (before command cards)
+    if (cleanText.trim() !== '') {
+        if (lastMessageRole !== 'assistant' || !currentMessageDiv) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'flex justify-start w-full pr-2';
+            wrapper.innerHTML = `
+                <div class="ai-message-wrapper w-full">
+                    <div class="flex items-center mb-2">
+                        <div class="w-6 h-6 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center mr-2">
+                            <i class="fas fa-robot text-white text-xs"></i>
+                        </div>
+                        <span class="text-xs text-gray-400">AI Assistant</span>
+                    </div>
+                    <div class="bg-gray-800/80 rounded-lg p-4 border border-gray-700 text-sm ai-message-content shadow-lg" data-full-text=""></div>
+                </div>
+            `;
+            container.appendChild(wrapper);
+            currentMessageDiv = wrapper.querySelector('.ai-message-content');
+            lastMessageRole = 'assistant';
+        }
+        if (currentMessageDiv) {
+            const currentText = currentMessageDiv.getAttribute('data-full-text') || '';
+            const newText = currentText + cleanText;
+            currentMessageDiv.setAttribute('data-full-text', newText);
+            currentMessageDiv.innerHTML = marked.parse(newText);
+            // Only add "Run in Terminal" buttons in Inquiry mode (troubleshoot uses CMD_CARDs)
+            const chatMode = typeof currentChatMode !== 'undefined' ? currentChatMode : 'troubleshoot';
+            if (!skipRunButtons && !hasCards && chatMode === 'general') {
+                addRunButtons(currentMessageDiv);
+            }
+        }
     }
 
-    if (lastMessageRole !== 'assistant' || !currentMessageDiv) {
-        const wrapper = document.createElement('div');
-        wrapper.className = 'flex justify-start w-full pr-2';
-        wrapper.innerHTML = `
-            <div class="ai-message-wrapper w-full">
-                <div class="flex items-center mb-2">
-                    <div class="w-6 h-6 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center mr-2">
-                        <i class="fas fa-robot text-white text-xs"></i>
-                    </div>
-                    <span class="text-xs text-gray-400">AI Assistant</span>
-                </div>
-                <div class="bg-gray-800/80 rounded-lg p-4 border border-gray-700 text-sm ai-message-content shadow-lg" data-full-text=""></div>
-            </div>
-        `;
-        container.appendChild(wrapper);
-        currentMessageDiv = wrapper.querySelector('.ai-message-content');
-        lastMessageRole = 'assistant';
+    // RENDER COMMAND CARDS AFTER TEXT
+    for (const cardData of cardDataList) {
+        renderCommandCard(cardData.command, cardData.server, cardData.explanation);
     }
-    if (!currentMessageDiv) {
-        console.error('Failed to create message container');
-        return;
-    }
-    const currentText = currentMessageDiv.getAttribute('data-full-text') || '';
-    const newText = currentText + cleanText;
-    currentMessageDiv.setAttribute('data-full-text', newText);
-    currentMessageDiv.innerHTML = marked.parse(newText);
-    // Only add "Run in Terminal" buttons in Inquiry mode (troubleshoot uses CMD_CARDs)
-    const chatMode = typeof currentChatMode !== 'undefined' ? currentChatMode : 'troubleshoot';
-    if (!skipRunButtons && !hasCards && chatMode === 'general') {
-        addRunButtons(currentMessageDiv);
-    }
+
     container.scrollTop = container.scrollHeight;
 }
 
@@ -593,6 +596,7 @@ async function sendMessage(e) {
     const chatMode = typeof currentChatMode !== 'undefined' ? currentChatMode : 'troubleshoot';
 
     appendUserMessage(escapeHtml(text));
+    input.value = '';  // Clear input immediately after sending
     showTypingIndicator();
 
     if (chatMode === 'general') {
@@ -604,7 +608,6 @@ async function sendMessage(e) {
             removeTypingIndicator();
             appendAIMessage('Error: Observability query handler not available.');
         }
-        input.value = '';
         return;
     }
 
@@ -645,8 +648,6 @@ async function sendMessage(e) {
         console.error('Chat error:', error);
         appendAIMessage('Error communicating with AI service. Please try again.');
     }
-
-    input.value = '';
 }
 
 function showTypingIndicator() {
