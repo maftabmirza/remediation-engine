@@ -10,10 +10,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import Optional, List, Dict, Any
 import logging
+import uuid
 
 from app.database import get_db
 from app.services.auth_service import get_current_user
 from app.models import User, LLMProvider
+from app.models_revive import AISession, AIMessage
 
 router = APIRouter(
     prefix="/api/troubleshoot",
@@ -73,13 +75,58 @@ async def troubleshoot_chat(
                 "mode": "troubleshoot"
             }
         
-        # Create the Native Tool Agent for troubleshooting
+        # === SESSION PERSISTENCE: Load or create session ===
+        ai_session = None
+        initial_messages = []
+        
+        if session_id:
+            try:
+                session_uuid = uuid.UUID(session_id)
+                ai_session = db.query(AISession).filter(AISession.id == session_uuid).first()
+            except (ValueError, TypeError):
+                logger.warning(f"Invalid session_id format: {session_id}")
+        
+        if not ai_session:
+            # Create new session
+            ai_session = AISession(
+                user_id=current_user.id,
+                title=message[:100] if message else "Troubleshooting Session"
+            )
+            db.add(ai_session)
+            db.commit()
+            db.refresh(ai_session)
+            session_id = str(ai_session.id)
+            logger.info(f"Created new AI session: {session_id}")
+        else:
+            # Load existing messages for this session
+            existing_messages = db.query(AIMessage).filter(
+                AIMessage.session_id == ai_session.id
+            ).order_by(AIMessage.created_at).all()
+            
+            for msg in existing_messages:
+                initial_messages.append({
+                    "role": msg.role,
+                    "content": msg.content
+                })
+            logger.info(f"Loaded {len(initial_messages)} messages from session {session_id}")
+        
+        # Save the user message to DB
+        user_msg = AIMessage(
+            session_id=ai_session.id,
+            role="user",
+            content=message
+        )
+        db.add(user_msg)
+        db.commit()
+        
+        # Create the Native Tool Agent with conversation history
         agent = NativeToolAgent(
             db=db,
             provider=provider,
             alert=None,  # No specific alert context
             max_iterations=15,
-            temperature=0.3
+            temperature=0.3,
+            initial_messages=initial_messages
         )
         
         # Use stream() to get CMD_CARD markers for command buttons
@@ -93,6 +140,16 @@ async def troubleshoot_chat(
         # Get tool calls made
         if hasattr(agent, 'tool_calls_made'):
             tool_calls = agent.tool_calls_made
+        
+        # Save the assistant response to DB
+        assistant_msg = AIMessage(
+            session_id=ai_session.id,
+            role="assistant",
+            content=full_response,
+            metadata_json={"tool_calls": tool_calls} if tool_calls else None
+        )
+        db.add(assistant_msg)
+        db.commit()
         
         # Debug: Log the full response to verify CMD_CARD markers
         logger.info(f"Troubleshoot chat response length: {len(full_response)}")

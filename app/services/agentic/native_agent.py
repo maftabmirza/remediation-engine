@@ -62,7 +62,8 @@ class NativeToolAgent:
         alert: Optional[Alert] = None,
         max_iterations: int = 12,
         temperature: float = 0.3,
-        max_tokens: int = 2000
+        max_tokens: int = 2000,
+        initial_messages: Optional[List[Dict[str, Any]]] = None
     ):
         """
         Initialize the native tool agent.
@@ -74,6 +75,7 @@ class NativeToolAgent:
             max_iterations: Maximum tool call iterations
             temperature: LLM temperature
             max_tokens: Max tokens per response
+            initial_messages: Pre-existing conversation history to restore session context
         """
         self.db = db
         self.provider = provider
@@ -86,8 +88,8 @@ class NativeToolAgent:
         alert_id = alert.id if alert else None
         self.tool_registry = create_full_registry(db, alert_id=alert_id)
 
-        # Conversation history
-        self.messages: List[Dict[str, Any]] = []
+        # Conversation history - restore from initial_messages if provided
+        self.messages: List[Dict[str, Any]] = initial_messages if initial_messages else []
         self.tool_calls_made: List[str] = []
 
     @classmethod
