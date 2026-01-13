@@ -1820,31 +1820,35 @@
     }
 
     function triggerAutoAnalyze(command, output) {
-        // Only analyze if we have actual output
-        if (!output || !output.trim()) {
+        // Only analyze if we have actual output and a valid session
+        if (!output || !output.trim() || !currentSessionId) {
             return;
         }
 
-        // Small delay then auto-analyze
-        setTimeout(() => {
-            if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
-                // Include command history context for AI awareness
-                const historyContext = getCommandHistoryContext();
+        // Small delay then auto-analyze using SSE streaming
+        setTimeout(async () => {
+            // Include command history context for AI awareness
+            const historyContext = getCommandHistoryContext();
 
-                // Send the command, its output, and history context
-                const analysisRequest = `[SYSTEM: The user executed the following command:\n\`\`\`\n${command}\n\`\`\`\n\nHere is the output:\n\`\`\`\n${output}\n\`\`\`${historyContext}\n\nPlease analyze this output and suggest the next step. You can reference previous commands from the history if relevant.]`;
-                chatSocket.send(analysisRequest);
+            // Build the analysis request message
+            const analysisRequest = `[SYSTEM: The user executed the following command:\n\`\`\`\n${command}\n\`\`\`\n\nHere is the output:\n\`\`\`\n${output}\n\`\`\`${historyContext}\n\nPlease analyze this output and suggest the next step. You can reference previous commands from the history if relevant.]`;
 
-                // Show analyzing indicator
-                const container = document.getElementById('chatMessages');
-                const note = document.createElement('div');
-                note.className = 'text-center text-xs text-gray-500 my-2';
-                note.innerHTML = '<i class="fas fa-magic mr-1"></i>Analyzing output...';
-                container.appendChild(note);
-                container.scrollTop = container.scrollHeight;
+            // Show analyzing indicator
+            const container = document.getElementById('chatMessages');
+            const note = document.createElement('div');
+            note.className = 'text-center text-xs text-gray-500 my-2 analyzing-note';
+            note.innerHTML = '<i class="fas fa-magic mr-1"></i>Analyzing output...';
+            container.appendChild(note);
+            container.scrollTop = container.scrollHeight;
 
-                showTypingIndicator();
-            }
+            showTypingIndicator();
+
+            // Send via SSE streaming (same as sendMessage)
+            await sendStreamingMessage(analysisRequest);
+
+            // Remove the analyzing note after response
+            const noteEl = container.querySelector('.analyzing-note');
+            if (noteEl) noteEl.remove();
         }, 500);
     }
 
