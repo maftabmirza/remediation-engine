@@ -61,6 +61,74 @@ async def get_standalone_session(
     }
 
 
+@router.get("/sessions/by-alert/{alert_id}")
+async def get_session_by_alert(
+    alert_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get the chat session associated with an alert for the current user.
+    """
+    try:
+        alert_uuid = UUID(alert_id)
+        # Find existing session for this alert and user
+        # Note: We don't have a direct alert_id on AISession, but we might store it in context
+        # Ideally, we should check for a session that has this alert in context
+        
+        # Searching by context_json logic
+        # For now, let's look for a session that has "alert_id": alert_id in its context
+        # This is a bit inefficient without a dedicated column/index, but OK for now
+        
+        sessions = db.query(AISession).filter(
+            AISession.user_id == current_user.id
+        ).order_by(AISession.updated_at.desc()).limit(20).all()
+        
+        for session in sessions:
+            if session.context_context_json and session.context_context_json.get("alert_id") == alert_id:
+                return {
+                    "id": str(session.id),
+                    "user_id": str(session.user_id),
+                    "title": session.title,
+                    "created_at": session.created_at.isoformat()
+                }
+        
+        # If not found, return 404 - let frontend create one
+        raise HTTPException(status_code=404, detail="Session not found for this alert")
+        
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid alert ID")
+
+
+@router.get("/context-status/{alert_id}")
+async def get_context_status(
+    alert_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Check status of analysis context for an alert.
+    """
+    # This endpoint is polled by frontend to see if context (e.g. analysis) is ready
+    # For now, we can just return a basic "ready" status if the alert exists
+    from app.models import Alert
+    
+    try:
+        alert_uuid = UUID(alert_id)
+        alert = db.query(Alert).filter(Alert.id == alert_uuid).first()
+        
+        if not alert:
+             raise HTTPException(status_code=404, detail="Alert not found")
+             
+        return {
+            "status": "ready",
+            "analyzed": alert.analyzed,
+            "analysis_available": bool(alert.ai_analysis)
+        }
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid alert ID")
+
+
 @router.get("/sessions")
 async def list_chat_sessions(
     current_user: User = Depends(get_current_user),
@@ -205,10 +273,20 @@ async def switch_session_provider(
 
 
 # WebSocket endpoint for chat - gracefully close since chat is REST-based
+# WebSocket endpoint for chat
 @router.websocket("/ws/{session_id}")
 async def chat_websocket(websocket: WebSocket, session_id: str):
     """
     WebSocket endpoint for chat status updates.
-    In this implementation, chat is primarily REST-based.
+    Keeps connection alive for real-time notifications.
     """
-    await websocket.close(code=1000, reason="Chat uses REST API")
+    await websocket.accept()
+    try:
+        while True:
+            # Simple keep-alive loop
+            # In a full implementation, we would subscribe to a message queue here
+            data = await websocket.receive_text()
+            if data == "ping":
+                await websocket.send_text("pong")
+    except WebSocketDisconnect:
+        pass
