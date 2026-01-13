@@ -474,7 +474,7 @@ Important rules:
                 
                 # Get next action from LLM
                 try:
-                    api_key = get_api_key_for_provider(provider.provider_type)
+                    api_key = get_api_key_for_provider(provider)
                     model = f"{provider.provider_type}/{provider.model_id}"
                     
                     response = await acompletion(
