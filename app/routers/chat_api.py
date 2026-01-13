@@ -90,16 +90,27 @@ async def list_chat_sessions(
 
 @router.post("/sessions")
 async def create_chat_session(
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
     """
     Create a new chat session.
     """
-    session_id = str(uuid4())
+    session_id = uuid4()
+    new_session = AISession(
+        id=session_id,
+        user_id=current_user.id,
+        title="New Chat",
+        created_at=datetime.utcnow()
+    )
+    db.add(new_session)
+    db.commit()
+    db.refresh(new_session)
+    
     return {
-        "id": session_id,
+        "id": str(session_id),
         "user_id": str(current_user.id),
-        "created_at": datetime.utcnow().isoformat()
+        "created_at": new_session.created_at.isoformat()
     }
 
 
@@ -147,12 +158,50 @@ async def get_session_messages(
 @router.patch("/sessions/{session_id}/provider")
 async def switch_session_provider(
     session_id: str,
-    current_user: User = Depends(get_current_user)
+    payload: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
     """
     Switch the LLM provider for a chat session.
     """
-    return {"success": True, "session_id": session_id}
+    try:
+        provider_id = payload.get("provider_id")
+        if not provider_id:
+             raise HTTPException(status_code=400, detail="provider_id is required")
+
+        session_uuid = UUID(session_id)
+        session = db.query(AISession).filter(
+            AISession.id == session_uuid,
+            AISession.user_id == current_user.id
+        ).first()
+        
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+            
+        # Verify provider exists
+        provider = db.query(LLMProvider).filter(LLMProvider.id == provider_id).first()
+        if not provider:
+            raise HTTPException(status_code=404, detail="Provider not found")
+        
+        # Save provider selection in context for now (until we add column)
+        if not session.context_context_json:
+            session.context_context_json = {}
+        
+        ctx = dict(session.context_context_json) if session.context_context_json else {}
+        ctx["llm_provider_id"] = provider_id
+        session.context_context_json = ctx
+        
+        db.commit()
+        
+        return {
+            "success": True, 
+            "session_id": session_id,
+            "provider_name": provider.name,
+            "model_name": provider.model_id
+        }
+    except ValueError:
+         raise HTTPException(status_code=400, detail="Invalid session ID")
 
 
 # WebSocket endpoint for chat - gracefully close since chat is REST-based
