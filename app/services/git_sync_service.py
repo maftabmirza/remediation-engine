@@ -330,10 +330,11 @@ class GitSyncService:
             chunks = self. doc_service.create_chunks_for_document(document)
             chunks_created = len(chunks)
             
-            # Generate embeddings
-            if config.generate_embeddings and self.embedding_service. is_configured():
-                for chunk in chunks: 
-                    embedding = self.embedding_service.generate_embedding(chunk.content)
+            # Generate embeddings in batch (much faster than individual calls)
+            if config.generate_embeddings and self.embedding_service. is_configured() and chunks:
+                chunk_texts = [chunk.content for chunk in chunks]
+                embeddings = self.embedding_service.generate_embeddings_batch(chunk_texts)
+                for chunk, embedding in zip(chunks, embeddings):
                     if embedding:
                         chunk.embedding = embedding
                         embeddings_generated += 1
@@ -417,9 +418,11 @@ class GitSyncService:
                         chunks = self.doc_service.create_chunks_for_document(document)
                         stats["chunks"] += len(chunks)
                         
-                        if config.generate_embeddings and self.embedding_service.is_configured():
-                            for chunk in chunks:
-                                embedding = self.embedding_service.generate_embedding(chunk.content)
+                        # Generate embeddings in batch (much faster than individual calls)
+                        if config.generate_embeddings and self.embedding_service.is_configured() and chunks:
+                            chunk_texts = [chunk.content for chunk in chunks]
+                            embeddings = self.embedding_service.generate_embeddings_batch(chunk_texts)
+                            for chunk, embedding in zip(chunks, embeddings):
                                 if embedding:
                                     chunk.embedding = embedding
                                     stats["embeddings"] += 1
