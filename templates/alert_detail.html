@@ -328,16 +328,16 @@
             .join('');
 
         container.innerHTML = `
-            <!-- Alert Info Bar - Clean, matches global theme -->
-            <div class="bg-gray-800/50 rounded-lg p-3 mb-4 border border-gray-700/50">
+            <!-- Alert Info Bar -->
+            <div class="card p-4 mb-4">
                 <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
                     <!-- Left: Alert Title & Status -->
                     <div class="flex items-center gap-3 min-w-0">
-                        <div class="w-10 h-10 rounded-lg bg-${alert.severity === 'critical' ? 'red' : alert.severity === 'warning' ? 'yellow' : 'blue'}-900/30 border border-${alert.severity === 'critical' ? 'red' : alert.severity === 'warning' ? 'yellow' : 'blue'}-700/50 flex items-center justify-center flex-shrink-0">
+                        <div class="w-10 h-10 rounded-lg bg-${alert.severity === 'critical' ? 'red' : alert.severity === 'warning' ? 'yellow' : 'blue'}-900/30 border border-${alert.severity === 'critical' ? 'red' : alert.severity === 'warning' ? 'yellow' : 'blue'}-500/30 flex items-center justify-center flex-shrink-0">
                             <i class="fas fa-exclamation-triangle text-${alert.severity === 'critical' ? 'red' : alert.severity === 'warning' ? 'yellow' : 'blue'}-400"></i>
                         </div>
                         <div class="min-w-0">
-                            <div class="flex items-center gap-2">
+                            <div class="flex items-center gap-2 flex-wrap">
                                 <h1 class="text-lg font-semibold text-white truncate">${alert.alert_name}</h1>
                                 <span class="badge-${alert.severity || 'info'} px-2 py-0.5 rounded text-[10px] font-semibold uppercase">${alert.severity || 'info'}</span>
                                 <span class="status-${alert.status} text-xs flex items-center"><i class="fas fa-circle text-[6px] mr-1"></i>${alert.status}</span>
@@ -348,18 +348,18 @@
 
                     <!-- Right: Meta & Actions -->
                     <div class="flex items-center gap-3 flex-shrink-0">
-                        <div class="hidden md:flex items-center gap-4 text-xs text-gray-400 border-r border-gray-700 pr-4">
-                            <span title="Instance"><i class="fas fa-server mr-1"></i>${alert.instance || 'N/A'}</span>
-                            <span title="Job"><i class="fas fa-cube mr-1"></i>${alert.job || 'N/A'}</span>
-                            <span title="Time"><i class="fas fa-clock mr-1"></i>${new Date(alert.timestamp).toLocaleTimeString()}</span>
+                        <div class="hidden md:flex items-center gap-4 text-xs text-gray-400 border-r border-gray-700/50 pr-4">
+                            <span title="Instance"><i class="fas fa-server mr-1 text-gray-500"></i>${alert.instance || 'N/A'}</span>
+                            <span title="Job"><i class="fas fa-cube mr-1 text-gray-500"></i>${alert.job || 'N/A'}</span>
+                            <span title="Time"><i class="fas fa-clock mr-1 text-gray-500"></i>${new Date(alert.timestamp).toLocaleTimeString()}</span>
                         </div>
                         
                         <!-- Details Popover -->
                         <div class="relative group">
-                            <button class="text-gray-400 hover:text-white text-xs px-2 py-1 rounded hover:bg-gray-700 transition-colors">
+                            <button class="text-gray-400 hover:text-white text-xs px-2 py-1 rounded hover:bg-gray-700/50 transition-colors">
                                 <i class="fas fa-info-circle mr-1"></i>Details
                             </button>
-                            <div class="absolute right-0 top-full mt-2 w-80 bg-gray-800 border border-gray-600 rounded-lg shadow-xl p-4 hidden group-hover:block z-50">
+                            <div class="absolute right-0 top-full mt-2 w-80 card p-4 hidden group-hover:block z-50">
                                 <h3 class="font-bold mb-2 text-gray-300 text-sm">Labels</h3>
                                 <div class="mb-3 text-xs">${labelsHtml || '<span class="text-gray-500">No labels</span>'}</div>
                                 <h3 class="font-bold mb-2 text-gray-300 text-sm">Annotations</h3>
