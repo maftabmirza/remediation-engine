@@ -328,54 +328,44 @@
             .join('');
 
         container.innerHTML = `
-            <!-- Enterprise Standard Toolbar -->
-            <div class="dashboard-header mb-4" style="padding: 12px; background: #16171b; border-bottom: 1px solid rgba(255,255,255,0.05); border-radius: 8px;">
-                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <!-- Left: Breadcrumbs & Title -->
-                    <div class="flex flex-col min-w-0">
-                        <nav class="flex items-center text-xs text-gray-400 mb-1">
-                            <a href="/" class="hover:text-blue-400 transition-colors">Home</a>
-                            <span class="mx-2">/</span>
-                            <a href="/alerts" class="hover:text-blue-400 transition-colors">Alerts</a>
-                            <span class="mx-2">/</span>
-                            <span class="text-gray-200">Details</span>
-                        </nav>
-                        <div class="flex items-center gap-3">
-                            <h1 class="text-xl font-bold text-white tracking-tight truncate" title="Alert Name">${alert.alert_name}</h1>
-                            <span class="badge-${alert.severity || 'info'} px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider" title="Severity">${alert.severity || 'info'}</span>
+            <!-- Alert Info Bar - Clean, matches global theme -->
+            <div class="bg-gray-800/50 rounded-lg p-3 mb-4 border border-gray-700/50">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                    <!-- Left: Alert Title & Status -->
+                    <div class="flex items-center gap-3 min-w-0">
+                        <div class="w-10 h-10 rounded-lg bg-${alert.severity === 'critical' ? 'red' : alert.severity === 'warning' ? 'yellow' : 'blue'}-900/30 border border-${alert.severity === 'critical' ? 'red' : alert.severity === 'warning' ? 'yellow' : 'blue'}-700/50 flex items-center justify-center flex-shrink-0">
+                            <i class="fas fa-exclamation-triangle text-${alert.severity === 'critical' ? 'red' : alert.severity === 'warning' ? 'yellow' : 'blue'}-400"></i>
                         </div>
-                        <div class="flex items-center gap-2 mt-1">
-                             <span class="status-${alert.status} text-xs flex items-center" title="Status"><i class="fas fa-circle text-[8px] mr-1"></i>${alert.status}</span>
+                        <div class="min-w-0">
+                            <div class="flex items-center gap-2">
+                                <h1 class="text-lg font-semibold text-white truncate">${alert.alert_name}</h1>
+                                <span class="badge-${alert.severity || 'info'} px-2 py-0.5 rounded text-[10px] font-semibold uppercase">${alert.severity || 'info'}</span>
+                                <span class="status-${alert.status} text-xs flex items-center"><i class="fas fa-circle text-[6px] mr-1"></i>${alert.status}</span>
+                            </div>
+                            <div class="text-xs text-gray-400 mt-0.5 truncate">${alert.annotations_json.summary || alert.annotations_json.description || 'No description'}</div>
                         </div>
                     </div>
 
-                    <!-- Right: Actions -->
-                    <div class="flex items-center gap-2">
-                        <button onclick="deleteAlert()" class="bg-gray-700 hover:bg-red-900/30 text-red-400 hover:text-red-300 px-3 py-1.5 rounded text-sm flex items-center gap-2 transition-colors">
-                            <i class="fas fa-trash"></i>
-                            Delete
-                        </button>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Compact Details Bar -->
-            <div class="bg-gray-800 rounded-lg p-2 mb-2 flex items-center space-x-4 text-xs border border-gray-700">
-                <div class="flex items-center text-gray-400" title="Instance"><i class="fas fa-server mr-1"></i><span class="text-white">${alert.instance || 'N/A'}</span></div>
-                <div class="flex items-center text-gray-400" title="Job"><i class="fas fa-cube mr-1"></i><span class="text-white">${alert.job || 'N/A'}</span></div>
-                <div class="flex items-center text-gray-400" title="Time"><i class="fas fa-clock mr-1"></i><span class="text-white">${new Date(alert.timestamp).toLocaleTimeString()}</span></div>
-                <div class="flex-grow border-l border-gray-700 pl-4 text-gray-300 truncate" title="${alert.annotations_json.description || ''}">
-                    ${alert.annotations_json.summary || 'No summary'}
-                </div>
-                
-                <!-- Hover for more details -->
-                <div class="relative group">
-                    <button class="text-blue-400 hover:text-blue-300" title="View Full Details"><i class="fas fa-info-circle"></i> Details</button>
-                    <div class="absolute right-0 top-full mt-2 w-80 bg-gray-800 border border-gray-600 rounded-lg shadow-xl p-4 hidden group-hover:block z-50">
-                        <h3 class="font-bold mb-2 text-gray-300">Labels</h3>
-                        <div class="mb-3">${labelsHtml || '<span class="text-gray-500 text-sm">No labels</span>'}</div>
-                        <h3 class="font-bold mb-2 text-gray-300">Annotations</h3>
-                        <div>${annotationsHtml || '<span class="text-gray-500 text-sm">No annotations</span>'}</div>
+                    <!-- Right: Meta & Actions -->
+                    <div class="flex items-center gap-3 flex-shrink-0">
+                        <div class="hidden md:flex items-center gap-4 text-xs text-gray-400 border-r border-gray-700 pr-4">
+                            <span title="Instance"><i class="fas fa-server mr-1"></i>${alert.instance || 'N/A'}</span>
+                            <span title="Job"><i class="fas fa-cube mr-1"></i>${alert.job || 'N/A'}</span>
+                            <span title="Time"><i class="fas fa-clock mr-1"></i>${new Date(alert.timestamp).toLocaleTimeString()}</span>
+                        </div>
+                        
+                        <!-- Details Popover -->
+                        <div class="relative group">
+                            <button class="text-gray-400 hover:text-white text-xs px-2 py-1 rounded hover:bg-gray-700 transition-colors">
+                                <i class="fas fa-info-circle mr-1"></i>Details
+                            </button>
+                            <div class="absolute right-0 top-full mt-2 w-80 bg-gray-800 border border-gray-600 rounded-lg shadow-xl p-4 hidden group-hover:block z-50">
+                                <h3 class="font-bold mb-2 text-gray-300 text-sm">Labels</h3>
+                                <div class="mb-3 text-xs">${labelsHtml || '<span class="text-gray-500">No labels</span>'}</div>
+                                <h3 class="font-bold mb-2 text-gray-300 text-sm">Annotations</h3>
+                                <div class="text-xs">${annotationsHtml || '<span class="text-gray-500">No annotations</span>'}</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
