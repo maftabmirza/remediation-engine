@@ -208,6 +208,12 @@ class DocumentService:
         if not document.raw_content:
             return []
         
+        # Delete existing chunks for this document to avoid duplication on re-sync
+        self.db.query(DesignChunk).filter(
+            DesignChunk.source_id == document.id,
+            DesignChunk.source_type == 'document'
+        ).delete(synchronize_session=False)
+        
         # Chunk the text
         text_chunks = self.chunk_text(
             document.raw_content,
