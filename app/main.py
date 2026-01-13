@@ -19,6 +19,7 @@ import app.models_application_knowledge  # noqa: F401
 import app.models_knowledge  # noqa: F401
 import app.models_learning  # noqa: F401 - Phase 3: Learning System
 import app.models_dashboards  # noqa: F401 - Prometheus Dashboard Builder
+import app.models_agent  # noqa: F401 - Agent Mode
 from app.services.auth_service import (
     get_current_user_optional,
     create_user,
@@ -73,7 +74,8 @@ from app.routers import (
     prometheus_proxy,  # Prometheus Integration - Proxy
     troubleshoot_api,  # Troubleshooting Mode API (separated from revive_api)
     knowledge_apps,
-    remediation_view
+    remediation_view,
+    agent_api,  # Agent Mode API
 )
 from app import api_credential_profiles
 from app.services.execution_worker import start_execution_worker, stop_execution_worker
@@ -329,6 +331,8 @@ app.include_router(prometheus_proxy.router) # Prometheus Integration - Proxy
 app.include_router(troubleshoot_api.router)  # Troubleshooting Mode API
 app.include_router(knowledge_apps.router)
 app.include_router(remediation_view.router)
+app.include_router(agent_api.router)         # Agent Mode API
+app.include_router(agent_api.ws_router)      # Agent Mode WebSocket
 
 
 @app.get("/profile", response_class=HTMLResponse)
