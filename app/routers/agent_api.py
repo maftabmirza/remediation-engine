@@ -462,7 +462,12 @@ Important rules:
 - Maximum {session.max_steps} steps allowed
 - Current step: {session.current_step_number}"""
 
-            messages = [{"role": "system", "content": system_prompt}]
+            # Anthropic (via LiteLLM) requires at least one non-system message.
+            # Seed the conversation with a user instruction to produce the first JSON action.
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": "Propose the first step now. Respond with ONLY valid JSON in the specified format."},
+            ]
             
             # Run agent loop
             while session.current_step_number < session.max_steps and not stop_requested:
