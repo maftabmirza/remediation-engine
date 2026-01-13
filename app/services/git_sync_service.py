@@ -61,12 +61,17 @@ class GitCredentials:
         
         if self.auth_type == "ssh" and self.ssh_key:
             # Write SSH key to temp file
-            ssh_key_file = tempfile. NamedTemporaryFile(mode='w', delete=False, suffix='.key')
+            ssh_key_file = tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.key')
             ssh_key_file.write(self.ssh_key)
             ssh_key_file.close()
             os.chmod(ssh_key_file.name, 0o600)
             
             env["GIT_SSH_COMMAND"] = f"ssh -i {ssh_key_file.name} -o StrictHostKeyChecking=no"
+        
+        # Prevent git from asking for credentials interactively
+        env["GIT_TERMINAL_PROMPT"] = "0"
+        env["GIT_ASKPASS"] = "echo"
+        env["SSH_ASKPASS"] = "false"
         
         return env
 
@@ -162,8 +167,25 @@ class GitSyncService:
             
             logger.info(f"Cloning repository: {repo_url} (branch: {branch})")
             
+            # Construct command
+            cmd = [
+                    "git", 
+                    "-c", "core.askpass=false", 
+                    "-c", "credential.helper=", 
+                    "clone", 
+                    "--depth", "1", 
+                    "--branch", branch, 
+                    clone_url, 
+                    temp_dir
+                ]
+            
+            # Debug logging
+            safe_env = {k: v for k, v in env.items() if k in ['GIT_TERMINAL_PROMPT', 'GIT_ASKPASS', 'SSH_ASKPASS', 'GIT_SSH_COMMAND']}
+            logger.info(f"Executing Git Command: {' '.join(cmd)}")
+            logger.info(f"Git Env Vars: {safe_env}")
+            
             result = subprocess.run(
-                ["git", "clone", "--depth", "1", "--branch", branch, clone_url, temp_dir],
+                cmd,
                 capture_output=True,
                 text=True,
                 env=env,
@@ -237,11 +259,13 @@ class GitSyncService:
                     continue
                 
                 try: 
+                    logger.debug(f"Processing file: {rel_path}")
                     result = self._process_doc_file(
                         file_path, rel_path, app_id, user_id, config, source_url
                     )
                     if result["new"]:
                         stats["synced"] += 1
+                        logger.info(f"Synced new document: {rel_path}")
                     else:
                         stats["updated"] += 1
                     stats["chunks"] += result["chunks"]
@@ -326,15 +350,83 @@ class GitSyncService:
         app_id: Optional[UUID],
         user_id: Optional[UUID],
         config: GitSyncConfig,
-        source_url:  str
+        source_url: str
     ) -> Dict[str, int]:
         """Sync code files with documentation extraction."""
-        # Similar to _sync_docs but for code files
-        # Extract docstrings, comments, function signatures
-        stats = {"synced":  0, "chunks": 0, "embeddings": 0}
+        import fnmatch
         
-        # Implementation for code sync
-        # ... 
+        stats = {"synced": 0, "updated": 0, "skipped": 0, "chunks": 0, "embeddings": 0}
+        
+        # Find matching files
+        for pattern in config.code_patterns:
+            for file_path in repo_path.rglob(pattern.replace("**/*", "*")):
+                if not file_path.is_file():
+                    continue
+                
+                # Check exclusions
+                rel_path = str(file_path.relative_to(repo_path))
+                if any(fnmatch.fnmatch(rel_path, exc) for exc in config.exclude_patterns):
+                    continue
+                
+                # Check file size (stricter limit for code to avoid huge generated files)
+                if file_path.stat().st_size > config.max_file_size_kb * 1024:
+                    stats["skipped"] += 1
+                    continue
+                
+                try:
+                    # Treat code as a document for now, mapping to 'design_doc'
+                    # In the future we might want a dedicated 'code' doc_type
+                    
+                    # Read content
+                    content = file_path.read_text(encoding='utf-8', errors='ignore')
+                    
+                    # Wrap code in markdown block for better rendering/chunking
+                    extension = file_path.suffix.lstrip('.')
+                    formatted_content = f"``` {extension}\n{content}\n```"
+                    
+                    # Create/Update document
+                    file_source_url = f"{source_url}/blob/main/{rel_path}"
+                    
+                    existing = self.db.query(DesignDocument).filter(
+                        DesignDocument.source_url == file_source_url
+                    ).first()
+                    
+                    is_new = existing is None
+                    
+                    if existing:
+                        existing.raw_content = formatted_content
+                        existing.updated_at = datetime.now(timezone.utc)
+                        existing.version += 1
+                        document = existing
+                        stats["updated"] += 1
+                    else:
+                        document = self.doc_service.create_document(
+                            title=rel_path, # Use relative path as title for code
+                            doc_type='design_doc', # Generic type for now
+                            content=formatted_content,
+                            format='markdown',
+                            app_id=app_id,
+                            user_id=user_id,
+                            source_url=file_source_url,
+                            source_type='git'
+                        )
+                        stats["synced"] += 1
+                    
+                    # Chunk and Embed
+                    if config.auto_chunk:
+                        chunks = self.doc_service.create_chunks_for_document(document)
+                        stats["chunks"] += len(chunks)
+                        
+                        if config.generate_embeddings and self.embedding_service.is_configured():
+                            for chunk in chunks:
+                                embedding = self.embedding_service.generate_embedding(chunk.content)
+                                if embedding:
+                                    chunk.embedding = embedding
+                                    stats["embeddings"] += 1
+                                    
+                except Exception as e:
+                    logger.error(f"Failed to process code file {rel_path}: {e}")
+                    stats["skipped"] += 1
         
         return stats
     
