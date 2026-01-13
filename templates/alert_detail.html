@@ -890,45 +890,125 @@
 
         const container = document.getElementById('chatMessages');
 
-        // Ensure we have a message container to write to
-        if (lastMessageRole !== 'assistant' || !currentMessageDiv) {
-            // Create new message bubble with Agent Mode styling
-            const wrapper = document.createElement('div');
-            wrapper.className = 'flex justify-start w-full pr-2';
-            wrapper.innerHTML = `
-                <div class="ai-message-wrapper w-full">
-                    <div class="flex items-center mb-2">
-                        <div class="w-6 h-6 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center mr-2">
-                            <i class="fas fa-robot text-white text-xs"></i>
+        // Check for CMD_CARD markers and extract them
+        const cmdCardRegex = /\[CMD_CARD\](.*?)\[\/CMD_CARD\]/g;
+        let match;
+        let hasCards = false;
+        let extractedCommands = [];
+        let cardDataList = [];
+
+        while ((match = cmdCardRegex.exec(text)) !== null) {
+            hasCards = true;
+            try {
+                const cardData = JSON.parse(match[1]);
+                extractedCommands.push(cardData.command);
+                cardDataList.push(cardData);
+            } catch (e) {
+                console.error('Failed to parse CMD_CARD:', e);
+            }
+        }
+
+        // Remove CMD_CARD markers from text for display
+        let cleanText = text.replace(cmdCardRegex, '');
+
+        // When CMD_CARD is present, clean up duplicate command text
+        if (hasCards) {
+            cleanText = cleanText.replace(/```[\s\S]*?```/g, '');
+            cleanText = cleanText.replace(/`[^`]+`/g, '');
+            for (const cmd of extractedCommands) {
+                const escapedCmd = cmd.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                cleanText = cleanText.replace(new RegExp(escapedCmd, 'g'), '');
+            }
+        }
+
+        // Render text first
+        if (cleanText.trim() !== '') {
+            if (lastMessageRole !== 'assistant' || !currentMessageDiv) {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'flex justify-start w-full pr-2';
+                wrapper.innerHTML = `
+                    <div class="ai-message-wrapper w-full">
+                        <div class="flex items-center mb-2">
+                            <div class="w-6 h-6 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center mr-2">
+                                <i class="fas fa-robot text-white text-xs"></i>
+                            </div>
+                            <span class="text-xs text-gray-400">AI Assistant</span>
                         </div>
-                        <span class="text-xs text-gray-400">AI Assistant</span>
+                        <div class="bg-gray-800/80 rounded-lg p-4 border border-purple-500/20 text-sm ai-message-content shadow-lg" data-full-text=""></div>
                     </div>
-                    <div class="bg-gray-800/80 rounded-lg p-4 border border-purple-500/20 text-sm ai-message-content shadow-lg" data-full-text=""></div>
-                </div>
-            `;
-            container.appendChild(wrapper);
-            currentMessageDiv = wrapper.querySelector('.ai-message-content');
-            lastMessageRole = 'assistant';
+                `;
+                container.appendChild(wrapper);
+                currentMessageDiv = wrapper.querySelector('.ai-message-content');
+                lastMessageRole = 'assistant';
+            }
+
+            if (currentMessageDiv) {
+                const currentText = currentMessageDiv.getAttribute('data-full-text') || '';
+                const newText = currentText + cleanText;
+                currentMessageDiv.setAttribute('data-full-text', newText);
+                currentMessageDiv.innerHTML = marked.parse(newText);
+
+                // Only add run buttons if no CMD_CARDs (avoid duplicates)
+                if (!hasCards) {
+                    addRunButtons(currentMessageDiv);
+                }
+            }
         }
 
-        // Double-check currentMessageDiv is valid
-        if (!currentMessageDiv) {
-            console.error('Failed to create message container');
-            return;
+        // Render command cards after text
+        for (const cardData of cardDataList) {
+            renderCmdCard(cardData.command, cardData.server, cardData.explanation);
         }
-
-        // Append text (we need to buffer and render markdown properly)
-        // For streaming, simple appending works, but markdown rendering needs full text.
-        // A simple hack: store full text in a data attribute and re-render marked.
-        const currentText = currentMessageDiv.getAttribute('data-full-text') || '';
-        const newText = currentText + text;
-        currentMessageDiv.setAttribute('data-full-text', newText);
-        currentMessageDiv.innerHTML = marked.parse(newText);
-
-        // Add "Run" and "Copy" buttons to code blocks
-        addRunButtons(currentMessageDiv);
 
         container.scrollTop = container.scrollHeight;
+    }
+
+    // Render a structured command card from [CMD_CARD] data
+    function renderCmdCard(command, server, explanation) {
+        const container = document.getElementById('chatMessages');
+        const cardId = 'cmd-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'flex justify-start w-full pr-2 my-2';
+        wrapper.id = cardId;
+        wrapper.innerHTML = `
+            <div class="w-full bg-gray-800 rounded-lg border border-gray-700 overflow-hidden shadow-lg">
+                <div class="flex items-center justify-between px-4 py-2 bg-gray-900 border-b border-gray-700">
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-terminal text-green-400"></i>
+                        <span class="text-xs text-gray-400">Command Suggestion</span>
+                    </div>
+                    <span class="text-xs text-gray-500">${escapeHtml(server || '')}</span>
+                </div>
+                <div class="p-4">
+                    <div class="bg-black rounded p-3 font-mono text-sm text-green-300 mb-3 overflow-x-auto">
+                        ${escapeHtml(command)}
+                    </div>
+                    <div class="text-xs text-gray-400 mb-3">
+                        <i class="fas fa-info-circle mr-1"></i>${escapeHtml(explanation || '')}
+                    </div>
+                    <div class="cmd-actions flex gap-2">
+                        <button onclick="executeCommandWithOutput('${cardId}', '${escapeHtml(command).replace(/'/g, "\\'")}')" 
+                                class="flex-1 bg-green-600 hover:bg-green-500 text-white text-sm px-4 py-2 rounded font-medium transition-colors flex items-center justify-center">
+                            <i class="fas fa-play mr-2"></i>Run in Terminal
+                        </button>
+                        <button onclick="dismissCommandCard('${cardId}')" 
+                                class="bg-yellow-600 hover:bg-yellow-500 text-white text-sm px-3 py-2 rounded font-medium transition-colors"
+                                title="Skip this command">
+                            <i class="fas fa-forward"></i>
+                        </button>
+                        <button onclick="copyToClipboard('${escapeHtml(command).replace(/'/g, "\\'")}')" 
+                                class="bg-gray-600 hover:bg-gray-500 text-white text-sm px-3 py-2 rounded font-medium transition-colors"
+                                title="Copy command">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        container.appendChild(wrapper);
+        container.scrollTop = container.scrollHeight;
+        lastMessageRole = 'assistant';
     }
 
     function appendUserMessage(text) {
