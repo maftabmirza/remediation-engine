@@ -14,6 +14,7 @@ import json
 from app.database import get_db
 from app.models import User, LLMProvider
 from app.services.auth_service import get_current_user
+from app.models_revive import AISession, AIMessage
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
@@ -62,13 +63,29 @@ async def get_standalone_session(
 
 @router.get("/sessions")
 async def list_chat_sessions(
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
     """
     List chat sessions for the current user.
-    Returns empty list for now - sessions are handled client-side.
     """
-    return {"sessions": [], "count": 0}
+    sessions = db.query(AISession).filter(
+        AISession.user_id == current_user.id
+    ).order_by(AISession.updated_at.desc()).all()
+    
+    return {
+        "sessions": [
+            {
+                "id": str(s.id),
+                "title": s.title or "Untitled Session",
+                "created_at": s.created_at.isoformat(),
+                "updated_at": s.updated_at.isoformat(),
+                "message_count": len(s.messages)
+            }
+            for s in sessions
+        ],
+        "count": len(sessions)
+    }
 
 
 @router.post("/sessions")
@@ -89,13 +106,42 @@ async def create_chat_session(
 @router.get("/sessions/{session_id}/messages")
 async def get_session_messages(
     session_id: str,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
     """
     Get messages for a chat session.
-    Returns empty array for now - messages are handled client-side.
     """
-    return []  # Return array directly, not {"messages": []}
+    try:
+        session_uuid = UUID(session_id)
+        # Verify ownership
+        session = db.query(AISession).filter(
+            AISession.id == session_uuid,
+            AISession.user_id == current_user.id
+        ).first()
+        
+        if not session:
+            # Check if it is a standalone session (special handling)
+            if session_id.startswith("session-"):
+                 return []
+            raise HTTPException(status_code=404, detail="Session not found")
+        
+        messages = db.query(AIMessage).filter(
+            AIMessage.session_id == session_uuid
+        ).order_by(AIMessage.created_at).all()
+        
+        return [
+            {
+                "id": str(m.id),
+                "role": m.role,
+                "content": m.content,
+                "created_at": m.created_at.isoformat(),
+                "metadata": m.metadata_json
+            }
+            for m in messages
+        ]
+    except ValueError:
+        return []
 
 
 @router.patch("/sessions/{session_id}/provider")

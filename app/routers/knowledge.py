@@ -193,8 +193,21 @@ async def list_documents(
         limit=limit
     )
     
+    # Enrich with app names
+    # Note: DesignDocument should have a relationship to Application, but for now we'll fetch manual if needed
+    # or rely on lazy loading if relationship exists.
+    # Let's check models_knowledge.py to confirm relationship.
+    # Assuming relationship 'application' exists on DesignDocument (back_populates='design_documents')
+    
+    response_items = []
+    for doc in documents:
+        doc_resp = DocumentResponse.model_validate(doc)
+        if doc.app_id and doc.application:
+            doc_resp.app_name = doc.application.name
+        response_items.append(doc_resp)
+        
     return {
-        "items": documents,
+        "items": response_items,
         "total": total,
         "page": (skip // limit) + 1 if limit > 0 else 1,
         "page_size": limit

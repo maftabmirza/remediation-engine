@@ -631,7 +631,7 @@
                 if (!response.ok) throw new Error('Failed to load chat sessions');
 
                 const data = await response.json();
-                inquirySessions = data || [];
+                inquirySessions = data.sessions || [];
                 populateSessionDropdown();
             } catch (error) {
                 console.error('Failed to load chat sessions:', error);

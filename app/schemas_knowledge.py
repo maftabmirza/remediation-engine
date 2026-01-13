@@ -78,6 +78,7 @@ class DocumentResponse(DocumentBase):
     created_at: datetime
     updated_at: datetime
     chunk_count: Optional[int] = Field(None, description="Number of chunks generated")
+    app_name: Optional[str] = Field(None, description="Name of the related application")
     
     class Config:
         from_attributes = True

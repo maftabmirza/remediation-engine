@@ -499,7 +499,7 @@ function appendAIMessage(text, skipRunButtons = false) {
 // Render follow-up suggestion buttons
 function renderSuggestionButtons(suggestions) {
     const container = document.getElementById('chatMessages');
-    
+
     const wrapper = document.createElement('div');
     wrapper.className = 'flex justify-start w-full pr-2 my-3';
     wrapper.innerHTML = `
@@ -699,9 +699,9 @@ async function sendStreamingMessage(message) {
     // Create abort controller for cancel functionality
     currentStreamController = new AbortController();
     isStreaming = true;
-    
+
     try {
-        const token = localStorage.getItem('auth_token');
+        const token = localStorage.getItem('token');
         const response = await fetch('/api/troubleshoot/chat/stream', {
             method: 'POST',
             headers: {
@@ -728,7 +728,7 @@ async function sendStreamingMessage(message) {
 
         // Remove typing indicator and prepare for streaming content
         removeTypingIndicator();
-        
+
         while (true) {
             const { done, value } = await reader.read();
             if (done) break;
@@ -741,7 +741,7 @@ async function sendStreamingMessage(message) {
                 if (line.startsWith('data: ')) {
                     try {
                         const data = JSON.parse(line.slice(6));
-                        
+
                         if (data.type === 'session') {
                             currentSessionId = data.session_id;
                         } else if (data.type === 'chunk') {
@@ -780,7 +780,7 @@ async function sendStreamingMessage(message) {
 // Append streaming chunk to current message
 function appendStreamingChunk(chunk) {
     const container = document.getElementById('chatMessages');
-    
+
     if (lastMessageRole !== 'assistant' || !currentMessageDiv) {
         // Create new message wrapper
         const wrapper = document.createElement('div');
@@ -800,26 +800,32 @@ function appendStreamingChunk(chunk) {
         currentMessageDiv = wrapper.querySelector('.ai-message-content');
         lastMessageRole = 'assistant';
     }
-    
+
     if (currentMessageDiv) {
         const currentText = currentMessageDiv.getAttribute('data-full-text') || '';
         const newText = currentText + chunk;
         currentMessageDiv.setAttribute('data-full-text', newText);
-        
+
         // Clean CMD_CARD markers for display (will be rendered at end)
         let displayText = newText.replace(/\[CMD_CARD\].*?\[\/CMD_CARD\]/gs, '');
         currentMessageDiv.innerHTML = marked.parse(displayText);
     }
-    
+
     container.scrollTop = container.scrollHeight;
 }
 
 // Finalize streaming message - render command cards and suggestions
 function finalizeStreamingMessage(fullText) {
     if (currentMessageDiv) {
-        currentMessageDiv.classList.remove('streaming-message');
+        // Remove the temporary streaming message to prevent duplication
+        // The final render via appendAIMessage will replace it
+        const wrapper = currentMessageDiv.closest('.flex');
+        if (wrapper) {
+            wrapper.remove();
+        }
+        currentMessageDiv = null;
     }
-    
+
     // Now process the full response for CMD_CARDs and suggestions
     appendAIMessage(fullText, true);  // skipRunButtons = true since we handle cards
 }

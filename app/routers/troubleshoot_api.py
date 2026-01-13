@@ -317,14 +317,28 @@ async def troubleshoot_chat_stream(
 
 @router.get("/sessions")
 async def list_troubleshoot_sessions(
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
     """
     List troubleshooting sessions for the current user.
-    Returns empty list for now - sessions are handled client-side.
     """
-    # TODO: Implement persistent session storage
-    return {"sessions": [], "count": 0}
+    sessions = db.query(AISession).filter(
+        AISession.user_id == current_user.id
+    ).order_by(AISession.updated_at.desc()).all()
+    
+    return {
+        "sessions": [
+            {
+                "id": str(s.id),
+                "title": s.title or "Untitled Session",
+                "created_at": s.created_at.isoformat(),
+                "updated_at": s.updated_at.isoformat()
+            }
+            for s in sessions
+        ],
+        "count": len(sessions)
+    }
 
 
 @router.post("/sessions")

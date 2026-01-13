@@ -802,6 +802,16 @@ Tools called so far will be tracked. If you try to suggest a command without suf
                 "content": self._get_system_prompt()
             })
 
+        # DEBUG: Log full conversation being sent to LLM
+        logger.warning("="*80)
+        logger.warning(f"🔍 AGENT DEBUG: Sending {len(self.messages) + 1} messages to LLM (History + New)")
+        for i, msg in enumerate(self.messages):
+            role = msg.get("role", "unknown")
+            content = msg.get("content", "")
+            logger.warning(f"  History {i} [{role}]: {content[:50]}...")
+        logger.warning(f"  New User Msg: {user_message[:50]}...")
+        logger.warning("="*80)
+
         # Add user message
         self.messages.append({
             "role": "user",
