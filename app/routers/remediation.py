@@ -10,7 +10,7 @@ from typing import List, Optional, Dict, Any
 from uuid import UUID, uuid4
 import yaml
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status, BackgroundTasks
 from fastapi.responses import Response
 from sqlalchemy import select, func, and_, or_, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -34,6 +34,7 @@ from ..schemas_remediation import (
     RunbookYAML
 )
 from ..services.auth_service import get_current_user, require_role
+from ..services.runbook_knowledge_service import RunbookKnowledgeService
 
 router = APIRouter(prefix="/api/remediation", tags=["Auto-Remediation"])
 
@@ -114,6 +115,7 @@ async def list_runbooks(
 @router.post("/runbooks", response_model=RunbookResponse, status_code=status.HTTP_201_CREATED)
 async def create_runbook(
     runbook_data: RunbookCreate,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(require_role(["admin", "engineer"]))
 ):
@@ -244,6 +246,7 @@ async def get_runbook(
 async def update_runbook(
     runbook_id: UUID,
     runbook_data: RunbookCreate,  # Changed to RunbookCreate to allow steps/triggers update
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(require_role(["admin", "engineer"]))
 ):
@@ -378,6 +381,10 @@ async def update_runbook(
             .options(selectinload(Runbook.steps), selectinload(Runbook.triggers))
             .where(Runbook.id == runbook_id)
         )
+        
+        # Trigger background indexing
+        background_tasks.add_task(RunbookKnowledgeService.index_runbook_background_task, runbook.id)
+
         return result.scalar_one()
     except HTTPException:
         # Re-raise HTTP exceptions as-is

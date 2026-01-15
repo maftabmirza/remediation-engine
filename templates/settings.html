@@ -1166,6 +1166,40 @@
                         </select>
                         <p class="text-xs text-gray-400 mt-1">Uses a stored secret rotated by Vault/CyberArk.</p>
                     </div>
+
+                    <!-- WinRM-specific Settings -->
+                    <div id="winrmSettings" class="hidden mt-4 p-3 border border-gray-600 rounded bg-gray-800 bg-opacity-50">
+                        <h5 class="text-sm font-semibold mb-3 text-yellow-400"><i class="fab fa-windows mr-1"></i> WinRM Configuration</h5>
+                        <div class="grid md:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Transport</label>
+                                <select id="winrmTransport" class="input-field w-full px-3 py-2 rounded text-sm">
+                                    <option value="ntlm" selected>NTLM</option>
+                                    <option value="basic">Basic</option>
+                                    <option value="kerberos">Kerberos</option>
+                                    <option value="credssp">CredSSP</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Domain (optional)</label>
+                                <input type="text" id="winrmDomain" class="input-field w-full px-3 py-2 rounded text-sm" placeholder="MYDOMAIN">
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap gap-4 mt-3">
+                            <label class="flex items-center space-x-2 text-sm">
+                                <input type="checkbox" id="winrmUseSsl" class="form-checkbox rounded" onchange="toggleWinrmSsl()">
+                                <span>Use SSL (HTTPS)</span>
+                            </label>
+                            <label class="flex items-center space-x-2 text-sm">
+                                <input type="checkbox" id="winrmCertValidation" class="form-checkbox rounded">
+                                <span>Validate Certificate</span>
+                            </label>
+                        </div>
+                        <p class="text-xs text-gray-400 mt-2">
+                            <i class="fas fa-info-circle mr-1"></i>
+                            HTTP uses port 5985, HTTPS uses port 5986. Ensure WinRM is enabled on the target server.
+                        </p>
+                    </div>
                 </div>
 
                 <!-- Organization -->
@@ -3438,16 +3472,31 @@
     function toggleProtocolFields() {
         const protocol = document.getElementById('serverProtocol').value;
         const portField = document.getElementById('serverPort');
+        const winrmSettings = document.getElementById('winrmSettings');
 
         // Set default ports based on protocol
         if (protocol === 'ssh') {
             portField.value = '22';
+            winrmSettings.classList.add('hidden');
         } else if (protocol === 'winrm') {
-            portField.value = '5986';
+            // Default to HTTP (non-SSL) for easier testing
+            const useSsl = document.getElementById('winrmUseSsl').checked;
+            portField.value = useSsl ? '5986' : '5985';
+            winrmSettings.classList.remove('hidden');
         }
 
         // Show appropriate auth fields
         toggleAuthFields();
+    }
+
+    function toggleWinrmSsl() {
+        const useSsl = document.getElementById('winrmUseSsl').checked;
+        const portField = document.getElementById('serverPort');
+        const protocol = document.getElementById('serverProtocol').value;
+        
+        if (protocol === 'winrm') {
+            portField.value = useSsl ? '5986' : '5985';
+        }
     }
 
     function toggleCredentialSource() {
@@ -3490,6 +3539,14 @@
             auth_type: authType,
             credential_source: credentialSource
         };
+
+        // Add WinRM-specific settings if protocol is winrm
+        if (payload.protocol === 'winrm') {
+            payload.winrm_transport = document.getElementById('winrmTransport').value;
+            payload.winrm_use_ssl = document.getElementById('winrmUseSsl').checked;
+            payload.winrm_cert_validation = document.getElementById('winrmCertValidation').checked;
+            payload.domain = document.getElementById('winrmDomain').value.trim() || null;
+        }
 
         if (credentialSource === 'inline') {
             if (!editingServerId && !secret) {
@@ -3613,6 +3670,11 @@
         document.getElementById('serverTags').value = '';
         document.getElementById('serverCredentialMetadata').value = '';
         document.getElementById('serverPort').value = '22';
+        // Reset WinRM fields to defaults
+        document.getElementById('winrmTransport').value = 'ntlm';
+        document.getElementById('winrmUseSsl').checked = false;
+        document.getElementById('winrmCertValidation').checked = false;
+        document.getElementById('winrmDomain').value = '';
         toggleProtocolFields();
         toggleCredentialSource();
         toggleAuthFields();
@@ -3642,6 +3704,20 @@
         document.getElementById('serverTags').value = (server.tags || []).join(', ');
         document.getElementById('serverCredentialMetadata').value = server.credential_metadata ?
             JSON.stringify(server.credential_metadata, null, 2) : '';
+
+        // Populate WinRM-specific fields
+        if (server.protocol === 'winrm') {
+            document.getElementById('winrmTransport').value = server.winrm_transport || 'ntlm';
+            document.getElementById('winrmUseSsl').checked = server.winrm_use_ssl || false;
+            document.getElementById('winrmCertValidation').checked = server.winrm_cert_validation || false;
+            document.getElementById('winrmDomain').value = server.domain || '';
+        } else {
+            // Reset WinRM fields to defaults
+            document.getElementById('winrmTransport').value = 'ntlm';
+            document.getElementById('winrmUseSsl').checked = false;
+            document.getElementById('winrmCertValidation').checked = false;
+            document.getElementById('winrmDomain').value = '';
+        }
 
         toggleProtocolFields();
         toggleCredentialSource();
@@ -3675,6 +3751,14 @@
             os_type: document.getElementById('serverOsType').value,
             tags: (document.getElementById('serverTags').value || '').split(',').map(t => t.trim()).filter(Boolean)
         };
+
+        // Add WinRM-specific settings if protocol is winrm
+        if (protocol === 'winrm') {
+            data.winrm_transport = document.getElementById('winrmTransport').value;
+            data.winrm_use_ssl = document.getElementById('winrmUseSsl').checked;
+            data.winrm_cert_validation = document.getElementById('winrmCertValidation').checked;
+            data.domain = document.getElementById('winrmDomain').value.trim() || null;
+        }
 
         // SSH/WinRM authentication
         if (data.credential_source === 'inline') {

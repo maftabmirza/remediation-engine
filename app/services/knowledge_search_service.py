@@ -143,14 +143,25 @@ class KnowledgeSearchService:
                 
                 # Get source object details
                 if chunk.source_type == 'document':
-                    doc = self.db.query(DesignDocument).filter(
-                        DesignDocument.id == chunk.source_id
-                    ).first()
-                    if doc:
-                        result_dict['source_title'] = doc.title
-                        result_dict['source_url'] = doc.source_url
-                        result_dict['doc_type'] = doc.doc_type
-                        result_dict['app_id'] = doc.app_id
+                    # Check for runbook disguised as document (metadata)
+                    is_runbook = chunk.chunk_metadata and chunk.chunk_metadata.get('doc_type') == 'runbook'
+                    
+                    if is_runbook:
+                        from app.models_remediation import Runbook
+                        runbook = self.db.query(Runbook).filter(Runbook.id == chunk.source_id).first()
+                        if runbook:
+                            result_dict['source_title'] = runbook.name
+                            result_dict['doc_type'] = 'runbook'
+                            result_dict['view_url'] = f"/runbooks/{runbook.id}/view"
+                    else:
+                        doc = self.db.query(DesignDocument).filter(
+                            DesignDocument.id == chunk.source_id
+                        ).first()
+                        if doc:
+                            result_dict['source_title'] = doc.title
+                            result_dict['source_url'] = doc.source_url
+                            result_dict['doc_type'] = doc.doc_type
+                            result_dict['app_id'] = doc.app_id
                 
                 elif chunk.source_type == 'image':
                     img = self.db.query(DesignImage).filter(
@@ -159,7 +170,16 @@ class KnowledgeSearchService:
                     if img:
                         result_dict['source_title'] = img.title
                         result_dict['image_type'] = img.image_type
+                        result_dict['image_type'] = img.image_type
                         result_dict['app_id'] = img.app_id
+                
+                elif chunk.source_type == 'runbook':
+                    from app.models_remediation import Runbook
+                    runbook = self.db.query(Runbook).filter(Runbook.id == chunk.source_id).first()
+                    if runbook:
+                        result_dict['source_title'] = runbook.name
+                        result_dict['doc_type'] = 'runbook'
+                        result_dict['view_url'] = f"/runbooks/{runbook.id}/view"
                 
                 enriched_results.append(result_dict)
             
@@ -217,14 +237,25 @@ class KnowledgeSearchService:
             
             # Enrich with source information
             if chunk.source_type == 'document':
-                doc = self.db.query(DesignDocument).filter(
-                    DesignDocument.id == chunk.source_id
-                ).first()
-                if doc:
-                    result['source_title'] = doc.title
-                    result['source_url'] = doc.source_url
-                    result['doc_type'] = doc.doc_type
-                    result['app_id'] = doc.app_id
+                # Check for runbook disguised as document
+                is_runbook = chunk.chunk_metadata and chunk.chunk_metadata.get('doc_type') == 'runbook'
+                
+                if is_runbook:
+                    from app.models_remediation import Runbook
+                    runbook = self.db.query(Runbook).filter(Runbook.id == chunk.source_id).first()
+                    if runbook:
+                        result['source_title'] = runbook.name
+                        result['doc_type'] = 'runbook'
+                        result['view_url'] = f"/runbooks/{runbook.id}/view"
+                else:
+                    doc = self.db.query(DesignDocument).filter(
+                        DesignDocument.id == chunk.source_id
+                    ).first()
+                    if doc:
+                        result['source_title'] = doc.title
+                        result['source_url'] = doc.source_url
+                        result['doc_type'] = doc.doc_type
+                        result['app_id'] = doc.app_id
             
             elif chunk.source_type == 'image':
                 img = self.db.query(DesignImage).filter(
@@ -234,6 +265,14 @@ class KnowledgeSearchService:
                     result['source_title'] = img.title
                     result['image_type'] = img.image_type
                     result['app_id'] = img.app_id
+                    
+            elif chunk.source_type == 'runbook':
+                from app.models_remediation import Runbook
+                runbook = self.db.query(Runbook).filter(Runbook.id == chunk.source_id).first()
+                if runbook:
+                    result['source_title'] = runbook.name
+                    result['doc_type'] = 'runbook'
+                    result['view_url'] = f"/runbooks/{runbook.id}/view"
             
             results.append(result)
         

@@ -3,6 +3,28 @@
 
 {% block title %}Alert Details - AIOps Platform{% endblock %}
 
+{% block breadcrumbs %}
+<span class="mx-2">/</span>
+<a href="/alerts" class="hover:text-blue-400 transition-colors">Alerts</a>
+<span class="mx-2">/</span>
+<span class="text-gray-200">Details</span>
+{% endblock %}
+
+{% block header_title %}
+<div class="flex items-center gap-3">
+    <i class="fas fa-exclamation-triangle text-pink-400"></i>
+    <span id="header_alert_name" class="text-sm font-semibold text-white tracking-tight truncate">Loading alert...</span>
+</div>
+{% endblock %}
+
+{% block header_actions %}
+<div id="header_actions_container" class="flex items-center gap-2 hidden">
+    <button onclick="deleteAlert()" class="bg-gray-800 hover:bg-red-900/40 text-red-500 px-3 py-1 text-[11px] rounded flex items-center gap-2 border border-gray-700 transition-all">
+        <i class="fas fa-trash"></i> Delete
+    </button>
+</div>
+{% endblock %}
+
 {% block content %}
 <style>
     /* Fix user message code blocks to respect parent width */
@@ -306,54 +328,44 @@
             .join('');
 
         container.innerHTML = `
-            <!-- Enterprise Standard Toolbar -->
-            <div class="dashboard-header mb-4" style="padding: 12px; background: #16171b; border-bottom: 1px solid rgba(255,255,255,0.05); border-radius: 8px;">
-                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <!-- Left: Breadcrumbs & Title -->
-                    <div class="flex flex-col min-w-0">
-                        <nav class="flex items-center text-xs text-gray-400 mb-1">
-                            <a href="/" class="hover:text-blue-400 transition-colors">Home</a>
-                            <span class="mx-2">/</span>
-                            <a href="/alerts" class="hover:text-blue-400 transition-colors">Alerts</a>
-                            <span class="mx-2">/</span>
-                            <span class="text-gray-200">Details</span>
-                        </nav>
-                        <div class="flex items-center gap-3">
-                            <h1 class="text-xl font-bold text-white tracking-tight truncate" title="Alert Name">${alert.alert_name}</h1>
-                            <span class="badge-${alert.severity || 'info'} px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider" title="Severity">${alert.severity || 'info'}</span>
+            <!-- Alert Info Bar -->
+            <div class="card p-4 mb-4">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                    <!-- Left: Alert Title & Status -->
+                    <div class="flex items-center gap-3 min-w-0">
+                        <div class="w-10 h-10 rounded-lg bg-${alert.severity === 'critical' ? 'red' : alert.severity === 'warning' ? 'yellow' : 'blue'}-900/30 border border-${alert.severity === 'critical' ? 'red' : alert.severity === 'warning' ? 'yellow' : 'blue'}-500/30 flex items-center justify-center flex-shrink-0">
+                            <i class="fas fa-exclamation-triangle text-${alert.severity === 'critical' ? 'red' : alert.severity === 'warning' ? 'yellow' : 'blue'}-400"></i>
                         </div>
-                        <div class="flex items-center gap-2 mt-1">
-                             <span class="status-${alert.status} text-xs flex items-center" title="Status"><i class="fas fa-circle text-[8px] mr-1"></i>${alert.status}</span>
+                        <div class="min-w-0">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <h1 class="text-lg font-semibold text-white truncate">${alert.alert_name}</h1>
+                                <span class="badge-${alert.severity || 'info'} px-2 py-0.5 rounded text-[10px] font-semibold uppercase">${alert.severity || 'info'}</span>
+                                <span class="status-${alert.status} text-xs flex items-center"><i class="fas fa-circle text-[6px] mr-1"></i>${alert.status}</span>
+                            </div>
+                            <div class="text-xs text-gray-400 mt-0.5 truncate">${alert.annotations_json.summary || alert.annotations_json.description || 'No description'}</div>
                         </div>
                     </div>
 
-                    <!-- Right: Actions -->
-                    <div class="flex items-center gap-2">
-                        <button onclick="deleteAlert()" class="bg-gray-700 hover:bg-red-900/30 text-red-400 hover:text-red-300 px-3 py-1.5 rounded text-sm flex items-center gap-2 transition-colors">
-                            <i class="fas fa-trash"></i>
-                            Delete
-                        </button>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Compact Details Bar -->
-            <div class="bg-gray-800 rounded-lg p-2 mb-2 flex items-center space-x-4 text-xs border border-gray-700">
-                <div class="flex items-center text-gray-400" title="Instance"><i class="fas fa-server mr-1"></i><span class="text-white">${alert.instance || 'N/A'}</span></div>
-                <div class="flex items-center text-gray-400" title="Job"><i class="fas fa-cube mr-1"></i><span class="text-white">${alert.job || 'N/A'}</span></div>
-                <div class="flex items-center text-gray-400" title="Time"><i class="fas fa-clock mr-1"></i><span class="text-white">${new Date(alert.timestamp).toLocaleTimeString()}</span></div>
-                <div class="flex-grow border-l border-gray-700 pl-4 text-gray-300 truncate" title="${alert.annotations_json.description || ''}">
-                    ${alert.annotations_json.summary || 'No summary'}
-                </div>
-                
-                <!-- Hover for more details -->
-                <div class="relative group">
-                    <button class="text-blue-400 hover:text-blue-300" title="View Full Details"><i class="fas fa-info-circle"></i> Details</button>
-                    <div class="absolute right-0 top-full mt-2 w-80 bg-gray-800 border border-gray-600 rounded-lg shadow-xl p-4 hidden group-hover:block z-50">
-                        <h3 class="font-bold mb-2 text-gray-300">Labels</h3>
-                        <div class="mb-3">${labelsHtml || '<span class="text-gray-500 text-sm">No labels</span>'}</div>
-                        <h3 class="font-bold mb-2 text-gray-300">Annotations</h3>
-                        <div>${annotationsHtml || '<span class="text-gray-500 text-sm">No annotations</span>'}</div>
+                    <!-- Right: Meta & Actions -->
+                    <div class="flex items-center gap-3 flex-shrink-0">
+                        <div class="hidden md:flex items-center gap-4 text-xs text-gray-400 border-r border-gray-700/50 pr-4">
+                            <span title="Instance"><i class="fas fa-server mr-1 text-gray-500"></i>${alert.instance || 'N/A'}</span>
+                            <span title="Job"><i class="fas fa-cube mr-1 text-gray-500"></i>${alert.job || 'N/A'}</span>
+                            <span title="Time"><i class="fas fa-clock mr-1 text-gray-500"></i>${new Date(alert.timestamp).toLocaleTimeString()}</span>
+                        </div>
+                        
+                        <!-- Details Popover -->
+                        <div class="relative group">
+                            <button class="text-gray-400 hover:text-white text-xs px-2 py-1 rounded hover:bg-gray-700/50 transition-colors">
+                                <i class="fas fa-info-circle mr-1"></i>Details
+                            </button>
+                            <div class="absolute right-0 top-full mt-2 w-80 card p-4 hidden group-hover:block z-50">
+                                <h3 class="font-bold mb-2 text-gray-300 text-sm">Labels</h3>
+                                <div class="mb-3 text-xs">${labelsHtml || '<span class="text-gray-500">No labels</span>'}</div>
+                                <h3 class="font-bold mb-2 text-gray-300 text-sm">Annotations</h3>
+                                <div class="text-xs">${annotationsHtml || '<span class="text-gray-500">No annotations</span>'}</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -848,50 +860,16 @@
         return div.innerHTML;
     }
 
+    // Streaming state variables
+    let currentStreamController = null;
+    let isStreaming = false;
+
     function connectChatWebSocket(sessionId) {
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        // We need a token for WS auth. For now, we'll assume the cookie is enough or pass a dummy if using cookie-based auth.
-        // But our backend expects a token query param. We need to get the JWT.
-        // Since we don't have a "get token" endpoint exposed to JS easily (it's HttpOnly cookie usually), 
-        // we might need to adjust the backend to accept cookie or expose a token endpoint.
-        // For this prototype, let's assume we stored the token in localStorage on login (common pattern).
-        // If not, we need to fix auth. Let's assume localStorage for now.
-
-        const token = localStorage.getItem('token'); // You need to ensure login saves this!
-        if (!token) {
-            document.getElementById('chatMessages').innerHTML = '<div class="text-red-400 text-center">Authentication error. Please login again.</div>';
-            return;
-        }
-
-        chatSocket = new WebSocket(`${protocol}//${window.location.host}/ws/chat/${sessionId}?token=${token}`);
-
-        chatSocket.onopen = () => {
-            document.getElementById('chatStatus').textContent = 'Connected';
-            document.getElementById('chatStatus').className = 'text-xs text-green-400';
-            // Don't clear messages here - loadMessageHistory() already loaded them
-        };
-
-        chatSocket.onmessage = (event) => {
-            const msg = event.data;
-            if (msg === '[DONE]') return;
-
-            // Append to last message or create new one
-            appendAIMessage(msg);
-        };
-
-        chatSocket.onclose = () => {
-            document.getElementById('chatStatus').textContent = 'Disconnected';
-            document.getElementById('chatStatus').className = 'text-xs text-red-400';
-
-            // Auto-reconnect after 3 seconds
-            setTimeout(() => {
-                if (currentSessionId) {
-                    document.getElementById('chatStatus').textContent = 'Reconnecting...';
-                    document.getElementById('chatStatus').className = 'text-xs text-yellow-400';
-                    connectChatWebSocket(currentSessionId);
-                }
-            }, 3000);
-        };
+        // Chat now uses REST/SSE streaming instead of WebSocket
+        // Just update status to show we're ready
+        document.getElementById('chatStatus').textContent = 'Connected';
+        document.getElementById('chatStatus').className = 'text-xs text-green-400';
+        console.log('Chat ready using REST/SSE streaming for session:', sessionId);
     }
 
     let lastMessageRole = null;
@@ -902,45 +880,125 @@
 
         const container = document.getElementById('chatMessages');
 
-        // Ensure we have a message container to write to
-        if (lastMessageRole !== 'assistant' || !currentMessageDiv) {
-            // Create new message bubble with Agent Mode styling
-            const wrapper = document.createElement('div');
-            wrapper.className = 'flex justify-start w-full pr-2';
-            wrapper.innerHTML = `
-                <div class="ai-message-wrapper w-full">
-                    <div class="flex items-center mb-2">
-                        <div class="w-6 h-6 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center mr-2">
-                            <i class="fas fa-robot text-white text-xs"></i>
+        // Check for CMD_CARD markers and extract them
+        const cmdCardRegex = /\[CMD_CARD\](.*?)\[\/CMD_CARD\]/g;
+        let match;
+        let hasCards = false;
+        let extractedCommands = [];
+        let cardDataList = [];
+
+        while ((match = cmdCardRegex.exec(text)) !== null) {
+            hasCards = true;
+            try {
+                const cardData = JSON.parse(match[1]);
+                extractedCommands.push(cardData.command);
+                cardDataList.push(cardData);
+            } catch (e) {
+                console.error('Failed to parse CMD_CARD:', e);
+            }
+        }
+
+        // Remove CMD_CARD markers from text for display
+        let cleanText = text.replace(cmdCardRegex, '');
+
+        // When CMD_CARD is present, clean up duplicate command text
+        if (hasCards) {
+            cleanText = cleanText.replace(/```[\s\S]*?```/g, '');
+            cleanText = cleanText.replace(/`[^`]+`/g, '');
+            for (const cmd of extractedCommands) {
+                const escapedCmd = cmd.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                cleanText = cleanText.replace(new RegExp(escapedCmd, 'g'), '');
+            }
+        }
+
+        // Render text first
+        if (cleanText.trim() !== '') {
+            if (lastMessageRole !== 'assistant' || !currentMessageDiv) {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'flex justify-start w-full pr-2';
+                wrapper.innerHTML = `
+                    <div class="ai-message-wrapper w-full">
+                        <div class="flex items-center mb-2">
+                            <div class="w-6 h-6 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center mr-2">
+                                <i class="fas fa-robot text-white text-xs"></i>
+                            </div>
+                            <span class="text-xs text-gray-400">AI Assistant</span>
                         </div>
-                        <span class="text-xs text-gray-400">AI Assistant</span>
+                        <div class="bg-gray-800/80 rounded-lg p-4 border border-purple-500/20 text-sm ai-message-content shadow-lg" data-full-text=""></div>
                     </div>
-                    <div class="bg-gray-800/80 rounded-lg p-4 border border-purple-500/20 text-sm ai-message-content shadow-lg" data-full-text=""></div>
-                </div>
-            `;
-            container.appendChild(wrapper);
-            currentMessageDiv = wrapper.querySelector('.ai-message-content');
-            lastMessageRole = 'assistant';
+                `;
+                container.appendChild(wrapper);
+                currentMessageDiv = wrapper.querySelector('.ai-message-content');
+                lastMessageRole = 'assistant';
+            }
+
+            if (currentMessageDiv) {
+                const currentText = currentMessageDiv.getAttribute('data-full-text') || '';
+                const newText = currentText + cleanText;
+                currentMessageDiv.setAttribute('data-full-text', newText);
+                currentMessageDiv.innerHTML = marked.parse(newText);
+
+                // Only add run buttons if no CMD_CARDs (avoid duplicates)
+                if (!hasCards) {
+                    addRunButtons(currentMessageDiv);
+                }
+            }
         }
 
-        // Double-check currentMessageDiv is valid
-        if (!currentMessageDiv) {
-            console.error('Failed to create message container');
-            return;
+        // Render command cards after text
+        for (const cardData of cardDataList) {
+            renderCmdCard(cardData.command, cardData.server, cardData.explanation);
         }
-
-        // Append text (we need to buffer and render markdown properly)
-        // For streaming, simple appending works, but markdown rendering needs full text.
-        // A simple hack: store full text in a data attribute and re-render marked.
-        const currentText = currentMessageDiv.getAttribute('data-full-text') || '';
-        const newText = currentText + text;
-        currentMessageDiv.setAttribute('data-full-text', newText);
-        currentMessageDiv.innerHTML = marked.parse(newText);
-
-        // Add "Run" and "Copy" buttons to code blocks
-        addRunButtons(currentMessageDiv);
 
         container.scrollTop = container.scrollHeight;
+    }
+
+    // Render a structured command card from [CMD_CARD] data
+    function renderCmdCard(command, server, explanation) {
+        const container = document.getElementById('chatMessages');
+        const cardId = 'cmd-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'flex justify-start w-full pr-2 my-2';
+        wrapper.id = cardId;
+        wrapper.innerHTML = `
+            <div class="w-full bg-gray-800 rounded-lg border border-gray-700 overflow-hidden shadow-lg">
+                <div class="flex items-center justify-between px-4 py-2 bg-gray-900 border-b border-gray-700">
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-terminal text-green-400"></i>
+                        <span class="text-xs text-gray-400">Command Suggestion</span>
+                    </div>
+                    <span class="text-xs text-gray-500">${escapeHtml(server || '')}</span>
+                </div>
+                <div class="p-4">
+                    <div class="bg-black rounded p-3 font-mono text-sm text-green-300 mb-3 overflow-x-auto">
+                        ${escapeHtml(command)}
+                    </div>
+                    <div class="text-xs text-gray-400 mb-3">
+                        <i class="fas fa-info-circle mr-1"></i>${escapeHtml(explanation || '')}
+                    </div>
+                    <div class="cmd-actions flex gap-2">
+                        <button onclick="executeCommandWithOutput('${cardId}', '${escapeHtml(command).replace(/'/g, "\\'")}')" 
+                                class="flex-1 bg-green-600 hover:bg-green-500 text-white text-sm px-4 py-2 rounded font-medium transition-colors flex items-center justify-center">
+                            <i class="fas fa-play mr-2"></i>Run in Terminal
+                        </button>
+                        <button onclick="dismissCommandCard('${cardId}')" 
+                                class="bg-yellow-600 hover:bg-yellow-500 text-white text-sm px-3 py-2 rounded font-medium transition-colors"
+                                title="Skip this command">
+                            <i class="fas fa-forward"></i>
+                        </button>
+                        <button onclick="copyToClipboard('${escapeHtml(command).replace(/'/g, "\\'")}')" 
+                                class="bg-gray-600 hover:bg-gray-500 text-white text-sm px-3 py-2 rounded font-medium transition-colors"
+                                title="Copy command">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        container.appendChild(wrapper);
+        container.scrollTop = container.scrollHeight;
+        lastMessageRole = 'assistant';
     }
 
     function appendUserMessage(text) {
@@ -1093,7 +1151,7 @@
         return lines.join('\n').trim();
     }
 
-    function sendMessage(e) {
+    async function sendMessage(e) {
         e.preventDefault();
 
         // Clear pending analysis button if user types manually
@@ -1104,10 +1162,11 @@
 
         const input = document.getElementById('chatInput');
         const text = input.value.trim();
-        if (!text || !chatSocket) return;
+        if (!text || !currentSessionId) return;
 
         appendUserMessage(text);
-        showTypingIndicator(); // Show typing indicator
+        input.value = '';
+        showTypingIndicator();
 
         // Inject terminal context if available
         const termContent = getTerminalContent();
@@ -1117,8 +1176,143 @@
             finalMessage += `\n\n[SYSTEM: The user has the following active terminal output. Use it if relevant to the query.]\n\`\`\`\n${termContent}\n\`\`\``;
         }
 
-        chatSocket.send(finalMessage);
-        input.value = '';
+        // Use SSE streaming endpoint
+        await sendStreamingMessage(finalMessage);
+    }
+
+    // Send message using SSE streaming for real-time token display
+    async function sendStreamingMessage(message) {
+        currentStreamController = new AbortController();
+        isStreaming = true;
+
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch('/api/troubleshoot/chat/stream', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    message: message,
+                    session_id: currentSessionId
+                }),
+                signal: currentStreamController.signal
+            });
+
+            if (!response.ok) {
+                removeTypingIndicator();
+                appendAIMessage('Failed to get response from AI. Please try again.');
+                return;
+            }
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+            let fullResponse = '';
+
+            removeTypingIndicator();
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || '';
+
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        try {
+                            const data = JSON.parse(line.slice(6));
+
+                            if (data.type === 'session') {
+                                currentSessionId = data.session_id;
+                            } else if (data.type === 'chunk') {
+                                fullResponse += data.content;
+                                appendStreamingChunk(data.content);
+                            } else if (data.type === 'done') {
+                                finalizeStreamingMessage(fullResponse);
+                            } else if (data.type === 'error') {
+                                appendAIMessage(`Error: ${data.content}`);
+                            } else if (data.type === 'cancelled') {
+                                appendAIMessage('*Response cancelled by user.*');
+                            }
+                        } catch (e) {
+                            console.error('Failed to parse SSE data:', e);
+                        }
+                    }
+                }
+            }
+        } catch (error) {
+            if (error.name === 'AbortError') {
+                console.log('Stream aborted by user');
+            } else {
+                removeTypingIndicator();
+                console.error('Streaming error:', error);
+                appendAIMessage('Error communicating with AI service. Please try again.');
+            }
+        } finally {
+            isStreaming = false;
+            currentStreamController = null;
+            removeTypingIndicator();
+        }
+    }
+
+    // Append streaming chunk to current message
+    function appendStreamingChunk(chunk) {
+        const container = document.getElementById('chatMessages');
+
+        if (lastMessageRole !== 'assistant' || !currentMessageDiv) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'flex justify-start w-full pr-2';
+            wrapper.innerHTML = `
+                <div class="ai-message-wrapper w-full">
+                    <div class="flex items-center mb-2">
+                        <div class="w-6 h-6 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center mr-2">
+                            <i class="fas fa-robot text-white text-xs"></i>
+                        </div>
+                        <span class="text-xs text-gray-400">AI Assistant</span>
+                    </div>
+                    <div class="bg-gray-800/80 rounded-lg p-4 border border-purple-500/20 text-sm ai-message-content shadow-lg" data-full-text=""></div>
+                </div>
+            `;
+            container.appendChild(wrapper);
+            currentMessageDiv = wrapper.querySelector('.ai-message-content');
+            lastMessageRole = 'assistant';
+        }
+
+        if (currentMessageDiv) {
+            const currentText = currentMessageDiv.getAttribute('data-full-text') || '';
+            const newText = currentText + chunk;
+            currentMessageDiv.setAttribute('data-full-text', newText);
+
+            // Clean CMD_CARD markers for display
+            let displayText = newText.replace(/\[CMD_CARD\].*?\[\/CMD_CARD\]/gs, '');
+            currentMessageDiv.innerHTML = marked.parse(displayText);
+        }
+
+        container.scrollTop = container.scrollHeight;
+    }
+
+    // Finalize streaming message
+    function finalizeStreamingMessage(fullText) {
+        if (currentMessageDiv) {
+            const wrapper = currentMessageDiv.closest('.flex');
+            if (wrapper) {
+                wrapper.remove();
+            }
+            currentMessageDiv = null;
+        }
+        appendAIMessage(fullText);
+    }
+
+    // Cancel ongoing streaming request
+    function cancelStreaming() {
+        if (currentStreamController && isStreaming) {
+            currentStreamController.abort();
+            showToast('Response cancelled', 'info');
+        }
     }
 
     function showTypingIndicator() {
@@ -1127,13 +1321,16 @@
         indicator.id = 'typingIndicator';
         indicator.className = 'flex justify-start my-2';
         indicator.innerHTML = `
-            <div class="bg-gray-700 rounded-lg px-4 py-3 flex items-center space-x-2">
+            <div class="bg-gray-700 rounded-lg px-4 py-3 flex items-center space-x-3">
                 <div class="flex space-x-1">
                     <div class="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style="animation-delay: 0ms"></div>
                     <div class="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style="animation-delay: 150ms"></div>
                     <div class="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style="animation-delay: 300ms"></div>
                 </div>
                 <span class="text-gray-400 text-xs">AI is thinking...</span>
+                <button onclick="cancelStreaming()" class="ml-2 text-red-400 hover:text-red-300 text-xs px-2 py-1 border border-red-400/50 rounded hover:bg-red-400/10 transition-colors" title="Stop generating">
+                    <i class="fas fa-stop mr-1"></i>Stop
+                </button>
             </div>
         `;
         container.appendChild(indicator);
@@ -1613,31 +1810,35 @@
     }
 
     function triggerAutoAnalyze(command, output) {
-        // Only analyze if we have actual output
-        if (!output || !output.trim()) {
+        // Only analyze if we have actual output and a valid session
+        if (!output || !output.trim() || !currentSessionId) {
             return;
         }
 
-        // Small delay then auto-analyze
-        setTimeout(() => {
-            if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
-                // Include command history context for AI awareness
-                const historyContext = getCommandHistoryContext();
+        // Small delay then auto-analyze using SSE streaming
+        setTimeout(async () => {
+            // Include command history context for AI awareness
+            const historyContext = getCommandHistoryContext();
 
-                // Send the command, its output, and history context
-                const analysisRequest = `[SYSTEM: The user executed the following command:\n\`\`\`\n${command}\n\`\`\`\n\nHere is the output:\n\`\`\`\n${output}\n\`\`\`${historyContext}\n\nPlease analyze this output and suggest the next step. You can reference previous commands from the history if relevant.]`;
-                chatSocket.send(analysisRequest);
+            // Build the analysis request message
+            const analysisRequest = `[SYSTEM: The user executed the following command:\n\`\`\`\n${command}\n\`\`\`\n\nHere is the output:\n\`\`\`\n${output}\n\`\`\`${historyContext}\n\nPlease analyze this output and suggest the next step. You can reference previous commands from the history if relevant.]`;
 
-                // Show analyzing indicator
-                const container = document.getElementById('chatMessages');
-                const note = document.createElement('div');
-                note.className = 'text-center text-xs text-gray-500 my-2';
-                note.innerHTML = '<i class="fas fa-magic mr-1"></i>Analyzing output...';
-                container.appendChild(note);
-                container.scrollTop = container.scrollHeight;
+            // Show analyzing indicator
+            const container = document.getElementById('chatMessages');
+            const note = document.createElement('div');
+            note.className = 'text-center text-xs text-gray-500 my-2 analyzing-note';
+            note.innerHTML = '<i class="fas fa-magic mr-1"></i>Analyzing output...';
+            container.appendChild(note);
+            container.scrollTop = container.scrollHeight;
 
-                showTypingIndicator();
-            }
+            showTypingIndicator();
+
+            // Send via SSE streaming (same as sendMessage)
+            await sendStreamingMessage(analysisRequest);
+
+            // Remove the analyzing note after response
+            const noteEl = container.querySelector('.analyzing-note');
+            if (noteEl) noteEl.remove();
         }, 500);
     }
 

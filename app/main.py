@@ -15,9 +15,11 @@ from app.database import get_db, engine, Base
 from app.models import User, LLMProvider
 # Import models to register them with SQLAlchemy
 import app.models_application  # noqa: F401
+import app.models_application_knowledge  # noqa: F401
 import app.models_knowledge  # noqa: F401
 import app.models_learning  # noqa: F401 - Phase 3: Learning System
 import app.models_dashboards  # noqa: F401 - Prometheus Dashboard Builder
+import app.models_agent  # noqa: F401 - Agent Mode
 from app.services.auth_service import (
     get_current_user_optional,
     create_user,
@@ -34,20 +36,17 @@ from app.routers import (
     servers,
     users,
     auth_config,
-    chat_ws,
-    chat_api,
     terminal_ws,
     audit,
     metrics,
     remediation,
     roles,
     scheduler,
-    agent_api,
-    agent_ws,
     applications,
     application_profiles_api,  # Phase 3: Application Profiles
     grafana_datasources_api,  # Phase 3: Grafana Datasources
     observability_api,  # Phase 4: AI-Powered Observability Queries
+    revive_api,  # RE-VIVE Widget
     knowledge,  # Phase 2: Knowledge Base
     feedback,  # Phase 3: Learning System
     troubleshooting,  # Phase 4: Troubleshooting Engine
@@ -70,7 +69,13 @@ from app.routers import (
     rows_api,  # Prometheus Dashboard Builder - Panel Rows
     query_history_api,  # Prometheus Dashboard Builder - Query History
     dashboard_permissions_api,  # Dashboard Permissions
-    grafana_proxy  # Grafana Integration - SSO Proxy
+    grafana_proxy,  # Grafana Integration - SSO Proxy
+    chat_api,  # AI Chat API
+    prometheus_proxy,  # Prometheus Integration - Proxy
+    troubleshoot_api,  # Troubleshooting Mode API (separated from revive_api)
+    knowledge_apps,
+    remediation_view,
+    agent_api,  # Agent Mode API
 )
 from app import api_credential_profiles
 from app.services.execution_worker import start_execution_worker, stop_execution_worker
@@ -83,6 +88,26 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
+
+# Custom filter to suppress noisy Grafana WebSocket 403 errors
+class WebSocketLogFilter(logging.Filter):
+    def filter(self, record):
+        # Suppress WebSocket connection rejected messages for Grafana live and chat
+        message = record.getMessage()
+        if "WebSocket /grafana/api/live/ws" in message:
+            return False
+        if "WebSocket /ws/chat" in message:
+            return False
+        if "connection rejected (403 Forbidden)" in message:
+            return False
+        if "connection closed" in message and "WebSocket" not in message:
+            # Keep connection closed messages that aren't WebSocket related
+            pass
+        return True
+
+# Apply filter to uvicorn access logger
+logging.getLogger("uvicorn.error").addFilter(WebSocketLogFilter())
+
 logger = logging.getLogger(__name__)
 
 settings = get_settings()
@@ -265,8 +290,6 @@ app.include_router(alerts.router)
 app.include_router(rules.router)
 app.include_router(webhook.router)
 app.include_router(settings_router_module.router)
-app.include_router(chat_ws.router)
-app.include_router(chat_api.router)
 app.include_router(terminal_ws.router)
 app.include_router(servers.router)
 app.include_router(audit.router)
@@ -275,12 +298,12 @@ app.include_router(remediation.router)
 app.include_router(api_credential_profiles.router)
 app.include_router(roles.router)
 app.include_router(scheduler.router)
-app.include_router(agent_api.router)
-app.include_router(agent_ws.router)
+
 app.include_router(applications.router)  # Phase 1: Application Registry
 app.include_router(application_profiles_api.router)  # Phase 3: Application Profiles
 app.include_router(grafana_datasources_api.router)  # Phase 3: Grafana Datasources
 app.include_router(observability_api.router)  # Phase 4: AI-Powered Observability
+app.include_router(revive_api.router)  # RE-VIVE Widget
 app.include_router(knowledge.router)      # Phase 2: Knowledge Base
 app.include_router(feedback.router, prefix="/api/v1", tags=["learning"])  # Phase 3: Learning System
 app.include_router(troubleshooting.router, prefix="/api/v1", tags=["troubleshooting"])  # Phase 4: Troubleshooting Engine
@@ -303,6 +326,13 @@ app.include_router(rows_api.router)         # Prometheus Dashboard Builder - Pan
 app.include_router(query_history_api.router) # Prometheus Dashboard Builder - Query History
 app.include_router(dashboard_permissions_api.router) # Dashboard Permissions
 app.include_router(grafana_proxy.router)    # Grafana Integration - SSO Proxy
+app.include_router(chat_api.router)          # AI Chat API
+app.include_router(prometheus_proxy.router) # Prometheus Integration - Proxy
+app.include_router(troubleshoot_api.router)  # Troubleshooting Mode API
+app.include_router(knowledge_apps.router)
+app.include_router(remediation_view.router)
+app.include_router(agent_api.router)         # Agent Mode API
+app.include_router(agent_api.ws_router)      # Agent Mode WebSocket
 
 
 @app.get("/profile", response_class=HTMLResponse)
@@ -880,7 +910,8 @@ async def logs_page(
     })
     # Allow iframe embedding from same origin
     response.headers["X-Frame-Options"] = "SAMEORIGIN"
-    response.headers["Content-Security-Policy"] = "frame-src 'self' http://localhost:8080 http://grafana:3000"
+    origin = str(request.base_url).rstrip("/")
+    response.headers["Content-Security-Policy"] = f"frame-src 'self' {origin} http://grafana:3000"
     return response
 
 
@@ -903,7 +934,30 @@ async def traces_page(
     })
     # Allow iframe embedding from same origin
     response.headers["X-Frame-Options"] = "SAMEORIGIN"
-    response.headers["Content-Security-Policy"] = "frame-src 'self' http://localhost:8080 http://grafana:3000"
+    origin = str(request.base_url).rstrip("/")
+    response.headers["Content-Security-Policy"] = f"frame-src 'self' {origin} http://grafana:3000"
+    return response
+
+
+
+@app.get("/prometheus", response_class=HTMLResponse)
+async def prometheus_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    Prometheus UI page (embedded iframe)
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    response = templates.TemplateResponse("prometheus.html", {
+        "request": request,
+        "user": current_user
+    })
+    # Allow iframe embedding - permissive CSP since Prometheus can be on various hosts/ports
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    response.headers["Content-Security-Policy"] = "frame-src 'self' http: https:"
     return response
 
 
@@ -926,7 +980,8 @@ async def grafana_alerts_page(
     })
     # Allow iframe embedding from same origin
     response.headers["X-Frame-Options"] = "SAMEORIGIN"
-    response.headers["Content-Security-Policy"] = "frame-src 'self' http://localhost:8080 http://grafana:3000"
+    origin = str(request.base_url).rstrip("/")
+    response.headers["Content-Security-Policy"] = f"frame-src 'self' {origin} http://grafana:3000"
     return response
 
 
@@ -950,7 +1005,8 @@ async def grafana_advanced_page(
     })
     # Allow iframe embedding from same origin
     response.headers["X-Frame-Options"] = "SAMEORIGIN"
-    response.headers["Content-Security-Policy"] = "frame-src 'self' http://localhost:8080 http://grafana:3000"
+    origin = str(request.base_url).rstrip("/")
+    response.headers["Content-Security-Policy"] = f"frame-src 'self' {origin} http://grafana:3000"
     return response
 
 
@@ -962,6 +1018,26 @@ async def grafana_diagnostic_page(request: Request):
     """
     return templates.TemplateResponse("grafana_diagnostic.html", {
         "request": request
+    })
+
+
+# ============== Prometheus View Page ==============
+
+@app.get("/prometheus-view", response_class=HTMLResponse)
+async def prometheus_view_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    View Prometheus UI via Proxy
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    return templates.TemplateResponse("prometheus_view.html", {
+        "request": request,
+        "user": current_user,
+        "active_page": "prometheus-view" 
     })
 
 
@@ -984,3 +1060,17 @@ async def health_check(db: Session = Depends(get_db)):
         "database": db_status,
         "version": "2.0.0"
     }
+
+
+# ============== WebSocket Endpoints ==============
+
+from fastapi import WebSocket
+
+@app.websocket("/ws/chat/{session_id}")
+async def chat_websocket_endpoint(websocket: WebSocket, session_id: str):
+    """
+    WebSocket endpoint for chat sessions.
+    Currently closes gracefully as chat uses REST API.
+    """
+    await websocket.accept()
+    await websocket.close(code=1000, reason="Chat uses REST API")

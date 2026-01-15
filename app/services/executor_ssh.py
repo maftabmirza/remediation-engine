@@ -10,6 +10,7 @@ import time
 from datetime import datetime, timezone
 from typing import Optional, Dict, AsyncIterator
 import logging
+import uuid
 
 import asyncssh
 
@@ -29,6 +30,7 @@ class SSHExecutor(BaseExecutor):
     - Password authentication
     - Sudo elevation with password or passwordless
     - Command streaming
+    - Interactive command execution with stdin
     - File transfer (SCP/SFTP)
     """
     
@@ -68,6 +70,7 @@ class SSHExecutor(BaseExecutor):
         self.known_hosts = known_hosts
         self.host_key_checking = host_key_checking
         self._conn: Optional[asyncssh.SSHClientConnection] = None
+        self._active_processes: Dict[str, asyncssh.SSHClientProcess] = {}  # Track running processes
     
     @property
     def protocol(self) -> str:
@@ -375,4 +378,240 @@ class SSHExecutor(BaseExecutor):
             return True
         except Exception as e:
             logger.error(f"File download failed: {e}")
+            return False
+    
+    async def execute_interactive(
+        self,
+        command: str,
+        initial_timeout: int = 5,
+        with_elevation: bool = False
+    ) -> Dict:
+        """
+        Execute command with interactive input detection.
+        
+        Tries to execute the command. If it doesn't complete within
+        initial_timeout, assumes it needs user input and returns partial output.
+        
+        Args:
+            command: Command to execute
+            initial_timeout: Seconds to wait before assuming interactive
+            with_elevation: Use sudo
+            
+        Returns:
+            Dict with:
+                - completed: bool - Whether command finished
+                - needs_input: bool - Whether waiting for stdin
+                - output: str - Stdout so far
+                - error: str - Stderr so far
+                - exit_code: int - Exit code (if completed)
+                - process_id: str - ID to reference this process later
+        """
+        if not self._conn or not self._connected:
+            try:
+                await self.connect()
+            except Exception as e:
+                return {
+                    "completed": False,
+                    "error": f"SSH connection not established: {e}",
+                    "needs_input": False
+                }
+        
+        # Build command
+        full_command = command
+        if with_elevation:
+            if self.sudo_password:
+                full_command = f"echo '{self.sudo_password}' | sudo -S {command}"
+            else:
+                full_command = f"sudo {command}"
+        
+        try:
+            # Start process without waiting for completion
+            process = await self._conn.create_process(full_command)
+            process_id = str(uuid.uuid4())
+            
+            # Store process for later stdin handling
+            self._active_processes[process_id] = process
+            
+            # Wait briefly to see if it completes quickly
+            try:
+                await asyncio.wait_for(process.wait(), timeout=initial_timeout)
+                
+                # Command completed within timeout
+                stdout_data = ""
+                stderr_data = ""
+                
+                # Read output
+                if process.stdout:
+                    data = await process.stdout.read()
+                    if data:
+                        stdout_data = data if isinstance(data, str) else data.decode('utf-8', errors='ignore')
+                
+                if process.stderr:
+                    data = await process.stderr.read()
+                    if data:
+                        stderr_data = data if isinstance(data, str) else data.decode('utf-8', errors='ignore')
+                
+                # Clean up
+                del self._active_processes[process_id]
+                
+                return {
+                    "completed": True,
+                    "needs_input": False,
+                    "output": stdout_data,
+                    "error": stderr_data,
+                    "exit_code": process.exit_status or 0,
+                    "process_id": None
+                }
+                
+            except asyncio.TimeoutError:
+                # Still running - likely needs input
+                stdout_data = ""
+                stderr_data = ""
+                
+                try:
+                    # Try to read available output without blocking
+                    if process.stdout:
+                        data = await asyncio.wait_for(process.stdout.read(4096), timeout=0.5)
+                        if data:
+                            stdout_data = data if isinstance(data, str) else data.decode('utf-8', errors='ignore')
+                except:
+                    pass
+                
+                logger.info(f"Command appears interactive: {command[:50]}...")
+                
+                return {
+                    "completed": False,
+                    "needs_input": True,
+                    "output": stdout_data,
+                    "error": stderr_data,
+                    "exit_code": None,
+                    "process_id": process_id
+                }
+                    
+        except Exception as e:
+            logger.error(f"Interactive execution error: {e}")
+            return {
+                "completed": False,
+                "error": str(e),
+                "needs_input": False
+            }
+    
+    async def send_input_to_process(
+        self,
+        process_id: str,
+        user_input: str,
+        wait_timeout: int = 3
+    ) -> Dict:
+        """
+        Send input to a running interactive process.
+        
+        Args:
+            process_id: ID returned from execute_interactive
+            user_input: Input string to send to stdin
+            wait_timeout: How long to wait for response
+            
+        Returns:
+            Dict with same structure as execute_interactive
+        """
+        process = self._active_processes.get(process_id)
+        
+        if not process:
+            return {
+                "completed": False,
+                "error": "Process not found or already completed",
+                "needs_input": False
+            }
+        
+        try:
+            # Send input to stdin
+            process.stdin.write(user_input + '\n')
+            await process.stdin.drain()
+            
+            logger.info(f"Sent input to process {process_id}")
+            
+            # Wait briefly for response
+            try:
+                await asyncio.wait_for(process.wait(), timeout=wait_timeout)
+                
+                # Process completed
+                stdout_data = ""
+                stderr_data = ""
+                
+                if process.stdout:
+                    data = await process.stdout.read()
+                    if data:
+                        stdout_data = data if isinstance(data, str) else data.decode('utf-8', errors='ignore')
+                
+                if process.stderr:
+                    data = await process.stderr.read()
+                    if data:
+                        stderr_data = data if isinstance(data, str) else data.decode('utf-8', errors='ignore')
+                
+                # Clean up
+                del self._active_processes[process_id]
+                
+                return {
+                    "completed": True,
+                    "needs_input": False,
+                    "output": stdout_data,
+                    "error": stderr_data,
+                    "exit_code": process.exit_status or 0,
+                    "process_id": None
+                }
+                
+            except asyncio.TimeoutError:
+                # Still running - may need more input
+                stdout_data = ""
+                
+                try:
+                    if process.stdout:
+                        data = await asyncio.wait_for(process.stdout.read(4096), timeout=0.5)
+                        if data:
+                            stdout_data = data if isinstance(data, str) else data.decode('utf-8', errors='ignore')
+                except:
+                    pass
+                
+                return {
+                    "completed": False,
+                    "needs_input": True,
+                    "output": stdout_data,
+                    "error": "",
+                    "exit_code": None,
+                    "process_id": process_id
+                }
+                
+        except Exception as e:
+            logger.error(f"Error sending input to process: {e}")
+            # Clean up on error
+            if process_id in self._active_processes:
+                del self._active_processes[process_id]
+            return {
+                "completed": False,
+                "error": str(e),
+                "needs_input": False
+            }
+    
+    async def cancel_interactive_process(self, process_id: str) -> bool:
+        """Cancel a running interactive process."""
+        process = self._active_processes.get(process_id)
+        
+        if not process:
+            return False
+        
+        try:
+            # Send Ctrl+C
+            process.send_signal('INT')
+            await asyncio.sleep(0.5)
+            
+            # Force kill if still running
+            if process.exit_status is None:
+                process.kill()
+            
+            # Clean up
+            del self._active_processes[process_id]
+            logger.info(f"Cancelled interactive process {process_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error cancelling process: {e}")
             return False

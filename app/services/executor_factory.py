@@ -16,6 +16,7 @@ from ..models import ServerCredential, APICredentialProfile
 from .executor_base import BaseExecutor, ExecutionResult, ErrorType
 from .executor_ssh import SSHExecutor
 from .executor_api import APIExecutor
+from .executor_winrm import WinRMExecutor
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +35,7 @@ class ExecutorFactory:
     _executors: Dict[str, Type[BaseExecutor]] = {
         "ssh": SSHExecutor,
         "api": APIExecutor,
-        # "winrm": WinRMExecutor,  # Added in Phase 7
+        "winrm": WinRMExecutor,
     }
     
     # Connection pool for reuse
@@ -71,6 +72,13 @@ class ExecutorFactory:
         if not key:
             raise ValueError("Encryption key not configured")
         
+        # Check pool first
+        cache_key = str(server.id) if getattr(server, 'id', None) else f"{server.hostname}:{server.username}"
+        if cache_key in cls._pool:
+            # Check if we should update credentials... for now simplicity
+            # Actually, if we reuse the executor, we assume credentials are same
+            return cls._pool[cache_key]
+
         fernet = Fernet(key.encode() if isinstance(key, str) else key)
         
         # Determine protocol
@@ -135,21 +143,38 @@ class ExecutorFactory:
                 pass
 
         # Create executor based on protocol
+        executor: Optional[BaseExecutor] = None
+
         if protocol == "ssh":
-            return SSHExecutor(
+            executor = SSHExecutor(
                 hostname=server.hostname,
                 port=server.port or 22,
                 username=server.username or "root",
                 password=password,
                 private_key=private_key,
-                private_key_passphrase=None,  # Could add this field to model
+                private_key_passphrase=None,
                 sudo_password=sudo_password,
                 timeout=60,
                 host_key_checking=False
             )
+        
+        elif protocol == "winrm":
+            # Determine default port based on SSL setting
+            use_ssl = getattr(server, 'winrm_use_ssl', False)
+            default_port = 5986 if use_ssl else 5985
+            executor = WinRMExecutor(
+                hostname=server.hostname,
+                port=server.port or default_port,
+                username=server.username or "Administrator",
+                password=password,
+                timeout=60,
+                transport=getattr(server, 'winrm_transport', 'ntlm') or 'ntlm',
+                use_ssl=use_ssl,
+                cert_validation=getattr(server, 'winrm_cert_validation', False)
+            )
 
         elif protocol == "api":
-            return APIExecutor(
+            executor = APIExecutor(
                 hostname=server.hostname,
                 port=server.port or 443,
                 username=server.username or "",
@@ -163,12 +188,11 @@ class ExecutorFactory:
                 metadata=getattr(server, 'api_metadata_json', {}) or {}
             )
 
-        elif protocol == "winrm":
-            # WinRM executor (Phase 7)
-            raise NotImplementedError("WinRM executor not yet implemented")
+        if not executor:
+             raise ValueError(f"Unknown protocol: {protocol}")
 
-        else:
-            raise ValueError(f"Unknown protocol: {protocol}")
+        cls._pool[cache_key] = executor
+        return executor
 
     @classmethod
     def get_api_executor_from_profile(

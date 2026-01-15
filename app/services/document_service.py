@@ -3,7 +3,7 @@ Document Processing Service
 Handles document upload, text chunking, and content processing
 """
 import re
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 from uuid import UUID
 import hashlib
 
@@ -208,6 +208,12 @@ class DocumentService:
         if not document.raw_content:
             return []
         
+        # Delete existing chunks for this document to avoid duplication on re-sync
+        self.db.query(DesignChunk).filter(
+            DesignChunk.source_id == document.id,
+            DesignChunk.source_type == 'document'
+        ).delete(synchronize_session=False)
+        
         # Chunk the text
         text_chunks = self.chunk_text(
             document.raw_content,
@@ -256,7 +262,7 @@ class DocumentService:
         status: str = 'active',
         skip: int = 0,
         limit: int = 50
-    ) -> tuple[List[DesignDocument], int]:
+    ) -> Tuple[List[DesignDocument], int]:
         """
         List documents with filters.
         

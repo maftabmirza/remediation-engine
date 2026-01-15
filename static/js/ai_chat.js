@@ -17,6 +17,8 @@ let lastMessageRole = null;
 let currentMessageDiv = null;
 let chatFontSize = 14;
 let currentServerId = null;
+let currentServerProtocol = 'ssh';
+let storedServers = [];
 let isAgentMode = false;
 let agentSocket = null;
 let currentAgentSession = null;
@@ -24,6 +26,9 @@ let inlineChatVisible = false;
 let currentSelection = '';
 let analysisButton = null;
 let autoAnalyzeTimer = null;
+let pendingCommandCancelled = false;  // Flag to cancel pending command polling
+let currentStreamController = null;   // AbortController for streaming requests
+let isStreaming = false;              // Flag to track if streaming is active
 
 // Command History Functions
 function addToCommandHistory(command, output, exitCode, success) {
@@ -99,8 +104,8 @@ function updateCommandHistoryPanel() {
                     <span class="font-mono text-xs text-gray-300 truncate">${escapeHtml(entry.command)}</span>
                 </div>
                 <div class="flex items-center space-x-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onclick="rerunCommand('${escapeHtml(entry.command).replace(/'/g, "\\'")}')" class="text-blue-400 hover:text-blue-300 text-xs px-1" title="Re-run"><i class="fas fa-redo"></i></button>
-                    <button onclick="copyToClipboard('${escapeHtml(entry.command).replace(/'/g, "\\'")}')" class="text-gray-400 hover:text-white text-xs px-1" title="Copy"><i class="fas fa-copy"></i></button>
+                    <button data-cmd="${escapeHtml(entry.command)}" onclick="rerunCommand(this.dataset.cmd)" class="text-blue-400 hover:text-blue-300 text-xs px-1" title="Re-run"><i class="fas fa-redo"></i></button>
+                    <button data-cmd="${escapeHtml(entry.command)}" onclick="copyToClipboard(this.dataset.cmd)" class="text-gray-400 hover:text-white text-xs px-1" title="Copy"><i class="fas fa-copy"></i></button>
                 </div>
             </div>
             <div class="text-[10px] text-gray-500 mt-1">${entry.displayTime} • exit ${entry.exitCode}</div>
@@ -328,73 +333,279 @@ function sendSuggestion(text) {
 }
 
 // WebSocket Chat Connection
+let wsReconnectAttempts = 0;
+const MAX_WS_RECONNECT_ATTEMPTS = 3;
+
 function connectChatWebSocket(sessionId) {
+    // Skip WebSocket if we've exceeded max attempts - chat works via REST API
+    if (wsReconnectAttempts >= MAX_WS_RECONNECT_ATTEMPTS) {
+        console.log('WebSocket disabled - using REST API for chat');
+        if (typeof updateModelStatusIcon === 'function') {
+            updateModelStatusIcon('connected'); // Show as connected since REST works
+        }
+        return;
+    }
+
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const token = localStorage.getItem('token');
     if (!token) {
-        document.getElementById('chatMessages').innerHTML = '<div class="text-red-400 text-center">Authentication error. Please login again.</div>';
+        // Don't show error - just skip WebSocket, REST will still work
+        console.log('No token for WebSocket, using REST API');
         return;
     }
-    chatSocket = new WebSocket(`${protocol}//${window.location.host}/ws/chat/${sessionId}?token=${token}`);
-    chatSocket.onopen = () => {
-        if (typeof updateModelStatusIcon === 'function') {
-            updateModelStatusIcon('connected');
-        }
-    };
-    chatSocket.onmessage = (event) => {
-        const msg = event.data;
-        if (msg === '[DONE]') return;
-        appendAIMessage(msg);
-    };
-    chatSocket.onclose = () => {
-        if (typeof updateModelStatusIcon === 'function') {
-            updateModelStatusIcon('disconnected');
-        }
-        setTimeout(() => {
-            if (currentSessionId) {
-                if (typeof updateModelStatusIcon === 'function') {
-                    updateModelStatusIcon('connecting');
-                }
-                connectChatWebSocket(currentSessionId);
+
+    try {
+        chatSocket = new WebSocket(`${protocol}//${window.location.host}/ws/chat/${sessionId}?token=${token}`);
+        chatSocket.onopen = () => {
+            wsReconnectAttempts = 0; // Reset on successful connection
+            if (typeof updateModelStatusIcon === 'function') {
+                updateModelStatusIcon('connected');
             }
-        }, 3000);
-    };
+        };
+        chatSocket.onmessage = (event) => {
+            const msg = event.data;
+            if (msg === '[DONE]') return;
+            appendAIMessage(msg);
+        };
+        chatSocket.onerror = () => {
+            wsReconnectAttempts++;
+            console.log(`WebSocket error (attempt ${wsReconnectAttempts}/${MAX_WS_RECONNECT_ATTEMPTS})`);
+        };
+        chatSocket.onclose = () => {
+            if (typeof updateModelStatusIcon === 'function') {
+                updateModelStatusIcon('connected'); // Still show connected - REST works
+            }
+            // Only reconnect if under max attempts
+            if (wsReconnectAttempts < MAX_WS_RECONNECT_ATTEMPTS && currentSessionId) {
+                setTimeout(() => {
+                    connectChatWebSocket(currentSessionId);
+                }, 5000); // Increase delay to 5 seconds
+            }
+        };
+    } catch (e) {
+        console.log('WebSocket not available, using REST API');
+        wsReconnectAttempts = MAX_WS_RECONNECT_ATTEMPTS;
+    }
 }
 
 function appendAIMessage(text, skipRunButtons = false) {
     removeTypingIndicator();
     const container = document.getElementById('chatMessages');
-    if (lastMessageRole !== 'assistant' || !currentMessageDiv) {
-        const wrapper = document.createElement('div');
-        wrapper.className = 'flex justify-start w-full pr-2';
-        wrapper.innerHTML = `
-            <div class="ai-message-wrapper w-full">
-                <div class="flex items-center mb-2">
-                    <div class="w-6 h-6 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center mr-2">
-                        <i class="fas fa-robot text-white text-xs"></i>
+
+    // Check for CMD_CARD markers and extract them (but don't render yet)
+    const cmdCardRegex = /\[CMD_CARD\](.*?)\[\/CMD_CARD\]/g;
+    let match;
+    let hasCards = false;
+    let extractedCommands = [];
+    let cardDataList = [];  // Store cards to render AFTER text
+
+    while ((match = cmdCardRegex.exec(text)) !== null) {
+        hasCards = true;
+        try {
+            const cardData = JSON.parse(match[1]);
+            extractedCommands.push(cardData.command);
+            cardDataList.push(cardData);  // Save for later rendering
+        } catch (e) {
+            console.error('Failed to parse CMD_CARD:', e);
+        }
+    }
+
+    // Check for SUGGESTIONS markers and extract them
+    const suggestionsRegex = /\[SUGGESTIONS\](.*?)\[\/SUGGESTIONS\]/gs;
+    let suggestionsList = [];
+    let suggestMatch;
+    while ((suggestMatch = suggestionsRegex.exec(text)) !== null) {
+        try {
+            const suggestions = JSON.parse(suggestMatch[1]);
+            if (Array.isArray(suggestions)) {
+                suggestionsList = suggestionsList.concat(suggestions);
+            }
+        } catch (e) {
+            console.error('Failed to parse SUGGESTIONS:', e);
+        }
+    }
+
+    // Remove CMD_CARD and SUGGESTIONS markers from text for display
+    let cleanText = text.replace(cmdCardRegex, '');
+    cleanText = cleanText.replace(suggestionsRegex, '');
+
+    // When CMD_CARD is present, aggressively clean up duplicate command text
+    if (hasCards) {
+        // Remove fenced code blocks
+        cleanText = cleanText.replace(/```[\s\S]*?```/g, '');
+        // Remove inline code
+        cleanText = cleanText.replace(/`[^`]+`/g, '');
+        // Remove the actual command text that might appear as plain text
+        for (const cmd of extractedCommands) {
+            // Escape special regex chars in command
+            const escapedCmd = cmd.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            cleanText = cleanText.replace(new RegExp(escapedCmd, 'g'), '');
+        }
+        // Clean up leftover "Calling tool:" lines
+        cleanText = cleanText.replace(/🔍 \*Calling tool:.*?\*\n?/g, '');
+    }
+
+    // Always clean up command-like patterns that appear after "Calling tool:" notifications
+    // (These are leaked from LLM text content)
+    cleanText = cleanText.replace(/(\*Calling tool:.*?\*.*?)\n(sudo\s+\S+.*)/g, '$1');
+    cleanText = cleanText.replace(/\n(sudo\s+\S+[^\n]*)\n\n🔍/g, '\n\n🔍');
+
+    // RENDER TEXT FIRST (before command cards)
+    if (cleanText.trim() !== '') {
+        if (lastMessageRole !== 'assistant' || !currentMessageDiv) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'flex justify-start w-full pr-2';
+            wrapper.innerHTML = `
+                <div class="ai-message-wrapper w-full">
+                    <div class="flex items-center mb-2">
+                        <div class="w-6 h-6 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center mr-2">
+                            <i class="fas fa-robot text-white text-xs"></i>
+                        </div>
+                        <span class="text-xs text-gray-400">AI Assistant</span>
                     </div>
-                    <span class="text-xs text-gray-400">AI Assistant</span>
+                    <div class="bg-gray-800/80 rounded-lg p-4 border border-gray-700 text-sm ai-message-content shadow-lg" data-full-text=""></div>
                 </div>
-                <div class="bg-gray-800/80 rounded-lg p-4 border border-gray-700 text-sm ai-message-content shadow-lg" data-full-text=""></div>
-            </div>
-        `;
-        container.appendChild(wrapper);
-        currentMessageDiv = wrapper.querySelector('.ai-message-content');
-        lastMessageRole = 'assistant';
+            `;
+            container.appendChild(wrapper);
+            currentMessageDiv = wrapper.querySelector('.ai-message-content');
+            lastMessageRole = 'assistant';
+        }
+        if (currentMessageDiv) {
+            const currentText = currentMessageDiv.getAttribute('data-full-text') || '';
+            const newText = currentText + cleanText;
+            currentMessageDiv.setAttribute('data-full-text', newText);
+            currentMessageDiv.innerHTML = marked.parse(newText);
+            // Only add "Run in Terminal" buttons in Inquiry mode (troubleshoot uses CMD_CARDs)
+            const chatMode = typeof currentChatMode !== 'undefined' ? currentChatMode : 'troubleshoot';
+            if (!skipRunButtons && !hasCards && chatMode === 'general') {
+                addRunButtons(currentMessageDiv);
+            }
+        }
     }
-    if (!currentMessageDiv) {
-        console.error('Failed to create message container');
-        return;
+
+    // RENDER COMMAND CARDS AFTER TEXT
+    for (const cardData of cardDataList) {
+        renderCommandCard(cardData.command, cardData.server, cardData.explanation);
     }
-    const currentText = currentMessageDiv.getAttribute('data-full-text') || '';
-    const newText = currentText + text;
-    currentMessageDiv.setAttribute('data-full-text', newText);
-    currentMessageDiv.innerHTML = marked.parse(newText);
-    // Skip adding "Run in Terminal" buttons for inquiry mode responses
-    if (!skipRunButtons) {
-        addRunButtons(currentMessageDiv);
+
+    // RENDER FOLLOW-UP SUGGESTIONS
+    if (suggestionsList.length > 0) {
+        renderSuggestionButtons(suggestionsList);
     }
+
     container.scrollTop = container.scrollHeight;
+}
+
+// Render follow-up suggestion buttons
+function renderSuggestionButtons(suggestions) {
+    const container = document.getElementById('chatMessages');
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'flex justify-start w-full pr-2 my-3';
+    wrapper.innerHTML = `
+        <div class="w-full">
+            <div class="text-xs text-gray-500 mb-2"><i class="fas fa-lightbulb mr-1"></i>Suggested next steps:</div>
+            <div class="flex flex-wrap gap-2 suggestion-buttons">
+                ${suggestions.map(s => `
+                    <button onclick="sendSuggestionAction('${escapeHtml(s.text || s).replace(/'/g, "\\'")}')" 
+                            class="bg-gray-700 hover:bg-gray-600 text-gray-200 text-sm px-3 py-2 rounded-lg border border-gray-600 hover:border-purple-500 transition-all flex items-center gap-2">
+                        <i class="fas ${getIconForSuggestion(s.text || s)} text-purple-400"></i>
+                        <span>${escapeHtml(s.text || s)}</span>
+                    </button>
+                `).join('')}
+            </div>
+        </div>
+    `;
+    container.appendChild(wrapper);
+    lastMessageRole = 'suggestions';
+}
+
+// Get appropriate icon for suggestion type
+function getIconForSuggestion(text) {
+    const lower = text.toLowerCase();
+    if (lower.includes('log') || lower.includes('check')) return 'fa-search';
+    if (lower.includes('restart') || lower.includes('start')) return 'fa-play';
+    if (lower.includes('stop') || lower.includes('kill')) return 'fa-stop';
+    if (lower.includes('status')) return 'fa-info-circle';
+    if (lower.includes('fix') || lower.includes('repair')) return 'fa-wrench';
+    if (lower.includes('close') || lower.includes('done') || lower.includes('resolved')) return 'fa-check-circle';
+    if (lower.includes('config')) return 'fa-cog';
+    if (lower.includes('metric') || lower.includes('monitor')) return 'fa-chart-line';
+    return 'fa-arrow-right';
+}
+
+// Send a suggestion as user input
+function sendSuggestionAction(text) {
+    const input = document.getElementById('chatInput');
+    input.value = text;
+    // Trigger the form submit
+    const form = document.getElementById('chatForm');
+    if (form) {
+        form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    }
+}
+
+// Render a structured command card from [CMD_CARD] data
+function renderCommandCard(command, server, explanation) {
+    const container = document.getElementById('chatMessages');
+    const cardId = 'cmd-' + Date.now();
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'flex justify-start w-full pr-2 my-2';
+    wrapper.id = cardId;
+    wrapper.innerHTML = `
+        <div class="w-full bg-gray-800 rounded-lg border border-gray-700 overflow-hidden shadow-lg">
+            <div class="flex items-center justify-between px-4 py-2 bg-gray-900 border-b border-gray-700">
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-terminal text-green-400"></i>
+                    <span class="text-xs text-gray-400">Command Suggestion</span>
+                </div>
+                <span class="text-xs text-gray-500">${escapeHtml(server)}</span>
+            </div>
+            <div class="p-4">
+                <div class="bg-black rounded p-3 font-mono text-sm text-green-300 mb-3 overflow-x-auto">
+                    ${escapeHtml(command)}
+                </div>
+                <div class="text-xs text-gray-400 mb-3">
+                    <i class="fas fa-info-circle mr-1"></i>${escapeHtml(explanation)}
+                </div>
+                <div class="cmd-actions flex gap-2">
+                    <button data-cmd="${escapeHtml(command)}" onclick="executeCommandWithOutput('${cardId}', this.dataset.cmd)" 
+                            class="flex-1 bg-green-600 hover:bg-green-500 text-white text-sm px-4 py-2 rounded font-medium transition-colors flex items-center justify-center">
+                        <i class="fas fa-play mr-2"></i>Run in Terminal
+                    </button>
+                    <button data-cmd="${escapeHtml(command)}" onclick="skipCommand('${cardId}', this.dataset.cmd)" 
+                            class="bg-yellow-600 hover:bg-yellow-500 text-white text-sm px-3 py-2 rounded font-medium transition-colors"
+                            title="Skip this command">
+                        <i class="fas fa-forward"></i>
+                    </button>
+                    <button data-cmd="${escapeHtml(command)}" onclick="copyToClipboard(this.dataset.cmd)" 
+                            class="bg-gray-600 hover:bg-gray-500 text-white text-sm px-3 py-2 rounded font-medium transition-colors"
+                            title="Copy command">
+                        <i class="fas fa-copy"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    container.appendChild(wrapper);
+    container.scrollTop = container.scrollHeight;
+    lastMessageRole = 'assistant';
+}
+
+// Skip a suggested command and notify the Agent
+async function skipCommand(cardId, command) {
+    const card = document.getElementById(cardId);
+    if (card) {
+        const actionsDiv = card.querySelector('.cmd-actions');
+        if (actionsDiv) {
+            actionsDiv.innerHTML = '<div class="text-yellow-400 text-sm p-2"><i class="fas fa-forward mr-2"></i>Command skipped.</div>';
+        }
+    }
+
+    // Send skip notification to Agent so it knows to move on
+    showToast('Command skipped', 'info');
+    await autoSendCommandOutputToAgent(command, '[USER SKIPPED THIS COMMAND]', false, -1);
 }
 
 function appendUserMessage(text) {
@@ -426,8 +637,14 @@ function getTerminalContent() {
     return lines.join('\n').trim();
 }
 
-function sendMessage(e) {
+async function sendMessage(e) {
     e.preventDefault();
+
+    // Cancel any pending command polling when user sends a new message
+    if (pendingCommandCancelled === false) {
+        pendingCommandCancelled = true;
+    }
+
     if (analysisButton) {
         analysisButton.remove();
         analysisButton = null;
@@ -436,10 +653,22 @@ function sendMessage(e) {
     const text = input.value.trim();
     if (!text) return;
 
+    // Detect "issue resolved" type messages and show feedback prompt (lenient for typos)
+    const resolvedPatterns = /\b(issue|problem|fixed|works|working|worked|solv|resolv|done|thank|thanks)\b/i;
+    if (resolvedPatterns.test(text)) {
+        showSessionFeedbackButton();
+        // Auto-expand the feedback panel
+        setTimeout(() => {
+            const expanded = document.getElementById('sessionFeedbackExpanded');
+            if (expanded) expanded.classList.remove('hidden');
+        }, 500);
+    }
+
     // Check which mode we're in (defined in ai_chat.html)
     const chatMode = typeof currentChatMode !== 'undefined' ? currentChatMode : 'troubleshoot';
 
     appendUserMessage(escapeHtml(text));
+    input.value = '';  // Clear input immediately after sending
     showTypingIndicator();
 
     if (chatMode === 'general') {
@@ -451,24 +680,162 @@ function sendMessage(e) {
             removeTypingIndicator();
             appendAIMessage('Error: Observability query handler not available.');
         }
-        input.value = '';
         return;
     }
 
-    // Troubleshooting mode: Use WebSocket chat (original behavior)
-    if (!chatSocket) {
-        removeTypingIndicator();
-        appendAIMessage('Chat not connected. Please refresh the page.');
-        return;
-    }
-
+    // Troubleshooting mode: Use SSE streaming for real-time responses
     const termContent = getTerminalContent();
     let finalMessage = text;
     if (termContent) {
         finalMessage += `\n\n[SYSTEM: The user has the following active terminal output. Use it if relevant to the query.]\n\`\`\`\n${termContent}\n\`\`\``;
     }
-    chatSocket.send(finalMessage);
-    input.value = '';
+
+    // Use SSE streaming endpoint
+    await sendStreamingMessage(finalMessage);
+}
+
+// Send message using SSE streaming for real-time token display
+async function sendStreamingMessage(message) {
+    // Create abort controller for cancel functionality
+    currentStreamController = new AbortController();
+    isStreaming = true;
+
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/troubleshoot/chat/stream', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                message: message,
+                session_id: currentSessionId
+            }),
+            signal: currentStreamController.signal
+        });
+
+        if (!response.ok) {
+            removeTypingIndicator();
+            appendAIMessage('Failed to get response from AI. Please try again.');
+            return;
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let fullResponse = '';
+
+        // Remove typing indicator and prepare for streaming content
+        removeTypingIndicator();
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
+
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    try {
+                        const data = JSON.parse(line.slice(6));
+
+                        if (data.type === 'session') {
+                            currentSessionId = data.session_id;
+                        } else if (data.type === 'chunk') {
+                            fullResponse += data.content;
+                            // Stream content to UI - update existing message
+                            appendStreamingChunk(data.content);
+                        } else if (data.type === 'done') {
+                            // Finalize the message and render suggestions
+                            finalizeStreamingMessage(fullResponse);
+                        } else if (data.type === 'error') {
+                            appendAIMessage(`Error: ${data.content}`);
+                        } else if (data.type === 'cancelled') {
+                            appendAIMessage('*Response cancelled by user.*');
+                        }
+                    } catch (e) {
+                        console.error('Failed to parse SSE data:', e);
+                    }
+                }
+            }
+        }
+    } catch (error) {
+        if (error.name === 'AbortError') {
+            console.log('Stream aborted by user');
+        } else {
+            removeTypingIndicator();
+            console.error('Streaming error:', error);
+            appendAIMessage('Error communicating with AI service. Please try again.');
+        }
+    } finally {
+        isStreaming = false;
+        currentStreamController = null;
+        removeTypingIndicator();
+    }
+}
+
+// Append streaming chunk to current message
+function appendStreamingChunk(chunk) {
+    const container = document.getElementById('chatMessages');
+
+    if (lastMessageRole !== 'assistant' || !currentMessageDiv) {
+        // Create new message wrapper
+        const wrapper = document.createElement('div');
+        wrapper.className = 'flex justify-start w-full pr-2';
+        wrapper.innerHTML = `
+            <div class="ai-message-wrapper w-full">
+                <div class="flex items-center mb-2">
+                    <div class="w-6 h-6 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center mr-2">
+                        <i class="fas fa-robot text-white text-xs"></i>
+                    </div>
+                    <span class="text-xs text-gray-400">AI Assistant</span>
+                </div>
+                <div class="bg-gray-800/80 rounded-lg p-4 border border-gray-700 text-sm ai-message-content shadow-lg streaming-message" data-full-text=""></div>
+            </div>
+        `;
+        container.appendChild(wrapper);
+        currentMessageDiv = wrapper.querySelector('.ai-message-content');
+        lastMessageRole = 'assistant';
+    }
+
+    if (currentMessageDiv) {
+        const currentText = currentMessageDiv.getAttribute('data-full-text') || '';
+        const newText = currentText + chunk;
+        currentMessageDiv.setAttribute('data-full-text', newText);
+
+        // Clean CMD_CARD markers for display (will be rendered at end)
+        let displayText = newText.replace(/\[CMD_CARD\].*?\[\/CMD_CARD\]/gs, '');
+        currentMessageDiv.innerHTML = marked.parse(displayText);
+    }
+
+    container.scrollTop = container.scrollHeight;
+}
+
+// Finalize streaming message - render command cards and suggestions
+function finalizeStreamingMessage(fullText) {
+    if (currentMessageDiv) {
+        // Remove the temporary streaming message to prevent duplication
+        // The final render via appendAIMessage will replace it
+        const wrapper = currentMessageDiv.closest('.flex');
+        if (wrapper) {
+            wrapper.remove();
+        }
+        currentMessageDiv = null;
+    }
+
+    // Now process the full response for CMD_CARDs and suggestions
+    appendAIMessage(fullText, true);  // skipRunButtons = true since we handle cards
+}
+
+// Cancel ongoing streaming request
+function cancelStreaming() {
+    if (currentStreamController && isStreaming) {
+        currentStreamController.abort();
+        showToast('Response cancelled', 'info');
+    }
 }
 
 function showTypingIndicator() {
@@ -477,13 +844,16 @@ function showTypingIndicator() {
     indicator.id = 'typingIndicator';
     indicator.className = 'flex justify-start my-2';
     indicator.innerHTML = `
-        <div class="bg-gray-700 rounded-lg px-4 py-3 flex items-center space-x-2">
+        <div class="bg-gray-700 rounded-lg px-4 py-3 flex items-center space-x-3">
             <div class="flex space-x-1">
                 <div class="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style="animation-delay: 0ms"></div>
                 <div class="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style="animation-delay: 150ms"></div>
                 <div class="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style="animation-delay: 300ms"></div>
             </div>
             <span class="text-gray-400 text-xs">AI is thinking...</span>
+            <button onclick="cancelStreaming()" class="ml-2 text-red-400 hover:text-red-300 text-xs px-2 py-1 border border-red-400/50 rounded hover:bg-red-400/10 transition-colors" title="Stop generating">
+                <i class="fas fa-stop mr-1"></i>Stop
+            </button>
         </div>
     `;
     container.appendChild(indicator);
@@ -661,6 +1031,7 @@ async function openServerModal() {
         const response = await apiCall('/api/servers');
         if (!response.ok) throw new Error('Failed to load servers');
         const servers = await response.json();
+        storedServers = servers; // Cache for protocol lookup
         if (servers.length === 0) {
             list.innerHTML = '<p class="text-gray-400 text-sm p-2">No servers configured.</p>';
             return;
@@ -787,6 +1158,16 @@ function connectTerminal(serverId) {
     closeServerModal();
     initTerminal();
     currentServerId = serverId;
+
+    // Find server to determine protocol
+    const server = storedServers.find(s => s.id === serverId);
+    if (server) {
+        currentServerProtocol = server.protocol || 'ssh';
+        console.log(`Connected to ${server.name} via ${currentServerProtocol}`);
+    } else {
+        currentServerProtocol = 'ssh'; // Default
+    }
+
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const token = localStorage.getItem('token');
     if (terminalSocket) terminalSocket.close();
@@ -821,35 +1202,497 @@ function connectTerminal(serverId) {
     };
 }
 
-// Command Execution (simplified - uses API)
+// Protocol-aware Command Execution
 async function executeCommandWithOutput(cardId, command) {
     const card = document.getElementById(cardId);
     if (!card || !currentServerId) {
         showToast('No server connected. Connect to a server first.', 'error');
         return;
     }
+
+    console.log(`Executing command via ${currentServerProtocol}: ${command}`);
+
+    if (currentServerProtocol === 'ssh') {
+        await tryAdaptiveExecution(cardId, command);
+    } else {
+        await executeWinRmWithTimeout(cardId, command);
+    }
+}
+
+// SSH: Terminal-Centric Execution (User Preferred)
+async function tryAdaptiveExecution(cardId, command) {
+    const card = document.getElementById(cardId);
     const actionsDiv = card.querySelector('.cmd-actions');
-    actionsDiv.innerHTML = '<div class="flex-1 flex items-center justify-center text-blue-400 text-sm py-2"><i class="fas fa-spinner fa-spin mr-2"></i>Executing via SSH...</div>';
+
+    // Reset cancellation flag at start of new command
+    pendingCommandCancelled = false;
+
+    // Remember terminal buffer position before command
+    const startLine = term ? term.buffer.active.baseY + term.buffer.active.cursorY : 0;
+
+    // 1. Send to terminal (Real Execution)
+    if (terminalSocket && terminalSocket.readyState === WebSocket.OPEN) {
+        terminalSocket.send(command + '\r');
+    } else {
+        showToast('Terminal not connected', 'error');
+        actionsDiv.innerHTML = '<div class="text-red-400 text-sm p-2">Error: Terminal disconnected</div>';
+        return;
+    }
+
+    // 2. Show "Running" status
+    actionsDiv.innerHTML = `
+        <div class="flex flex-col gap-2 p-3 bg-gray-900 rounded border border-gray-700">
+            <div class="text-green-400 text-sm font-bold animate-pulse">
+                <i class="fas fa-terminal mr-2"></i>Running in Terminal...
+            </div>
+            <div class="text-gray-300 text-xs">
+                Waiting for command to complete (auto-capture in 30s)...
+            </div>
+        </div>
+    `;
+
+    // 3. Poll for command completion (check for prompt return)
+    const TIMEOUT_MS = 30000;
+    const POLL_INTERVAL = 1000;
+    let elapsed = 0;
+
+    const checkCompletion = () => {
+        if (!term) return false;
+
+        // Get current terminal content after command
+        const currentLine = term.buffer.active.baseY + term.buffer.active.cursorY;
+        if (currentLine <= startLine) return false;
+
+        // Check if we've returned to a shell prompt (ends with $ or # or >)
+        const lastLine = term.buffer.active.getLine(currentLine);
+        if (lastLine) {
+            const text = lastLine.translateToString(true).trim();
+            if (text.endsWith('$') || text.endsWith('#') || text.endsWith('>') || text.endsWith(':~$')) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    const pollPromise = new Promise((resolve) => {
+        const interval = setInterval(() => {
+            elapsed += POLL_INTERVAL;
+
+            // Check if user cancelled by sending a new message
+            if (pendingCommandCancelled) {
+                clearInterval(interval);
+                resolve('cancelled');
+            } else if (checkCompletion()) {
+                clearInterval(interval);
+                resolve('completed');
+            } else if (elapsed >= TIMEOUT_MS) {
+                clearInterval(interval);
+                resolve('timeout');
+            }
+        }, POLL_INTERVAL);
+    });
+
+    const result = await pollPromise;
+
+    if (result === 'completed') {
+        // Auto-capture output
+        await captureTerminalOutput(cardId, command);
+    } else if (result === 'cancelled') {
+        // User sent a new message - cancel this command
+        actionsDiv.innerHTML = `
+            <div class="text-gray-400 text-sm p-2">
+                <i class="fas fa-ban mr-2"></i>Command cancelled - processing your new message...
+            </div>
+        `;
+    } else {
+        // Timeout - show manual capture button
+        actionsDiv.innerHTML = `
+            <div class="flex flex-col gap-2 p-3 bg-gray-900 rounded border border-yellow-600">
+                <div class="text-yellow-400 text-sm font-bold">
+                    <i class="fas fa-clock mr-2"></i>Command may need interaction
+                </div>
+                <div class="text-gray-300 text-xs">
+                    The command is taking longer than expected. Please interact with it in the terminal, then:
+                </div>
+                <button onclick="captureTerminalOutput('${cardId}', '${command.replace(/'/g, "\\'")}')" 
+                        class="w-full bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm transition-colors flex items-center justify-center mt-2">
+                    <i class="fas fa-camera mr-2"></i>Capture Output & Continue
+                </button>
+            </div>
+        `;
+    }
+}
+
+// Helper to capture terminal buffer
+async function captureTerminalOutput(cardId, command) {
+    if (!term) {
+        showToast('Terminal instance not found', 'error');
+        return;
+    }
+
+    // Capture last 100 lines of buffer
+    const buffer = [];
+    const activeBuffer = term.buffer.active;
+    const end = activeBuffer.baseY + activeBuffer.cursorY;
+    const start = Math.max(0, end - 100);
+
+    for (let i = start; i <= end; i++) {
+        const line = activeBuffer.getLine(i);
+        if (line) {
+            buffer.push(line.translateToString(true));
+        }
+    }
+    const output = buffer.join('\n');
+
+    // Auto-detect success from output (look for error patterns) - for internal tracking
+    const hasErrors = /error|failed|failure|exception|denied|not found|cannot|unable/i.test(output);
+    const autoSuccess = !hasErrors;
+
+    // Show simple "Output captured" status (no per-command feedback)
+    const card = document.getElementById(cardId);
+    if (card) {
+        const actionsDiv = card.querySelector('.cmd-actions');
+        if (actionsDiv) {
+            actionsDiv.innerHTML = '<div class="text-green-400 text-sm p-2"><i class="fas fa-check mr-2"></i>Output captured.</div>';
+        }
+    }
+
+    // Send to Agent
+    showToast('Output captured and sent to Agent', 'success');
+    await autoSendCommandOutputToAgent(command, output, autoSuccess, 0);
+
+    // Show session feedback button after first command
+    showSessionFeedbackButton();
+}
+
+// Submit feedback on whether a solution worked
+async function submitFeedback(feedbackId, command, success) {
+    const feedbackDiv = document.getElementById(feedbackId);
+    if (feedbackDiv) {
+        feedbackDiv.innerHTML = `
+            <div class="text-${success ? 'green' : 'yellow'}-400 text-sm p-2">
+                <i class="fas fa-${success ? 'check' : 'times'} mr-2"></i>
+                ${success ? 'Great! Feedback recorded.' : 'Thanks for letting us know.'}
+            </div>
+            `;
+    }
+
+    // Save feedback to backend
     try {
+        await apiCall('/api/v1/solution-feedback', {
+            method: 'POST',
+            body: JSON.stringify({
+                solution_type: 'command',
+                solution_reference: command,
+                success: success,
+                session_id: currentSessionId
+            })
+        });
+    } catch (error) {
+        console.error('Failed to save feedback:', error);
+    }
+}
+
+// ============================================================================
+// Session-Level Feedback (Floating Button)
+// ============================================================================
+
+let sessionFeedbackButtonVisible = false;
+
+// Show floating feedback button after first command execution
+function showSessionFeedbackButton() {
+    if (sessionFeedbackButtonVisible) return;
+    sessionFeedbackButtonVisible = true;
+
+    // Create floating button container
+    const existingBtn = document.getElementById('sessionFeedbackBtn');
+    if (existingBtn) return;
+
+    const feedbackBtn = document.createElement('div');
+    feedbackBtn.id = 'sessionFeedbackBtn';
+    feedbackBtn.innerHTML = `
+        <div class="fixed bottom-20 left-4 z-50 flex flex-col items-start gap-2">
+            <div id="sessionFeedbackExpanded" class="hidden bg-gray-800 border border-gray-600 rounded-lg p-3 shadow-xl">
+                <div class="text-gray-300 text-sm mb-2 font-medium">Was this session helpful?</div>
+                <div class="flex gap-2">
+                    <button onclick="submitSessionFeedback(true)" 
+                            class="bg-green-600 hover:bg-green-500 text-white text-sm px-4 py-2 rounded transition-colors flex items-center">
+                        <i class="fas fa-thumbs-up mr-2"></i>Yes
+                    </button>
+                    <button onclick="submitSessionFeedback(false)" 
+                            class="bg-red-600 hover:bg-red-500 text-white text-sm px-4 py-2 rounded transition-colors flex items-center">
+                        <i class="fas fa-thumbs-down mr-2"></i>No
+                    </button>
+                    <button onclick="hideSessionFeedbackExpanded()" 
+                            class="bg-gray-600 hover:bg-gray-500 text-white text-sm px-2 py-2 rounded transition-colors">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+            <button onclick="toggleSessionFeedback()" 
+                    class="bg-blue-600 hover:bg-blue-500 text-white p-3 rounded-full shadow-lg transition-all hover:scale-110"
+                    title="Rate this session">
+                <i class="fas fa-star text-lg"></i>
+            </button>
+        </div>
+    `;
+    document.body.appendChild(feedbackBtn);
+}
+
+function toggleSessionFeedback() {
+    const expanded = document.getElementById('sessionFeedbackExpanded');
+    if (expanded) {
+        expanded.classList.toggle('hidden');
+    }
+}
+
+function hideSessionFeedbackExpanded() {
+    const expanded = document.getElementById('sessionFeedbackExpanded');
+    if (expanded) {
+        expanded.classList.add('hidden');
+    }
+}
+
+async function submitSessionFeedback(success) {
+    // Collect session info
+    const sessionCommands = commandHistory.map(h => h.command).join(', ').substring(0, 500);
+
+    try {
+        await apiCall('/api/v1/solution-feedback', {
+            method: 'POST',
+            body: JSON.stringify({
+                solution_type: 'session',
+                solution_reference: sessionCommands || 'No commands executed',
+                success: success,
+                session_id: currentSessionId,
+                problem_description: `Session started at ${new Date().toISOString()}`
+            })
+        });
+
+        // Visual feedback
+        const btn = document.getElementById('sessionFeedbackBtn');
+        if (btn) {
+            btn.innerHTML = `
+                <div class="fixed bottom-20 left-4 z-50">
+                    <div class="bg-${success ? 'green' : 'yellow'}-600 text-white px-4 py-2 rounded-lg shadow-lg">
+                        <i class="fas fa-${success ? 'check' : 'times'} mr-2"></i>
+                        ${success ? 'Thanks! Feedback recorded.' : 'Thanks for letting us know.'}
+                    </div>
+                </div>
+            `;
+            // Hide after 3 seconds
+            setTimeout(() => {
+                btn.remove();
+                sessionFeedbackButtonVisible = false;
+            }, 3000);
+        }
+    } catch (error) {
+        console.error('Failed to submit session feedback:', error);
+        showToast('Failed to submit feedback', 'error');
+    }
+}
+
+// WinRM: Simple Execution with Timeout Warning
+async function executeWinRmWithTimeout(cardId, command) {
+    const card = document.getElementById(cardId);
+    const actionsDiv = card.querySelector('.cmd-actions');
+    actionsDiv.innerHTML = '<div class="flex-1 flex items-center justify-center text-blue-400 text-sm py-2"><i class="fas fa-spinner fa-spin mr-2"></i>Executing via WinRM...</div>';
+
+    try {
+        // Standard execute endpoint
         const response = await apiCall(`/api/servers/${currentServerId}/execute`, {
             method: 'POST',
             body: JSON.stringify({ command: command, timeout: 60 })
         });
         const result = await response.json();
-        if (terminalSocket && terminalSocket.readyState === WebSocket.OPEN) {
-            terminalSocket.send(command + '\r');
-        }
+
         const isSuccess = (result.exit_code === 0) || (result.success === true);
-        const output = result.stdout || result.stderr || (isSuccess ? 'Command completed successfully' : (result.error || 'Command failed'));
-        showCommandOutputInCard(cardId, command, output, isSuccess, result.exit_code);
-    } catch (error) {
-        console.error('Command execution failed:', error);
-        if (terminalSocket && terminalSocket.readyState === WebSocket.OPEN) {
-            terminalSocket.send(command + '\r');
-            term.focus();
+
+        let output = result.stdout || result.stderr;
+
+        if (result.error && result.error.includes('timed out')) {
+            // Fallback for timeout
+            showWinRMFallback(cardId, command);
+            return;
         }
-        showToast('Command execution failed: ' + error.message, 'error');
+
+        output = output || (isSuccess ? 'Command completed successfully' : (result.error || 'Command failed'));
+
+        showCommandOutputInCard(cardId, command, output, isSuccess, result.exit_code);
+        await autoSendCommandOutputToAgent(command, output, isSuccess, result.exit_code);
+
+    } catch (error) {
+        showToast('WinRM Execution failed: ' + error.message, 'error');
     }
+}
+
+function showInteractivePrompt(cardId, command, partialOutput, processId) {
+    const card = document.getElementById(cardId);
+    if (!card) return;
+
+    // Ensure we don't have duplicates
+    const existingPrompt = card.querySelector('.interactive-prompt');
+    if (existingPrompt) existingPrompt.remove();
+
+    const promptId = `prompt-${processId}`;
+    const outputPreview = partialOutput ? `
+        <div class="bg-black rounded p-2 text-xs font-mono text-gray-300 mb-3 max-h-32 overflow-y-auto border border-gray-700">
+            ${escapeHtml(partialOutput)}
+        </div>
+    ` : '';
+
+    const actionsDiv = card.querySelector('.cmd-actions');
+    actionsDiv.innerHTML = `
+        <div class="interactive-prompt bg-yellow-900/20 border-t border-yellow-500/30 p-3 w-full rounded">
+            <div class="text-yellow-400 text-sm mb-2 flex items-center">
+                <i class="fas fa-keyboard mr-2 animate-pulse"></i>
+                <span>Command is waiting for input...</span>
+            </div>
+            
+            ${outputPreview}
+            
+            <input type="text" 
+                   class="bg-gray-800 border border-gray-600 text-white px-3 py-2 rounded w-full mb-2 focus:ring-2 focus:ring-blue-500 outline-none font-mono text-sm" 
+                   placeholder="Type input and press Enter..." 
+                   id="input-${promptId}">
+            
+            <div class="flex space-x-2">
+                <button class="flex-1 bg-blue-600 hover:bg-blue-500 text-white text-sm px-3 py-1.5 rounded transition-colors flex items-center justify-center" 
+                        onclick="sendInteractiveInput('${cardId}', '${promptId}', '${processId}', '${escapeHtml(command).replace(/'/g, "\\'")}')">
+                    <i class="fas fa-paper-plane mr-2"></i>Send
+                </button>
+                <button class="bg-red-600/80 hover:bg-red-500 text-white text-sm px-3 py-1.5 rounded transition-colors" 
+                        onclick="cancelInteractiveCommand('${cardId}', '${processId}')">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    `;
+
+    // Focus input
+    setTimeout(() => {
+        const input = document.getElementById(`input-${promptId}`);
+        if (input) {
+            input.focus();
+            // Handle Enter key
+            input.onkeydown = (e) => {
+                if (e.key === 'Enter') {
+                    sendInteractiveInput(cardId, promptId, processId, command);
+                }
+            };
+        }
+    }, 100);
+}
+
+async function sendInteractiveInput(cardId, promptId, processId, command) {
+    const inputEl = document.getElementById(`input-${promptId}`);
+    if (!inputEl) return;
+
+    const userInput = inputEl.value;
+    inputEl.disabled = true;
+
+    // Show spinner on button
+    const btn = inputEl.parentElement.querySelector('button');
+    if (btn) btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+    try {
+        const response = await apiCall(`/api/servers/${currentServerId}/send-input`, {
+            method: 'POST',
+            body: JSON.stringify({
+                process_id: processId,
+                user_input: userInput,
+                wait_timeout: 3
+            })
+        });
+        const result = await response.json();
+
+        if (result.completed) {
+            // Finished!
+            const isSuccess = (result.exit_code === 0);
+            // Combine previous output if we tracked it, but here we just show what returned
+            // Actually, for better UX we might want to append to terminal
+
+            showCommandOutputInCard(cardId, command, result.output, isSuccess, result.exit_code);
+            await autoSendCommandOutputToAgent(command, result.output, isSuccess, result.exit_code);
+
+        } else {
+            // Still waiting - clear input and show more output
+            inputEl.disabled = false;
+            inputEl.value = '';
+            inputEl.focus();
+            if (btn) btn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i>Send';
+
+            // Append output to preview if possible, for now just update
+            if (result.output) {
+                const preview = document.querySelector(`#${cardId} .interactive-prompt .bg-black`);
+                if (preview) {
+                    preview.innerHTML += escapeHtml(result.output);
+                    preview.scrollTop = preview.scrollHeight;
+                }
+            }
+        }
+    } catch (error) {
+        showToast('Failed to send input: ' + error.message, 'error');
+        inputEl.disabled = false;
+        if (btn) btn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i>Send';
+    }
+}
+
+async function cancelInteractiveCommand(cardId, processId) {
+    try {
+        const url = `/api/servers/${currentServerId}/cancel-process?process_id=${processId}`;
+        await apiCall(url, { method: 'POST' });
+
+        const card = document.getElementById(cardId);
+        if (card) {
+            const actionsDiv = card.querySelector('.cmd-actions');
+            actionsDiv.innerHTML = '<div class="text-red-400 text-sm p-2"><i class="fas fa-ban mr-2"></i>Command cancelled by user.</div>';
+        }
+    } catch (error) {
+        showToast('Failed to cancel: ' + error.message, 'error');
+    }
+}
+
+function showWinRMFallback(cardId, command) {
+    const card = document.getElementById(cardId);
+    const actionsDiv = card.querySelector('.cmd-actions');
+    actionsDiv.innerHTML = `
+        <div class="bg-yellow-900/30 p-3 rounded text-sm mb-2">
+            <p class="text-yellow-400 mb-1"><i class="fas fa-exclamation-triangle mr-2"></i>Timeout (WinRM)</p>
+            <p class="text-gray-400 mb-2">Command may be waiting for input, which isn't supported via WinRM.</p>
+            <div class="flex space-x-2">
+                <button class="text-blue-400 hover:text-blue-300 underline" onclick="copyToClipboard('${escapeHtml(command).replace(/'/g, "\\'")}')">Copy Command</button>
+                <span class="text-gray-600">|</span>
+                <span class="text-gray-500">Run via RDP instead</span>
+            </div>
+        </div>
+    `;
+}
+
+async function autoSendCommandOutputToAgent(command, output, isSuccess, exitCode) {
+    // Wait 2 seconds for terminal buffer to update
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    // Build automatic message to Agent
+    const statusEmoji = isSuccess ? '✅' : '❌';
+    const autoMessage = `${statusEmoji} Command executed:\n\`\`\`\n${command}\n\`\`\`\n\nExit code: ${exitCode}\n\nOutput:\n\`\`\`\n${output.substring(0, 1000)}${output.length > 1000 ? '\n...(truncated)' : ''}\n\`\`\`\n\nWhat should I do next?`;
+
+    // Add to UI as user message, but visually distinct (auto)
+    appendUserMessage(`[Auto-Report] Command execution complete.`);
+
+    // Show typing indicator
+    showTypingIndicator();
+
+    // Send to Agent via SSE streaming (same as regular messages)
+    const termContent = getTerminalContent();
+    let finalMessage = autoMessage;
+    if (termContent) {
+        finalMessage += `\n\n[TERMINAL CONTEXT]\n\`\`\`\n${termContent}\n\`\`\``;
+    }
+
+    // Use streaming for auto-send as well
+    await sendStreamingMessage(finalMessage);
+    console.log('✅ Auto-sent command output to Agent via SSE stream');
 }
 
 function showCommandOutputInCard(cardId, command, output, success, exitCode) {
@@ -896,15 +1739,33 @@ function rerunCommand(command) {
 // Command Card Functions (for AI-suggested commands)
 function addRunButtons(element) {
     const blocks = element.querySelectorAll('pre code');
+    let commandCount = 0;  // Track how many commands we've found
+
     blocks.forEach(block => {
         const pre = block.parentElement;
         if (pre.querySelector('.code-actions') || pre.closest('.command-card')) return;
+
+        // Get language class
         const lang = block.className.match(/language-(\w+)/)?.[1] || '';
         const content = block.innerText.trim();
+
+        // Detect bash/shell commands
         const isExplicitShell = ['shell', 'bash', 'sh', 'zsh', 'fish'].includes(lang);
         const isUnmarked = lang === '';
-        if (isExplicitShell || (isUnmarked && isActualCommand(content))) {
-            createCommandCard(pre, content);
+
+        // Enhanced detection: if it looks like a command, create a button
+        const looksLikeCommand = isActualCommand(content);
+
+        if (isExplicitShell || (looksLikeCommand && (isUnmarked || lang === 'bash'))) {
+            commandCount++;
+
+            // ONLY show the FIRST command with a Run button
+            if (commandCount === 1) {
+                createCommandCard(pre, content);
+            } else {
+                // Just add copy button for extra commands (no Run button)
+                addCopyButton(pre, block, lang || 'bash');
+            }
         } else {
             addCopyButton(pre, block, lang || 'text');
         }

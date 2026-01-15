@@ -537,6 +537,7 @@
 <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/addon/hint/show-hint.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/addon/edit/matchbrackets.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/addon/edit/closebrackets.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/keymap/sublime.min.js"></script>
 
 <script>
     let panels = [];
@@ -794,6 +795,8 @@
                 matchBrackets: true,
                 autoCloseBrackets: true,
                 lineWrapping: true,
+                keyMap: 'sublime',
+                inputStyle: 'contenteditable',
                 placeholder: 'Example: rate(http_requests_total[5m])'
             });
         } else {
@@ -853,9 +856,12 @@
                 mode: 'javascript',
                 theme: 'dracula',
                 lineNumbers: true,
+                lineNumbers: true,
                 matchBrackets: true,
                 autoCloseBrackets: true,
-                lineWrapping: true
+                lineWrapping: true,
+                keyMap: 'sublime',
+                inputStyle: 'contenteditable'
             });
         }
         queryEditor.setValue(panel.promql_query || '');

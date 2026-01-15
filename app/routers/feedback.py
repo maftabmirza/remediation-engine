@@ -3,13 +3,15 @@ Feedback and Learning API Router
 Endpoints for feedback collection, effectiveness scoring, and similar incident search
 """
 import logging
-from typing import List
+from typing import List, Optional
 from uuid import UUID
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
 
 from app.database import get_db
-from app.models import Alert, User
+from app.models import Alert, User, SolutionOutcome
 from app.models_remediation import Runbook, RunbookExecution
 from app.models_learning import AnalysisFeedback, ExecutionOutcome
 from app.schemas_learning import (
@@ -26,6 +28,73 @@ from app.routers.auth import get_current_user
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+# ============================================================================
+# Solution Feedback Endpoints (Learning System)
+# ============================================================================
+
+class SolutionFeedbackCreate(BaseModel):
+    """Request body for solution feedback submission."""
+    solution_type: str  # 'command', 'runbook', 'knowledge', 'agent_suggestion'
+    solution_reference: str  # The command text, runbook id, etc.
+    success: bool
+    session_id: Optional[str] = None
+    user_feedback: Optional[str] = None
+    problem_description: Optional[str] = None
+
+
+class SolutionFeedbackResponse(BaseModel):
+    """Response for solution feedback submission."""
+    id: str
+    message: str
+
+
+@router.post("/solution-feedback", response_model=SolutionFeedbackResponse, status_code=201)
+async def submit_solution_feedback(
+    feedback: SolutionFeedbackCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Submit feedback on whether a suggested solution worked.
+    
+    This enables the learning system to track what solutions work for which problems.
+    """
+    import uuid
+    
+    # Parse session_id safely (may be None or invalid UUID format)
+    parsed_session_id = None
+    if feedback.session_id:
+        try:
+            parsed_session_id = UUID(feedback.session_id)
+        except (ValueError, AttributeError):
+            logger.warning(f"Invalid session_id format: {feedback.session_id[:50]}... - ignoring")
+            parsed_session_id = None
+    
+    # Create solution outcome record
+    outcome = SolutionOutcome(
+        session_id=parsed_session_id,
+        problem_description=feedback.problem_description or f"User ran: {feedback.solution_reference}",
+        solution_type=feedback.solution_type,
+        solution_reference=feedback.solution_reference,
+        solution_summary=feedback.solution_reference[:200] if feedback.solution_reference else None,
+        success=feedback.success,
+        auto_detected=False,  # User-provided feedback
+        user_feedback=feedback.user_feedback,
+        feedback_timestamp=datetime.now(timezone.utc)
+    )
+    
+    db.add(outcome)
+    db.commit()
+    db.refresh(outcome)
+    
+    logger.info(f"User {current_user.username} submitted solution feedback: {feedback.solution_type} - {'success' if feedback.success else 'failed'}")
+    
+    return SolutionFeedbackResponse(
+        id=str(outcome.id),
+        message="Feedback recorded successfully"
+    )
 
 
 # ============================================================================

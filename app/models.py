@@ -9,10 +9,11 @@ from pgvector.sqlalchemy import Vector
 
 from app.database import Base
 if TYPE_CHECKING:
-    from app.models_chat import ChatSession, ChatMessage
+    pass
 else:
     # Avoid runtime circular import but allow SQLAlchemy to find models if needed
-    pass
+    from app.models_learning import AnalysisFeedback
+    from app.models_troubleshooting import AlertCorrelation
 
 
 def utc_now():
@@ -38,7 +39,6 @@ class User(Base):
     default_llm_provider = relationship("LLMProvider", foreign_keys=[default_llm_provider_id])
     rules_created = relationship("AutoAnalyzeRule", back_populates="created_by_user")
     alerts_analyzed = relationship("Alert", back_populates="analyzed_by_user")
-    chat_sessions = relationship("ChatSession", back_populates="user")
 
 
 class Role(Base):
@@ -449,3 +449,37 @@ class SystemConfig(Base):
     value_json = Column(JSON, nullable=False)
     updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
     updated_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+
+
+class SolutionOutcome(Base):
+    """Track what solutions worked for which problems - enables learning from feedback."""
+    __tablename__ = "solution_outcomes"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+
+    # Session context
+    session_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+
+    # Problem context (for similarity matching)
+    problem_description = Column(Text, nullable=False)
+    problem_embedding = Column(Vector(1536), nullable=True)  # For similarity search
+    alert_id = Column(UUID(as_uuid=True), ForeignKey("alerts.id", ondelete="SET NULL"), nullable=True, index=True)
+    server_id = Column(UUID(as_uuid=True), ForeignKey("server_credentials.id", ondelete="SET NULL"), nullable=True, index=True)
+
+    # What was suggested
+    solution_type = Column(String(50), nullable=False)  # 'runbook', 'command', 'knowledge', 'agent_suggestion'
+    solution_reference = Column(Text, nullable=True)     # runbook_id, command text, knowledge doc id
+    solution_summary = Column(Text, nullable=True)       # Brief description
+
+    # Outcome (from user feedback or auto-detection)
+    success = Column(Boolean, nullable=True)
+    auto_detected = Column(Boolean, default=False)  # Was success auto-detected from terminal?
+    user_feedback = Column(Text, nullable=True)
+    feedback_timestamp = Column(DateTime(timezone=True), nullable=True)
+
+    # Metadata
+    created_at = Column(DateTime(timezone=True), default=utc_now, index=True)
+
+    # Relationships
+    alert = relationship("Alert")
+    server = relationship("ServerCredential")

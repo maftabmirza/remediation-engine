@@ -8,46 +8,39 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 {% endblock %}
 
+{% block breadcrumbs %}
+<span class="mx-2">/</span>
+<span class="text-gray-200">Change Correlation</span>
+{% endblock %}
+
+{% block header_title %}
+<i class="fas fa-code-branch text-purple-400"></i>
+<span class="text-sm font-semibold text-white tracking-tight">Change Correlation</span>
+{% endblock %}
+
+{% block header_actions %}
+<div class="flex items-center gap-2">
+    <div class="flex items-center space-x-2 bg-gray-800 rounded px-2 py-1 border border-gray-700 h-8">
+        <label for="timeRange" class="text-[10px] text-gray-400">Range:</label>
+        <select id="timeRange"
+            class="bg-transparent text-xs text-white focus:outline-none border-none p-0 cursor-pointer"
+            onchange="loadAllData()">
+            <option value="24h">24h</option>
+            <option value="7d" selected>7d</option>
+            <option value="30d">30d</option>
+        </select>
+    </div>
+
+    <button onclick="showITSMModal()"
+        class="flex items-center gap-2 px-3 py-1 bg-gray-800 hover:bg-gray-700 text-white rounded transition-colors text-[11px] border border-gray-700 h-8">
+        <i class="fas fa-plug text-purple-400"></i>
+        <span>Configure ITSM</span>
+    </button>
+</div>
+{% endblock %}
+
 {% block content %}
 <div class="space-y-4">
-    <!-- Enterprise Standard Toolbar -->
-    <div class="dashboard-header"
-        style="padding: 12px; background: #16171b; border-bottom: 1px solid rgba(255,255,255,0.05); border-radius: 8px;">
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <!-- Left: Breadcrumbs & Title -->
-            <div class="flex flex-col min-w-0">
-                <nav class="flex items-center text-xs text-gray-400 mb-1">
-                    <a href="/" class="hover:text-blue-400 transition-colors">Home</a>
-                    <span class="mx-2">/</span>
-                    <span class="text-gray-200">Change Correlation</span>
-                </nav>
-                <div class="flex items-center gap-3">
-                    <h1 class="text-xl font-bold text-white tracking-tight truncate">Change Correlation</h1>
-                </div>
-                <p class="text-xs text-gray-500 mt-1">Track deployments and their impact on incidents</p>
-            </div>
-
-            <!-- Right: Actions -->
-            <div class="flex items-center gap-3">
-                <div class="flex items-center space-x-2 bg-gray-700/50 rounded px-3 py-1.5 border border-gray-700">
-                    <label for="timeRange" class="text-xs text-gray-400">Range:</label>
-                    <select id="timeRange"
-                        class="bg-transparent text-sm text-white focus:outline-none border-none p-0 cursor-pointer"
-                        onchange="loadAllData()">
-                        <option value="24h">Last 24h</option>
-                        <option value="7d" selected>Last 7 days</option>
-                        <option value="30d">Last 30 days</option>
-                    </select>
-                </div>
-
-                <button onclick="showITSMModal()"
-                    class="flex items-center gap-2 px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors text-sm shadow-sm">
-                    <i class="fas fa-plug text-purple-400"></i>
-                    <span>Configure ITSM</span>
-                </button>
-            </div>
-        </div>
-    </div>
 
     <!-- Stats Cards -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4">

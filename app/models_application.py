@@ -10,6 +10,8 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
 from app.database import Base
+from app.models import Alert
+from app.models_application_knowledge import ApplicationKnowledgeConfig
 
 
 def utc_now():
@@ -42,6 +44,9 @@ class Application(Base):
     design_documents = relationship("DesignDocument", back_populates="application", cascade="all, delete-orphan")
     design_images = relationship("DesignImage", back_populates="application", cascade="all, delete-orphan")
     design_chunks = relationship("DesignChunk", back_populates="application", cascade="all, delete-orphan")
+    
+    # Knowledge config
+    knowledge_config = relationship("ApplicationKnowledgeConfig", back_populates="application", uselist=False, cascade="all, delete-orphan")
 
     __table_args__ = (
         CheckConstraint(

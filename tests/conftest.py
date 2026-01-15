@@ -19,17 +19,34 @@ os.environ.setdefault("ENCRYPTION_KEY", "test-encryption-key-32chars-ok!")
 # Add parent directory to path FIRST
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-# Clear the settings cache to ensure our new env vars are picked up
-from app.config import get_settings
-get_settings.cache_clear()
+# Clear the settings cache to ensure our new env vars are picked up.
+# Keep this optional so unit tests can run without full app deps installed.
+try:
+    from app.config import get_settings
+except ImportError:
+    get_settings = None
+else:
+    get_settings.cache_clear()
 
 import pytest
 from typing import Generator, AsyncGenerator
 from unittest.mock import MagicMock, AsyncMock
-from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy.pool import StaticPool
-from fastapi.testclient import TestClient
+
+try:
+    from sqlalchemy import create_engine, text
+    from sqlalchemy.orm import sessionmaker, Session
+    from sqlalchemy.pool import StaticPool
+except ImportError:
+    create_engine = None
+    text = None
+    sessionmaker = None
+    Session = None
+    StaticPool = None
+
+try:
+    from fastapi.testclient import TestClient
+except ImportError:
+    TestClient = None
 
 # Now import app - it will use the environment variables we set above
 try:
@@ -82,6 +99,9 @@ def test_db_engine():
     """
     if engine is None:
         pytest.skip("Database engine not available")
+
+    if Base is None:
+        pytest.skip("Database models not available")
     
     # Create all tables
     Base.metadata.create_all(bind=engine)
@@ -100,6 +120,8 @@ def test_db_engine():
 @pytest.fixture(scope="function")
 def test_db_session(test_db_engine) -> Generator[Session, None, None]:
     """Create a test database session."""
+    if sessionmaker is None:
+        pytest.skip("SQLAlchemy not installed")
     TestingSessionLocal = sessionmaker(
         autocommit=False,
         autoflush=False,
@@ -118,6 +140,8 @@ def test_db_session(test_db_engine) -> Generator[Session, None, None]:
 @pytest.fixture(scope="function")
 def test_client(test_db_session) -> Generator[TestClient, None, None]:
     """Create a FastAPI test client with test database."""
+    if app is None or TestClient is None or get_db is None:
+        pytest.skip("FastAPI app/test client not available")
     def override_get_db():
         try:
             yield test_db_session
@@ -142,6 +166,9 @@ async def async_client(test_db_session) -> AsyncGenerator:
     """
     import httpx
     from httpx import ASGITransport
+
+    if app is None or get_db is None:
+        pytest.skip("FastAPI app not available")
     
     def override_get_db():
         try:

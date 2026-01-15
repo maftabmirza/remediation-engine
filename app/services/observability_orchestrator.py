@@ -9,7 +9,7 @@ Orchestrates queries across multiple observability backends:
 Executes queries in parallel and aggregates results into a unified response.
 """
 
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Tuple
 from datetime import datetime, timedelta
 from pydantic import BaseModel
 import asyncio
@@ -300,7 +300,7 @@ class ObservabilityOrchestrator:
         time_range: str,
         start_time: Optional[datetime],
         end_time: Optional[datetime]
-    ) -> tuple[datetime, datetime]:
+    ) -> Tuple[datetime, datetime]:
         """Calculate start and end time from time range string."""
         if start_time and end_time:
             return start_time, end_time

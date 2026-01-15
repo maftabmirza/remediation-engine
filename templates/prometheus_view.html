@@ -1,0 +1,119 @@
+{% extends "layout.html" %}
+
+{% block title %}Prometheus - AIOps Platform{% endblock %}
+
+{% block head %}
+{{ super() }}
+<style>
+    .prometheus-container {
+        position: fixed !important;
+        top: 64px !important;
+        /* Leave room for top navbar */
+        left: 80px !important;
+        /* Sidebar width */
+        right: 0 !important;
+        bottom: 0 !important;
+        height: calc(100% - 64px) !important;
+        /* Subtract navbar height */
+        overflow: hidden !important;
+        background: #1e1e1e !important;
+        transition: left 0.3s ease;
+        z-index: 1;
+        /* Lower than sidebar (z-20) */
+    }
+
+    /* Adjust for expanded sidebar if needed via JS or just let it overlap */
+    body.sidebar-expanded .prometheus-container {
+        left: 256px !important;
+    }
+
+    .prometheus-container iframe {
+        border: none !important;
+        display: block !important;
+        width: 100% !important;
+        height: 100% !important;
+    }
+
+    .loading-overlay {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: #aaa;
+        font-size: 18px;
+        text-align: center;
+    }
+
+    .loading-spinner {
+        width: 50px;
+        height: 50px;
+        border: 4px solid #333;
+        border-top-color: #f59e0b;
+        /* Prometheus Orange */
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 20px;
+    }
+
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="prometheus-container" id="promContainer">
+    <div class="loading-overlay" id="loading">
+        <div class="loading-spinner"></div>
+        <div>Loading Prometheus...</div>
+    </div>
+    <!-- Embed Prometheus via Proxy -->
+    <iframe id="prometheus-iframe" src="/prometheus/graph" title="Prometheus"
+        onload="document.getElementById('loading').style.display='none';">
+    </iframe>
+</div>
+
+<script>
+    // Simple script to adjust container when sidebar toggles
+    // We observe the sidebar class changes
+    const sidebar = document.getElementById('sidebar');
+    const container = document.getElementById('promContainer');
+
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            if (mutation.attributeName === 'class') {
+                // Assuming 'w-64' is the class for expanded sidebar and 'w-20' for collapsed
+                // Or, more robustly, check for the presence of the expanded class
+                if (sidebar.classList.contains('w-64')) { // Example class for expanded state
+                    container.style.left = '256px'; // Expanded sidebar width + padding
+                } else {
+                    container.style.left = '80px'; // Collapsed sidebar width + padding
+                }
+            }
+        });
+    });
+
+    if (sidebar) {
+        observer.observe(sidebar, { attributes: true });
+    }
+</script>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<!-- No manual resize needed, CSS handles it -->
+{% endblock %}
+
+<!-- Disable Default AI Agent (Outer) -->
+<!-- The agent is injected INSIDE the iframe by the proxy -->
+{% block ai_agent %}
+<!-- Empty block suppresses the default widget -->
+{% endblock %}
+
+<!-- RE-VIVE AI Assistant Widget -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+<link href="/static/css/revive_widget_grafana.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="/static/js/revive_widget_grafana.js"></script>
