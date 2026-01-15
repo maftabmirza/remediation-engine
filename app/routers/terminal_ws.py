@@ -11,9 +11,10 @@ from starlette.websockets import WebSocketState
 import aiofiles
 
 from app.database import get_db
-from app.models import TerminalSession
+from app.models import TerminalSession, ServerCredential
 from app.services.auth_service import get_current_user_ws
 from app.services.ssh_service import get_ssh_connection
+from app.services.winrm_terminal_service import get_winrm_connection, WinRMTerminal
 from app.config import get_settings
 from app.metrics import TERMINAL_SESSIONS, TERMINAL_CONNECTIONS
 
@@ -196,12 +197,12 @@ async def terminal_websocket(
     db: Session = Depends(get_db)
 ):
     """
-    WebSocket endpoint for SSH terminal.
+    WebSocket endpoint for terminal (SSH or WinRM based on server protocol).
     
     Close codes:
         - 4001: Authentication failed
         - 4004: Server not found
-        - 4010: SSH connection failed
+        - 4010: SSH/WinRM connection failed
         - 4500: Internal server error
     """
     # Authenticate
@@ -216,6 +217,247 @@ async def terminal_websocket(
     logger.info(f"Terminal WebSocket connected: user={user.username}, server={server_id}")
     TERMINAL_SESSIONS.inc()  # Increment active sessions
     
+    # Check server protocol
+    server = db.query(ServerCredential).filter(ServerCredential.id == server_id).first()
+    if not server:
+        logger.error(f"Server not found: {server_id}")
+        TERMINAL_CONNECTIONS.labels(status="server_not_found").inc()
+        await safe_send(websocket, f"\r\nError: Server not found\r\n")
+        await safe_close(websocket, WS_CLOSE_SERVER_NOT_FOUND)
+        TERMINAL_SESSIONS.dec()
+        return
+    
+    protocol = server.protocol or 'ssh'
+    
+    if protocol == 'winrm':
+        await _handle_winrm_terminal(websocket, server_id, server, user, cols, rows, db)
+    else:
+        await _handle_ssh_terminal(websocket, server_id, user, cols, rows, db)
+
+
+async def _handle_winrm_terminal(websocket: WebSocket, server_id: UUID, server, user, cols: int, rows: int, db: Session):
+    """Handle WinRM terminal session."""
+    winrm_client = None
+    session_record = None
+    recording_task = None
+    tasks = []
+    
+    try:
+        # 1. Get WinRM Connection
+        try:
+            winrm_client = await get_winrm_connection(db, server_id)
+        except ValueError as e:
+            logger.error(f"WinRM credentials error: {server_id}: {e}")
+            TERMINAL_CONNECTIONS.labels(status="server_not_found").inc()
+            await safe_send(websocket, f"\r\nError: {e}\r\n")
+            await safe_close(websocket, WS_CLOSE_SERVER_NOT_FOUND)
+            return
+        
+        try:
+            await winrm_client.connect()
+        except Exception as e:
+            logger.error(f"WinRM connection failed to {server_id}: {e}")
+            TERMINAL_CONNECTIONS.labels(status="ssh_failed").inc()
+            await safe_send(websocket, f"\r\nWinRM Connection Error: {str(e)}\r\n")
+            await safe_close(websocket, WS_CLOSE_SSH_FAILED)
+            return
+        
+        TERMINAL_CONNECTIONS.labels(status="success").inc()
+        
+        # 2. Create Session Record & Recording File
+        timestamp = int(datetime.now(timezone.utc).timestamp())
+        filename = f"{user.username}_{server_id}_{timestamp}.log"
+        filepath = os.path.join(RECORDING_DIR, filename)
+        
+        recording_queue: asyncio.Queue = asyncio.Queue()
+        recording_enabled = True
+        
+        session_record = TerminalSession(
+            user_id=user.id,
+            server_credential_id=server_id,
+            recording_path=filepath
+        )
+        db.add(session_record)
+        db.commit()
+        
+        # 3. Send welcome message
+        welcome = f"\r\n\x1b[1;32mConnected to {server.hostname} via WinRM\x1b[0m\r\n"
+        welcome += f"\x1b[1;33mNote: WinRM provides command-mode terminal (not interactive shell)\x1b[0m\r\n"
+        welcome += f"\x1b[1;33mType PowerShell commands and press Enter to execute\x1b[0m\r\n\r\n"
+        welcome += f"PS {server.hostname}> "
+        await safe_send(websocket, welcome)
+        
+        # 4. Async recording writer task
+        async def record_output():
+            nonlocal recording_enabled
+            try:
+                async with aiofiles.open(filepath, "w", encoding="utf-8") as f:
+                    while True:
+                        data = await recording_queue.get()
+                        if data is None:
+                            break
+                        try:
+                            await f.write(data)
+                            await f.flush()
+                        except Exception as e:
+                            logger.warning(f"Failed to write to recording: {e}")
+                            recording_enabled = False
+                            break
+            except Exception as e:
+                logger.warning(f"Recording task error: {e}")
+                recording_enabled = False
+        
+        # 5. Command input/output loop
+        command_buffer = ""
+        
+        async def process_input():
+            nonlocal command_buffer
+            try:
+                while True:
+                    data = await websocket.receive_text()
+                    
+                    # Check for resize/ping events
+                    if data.startswith('{"type":'):
+                        try:
+                            msg = json.loads(data)
+                            if msg.get("type") in ("resize", "ping"):
+                                continue
+                        except json.JSONDecodeError:
+                            pass
+                    
+                    # Echo input back to terminal
+                    for char in data:
+                        if char == '\r' or char == '\n':
+                            # Execute command on Enter
+                            await safe_send(websocket, "\r\n")
+                            
+                            if command_buffer.strip():
+                                # Record command
+                                if recording_enabled:
+                                    try:
+                                        recording_queue.put_nowait(f"> {command_buffer}\n")
+                                    except asyncio.QueueFull:
+                                        pass
+                                
+                                # Handle exit command
+                                if command_buffer.strip().lower() in ('exit', 'quit', 'logout'):
+                                    await safe_send(websocket, "\r\n\x1b[1;31mSession terminated.\x1b[0m\r\n")
+                                    return
+                                
+                                # Execute command
+                                await safe_send(websocket, f"\x1b[90mExecuting...\x1b[0m\r\n")
+                                stdout, stderr, exit_code = await winrm_client.execute(command_buffer)
+                                
+                                # Format and send output
+                                if stdout:
+                                    # Replace newlines with \r\n for terminal
+                                    output = stdout.replace('\n', '\r\n')
+                                    await safe_send(websocket, output)
+                                    if recording_enabled:
+                                        try:
+                                            recording_queue.put_nowait(stdout)
+                                        except asyncio.QueueFull:
+                                            pass
+                                
+                                if stderr:
+                                    error_output = f"\x1b[1;31m{stderr.replace(chr(10), chr(13)+chr(10))}\x1b[0m"
+                                    await safe_send(websocket, error_output)
+                                
+                                if not stdout.endswith('\n') and not stderr.endswith('\n'):
+                                    await safe_send(websocket, "\r\n")
+                            
+                            command_buffer = ""
+                            await safe_send(websocket, f"\r\nPS {server.hostname}> ")
+                            
+                        elif char == '\x7f' or char == '\b':  # Backspace
+                            if command_buffer:
+                                command_buffer = command_buffer[:-1]
+                                await safe_send(websocket, "\b \b")
+                        elif char == '\x03':  # Ctrl+C
+                            command_buffer = ""
+                            await safe_send(websocket, "^C\r\n")
+                            await safe_send(websocket, f"PS {server.hostname}> ")
+                        elif ord(char) >= 32:  # Printable characters
+                            command_buffer += char
+                            await safe_send(websocket, char)
+                            
+            except WebSocketDisconnect:
+                logger.debug(f"WebSocket disconnected for WinRM terminal {server_id}")
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                logger.debug(f"WinRM input processing ended: {e}")
+
+        async def heartbeat():
+            try:
+                while True:
+                    await asyncio.sleep(30)
+                    if not await safe_send(websocket, '{"type":"ping"}'):
+                        break
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                pass
+
+        # Run tasks
+        recording_task = asyncio.create_task(record_output())
+        input_task = asyncio.create_task(process_input())
+        heartbeat_task = asyncio.create_task(heartbeat())
+        tasks = [input_task, heartbeat_task]
+        
+        # Wait for any task to finish
+        done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+        
+        # Signal recording task to stop
+        await recording_queue.put(None)
+        
+        # Cancel remaining tasks
+        for task in pending:
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+            
+    except WebSocketDisconnect:
+        logger.info(f"WinRM Terminal WebSocket disconnected: user={user.username}, server={server_id}")
+    except Exception as e:
+        logger.error(f"WinRM Terminal WebSocket error: {e}", exc_info=True)
+        await safe_send(websocket, f"\r\nInternal Error: {str(e)}\r\n")
+        
+    finally:
+        logger.debug(f"Cleaning up WinRM terminal session for server {server_id}")
+        TERMINAL_SESSIONS.dec()
+        
+        if recording_task:
+            try:
+                await recording_queue.put(None)
+                await asyncio.wait_for(recording_task, timeout=2.0)
+            except (asyncio.TimeoutError, NameError):
+                pass
+        
+        for task in tasks:
+            if not task.done():
+                task.cancel()
+        
+        if session_record:
+            try:
+                session_record.ended_at = datetime.now(timezone.utc)
+                db.commit()
+            except Exception as e:
+                logger.error(f"Failed to update session end time: {e}")
+        
+        if winrm_client:
+            try:
+                await winrm_client.close()
+            except Exception as e:
+                logger.warning(f"Error closing WinRM connection: {e}")
+        
+        await safe_close(websocket)
+
+
+async def _handle_ssh_terminal(websocket: WebSocket, server_id: UUID, user, cols: int, rows: int, db: Session):
+    """Handle SSH terminal session."""
     ssh_client = None
     process = None
     session_record = None
@@ -259,7 +501,7 @@ async def terminal_websocket(
         filepath = os.path.join(RECORDING_DIR, filename)
         
         # Queue for async recording
-        recording_queue: asyncio.Queue = asyncio.Queue()
+        recording_queue = asyncio.Queue()
         recording_enabled = True
         
         session_record = TerminalSession(
@@ -385,19 +627,21 @@ async def terminal_websocket(
         
     finally:
         # Cleanup in order
-        logger.debug(f"Cleaning up terminal session for server {server_id}")
+        logger.debug(f"Cleaning up SSH terminal session for server {server_id}")
         
         # Decrement active sessions
         TERMINAL_SESSIONS.dec()
         
         # Signal recording task to stop and wait for it
-        try:
-            await recording_queue.put(None)
-            await asyncio.wait_for(recording_task, timeout=2.0)
-        except (asyncio.TimeoutError, NameError):
-            pass
-        except Exception as e:
-            logger.debug(f"Error stopping recording task: {e}")
+        if recording_queue:
+            try:
+                await recording_queue.put(None)
+                if recording_task:
+                    await asyncio.wait_for(recording_task, timeout=2.0)
+            except (asyncio.TimeoutError, NameError):
+                pass
+            except Exception as e:
+                logger.debug(f"Error stopping recording task: {e}")
         
         # Cancel any remaining tasks
         for task in tasks:

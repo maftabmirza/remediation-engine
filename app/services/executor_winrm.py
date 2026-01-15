@@ -60,11 +60,17 @@ class WinRMExecutor(BaseExecutor):
         scheme = 'https' if self.use_ssl else 'http'
         endpoint = f"{scheme}://{self.hostname}:{self.port}/wsman"
         
+        # read_timeout_sec must be greater than operation_timeout_sec
+        operation_timeout = max(self.timeout, 30)
+        read_timeout = operation_timeout + 10
+        
         self._session = winrm.Session(
             endpoint,
             auth=(self.username, self.password or ""),
             transport=self.transport,
-            server_cert_validation='validate' if self.cert_validation else 'ignore'
+            server_cert_validation='validate' if self.cert_validation else 'ignore',
+            read_timeout_sec=read_timeout,
+            operation_timeout_sec=operation_timeout
         )
         self._connected = True
 
@@ -111,11 +117,15 @@ class WinRMExecutor(BaseExecutor):
         env: Optional[Dict[str, str]] = None,
         working_directory: Optional[str] = None
     ) -> ExecutionResult:
+        effective_timeout = timeout or self.timeout or 60
         try:
             loop = asyncio.get_running_loop()
             
-            # Offload to thread pool
-            result = await loop.run_in_executor(None, partial(self._run_cmd_sync, command))
+            # Offload to thread pool with asyncio timeout
+            result = await asyncio.wait_for(
+                loop.run_in_executor(None, partial(self._run_cmd_sync, command)),
+                timeout=effective_timeout
+            )
             
             success = result.status_code == 0
             
@@ -127,6 +137,20 @@ class WinRMExecutor(BaseExecutor):
                 duration_ms=0,
                 command=command,
                 server_hostname=self.hostname
+            )
+        except asyncio.TimeoutError:
+            logger.error(f"WinRM command timed out on {self.hostname} after {effective_timeout}s")
+            return ExecutionResult(
+                success=False,
+                exit_code=-1,
+                stdout="",
+                stderr=f"Command timed out after {effective_timeout} seconds",
+                duration_ms=effective_timeout * 1000,
+                command=command,
+                server_hostname=self.hostname,
+                error_type=ErrorType.TIMEOUT,
+                error_message=f"Command timed out after {effective_timeout} seconds",
+                retryable=True
             )
             
         except Exception as e:
@@ -145,7 +169,7 @@ class WinRMExecutor(BaseExecutor):
             )
 
     async def test_connection(self) -> bool:
-        """Test connectivity."""
+        """Test connectivity with timeout."""
         try:
             loop = asyncio.get_running_loop()
             # Wrap specific check
@@ -155,8 +179,16 @@ class WinRMExecutor(BaseExecutor):
                 res = self._session.run_cmd("echo OK")
                 return res.status_code == 0
             
-            return await loop.run_in_executor(None, _check)
-        except Exception:
+            # Apply asyncio timeout to prevent hanging
+            return await asyncio.wait_for(
+                loop.run_in_executor(None, _check),
+                timeout=30  # 30 second timeout for test
+            )
+        except asyncio.TimeoutError:
+            logger.error(f"WinRM connection test timed out for {self.hostname}")
+            return False
+        except Exception as e:
+            logger.error(f"WinRM connection test failed for {self.hostname}: {e}")
             return False
 
     async def get_server_info(self) -> ServerInfo:

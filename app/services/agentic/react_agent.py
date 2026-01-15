@@ -372,7 +372,13 @@ Continue investigating.\n\nThought:"""
                 final_answer = self._parse_final_answer(response)
                 if final_answer:
                     # Enforce minimum 2 tool calls before allowing final answer
-                    if len(self.tool_calls_made) < 2:
+                    normalized_user = (user_message or "").strip().lower()
+                    is_greeting = normalized_user in {"hi", "hello", "hey", "test", "ping"} or (
+                        len(normalized_user) <= 40 and any(g in normalized_user for g in ["hello", "hi", "hey", "good morning", "good afternoon", "good evening"])
+                    )
+                    is_capabilities = any(p in normalized_user for p in ["what can you do", "how can you help", "who are you", "help"])
+
+                    if len(self.tool_calls_made) < 2 and not (is_greeting or is_capabilities):
                         logger.warning(f"Agent tried to finish with only {len(self.tool_calls_made)} tool calls, forcing more investigation")
                         self.context += f"""\n\n[SYSTEM]: You attempted to provide a Final Answer but have only called {len(self.tool_calls_made)} tool(s).
 You MUST call at least 2 tools to gather evidence before suggesting any action.

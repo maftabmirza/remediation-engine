@@ -360,6 +360,89 @@ Tools called so far will be tracked. If you try to suggest a command without suf
 
         return links
 
+    def _get_last_user_message_text(self) -> str:
+        """Return the last real user message (skips internal [SYSTEM] injections)."""
+        for msg in reversed(self.messages):
+            if msg.get("role") != "user":
+                continue
+            content = str(msg.get("content") or "").strip()
+            if not content:
+                continue
+            if content.startswith("[SYSTEM]:"):
+                continue
+            return content
+        return ""
+
+    def _is_greeting_or_capabilities_question(self, text: str) -> bool:
+        t = re.sub(r"\s+", " ", (text or "").strip().lower())
+        if not t:
+            return False
+        # Common greetings / sanity checks
+        if t in {"hi", "hello", "hey", "test", "ping"}:
+            return True
+        if len(t) <= 40 and any(g in t for g in ["hello", "hi", "hey", "good morning", "good afternoon", "good evening"]):
+            return True
+        # Capability / onboarding questions
+        if any(p in t for p in [
+            "what can you do",
+            "how can you help",
+            "help",
+            "who are you",
+            "what are you",
+            "how to use",
+        ]):
+            return True
+        return False
+
+    def _contains_command_like_text(self, text: str) -> bool:
+        if not text:
+            return False
+        if "```" in text:
+            return True
+        lower = text.lower()
+        # Very lightweight command heuristics (Linux + Windows)
+        cmd_patterns = [
+            r"(^|\n)\s*(sudo\s+)",
+            r"(^|\n)\s*(systemctl|journalctl|kubectl|docker|curl|wget|apt-get|yum|dnf|helm)\b",
+            r"(^|\n)\s*(powershell|cmd\.exe)\b",
+            r"\b(restart-service|get-service|start-service|stop-service)\b",
+        ]
+        return any(re.search(p, lower) for p in cmd_patterns)
+
+    def _looks_like_actionable_recommendation(self, assistant_text: str) -> bool:
+        t = (assistant_text or "").strip()
+        if not t:
+            return False
+        lower = t.lower()
+        if self._contains_command_like_text(t):
+            return True
+        if any(k in lower for k in [
+            "recommended action",
+            "run this",
+            "execute",
+            "restart",
+            "roll back",
+            "rollback",
+            "fix",
+        ]):
+            return True
+        return False
+
+    def _should_enforce_min_tool_calls(self, assistant_text: str) -> bool:
+        """Only enforce min-tool rule when we're about to act (or have alert context)."""
+        if self.alert:
+            return True
+
+        last_user = self._get_last_user_message_text()
+        if self._is_greeting_or_capabilities_question(last_user):
+            return False
+
+        # Allow clarifying questions / onboarding without tools
+        if "?" in (assistant_text or "") and not self._contains_command_like_text(assistant_text or ""):
+            return False
+
+        return self._looks_like_actionable_recommendation(assistant_text or "")
+
     def _ensure_runbook_links_in_final(self, final_content: str) -> str:
         """Append runbook view links to the final response if missing."""
         links = self._extract_runbook_view_links()
@@ -736,8 +819,8 @@ Tools called so far will be tracked. If you try to suggest a command without suf
 
                 else:
                     # No tool calls - final response
-                    # Enforce minimum 2 tool calls before allowing final answer
-                    if len(self.tool_calls_made) < 2:
+                    # Enforce minimum tool calls only when the response is actionable.
+                    if len(self.tool_calls_made) < 2 and self._should_enforce_min_tool_calls(message.content or ""):
                         logger.warning(f"Agent tried to finish with only {len(self.tool_calls_made)} tool calls, forcing more investigation")
                         # Add system message to force more investigation
                         self.messages.append({
@@ -923,8 +1006,8 @@ Tools called so far will be tracked. If you try to suggest a command without suf
 
                 else:
                     # No tool calls - final response
-                    # Enforce minimum 2 tool calls before allowing final answer
-                    if len(self.tool_calls_made) < 2:
+                    # Enforce minimum tool calls only when the response is actionable.
+                    if len(self.tool_calls_made) < 2 and self._should_enforce_min_tool_calls(message.content or ""):
                         logger.warning(f"Stream: Agent tried to finish with only {len(self.tool_calls_made)} tool calls, forcing more investigation")
                         # Add system message to force more investigation
                         self.messages.append({

@@ -93,6 +93,11 @@ class ServerTestRequest(BaseModel):
     # For shared credentials
     credential_source: str = "inline"
     credential_profile_id: Optional[UUID] = None
+    # WinRM-specific settings
+    winrm_transport: Optional[str] = "ntlm"
+    winrm_use_ssl: bool = False  # Default to False for easier testing (HTTP port 5985)
+    winrm_cert_validation: bool = False
+    domain: Optional[str] = None
 
 
 class ServerTestResponse(BaseModel):
@@ -129,6 +134,11 @@ class ServerResponse(BaseModel):
     credential_metadata: dict = {}
     os_type: Optional[str] = None
     protocol: Optional[str] = None
+    # WinRM-specific fields
+    winrm_transport: Optional[str] = None
+    winrm_use_ssl: Optional[bool] = None
+    winrm_cert_validation: Optional[bool] = None
+    domain: Optional[str] = None
     tags: List[str] = []
     last_connection_test: Optional[datetime]
     last_connection_status: Optional[str]
@@ -620,7 +630,12 @@ async def test_server_on_demand(
             auth_type=payload.auth_type,
             credential_source=payload.credential_source,
             credential_profile_id=payload.credential_profile_id,
-            credential_profile=profile
+            credential_profile=profile,
+            # WinRM-specific settings
+            winrm_transport=payload.winrm_transport,
+            winrm_use_ssl=payload.winrm_use_ssl,
+            winrm_cert_validation=payload.winrm_cert_validation,
+            domain=payload.domain
         )
         
         # Set inline credentials if needed

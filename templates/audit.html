@@ -270,10 +270,23 @@
             const response = await apiCall('/api/audit/logs');
             if (!response) return;
 
+            if (!response.ok) {
+                let detail = `HTTP ${response.status}`;
+                try {
+                    const err = await response.json();
+                    detail = err.detail || JSON.stringify(err);
+                } catch (_) {}
+                showToast(`Failed to load audit logs: ${detail}`, 'error');
+                renderLogs([]);
+                return;
+            }
+
             const logs = await response.json();
-            renderLogs(logs);
+            renderLogs(Array.isArray(logs) ? logs : []);
         } catch (error) {
             console.error('Failed to load logs:', error);
+            showToast('Failed to load audit logs', 'error');
+            renderLogs([]);
         }
     }
 
@@ -319,10 +332,18 @@
             const response = await apiCall('/api/audit/terminal-sessions');
             if (!response) return;
 
+            if (!response.ok) {
+                showToast(`Failed to load terminal sessions (HTTP ${response.status})`, 'error');
+                renderSessions([]);
+                return;
+            }
+
             const sessions = await response.json();
-            renderSessions(sessions);
+            renderSessions(Array.isArray(sessions) ? sessions : []);
         } catch (error) {
             console.error('Failed to load sessions:', error);
+            showToast('Failed to load terminal sessions', 'error');
+            renderSessions([]);
         }
     }
 
@@ -483,13 +504,24 @@
             const response = await apiCall(`/api/audit/chat-sessions?page=${chatPage}&limit=${chatLimit}`);
             if (!response) return;
 
+            if (!response.ok) {
+                showToast(`Failed to load chat sessions (HTTP ${response.status})`, 'error');
+                chatTotal = 0;
+                renderChats([]);
+                updateChatPagination();
+                return;
+            }
+
             const data = await response.json();
-            chatTotal = data.total;
-            renderChats(data.items);
+            chatTotal = (data && typeof data.total === 'number') ? data.total : 0;
+            renderChats(Array.isArray(data?.items) ? data.items : []);
             updateChatPagination();
         } catch (error) {
             console.error('Failed to load chats:', error);
             showToast('Error loading chats', 'error');
+            chatTotal = 0;
+            renderChats([]);
+            updateChatPagination();
         }
     }
 

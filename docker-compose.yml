@@ -63,7 +63,13 @@ services:
       - aiops-network
       - aiops_aiops-network
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8080/health" ]
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8080/health', timeout=5).read()",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -106,9 +112,9 @@ services:
       # Server Configuration
       # NOTE: Our proxy at /grafana handles the path translation, so Grafana
       # serves from root internally. ROOT_URL is used for generating links.
-      - GF_SERVER_ROOT_URL=http://localhost:8080/grafana
+      - GF_SERVER_ROOT_URL=${AIOPS_PUBLIC_URL:-http://t-aiops-01:8080}/grafana
       - GF_SERVER_SERVE_FROM_SUB_PATH=true
-      - GF_SERVER_DOMAIN=localhost
+      - GF_SERVER_DOMAIN=${AIOPS_PUBLIC_DOMAIN:-t-aiops-01}
 
       # Security
       - GF_SECURITY_ADMIN_USER=admin

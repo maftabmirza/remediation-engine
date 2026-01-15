@@ -910,7 +910,8 @@ async def logs_page(
     })
     # Allow iframe embedding from same origin
     response.headers["X-Frame-Options"] = "SAMEORIGIN"
-    response.headers["Content-Security-Policy"] = "frame-src 'self' http://localhost:8080 http://grafana:3000"
+    origin = str(request.base_url).rstrip("/")
+    response.headers["Content-Security-Policy"] = f"frame-src 'self' {origin} http://grafana:3000"
     return response
 
 
@@ -933,7 +934,8 @@ async def traces_page(
     })
     # Allow iframe embedding from same origin
     response.headers["X-Frame-Options"] = "SAMEORIGIN"
-    response.headers["Content-Security-Policy"] = "frame-src 'self' http://localhost:8080 http://grafana:3000"
+    origin = str(request.base_url).rstrip("/")
+    response.headers["Content-Security-Policy"] = f"frame-src 'self' {origin} http://grafana:3000"
     return response
 
 
@@ -978,7 +980,8 @@ async def grafana_alerts_page(
     })
     # Allow iframe embedding from same origin
     response.headers["X-Frame-Options"] = "SAMEORIGIN"
-    response.headers["Content-Security-Policy"] = "frame-src 'self' http://localhost:8080 http://grafana:3000"
+    origin = str(request.base_url).rstrip("/")
+    response.headers["Content-Security-Policy"] = f"frame-src 'self' {origin} http://grafana:3000"
     return response
 
 
@@ -1002,7 +1005,8 @@ async def grafana_advanced_page(
     })
     # Allow iframe embedding from same origin
     response.headers["X-Frame-Options"] = "SAMEORIGIN"
-    response.headers["Content-Security-Policy"] = "frame-src 'self' http://localhost:8080 http://grafana:3000"
+    origin = str(request.base_url).rstrip("/")
+    response.headers["Content-Security-Policy"] = f"frame-src 'self' {origin} http://grafana:3000"
     return response
 
 
@@ -1068,4 +1072,5 @@ async def chat_websocket_endpoint(websocket: WebSocket, session_id: str):
     WebSocket endpoint for chat sessions.
     Currently closes gracefully as chat uses REST API.
     """
+    await websocket.accept()
     await websocket.close(code=1000, reason="Chat uses REST API")

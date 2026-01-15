@@ -57,7 +57,8 @@ async def get_standalone_session(
         "id": f"session-{current_user.id}",
         "user_id": str(current_user.id),
         "created_at": datetime.utcnow().isoformat(),
-        "is_standalone": True
+        "is_standalone": True,
+        "llm_provider_id": str(current_user.default_llm_provider_id) if current_user.default_llm_provider_id else None,
     }
 
 
@@ -238,35 +239,51 @@ async def switch_session_provider(
         if not provider_id:
              raise HTTPException(status_code=400, detail="provider_id is required")
 
+        # Provider IDs are UUIDs in the DB; normalize early for consistent queries.
+        try:
+            provider_uuid = UUID(str(provider_id))
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid provider ID")
+
+        # Verify provider exists
+        provider = db.query(LLMProvider).filter(LLMProvider.id == provider_uuid).first()
+        if not provider:
+            raise HTTPException(status_code=404, detail="Provider not found")
+
+        # Standalone chat uses IDs like "session-<user_id>" (not stored in ai_sessions).
+        # For this mode, persist the selection as the user's default LLM provider.
+        if session_id.startswith("session-"):
+            current_user.default_llm_provider_id = provider_uuid
+            db.commit()
+            return {
+                "success": True,
+                "session_id": session_id,
+                "provider_name": provider.name,
+                "model_name": provider.model_id,
+            }
+
+        # Normal persisted AI sessions
         session_uuid = UUID(session_id)
         session = db.query(AISession).filter(
             AISession.id == session_uuid,
             AISession.user_id == current_user.id
         ).first()
-        
+
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
-            
-        # Verify provider exists
-        provider = db.query(LLMProvider).filter(LLMProvider.id == provider_id).first()
-        if not provider:
-            raise HTTPException(status_code=404, detail="Provider not found")
-        
-        # Save provider selection in context for now (until we add column)
-        if not session.context_context_json:
-            session.context_context_json = {}
-        
+
+        # Save provider selection in session context for now (until we add column)
         ctx = dict(session.context_context_json) if session.context_context_json else {}
-        ctx["llm_provider_id"] = provider_id
+        ctx["llm_provider_id"] = str(provider_uuid)
         session.context_context_json = ctx
-        
+
         db.commit()
-        
+
         return {
-            "success": True, 
+            "success": True,
             "session_id": session_id,
             "provider_name": provider.name,
-            "model_name": provider.model_id
+            "model_name": provider.model_id,
         }
     except ValueError:
          raise HTTPException(status_code=400, detail="Invalid session ID")

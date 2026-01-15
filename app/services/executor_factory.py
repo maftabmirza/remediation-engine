@@ -159,14 +159,17 @@ class ExecutorFactory:
             )
         
         elif protocol == "winrm":
+            # Determine default port based on SSL setting
+            use_ssl = getattr(server, 'winrm_use_ssl', False)
+            default_port = 5986 if use_ssl else 5985
             executor = WinRMExecutor(
                 hostname=server.hostname,
-                port=server.port or 5986,
+                port=server.port or default_port,
                 username=server.username or "Administrator",
                 password=password,
                 timeout=60,
-                transport='ntlm',
-                use_ssl=getattr(server, 'winrm_use_ssl', True),
+                transport=getattr(server, 'winrm_transport', 'ntlm') or 'ntlm',
+                use_ssl=use_ssl,
                 cert_validation=getattr(server, 'winrm_cert_validation', False)
             )
 
