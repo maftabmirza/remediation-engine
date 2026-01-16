@@ -1049,15 +1049,131 @@ async function startAgent() {
     }
 }
 
+// IVIPA Phase configuration
+const IVIPA_PHASES = {
+    'identify': { icon: 'fa-search', color: 'text-blue-400', bg: 'bg-blue-600/30', label: 'Identify' },
+    'verify': { icon: 'fa-check-circle', color: 'text-cyan-400', bg: 'bg-cyan-600/30', label: 'Verify' },
+    'investigate': { icon: 'fa-microscope', color: 'text-purple-400', bg: 'bg-purple-600/30', label: 'Investigate' },
+    'plan': { icon: 'fa-clipboard-list', color: 'text-yellow-400', bg: 'bg-yellow-600/30', label: 'Plan' },
+    'act': { icon: 'fa-bolt', color: 'text-green-400', bg: 'bg-green-600/30', label: 'Act' },
+    'complete': { icon: 'fa-flag-checkered', color: 'text-green-400', bg: 'bg-green-600/30', label: 'Complete' }
+};
+
+let currentIvipaPhase = 'identify';
+let investigationCount = 0;
+
 function enterAgentMode(goal) {
     isAgentMode = true;
+    currentIvipaPhase = 'identify';
+    investigationCount = 0;
     const container = document.getElementById('chatMessages');
-    container.innerHTML = `<div id="agentHeader" class="bg-gradient-to-r from-purple-900/50 to-blue-900/50 rounded-lg p-4 mb-4 border border-purple-500/30"><div class="flex items-center justify-between"><div class="flex items-center"><div class="w-8 h-8 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center mr-3 animate-pulse"><i class="fas fa-robot text-white text-sm"></i></div><div><div class="text-sm font-semibold text-white">Agent Mode Active</div><div class="text-xs text-gray-400 truncate max-w-xs" title="${escapeHtml(goal)}">${escapeHtml(goal)}</div></div></div><button id="agentStopBtn" onclick="stopAgent()" class="text-red-400 hover:text-red-300 text-xs px-3 py-1 border border-red-500/30 rounded hover:bg-red-500/10 transition-colors"><i class="fas fa-stop mr-1"></i>Stop</button></div><div class="mt-3 flex items-center text-xs"><span id="agentStatusBadge" class="px-2 py-1 rounded bg-purple-600/50 text-purple-200 mr-2"><i class="fas fa-spinner fa-spin mr-1"></i>Starting...</span><span class="text-gray-400">Step <span id="agentStepNum">0</span> of <span id="agentMaxSteps">20</span></span></div></div><div id="agentSteps" class="space-y-4"></div><div id="agentApprovalPanel" class="hidden"></div>`;
+    container.innerHTML = `
+        <div id="agentHeader" class="bg-gradient-to-r from-purple-900/50 to-blue-900/50 rounded-lg p-4 mb-4 border border-purple-500/30">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <div class="w-8 h-8 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center mr-3 animate-pulse">
+                        <i class="fas fa-robot text-white text-sm"></i>
+                    </div>
+                    <div>
+                        <div class="text-sm font-semibold text-white">Agent Mode Active</div>
+                        <div class="text-xs text-gray-400 truncate max-w-xs" title="${escapeHtml(goal)}">${escapeHtml(goal)}</div>
+                    </div>
+                </div>
+                <button id="agentStopBtn" onclick="stopAgent()" class="text-red-400 hover:text-red-300 text-xs px-3 py-1 border border-red-500/30 rounded hover:bg-red-500/10 transition-colors">
+                    <i class="fas fa-stop mr-1"></i>Stop
+                </button>
+            </div>
+            <!-- IVIPA Phase Indicator -->
+            <div id="ivipaPhaseIndicator" class="mt-3 flex items-center space-x-1 overflow-x-auto pb-2">
+                ${Object.entries(IVIPA_PHASES).filter(([k]) => k !== 'complete').map(([phase, config]) => `
+                    <div id="ivipa-${phase}" class="flex items-center px-2 py-1 rounded text-xs whitespace-nowrap transition-all duration-300 ${phase === 'identify' ? config.bg + ' ' + config.color : 'bg-gray-800 text-gray-500'}">
+                        <i class="fas ${config.icon} mr-1"></i>${config.label}
+                    </div>
+                    ${phase !== 'act' ? '<i class="fas fa-chevron-right text-gray-600 text-[10px]"></i>' : ''}
+                `).join('')}
+            </div>
+            <div class="mt-2 flex items-center justify-between text-xs">
+                <span id="agentStatusBadge" class="px-2 py-1 rounded bg-purple-600/50 text-purple-200">
+                    <i class="fas fa-spinner fa-spin mr-1"></i>Starting...
+                </span>
+                <div class="flex items-center space-x-3 text-gray-400">
+                    <span>Step <span id="agentStepNum">0</span> of <span id="agentMaxSteps">30</span></span>
+                    <span id="investigationCounter" class="hidden">Evidence: <span id="investigationCount">0</span>/2</span>
+                </div>
+            </div>
+        </div>
+        <div id="agentThinking" class="hidden"></div>
+        <div id="agentSteps" class="space-y-4"></div>
+        <div id="agentApprovalPanel" class="hidden"></div>
+    `;
     document.getElementById('chatForm').style.display = 'none';
     const agentBtn = document.getElementById('agentModeBtn');
     if (agentBtn) {
         agentBtn.classList.remove('text-gray-400', 'hover:text-purple-400');
         agentBtn.classList.add('text-purple-400', 'animate-pulse');
+    }
+}
+
+function updateIvipaPhase(newPhase) {
+    currentIvipaPhase = newPhase;
+    const phases = ['identify', 'verify', 'investigate', 'plan', 'act'];
+    const currentIdx = phases.indexOf(newPhase);
+
+    phases.forEach((phase, idx) => {
+        const el = document.getElementById(`ivipa-${phase}`);
+        if (!el) return;
+        const config = IVIPA_PHASES[phase];
+
+        if (idx < currentIdx) {
+            // Completed phases
+            el.className = `flex items-center px-2 py-1 rounded text-xs whitespace-nowrap transition-all duration-300 bg-green-900/30 text-green-400`;
+        } else if (idx === currentIdx) {
+            // Current phase
+            el.className = `flex items-center px-2 py-1 rounded text-xs whitespace-nowrap transition-all duration-300 ${config.bg} ${config.color} ring-1 ring-${config.color.replace('text-', '')}`;
+        } else {
+            // Future phases
+            el.className = `flex items-center px-2 py-1 rounded text-xs whitespace-nowrap transition-all duration-300 bg-gray-800 text-gray-500`;
+        }
+    });
+
+    // Show investigation counter during investigate phase
+    const counter = document.getElementById('investigationCounter');
+    if (counter) {
+        counter.classList.toggle('hidden', newPhase !== 'investigate');
+    }
+}
+
+function updateInvestigationCount(count) {
+    investigationCount = count;
+    const el = document.getElementById('investigationCount');
+    if (el) el.textContent = count;
+}
+
+function showThinkingBlock(thinking, phase) {
+    const container = document.getElementById('agentThinking');
+    if (!container) return;
+
+    const phaseConfig = IVIPA_PHASES[phase] || IVIPA_PHASES.identify;
+
+    container.innerHTML = `
+        <div class="bg-gradient-to-r from-purple-900/30 to-blue-900/30 rounded-lg p-4 mb-4 border border-purple-500/20 animate-pulse-subtle">
+            <div class="flex items-center mb-2">
+                <i class="fas fa-brain ${phaseConfig.color} mr-2"></i>
+                <span class="text-sm font-medium ${phaseConfig.color}">Reasoning (${phaseConfig.label} Phase)</span>
+            </div>
+            <div class="text-sm text-gray-300 whitespace-pre-wrap">${escapeHtml(thinking)}</div>
+        </div>
+    `;
+    container.classList.remove('hidden');
+
+    // Scroll to show thinking
+    container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function hideThinkingBlock() {
+    const container = document.getElementById('agentThinking');
+    if (container) {
+        container.classList.add('hidden');
     }
 }
 
@@ -1088,12 +1204,54 @@ function connectAgentWebSocket(sessionId) {
 function handleAgentMessage(data) {
     console.log('Agent message:', data.type, data);
     switch (data.type) {
-        case 'connected': updateAgentStatus('thinking', 'Analyzing goal...'); break;
-        case 'status_changed': updateAgentStatus(data.status); break;
-        case 'step_created': addAgentStep(data.step); break;
-        case 'step_updated': updateAgentStep(data.step); break;
-        case 'complete': handleAgentComplete(data); break;
-        case 'error': showToast(data.message || 'Agent error', 'error'); break;
+        case 'connected':
+            updateAgentStatus('thinking', 'Analyzing goal...');
+            if (data.current_phase) updateIvipaPhase(data.current_phase);
+            break;
+        case 'status_changed':
+            updateAgentStatus(data.status);
+            break;
+        case 'thinking':
+            // Show visible thinking block
+            showThinkingBlock(data.thinking, data.phase || currentIvipaPhase);
+            updateAgentStatus('thinking', `Reasoning (${IVIPA_PHASES[data.phase || currentIvipaPhase]?.label || 'Thinking'})...`);
+            break;
+        case 'thinking_complete':
+            // Hide thinking block when action is about to be taken
+            hideThinkingBlock();
+            break;
+        case 'phase_changed':
+            // Update IVIPA phase indicator
+            updateIvipaPhase(data.phase);
+            showToast(`Phase: ${IVIPA_PHASES[data.phase]?.label || data.phase}`, 'info');
+            break;
+        case 'investigation_update':
+            // Update investigation evidence counter
+            updateInvestigationCount(data.count);
+            break;
+        case 'plan_proposed':
+            // Show plan for approval
+            showPlanApproval(data.plan, data.step);
+            break;
+        case 'task_update':
+            // Update task list display
+            updateTaskList(data.tasks);
+            break;
+        case 'step_created':
+            hideThinkingBlock();
+            addAgentStep(data.step);
+            break;
+        case 'step_updated':
+            updateAgentStep(data.step);
+            break;
+        case 'complete':
+            hideThinkingBlock();
+            handleAgentComplete(data);
+            break;
+        case 'error':
+            hideThinkingBlock();
+            showToast(data.message || 'Agent error', 'error');
+            break;
     }
 }
 
@@ -1118,18 +1276,185 @@ function addAgentStep(step) {
     if (!container) return;
     const stepNum = document.getElementById('agentStepNum');
     if (stepNum) stepNum.textContent = step.step_number;
+
+    // Get phase config for styling
+    const phaseConfig = IVIPA_PHASES[step.ivipa_phase] || IVIPA_PHASES.identify;
+
     const stepEl = document.createElement('div');
     stepEl.id = `agent-step-${step.id}`;
     stepEl.className = 'bg-gray-800 rounded-lg p-4 border border-gray-700';
-    if (step.step_type === 'command') {
-        stepEl.innerHTML = `<div class="flex items-start"><div class="w-6 h-6 rounded-full bg-blue-600/30 flex items-center justify-center mr-3 mt-0.5 flex-shrink-0"><i class="fas fa-terminal text-blue-400 text-xs"></i></div><div class="flex-grow min-w-0"><div class="text-xs text-gray-400 mb-1">Step ${step.step_number} - Command</div><div class="bg-gray-900 rounded p-2 font-mono text-sm text-green-400 break-all">${escapeHtml(step.content)}</div>${step.reasoning ? `<div class="text-xs text-gray-500 mt-2"><i class="fas fa-lightbulb text-yellow-500 mr-1"></i>${escapeHtml(step.reasoning)}</div>` : ''}<div id="step-output-${step.id}" class="mt-2 hidden"><div class="text-xs text-gray-400 mb-1">Output:</div><pre class="bg-gray-900 rounded p-2 text-xs text-gray-300 overflow-x-auto max-h-40 overflow-y-auto"></pre></div><div id="step-status-${step.id}" class="mt-2 flex items-center text-xs text-gray-400"><i class="fas fa-clock mr-1"></i>Pending...</div></div></div>`;
+
+    // Build thinking section if available
+    const thinkingSection = step.thinking ? `
+        <div class="mb-3 p-3 bg-purple-900/20 rounded border border-purple-500/20">
+            <div class="flex items-center mb-1">
+                <i class="fas fa-brain text-purple-400 text-xs mr-2"></i>
+                <span class="text-xs text-purple-300 font-medium">Reasoning</span>
+            </div>
+            <div class="text-xs text-gray-400 whitespace-pre-wrap">${escapeHtml(step.thinking)}</div>
+        </div>
+    ` : '';
+
+    // Build phase badge
+    const phaseBadge = step.ivipa_phase ? `
+        <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] ${phaseConfig.bg} ${phaseConfig.color} mr-2">
+            <i class="fas ${phaseConfig.icon} mr-1"></i>${phaseConfig.label}
+        </span>
+    ` : '';
+
+    if (step.step_type === 'command' || step.step_type === 'tool_call') {
+        const toolLabel = step.tool_name ? `Tool: ${step.tool_name}` : 'Command';
+        stepEl.innerHTML = `
+            <div class="flex items-start">
+                <div class="w-6 h-6 rounded-full bg-blue-600/30 flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
+                    <i class="fas fa-terminal text-blue-400 text-xs"></i>
+                </div>
+                <div class="flex-grow min-w-0">
+                    <div class="text-xs text-gray-400 mb-1 flex items-center flex-wrap">
+                        ${phaseBadge}
+                        <span>Step ${step.step_number} - ${toolLabel}</span>
+                    </div>
+                    ${thinkingSection}
+                    <div class="bg-gray-900 rounded p-2 font-mono text-sm text-green-400 break-all">${escapeHtml(step.content)}</div>
+                    ${step.reasoning ? `<div class="text-xs text-gray-500 mt-2"><i class="fas fa-lightbulb text-yellow-500 mr-1"></i>${escapeHtml(step.reasoning)}</div>` : ''}
+                    <div id="step-output-${step.id}" class="mt-2 hidden">
+                        <div class="text-xs text-gray-400 mb-1">Output:</div>
+                        <pre class="bg-gray-900 rounded p-2 text-xs text-gray-300 overflow-x-auto max-h-40 overflow-y-auto"></pre>
+                    </div>
+                    <div id="step-analysis-${step.id}" class="mt-2 hidden">
+                        <div class="text-xs text-cyan-400 mb-1"><i class="fas fa-search-plus mr-1"></i>Analysis:</div>
+                        <div class="text-xs text-gray-400"></div>
+                    </div>
+                    <div id="step-status-${step.id}" class="mt-2 flex items-center text-xs text-gray-400">
+                        <i class="fas fa-clock mr-1"></i>Pending...
+                    </div>
+                </div>
+            </div>
+        `;
         if (step.status === 'pending') showApprovalPanel(step);
+    } else if (step.step_type === 'thinking') {
+        // Pure thinking step - display reasoning
+        stepEl.className = 'bg-purple-900/20 rounded-lg p-4 border border-purple-500/20';
+        stepEl.innerHTML = `
+            <div class="flex items-start">
+                <div class="w-6 h-6 rounded-full bg-purple-600/30 flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
+                    <i class="fas fa-brain text-purple-400 text-xs"></i>
+                </div>
+                <div class="flex-grow">
+                    <div class="text-xs text-gray-400 mb-1 flex items-center">
+                        ${phaseBadge}
+                        <span>Step ${step.step_number} - Reasoning</span>
+                    </div>
+                    <div class="text-sm text-gray-300 whitespace-pre-wrap">${escapeHtml(step.content)}</div>
+                </div>
+            </div>
+        `;
+    } else if (step.step_type === 'plan') {
+        // Plan step - display structured plan
+        stepEl.className = 'bg-yellow-900/20 rounded-lg p-4 border border-yellow-500/20';
+        let planContent = step.content;
+        try {
+            const planData = JSON.parse(step.content);
+            if (planData.steps) {
+                planContent = `<div class="space-y-2">
+                    ${planData.steps.map((s, i) => `
+                        <div class="flex items-start">
+                            <span class="w-5 h-5 rounded-full bg-yellow-600/30 flex items-center justify-center text-xs text-yellow-400 mr-2 flex-shrink-0">${i + 1}</span>
+                            <span class="text-sm text-gray-300">${escapeHtml(s.description || s)}</span>
+                        </div>
+                    `).join('')}
+                </div>`;
+            }
+        } catch (e) {
+            planContent = marked.parse(step.content);
+        }
+        stepEl.innerHTML = `
+            <div class="flex items-start">
+                <div class="w-6 h-6 rounded-full bg-yellow-600/30 flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
+                    <i class="fas fa-clipboard-list text-yellow-400 text-xs"></i>
+                </div>
+                <div class="flex-grow">
+                    <div class="text-xs text-yellow-400 mb-2 font-semibold flex items-center">
+                        ${phaseBadge}
+                        <span>Remediation Plan</span>
+                    </div>
+                    ${thinkingSection}
+                    <div class="text-sm text-gray-300">${planContent}</div>
+                    <div id="step-status-${step.id}" class="mt-3 flex items-center text-xs text-gray-400">
+                        <i class="fas fa-clock mr-1"></i>Awaiting approval...
+                    </div>
+                </div>
+            </div>
+        `;
+        if (step.status === 'pending') showPlanApproval(step.content, step);
+    } else if (step.step_type === 'analysis') {
+        stepEl.className = 'bg-cyan-900/20 rounded-lg p-4 border border-cyan-500/20';
+        stepEl.innerHTML = `
+            <div class="flex items-start">
+                <div class="w-6 h-6 rounded-full bg-cyan-600/30 flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
+                    <i class="fas fa-search text-cyan-400 text-xs"></i>
+                </div>
+                <div class="flex-grow">
+                    <div class="text-xs text-gray-400 mb-1 flex items-center">
+                        ${phaseBadge}
+                        <span>Step ${step.step_number} - Analysis</span>
+                    </div>
+                    ${thinkingSection}
+                    <div class="text-sm text-gray-300">${marked.parse(step.content)}</div>
+                </div>
+            </div>
+        `;
     } else if (step.step_type === 'complete') {
         stepEl.className = 'bg-green-900/30 rounded-lg p-4 border border-green-500/30';
-        stepEl.innerHTML = `<div class="flex items-start"><div class="w-6 h-6 rounded-full bg-green-600/30 flex items-center justify-center mr-3 mt-0.5 flex-shrink-0"><i class="fas fa-check text-green-400 text-xs"></i></div><div class="flex-grow"><div class="text-xs text-green-400 mb-1 font-semibold">Goal Achieved!</div><div class="text-sm text-gray-300">${marked.parse(step.content)}</div></div></div>`;
+        stepEl.innerHTML = `
+            <div class="flex items-start">
+                <div class="w-6 h-6 rounded-full bg-green-600/30 flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
+                    <i class="fas fa-check text-green-400 text-xs"></i>
+                </div>
+                <div class="flex-grow">
+                    <div class="text-xs text-green-400 mb-1 font-semibold">Goal Achieved!</div>
+                    ${thinkingSection}
+                    <div class="text-sm text-gray-300">${marked.parse(step.content)}</div>
+                </div>
+            </div>
+        `;
     } else if (step.step_type === 'failed') {
         stepEl.className = 'bg-red-900/30 rounded-lg p-4 border border-red-500/30';
-        stepEl.innerHTML = `<div class="flex items-start"><div class="w-6 h-6 rounded-full bg-red-600/30 flex items-center justify-center mr-3 mt-0.5 flex-shrink-0"><i class="fas fa-times text-red-400 text-xs"></i></div><div class="flex-grow"><div class="text-xs text-red-400 mb-1 font-semibold">Agent Failed</div><div class="text-sm text-gray-300">${escapeHtml(step.content)}</div></div></div>`;
+        stepEl.innerHTML = `
+            <div class="flex items-start">
+                <div class="w-6 h-6 rounded-full bg-red-600/30 flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
+                    <i class="fas fa-times text-red-400 text-xs"></i>
+                </div>
+                <div class="flex-grow">
+                    <div class="text-xs text-red-400 mb-1 font-semibold">Agent Failed</div>
+                    ${thinkingSection}
+                    <div class="text-sm text-gray-300">${escapeHtml(step.content)}</div>
+                </div>
+            </div>
+        `;
+    } else if (step.step_type === 'question') {
+        stepEl.className = 'bg-blue-900/20 rounded-lg p-4 border border-blue-500/20';
+        stepEl.innerHTML = `
+            <div class="flex items-start">
+                <div class="w-6 h-6 rounded-full bg-blue-600/30 flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
+                    <i class="fas fa-question text-blue-400 text-xs"></i>
+                </div>
+                <div class="flex-grow">
+                    <div class="text-xs text-gray-400 mb-1 flex items-center">
+                        ${phaseBadge}
+                        <span>Step ${step.step_number} - Question</span>
+                    </div>
+                    ${thinkingSection}
+                    <div class="text-sm text-gray-300 mb-3">${marked.parse(step.content)}</div>
+                    <div id="question-input-${step.id}">
+                        <textarea id="answer-${step.id}" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-sm text-white" rows="2" placeholder="Type your answer..."></textarea>
+                        <button onclick="submitAnswer('${step.id}')" class="mt-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded text-sm">
+                            <i class="fas fa-paper-plane mr-2"></i>Submit Answer
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
     }
     container.appendChild(stepEl);
     container.scrollTop = container.scrollHeight;
@@ -1234,6 +1559,10 @@ async function stopAgent() {
 
 function handleAgentComplete(data) {
     updateAgentStatus(data.status, data.status === 'completed' ? 'Goal achieved!' : 'Failed');
+    // Update phase to complete
+    if (data.status === 'completed') {
+        updateIvipaPhase('complete');
+    }
     const robotIcon = document.querySelector('#agentHeader .animate-pulse');
     if (robotIcon) robotIcon.classList.remove('animate-pulse');
     const stopBtn = document.getElementById('agentStopBtn');
@@ -1252,5 +1581,166 @@ function handleAgentComplete(data) {
     }
     if (data.status === 'completed') showToast('Agent completed the goal!', 'success');
     else showToast(data.message || 'Agent failed', 'error');
+}
+
+// Plan Approval Panel
+function showPlanApproval(planContent, step) {
+    updateAgentStatus('awaiting_approval');
+    const panel = document.getElementById('agentApprovalPanel');
+    if (!panel) return;
+
+    let planHtml = '';
+    try {
+        const plan = typeof planContent === 'string' ? JSON.parse(planContent) : planContent;
+        if (plan.hypothesis) {
+            planHtml += `<div class="mb-3"><div class="text-xs text-cyan-400 mb-1">Hypothesis:</div><div class="text-sm text-gray-300">${escapeHtml(plan.hypothesis)}</div></div>`;
+        }
+        if (plan.steps && Array.isArray(plan.steps)) {
+            planHtml += `<div class="mb-3"><div class="text-xs text-yellow-400 mb-2">Planned Actions:</div><div class="space-y-2">`;
+            plan.steps.forEach((s, i) => {
+                const stepDesc = typeof s === 'string' ? s : (s.description || s.action || JSON.stringify(s));
+                planHtml += `<div class="flex items-start p-2 bg-gray-800 rounded"><span class="w-5 h-5 rounded-full bg-yellow-600/30 flex items-center justify-center text-xs text-yellow-400 mr-2 flex-shrink-0">${i + 1}</span><span class="text-sm text-gray-300">${escapeHtml(stepDesc)}</span></div>`;
+            });
+            planHtml += `</div></div>`;
+        }
+        if (plan.safety_considerations) {
+            planHtml += `<div class="mb-3 p-2 bg-orange-900/20 rounded border border-orange-500/20"><div class="text-xs text-orange-400 mb-1"><i class="fas fa-exclamation-triangle mr-1"></i>Safety Considerations:</div><div class="text-xs text-gray-400">${escapeHtml(plan.safety_considerations)}</div></div>`;
+        }
+    } catch (e) {
+        planHtml = `<div class="text-sm text-gray-300 whitespace-pre-wrap">${escapeHtml(planContent)}</div>`;
+    }
+
+    panel.className = 'bg-gradient-to-r from-yellow-900/30 to-orange-900/30 rounded-lg p-4 mt-4 border border-yellow-500/30';
+    panel.innerHTML = `
+        <div class="flex items-center mb-3">
+            <i class="fas fa-clipboard-check text-yellow-400 mr-2"></i>
+            <span class="text-sm font-semibold text-yellow-200">Plan Approval Required</span>
+        </div>
+        <div class="text-xs text-gray-400 mb-3">Review the agent's remediation plan before execution:</div>
+        ${planHtml}
+        <div class="flex space-x-2 mt-4">
+            <button onclick="approvePlan()" class="flex-1 bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded font-medium transition-colors">
+                <i class="fas fa-check mr-2"></i>Approve Plan
+            </button>
+            <button onclick="rejectPlan()" class="bg-gray-600 hover:bg-gray-500 text-white px-4 py-2 rounded font-medium transition-colors">
+                <i class="fas fa-times mr-2"></i>Reject
+            </button>
+        </div>
+    `;
+    const container = document.getElementById('chatMessages');
+    if (container) container.scrollTop = container.scrollHeight;
+}
+
+async function approvePlan() {
+    if (!currentAgentSession) return;
+    try {
+        if (agentSocket && agentSocket.readyState === WebSocket.OPEN) {
+            agentSocket.send(JSON.stringify({ type: 'approve' }));
+        } else {
+            await apiCall(`/api/agent/${currentAgentSession.id}/approve`, { method: 'POST' });
+        }
+        hideApprovalPanel();
+        updateAgentStatus('executing', 'Executing plan...');
+        updateIvipaPhase('act');
+    } catch (error) {
+        console.error('Failed to approve plan:', error);
+        showToast('Failed to approve plan', 'error');
+    }
+}
+
+async function rejectPlan() {
+    if (!currentAgentSession) return;
+    try {
+        if (agentSocket && agentSocket.readyState === WebSocket.OPEN) {
+            agentSocket.send(JSON.stringify({ type: 'reject' }));
+        } else {
+            await apiCall(`/api/agent/${currentAgentSession.id}/reject`, { method: 'POST' });
+        }
+        hideApprovalPanel();
+        updateAgentStatus('thinking', 'Agent is revising plan...');
+    } catch (error) {
+        console.error('Failed to reject plan:', error);
+        showToast('Failed to reject plan', 'error');
+    }
+}
+
+// Task List Display
+function updateTaskList(tasks) {
+    // Create or update task list display in agent header
+    let taskListEl = document.getElementById('agentTaskList');
+    if (!taskListEl) {
+        const header = document.getElementById('agentHeader');
+        if (!header) return;
+        taskListEl = document.createElement('div');
+        taskListEl.id = 'agentTaskList';
+        taskListEl.className = 'mt-3 p-3 bg-gray-900/50 rounded border border-gray-700';
+        header.appendChild(taskListEl);
+    }
+
+    if (!tasks || tasks.length === 0) {
+        taskListEl.classList.add('hidden');
+        return;
+    }
+
+    taskListEl.classList.remove('hidden');
+    const completedCount = tasks.filter(t => t.status === 'completed').length;
+    const totalCount = tasks.length;
+
+    taskListEl.innerHTML = `
+        <div class="flex items-center justify-between mb-2">
+            <span class="text-xs text-gray-400 font-medium">
+                <i class="fas fa-tasks mr-1"></i>Tasks
+            </span>
+            <span class="text-xs text-gray-500">${completedCount}/${totalCount} completed</span>
+        </div>
+        <div class="space-y-1 max-h-32 overflow-y-auto">
+            ${tasks.map(task => {
+                const statusIcon = task.status === 'completed' ? 'fa-check-circle text-green-400' :
+                                   task.status === 'in_progress' ? 'fa-spinner fa-spin text-blue-400' :
+                                   'fa-circle text-gray-600';
+                const textClass = task.status === 'completed' ? 'text-gray-500 line-through' : 'text-gray-300';
+                return `<div class="flex items-center text-xs"><i class="fas ${statusIcon} mr-2 flex-shrink-0"></i><span class="${textClass}">${escapeHtml(task.description || task.content)}</span></div>`;
+            }).join('')}
+        </div>
+    `;
+}
+
+// Submit Answer for Question Steps
+async function submitAnswer(stepId) {
+    const textarea = document.getElementById(`answer-${stepId}`);
+    const inputContainer = document.getElementById(`question-input-${stepId}`);
+    if (!textarea || !currentAgentSession) return;
+
+    const answer = textarea.value.trim();
+    if (!answer) {
+        showToast('Please enter an answer', 'error');
+        return;
+    }
+
+    try {
+        if (agentSocket && agentSocket.readyState === WebSocket.OPEN) {
+            agentSocket.send(JSON.stringify({ type: 'answer', answer: answer }));
+        }
+        // Update UI
+        if (inputContainer) {
+            inputContainer.innerHTML = `<div class="p-2 bg-gray-800 rounded text-sm text-gray-300"><i class="fas fa-comment text-blue-400 mr-2"></i>${escapeHtml(answer)}</div>`;
+        }
+        updateAgentStatus('thinking', 'Processing answer...');
+    } catch (error) {
+        console.error('Failed to submit answer:', error);
+        showToast('Failed to submit answer', 'error');
+    }
+}
+
+// Update step to show output analysis
+function updateAgentStepAnalysis(stepId, analysis) {
+    const analysisDiv = document.getElementById(`step-analysis-${stepId}`);
+    if (analysisDiv && analysis) {
+        analysisDiv.classList.remove('hidden');
+        const contentDiv = analysisDiv.querySelector('div:last-child');
+        if (contentDiv) {
+            contentDiv.textContent = analysis;
+        }
+    }
 }
 
