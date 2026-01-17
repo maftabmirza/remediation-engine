@@ -4,7 +4,7 @@ Pydantic models for request/response validation.
 """
 from typing import Optional, List, Dict, Any
 from datetime import datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from uuid import UUID
 
 
@@ -38,8 +38,7 @@ class ApplicationResponse(ApplicationBase):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ApplicationWithComponents(ApplicationResponse):
@@ -86,8 +85,7 @@ class ComponentResponse(ComponentBase):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ComponentWithDependencies(ComponentResponse):
@@ -113,8 +111,7 @@ class DependencyResponse(DependencyBase):
     id: UUID
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ============== Graph Schemas ==============
@@ -135,8 +132,7 @@ class GraphEdge(BaseModel):
     to_node: str = Field(..., alias="to")
     type: Optional[str] = None
     
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class DependencyGraphResponse(BaseModel):

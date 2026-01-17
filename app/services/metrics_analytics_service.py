@@ -30,18 +30,20 @@ class MetricsAnalyticsService:
     def _calculate_percentiles(self, values: List[int]) -> Tuple[float, float, float]:
         if not values:
             return 0.0, 0.0, 0.0
-        
+
         sorted_values = sorted(values)
         n = len(sorted_values)
-        
+
         def get_p(p: float) -> float:
-            k = (n - 1) * p
-            f = int(k)
-            c = k - f
-            if f + 1 < n:
-                return sorted_values[f] * (1 - c) + sorted_values[f + 1] * c
-            else:
-                return float(sorted_values[f])
+            # Nearest-rank method (simpler, deterministic for small samples)
+            if n == 0:
+                return 0.0
+            rank = int((n * p) + 0.999999) - 1
+            if rank < 0:
+                rank = 0
+            if rank >= n:
+                rank = n - 1
+            return float(sorted_values[rank])
 
         return get_p(0.50), get_p(0.95), get_p(0.99)
 

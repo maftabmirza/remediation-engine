@@ -9,6 +9,11 @@ from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID
 
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+from migration_helpers import create_table_safe, add_column_safe, column_exists
+
 # revision identifiers, used by Alembic.
 revision = '8a0c5800c559'
 down_revision = 'c29fb7c84bd2'
@@ -18,7 +23,7 @@ depends_on = None
 
 def upgrade() -> None:
     # 1. Create agent_pools table
-    op.create_table(
+    create_table_safe(
         'agent_pools',
         sa.Column('id', UUID(as_uuid=True), nullable=False),
         sa.Column('session_id', UUID(as_uuid=True), nullable=False),
@@ -30,7 +35,7 @@ def upgrade() -> None:
     )
 
     # 2. Create agent_tasks table
-    op.create_table(
+    create_table_safe(
         'agent_tasks',
         sa.Column('id', UUID(as_uuid=True), nullable=False),
         sa.Column('pool_id', UUID(as_uuid=True), nullable=False),
@@ -49,19 +54,21 @@ def upgrade() -> None:
     )
 
     # 3. Add columns to agent_sessions
-    op.add_column('agent_sessions', sa.Column('agent_type', sa.String(length=50), nullable=True, server_default='local'))
-    op.add_column('agent_sessions', sa.Column('pool_id', UUID(as_uuid=True), nullable=True))
-    op.add_column('agent_sessions', sa.Column('worktree_path', sa.String(length=1024), nullable=True))
-    op.add_column('agent_sessions', sa.Column('auto_iterate', sa.Boolean(), nullable=True, server_default='false'))
-    op.add_column('agent_sessions', sa.Column('max_auto_iterations', sa.Integer(), nullable=True, server_default='5'))
+    add_column_safe('agent_sessions', sa.Column('agent_type', sa.String(length=50), nullable=True, server_default='local'))
+    add_column_safe('agent_sessions', sa.Column('pool_id', UUID(as_uuid=True), nullable=True))
+    add_column_safe('agent_sessions', sa.Column('worktree_path', sa.String(length=1024), nullable=True))
+    add_column_safe('agent_sessions', sa.Column('auto_iterate', sa.Boolean(), nullable=True, server_default='false'))
+    add_column_safe('agent_sessions', sa.Column('max_auto_iterations', sa.Integer(), nullable=True, server_default='5'))
     
-    op.create_foreign_key(None, 'agent_sessions', 'agent_pools', ['pool_id'], ['id'])
+    if column_exists('agent_sessions', 'pool_id') and column_exists('agent_pools', 'id'):
+        op.create_foreign_key(None, 'agent_sessions', 'agent_pools', ['pool_id'], ['id'])
 
     # 4. Add columns to agent_steps
-    op.add_column('agent_steps', sa.Column('iteration_count', sa.Integer(), nullable=True, server_default='0'))
-    op.add_column('agent_steps', sa.Column('change_set_id', UUID(as_uuid=True), nullable=True))
+    add_column_safe('agent_steps', sa.Column('iteration_count', sa.Integer(), nullable=True, server_default='0'))
+    add_column_safe('agent_steps', sa.Column('change_set_id', UUID(as_uuid=True), nullable=True))
     
-    op.create_foreign_key(None, 'agent_steps', 'change_sets', ['change_set_id'], ['id'])
+    if column_exists('agent_steps', 'change_set_id') and column_exists('change_sets', 'id'):
+        op.create_foreign_key(None, 'agent_steps', 'change_sets', ['change_set_id'], ['id'])
 
 
 def downgrade() -> None:

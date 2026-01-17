@@ -5,7 +5,7 @@ Provides CRUD operations for managing multiple Prometheus instances
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from datetime import datetime
 import httpx
 import uuid
@@ -34,7 +34,8 @@ class DatasourceBase(BaseModel):
     is_enabled: bool = True
     custom_headers: Optional[dict] = None
 
-    @validator('url')
+    @field_validator('url')
+    @classmethod
     def validate_url(cls, v):
         v = v.rstrip('/')
         if not v.startswith(('http://', 'https://')):

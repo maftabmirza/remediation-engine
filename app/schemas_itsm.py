@@ -4,7 +4,7 @@ ITSM Integration Schemas
 Pydantic schemas for ITSM integrations and change events.
 """
 from typing import Optional, Dict, List, Any
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
 from uuid import UUID
 
@@ -41,8 +41,7 @@ class ITSMConfigResponse(ITSMConfigBase):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ITSMTestResult(BaseModel):
@@ -82,8 +81,7 @@ class ChangeEventResponse(ChangeEventBase):
     impact_level: Optional[str] = None
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ChangeEventDetail(ChangeEventResponse):
@@ -104,8 +102,7 @@ class ChangeImpactResponse(BaseModel):
     recommendation: Optional[str] = None
     analyzed_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ChangeImpactSummary(BaseModel):

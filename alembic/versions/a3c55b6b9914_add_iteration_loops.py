@@ -8,6 +8,11 @@ Create Date: 2026-01-16 16:46:56.376183
 from alembic import op
 import sqlalchemy as sa
 
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+from migration_helpers import create_table_safe, add_column_safe
+
 
 # revision identifiers, used by Alembic.
 revision = 'a3c55b6b9914'
@@ -18,7 +23,7 @@ depends_on = None
 
 def upgrade() -> None:
     # Create iteration_loops table
-    op.create_table(
+    create_table_safe(
         'iteration_loops',
         sa.Column('id', sa.UUID(as_uuid=True), nullable=False),
         sa.Column('agent_task_id', sa.UUID(as_uuid=True), nullable=False),
@@ -36,8 +41,8 @@ def upgrade() -> None:
     )
     
     # Add columns to agent_tasks
-    op.add_column('agent_tasks', sa.Column('auto_iterate', sa.Boolean(), nullable=True, server_default='false'))
-    op.add_column('agent_tasks', sa.Column('max_iterations', sa.Integer(), nullable=True, server_default='5'))
+    add_column_safe('agent_tasks', sa.Column('auto_iterate', sa.Boolean(), nullable=True, server_default='false'))
+    add_column_safe('agent_tasks', sa.Column('max_iterations', sa.Integer(), nullable=True, server_default='5'))
 
 
 def downgrade() -> None:

@@ -205,7 +205,7 @@ async def grafana_proxy(
                                          r'<title>\1AIOps\2</title>', 
                                          html_content, flags=re.IGNORECASE)
                     # Replace in visible text (between tags) but not in attributes or scripts
-                    html_content = re.sub(r'>(\s*)Grafana(\s*)<', 
+                    html_content = re.sub(r'>([^<]*?)Grafana([^<]*?)<', 
                                          r'>\1AIOps\2<', 
                                          html_content)
                     

@@ -606,7 +606,7 @@ async def get_runbook_executions(
 @router.post("/runbooks/bulk-action")
 async def bulk_runbook_action(
     runbook_ids: List[UUID],
-    action: str = Query(..., regex="^(enable|disable|delete)$"),
+    action: str = Query(..., pattern="^(enable|disable|delete)$"),
     db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(require_role(["admin", "engineer"]))
 ):

@@ -7,7 +7,7 @@ Supports IaC approach with YAML/JSON import/export.
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 from uuid import UUID
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 import re
 
 
@@ -156,8 +156,7 @@ class RunbookStepResponse(RunbookStepBase):
     runbook_id: UUID
     step_order: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # =============================================================================
@@ -205,8 +204,7 @@ class RunbookTriggerResponse(RunbookTriggerBase):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # =============================================================================
@@ -286,8 +284,7 @@ class RunbookResponse(RunbookBase):
     steps: List[RunbookStepResponse] = []
     triggers: List[RunbookTriggerResponse] = []
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class RunbookListResponse(BaseModel):
@@ -309,8 +306,7 @@ class RunbookListResponse(BaseModel):
     triggers_count: int = 0
     executions_count: int = 0
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # =============================================================================
@@ -361,8 +357,7 @@ class StepExecutionResponse(BaseModel):
     error_type: Optional[str]
     error_message: Optional[str]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class RunbookExecutionResponse(BaseModel):
@@ -404,8 +399,7 @@ class RunbookExecutionResponse(BaseModel):
     # Include step executions
     step_executions: List[StepExecutionResponse] = []
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ExecutionListResponse(BaseModel):
@@ -425,8 +419,7 @@ class ExecutionListResponse(BaseModel):
     steps_completed: int
     steps_failed: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # =============================================================================
@@ -453,8 +446,7 @@ class CircuitBreakerResponse(BaseModel):
     manually_opened_reason: Optional[str]
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CircuitBreakerOverride(BaseModel):
@@ -527,8 +519,7 @@ class BlackoutWindowResponse(BlackoutWindowBase):
     # Computed fields
     is_active_now: bool = False
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # =============================================================================
@@ -546,8 +537,7 @@ class CommandBlocklistEntry(BaseModel):
     enabled: bool
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CommandBlocklistCreate(BaseModel):

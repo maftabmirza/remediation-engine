@@ -49,6 +49,22 @@ def column_exists(table_name, column_name):
     columns = [col['name'] for col in inspector.get_columns(table_name)]
     return column_name in columns
 
+def add_column_safe(table_name, column):
+    if not column_exists(table_name, column.name):
+        op.add_column(table_name, column)
+
+def constraint_exists(constraint_name):
+    """Check if a constraint exists in the database by name."""
+    conn = op.get_bind()
+    res = conn.execute(sa.text(
+        f"SELECT 1 FROM pg_constraint WHERE conname = '{constraint_name}'"
+    ))
+    return res.scalar() is not None
+
+def drop_constraint_safe(constraint_name, table_name, type_):
+    if constraint_name and constraint_exists(constraint_name):
+        op.drop_constraint(constraint_name, table_name, type_=type_)
+
 def create_index_safe_with_column_check(index_name, table_name, columns, **kw):
     """Create index only if it doesn't exist AND all columns exist."""
     # First check if all columns exist
@@ -81,7 +97,7 @@ def upgrade() -> None:
                existing_nullable=True)
     drop_index_safe('ix_agent_steps_agent_session_id', table_name='agent_steps')
     drop_index_safe('ix_agent_steps_step_number', table_name='agent_steps')
-    op.drop_constraint('agent_steps_agent_session_id_fkey', 'agent_steps', type_='foreignkey')
+    drop_constraint_safe('agent_steps_agent_session_id_fkey', 'agent_steps', type_='foreignkey')
     op.create_foreign_key(None, 'agent_steps', 'agent_sessions', ['agent_session_id'], ['id'])
     op.alter_column('alert_clusters', 'id',
                existing_type=sa.UUID(),
@@ -112,7 +128,7 @@ def upgrade() -> None:
                existing_type=postgresql.TIMESTAMP(timezone=True),
                server_default=None,
                existing_nullable=True)
-    op.drop_constraint('alert_clusters_cluster_key_key', 'alert_clusters', type_='unique')
+    drop_constraint_safe('alert_clusters_cluster_key_key', 'alert_clusters', type_='unique')
     drop_index_safe('idx_cluster_active', table_name='alert_clusters')
     drop_index_safe('idx_cluster_first_seen', table_name='alert_clusters')
     drop_index_safe('idx_cluster_key', table_name='alert_clusters')
@@ -164,7 +180,7 @@ def upgrade() -> None:
                existing_type=postgresql.TIMESTAMP(timezone=True),
                server_default=None,
                existing_nullable=True)
-    op.drop_constraint('uq_app_component_name', 'application_components', type_='unique')
+    drop_constraint_safe('uq_app_component_name', 'application_components', type_='unique')
     op.alter_column('applications', 'id',
                existing_type=sa.UUID(),
                server_default=None,
@@ -197,7 +213,7 @@ def upgrade() -> None:
                existing_type=postgresql.TIMESTAMP(timezone=True),
                server_default=None,
                existing_nullable=True)
-    op.drop_constraint('change_events_change_id_key', 'change_events', type_='unique')
+    drop_constraint_safe('change_events_change_id_key', 'change_events', type_='unique')
     drop_index_safe('idx_change_correlation', table_name='change_events')
     drop_index_safe('idx_change_id', table_name='change_events')
     drop_index_safe('idx_change_service', table_name='change_events')
@@ -250,7 +266,7 @@ def upgrade() -> None:
                existing_type=postgresql.TIMESTAMP(timezone=True),
                server_default=None,
                existing_nullable=True)
-    op.drop_constraint('uq_component_dependency', 'component_dependencies', type_='unique')
+    drop_constraint_safe('uq_component_dependency', 'component_dependencies', type_='unique')
     op.alter_column('dashboard_annotations', 'created_at',
                existing_type=postgresql.TIMESTAMP(),
                server_default=None,
@@ -271,8 +287,8 @@ def upgrade() -> None:
     drop_index_safe('ix_dashboard_links_dashboard_id', table_name='dashboard_links')
     drop_index_safe('ix_dashboard_panels_dashboard', table_name='dashboard_panels')
     drop_index_safe('ix_dashboard_panels_panel', table_name='dashboard_panels')
-    op.drop_constraint('dashboard_panels_panel_id_fkey', 'dashboard_panels', type_='foreignkey')
-    op.drop_constraint('dashboard_panels_dashboard_id_fkey', 'dashboard_panels', type_='foreignkey')
+    drop_constraint_safe('dashboard_panels_panel_id_fkey', 'dashboard_panels', type_='foreignkey')
+    drop_constraint_safe('dashboard_panels_dashboard_id_fkey', 'dashboard_panels', type_='foreignkey')
     op.create_foreign_key(None, 'dashboard_panels', 'prometheus_panels', ['panel_id'], ['id'])
     op.create_foreign_key(None, 'dashboard_panels', 'dashboards', ['dashboard_id'], ['id'])
     op.alter_column('dashboard_permissions', 'created_at',
@@ -282,13 +298,13 @@ def upgrade() -> None:
     drop_index_safe('ix_dashboard_permissions_dashboard_id', table_name='dashboard_permissions')
     drop_index_safe('ix_dashboard_permissions_role', table_name='dashboard_permissions')
     drop_index_safe('ix_dashboard_permissions_user_id', table_name='dashboard_permissions')
-    op.drop_constraint('dashboard_permissions_dashboard_id_fkey', 'dashboard_permissions', type_='foreignkey')
+    drop_constraint_safe('dashboard_permissions_dashboard_id_fkey', 'dashboard_permissions', type_='foreignkey')
     op.create_foreign_key(None, 'dashboard_permissions', 'dashboards', ['dashboard_id'], ['id'])
     op.alter_column('dashboard_snapshots', 'created_at',
                existing_type=postgresql.TIMESTAMP(),
                server_default=None,
                existing_nullable=True)
-    op.drop_constraint('dashboard_snapshots_key_key', 'dashboard_snapshots', type_='unique')
+    drop_constraint_safe('dashboard_snapshots_key_key', 'dashboard_snapshots', type_='unique')
     drop_index_safe('ix_dashboard_snapshots_dashboard_id', table_name='dashboard_snapshots')
     drop_index_safe('ix_dashboard_snapshots_key', table_name='dashboard_snapshots')
     create_index_safe(op.f('ix_dashboard_snapshots_key'), 'dashboard_snapshots', ['key'], unique=True)
@@ -487,8 +503,8 @@ def upgrade() -> None:
     create_index_safe('idx_executions_queued_at', 'runbook_executions', ['queued_at'], unique=False)
     create_index_safe('idx_executions_runbook_status', 'runbook_executions', ['runbook_id', 'status'], unique=False)
     create_index_safe('idx_executions_status', 'runbook_executions', ['status'], unique=False)
-    op.add_column('runbook_steps', sa.Column('run_if_variable', sa.String(length=100), nullable=True))
-    op.add_column('runbook_steps', sa.Column('run_if_value', sa.String(length=500), nullable=True))
+    add_column_safe('runbook_steps', sa.Column('run_if_variable', sa.String(length=100), nullable=True))
+    add_column_safe('runbook_steps', sa.Column('run_if_value', sa.String(length=500), nullable=True))
     create_index_safe('idx_runbook_steps_type', 'runbook_steps', ['step_type'], unique=False)
     create_index_safe('idx_triggers_alert_name', 'runbook_triggers', ['alert_name_pattern'], unique=False)
     create_index_safe('idx_triggers_enabled_priority', 'runbook_triggers', ['enabled', 'priority'], unique=False)

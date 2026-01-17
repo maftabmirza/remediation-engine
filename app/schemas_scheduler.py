@@ -7,7 +7,7 @@ Request/response models for the scheduler API endpoints.
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 from uuid import UUID
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator, model_validator, ConfigDict
 from croniter import croniter
 
 
@@ -33,35 +33,28 @@ class ScheduledJobCreate(BaseModel):
     
     enabled: bool = True
     
-    @validator('schedule_type')
+    @field_validator('schedule_type')
+    @classmethod
     def validate_schedule_type(cls, v):
         if v not in ['cron', 'interval', 'date']:
             raise ValueError("schedule_type must be 'cron', 'interval', or 'date'")
         return v
     
-    @validator('cron_expression')
-    def validate_cron(cls, v, values):
-        if values.get('schedule_type') == 'cron':
-            if not v:
+    @model_validator(mode='after')
+    def validate_schedule_fields(self):
+        if self.schedule_type == 'cron':
+            if not self.cron_expression:
                 raise ValueError("cron_expression is required for cron schedules")
-            if not croniter.is_valid(v):
-                raise ValueError(f"Invalid cron expression: {v}")
-        return v
-    
-    @validator('interval_seconds')
-    def validate_interval(cls, v, values):
-        if values.get('schedule_type') == 'interval' and not v:
+            if not croniter.is_valid(self.cron_expression):
+                raise ValueError(f"Invalid cron expression: {self.cron_expression}")
+        elif self.schedule_type == 'interval' and not self.interval_seconds:
             raise ValueError("interval_seconds is required for interval schedules")
-        return v
-    
-    @validator('start_date')
-    def validate_start_date(cls, v, values):
-        if values.get('schedule_type') == 'date' and not v:
+        elif self.schedule_type == 'date' and not self.start_date:
             raise ValueError("start_date is required for date schedules")
-        return v
+        return self
     
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "runbook_id": "3df2e7bf-a5f0-4df1-b324-7734ffce4c83",
                 "name": "Daily DB Cleanup",
@@ -72,6 +65,7 @@ class ScheduledJobCreate(BaseModel):
                 "enabled": True
             }
         }
+    )
 
 
 class ScheduledJobUpdate(BaseModel):
@@ -125,8 +119,7 @@ class ScheduledJobResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ScheduleExecutionHistoryResponse(BaseModel):
@@ -144,8 +137,7 @@ class ScheduleExecutionHistoryResponse(BaseModel):
     
     created_at: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class SchedulerStatsResponse(BaseModel):

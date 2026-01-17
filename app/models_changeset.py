@@ -78,7 +78,7 @@ class ChangeSet(Base):
 
     # Relationships
     session = relationship("AISession")
-    agent_step = relationship("AgentStep")
+    agent_step = relationship("AgentStep", foreign_keys=[agent_step_id])
     items = relationship("ChangeItem", back_populates="change_set", cascade="all, delete-orphan", order_by="ChangeItem.order_index")
 
 

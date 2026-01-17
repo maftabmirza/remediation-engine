@@ -14,6 +14,8 @@ else:
     # Avoid runtime circular import but allow SQLAlchemy to find models if needed
     from app.models_learning import AnalysisFeedback
     from app.models_troubleshooting import AlertCorrelation
+    from app.models_agent import AgentSession, AgentStep
+    from app.models_agent_pool import AgentPool, AgentTask, ActionProposal
 
 
 def utc_now():

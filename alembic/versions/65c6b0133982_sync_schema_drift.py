@@ -352,112 +352,121 @@ def upgrade() -> None:
                nullable=True)
     drop_index_if_exists('ix_inquiry_sessions_updated_at', table_name='inquiry_sessions')
     drop_index_if_exists('ix_inquiry_sessions_user_id', table_name='inquiry_sessions')
-    op.alter_column('knowledge_sources', 'id',
-               existing_type=sa.UUID(),
-               server_default=None,
-               existing_nullable=False)
-    op.alter_column('knowledge_sources', 'config',
-               existing_type=postgresql.JSONB(astext_type=sa.Text()),
-               server_default=None,
-               existing_nullable=False)
-    op.alter_column('knowledge_sources', 'enabled',
-               existing_type=sa.BOOLEAN(),
-               server_default=None,
-               existing_nullable=True)
-    op.alter_column('knowledge_sources', 'auto_sync',
-               existing_type=sa.BOOLEAN(),
-               server_default=None,
-               existing_nullable=True)
-    op.alter_column('knowledge_sources', 'last_sync_status',
-               existing_type=sa.VARCHAR(length=50),
-               server_default=None,
-               existing_nullable=True)
-    op.alter_column('knowledge_sources', 'sync_count',
-               existing_type=sa.INTEGER(),
-               server_default=None,
-               existing_nullable=True)
-    op.alter_column('knowledge_sources', 'total_documents',
-               existing_type=sa.INTEGER(),
-               server_default=None,
-               existing_nullable=True)
-    op.alter_column('knowledge_sources', 'total_chunks',
-               existing_type=sa.INTEGER(),
-               server_default=None,
-               existing_nullable=True)
-    op.alter_column('knowledge_sources', 'status',
-               existing_type=sa.VARCHAR(length=50),
-               server_default=None,
-               existing_nullable=True)
-    op.alter_column('knowledge_sources', 'created_at',
-               existing_type=postgresql.TIMESTAMP(timezone=True),
-               server_default=None,
-               existing_nullable=True)
-    op.alter_column('knowledge_sources', 'updated_at',
-               existing_type=postgresql.TIMESTAMP(timezone=True),
-               server_default=None,
-               existing_nullable=True)
-    drop_index_if_exists('idx_knowledge_sources_enabled', table_name='knowledge_sources', postgresql_where='(enabled = true)')
-    drop_index_if_exists('idx_knowledge_sources_status', table_name='knowledge_sources')
-    drop_index_if_exists('idx_knowledge_sources_tenant', table_name='knowledge_sources')
-    drop_index_if_exists('idx_knowledge_sources_type', table_name='knowledge_sources')
-    drop_constraint_if_exists('unique_source_name_per_tenant', 'knowledge_sources', type_='unique')
-    create_index_if_not_exists(op.f('ix_knowledge_sources_enabled'), 'knowledge_sources', ['enabled'], unique=False)
-    create_index_if_not_exists(op.f('ix_knowledge_sources_source_type'), 'knowledge_sources', ['source_type'], unique=False)
-    create_index_if_not_exists(op.f('ix_knowledge_sources_status'), 'knowledge_sources', ['status'], unique=False)
-    create_index_if_not_exists(op.f('ix_knowledge_sources_tenant_id'), 'knowledge_sources', ['tenant_id'], unique=False)
-    op.alter_column('knowledge_sync_history', 'id',
-               existing_type=sa.UUID(),
-               server_default=None,
-               existing_nullable=False)
-    op.alter_column('knowledge_sync_history', 'started_at',
-               existing_type=postgresql.TIMESTAMP(timezone=True),
-               server_default=None,
-               existing_nullable=False)
-    op.alter_column('knowledge_sync_history', 'status',
-               existing_type=sa.VARCHAR(length=50),
-               server_default=None,
-               existing_nullable=False)
-    op.alter_column('knowledge_sync_history', 'documents_added',
-               existing_type=sa.INTEGER(),
-               server_default=None,
-               existing_nullable=True)
-    op.alter_column('knowledge_sync_history', 'documents_updated',
-               existing_type=sa.INTEGER(),
-               server_default=None,
-               existing_nullable=True)
-    op.alter_column('knowledge_sync_history', 'documents_deleted',
-               existing_type=sa.INTEGER(),
-               server_default=None,
-               existing_nullable=True)
-    op.alter_column('knowledge_sync_history', 'chunks_created',
-               existing_type=sa.INTEGER(),
-               server_default=None,
-               existing_nullable=True)
-    op.alter_column('knowledge_sync_history', 'created_at',
-               existing_type=postgresql.TIMESTAMP(timezone=True),
-               server_default=None,
-               existing_nullable=True)
-    drop_index_if_exists('idx_sync_history_created', table_name='knowledge_sync_history')
-    drop_index_if_exists('idx_sync_history_source', table_name='knowledge_sync_history')
-    drop_index_if_exists('idx_sync_history_status', table_name='knowledge_sync_history')
-    create_index_if_not_exists(op.f('ix_knowledge_sync_history_source_id'), 'knowledge_sync_history', ['source_id'], unique=False)
-    op.alter_column('runbook_clicks', 'id',
-               existing_type=sa.UUID(),
-               server_default=None,
-               existing_nullable=False)
-    op.alter_column('runbook_clicks', 'source',
-               existing_type=sa.VARCHAR(length=50),
-               server_default=None,
-               existing_nullable=False)
-    op.alter_column('runbook_clicks', 'clicked_at',
-               existing_type=postgresql.TIMESTAMP(timezone=True),
-               server_default=None,
-               existing_nullable=True)
-    drop_index_if_exists('idx_runbook_clicks_session_id', table_name='runbook_clicks')
-    create_index_if_not_exists(op.f('ix_runbook_clicks_clicked_at'), 'runbook_clicks', ['clicked_at'], unique=False)
-    create_index_if_not_exists(op.f('ix_runbook_clicks_runbook_id'), 'runbook_clicks', ['runbook_id'], unique=False)
-    create_index_if_not_exists(op.f('ix_runbook_clicks_session_id'), 'runbook_clicks', ['session_id'], unique=False)
-    create_index_if_not_exists(op.f('ix_runbook_clicks_user_id'), 'runbook_clicks', ['user_id'], unique=False)
+    if table_exists('knowledge_sources'):
+        op.alter_column('knowledge_sources', 'id',
+                   existing_type=sa.UUID(),
+                   server_default=None,
+                   existing_nullable=False)
+        op.alter_column('knowledge_sources', 'config',
+                   existing_type=postgresql.JSONB(astext_type=sa.Text()),
+                   server_default=None,
+                   existing_nullable=False)
+        op.alter_column('knowledge_sources', 'enabled',
+                   existing_type=sa.BOOLEAN(),
+                   server_default=None,
+                   existing_nullable=True)
+        op.alter_column('knowledge_sources', 'auto_sync',
+                   existing_type=sa.BOOLEAN(),
+                   server_default=None,
+                   existing_nullable=True)
+        op.alter_column('knowledge_sources', 'last_sync_status',
+                   existing_type=sa.VARCHAR(length=50),
+                   server_default=None,
+                   existing_nullable=True)
+        op.alter_column('knowledge_sources', 'sync_count',
+                   existing_type=sa.INTEGER(),
+                   server_default=None,
+                   existing_nullable=True)
+        op.alter_column('knowledge_sources', 'total_documents',
+                   existing_type=sa.INTEGER(),
+                   server_default=None,
+                   existing_nullable=True)
+        op.alter_column('knowledge_sources', 'total_chunks',
+                   existing_type=sa.INTEGER(),
+                   server_default=None,
+                   existing_nullable=True)
+        op.alter_column('knowledge_sources', 'status',
+                   existing_type=sa.VARCHAR(length=50),
+                   server_default=None,
+                   existing_nullable=True)
+        op.alter_column('knowledge_sources', 'created_at',
+                   existing_type=postgresql.TIMESTAMP(timezone=True),
+                   server_default=None,
+                   existing_nullable=True)
+        op.alter_column('knowledge_sources', 'updated_at',
+                   existing_type=postgresql.TIMESTAMP(timezone=True),
+                   server_default=None,
+                   existing_nullable=True)
+        drop_index_if_exists('idx_knowledge_sources_enabled', table_name='knowledge_sources', postgresql_where='(enabled = true)')
+        drop_index_if_exists('idx_knowledge_sources_status', table_name='knowledge_sources')
+        drop_index_if_exists('idx_knowledge_sources_tenant', table_name='knowledge_sources')
+        drop_index_if_exists('idx_knowledge_sources_type', table_name='knowledge_sources')
+        drop_constraint_if_exists('unique_source_name_per_tenant', 'knowledge_sources', type_='unique')
+        create_index_if_not_exists(op.f('ix_knowledge_sources_enabled'), 'knowledge_sources', ['enabled'], unique=False)
+        create_index_if_not_exists(op.f('ix_knowledge_sources_source_type'), 'knowledge_sources', ['source_type'], unique=False)
+        create_index_if_not_exists(op.f('ix_knowledge_sources_status'), 'knowledge_sources', ['status'], unique=False)
+        create_index_if_not_exists(op.f('ix_knowledge_sources_tenant_id'), 'knowledge_sources', ['tenant_id'], unique=False)
+    else:
+        print("Skipping knowledge_sources operations: table does not exist")
+    if table_exists('knowledge_sync_history'):
+        op.alter_column('knowledge_sync_history', 'id',
+                   existing_type=sa.UUID(),
+                   server_default=None,
+                   existing_nullable=False)
+        op.alter_column('knowledge_sync_history', 'started_at',
+                   existing_type=postgresql.TIMESTAMP(timezone=True),
+                   server_default=None,
+                   existing_nullable=False)
+        op.alter_column('knowledge_sync_history', 'status',
+                   existing_type=sa.VARCHAR(length=50),
+                   server_default=None,
+                   existing_nullable=False)
+        op.alter_column('knowledge_sync_history', 'documents_added',
+                   existing_type=sa.INTEGER(),
+                   server_default=None,
+                   existing_nullable=True)
+        op.alter_column('knowledge_sync_history', 'documents_updated',
+                   existing_type=sa.INTEGER(),
+                   server_default=None,
+                   existing_nullable=True)
+        op.alter_column('knowledge_sync_history', 'documents_deleted',
+                   existing_type=sa.INTEGER(),
+                   server_default=None,
+                   existing_nullable=True)
+        op.alter_column('knowledge_sync_history', 'chunks_created',
+                   existing_type=sa.INTEGER(),
+                   server_default=None,
+                   existing_nullable=True)
+        op.alter_column('knowledge_sync_history', 'created_at',
+                   existing_type=postgresql.TIMESTAMP(timezone=True),
+                   server_default=None,
+                   existing_nullable=True)
+        drop_index_if_exists('idx_sync_history_created', table_name='knowledge_sync_history')
+        drop_index_if_exists('idx_sync_history_source', table_name='knowledge_sync_history')
+        drop_index_if_exists('idx_sync_history_status', table_name='knowledge_sync_history')
+        create_index_if_not_exists(op.f('ix_knowledge_sync_history_source_id'), 'knowledge_sync_history', ['source_id'], unique=False)
+    else:
+        print("Skipping knowledge_sync_history operations: table does not exist")
+    if table_exists('runbook_clicks'):
+        op.alter_column('runbook_clicks', 'id',
+                   existing_type=sa.UUID(),
+                   server_default=None,
+                   existing_nullable=False)
+        op.alter_column('runbook_clicks', 'source',
+                   existing_type=sa.VARCHAR(length=50),
+                   server_default=None,
+                   existing_nullable=False)
+        op.alter_column('runbook_clicks', 'clicked_at',
+                   existing_type=postgresql.TIMESTAMP(timezone=True),
+                   server_default=None,
+                   existing_nullable=True)
+        drop_index_if_exists('idx_runbook_clicks_session_id', table_name='runbook_clicks')
+        create_index_if_not_exists(op.f('ix_runbook_clicks_clicked_at'), 'runbook_clicks', ['clicked_at'], unique=False)
+        create_index_if_not_exists(op.f('ix_runbook_clicks_runbook_id'), 'runbook_clicks', ['runbook_id'], unique=False)
+        create_index_if_not_exists(op.f('ix_runbook_clicks_session_id'), 'runbook_clicks', ['session_id'], unique=False)
+        create_index_if_not_exists(op.f('ix_runbook_clicks_user_id'), 'runbook_clicks', ['user_id'], unique=False)
+    else:
+        print("Skipping runbook_clicks operations: table does not exist")
     drop_index_if_exists('idx_runbooks_embedding', table_name='runbooks', postgresql_with={'lists': '100'}, postgresql_using='ivfflat')
     # ### end Alembic commands ###
 

@@ -950,6 +950,7 @@ class ToolRegistry:
                 for key, value in labels.items():
                     output.append(f"  - {key}: {value}")
 
+            if alert.ai_analysis:
                 output.append(f"\n**Previous AI Analysis:**")
                 output.append(f"{alert.ai_analysis[:500]}...")
 

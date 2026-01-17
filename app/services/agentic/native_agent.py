@@ -60,6 +60,9 @@ class NativeToolAgent:
         db: Session,
         provider: LLMProvider,
         alert: Optional[Alert] = None,
+        max_iterations: int = 7,
+        temperature: Optional[float] = None,
+        max_tokens: Optional[int] = None,
         initial_messages: Optional[List[Dict[str, Any]]] = None,
         on_tool_call_complete: Optional[Callable[[str, Dict[str, Any], str], None]] = None,
         registry_factory: Optional[Callable] = None
@@ -81,9 +84,10 @@ class NativeToolAgent:
         self.db = db
         self.provider = provider
         self.alert = alert
-        self.max_iterations = 10  # Default max iterations for tool calling
-        self.temperature = 0.3  # Default temperature for LLM calls
-        self.max_tokens = 2000  # Default max tokens for responses
+        self.max_iterations = max_iterations
+        provider_config = provider.config_json or {}
+        self.temperature = temperature if temperature is not None else provider_config.get("temperature", 0.3)
+        self.max_tokens = max_tokens if max_tokens is not None else provider_config.get("max_tokens", 2000)
         self.on_tool_call_complete = on_tool_call_complete
 
         # Initialize tool registry
@@ -102,8 +106,10 @@ class NativeToolAgent:
 
     def _get_system_prompt(self) -> str:
         """Generate the system prompt for the agent"""
-        base_prompt = """You are RE-VIVE, an advanced SRE AI Agent.
-You are pair-programming with the user to investigate and resolve production incidents.
+        base_prompt = """You are RE-VIVE, an advanced SRE AI Agent from Antigravity.
+
+    ## Tool-First Approach
+    You are pair-programming with the user to investigate and resolve production incidents.
 
 ## ANTI-HALLUCINATION & SAFETY RULE (READ FIRST)
 1. **DO NOT INVENT DATA.** You often try to "complete" the task by simulating tool outputs in your text. **STOP.**
@@ -481,14 +487,13 @@ Tools called so far will be tracked. If you try to suggest a command without suf
 
         return (final_content or "").rstrip() + "\n" + "\n".join(suffix_lines) + "\n"
 
-    async def _get_tools_for_provider(self) -> List[Dict[str, Any]]:
+    def _get_tools_for_provider(self) -> List[Dict[str, Any]]:
         """
         Get tools in the format expected by the provider.
-        
-        NOTE: LiteLLM expects tools in OpenAI format (type="function") 
-        and handles the conversion to provider-specific formats (like Anthropic) internally.
         """
-        # Always return OpenAI format for LiteLLM
+        provider_type = (self.provider.provider_type or "").lower()
+        if provider_type == "anthropic":
+            return self.tool_registry.get_anthropic_tools()
         return self.tool_registry.get_openai_tools()
     
     async def _call_anthropic_directly(self, api_key: str) -> Dict[str, Any]:
@@ -591,7 +596,7 @@ Tools called so far will be tracked. If you try to suggest a command without suf
             
             # Convert tools to Anthropic format
             anthropic_tools = []
-            openai_tools = await self._get_tools_for_provider()
+            openai_tools = self.tool_registry.get_openai_tools()
             for tool in openai_tools:
                 fn = tool.get("function", {})
                 anthropic_tools.append({
@@ -681,7 +686,7 @@ Tools called so far will be tracked. If you try to suggest a command without suf
             return await self._call_anthropic_directly(api_key)
 
         # Prepare tools
-        tools = await self._get_tools_for_provider()
+        tools = self._get_tools_for_provider()
         
         # Prepare messages
         # With newer LiteLLM, we can pass standard messages

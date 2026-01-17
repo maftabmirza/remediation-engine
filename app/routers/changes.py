@@ -33,7 +33,7 @@ router = APIRouter(prefix="/api/changes", tags=["changes"])
 
 @router.get("", response_model=List[ChangeEventResponse])
 async def list_changes(
-    time_range: str = Query("7d", regex="^(24h|7d|30d|90d)$"),
+    time_range: str = Query("7d", pattern="^(24h|7d|30d|90d)$"),
     service_name: Optional[str] = None,
     change_type: Optional[str] = None,
     impact_level: Optional[str] = None,
@@ -74,7 +74,7 @@ async def list_changes(
 
 @router.get("/timeline", response_model=ChangeTimelineResponse)
 async def get_change_timeline(
-    time_range: str = Query("7d", regex="^(24h|7d|30d)$"),
+    time_range: str = Query("7d", pattern="^(24h|7d|30d)$"),
     service_name: Optional[str] = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)

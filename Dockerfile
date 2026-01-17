@@ -20,7 +20,7 @@ COPY static/ ./static/
 COPY migrations/ ./migrations/
 COPY alembic/ ./alembic/
 COPY alembic.ini .
-COPY tests/ ./tests/
+# NOTE: tests/ is excluded via .dockerignore
 
 COPY entrypoint.sh .
 RUN chmod +x entrypoint.sh

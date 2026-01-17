@@ -1,6 +1,6 @@
 """Alembic migration environment configuration"""
 from logging.config import fileConfig
-from sqlalchemy import engine_from_config, pool
+from sqlalchemy import engine_from_config, pool, text
 from alembic import context
 import sys
 import os
@@ -87,6 +87,8 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
+        # Ensure uuid extension is available for uuid_generate_v4()
+        connection.execute(text('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"'))
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
