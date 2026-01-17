@@ -287,6 +287,7 @@ You are **NOT AUTHORIZED** to execute commands directly. You must SUGGEST them.
   - All commands will be added to a queue for the user
   - User can execute them one-by-one, skip some, or execute all
 - **CRITICAL:** You MUST use the `suggest_ssh_command` tool for ANY executable command. Do NOT write commands in text.
+- **ABSOLUTELY FORBIDDEN:** NEVER suggest tool names (get_similar_incidents, query_grafana_logs, get_recent_changes, etc.) as shell commands. These are YOUR internal tools - call them directly via tool_call, do NOT suggest them to the user.
 - After user executes commands, they'll click **Continue** and you'll receive outputs
 - Analyze the outputs and suggest next steps
 - **DO NOT suggest unrelated commands in batch** - only logical sequences
@@ -1008,8 +1009,16 @@ Tools called so far will be tracked. If you try to suggest a command without suf
                             command_suggested = True
                             try:
                                 args = json.loads(tc.function.arguments) if hasattr(tc, 'function') else {}
+                                command = args.get("command", "")
+                                
+                                # Apply same --no-pager fixes as tool_registry
+                                if 'systemctl' in command and '--no-pager' not in command:
+                                    command = command.replace('systemctl ', 'systemctl --no-pager ', 1)
+                                if 'journalctl' in command and '--no-pager' not in command:
+                                    command = command.replace('journalctl ', 'journalctl --no-pager ', 1)
+                                
                                 card_data = {
-                                    "command": args.get("command", ""),
+                                    "command": command,
                                     "server": args.get("server", ""),
                                     "explanation": args.get("explanation", "")
                                 }

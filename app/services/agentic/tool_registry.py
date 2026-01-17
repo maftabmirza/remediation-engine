@@ -970,6 +970,16 @@ class ToolRegistry:
 
         if not server or not command:
             return "Error: server and command are required"
+        
+        # Auto-fix: Add --no-pager to systemctl commands to prevent pager blocking terminal
+        if 'systemctl' in command and '--no-pager' not in command:
+            command = command.replace('systemctl ', 'systemctl --no-pager ', 1)
+            args["command"] = command  # Update args so CMD_CARD gets the fixed command
+            
+        # Auto-fix: Add --no-pager to journalctl commands
+        if 'journalctl' in command and '--no-pager' not in command:
+            command = command.replace('journalctl ', 'journalctl --no-pager ', 1)
+            args["command"] = command
 
         # Detect OS type from server name or default to linux
         # Simple heuristic: if server contains 'win' or ends with Windows-like patterns
