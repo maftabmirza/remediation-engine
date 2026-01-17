@@ -874,6 +874,39 @@ function updateQueueStatus() {
 
 // Continue with AI - sends all queue outputs to agent
 async function continueWithAI(queueContainerId) {
+    // Robustness: Reconstruct queue from DOM if missing
+    if (commandQueue.length === 0) {
+        const container = document.getElementById(queueContainerId + '-cards');
+        if (container) {
+            console.warn('Command queue missing, reconstructing from DOM for report');
+            const cards = container.querySelectorAll('.command-card');
+            cards.forEach(card => {
+                const btn = card.querySelector('button[data-cmd]');
+                if (btn) {
+                    const cmd = btn.dataset.cmd;
+                    const srv = btn.dataset.server;
+                    let status = 'pending';
+                    let output = '';
+                    const actDiv = card.querySelector('.cmd-actions');
+                    if (actDiv && actDiv.innerHTML.includes('text-green-400')) status = 'executed';
+                    else if (actDiv && actDiv.innerHTML.includes('text-yellow-400')) status = 'skipped';
+
+                    const outDiv = card.querySelector('.cmd-output pre');
+                    if (outDiv) output = outDiv.textContent;
+
+                    commandQueue.push({
+                        id: card.id,
+                        command: cmd,
+                        server: srv,
+                        status: status,
+                        output: output,
+                        exitCode: 0
+                    });
+                }
+            });
+        }
+    }
+
     if (commandQueue.length === 0) return;
 
     // Disable button
