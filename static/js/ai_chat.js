@@ -533,7 +533,7 @@ function appendAIMessage(text, skipRunButtons = false) {
             <div id="${queueContainerId}-cards" class="space-y-2"></div>
             <div id="${queueContainerId}-actions" class="mt-4 flex gap-3 border-t border-gray-700 pt-3">
                 <button id="${queueContainerId}-continue" onclick="continueWithAI('${queueContainerId}')" 
-                        class="flex-1 bg-blue-600 hover:bg-blue-500 text-white text-sm px-4 py-2 rounded font-medium transition-colors flex items-center justify-center opacity-50 cursor-not-allowed" disabled>
+                        class="flex-1 bg-blue-600 hover:bg-blue-500 text-white text-sm px-4 py-2 rounded font-medium transition-colors flex items-center justify-center">
                     <i class="fas fa-robot mr-2"></i>Continue with AI
                 </button>
                 <button onclick="skipAllCommands('${queueContainerId}')" 
@@ -738,7 +738,7 @@ async function runQueuedCommand(cardId, btnEl) {
         if (btnEl && btnEl.dataset.cmd) {
             command = btnEl.dataset.cmd;
             server = btnEl.dataset.server;
-            console.warn('Queue item not found in memory, using fallback dataset for:', cardId);
+            console.debug('Queue item not found in memory, using fallback dataset for:', cardId);
 
             // Reconstruct item to avoid crash and allow status updates
             queueItem = {
@@ -935,20 +935,6 @@ function updateQueueStatus() {
         }
     }
 
-    // Enable Continue button when at least one command has been handled
-    if (actionsEl) {
-        const continueBtn = document.getElementById(`${commandQueueContainerId}-continue`);
-        if (continueBtn) {
-            if (executedCount > 0 || skippedCount > 0) {
-                continueBtn.disabled = false;
-                continueBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-            } else {
-                continueBtn.disabled = true;
-                continueBtn.classList.add('opacity-50', 'cursor-not-allowed');
-            }
-        }
-    }
-
     // Auto-continue when all commands are handled
     maybeAutoContinueQueue(commandQueueContainerId, pendingCount, executedCount, skippedCount);
 }
@@ -1062,6 +1048,10 @@ async function continueWithAI(queueContainerId) {
         commandQueueContainerId = null;
 
         console.log('✅ Sent command queue results to AI');
+
+        if (actionsEl) {
+            actionsEl.innerHTML = '<div class="text-green-400 text-sm"><i class="fas fa-check mr-2"></i>Sent to AI</div>';
+        }
     } catch (err) {
         console.error('continueWithAI failed:', err);
         showToast('Failed to send report to AI', 'error');
@@ -1072,6 +1062,8 @@ async function continueWithAI(queueContainerId) {
         }
         if (queueWrapper) queueWrapper.dataset.continueInProgress = 'false';
     }
+
+    if (queueWrapper) queueWrapper.dataset.continueInProgress = 'false';
 }
 
 // Execute command and capture output (helper function)
