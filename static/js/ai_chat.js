@@ -823,6 +823,9 @@ async function runQueuedCommand(cardId, btnEl) {
         }
 
         showToast(`Command executed ${isSuccess ? 'successfully' : 'with errors'}`, isSuccess ? 'success' : 'warning');
+        
+        // Auto-save command outcome for learning (fire-and-forget)
+        saveCommandOutcome(command, result.output, isSuccess, result.exitCode);
 
     } catch (err) {
         console.debug('[AIQ] command execution error', { cardId, error: err && err.message ? err.message : String(err) });
@@ -833,6 +836,9 @@ async function runQueuedCommand(cardId, btnEl) {
 
         actionsDiv.innerHTML = '<div class="text-red-400 text-xs p-2"><i class="fas fa-times-circle mr-1"></i>Failed to execute</div>';
         showToast('Command execution failed: ' + err.message, 'error');
+        
+        // Auto-save failed outcome for learning
+        saveCommandOutcome(command, err.message, false, -1);
     }
 
     // Update queue status
@@ -1974,6 +1980,29 @@ async function submitFeedback(feedbackId, command, success) {
         });
     } catch (error) {
         console.error('Failed to save feedback:', error);
+    }
+}
+
+// Auto-save command execution outcome for learning system (fire-and-forget)
+async function saveCommandOutcome(command, output, success, exitCode) {
+    try {
+        // Truncate output for storage
+        const truncatedOutput = output ? output.substring(0, 500) : '';
+        
+        await apiCall('/api/v1/solution-feedback', {
+            method: 'POST',
+            body: JSON.stringify({
+                solution_type: 'command',
+                solution_reference: command,
+                success: success,
+                session_id: currentSessionId,
+                problem_description: `Command: ${command}\nExit code: ${exitCode}\nOutput: ${truncatedOutput}`
+            })
+        });
+        console.debug('[AIQ] Auto-saved command outcome for learning', { command: command.substring(0, 50), success, exitCode });
+    } catch (error) {
+        // Fire-and-forget - don't block on errors
+        console.debug('[AIQ] Failed to auto-save command outcome:', error);
     }
 }
 
