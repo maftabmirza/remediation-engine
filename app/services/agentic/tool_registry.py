@@ -623,7 +623,7 @@ class ToolRegistry:
             output = [f"Found {len(runbooks)} relevant runbooks:\n"]
             for runbook in runbooks:
                 output.append(f"## {runbook.name}")
-                output.append(f"**View:** [Open runbook](/runbooks/{runbook.id}/view)")
+                output.append(f"📖 **[View Runbook →](/runbooks/{runbook.id}/view)** (Open in AIOps Platform)")
                 output.append(f"Description: {runbook.description or 'No description'}")
                 output.append(f"Severity: {runbook.severity}")
                 output.append(f"Auto-execute: {'Yes' if runbook.auto_execute else 'No'}")

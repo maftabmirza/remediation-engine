@@ -44,9 +44,7 @@ async def view_runbook(
     ).order_by(RunbookTrigger.priority).all()
     
     # Load available servers for execution
-    servers = db.query(ServerCredential).filter(
-        ServerCredential.is_active == True
-    ).all()
+    servers = db.query(ServerCredential).all()
     
     return templates.TemplateResponse("runbook_view.html", {
         "request":  request,

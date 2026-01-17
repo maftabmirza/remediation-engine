@@ -633,3 +633,79 @@ def isolate_tests():
     """Ensure tests are isolated from each other."""
     yield
     # Any cleanup needed between tests
+
+
+# ============================================================================
+# TEMPLATE AND VIEW TESTING FIXTURES
+# ============================================================================
+
+@pytest.fixture(scope="function")
+def test_runbook(test_db_session):
+    """Create a test runbook for view testing."""
+    if Runbook is None:
+        pytest.skip("Runbook model not available")
+    
+    from uuid import uuid4
+    
+    runbook = Runbook(
+        id=uuid4(),
+        name="Test Runbook",
+        description="A test runbook for testing views",
+        category="infrastructure",
+        enabled=True,
+        auto_execute=False,
+        approval_required=True,
+    )
+    test_db_session.add(runbook)
+    test_db_session.commit()
+    test_db_session.refresh(runbook)
+    return runbook
+
+
+@pytest.fixture(scope="function")
+def test_runbook_with_steps(test_db_session):
+    """Create a test runbook with steps for view testing."""
+    if Runbook is None or RunbookStep is None:
+        pytest.skip("Runbook models not available")
+    
+    from uuid import uuid4
+    
+    runbook = Runbook(
+        id=uuid4(),
+        name="Test Runbook with Steps",
+        description="A test runbook with steps for testing",
+        category="infrastructure",
+        enabled=True,
+        auto_execute=False,
+        approval_required=True,
+    )
+    test_db_session.add(runbook)
+    test_db_session.commit()
+    test_db_session.refresh(runbook)
+    
+    # Add steps
+    step1 = RunbookStep(
+        id=uuid4(),
+        runbook_id=runbook.id,
+        step_order=1,
+        name="Check Status",
+        description="Check service status",
+        command_linux="systemctl status nginx",
+        target_os="linux",
+    )
+    step2 = RunbookStep(
+        id=uuid4(),
+        runbook_id=runbook.id,
+        step_order=2,
+        name="Restart Service",
+        description="Restart the service",
+        command_linux="systemctl restart nginx",
+        target_os="linux",
+    )
+    
+    test_db_session.add(step1)
+    test_db_session.add(step2)
+    test_db_session.commit()
+    
+    test_db_session.refresh(runbook)
+    return runbook

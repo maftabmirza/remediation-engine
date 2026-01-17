@@ -338,8 +338,10 @@ Do NOT include suggestions if you just suggested a command - wait for the result
 
 ## RUNBOOK LINK RULE
 
-If a tool output includes a runbook `view_url`, you MUST include a clickable Markdown link:
-`View: [Open runbook](/runbooks/<id>/view)`
+If a tool output includes a runbook `view_url`, you MUST include it in your response as:
+`📖 **[View Runbook →](/runbooks/<id>/view)** (Open in AIOps Platform)`
+
+This link should be opened in the main AIOps platform interface where the user is logged in.
 """
         # Add alert context if available
         if self.alert:
@@ -481,9 +483,9 @@ Tools called so far will be tracked. If you try to suggest a command without suf
         if not missing:
             return final_content
 
-        suffix_lines = ["", "**Runbook links:**"]
+        suffix_lines = ["", "**📖 Runbook Links (Open in AIOps Platform):**"]
         for url in missing[:10]:
-            suffix_lines.append(f"- [Open runbook]({url})")
+            suffix_lines.append(f"- [View Runbook →]({url})")
 
         return (final_content or "").rstrip() + "\n" + "\n".join(suffix_lines) + "\n"
 

@@ -214,7 +214,10 @@ Historical Reference (may or may not apply):
 ```
 
 ## Runbook Link Rule:
-If you reference a runbook and a view URL is available, include a clickable Markdown link (e.g., `View: [Open runbook](/runbooks/<id>/view)`).
+If you reference a runbook and a view URL is available, include it as:
+`📖 **[View Runbook →](/runbooks/<id>/view)** (Open in AIOps Platform)`
+
+This link should be opened in the main AIOps platform interface where the user is logged in.
 """
 
         # Add alert context if available
