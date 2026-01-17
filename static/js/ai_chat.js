@@ -727,6 +727,8 @@ async function runQueuedCommand(cardId, btnEl) {
     const card = document.getElementById(cardId);
     if (!card) return;
 
+    console.debug('[AIQ] runQueuedCommand start', { cardId });
+
     let command, server;
     let queueItem = commandQueue.find(c => c.id === cardId);
 
@@ -738,7 +740,7 @@ async function runQueuedCommand(cardId, btnEl) {
         if (btnEl && btnEl.dataset.cmd) {
             command = btnEl.dataset.cmd;
             server = btnEl.dataset.server;
-            console.debug('Queue item not found in memory, using fallback dataset for:', cardId);
+            console.debug('[AIQ] queue item missing, using fallback dataset', { cardId });
 
             // Reconstruct item to avoid crash and allow status updates
             queueItem = {
@@ -764,7 +766,10 @@ async function runQueuedCommand(cardId, btnEl) {
 
     try {
         // Execute command via terminal
+        console.debug('[AIQ] executing command', { cardId, server, command });
         const result = await executeCommandViaTerminal(command, server);
+
+        console.debug('[AIQ] command execution result', { cardId, timedOut: result.timedOut, exitCode: result.exitCode, outputLen: result.output ? result.output.length : 0 });
 
         // If command needs interaction/pager, allow manual capture
         if (result.timedOut) {
@@ -818,6 +823,7 @@ async function runQueuedCommand(cardId, btnEl) {
         showToast(`Command executed ${isSuccess ? 'successfully' : 'with errors'}`, isSuccess ? 'success' : 'warning');
 
     } catch (err) {
+        console.debug('[AIQ] command execution error', { cardId, error: err && err.message ? err.message : String(err) });
         // Update queue item
         queueItem.status = 'executed';
         queueItem.output = 'Error: ' + err.message;
@@ -829,11 +835,14 @@ async function runQueuedCommand(cardId, btnEl) {
 
     // Update queue status
     updateQueueStatus();
+    console.debug('[AIQ] runQueuedCommand end', { cardId });
 }
 
 function captureQueuedOutput(cardId, command, startLine) {
     const card = document.getElementById(cardId);
     if (!card || !term) return;
+
+    console.debug('[AIQ] captureQueuedOutput', { cardId, startLine });
 
     const endLine = term.buffer.active.baseY + term.buffer.active.cursorY;
     const output = getTerminalOutputRange(startLine, endLine);
@@ -872,6 +881,7 @@ function captureQueuedOutput(cardId, command, startLine) {
 
     showToast('Output captured', 'success');
     updateQueueStatus();
+    console.debug('[AIQ] captureQueuedOutput done', { cardId, outputLen: output ? output.length : 0 });
 }
 
 // Skip a command in the queue (doesn't send to AI)
@@ -936,6 +946,7 @@ function updateQueueStatus() {
     }
 
     // Auto-continue when all commands are handled
+    console.debug('[AIQ] queue status', { pendingCount, executedCount, skippedCount, queueContainerId: commandQueueContainerId });
     maybeAutoContinueQueue(commandQueueContainerId, pendingCount, executedCount, skippedCount);
 }
 
@@ -944,6 +955,7 @@ function maybeAutoContinueQueue(queueContainerId, pendingCount, executedCount, s
     if (!queueWrapper) return;
 
     if (pendingCount === 0 && (executedCount > 0 || skippedCount > 0)) {
+        console.debug('[AIQ] auto-continue eligible', { queueContainerId, executedCount, skippedCount });
         if (queueWrapper.dataset.autoContinueTriggered === 'true') return;
         queueWrapper.dataset.autoContinueTriggered = 'true';
 
@@ -956,6 +968,7 @@ function maybeAutoContinueQueue(queueContainerId, pendingCount, executedCount, s
 
 // Continue with AI - sends all queue outputs to agent
 async function continueWithAI(queueContainerId) {
+    console.debug('[AIQ] continueWithAI start', { queueContainerId });
     const queueWrapper = document.getElementById(queueContainerId);
     if (queueWrapper) {
         if (queueWrapper.dataset.continueInProgress === 'true') return;
@@ -998,6 +1011,7 @@ async function continueWithAI(queueContainerId) {
         console.warn('continueWithAI: Queue is empty even after reconstruction attempt.');
         showToast('Error: No execution data found to send.', 'error');
         if (queueWrapper) queueWrapper.dataset.continueInProgress = 'false';
+        console.debug('[AIQ] continueWithAI aborted: empty queue', { queueContainerId });
         return;
     }
 
@@ -1048,6 +1062,7 @@ async function continueWithAI(queueContainerId) {
         commandQueueContainerId = null;
 
         console.log('✅ Sent command queue results to AI');
+        console.debug('[AIQ] continueWithAI sent', { queueContainerId, items: commandQueue.length });
 
         if (actionsEl) {
             actionsEl.innerHTML = '<div class="text-green-400 text-sm"><i class="fas fa-check mr-2"></i>Sent to AI</div>';
@@ -1078,6 +1093,7 @@ async function executeCommandViaTerminal(command, server) {
 
     // Remember terminal buffer position before command
     const startLine = term ? term.buffer.active.baseY + term.buffer.active.cursorY : 0;
+    console.debug('[AIQ] executeCommandViaTerminal start', { server, startLine, command });
 
     // Write command to terminal (raw string with \r for enter)
     if (terminalSocket && terminalSocket.readyState === WebSocket.OPEN) {
@@ -1130,6 +1146,7 @@ async function executeCommandViaTerminal(command, server) {
     const output = getTerminalOutputRange(startLine, endLine);
     const exitCode = 0; // Assume success for now since we're using terminal capture
 
+    console.debug('[AIQ] executeCommandViaTerminal end', { server, startLine, endLine, timedOut, outputLen: output ? output.length : 0 });
     return { output, exitCode, timedOut, startLine, endLine };
 }
 
@@ -1176,7 +1193,9 @@ function getTerminalOutputRange(startLine, endLine) {
         }
     }
 
-    return lines.join('\n').trim();
+    const joined = lines.join('\n').trim();
+    console.debug('[AIQ] getTerminalOutputRange', { start, end, lines: lines.length, outputLen: joined.length });
+    return joined;
 }
 
 async function sendMessage(e) {
