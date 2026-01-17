@@ -531,9 +531,9 @@ function appendAIMessage(text, skipRunButtons = false) {
                 <span class="text-xs text-gray-500" id="${queueContainerId}-status">Waiting for execution...</span>
             </div>
             <div id="${queueContainerId}-cards" class="space-y-2"></div>
-            <div id="${queueContainerId}-actions" class="mt-4 flex gap-3 border-t border-gray-700 pt-3 hidden">
-                <button onclick="continueWithAI('${queueContainerId}')" 
-                        class="flex-1 bg-blue-600 hover:bg-blue-500 text-white text-sm px-4 py-2 rounded font-medium transition-colors flex items-center justify-center">
+            <div id="${queueContainerId}-actions" class="mt-4 flex gap-3 border-t border-gray-700 pt-3">
+                <button id="${queueContainerId}-continue" onclick="continueWithAI('${queueContainerId}')" 
+                        class="flex-1 bg-blue-600 hover:bg-blue-500 text-white text-sm px-4 py-2 rounded font-medium transition-colors flex items-center justify-center opacity-50 cursor-not-allowed" disabled>
                     <i class="fas fa-robot mr-2"></i>Continue with AI
                 </button>
                 <button onclick="skipAllCommands('${queueContainerId}')" 
@@ -866,14 +866,46 @@ function updateQueueStatus() {
         }
     }
 
-    // Show Continue button when at least one command has been handled
-    if (actionsEl && (executedCount > 0 || skippedCount > 0)) {
-        actionsEl.classList.remove('hidden');
+    // Enable Continue button when at least one command has been handled
+    if (actionsEl) {
+        const continueBtn = document.getElementById(`${commandQueueContainerId}-continue`);
+        if (continueBtn) {
+            if (executedCount > 0 || skippedCount > 0) {
+                continueBtn.disabled = false;
+                continueBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            } else {
+                continueBtn.disabled = true;
+                continueBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+        }
+    }
+
+    // Auto-continue when all commands are handled
+    maybeAutoContinueQueue(commandQueueContainerId, pendingCount, executedCount, skippedCount);
+}
+
+function maybeAutoContinueQueue(queueContainerId, pendingCount, executedCount, skippedCount) {
+    const queueWrapper = document.getElementById(queueContainerId);
+    if (!queueWrapper) return;
+
+    if (pendingCount === 0 && (executedCount > 0 || skippedCount > 0)) {
+        if (queueWrapper.dataset.autoContinueTriggered === 'true') return;
+        queueWrapper.dataset.autoContinueTriggered = 'true';
+
+        // Small delay to allow UI to update before continuing
+        setTimeout(() => {
+            continueWithAI(queueContainerId);
+        }, 300);
     }
 }
 
 // Continue with AI - sends all queue outputs to agent
 async function continueWithAI(queueContainerId) {
+    const queueWrapper = document.getElementById(queueContainerId);
+    if (queueWrapper) {
+        if (queueWrapper.dataset.continueInProgress === 'true') return;
+        queueWrapper.dataset.continueInProgress = 'true';
+    }
     // Robustness: Reconstruct queue from DOM if missing
     if (commandQueue.length === 0) {
         const container = document.getElementById(queueContainerId + '-cards');
@@ -910,6 +942,7 @@ async function continueWithAI(queueContainerId) {
     if (commandQueue.length === 0) {
         console.warn('continueWithAI: Queue is empty even after reconstruction attempt.');
         showToast('Error: No execution data found to send.', 'error');
+        if (queueWrapper) queueWrapper.dataset.continueInProgress = 'false';
         return;
     }
 
@@ -968,6 +1001,7 @@ async function continueWithAI(queueContainerId) {
         if (actionsEl && originalBtnContent) {
             actionsEl.innerHTML = originalBtnContent;
         }
+        if (queueWrapper) queueWrapper.dataset.continueInProgress = 'false';
     }
 }
 
