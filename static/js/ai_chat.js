@@ -581,8 +581,8 @@ function appendAIMessage(text, skipRunButtons = false) {
                         <i class="fas fa-info-circle mr-1"></i>${escapeHtml(cardData.explanation)}
                     </div>
                     <div class="cmd-actions flex gap-2">
-                        <button data-cmd="${escapeHtml(cardData.command)}" data-server="${escapeHtml(cardData.server)}"
-                                onclick="runQueuedCommand('${cardId}', this.dataset.cmd, this.dataset.server)" 
+                        <button data-cmd="${escapeHtml(cardData.command)}" data-server="${escapeHtml(cardData.server)}" 
+                                onclick="runQueuedCommand('${cardId}', this)" 
                                 class="flex-1 bg-green-600 hover:bg-green-500 text-white text-xs px-3 py-1.5 rounded font-medium transition-colors flex items-center justify-center">
                             <i class="fas fa-play mr-1"></i>Run
                         </button>
@@ -722,13 +722,41 @@ async function skipCommand(cardId, command) {
 // ============= COMMAND QUEUE SYSTEM =============
 
 // Run a command from the queue (doesn't auto-send to AI)
-async function runQueuedCommand(cardId, command, server) {
+// Run a command from the queue (doesn't auto-send to AI)
+async function runQueuedCommand(cardId, btnEl) {
     const card = document.getElementById(cardId);
     if (!card) return;
 
-    // Find in queue
-    const queueItem = commandQueue.find(c => c.id === cardId);
-    if (!queueItem) return;
+    let command, server;
+    let queueItem = commandQueue.find(c => c.id === cardId);
+
+    if (queueItem) {
+        command = queueItem.command;
+        server = queueItem.server;
+    } else {
+        // Fallback: load from button dataset (handles cases where queue memory is lost)
+        if (btnEl && btnEl.dataset.cmd) {
+            command = btnEl.dataset.cmd;
+            server = btnEl.dataset.server;
+            console.warn('Queue item not found in memory, using fallback dataset for:', cardId);
+
+            // Reconstruct item to avoid crash and allow status updates
+            queueItem = {
+                id: cardId,
+                command: command,
+                server: server,
+                explanation: 'Reconstructed from fallback',
+                status: 'pending',
+                output: null,
+                exitCode: null
+            };
+            commandQueue.push(queueItem);
+        } else {
+            console.error('Command data not found for card:', cardId);
+            showToast('Error: Command data lost. Please refresh.', 'error');
+            return;
+        }
+    }
 
     // Update UI to show running
     const actionsDiv = card.querySelector('.cmd-actions');
@@ -778,19 +806,19 @@ async function runQueuedCommand(cardId, command, server) {
 }
 
 // Skip a command in the queue (doesn't send to AI)
+// Skip a command in the queue (doesn't send to AI)
 function skipQueuedCommand(cardId) {
     const card = document.getElementById(cardId);
     if (!card) return;
 
-    // Find in queue
+    // Find in queue (try to update status if possible)
     const queueItem = commandQueue.find(c => c.id === cardId);
-    if (!queueItem) return;
+    if (queueItem) {
+        queueItem.status = 'skipped';
+        queueItem.output = '[USER SKIPPED THIS COMMAND]';
+    }
 
-    // Update queue item
-    queueItem.status = 'skipped';
-    queueItem.output = '[USER SKIPPED THIS COMMAND]';
-
-    // Update UI
+    // Update UI regardless of queue state
     const actionsDiv = card.querySelector('.cmd-actions');
     actionsDiv.innerHTML = '<div class="text-yellow-400 text-xs p-2"><i class="fas fa-forward mr-1"></i>Skipped</div>';
 
@@ -891,33 +919,57 @@ async function continueWithAI(queueContainerId) {
 }
 
 // Execute command and capture output (helper function)
+// Execute command and capture output (helper function)
 async function executeCommandViaTerminal(command, server) {
     if (!currentServerId) {
         throw new Error('Not connected to any server');
     }
+
+    // Reset cancellation flag
+    pendingCommandCancelled = false;
 
     // Remember terminal buffer position before command
     const startLine = term ? term.buffer.active.baseY + term.buffer.active.cursorY : 0;
 
     // Write command to terminal (raw string with \r for enter)
     if (terminalSocket && terminalSocket.readyState === WebSocket.OPEN) {
-        terminalSocket.send(command + '\r');
+        // Ensure we send as string
+        terminalSocket.send(String(command) + '\r');
     } else {
         throw new Error('Terminal not connected');
     }
 
-    // Wait for output (poll for prompt)
-    const MAX_WAIT = 15; // 15 seconds max
+    // Wait for output (poll for prompt AND new content)
+    const MAX_WAIT = 30; // 30 seconds max
     let waitCount = 0;
+
+    // Wait for initial echo/reaction
+    await new Promise(resolve => setTimeout(resolve, 500));
 
     while (waitCount < MAX_WAIT) {
         await new Promise(resolve => setTimeout(resolve, 1000));
         waitCount++;
 
-        // Simple check: if prompt appears at the end of terminal
-        const output = getTerminalContent();
-        if (output.trim().endsWith('$') || output.trim().endsWith('#') || output.trim().endsWith('>')) {
-            break;
+        // Stop if cancelled
+        if (pendingCommandCancelled) break;
+
+        if (!term) break;
+
+        // Check if we have new content
+        const currentLine = term.buffer.active.baseY + term.buffer.active.cursorY;
+
+        // Only check for prompt if we have moved past the start line OR if we have significant new content on the same line
+        if (currentLine > startLine) {
+            // Get the last line content
+            const buffer = term.buffer.active;
+            const lastLine = buffer.getLine(buffer.baseY + buffer.cursorY);
+            if (lastLine) {
+                const lineText = lastLine.translateToString(true).trim();
+                // Common shell prompts
+                if (lineText.endsWith('$') || lineText.endsWith('#') || lineText.endsWith('>')) {
+                    break;
+                }
+            }
         }
     }
 
