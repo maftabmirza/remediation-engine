@@ -89,14 +89,14 @@ def check_unique_constraints():
         
         # Check Application.name has unique constraint
         app_name_col = Application.__table__.columns.get('name')
-        if app_name_col and not app_name_col.unique:
+        if app_name_col is not None and not app_name_col.unique:
             raise ProductionSecurityError(
                 "❌ CRITICAL: Application.name missing unique constraint in production"
             )
         
         # Check GrafanaDatasource.name has unique constraint  
         ds_name_col = GrafanaDatasource.__table__.columns.get('name')
-        if ds_name_col and not ds_name_col.unique:
+        if ds_name_col is not None and not ds_name_col.unique:
             raise ProductionSecurityError(
                 "❌ CRITICAL: GrafanaDatasource.name missing unique constraint in production"
             )
