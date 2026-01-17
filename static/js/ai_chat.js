@@ -564,6 +564,7 @@ function appendAIMessage(text, skipRunButtons = false) {
             // Render card
             const cardEl = document.createElement('div');
             cardEl.id = cardId;
+            cardEl.dataset.queueId = queueContainerId;
             cardEl.className = 'command-card bg-gray-800 rounded-lg border border-gray-700 overflow-hidden';
             cardEl.innerHTML = `
                 <div class="flex items-center justify-between px-3 py-2 bg-gray-900 border-b border-gray-700">
@@ -727,7 +728,8 @@ async function runQueuedCommand(cardId, btnEl) {
     const card = document.getElementById(cardId);
     if (!card) return;
 
-    console.debug('[AIQ] runQueuedCommand start', { cardId });
+    const localQueueId = card.dataset.queueId || commandQueueContainerId;
+    console.debug('[AIQ] runQueuedCommand start', { cardId, localQueueId });
 
     let command, server;
     let queueItem = commandQueue.find(c => c.id === cardId);
@@ -834,15 +836,16 @@ async function runQueuedCommand(cardId, btnEl) {
     }
 
     // Update queue status
-    updateQueueStatus();
-    console.debug('[AIQ] runQueuedCommand end', { cardId });
+    updateQueueStatusForQueue(localQueueId);
+    console.debug('[AIQ] runQueuedCommand end', { cardId, localQueueId });
 }
 
 function captureQueuedOutput(cardId, command, startLine) {
     const card = document.getElementById(cardId);
     if (!card || !term) return;
 
-    console.debug('[AIQ] captureQueuedOutput', { cardId, startLine });
+    const localQueueId = card.dataset.queueId || commandQueueContainerId;
+    console.debug('[AIQ] captureQueuedOutput', { cardId, startLine, localQueueId });
 
     const endLine = term.buffer.active.baseY + term.buffer.active.cursorY;
     const output = getTerminalOutputRange(startLine, endLine);
@@ -880,8 +883,8 @@ function captureQueuedOutput(cardId, command, startLine) {
     }
 
     showToast('Output captured', 'success');
-    updateQueueStatus();
-    console.debug('[AIQ] captureQueuedOutput done', { cardId, outputLen: output ? output.length : 0 });
+    updateQueueStatusForQueue(localQueueId);
+    console.debug('[AIQ] captureQueuedOutput done', { cardId, localQueueId, outputLen: output ? output.length : 0 });
 }
 
 // Skip a command in the queue (doesn't send to AI)
@@ -889,6 +892,8 @@ function captureQueuedOutput(cardId, command, startLine) {
 function skipQueuedCommand(cardId) {
     const card = document.getElementById(cardId);
     if (!card) return;
+
+    const localQueueId = card.dataset.queueId || commandQueueContainerId;
 
     // Find in queue (try to update status if possible)
     const queueItem = commandQueue.find(c => c.id === cardId);
@@ -902,7 +907,7 @@ function skipQueuedCommand(cardId) {
     actionsDiv.innerHTML = '<div class="text-yellow-400 text-xs p-2"><i class="fas fa-forward mr-1"></i>Skipped</div>';
 
     showToast('Command skipped', 'info');
-    updateQueueStatus();
+    updateQueueStatusForQueue(localQueueId);
 }
 
 // Skip all remaining pending commands
@@ -926,14 +931,21 @@ function skipAllCommands(queueContainerId) {
 
 // Update queue status display and show Continue button when ready
 function updateQueueStatus() {
-    if (!commandQueueContainerId) return;
+    updateQueueStatusForQueue(commandQueueContainerId);
+}
+
+function updateQueueStatusForQueue(queueId) {
+    if (!queueId) {
+        console.debug('[AIQ] updateQueueStatusForQueue skipped: no queueId');
+        return;
+    }
 
     const pendingCount = commandQueue.filter(c => c.status === 'pending').length;
     const executedCount = commandQueue.filter(c => c.status === 'executed').length;
     const skippedCount = commandQueue.filter(c => c.status === 'skipped').length;
 
-    const statusEl = document.getElementById(`${commandQueueContainerId}-status`);
-    const actionsEl = document.getElementById(`${commandQueueContainerId}-actions`);
+    const statusEl = document.getElementById(`${queueId}-status`);
+    const actionsEl = document.getElementById(`${queueId}-actions`);
 
     if (statusEl) {
         if (pendingCount === 0) {
@@ -946,8 +958,8 @@ function updateQueueStatus() {
     }
 
     // Auto-continue when all commands are handled
-    console.debug('[AIQ] queue status', { pendingCount, executedCount, skippedCount, queueContainerId: commandQueueContainerId });
-    maybeAutoContinueQueue(commandQueueContainerId, pendingCount, executedCount, skippedCount);
+    console.debug('[AIQ] queue status', { pendingCount, executedCount, skippedCount, queueId });
+    maybeAutoContinueQueue(queueId, pendingCount, executedCount, skippedCount);
 }
 
 function maybeAutoContinueQueue(queueContainerId, pendingCount, executedCount, skippedCount) {
