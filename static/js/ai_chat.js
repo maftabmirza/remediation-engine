@@ -1040,10 +1040,15 @@ async function continueWithAI(queueContainerId) {
         // Reset streaming flag to prevent deadlocks
         isStreaming = false;
 
+        // Save queue items BEFORE streaming (AI response may create new queue)
+        const itemsToSend = [...commandQueue];
+        const savedQueueId = queueContainerId;
+        console.debug('[AIQ] continueWithAI preparing', { savedQueueId, itemCount: itemsToSend.length });
+
         // Build summary message
         let summaryMsg = '### Command Execution Results\n\n';
 
-        for (const item of commandQueue) {
+        for (const item of itemsToSend) {
             const statusEmoji = item.status === 'executed' ? (item.exitCode === 0 ? '✅' : '❌') : '⏭️';
             summaryMsg += `${statusEmoji} **${item.command}** (${item.server})\n`;
 
@@ -1069,12 +1074,18 @@ async function continueWithAI(queueContainerId) {
         // Send via streaming
         await sendStreamingMessage(summaryMsg);
 
-        // Clear queue
-        commandQueue = [];
-        commandQueueContainerId = null;
+        // Only clear queue if a NEW queue wasn't created during streaming
+        // (AI response creates new queue with different ID)
+        if (commandQueueContainerId === savedQueueId) {
+            commandQueue = [];
+            commandQueueContainerId = null;
+            console.debug('[AIQ] continueWithAI cleared old queue', { savedQueueId });
+        } else {
+            console.debug('[AIQ] continueWithAI: new queue created during streaming, not clearing', { savedQueueId, newQueueId: commandQueueContainerId });
+        }
 
         console.log('✅ Sent command queue results to AI');
-        console.debug('[AIQ] continueWithAI sent', { queueContainerId, items: commandQueue.length });
+        console.debug('[AIQ] continueWithAI sent', { savedQueueId, itemsSent: itemsToSend.length });
 
         if (actionsEl) {
             actionsEl.innerHTML = '<div class="text-green-400 text-sm"><i class="fas fa-check mr-2"></i>Sent to AI</div>';
