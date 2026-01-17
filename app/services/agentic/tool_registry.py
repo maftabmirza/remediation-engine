@@ -971,6 +971,23 @@ class ToolRegistry:
         if not server or not command:
             return "Error: server and command are required"
         
+        # BLOCK: Reject tool names being suggested as shell commands (AI hallucination)
+        tool_names = [
+            'query_grafana_metrics', 'query_grafana_logs', 'get_recent_changes',
+            'get_similar_incidents', 'search_knowledge', 'get_correlated_alerts',
+            'get_service_dependencies', 'get_feedback_history', 'get_alert_details',
+            'get_proven_solutions', 'suggest_ssh_command'
+        ]
+        cmd_base = command.strip().split()[0] if command.strip() else ''
+        if cmd_base in tool_names:
+            return (
+                f"⛔ INVALID COMMAND\n\n"
+                f"'{cmd_base}' is an INTERNAL TOOL NAME, not a shell command.\n\n"
+                f"**You called suggest_ssh_command with a tool name instead of a real shell command.**\n\n"
+                f"If you need to use '{cmd_base}', call it directly as a tool_call, do NOT suggest it to the user.\n\n"
+                f"Please suggest a REAL shell command (like systemctl, cat, grep, etc.) or call the internal tool directly."
+            )
+        
         # Auto-fix: Add --no-pager to systemctl commands to prevent pager blocking terminal
         if 'systemctl' in command and '--no-pager' not in command:
             command = command.replace('systemctl ', 'systemctl --no-pager ', 1)
