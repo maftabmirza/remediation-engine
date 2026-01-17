@@ -16,6 +16,8 @@ from app.services.agentic.tools import Tool, ToolModule
 from app.services.agentic.tools.knowledge_tools import KnowledgeTools
 from app.services.agentic.tools.observability_tools import ObservabilityTools
 from app.services.agentic.tools.troubleshooting_tools import TroubleshootingTools
+from app.services.agentic.tools.background_tools import BackgroundTools
+from app.services.agentic.tools.system_info_tools import SystemInfoTools
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +41,9 @@ class CompositeToolRegistry:
         registry = CompositeToolRegistry(db, modules=['knowledge', 'observability'])
     """
     
-    AVAILABLE_MODULES = ['knowledge', 'observability', 'troubleshooting']
+    # SECURITY: 'background' removed - prevented autonomous command execution
+    # 'system_info' added - safe, hardcoded read-only commands
+    AVAILABLE_MODULES = ['knowledge', 'observability', 'troubleshooting', 'system_info']
     
     def __init__(
         self, 
@@ -54,7 +58,7 @@ class CompositeToolRegistry:
             db: Database session for tool execution
             alert_id: Current alert context (optional)
             modules: List of module names to load. Default: all modules.
-                     Options: 'knowledge', 'observability', 'troubleshooting'
+                     Options: 'knowledge', 'observability', 'troubleshooting', 'background'
         """
         self.db = db
         self.alert_id = alert_id
@@ -63,7 +67,15 @@ class CompositeToolRegistry:
         self._modules: List[ToolModule] = []
         
         # Determine which modules to load
-        modules_to_load = modules or self.AVAILABLE_MODULES
+        # If no modules specified, load defaults (excluding background unless explicit?)
+        # Convention: if modules is None, load ALL available? 
+        # Or should 'background' be opt-in?
+        # Let's keep it consistent: load specified or all. 
+        # BUT 'background' tools might be dangerous if loaded by default for interactive sessions.
+        # Troubleshooting tools has 'suggest_ssh_command' which is safe.
+        # Background tools has 'execute_server_command' which is powerful.
+        
+        modules_to_load = modules or ['knowledge', 'observability', 'troubleshooting']
         
         # Initialize and register each module
         for module_name in modules_to_load:
@@ -80,6 +92,10 @@ class CompositeToolRegistry:
             return ObservabilityTools(self.db, self.alert_id)
         elif module_name == 'troubleshooting':
             return TroubleshootingTools(self.db, self.alert_id)
+        elif module_name == 'background':
+            return BackgroundTools(self.db, self.alert_id)
+        elif module_name == 'system_info':
+            return SystemInfoTools(self.db, self.alert_id)
         else:
             logger.warning(f"Unknown tool module: {module_name}")
             return None
@@ -136,7 +152,7 @@ class CompositeToolRegistry:
 # Convenience factory functions for common configurations
 
 def create_full_registry(db: Session, alert_id: Optional[UUID] = None) -> CompositeToolRegistry:
-    """Create a registry with all tools (for Troubleshooting mode)"""
+    """Create a registry with all interactive tools (for Troubleshooting mode)"""
     return CompositeToolRegistry(db, alert_id, modules=['knowledge', 'observability', 'troubleshooting'])
 
 
@@ -148,3 +164,16 @@ def create_knowledge_registry(db: Session, alert_id: Optional[UUID] = None) -> C
 def create_inquiry_registry(db: Session, alert_id: Optional[UUID] = None) -> CompositeToolRegistry:
     """Create a registry for Inquiry mode (knowledge + observability, no troubleshooting)"""
     return CompositeToolRegistry(db, alert_id, modules=['knowledge', 'observability'])
+
+def create_background_registry(db: Session, alert_id: Optional[UUID] = None) -> CompositeToolRegistry:
+    """
+    Create a registry for Background Agents (READ-ONLY + Safe System Info).
+    
+    SECURITY: Background agents can only read data.
+    - knowledge: Search runbooks
+    - observability: Query metrics, logs
+    - system_info: Safe hardcoded system commands (uptime, ps, df)
+    
+    Excludes: troubleshooting (interactive), background (DISABLED for security)
+    """
+    return CompositeToolRegistry(db, alert_id, modules=['knowledge', 'observability', 'system_info'])

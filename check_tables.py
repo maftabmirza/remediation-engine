@@ -8,7 +8,8 @@ def check_data():
         tables = [
             'alerts', 'server_credentials', 'runbooks', 'users', 
             'llm_providers', 'dashboards', 'panels', 'roles',
-            'playlists', 'knowledge_sources', 'chat_sessions'
+            'playlists', 'knowledge_sources', 'chat_sessions',
+            'file_versions', 'file_backups', 'change_sets', 'change_items'
         ]
         
         print("Table Data Counts:")
@@ -18,6 +19,7 @@ def check_data():
                 result = db.execute(text(f"SELECT COUNT(*) FROM {table}")).scalar()
                 print(f"  {table}: {result}")
             except Exception as e:
+                db.rollback()
                 print(f"  {table}: ERROR - {e}")
                 
     except Exception as e:

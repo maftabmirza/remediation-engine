@@ -85,10 +85,7 @@ class AgenticOrchestrator:
             return NativeToolAgent(
                 db=self.db,
                 provider=self.provider,
-                alert=self.alert,
-                max_iterations=self.config.max_iterations,
-                temperature=self.config.temperature,
-                max_tokens=self.config.max_tokens
+                alert=self.alert
             )
         else:
             return ReActAgent(

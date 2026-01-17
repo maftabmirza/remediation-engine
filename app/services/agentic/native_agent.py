@@ -8,7 +8,7 @@ Uses native function/tool calling capabilities of LLM providers
 import json
 import logging
 import re
-from typing import Dict, List, Any, Optional, AsyncGenerator, Union
+from typing import Dict, List, Any, Optional, AsyncGenerator, Union, Callable
 from dataclasses import dataclass
 from uuid import UUID
 
@@ -60,10 +60,9 @@ class NativeToolAgent:
         db: Session,
         provider: LLMProvider,
         alert: Optional[Alert] = None,
-        max_iterations: int = 12,
-        temperature: float = 0.3,
-        max_tokens: int = 2000,
-        initial_messages: Optional[List[Dict[str, Any]]] = None
+        initial_messages: Optional[List[Dict[str, Any]]] = None,
+        on_tool_call_complete: Optional[Callable[[str, Dict[str, Any], str], None]] = None,
+        registry_factory: Optional[Callable] = None
     ):
         """
         Initialize the native tool agent.
@@ -76,17 +75,21 @@ class NativeToolAgent:
             temperature: LLM temperature
             max_tokens: Max tokens per response
             initial_messages: Pre-existing conversation history to restore session context
+            on_tool_call_complete: Callback for tool execution logging
+            registry_factory: Factory function to create tool registry (default: create_full_registry)
         """
         self.db = db
         self.provider = provider
         self.alert = alert
-        self.max_iterations = max_iterations
-        self.temperature = temperature
-        self.max_tokens = max_tokens
+        self.max_iterations = 10  # Default max iterations for tool calling
+        self.temperature = 0.3  # Default temperature for LLM calls
+        self.max_tokens = 2000  # Default max tokens for responses
+        self.on_tool_call_complete = on_tool_call_complete
 
         # Initialize tool registry
         alert_id = alert.id if alert else None
-        self.tool_registry = create_full_registry(db, alert_id=alert_id)
+        factory = registry_factory or create_full_registry
+        self.tool_registry = factory(db, alert_id=alert_id)
 
         # Conversation history - restore from initial_messages if provided
         self.messages: List[Dict[str, Any]] = initial_messages if initial_messages else []
@@ -274,6 +277,19 @@ You are **NOT AUTHORIZED** to execute commands directly. You must SUGGEST them.
 5. If BLOCKED: User sees ⛔ COMMAND BLOCKED message, you must suggest alternative
 6. STOP and wait for user output
 7. Analyze output, suggest next command OR provide final recommendations
+
+
+
+
+**COMMAND QUEUE PROTOCOL:**
+- You MAY suggest multiple commands if they form a LOGICAL SEQUENCE
+  - Example: "To fix nginx: 1) stop apache, 2) start nginx, 3) check status"
+  - All commands will be added to a queue for the user
+  - User can execute them one-by-one, skip some, or execute all
+- After user executes commands, they'll click **Continue** and you'll receive outputs
+- Analyze the outputs and suggest next steps
+- **DO NOT suggest unrelated commands in batch** - only logical sequences
+- **NEVER write [CMD_CARD] markers in your text** - they're auto-generated from tools
 
 **HARD LIMIT:** After calling `suggest_ssh_command`, your response should be SHORT. Maximum 2-3 sentences.
 
@@ -725,6 +741,13 @@ Tools called so far will be tracked. If you try to suggest a command without suf
             # Execute the tool
             result = await self.tool_registry.execute(tool_name, arguments)
 
+            # Invoke callback if provided (e.g., for logging to DB)
+            if self.on_tool_call_complete:
+                try:
+                    self.on_tool_call_complete(tool_name, arguments, str(result))
+                except Exception as e:
+                    logger.error(f"Error in tool completion callback: {e}")
+
             results.append({
                 "tool_call_id": tool_id,
                 "role": "tool",
@@ -973,10 +996,10 @@ Tools called so far will be tracked. If you try to suggest a command without suf
                     if message.content:
                         yield message.content
 
-                    # Execute tools
+                    # Execute all tools (including multiple suggest_ssh_command if present)
                     tool_results = await self._execute_tool_calls(tool_calls)
 
-                    # Check for suggest_ssh_command and yield structured card
+                    # Yield CMD_CARD for each suggest_ssh_command
                     command_suggested = False
                     for tc in tool_calls:
                         tool_name = tc.function.name if hasattr(tc, 'function') else tc.get('name', 'unknown')
@@ -999,7 +1022,7 @@ Tools called so far will be tracked. If you try to suggest a command without suf
 
                     # If command was suggested, we're done - don't continue the loop
                     if command_suggested:
-                        logger.info("Command suggested via tool, ending agent loop")
+                        logger.info("Command(s) suggested via tool, ending agent loop")
                         return
 
                     continue
