@@ -947,6 +947,7 @@ Tools called so far will be tracked. If you try to suggest a command without suf
 
         iterations = 0
         self.tool_calls_made = []
+        stuck_warnings = 0  # Track how many times model promised tools but didn't call them
 
         try:
             while iterations < self.max_iterations:
@@ -1057,6 +1058,41 @@ Tools called so far will be tracked. If you try to suggest a command without suf
                         })
                         yield final_content
                         return
+                    
+                    # Detect "stuck" pattern: model promises to use tools but doesn't actually call them
+                    # This happens with weaker models that write "let me use X tool" instead of calling it
+                    stuck_phrases = [
+                        "let me continue", "let me check", "i'll use", "i will use",
+                        "using the available tools", "once i have the results",
+                        "let me query", "let me search", "i'll query", "i'll search"
+                    ]
+                    content_lower = content.lower()
+                    is_stuck = any(phrase in content_lower for phrase in stuck_phrases) and len(self.tool_calls_made) < 2
+                    
+                    if is_stuck:
+                        stuck_warnings += 1
+                        logger.warning(f"Model appears stuck ({stuck_warnings}/2) - promising tools but not calling them. Tool calls: {len(self.tool_calls_made)}")
+                        
+                        if stuck_warnings >= 2:
+                            # Model is hopelessly stuck, just return what it gave us
+                            logger.warning("Model stuck after 2 warnings - returning current response")
+                            final_content = self._ensure_runbook_links_in_final(content)
+                            final_content += "\n\n*[Note: I was unable to query the tools directly. Please check manually.]*"
+                            self.messages.append({"role": "assistant", "content": final_content})
+                            yield final_content
+                            return
+                        
+                        # Force it to call tools by being very explicit
+                        self.messages.append({
+                            "role": "user", 
+                            "content": (
+                                "[SYSTEM CRITICAL]: You said you would use tools but did NOT make any tool calls. "
+                                "STOP describing what you will do. ACTUALLY CALL the tools NOW using tool_call. "
+                                "If you cannot call tools, provide your best recommendation based on what you know. "
+                                "Do NOT say 'let me check' or 'once I have results' - either CALL the tool or give your answer."
+                            )
+                        })
+                        continue
                     
                     # Enforce minimum tool calls only when the response is actionable.
                     if len(self.tool_calls_made) < 2 and self._should_enforce_min_tool_calls(content):
