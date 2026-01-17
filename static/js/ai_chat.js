@@ -907,48 +907,68 @@ async function continueWithAI(queueContainerId) {
         }
     }
 
-    if (commandQueue.length === 0) return;
+    if (commandQueue.length === 0) {
+        console.warn('continueWithAI: Queue is empty even after reconstruction attempt.');
+        showToast('Error: No execution data found to send.', 'error');
+        return;
+    }
 
     // Disable button
     const actionsEl = document.getElementById(`${queueContainerId}-actions`);
+    // Store original content for restore on error
+    const originalBtnContent = actionsEl ? actionsEl.innerHTML : '';
+
     if (actionsEl) {
         actionsEl.innerHTML = '<div class="text-blue-400 text-sm"><i class="fas fa-spinner fa-spin mr-2"></i>Sending to AI...</div>';
     }
 
-    // Build summary message
-    let summaryMsg = '### Command Execution Results\n\n';
+    try {
+        // Reset streaming flag to prevent deadlocks
+        isStreaming = false;
 
-    for (const item of commandQueue) {
-        const statusEmoji = item.status === 'executed' ? (item.exitCode === 0 ? '✅' : '❌') : '⏭️';
-        summaryMsg += `${statusEmoji} **${item.command}** (${item.server})\n`;
+        // Build summary message
+        let summaryMsg = '### Command Execution Results\n\n';
 
-        if (item.status === 'executed' && item.output) {
-            let output = item.output;
-            if (output.length > 800) {
-                output = output.substring(0, 400) + '\n...[truncated]...\n' + output.substring(output.length - 400);
+        for (const item of commandQueue) {
+            const statusEmoji = item.status === 'executed' ? (item.exitCode === 0 ? '✅' : '❌') : '⏭️';
+            summaryMsg += `${statusEmoji} **${item.command}** (${item.server})\n`;
+
+            if (item.status === 'executed' && item.output) {
+                let output = item.output;
+                if (output.length > 800) {
+                    output = output.substring(0, 400) + '\n...[truncated]...\n' + output.substring(output.length - 400);
+                }
+                summaryMsg += `\`\`\`\n${output}\n\`\`\`\n\n`;
+            } else if (item.status === 'skipped') {
+                summaryMsg += `*User skipped this command*\n\n`;
             }
-            summaryMsg += `\`\`\`\n${output}\n\`\`\`\n\n`;
-        } else if (item.status === 'skipped') {
-            summaryMsg += `*User skipped this command*\n\n`;
+        }
+
+        summaryMsg += '\n**What should I do next?**';
+
+        // Add as user message visually
+        appendUserMessage('[Command Queue Complete - Continuing with AI]');
+
+        // Show typing indicator
+        showTypingIndicator();
+
+        // Send via streaming
+        await sendStreamingMessage(summaryMsg);
+
+        // Clear queue
+        commandQueue = [];
+        commandQueueContainerId = null;
+
+        console.log('✅ Sent command queue results to AI');
+    } catch (err) {
+        console.error('continueWithAI failed:', err);
+        showToast('Failed to send report to AI', 'error');
+
+        // Restore button
+        if (actionsEl && originalBtnContent) {
+            actionsEl.innerHTML = originalBtnContent;
         }
     }
-
-    summaryMsg += '\n**What should I do next?**';
-
-    // Add as user message visually
-    appendUserMessage('[Command Queue Complete - Continuing with AI]');
-
-    // Show typing indicator
-    showTypingIndicator();
-
-    // Send via streaming
-    await sendStreamingMessage(summaryMsg);
-
-    // Clear queue
-    commandQueue = [];
-    commandQueueContainerId = null;
-
-    console.log('✅ Sent command queue results to AI');
 }
 
 // Execute command and capture output (helper function)
