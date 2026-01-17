@@ -113,7 +113,7 @@ logger = logging.getLogger(__name__)
 settings = get_settings()
 
 # Rate Limiter
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(key_func=get_remote_address, enabled=not settings.testing)
 
 
 def init_db():
@@ -181,53 +181,70 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting AIOps Platform...")
     
-    init_db()
+    # PRODUCTION SECURITY: Verify no test code in production
+    if not settings.testing:
+        try:
+            from app.security_checks import check_test_isolation, check_unique_constraints
+            check_test_isolation()
+            check_unique_constraints()
+        except Exception as e:
+            logger.error(f"Production security check failed: {e}")
+            # In production, we want to fail fast if security checks fail
+            if not settings.debug:
+                raise
     
-    # Start background execution worker
-    logger.info("Starting execution worker...")
-    await start_execution_worker()
-    
-    # Start scheduler
-    logger.info("Starting scheduler...")
-    from app.services.scheduler_service import get_scheduler
-    from app.models_scheduler import ScheduledJob
-    from app.database import get_async_db
-    from sqlalchemy import select
-    
-    scheduler = get_scheduler()
-    await scheduler.start()
-    
-    # Load existing enabled schedules from database
-    try:
-        async for db in get_async_db():
-            result = await db.execute(
-                select(ScheduledJob).where(ScheduledJob.enabled == True)
-            )
-            schedules = result.scalars().all()
-            
-            for schedule in schedules:
-                try:
-                    await scheduler.add_schedule(schedule)
-                    logger.info(f"Loaded schedule: {schedule.name}")
-                except Exception as e:
-                    logger.error(f"Failed to load schedule {schedule.name}: {e}")
-            
-            logger.info(f"✅ Loaded {len(schedules)} schedule(s)")
-            break
-    except Exception as e:
-        logger.error(f"Failed to load schedules: {e}")
-    
-    # Start alert clustering jobs
-    logger.info("Starting alert clustering jobs...")
-    from app.services.clustering_worker import start_clustering_jobs
-    start_clustering_jobs(scheduler._scheduler)  # Pass APScheduler instance
-    logger.info("✅ Alert clustering jobs started")
-    
-    # Start ITSM sync background jobs
-    logger.info("Starting ITSM sync background jobs...")
-    from app.services.itsm_sync_worker import start_itsm_sync_jobs
-    start_itsm_sync_jobs(scheduler._scheduler)  # Pass APScheduler instance
-    logger.info("✅ ITSM sync jobs started")
+    scheduler = None
+
+    if not settings.testing:
+        init_db()
+        
+        # Start background execution worker
+        logger.info("Starting execution worker...")
+        await start_execution_worker()
+        
+        # Start scheduler
+        logger.info("Starting scheduler...")
+        from app.services.scheduler_service import get_scheduler
+        from app.models_scheduler import ScheduledJob
+        from app.database import get_async_db
+        from sqlalchemy import select
+        
+        scheduler = get_scheduler()
+        await scheduler.start()
+        
+        # Load existing enabled schedules from database
+        try:
+            async for db in get_async_db():
+                result = await db.execute(
+                    select(ScheduledJob).where(ScheduledJob.enabled == True)
+                )
+                schedules = result.scalars().all()
+                
+                for schedule in schedules:
+                    try:
+                        await scheduler.add_schedule(schedule)
+                        logger.info(f"Loaded schedule: {schedule.name}")
+                    except Exception as e:
+                        logger.error(f"Failed to load schedule {schedule.name}: {e}")
+                
+                logger.info(f"✅ Loaded {len(schedules)} schedule(s)")
+                break
+        except Exception as e:
+            logger.error(f"Failed to load schedules: {e}")
+        
+        # Start alert clustering jobs
+        logger.info("Starting alert clustering jobs...")
+        from app.services.clustering_worker import start_clustering_jobs
+        start_clustering_jobs(scheduler._scheduler)  # Pass APScheduler instance
+        logger.info("✅ Alert clustering jobs started")
+        
+        # Start ITSM sync background jobs
+        logger.info("Starting ITSM sync background jobs...")
+        from app.services.itsm_sync_worker import start_itsm_sync_jobs
+        start_itsm_sync_jobs(scheduler._scheduler)  # Pass APScheduler instance
+        logger.info("✅ ITSM sync jobs started")
+    else:
+        logger.info("Testing mode enabled: skipping init_db and background jobs")
     
     logger.info("AIOps Platform started successfully")
     
@@ -236,13 +253,14 @@ async def lifespan(app: FastAPI):
     # Shutdown
     logger.info("Shutting down AIOps Platform...")
     
-    # Stop scheduler gracefully
-    logger.info("Stopping scheduler...")
-    await scheduler.shutdown()
-    
-    # Stop execution worker gracefully
-    logger.info("Stopping execution worker...")
-    await stop_execution_worker()
+    if scheduler is not None:
+        # Stop scheduler gracefully
+        logger.info("Stopping scheduler...")
+        await scheduler.shutdown()
+        
+        # Stop execution worker gracefully
+        logger.info("Stopping execution worker...")
+        await stop_execution_worker()
     
     logger.info("AIOps Platform shutdown complete")
 

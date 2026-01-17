@@ -152,14 +152,28 @@
             <div class="p-2 border-b border-gray-800 flex justify-between items-center bg-gray-900 flex-shrink-0">
                 <div class="flex items-center">
                     <!-- Toggle Tabs -->
-                    <div class="flex border border-gray-700 rounded mr-3">
-                        <button id="dataOutputTabBtn" onclick="switchRightPane('data')"
-                            class="px-3 py-1 text-xs font-medium bg-blue-600 text-white rounded-l border-r border-gray-600 hover:text-white">
-                            <i class="fas fa-chart-line mr-1"></i>Data Output
-                        </button>
+                    <div class="flex border border-gray-700 rounded mr-3 overflow-hidden">
                         <button id="terminalTabBtn" onclick="switchRightPane('terminal')"
-                            class="px-3 py-1 text-xs font-medium bg-transparent text-gray-400 rounded-r">
+                            class="px-3 py-1 text-xs font-medium bg-blue-600 text-white border-r border-gray-600 hover:text-white transition-colors">
                             <i class="fas fa-terminal mr-1"></i>Terminal
+                        </button>
+                        <button id="dataOutputTabBtn" onclick="switchRightPane('data')"
+                            class="px-3 py-1 text-xs font-medium bg-transparent text-gray-400 border-r border-gray-600 hover:text-white hover:bg-gray-800 transition-colors">
+                            <i class="fas fa-chart-line mr-1"></i>Data
+                        </button>
+                        <button id="fileEditorTabBtn" onclick="switchRightPane('file')"
+                            class="px-3 py-1 text-xs font-medium bg-transparent text-gray-400 border-r border-gray-600 hover:text-white hover:bg-gray-800 transition-colors">
+                            <i class="fas fa-file-code mr-1"></i>File
+                        </button>
+                        <button id="diffViewTabBtn" onclick="switchRightPane('diff')"
+                            class="px-3 py-1 text-xs font-medium bg-transparent text-gray-400 border-r border-gray-600 hover:text-white hover:bg-gray-800 transition-colors relative">
+                            <i class="fas fa-exchange-alt mr-1"></i>Diff
+                            <span id="diffBadge"
+                                class="hidden absolute top-0 right-0 -mt-1 -mr-1 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                        </button>
+                        <button id="agentHQTabBtn" onclick="switchRightPane('agentHQ')"
+                            class="px-3 py-1 text-xs font-medium bg-transparent text-gray-400 hover:text-white hover:bg-gray-800 transition-colors">
+                            <i class="fas fa-robot mr-1"></i>HQ
                         </button>
                     </div>
 
@@ -191,6 +205,29 @@
                         <button onclick="exportDataOutput()" class="text-gray-400 hover:text-white px-2 py-1 text-xs"
                             title="Export Data">
                             <i class="fas fa-download mr-1"></i>Export
+                        </button>
+                    </div>
+
+                    <!-- File Editor Controls (hidden by default) -->
+                    <div id="fileEditorControls" class="hidden flex items-center space-x-2">
+                        <span id="currentFileLabel" class="text-xs text-gray-400 truncate max-w-[150px]"
+                            title="No file open">No file open</span>
+                        <button onclick="refreshCurrentFile()" class="text-gray-400 hover:text-white px-2 py-1 text-xs"
+                            title="Refresh">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+
+                    <!-- Agent HQ Controls (hidden by default) -->
+                    <div id="agentHQControls" class="hidden flex items-center space-x-2">
+                        <span id="agentHQStatusLabel" class="text-xs text-gray-400">Loading...</span>
+                        <button onclick="refreshAgentHQ()" class="text-gray-400 hover:text-white px-2 py-1 text-xs"
+                            title="Refresh HQ">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                        <button onclick="showSpawnAgentModal()"
+                            class="text-green-400 hover:text-green-300 px-2 py-1 text-xs" title="Spawn Agent">
+                            <i class="fas fa-plus-circle mr-1"></i>Spawn
                         </button>
                     </div>
                 </div>
@@ -242,6 +279,35 @@
                             <span>Explain with AI</span>
                         </button>
                     </div>
+
+                    <!-- Agent HQ Container -->
+                    <div id="agentHQContainer"
+                        class="hidden absolute inset-0 bg-gray-900 overflow-hidden flex flex-col z-[40]">
+                        <div class="p-4 border-b border-gray-800 bg-gray-900/50">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-sm font-semibold text-gray-200">Active Agents</h3>
+                                <div class="text-xs text-gray-500" id="hqPoolInfo">Default Pool</div>
+                            </div>
+                            <!-- Active Agents List -->
+                            <div id="activeAgentsList" class="space-y-3">
+                                <!-- Populated via JS -->
+                                <div class="text-center text-gray-500 py-4">No active agents running</div>
+                            </div>
+                        </div>
+
+                        <div class="flex-grow overflow-y-auto p-4">
+                            <h3 class="text-sm font-semibold text-gray-200 mb-3">Task Queue</h3>
+                            <div id="queuedTasksList" class="space-y-2">
+                                <!-- Populated via JS -->
+                                <span class="text-xs text-gray-600">Queue is empty</span>
+                            </div>
+
+                            <h3 class="text-sm font-semibold text-gray-200 mb-3 mt-6">Completed Tasks</h3>
+                            <div id="completedTasksList" class="space-y-2">
+                                <!-- Populated via JS -->
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Data Output Container (hidden by default) -->
@@ -272,6 +338,53 @@
                         <div id="dataOutputResults" class="hidden space-y-4"></div>
                     </div>
                 </div>
+
+                <!-- File Editor Container (hidden by default) -->
+                <div id="fileEditorContainer"
+                    class="hidden absolute inset-0 bg-[#1e1e1e] flex flex-col font-mono text-sm leading-6">
+                    <!-- File Tabs (Future optional) -->
+                    <!-- Content -->
+                    <div class="flex-1 overflow-auto relative">
+                        <div id="fileEditorContent" class="absolute inset-0 p-4 whitespace-pre text-gray-300">
+                            <div class="flex flex-col items-center justify-center h-full text-gray-500">
+                                <i class="fas fa-file-code text-4xl mb-4"></i>
+                                <p>Select a file to view content</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Diff View Container (hidden by default) -->
+                <div id="diffViewContainer"
+                    class="hidden absolute inset-0 bg-[#1e1e1e] flex flex-col font-mono text-sm">
+                    <!-- Pending Changes List -->
+                    <div id="pendingChangesList" class="hidden h-full flex flex-col">
+                        <div class="p-4 border-b border-gray-700 flex justify-between items-center bg-gray-800">
+                            <h3 class="text-sm font-semibold text-white">Pending Changes</h3>
+                            <div class="text-xs text-gray-400" id="diffChangeSummary">Loading...</div>
+                        </div>
+                        <div class="flex-1 overflow-auto p-4 space-y-4" id="diffListContent">
+                            <!-- Diff cards will go here -->
+                        </div>
+                        <div class="p-4 border-t border-gray-700 bg-gray-800 flex justify-end space-x-3">
+                            <button id="btnDiscardAll" onclick="discardAllChanges()"
+                                class="btn-secondary px-4 py-2 rounded text-sm text-red-400 hover:text-red-300">
+                                <i class="fas fa-times mr-2"></i>Reject All
+                            </button>
+                            <button id="btnApplyAll" onclick="applyAllChanges()"
+                                class="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded text-sm font-medium">
+                                <i class="fas fa-check mr-2"></i>Apply All Changes
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Empty State for Diff -->
+                    <div id="diffEmptyState" class="flex flex-col items-center justify-center h-full text-gray-500">
+                        <i class="fas fa-exchange-alt text-4xl mb-4"></i>
+                        <p>No pending changes</p>
+                    </div>
+                </div>
+
             </div>
         </div>
     </div>
@@ -425,6 +538,31 @@
 
     let currentRightPane = 'terminal'; // Default to terminal
     let currentChatMode = 'general'; // Default to general inquiry mode
+
+    /**
+     * Switch between Inquiry and Troubleshoot chat modes
+     */
+    function switchChatMode(mode) {
+        currentChatMode = mode;
+
+        // Update button styles
+        const generalBtn = document.getElementById('modeGeneralBtn');
+        const troubleshootBtn = document.getElementById('modeTroubleshootBtn');
+
+        if (mode === 'general') {
+            generalBtn.classList.add('bg-blue-600', 'text-white');
+            generalBtn.classList.remove('bg-transparent', 'text-gray-400');
+            troubleshootBtn.classList.remove('bg-blue-600', 'text-white');
+            troubleshootBtn.classList.add('bg-transparent', 'text-gray-400');
+        } else if (mode === 'troubleshoot') {
+            troubleshootBtn.classList.add('bg-blue-600', 'text-white');
+            troubleshootBtn.classList.remove('bg-transparent', 'text-gray-400');
+            generalBtn.classList.remove('bg-blue-600', 'text-white');
+            generalBtn.classList.add('bg-transparent', 'text-gray-400');
+        }
+
+        console.log('Switched to chat mode:', mode);
+    }
 
     // ============================================================================
     // Inquiry Session Management
@@ -1043,49 +1181,7 @@
     /**
      * Switch between Terminal and Data Output views
      */
-    function switchRightPane(pane) {
-        currentRightPane = pane;
-
-        const terminalContainer = document.getElementById('terminalContainer');
-        const dataOutputContainer = document.getElementById('dataOutputContainer');
-        const terminalTabBtn = document.getElementById('terminalTabBtn');
-        const dataOutputTabBtn = document.getElementById('dataOutputTabBtn');
-        const terminalControls = document.getElementById('terminalControls');
-        const terminalStatus = document.getElementById('terminalStatus');
-        const dataOutputControls = document.getElementById('dataOutputControls');
-
-        if (pane === 'terminal') {
-            // Show terminal, hide data output
-            terminalContainer.classList.remove('hidden');
-            dataOutputContainer.classList.add('hidden');
-
-            // Update tab styles (Terminal = Green)
-            terminalTabBtn.classList.add('bg-green-600', 'text-white');
-            terminalTabBtn.classList.remove('bg-transparent', 'text-gray-400');
-            dataOutputTabBtn.classList.remove('bg-blue-600', 'text-white');
-            dataOutputTabBtn.classList.add('bg-transparent', 'text-gray-400');
-
-            // Show terminal controls
-            terminalControls.classList.remove('hidden');
-            terminalStatus.classList.remove('hidden');
-            dataOutputControls.classList.add('hidden');
-        } else if (pane === 'data') {
-            // Show data output, hide terminal
-            terminalContainer.classList.add('hidden');
-            dataOutputContainer.classList.remove('hidden');
-
-            // Update tab styles (Data Output = Blue)
-            dataOutputTabBtn.classList.add('bg-blue-600', 'text-white');
-            dataOutputTabBtn.classList.remove('bg-transparent', 'text-gray-400');
-            terminalTabBtn.classList.remove('bg-green-600', 'text-white');
-            terminalTabBtn.classList.add('bg-transparent', 'text-gray-400');
-
-            // Show data output controls
-            terminalControls.classList.add('hidden');
-            terminalStatus.classList.add('hidden');
-            dataOutputControls.classList.remove('hidden');
-        }
-    }
+    // switchRightPane moved to static/js/ai_chat.js
 
     /**
      * Clear data output results
@@ -1383,4 +1479,7 @@
         });
     });
 </script>
+</script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/vs2015.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
 {% endblock %}

@@ -2,7 +2,7 @@
 import asyncio
 import logging
 import asyncssh
-from typing import Optional, List
+from typing import Optional, List, Tuple
 from uuid import UUID
 from sqlalchemy.orm import Session
 
@@ -87,6 +87,27 @@ class SSHClient:
             return self.process
         except Exception as e:
             logger.error(f"Failed to start shell: {e}")
+            raise
+
+    async def execute_command(self, command: str) -> Tuple[str, str, int]:
+        """
+        Execute a single command on the remote server.
+        
+        Args:
+            command: Shell command to execute
+            
+        Returns:
+            Tuple of (stdout, stderr, exit_code)
+        """
+        if not self.conn:
+            await self.connect()
+            
+        try:
+            logger.debug(f"Executing command: {command}")
+            result = await self.conn.run(command, check=False)
+            return (result.stdout, result.stderr, result.exit_status)
+        except Exception as e:
+            logger.error(f"Command execution failed: {e}")
             raise
 
     async def close(self):

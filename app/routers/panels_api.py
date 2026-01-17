@@ -5,7 +5,7 @@ Provides CRUD operations for managing saved panels and executing PromQL queries
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional, Dict, Any
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from datetime import datetime, timedelta
 import httpx
 import uuid
@@ -35,7 +35,8 @@ class PanelBase(BaseModel):
     is_public: bool = False
     is_template: bool = False
 
-    @validator('time_range')
+    @field_validator('time_range')
+    @classmethod
     def validate_time_range(cls, v):
         valid_ranges = ['5m', '15m', '30m', '1h', '3h', '6h', '12h', '24h', '7d', '30d', '90d']
         if v not in valid_ranges:

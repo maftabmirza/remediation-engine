@@ -20,20 +20,20 @@ def upgrade():
     # Dropping dependent tables first
     
     # 0. Drop agent tables (dependent on chat_sessions)
-    op.drop_table('agent_steps')
-    op.drop_table('agent_sessions')
+    op.execute("DROP TABLE IF EXISTS agent_steps CASCADE")
+    op.execute("DROP TABLE IF EXISTS agent_sessions CASCADE")
 
     # 1. Drop chat_messages
-    op.drop_table('chat_messages')
+    op.execute("DROP TABLE IF EXISTS chat_messages CASCADE")
     
     # 2. Drop chat_sessions
-    op.drop_table('chat_sessions')
+    op.execute("DROP TABLE IF EXISTS chat_sessions CASCADE")
     
     # 3. Drop inquiry_results
-    op.drop_table('inquiry_results')
+    op.execute("DROP TABLE IF EXISTS inquiry_results CASCADE")
     
     # 4. Drop inquiry_sessions
-    op.drop_table('inquiry_sessions')
+    op.execute("DROP TABLE IF EXISTS inquiry_sessions CASCADE")
 
 
 def downgrade():

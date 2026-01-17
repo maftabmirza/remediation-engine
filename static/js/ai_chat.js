@@ -30,6 +30,10 @@ let pendingCommandCancelled = false;  // Flag to cancel pending command polling
 let currentStreamController = null;   // AbortController for streaming requests
 let isStreaming = false;              // Flag to track if streaming is active
 
+// Command Queue for multiple command suggestions
+let commandQueue = [];        // Array of {id, server, command, explanation, status, output, exitCode}
+let commandQueueContainerId = null;  // ID of the container holding the command queue
+
 // Command History Functions
 function addToCommandHistory(command, output, exitCode, success) {
     const entry = {
@@ -399,10 +403,24 @@ function appendAIMessage(text, skipRunButtons = false) {
     let extractedCommands = [];
     let cardDataList = [];  // Store cards to render AFTER text
 
+    // Block tool names being suggested as shell commands (AI hallucination)
+    const toolNames = [
+        'query_grafana_metrics', 'query_grafana_logs', 'get_recent_changes',
+        'get_similar_incidents', 'search_knowledge', 'get_correlated_alerts',
+        'get_service_dependencies', 'get_feedback_history', 'get_alert_details',
+        'get_proven_solutions', 'suggest_ssh_command'
+    ];
+    
     while ((match = cmdCardRegex.exec(text)) !== null) {
-        hasCards = true;
         try {
             const cardData = JSON.parse(match[1]);
+            // Skip if the command is a tool name (AI hallucination)
+            const cmdBase = (cardData.command || '').trim().split(/\s+/)[0];
+            if (toolNames.includes(cmdBase)) {
+                console.warn('Skipping CMD_CARD with tool name as command:', cmdBase);
+                continue;  // Skip this invalid card
+            }
+            hasCards = true;
             extractedCommands.push(cardData.command);
             cardDataList.push(cardData);  // Save for later rendering
         } catch (e) {
@@ -425,9 +443,31 @@ function appendAIMessage(text, skipRunButtons = false) {
         }
     }
 
-    // Remove CMD_CARD and SUGGESTIONS markers from text for display
+    // Check for FILE_OPEN markers
+    const fileOpenRegex = /\[FILE_OPEN\](.*?)\[\/FILE_OPEN\]/g;
+    let fileMatch;
+    while ((fileMatch = fileOpenRegex.exec(text)) !== null) {
+        const path = fileMatch[1].trim();
+        if (path) {
+            openFile(path); // Auto-open file
+        }
+    }
+
+    // Check for CHANGESET markers
+    const changeSetRegex = /\[CHANGESET_ID\](.*?)\[\/CHANGESET_ID\]/g;
+    let csMatch;
+    while ((csMatch = changeSetRegex.exec(text)) !== null) {
+        const csId = csMatch[1].trim();
+        if (csId) {
+            loadChangeSet(csId); // Auto-load changeset
+        }
+    }
+
+    // Remove tags from text
     let cleanText = text.replace(cmdCardRegex, '');
     cleanText = cleanText.replace(suggestionsRegex, '');
+    cleanText = cleanText.replace(fileOpenRegex, '');
+    cleanText = cleanText.replace(changeSetRegex, '');
 
     // When CMD_CARD is present, aggressively clean up duplicate command text
     if (hasCards) {
@@ -483,9 +523,95 @@ function appendAIMessage(text, skipRunButtons = false) {
         }
     }
 
-    // RENDER COMMAND CARDS AFTER TEXT
-    for (const cardData of cardDataList) {
-        renderCommandCard(cardData.command, cardData.server, cardData.explanation);
+    // RENDER COMMAND CARDS AFTER TEXT (with queue system)
+    if (cardDataList.length > 0) {
+        // Reset command queue for this new batch
+        commandQueue = [];
+        const queueContainerId = 'cmd-queue-' + Date.now();
+        commandQueueContainerId = queueContainerId;
+
+        // Create queue container
+        const queueWrapper = document.createElement('div');
+        queueWrapper.id = queueContainerId;
+        queueWrapper.className = 'command-queue-container my-4 border border-gray-700 rounded-lg bg-gray-900/50 p-4';
+
+        // Queue header
+        queueWrapper.innerHTML = `
+            <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-list text-purple-400"></i>
+                    <span class="text-sm font-medium text-gray-300">Command Queue (${cardDataList.length} commands)</span>
+                </div>
+                <span class="text-xs text-gray-500" id="${queueContainerId}-status">Waiting for execution...</span>
+            </div>
+            <div id="${queueContainerId}-cards" class="space-y-2"></div>
+            <div id="${queueContainerId}-actions" class="mt-4 flex gap-3 border-t border-gray-700 pt-3">
+                <button id="${queueContainerId}-continue" onclick="continueWithAI('${queueContainerId}')" 
+                        class="flex-1 bg-blue-600 hover:bg-blue-500 text-white text-sm px-4 py-2 rounded font-medium transition-colors flex items-center justify-center">
+                    <i class="fas fa-robot mr-2"></i>Continue with AI
+                </button>
+                <button onclick="skipAllCommands('${queueContainerId}')" 
+                        class="bg-yellow-600 hover:bg-yellow-500 text-white text-sm px-3 py-2 rounded font-medium transition-colors"
+                        title="Skip all remaining commands">
+                    <i class="fas fa-forward mr-1"></i>Skip All
+                </button>
+            </div>
+        `;
+        container.appendChild(queueWrapper);
+
+        // Render individual command cards inside queue
+        const cardsContainer = document.getElementById(`${queueContainerId}-cards`);
+        for (const cardData of cardDataList) {
+            const cardId = 'cmd-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+
+            // Add to queue
+            commandQueue.push({
+                id: cardId,
+                server: cardData.server,
+                command: cardData.command,
+                explanation: cardData.explanation,
+                status: 'pending',  // pending, executed, skipped
+                output: null,
+                exitCode: null
+            });
+
+            // Render card
+            const cardEl = document.createElement('div');
+            cardEl.id = cardId;
+            cardEl.dataset.queueId = queueContainerId;
+            cardEl.className = 'command-card bg-gray-800 rounded-lg border border-gray-700 overflow-hidden';
+            cardEl.innerHTML = `
+                <div class="flex items-center justify-between px-3 py-2 bg-gray-900 border-b border-gray-700">
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-terminal text-green-400"></i>
+                        <span class="text-xs text-gray-400">Command</span>
+                    </div>
+                    <span class="text-xs text-gray-500">${escapeHtml(cardData.server)}</span>
+                </div>
+                <div class="p-3">
+                    <div class="bg-black rounded p-2 font-mono text-sm text-green-300 mb-2 overflow-x-auto">
+                        ${escapeHtml(cardData.command)}
+                    </div>
+                    <div class="text-xs text-gray-400 mb-2">
+                        <i class="fas fa-info-circle mr-1"></i>${escapeHtml(cardData.explanation)}
+                    </div>
+                    <div class="cmd-actions flex gap-2">
+                        <button data-cmd="${escapeHtml(cardData.command)}" data-server="${escapeHtml(cardData.server)}" 
+                                onclick="runQueuedCommand('${cardId}', this)" 
+                                class="flex-1 bg-green-600 hover:bg-green-500 text-white text-xs px-3 py-1.5 rounded font-medium transition-colors flex items-center justify-center">
+                            <i class="fas fa-play mr-1"></i>Run
+                        </button>
+                        <button onclick="skipQueuedCommand('${cardId}')" 
+                                class="bg-yellow-600 hover:bg-yellow-500 text-white text-xs px-2 py-1.5 rounded font-medium transition-colors"
+                                title="Skip this command">
+                            <i class="fas fa-forward"></i>
+                        </button>
+                    </div>
+                    <div class="cmd-output hidden"></div>
+                </div>
+            `;
+            cardsContainer.appendChild(cardEl);
+        }
     }
 
     // RENDER FOLLOW-UP SUGGESTIONS
@@ -608,6 +734,465 @@ async function skipCommand(cardId, command) {
     await autoSendCommandOutputToAgent(command, '[USER SKIPPED THIS COMMAND]', false, -1);
 }
 
+// ============= COMMAND QUEUE SYSTEM =============
+
+// Run a command from the queue (doesn't auto-send to AI)
+// Run a command from the queue (doesn't auto-send to AI)
+async function runQueuedCommand(cardId, btnEl) {
+    const card = document.getElementById(cardId);
+    if (!card) return;
+
+    const localQueueId = card.dataset.queueId || commandQueueContainerId;
+    console.debug('[AIQ] runQueuedCommand start', { cardId, localQueueId });
+
+    let command, server;
+    let queueItem = commandQueue.find(c => c.id === cardId);
+
+    if (queueItem) {
+        command = queueItem.command;
+        server = queueItem.server;
+    } else {
+        // Fallback: load from button dataset (handles cases where queue memory is lost)
+        if (btnEl && btnEl.dataset.cmd) {
+            command = btnEl.dataset.cmd;
+            server = btnEl.dataset.server;
+            console.debug('[AIQ] queue item missing, using fallback dataset', { cardId });
+
+            // Reconstruct item to avoid crash and allow status updates
+            queueItem = {
+                id: cardId,
+                command: command,
+                server: server,
+                explanation: 'Reconstructed from fallback',
+                status: 'pending',
+                output: null,
+                exitCode: null
+            };
+            commandQueue.push(queueItem);
+        } else {
+            console.error('Command data not found for card:', cardId);
+            showToast('Error: Command data lost. Please refresh.', 'error');
+            return;
+        }
+    }
+
+    // Update UI to show running
+    const actionsDiv = card.querySelector('.cmd-actions');
+    actionsDiv.innerHTML = '<div class="text-blue-400 text-xs p-2"><i class="fas fa-spinner fa-spin mr-1"></i>Running...</div>';
+
+    try {
+        // Execute command via terminal
+        console.debug('[AIQ] executing command', { cardId, server, command });
+        const result = await executeCommandViaTerminal(command, server);
+
+        console.debug('[AIQ] command execution result', { cardId, timedOut: result.timedOut, exitCode: result.exitCode, outputLen: result.output ? result.output.length : 0 });
+
+        // If command needs interaction/pager, allow manual capture
+        if (result.timedOut) {
+            actionsDiv.innerHTML = `
+                <div class="flex flex-col gap-2 p-3 bg-gray-900 rounded border border-yellow-600">
+                    <div class="text-yellow-400 text-xs font-bold">
+                        <i class="fas fa-clock mr-2"></i>Command still running / waiting for input
+                    </div>
+                    <div class="text-gray-300 text-xs">
+                        If the command opened a pager (e.g., press <b>q</b>) or needs input, complete it in the terminal, then:
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="captureQueuedOutput('${cardId}', '${command.replace(/'/g, "\\'")}', ${result.startLine})" 
+                                class="flex-1 bg-blue-600 hover:bg-blue-500 text-white text-xs px-3 py-2 rounded transition-colors flex items-center justify-center">
+                            <i class="fas fa-camera mr-1"></i>Capture Output
+                        </button>
+                        <button onclick="skipQueuedCommand('${cardId}')" 
+                                class="bg-yellow-600 hover:bg-yellow-500 text-white text-xs px-3 py-2 rounded transition-colors" title="Skip this command">
+                            <i class="fas fa-forward"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+            showToast('Command may need interaction. Complete it in terminal, then capture output.', 'warning');
+            return;
+        }
+
+        // Update queue item
+        queueItem.status = 'executed';
+        queueItem.output = result.output;
+        queueItem.exitCode = result.exitCode;
+
+        // Update card UI
+        const isSuccess = result.exitCode === 0 || result.exitCode === null;
+        const statusColor = isSuccess ? 'text-green-400' : 'text-red-400';
+        const statusIcon = isSuccess ? 'fa-check-circle' : 'fa-times-circle';
+
+        actionsDiv.innerHTML = `<div class="${statusColor} text-xs p-2"><i class="fas ${statusIcon} mr-1"></i>${isSuccess ? 'Executed' : 'Failed (exit ' + result.exitCode + ')'}</div>`;
+
+        // Show output
+        const outputDiv = card.querySelector('.cmd-output');
+        if (outputDiv && result.output) {
+            let displayOutput = result.output;
+            if (displayOutput.length > 2000) {
+                displayOutput = displayOutput.substring(0, 1000) + '\n... [truncated] ...\n' + displayOutput.substring(displayOutput.length - 1000);
+            }
+            outputDiv.innerHTML = `<div class="border-t border-gray-700 p-2 bg-gray-950 mt-2 rounded"><pre class="text-xs text-gray-300 overflow-x-auto max-h-40 overflow-y-auto whitespace-pre-wrap">${escapeHtml(displayOutput)}</pre></div>`;
+            outputDiv.classList.remove('hidden');
+        }
+
+        showToast(`Command executed ${isSuccess ? 'successfully' : 'with errors'}`, isSuccess ? 'success' : 'warning');
+        
+        // Auto-save command outcome for learning (fire-and-forget)
+        saveCommandOutcome(command, result.output, isSuccess, result.exitCode);
+
+    } catch (err) {
+        console.debug('[AIQ] command execution error', { cardId, error: err && err.message ? err.message : String(err) });
+        // Update queue item
+        queueItem.status = 'executed';
+        queueItem.output = 'Error: ' + err.message;
+        queueItem.exitCode = -1;
+
+        actionsDiv.innerHTML = '<div class="text-red-400 text-xs p-2"><i class="fas fa-times-circle mr-1"></i>Failed to execute</div>';
+        showToast('Command execution failed: ' + err.message, 'error');
+        
+        // Auto-save failed outcome for learning
+        saveCommandOutcome(command, err.message, false, -1);
+    }
+
+    // Update queue status
+    updateQueueStatusForQueue(localQueueId);
+    console.debug('[AIQ] runQueuedCommand end', { cardId, localQueueId });
+}
+
+function captureQueuedOutput(cardId, command, startLine) {
+    const card = document.getElementById(cardId);
+    if (!card || !term) return;
+
+    const localQueueId = card.dataset.queueId || commandQueueContainerId;
+    console.debug('[AIQ] captureQueuedOutput', { cardId, startLine, localQueueId });
+
+    const endLine = term.buffer.active.baseY + term.buffer.active.cursorY;
+    const output = getTerminalOutputRange(startLine, endLine);
+
+    let queueItem = commandQueue.find(c => c.id === cardId);
+    if (!queueItem) {
+        const serverLabel = card.querySelector('span.text-xs.text-gray-500')?.textContent || 'unknown';
+        queueItem = {
+            id: cardId,
+            server: serverLabel,
+            command: command,
+            explanation: 'Reconstructed from capture',
+            status: 'pending',
+            output: null,
+            exitCode: null
+        };
+        commandQueue.push(queueItem);
+    }
+
+    queueItem.status = 'executed';
+    queueItem.output = output;
+    queueItem.exitCode = 0;
+
+    const actionsDiv = card.querySelector('.cmd-actions');
+    actionsDiv.innerHTML = '<div class="text-green-400 text-xs p-2"><i class="fas fa-check-circle mr-1"></i>Output captured</div>';
+
+    const outputDiv = card.querySelector('.cmd-output');
+    if (outputDiv && output) {
+        let displayOutput = output;
+        if (displayOutput.length > 2000) {
+            displayOutput = displayOutput.substring(0, 1000) + '\n... [truncated] ...\n' + displayOutput.substring(displayOutput.length - 1000);
+        }
+        outputDiv.innerHTML = `<div class="border-t border-gray-700 p-2 bg-gray-950 mt-2 rounded"><pre class="text-xs text-gray-300 overflow-x-auto max-h-40 overflow-y-auto whitespace-pre-wrap">${escapeHtml(displayOutput)}</pre></div>`;
+        outputDiv.classList.remove('hidden');
+    }
+
+    showToast('Output captured', 'success');
+    updateQueueStatusForQueue(localQueueId);
+    console.debug('[AIQ] captureQueuedOutput done', { cardId, localQueueId, outputLen: output ? output.length : 0 });
+}
+
+// Skip a command in the queue (doesn't send to AI)
+// Skip a command in the queue (doesn't send to AI)
+function skipQueuedCommand(cardId) {
+    const card = document.getElementById(cardId);
+    if (!card) return;
+
+    const localQueueId = card.dataset.queueId || commandQueueContainerId;
+
+    // Find in queue (try to update status if possible)
+    const queueItem = commandQueue.find(c => c.id === cardId);
+    if (queueItem) {
+        queueItem.status = 'skipped';
+        queueItem.output = '[USER SKIPPED THIS COMMAND]';
+    }
+
+    // Update UI regardless of queue state
+    const actionsDiv = card.querySelector('.cmd-actions');
+    actionsDiv.innerHTML = '<div class="text-yellow-400 text-xs p-2"><i class="fas fa-forward mr-1"></i>Skipped</div>';
+
+    showToast('Command skipped', 'info');
+    updateQueueStatusForQueue(localQueueId);
+}
+
+// Skip all remaining pending commands
+function skipAllCommands(queueContainerId) {
+    for (const item of commandQueue) {
+        if (item.status === 'pending') {
+            item.status = 'skipped';
+            item.output = '[USER SKIPPED THIS COMMAND]';
+
+            const card = document.getElementById(item.id);
+            if (card) {
+                const actionsDiv = card.querySelector('.cmd-actions');
+                actionsDiv.innerHTML = '<div class="text-yellow-400 text-xs p-2"><i class="fas fa-forward mr-1"></i>Skipped</div>';
+            }
+        }
+    }
+
+    showToast('All remaining commands skipped', 'info');
+    updateQueueStatus();
+}
+
+// Update queue status display and show Continue button when ready
+function updateQueueStatus() {
+    updateQueueStatusForQueue(commandQueueContainerId);
+}
+
+function updateQueueStatusForQueue(queueId) {
+    if (!queueId) {
+        console.debug('[AIQ] updateQueueStatusForQueue skipped: no queueId');
+        return;
+    }
+
+    const pendingCount = commandQueue.filter(c => c.status === 'pending').length;
+    const executedCount = commandQueue.filter(c => c.status === 'executed').length;
+    const skippedCount = commandQueue.filter(c => c.status === 'skipped').length;
+
+    const statusEl = document.getElementById(`${queueId}-status`);
+    const actionsEl = document.getElementById(`${queueId}-actions`);
+
+    if (statusEl) {
+        if (pendingCount === 0) {
+            statusEl.textContent = `✅ ${executedCount} executed, ${skippedCount} skipped`;
+            statusEl.className = 'text-xs text-green-400';
+        } else {
+            statusEl.textContent = `⏳ ${pendingCount} pending, ${executedCount} executed, ${skippedCount} skipped`;
+            statusEl.className = 'text-xs text-gray-500';
+        }
+    }
+
+    // Auto-continue when all commands are handled
+    console.debug('[AIQ] queue status', { pendingCount, executedCount, skippedCount, queueId });
+    maybeAutoContinueQueue(queueId, pendingCount, executedCount, skippedCount);
+}
+
+function maybeAutoContinueQueue(queueContainerId, pendingCount, executedCount, skippedCount) {
+    const queueWrapper = document.getElementById(queueContainerId);
+    if (!queueWrapper) return;
+
+    if (pendingCount === 0 && (executedCount > 0 || skippedCount > 0)) {
+        console.debug('[AIQ] auto-continue eligible', { queueContainerId, executedCount, skippedCount });
+        if (queueWrapper.dataset.autoContinueTriggered === 'true') return;
+        queueWrapper.dataset.autoContinueTriggered = 'true';
+
+        // Small delay to allow UI to update before continuing
+        setTimeout(() => {
+            continueWithAI(queueContainerId);
+        }, 300);
+    }
+}
+
+// Continue with AI - sends all queue outputs to agent
+async function continueWithAI(queueContainerId) {
+    console.debug('[AIQ] continueWithAI start', { queueContainerId });
+    const queueWrapper = document.getElementById(queueContainerId);
+    if (queueWrapper) {
+        if (queueWrapper.dataset.continueInProgress === 'true') return;
+        queueWrapper.dataset.continueInProgress = 'true';
+    }
+    // Robustness: Reconstruct queue from DOM if missing
+    if (commandQueue.length === 0) {
+        const container = document.getElementById(queueContainerId + '-cards');
+        if (container) {
+            console.warn('Command queue missing, reconstructing from DOM for report');
+            const cards = container.querySelectorAll('.command-card');
+            cards.forEach(card => {
+                const btn = card.querySelector('button[data-cmd]');
+                if (btn) {
+                    const cmd = btn.dataset.cmd;
+                    const srv = btn.dataset.server;
+                    let status = 'pending';
+                    let output = '';
+                    const actDiv = card.querySelector('.cmd-actions');
+                    if (actDiv && actDiv.innerHTML.includes('text-green-400')) status = 'executed';
+                    else if (actDiv && actDiv.innerHTML.includes('text-yellow-400')) status = 'skipped';
+
+                    const outDiv = card.querySelector('.cmd-output pre');
+                    if (outDiv) output = outDiv.textContent;
+
+                    commandQueue.push({
+                        id: card.id,
+                        command: cmd,
+                        server: srv,
+                        status: status,
+                        output: output,
+                        exitCode: 0
+                    });
+                }
+            });
+        }
+    }
+
+    if (commandQueue.length === 0) {
+        console.warn('continueWithAI: Queue is empty even after reconstruction attempt.');
+        showToast('Error: No execution data found to send.', 'error');
+        if (queueWrapper) queueWrapper.dataset.continueInProgress = 'false';
+        console.debug('[AIQ] continueWithAI aborted: empty queue', { queueContainerId });
+        return;
+    }
+
+    // Disable button
+    const actionsEl = document.getElementById(`${queueContainerId}-actions`);
+    // Store original content for restore on error
+    const originalBtnContent = actionsEl ? actionsEl.innerHTML : '';
+
+    if (actionsEl) {
+        actionsEl.innerHTML = '<div class="text-blue-400 text-sm"><i class="fas fa-spinner fa-spin mr-2"></i>Sending to AI...</div>';
+    }
+
+    try {
+        // Reset streaming flag to prevent deadlocks
+        isStreaming = false;
+
+        // Save queue items BEFORE streaming (AI response may create new queue)
+        const itemsToSend = [...commandQueue];
+        const savedQueueId = queueContainerId;
+        console.debug('[AIQ] continueWithAI preparing', { savedQueueId, itemCount: itemsToSend.length });
+
+        // Build summary message
+        let summaryMsg = '### Command Execution Results\n\n';
+
+        for (const item of itemsToSend) {
+            const statusEmoji = item.status === 'executed' ? (item.exitCode === 0 ? '✅' : '❌') : '⏭️';
+            summaryMsg += `${statusEmoji} **${item.command}** (${item.server})\n`;
+
+            if (item.status === 'executed' && item.output) {
+                let output = item.output;
+                if (output.length > 800) {
+                    output = output.substring(0, 400) + '\n...[truncated]...\n' + output.substring(output.length - 400);
+                }
+                summaryMsg += `\`\`\`\n${output}\n\`\`\`\n\n`;
+            } else if (item.status === 'skipped') {
+                summaryMsg += `*User skipped this command*\n\n`;
+            }
+        }
+
+        summaryMsg += '\n**What should I do next?**';
+
+        // Add as user message visually
+        appendUserMessage('[Command Queue Complete - Continuing with AI]');
+
+        // Show typing indicator
+        showTypingIndicator();
+
+        // Send via streaming
+        await sendStreamingMessage(summaryMsg);
+
+        // Only clear queue if a NEW queue wasn't created during streaming
+        // (AI response creates new queue with different ID)
+        if (commandQueueContainerId === savedQueueId) {
+            commandQueue = [];
+            commandQueueContainerId = null;
+            console.debug('[AIQ] continueWithAI cleared old queue', { savedQueueId });
+        } else {
+            console.debug('[AIQ] continueWithAI: new queue created during streaming, not clearing', { savedQueueId, newQueueId: commandQueueContainerId });
+        }
+
+        console.log('✅ Sent command queue results to AI');
+        console.debug('[AIQ] continueWithAI sent', { savedQueueId, itemsSent: itemsToSend.length });
+
+        if (actionsEl) {
+            actionsEl.innerHTML = '<div class="text-green-400 text-sm"><i class="fas fa-check mr-2"></i>Sent to AI</div>';
+        }
+    } catch (err) {
+        console.error('continueWithAI failed:', err);
+        showToast('Failed to send report to AI', 'error');
+
+        // Restore button
+        if (actionsEl && originalBtnContent) {
+            actionsEl.innerHTML = originalBtnContent;
+        }
+        if (queueWrapper) queueWrapper.dataset.continueInProgress = 'false';
+    }
+
+    if (queueWrapper) queueWrapper.dataset.continueInProgress = 'false';
+}
+
+// Execute command and capture output (helper function)
+// Execute command and capture output (helper function)
+async function executeCommandViaTerminal(command, server) {
+    if (!currentServerId) {
+        throw new Error('Not connected to any server');
+    }
+
+    // Reset cancellation flag
+    pendingCommandCancelled = false;
+
+    // Remember terminal buffer position before command
+    const startLine = term ? term.buffer.active.baseY + term.buffer.active.cursorY : 0;
+    console.debug('[AIQ] executeCommandViaTerminal start', { server, startLine, command });
+
+    // Write command to terminal (raw string with \r for enter)
+    if (terminalSocket && terminalSocket.readyState === WebSocket.OPEN) {
+        // Ensure we send as string
+        terminalSocket.send(String(command) + '\r');
+    } else {
+        throw new Error('Terminal not connected');
+    }
+
+    // Wait for output (poll for prompt AND new content)
+    const MAX_WAIT = 30; // 30 seconds max
+    let waitCount = 0;
+    let timedOut = false;
+
+    // Wait for initial echo/reaction
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    while (waitCount < MAX_WAIT) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        waitCount++;
+
+        // Stop if cancelled
+        if (pendingCommandCancelled) break;
+
+        if (!term) break;
+
+        // Check if we have new content
+        const currentLine = term.buffer.active.baseY + term.buffer.active.cursorY;
+
+        // Only check for prompt if we have moved past the start line OR if we have significant new content on the same line
+        if (currentLine > startLine) {
+            // Get the last line content
+            const buffer = term.buffer.active;
+            const lastLine = buffer.getLine(buffer.baseY + buffer.cursorY);
+            if (lastLine) {
+                const lineText = lastLine.translateToString(true).trim();
+                // Common shell prompts
+                if (lineText.endsWith('$') || lineText.endsWith('#') || lineText.endsWith('>') || lineText.endsWith(':~$')) {
+                    break;
+                }
+            }
+        }
+    }
+
+    if (waitCount >= MAX_WAIT) {
+        timedOut = true;
+    }
+
+    const endLine = term ? term.buffer.active.baseY + term.buffer.active.cursorY : startLine;
+    const output = getTerminalOutputRange(startLine, endLine);
+    const exitCode = 0; // Assume success for now since we're using terminal capture
+
+    console.debug('[AIQ] executeCommandViaTerminal end', { server, startLine, endLine, timedOut, outputLen: output ? output.length : 0 });
+    return { output, exitCode, timedOut, startLine, endLine };
+}
+
 function appendUserMessage(text) {
     const container = document.getElementById('chatMessages');
     const wrapper = document.createElement('div');
@@ -635,6 +1220,25 @@ function getTerminalContent() {
         }
     }
     return lines.join('\n').trim();
+}
+
+function getTerminalOutputRange(startLine, endLine) {
+    if (!term) return '';
+    const buffer = term.buffer.active;
+    const lines = [];
+    const start = Math.max(0, startLine);
+    const end = Math.min(endLine, buffer.baseY + buffer.cursorY);
+
+    for (let i = start; i <= end; i++) {
+        const line = buffer.getLine(i);
+        if (line) {
+            lines.push(line.translateToString(true));
+        }
+    }
+
+    const joined = lines.join('\n').trim();
+    console.debug('[AIQ] getTerminalOutputRange', { start, end, lines: lines.length, outputLen: joined.length });
+    return joined;
 }
 
 async function sendMessage(e) {
@@ -1390,6 +1994,29 @@ async function submitFeedback(feedbackId, command, success) {
         });
     } catch (error) {
         console.error('Failed to save feedback:', error);
+    }
+}
+
+// Auto-save command execution outcome for learning system (fire-and-forget)
+async function saveCommandOutcome(command, output, success, exitCode) {
+    try {
+        // Truncate output for storage
+        const truncatedOutput = output ? output.substring(0, 500) : '';
+        
+        await apiCall('/api/v1/solution-feedback', {
+            method: 'POST',
+            body: JSON.stringify({
+                solution_type: 'command',
+                solution_reference: command,
+                success: success,
+                session_id: currentSessionId,
+                problem_description: `Command: ${command}\nExit code: ${exitCode}\nOutput: ${truncatedOutput}`
+            })
+        });
+        console.debug('[AIQ] Auto-saved command outcome for learning', { command: command.substring(0, 50), success, exitCode });
+    } catch (error) {
+        // Fire-and-forget - don't block on errors
+        console.debug('[AIQ] Failed to auto-save command outcome:', error);
     }
 }
 
@@ -2181,3 +2808,451 @@ function handleAgentComplete(data) {
     else showToast(data.message || 'Agent failed', 'error');
 }
 
+/* ==========================================================================
+   File Operations & Diff View Extensions (Phase 2 Preview-First Workflow)
+   ========================================================================== */
+
+// Removed duplicate declaration - already declared in ai_chat.html template
+// let currentRightPane = 'terminal';
+let currentFile = { path: null, content: null, version: null };
+let currentChangeSet = null;
+
+/**
+ * Switch between Terminal, Data Output, File Editor, and Diff View panes
+ */
+function switchRightPane(pane) {
+    currentRightPane = pane;
+
+    // Defined containers
+    const containers = {
+        'terminal': document.getElementById('terminalContainer'),
+        'data': document.getElementById('dataOutputContainer'),
+        'file': document.getElementById('fileEditorContainer'),
+        'diff': document.getElementById('diffViewContainer'),
+        'agentHQ': document.getElementById('agentHQContainer')
+    };
+
+    // Defined tabs
+    const tabs = {
+        'terminal': document.getElementById('terminalTabBtn'),
+        'data': document.getElementById('dataOutputTabBtn'),
+        'file': document.getElementById('fileEditorTabBtn'),
+        'diff': document.getElementById('diffViewTabBtn'),
+        'agentHQ': document.getElementById('agentHQTabBtn')
+    };
+
+    // Defined controls
+    const controls = {
+        'terminal': [document.getElementById('terminalControls'), document.getElementById('terminalStatus')],
+        'data': [document.getElementById('dataOutputControls')],
+        'file': [document.getElementById('fileEditorControls')],
+        'diff': [], // No specific header controls for diff yet
+        'agentHQ': [document.getElementById('agentHQControls')]
+    };
+
+    // Toggle Container Visibility
+    Object.keys(containers).forEach(key => {
+        if (containers[key]) {
+            if (key === pane) containers[key].classList.remove('hidden');
+            else containers[key].classList.add('hidden');
+        }
+    });
+
+    // Toggle Tab Styling
+    Object.keys(tabs).forEach(key => {
+        const btn = tabs[key];
+        if (!btn) return;
+
+        // Reset to base inactive style
+        btn.className = 'px-3 py-1 text-xs font-medium bg-transparent text-gray-400 border-r border-gray-600 hover:text-white hover:bg-gray-800 transition-colors relative';
+
+        // Apply active style
+        if (key === pane) {
+            btn.classList.remove('bg-transparent', 'text-gray-400', 'hover:bg-gray-800');
+            if (key === 'terminal') btn.classList.add('bg-green-600', 'text-white');
+            else if (key === 'data') btn.classList.add('bg-blue-600', 'text-white');
+            else if (key === 'file') btn.classList.add('bg-purple-600', 'text-white');
+            else if (key === 'diff') btn.classList.add('bg-amber-600', 'text-white');
+            else if (key === 'agentHQ') btn.classList.add('bg-blue-600', 'text-white');
+        }
+    });
+
+    // Toggle Control Visibility
+    ['terminal', 'data', 'file', 'diff', 'agentHQ'].forEach(key => {
+        const elements = controls[key] || [];
+        elements.forEach(el => {
+            if (el) el.classList.add('hidden');
+        });
+
+        if (key === pane) {
+            elements.forEach(el => {
+                if (el) el.classList.remove('hidden');
+            });
+        }
+    });
+
+    // Trigger data load if needed
+    if (pane === 'diff') {
+        refreshDiffView();
+    } else if (pane === 'file' && currentFile.path && !currentFile.content) {
+        refreshCurrentFile();
+    } else if (pane === 'agentHQ') {
+        refreshAgentHQ();
+    }
+}
+
+async function openFile(path) {
+    currentFile.path = path;
+    const label = document.getElementById('currentFileLabel');
+    if (label) {
+        label.textContent = path;
+        label.title = path;
+    }
+    await refreshCurrentFile();
+    switchRightPane('file');
+}
+
+async function refreshCurrentFile() {
+    if (!currentFile.path) return;
+
+    // Show loading state
+    const container = document.getElementById('fileEditorContent');
+    if (container) {
+        container.innerHTML = '<div class="flex items-center justify-center h-full text-gray-500"><i class="fas fa-spinner fa-spin text-2xl mb-2"></i><span class="block text-xs">Loading file...</span></div>';
+    }
+
+    try {
+        const session_id = currentSessionId || (currentSession ? currentSession.id : null);
+        const response = await apiCall('/api/v1/files/read', {
+            method: 'POST',
+            body: JSON.stringify({
+                path: currentFile.path,
+                session_id: session_id
+            })
+        });
+
+        if (!response.ok) throw new Error('Failed to read file');
+
+        const data = await response.json();
+        currentFile.content = data.content;
+        currentFile.version = data.version;
+
+        renderFileContent(data.content, currentFile.path);
+    } catch (error) {
+        console.error('File read error:', error);
+        if (container) {
+            container.innerHTML = `<div class="flex flex-col items-center justify-center h-full text-red-400">
+                <i class="fas fa-exclamation-triangle text-2xl mb-2"></i>
+                <p>Failed to load file</p>
+                <div class="text-xs text-gray-500 mt-1">${escapeHtml(error.message)}</div>
+                <button onclick="refreshCurrentFile()" class="mt-4 px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs">Retry</button>
+            </div>`;
+        }
+        showToast(`Error opening file: ${error.message}`, 'error');
+    }
+}
+
+function renderFileContent(content, path) {
+    const container = document.getElementById('fileEditorContent');
+    if (!container) return;
+
+    // Detect language extension
+    const ext = path.split('.').pop().toLowerCase();
+    const langClass = `language-${ext}`;
+
+    container.innerHTML = `<pre class="m-0 p-4 h-full overflow-auto text-sm"><code class="${langClass} font-mono">${escapeHtml(content)}</code></pre>`;
+
+    // Apply syntax highlighting
+    if (window.hljs) {
+        window.hljs.highlightElement(container.querySelector('code'));
+    }
+}
+
+async function refreshDiffView() {
+    const summary = document.getElementById('diffChangeSummary');
+    const content = document.getElementById('diffListContent');
+    const emptyState = document.getElementById('diffEmptyState');
+    const badge = document.getElementById('diffBadge');
+
+    if (summary) summary.textContent = 'Checking...';
+
+    // Check if `currentChangeSet` is set in memory
+
+    if (!currentChangeSet || !currentChangeSet.items || currentChangeSet.items.length === 0) {
+        if (content) content.innerHTML = '';
+        if (content) content.classList.add('hidden');
+        if (emptyState) emptyState.classList.remove('hidden');
+        if (summary) summary.textContent = 'No pending changes';
+        if (badge) badge.classList.add('hidden');
+        const list = document.getElementById('pendingChangesList');
+        if (list) list.classList.add('hidden');
+        return;
+    }
+
+    // We have changes
+    if (emptyState) emptyState.classList.add('hidden');
+    const list = document.getElementById('pendingChangesList');
+    if (list) list.classList.remove('hidden');
+    if (content) content.classList.remove('hidden');
+    if (summary) summary.textContent = `${currentChangeSet.items.length} file(s) changed`;
+    if (badge) badge.classList.remove('hidden');
+
+    renderDiffList(currentChangeSet.items);
+}
+
+function renderDiffList(items) {
+    const container = document.getElementById('diffListContent');
+    if (!container) return;
+
+    container.innerHTML = items.map((item, index) => {
+        let icon = 'fa-file';
+        let color = 'text-gray-400';
+        let label = 'MODIFIED';
+        let badgeColor = 'bg-blue-900 text-blue-200';
+
+        if (item.change_type === 'create') {
+            icon = 'fa-plus-circle';
+            color = 'text-green-400';
+            label = 'NEW';
+            badgeColor = 'bg-green-900 text-green-200';
+        } else if (item.change_type === 'delete') {
+            icon = 'fa-minus-circle';
+            color = 'text-red-400';
+            label = 'DELETED';
+            badgeColor = 'bg-red-900 text-red-200';
+        }
+
+        return `
+        <div class="bg-gray-900 border border-gray-700 rounded overflow-hidden shadow-sm">
+            <div class="px-3 py-2 bg-gray-800 border-b border-gray-700 flex justify-between items-center">
+                <div class="flex items-center space-x-2">
+                    <span class="text-[10px] font-bold px-1.5 py-0.5 rounded ${badgeColor}">${label}</span>
+                    <span class="text-xs text-gray-300 font-mono">${escapeHtml(item.path)}</span>
+                </div>
+                <div class="flex space-x-1">
+                     <!-- Individual actions could go here -->
+                </div>
+            </div>
+            <div class="p-0 overflow-x-auto">
+                <pre class="text-[10px] leading-4 font-mono p-2"><code class="language-diff">${escapeHtml(item.diff || 'No diff content available')}</code></pre>
+            </div>
+        </div>
+        `;
+    }).join('');
+
+    // Highlight all diff blocks
+    if (window.hljs) {
+        container.querySelectorAll('pre code').forEach(block => {
+            window.hljs.highlightElement(block);
+        });
+    }
+}
+
+async function applyAllChanges() {
+    if (!currentChangeSet || !currentChangeSet.id) return;
+
+    try {
+        const btn = document.getElementById('btnApplyAll');
+        if (btn) {
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Applying...';
+            btn.disabled = true;
+        }
+
+        const response = await apiCall(`/api/v1/changesets/${currentChangeSet.id}/apply`, {
+            method: 'POST'
+        });
+
+        if (!response.ok) throw new Error('Failed to apply changes');
+
+        showToast('Changes applied successfully', 'success');
+
+        // Clear state
+        currentChangeSet = null;
+        refreshDiffView();
+
+        // Switch back to terminal or notify
+        switchRightPane('terminal');
+        appendAIMessage('✅ **Changes applied successfully.** You can now verify the functionality.');
+
+    } catch (error) {
+        console.error('Apply error:', error);
+        showToast(`Failed to apply: ${error.message}`, 'error');
+    } finally {
+        const btn = document.getElementById('btnApplyAll');
+        if (btn) {
+            btn.innerHTML = '<i class="fas fa-check mr-2"></i>Apply All Changes';
+            btn.disabled = false;
+        }
+    }
+}
+
+async function discardAllChanges() {
+    if (!currentChangeSet) return;
+
+    if (!confirm('Are you sure you want to discard all pending changes?')) return;
+
+    currentChangeSet = null;
+    refreshDiffView();
+    showToast('Changes discarded', 'info');
+    switchRightPane('terminal');
+}
+
+async function loadChangeSet(id) {
+    try {
+        const response = await apiCall(`/api/v1/changesets/${id}`);
+        if (!response.ok) throw new Error('Failed to load changeset');
+        currentChangeSet = await response.json();
+        switchRightPane('diff');
+    } catch (error) {
+        console.error('Failed to load changeset:', error);
+        showToast('Failed to load pending changes', 'error');
+    }
+}
+
+// Agent HQ Functions
+
+async function refreshAgentHQ() {
+    if (!currentSessionId) return;
+
+    const label = document.getElementById('agentHQStatusLabel');
+    if (label) label.textContent = 'Refreshing...';
+    try {
+        const response = await apiCall(`/api/agents/hq/${currentSessionId}`);
+
+        if (!response.ok) throw new Error('Failed to fetch Agent HQ status');
+
+        const data = await response.json();
+        renderAgentHQ(data);
+        if (label) label.textContent = 'Live';
+    } catch (error) {
+        console.error('Agent HQ Error:', error);
+        if (label) label.textContent = 'Error';
+    }
+}
+
+function renderAgentHQ(data) {
+    const info = document.getElementById('hqPoolInfo');
+    if (info) info.textContent = `${data.pool.name} (Max: ${data.pool.max_concurrent})`;
+
+    // Render Active Agents
+    const activeList = document.getElementById('activeAgentsList');
+    if (activeList) {
+        if (data.tasks.active.length === 0) {
+            activeList.innerHTML = '<div class="text-center text-gray-500 py-4">No active agents running</div>';
+        } else {
+            activeList.innerHTML = data.tasks.active.map(task => `
+                <div class="bg-gray-800 p-3 rounded border border-blue-500/30 flex justify-between items-start">
+                    <div>
+                        <div class="flex items-center space-x-2 mb-1">
+                            <span class="text-xs font-bold text-blue-400 uppercase">${task.agent_type}</span>
+                            <span class="text-xs text-gray-500">${new Date(task.started_at).toLocaleTimeString()}</span>
+                            ${task.iteration_count > 0 ? `<span class="text-[10px] text-yellow-400 ml-2"><i class="fas fa-sync-alt fa-spin mr-1"></i>Iter: ${task.iteration_count}/${task.max_iterations}</span>` : ''}
+                        </div>
+                        <div class="text-sm text-gray-200">${task.goal}</div>
+                    </div>
+                    <button onclick="stopAgentTask('${task.id}')" class="text-red-400 hover:text-red-300 px-2" title="Stop Task">
+                        <i class="fas fa-stop-circle"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+    }
+
+    // Render Queued Tasks
+    const queuedList = document.getElementById('queuedTasksList');
+    if (queuedList) {
+        if (data.tasks.queued.length === 0) {
+            queuedList.innerHTML = '<span class="text-xs text-gray-600">Queue is empty</span>';
+        } else {
+            queuedList.innerHTML = data.tasks.queued.map(task => `
+                <div class="bg-gray-800/50 p-2 rounded border border-gray-700 flex justify-between items-center">
+                    <div>
+                        <span class="text-xs font-bold text-gray-400 uppercase mr-2">${task.agent_type}</span>
+                        <span class="text-xs text-gray-300 truncate max-w-[200px] inline-block align-bottom">${task.goal}</span>
+                    </div>
+                    <span class="text-[10px] text-gray-500">Priority: ${task.priority || 10}</span>
+                </div>
+            `).join('');
+        }
+    }
+
+    // Render Completed
+    const completedList = document.getElementById('completedTasksList');
+    if (completedList) {
+        completedList.innerHTML = data.tasks.completed.slice(0, 5).map(task => `
+             <div class="bg-gray-800/30 p-2 rounded border border-gray-800 flex justify-between items-center opacity-75">
+                 <div>
+                    <span class="text-xs font-bold ${task.status === 'completed' ? 'text-green-500' : 'text-red-500'} uppercase mr-2">${task.status}</span>
+                    <span class="text-xs text-gray-400 truncate max-w-[200px] inline-block align-bottom">${task.goal}</span>
+                 </div>
+                 <span class="text-[10px] text-gray-600">${new Date(task.completed_at).toLocaleTimeString()}</span>
+             </div>
+        `).join('');
+    }
+}
+
+async function stopAgentTask(taskId) {
+    if (!confirm('Stop this agent task?')) return;
+    try {
+        await apiCall(`/api/agents/tasks/${taskId}/stop`, {
+            method: 'POST'
+        });
+        refreshAgentHQ();
+    } catch (e) {
+        showToast('Failed to stop task', 'error');
+    }
+}
+
+function showSpawnAgentModal() {
+    const goal = prompt("Enter goal for background agent:");
+    if (goal) {
+        spawnAgent(goal);
+    }
+}
+
+async function spawnAgent(goal) {
+    if (!currentSessionId) {
+        showToast('No active session', 'error');
+        return;
+    }
+
+    try {
+        let poolId = null;
+        // Fetch HQ first to get pool ID.
+        const response = await apiCall(`/api/agents/hq/${currentSessionId}`);
+        const data = await response.json();
+        poolId = data.pool.id;
+
+        const spawnResp = await apiCall('/api/agents/spawn', {
+            method: 'POST',
+            body: JSON.stringify({
+                pool_id: poolId,
+                goal: goal,
+                agent_type: 'background',
+                priority: 10,
+                auto_iterate: true,
+                max_iterations: 10
+            })
+        });
+
+        if (spawnResp.ok) {
+            showToast('Agent spawned locally', 'success');
+            refreshAgentHQ();
+            switchRightPane('agentHQ');
+        } else {
+            showToast('Failed to spawn agent', 'error');
+        }
+
+    } catch (e) {
+        console.error(e);
+        showToast('Error spawning agent', 'error');
+    }
+}
+
+// Auto-refresh Agent HQ if visible
+setInterval(() => {
+    const container = document.getElementById('agentHQContainer');
+    if (container && !container.classList.contains('hidden')) {
+        refreshAgentHQ();
+    }
+}, 5000);

@@ -2,7 +2,7 @@
 Pydantic schemas for Knowledge Base
 Request and response models for design documents, images, and chunks
 """
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import Optional, List, Dict, Any
 from uuid import UUID
 from datetime import datetime
@@ -21,7 +21,8 @@ class DocumentBase(BaseModel):
     source_url: Optional[str] = Field(None, max_length=1000, description="Source URL")
     source_type: Optional[str] = Field(None, description="Source type (git, confluence, manual)")
     
-    @validator('doc_type')
+    @field_validator('doc_type')
+    @classmethod
     def validate_doc_type(cls, v):
         valid_types = ['architecture', 'api_spec', 'runbook', 'sop', 'troubleshooting', 'design_doc', 'postmortem', 'onboarding', 'deployment', 'config']
         if v not in valid_types:
@@ -34,7 +35,8 @@ class DocumentCreate(DocumentBase):
     format: str = Field(..., description="Document format (markdown, pdf, html, yaml)")
     raw_content: Optional[str] = Field(None, description="Raw document content")
     
-    @validator('format')
+    @field_validator('format')
+    @classmethod
     def validate_format(cls, v):
         valid_formats = ['markdown', 'pdf', 'html', 'yaml', 'text', 'image']
         if v not in valid_formats:
@@ -51,7 +53,8 @@ class DocumentUpdate(BaseModel):
     source_url: Optional[str] = None
     status: Optional[str] = None
     
-    @validator('doc_type')
+    @field_validator('doc_type')
+    @classmethod
     def validate_doc_type(cls, v):
         if v is not None:
             valid_types = ['architecture', 'api_spec', 'runbook', 'sop', 'troubleshooting', 'design_doc', 'postmortem', 'onboarding', 'deployment', 'config']
@@ -59,7 +62,8 @@ class DocumentUpdate(BaseModel):
                 raise ValueError(f"doc_type must be one of: {', '.join(valid_types)}")
         return v
     
-    @validator('status')
+    @field_validator('status')
+    @classmethod
     def validate_status(cls, v):
         if v is not None and v not in ['active', 'archived', 'draft']:
             raise ValueError("status must be one of: active, archived, draft")
@@ -80,8 +84,7 @@ class DocumentResponse(DocumentBase):
     chunk_count: Optional[int] = Field(None, description="Number of chunks generated")
     app_name: Optional[str] = Field(None, description="Name of the related application")
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class DocumentWithChunks(DocumentResponse):
@@ -108,7 +111,8 @@ class ImageBase(BaseModel):
     app_id: Optional[UUID] = Field(None, description="Related application ID")
     document_id: Optional[UUID] = Field(None, description="Related document ID")
     
-    @validator('image_type')
+    @field_validator('image_type')
+    @classmethod
     def validate_image_type(cls, v):
         valid_types = ['architecture', 'flowchart', 'sequence', 'erd', 'network', 'deployment', 'component', 'other']
         if v not in valid_types:
@@ -152,8 +156,7 @@ class ImageResponse(ImageBase):
     # AI analysis results
     analysis: Optional[ImageAnalysisResponse] = None
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
     
     @classmethod
     def from_orm_with_analysis(cls, obj):
@@ -205,14 +208,16 @@ class ChunkBase(BaseModel):
     content_type: str = Field(..., description="Type of content")
     metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
     
-    @validator('source_type')
+    @field_validator('source_type')
+    @classmethod
     def validate_source_type(cls, v):
         valid_types = ['document', 'image', 'component', 'alert_history']
         if v not in valid_types:
             raise ValueError(f"source_type must be one of: {', '.join(valid_types)}")
         return v
     
-    @validator('content_type')
+    @field_validator('content_type')
+    @classmethod
     def validate_content_type(cls, v):
         valid_types = ['text', 'image_description', 'ocr', 'component_info', 'failure_mode', 'troubleshooting', 'dependency_info']
         if v not in valid_types:
@@ -231,8 +236,7 @@ class ChunkResponse(ChunkBase):
     created_at: datetime
     similarity_score: Optional[float] = Field(None, description="Similarity score (for search results)")
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ChunkListResponse(BaseModel):

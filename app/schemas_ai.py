@@ -10,7 +10,7 @@ This ensures the frontend can handle responses uniformly while allowing
 mode-specific payload extensions.
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List, Dict, Any, Literal
 from datetime import datetime
 from enum import Enum
@@ -95,8 +95,7 @@ class AIResponseBase(BaseModel):
     processing_time_ms: Optional[int] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     
-    class Config:
-        use_enum_values = True  # Serialize enums as strings
+    model_config = ConfigDict(use_enum_values=True)  # Serialize enums as strings
 
 
 class ReviveResponse(AIResponseBase):

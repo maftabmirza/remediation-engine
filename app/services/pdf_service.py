@@ -8,7 +8,7 @@ from pathlib import Path
 import io
 
 try:
-    from PyPDF2 import PdfReader
+    from pypdf import PdfReader
     import fitz  # PyMuPDF
 except ImportError:
     PdfReader = None

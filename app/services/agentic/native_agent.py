@@ -8,7 +8,7 @@ Uses native function/tool calling capabilities of LLM providers
 import json
 import logging
 import re
-from typing import Dict, List, Any, Optional, AsyncGenerator, Union
+from typing import Dict, List, Any, Optional, AsyncGenerator, Union, Callable
 from dataclasses import dataclass
 from uuid import UUID
 
@@ -60,10 +60,12 @@ class NativeToolAgent:
         db: Session,
         provider: LLMProvider,
         alert: Optional[Alert] = None,
-        max_iterations: int = 12,
-        temperature: float = 0.3,
-        max_tokens: int = 2000,
-        initial_messages: Optional[List[Dict[str, Any]]] = None
+        max_iterations: int = 7,
+        temperature: Optional[float] = None,
+        max_tokens: Optional[int] = None,
+        initial_messages: Optional[List[Dict[str, Any]]] = None,
+        on_tool_call_complete: Optional[Callable[[str, Dict[str, Any], str], None]] = None,
+        registry_factory: Optional[Callable] = None
     ):
         """
         Initialize the native tool agent.
@@ -76,17 +78,22 @@ class NativeToolAgent:
             temperature: LLM temperature
             max_tokens: Max tokens per response
             initial_messages: Pre-existing conversation history to restore session context
+            on_tool_call_complete: Callback for tool execution logging
+            registry_factory: Factory function to create tool registry (default: create_full_registry)
         """
         self.db = db
         self.provider = provider
         self.alert = alert
         self.max_iterations = max_iterations
-        self.temperature = temperature
-        self.max_tokens = max_tokens
+        provider_config = provider.config_json or {}
+        self.temperature = temperature if temperature is not None else provider_config.get("temperature", 0.3)
+        self.max_tokens = max_tokens if max_tokens is not None else provider_config.get("max_tokens", 2000)
+        self.on_tool_call_complete = on_tool_call_complete
 
         # Initialize tool registry
         alert_id = alert.id if alert else None
-        self.tool_registry = create_full_registry(db, alert_id=alert_id)
+        factory = registry_factory or create_full_registry
+        self.tool_registry = factory(db, alert_id=alert_id)
 
         # Conversation history - restore from initial_messages if provided
         self.messages: List[Dict[str, Any]] = initial_messages if initial_messages else []
@@ -99,8 +106,10 @@ class NativeToolAgent:
 
     def _get_system_prompt(self) -> str:
         """Generate the system prompt for the agent"""
-        base_prompt = """You are RE-VIVE, an advanced SRE AI Agent.
-You are pair-programming with the user to investigate and resolve production incidents.
+        base_prompt = """You are RE-VIVE, an advanced SRE AI Agent from Antigravity.
+
+    ## Tool-First Approach
+    You are pair-programming with the user to investigate and resolve production incidents.
 
 ## ANTI-HALLUCINATION & SAFETY RULE (READ FIRST)
 1. **DO NOT INVENT DATA.** You often try to "complete" the task by simulating tool outputs in your text. **STOP.**
@@ -275,6 +284,25 @@ You are **NOT AUTHORIZED** to execute commands directly. You must SUGGEST them.
 6. STOP and wait for user output
 7. Analyze output, suggest next command OR provide final recommendations
 
+
+
+
+**COMMAND QUEUE PROTOCOL:**
+- You MAY suggest multiple commands if they form a LOGICAL SEQUENCE
+  - Example: "To fix nginx: 1) stop apache, 2) start nginx, 3) check status"
+  - All commands will be added to a queue for the user
+  - User can execute them one-by-one, skip some, or execute all
+- **CRITICAL:** You MUST use the `suggest_ssh_command` tool for ANY executable command. Do NOT write commands in text.
+- **ABSOLUTELY FORBIDDEN:** NEVER suggest tool names as shell commands!
+  - BAD: `suggest_ssh_command(command="query_grafana_logs")` ❌
+  - BAD: `suggest_ssh_command(command="get_similar_incidents")` ❌
+  - GOOD: Call `query_grafana_logs` directly as a tool_call ✅
+  - Tool names (query_grafana_metrics, query_grafana_logs, get_recent_changes, get_similar_incidents, search_knowledge, etc.) are YOUR internal tools - call them via tool_call, NEVER suggest them to users as shell commands.
+- After user executes commands, they'll click **Continue** and you'll receive outputs
+- Analyze the outputs and suggest next steps
+- **DO NOT suggest unrelated commands in batch** - only logical sequences
+- **NEVER write [CMD_CARD] markers in your text** - they're auto-generated from tools
+
 **HARD LIMIT:** After calling `suggest_ssh_command`, your response should be SHORT. Maximum 2-3 sentences.
 
 ---
@@ -310,8 +338,10 @@ Do NOT include suggestions if you just suggested a command - wait for the result
 
 ## RUNBOOK LINK RULE
 
-If a tool output includes a runbook `view_url`, you MUST include a clickable Markdown link:
-`View: [Open runbook](/runbooks/<id>/view)`
+If a tool output includes a runbook `view_url`, you MUST include it in your response as:
+`📖 **[View Runbook →](/runbooks/<id>/view)** (Open in AIOps Platform)`
+
+This link should be opened in the main AIOps platform interface where the user is logged in.
 """
         # Add alert context if available
         if self.alert:
@@ -453,20 +483,19 @@ Tools called so far will be tracked. If you try to suggest a command without suf
         if not missing:
             return final_content
 
-        suffix_lines = ["", "**Runbook links:**"]
+        suffix_lines = ["", "**📖 Runbook Links (Open in AIOps Platform):**"]
         for url in missing[:10]:
-            suffix_lines.append(f"- [Open runbook]({url})")
+            suffix_lines.append(f"- [View Runbook →]({url})")
 
         return (final_content or "").rstrip() + "\n" + "\n".join(suffix_lines) + "\n"
 
-    async def _get_tools_for_provider(self) -> List[Dict[str, Any]]:
+    def _get_tools_for_provider(self) -> List[Dict[str, Any]]:
         """
         Get tools in the format expected by the provider.
-        
-        NOTE: LiteLLM expects tools in OpenAI format (type="function") 
-        and handles the conversion to provider-specific formats (like Anthropic) internally.
         """
-        # Always return OpenAI format for LiteLLM
+        provider_type = (self.provider.provider_type or "").lower()
+        if provider_type == "anthropic":
+            return self.tool_registry.get_anthropic_tools()
         return self.tool_registry.get_openai_tools()
     
     async def _call_anthropic_directly(self, api_key: str) -> Dict[str, Any]:
@@ -569,7 +598,7 @@ Tools called so far will be tracked. If you try to suggest a command without suf
             
             # Convert tools to Anthropic format
             anthropic_tools = []
-            openai_tools = await self._get_tools_for_provider()
+            openai_tools = self.tool_registry.get_openai_tools()
             for tool in openai_tools:
                 fn = tool.get("function", {})
                 anthropic_tools.append({
@@ -659,7 +688,7 @@ Tools called so far will be tracked. If you try to suggest a command without suf
             return await self._call_anthropic_directly(api_key)
 
         # Prepare tools
-        tools = await self._get_tools_for_provider()
+        tools = self._get_tools_for_provider()
         
         # Prepare messages
         # With newer LiteLLM, we can pass standard messages
@@ -724,6 +753,13 @@ Tools called so far will be tracked. If you try to suggest a command without suf
 
             # Execute the tool
             result = await self.tool_registry.execute(tool_name, arguments)
+
+            # Invoke callback if provided (e.g., for logging to DB)
+            if self.on_tool_call_complete:
+                try:
+                    self.on_tool_call_complete(tool_name, arguments, str(result))
+                except Exception as e:
+                    logger.error(f"Error in tool completion callback: {e}")
 
             results.append({
                 "tool_call_id": tool_id,
@@ -918,6 +954,7 @@ Tools called so far will be tracked. If you try to suggest a command without suf
 
         iterations = 0
         self.tool_calls_made = []
+        stuck_warnings = 0  # Track how many times model promised tools but didn't call them
 
         try:
             while iterations < self.max_iterations:
@@ -973,10 +1010,10 @@ Tools called so far will be tracked. If you try to suggest a command without suf
                     if message.content:
                         yield message.content
 
-                    # Execute tools
+                    # Execute all tools (including multiple suggest_ssh_command if present)
                     tool_results = await self._execute_tool_calls(tool_calls)
 
-                    # Check for suggest_ssh_command and yield structured card
+                    # Yield CMD_CARD for each suggest_ssh_command
                     command_suggested = False
                     for tc in tool_calls:
                         tool_name = tc.function.name if hasattr(tc, 'function') else tc.get('name', 'unknown')
@@ -984,8 +1021,16 @@ Tools called so far will be tracked. If you try to suggest a command without suf
                             command_suggested = True
                             try:
                                 args = json.loads(tc.function.arguments) if hasattr(tc, 'function') else {}
+                                command = args.get("command", "")
+                                
+                                # Apply same --no-pager fixes as tool_registry
+                                if 'systemctl' in command and '--no-pager' not in command:
+                                    command = command.replace('systemctl ', 'systemctl --no-pager ', 1)
+                                if 'journalctl' in command and '--no-pager' not in command:
+                                    command = command.replace('journalctl ', 'journalctl --no-pager ', 1)
+                                
                                 card_data = {
-                                    "command": args.get("command", ""),
+                                    "command": command,
                                     "server": args.get("server", ""),
                                     "explanation": args.get("explanation", "")
                                 }
@@ -999,15 +1044,65 @@ Tools called so far will be tracked. If you try to suggest a command without suf
 
                     # If command was suggested, we're done - don't continue the loop
                     if command_suggested:
-                        logger.info("Command suggested via tool, ending agent loop")
+                        logger.info("Command(s) suggested via tool, ending agent loop")
                         return
 
                     continue
 
                 else:
                     # No tool calls - final response
+                    content = message.content or ""
+                    
+                    # Check if model wrote CMD_CARD markers directly in text (hallucination workaround)
+                    # This happens when model doesn't use proper tool_call mechanism
+                    if "[CMD_CARD]" in content:
+                        logger.warning("Model wrote CMD_CARD markers in text instead of using tool_call - treating as valid response")
+                        # Extract and yield the content with CMD_CARD markers
+                        final_content = self._ensure_runbook_links_in_final(content)
+                        self.messages.append({
+                            "role": "assistant",
+                            "content": final_content
+                        })
+                        yield final_content
+                        return
+                    
+                    # Detect "stuck" pattern: model promises to use tools but doesn't actually call them
+                    # This happens with weaker models that write "let me use X tool" instead of calling it
+                    stuck_phrases = [
+                        "let me continue", "let me check", "i'll use", "i will use",
+                        "using the available tools", "once i have the results",
+                        "let me query", "let me search", "i'll query", "i'll search"
+                    ]
+                    content_lower = content.lower()
+                    is_stuck = any(phrase in content_lower for phrase in stuck_phrases) and len(self.tool_calls_made) < 2
+                    
+                    if is_stuck:
+                        stuck_warnings += 1
+                        logger.warning(f"Model appears stuck ({stuck_warnings}/2) - promising tools but not calling them. Tool calls: {len(self.tool_calls_made)}")
+                        
+                        if stuck_warnings >= 2:
+                            # Model is hopelessly stuck, just return what it gave us
+                            logger.warning("Model stuck after 2 warnings - returning current response")
+                            final_content = self._ensure_runbook_links_in_final(content)
+                            final_content += "\n\n*[Note: I was unable to query the tools directly. Please check manually.]*"
+                            self.messages.append({"role": "assistant", "content": final_content})
+                            yield final_content
+                            return
+                        
+                        # Force it to call tools by being very explicit
+                        self.messages.append({
+                            "role": "user", 
+                            "content": (
+                                "[SYSTEM CRITICAL]: You said you would use tools but did NOT make any tool calls. "
+                                "STOP describing what you will do. ACTUALLY CALL the tools NOW using tool_call. "
+                                "If you cannot call tools, provide your best recommendation based on what you know. "
+                                "Do NOT say 'let me check' or 'once I have results' - either CALL the tool or give your answer."
+                            )
+                        })
+                        continue
+                    
                     # Enforce minimum tool calls only when the response is actionable.
-                    if len(self.tool_calls_made) < 2 and self._should_enforce_min_tool_calls(message.content or ""):
+                    if len(self.tool_calls_made) < 2 and self._should_enforce_min_tool_calls(content):
                         logger.warning(f"Stream: Agent tried to finish with only {len(self.tool_calls_made)} tool calls, forcing more investigation")
                         # Add system message to force more investigation
                         self.messages.append({
@@ -1018,7 +1113,7 @@ Tools called so far will be tracked. If you try to suggest a command without suf
                         continue
                     
                     # Final response - yield content
-                    final_content = self._ensure_runbook_links_in_final(message.content or "")
+                    final_content = self._ensure_runbook_links_in_final(content)
 
                     # Add to messages
                     self.messages.append({

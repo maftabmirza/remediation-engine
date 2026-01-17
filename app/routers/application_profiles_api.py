@@ -7,7 +7,7 @@ Enables AI-powered observability by storing SLOs, metrics mappings, and datasour
 from typing import List, Optional
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.exc import IntegrityError
 
 from app.database import get_db
@@ -160,7 +160,9 @@ def get_application_profile(
     Raises:
         HTTPException: 404 if profile not found
     """
-    profile = db.query(ApplicationProfile).filter(ApplicationProfile.id == profile_id).first()
+    profile = db.query(ApplicationProfile).options(joinedload(ApplicationProfile.application)).filter(
+        ApplicationProfile.id == profile_id
+    ).first()
     if not profile:
         raise HTTPException(status_code=404, detail="Application profile not found")
 

@@ -9,6 +9,11 @@ from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+from migration_helpers import create_table_safe
+
 # revision identifiers, used by Alembic.
 revision = 'ddf455edf0de'
 down_revision = '040_remove_legacy_chat'
@@ -17,7 +22,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.create_table('application_knowledge_configs',
+    create_table_safe('application_knowledge_configs',
         sa.Column('id', sa.UUID(), autoincrement=False, nullable=False),
         sa.Column('app_id', sa.UUID(), autoincrement=False, nullable=False),
         sa.Column('git_repo_url', sa.String(), nullable=True),

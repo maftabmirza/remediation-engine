@@ -43,10 +43,21 @@ class AgentSession(Base):
     error_message = Column(Text, nullable=True)
     summary = Column(Text, nullable=True)
     
+    # Multi-Agent columns
+    agent_type = Column(String(50), default='local') # local, background, cloud
+    pool_id = Column(UUID(as_uuid=True), ForeignKey("agent_pools.id"), nullable=True)
+    worktree_path = Column(String(1024), nullable=True) # for file isolation
+    
+    # Auto-iteration columns
+    auto_iterate = Column(Boolean, default=False)
+    max_auto_iterations = Column(Integer, default=5)
+
     # Relationships
     steps = relationship("AgentStep", back_populates="session", cascade="all, delete-orphan", order_by="AgentStep.step_number")
     user = relationship("User")
     server = relationship("ServerCredential")
+    # pool relationship defined in models_agent_pool.py to avoid circular import issues, or we use string reference if possible. 
+    # For now, backref from AgentTask is often enough, but let's keep it simple.
 
 
 class AgentStep(Base):
@@ -72,6 +83,11 @@ class AgentStep(Base):
     
     created_at = Column(DateTime(timezone=True), default=utc_now)
     executed_at = Column(DateTime(timezone=True), nullable=True)
+    
+    # Phase 3 Enhancements
+    iteration_count = Column(Integer, default=0)
+    change_set_id = Column(UUID(as_uuid=True), ForeignKey("change_sets.id"), nullable=True)
+
     
     # Relationships
     session = relationship("AgentSession", back_populates="steps")

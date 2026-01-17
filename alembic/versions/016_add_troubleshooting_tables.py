@@ -15,7 +15,8 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from migration_helpers import (
     create_table_safe, create_index_safe, create_foreign_key_safe,
-    drop_index_safe, drop_constraint_safe, drop_table_safe
+    drop_index_safe, drop_constraint_safe, drop_table_safe,
+    column_exists
 )
 
 # revision identifiers, used by Alembic.
@@ -38,9 +39,12 @@ def upgrade():
         sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.func.now())
     )
 
-    create_index_safe('idx_alert_correlations_alert_id', 'alert_correlations', ['alert_id'])
-    create_index_safe('idx_alert_correlations_related_alert_id', 'alert_correlations', ['related_alert_id'])
-    create_index_safe('idx_alert_correlations_correlation_type', 'alert_correlations', ['correlation_type'])
+    if column_exists('alert_correlations', 'alert_id'):
+        create_index_safe('idx_alert_correlations_alert_id', 'alert_correlations', ['alert_id'])
+    if column_exists('alert_correlations', 'related_alert_id'):
+        create_index_safe('idx_alert_correlations_related_alert_id', 'alert_correlations', ['related_alert_id'])
+    if column_exists('alert_correlations', 'correlation_type'):
+        create_index_safe('idx_alert_correlations_correlation_type', 'alert_correlations', ['correlation_type'])
 
     # Create failure_patterns table
     create_table_safe('failure_patterns',

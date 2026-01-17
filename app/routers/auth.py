@@ -18,9 +18,11 @@ from app.services.auth_service import (
 from app.metrics import AUTH_ATTEMPTS
 from slowapi import Limiter
 from slowapi.util import get_remote_address
+from app.config import get_settings
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
-limiter = Limiter(key_func=get_remote_address)
+settings = get_settings()
+limiter = Limiter(key_func=get_remote_address, enabled=not settings.testing)
 
 
 @router.post("/login", response_model=LoginResponse)

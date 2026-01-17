@@ -1,6 +1,6 @@
 """Alembic migration environment configuration"""
 from logging.config import fileConfig
-from sqlalchemy import engine_from_config, pool
+from sqlalchemy import engine_from_config, pool, text
 from alembic import context
 import sys
 import os
@@ -15,6 +15,7 @@ from app.database import Base
 # Import all models so Alembic can detect them
 from app.models import *
 from app.models_application import *
+from app.models_agent import *
 
 from app.models_dashboards import *
 from app.models_group import *
@@ -27,6 +28,9 @@ from app.models_scheduler import *
 from app.models_troubleshooting import *
 from app.models_revive import *
 from app.models_zombies import *
+from app.models_changeset import *
+from app.models_agent_pool import *
+import app.models_iteration   # For iteration_loops
 
 # This is the Alembic Config object
 config = context.config
@@ -41,6 +45,7 @@ target_metadata = Base.metadata
 # Get database URL from app settings
 settings = get_settings()
 db_url = os.environ.get("DATABASE_URL") or settings.database_url
+print(f"DEBUG: Using DATABASE_URL: {db_url}")
 config.set_main_option("sqlalchemy.url", db_url)
 
 
@@ -82,6 +87,8 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
+        # Ensure uuid extension is available for uuid_generate_v4()
+        connection.execute(text('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"'))
         context.configure(
             connection=connection,
             target_metadata=target_metadata,

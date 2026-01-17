@@ -8,6 +8,8 @@ from uuid import UUID
 from datetime import datetime
 from pydantic import BaseModel, Field
 
+from app.schemas_application import ApplicationResponse
+
 
 class ApplicationProfileCreate(BaseModel):
     """Schema for creating an application profile"""
@@ -55,15 +57,15 @@ class ApplicationProfileResponse(BaseModel):
     architecture_type: Optional[str]
     framework: Optional[str]
     language: Optional[str]
-    architecture_info: Dict[str, Any]
-    service_mappings: Dict[str, Any]
-    default_metrics: List[str]
-    slos: Dict[str, Any]
+    architecture_info: Dict[str, Any] = Field(default_factory=dict)
+    service_mappings: Dict[str, Any] = Field(default_factory=dict)
+    default_metrics: List[str] = Field(default_factory=list)
+    slos: Dict[str, Any] = Field(default_factory=dict)
     prometheus_datasource_id: Optional[UUID]
     loki_datasource_id: Optional[UUID]
     tempo_datasource_id: Optional[UUID]
     default_time_range: str
-    log_patterns: Dict[str, str]
+    log_patterns: Dict[str, str] = Field(default_factory=dict)
     created_at: datetime
     updated_at: datetime
 
@@ -73,7 +75,7 @@ class ApplicationProfileResponse(BaseModel):
 
 class ApplicationProfileWithApplication(ApplicationProfileResponse):
     """Schema for application profile with application details"""
-    application: Optional[Any] = None  # Will be populated with Application model
+    application: Optional[ApplicationResponse] = None
 
     class Config:
         from_attributes = True

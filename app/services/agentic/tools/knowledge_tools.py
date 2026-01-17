@@ -257,7 +257,7 @@ class KnowledgeTools(ToolModule):
                 output.append(f"Description: {runbook.description or 'No description'}")
                 output.append(f"Category: {runbook.category or 'Uncategorized'}")
                 output.append(f"Auto-execute: {'Yes' if runbook.auto_execute else 'No'}")
-                output.append(f"View: [Open runbook](/runbooks/{runbook.id}/view)")
+                output.append(f"📖 **[View Runbook →](/runbooks/{runbook.id}/view)** (Open in AIOps Platform)")
                 output.append("\n**Steps:**")
 
                 # Get steps using relationship (already loaded via selectinload)

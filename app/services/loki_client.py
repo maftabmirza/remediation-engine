@@ -93,30 +93,33 @@ class LokiClient:
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 response = await client.get(url, params=params)
-                response.raise_for_status()
 
-                data = response.json()
+            if response.status_code >= 400:
+                raise Exception(f"Loki query failed: {response.status_code}")
+            response.raise_for_status()
 
-                if data.get("status") != "success":
-                    raise Exception(f"Loki query failed: {data}")
+            data = response.json()
 
-                # Parse response
-                entries = []
-                result = data.get("data", {}).get("result", [])
+            if data.get("status") != "success":
+                raise Exception(f"Loki query failed: {data}")
 
-                for stream in result:
-                    labels = stream.get("stream", {})
-                    values = stream.get("values", [])
+            # Parse response
+            entries = []
+            result = data.get("data", {}).get("result", [])
 
-                    for value in values:
-                        timestamp_ns, line = value
-                        entries.append(LogEntry(
-                            timestamp=timestamp_ns,
-                            line=line,
-                            labels=labels
-                        ))
+            for stream in result:
+                labels = stream.get("stream", {})
+                values = stream.get("values", [])
 
-                return entries
+                for value in values:
+                    timestamp_ns, line = value
+                    entries.append(LogEntry(
+                        timestamp=timestamp_ns,
+                        line=line,
+                        labels=labels
+                    ))
+
+            return entries
 
         except httpx.HTTPStatusError as e:
             logger.error(f"Loki HTTP error: {e.response.status_code} - {e.response.text}")
@@ -174,30 +177,33 @@ class LokiClient:
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 response = await client.get(url, params=params)
-                response.raise_for_status()
 
-                data = response.json()
+            if response.status_code >= 400:
+                raise Exception(f"Loki query_range failed: {response.status_code}")
+            response.raise_for_status()
 
-                if data.get("status") != "success":
-                    raise Exception(f"Loki query_range failed: {data}")
+            data = response.json()
 
-                # Parse response
-                entries = []
-                result = data.get("data", {}).get("result", [])
+            if data.get("status") != "success":
+                raise Exception(f"Loki query_range failed: {data}")
 
-                for stream in result:
-                    labels = stream.get("stream", {})
-                    values = stream.get("values", [])
+            # Parse response
+            entries = []
+            result = data.get("data", {}).get("result", [])
 
-                    for value in values:
-                        timestamp_ns, line = value
-                        entries.append(LogEntry(
-                            timestamp=timestamp_ns,
-                            line=line,
-                            labels=labels
-                        ))
+            for stream in result:
+                labels = stream.get("stream", {})
+                values = stream.get("values", [])
 
-                return entries
+                for value in values:
+                    timestamp_ns, line = value
+                    entries.append(LogEntry(
+                        timestamp=timestamp_ns,
+                        line=line,
+                        labels=labels
+                    ))
+
+            return entries
 
         except httpx.HTTPStatusError as e:
             logger.error(f"Loki HTTP error: {e.response.status_code} - {e.response.text}")
@@ -233,14 +239,17 @@ class LokiClient:
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 response = await client.get(url, params=params)
-                response.raise_for_status()
 
-                data = response.json()
+            if response.status_code >= 400:
+                raise Exception(f"Loki get_labels failed: {response.status_code}")
+            response.raise_for_status()
 
-                if data.get("status") != "success":
-                    raise Exception(f"Loki get_labels failed: {data}")
+            data = response.json()
 
-                return data.get("data", [])
+            if data.get("status") != "success":
+                raise Exception(f"Loki get_labels failed: {data}")
+
+            return data.get("data", [])
 
         except httpx.HTTPStatusError as e:
             logger.error(f"Loki HTTP error: {e.response.status_code}")
@@ -282,14 +291,17 @@ class LokiClient:
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 response = await client.get(url, params=params)
-                response.raise_for_status()
 
-                data = response.json()
+            if response.status_code >= 400:
+                raise Exception(f"Loki get_label_values failed: {response.status_code}")
+            response.raise_for_status()
 
-                if data.get("status") != "success":
-                    raise Exception(f"Loki get_label_values failed: {data}")
+            data = response.json()
 
-                return data.get("data", [])
+            if data.get("status") != "success":
+                raise Exception(f"Loki get_label_values failed: {data}")
+
+            return data.get("data", [])
 
         except httpx.HTTPStatusError as e:
             logger.error(f"Loki HTTP error: {e.response.status_code}")
@@ -314,6 +326,8 @@ class LokiClient:
         except Exception as e:
             logger.error(f"Loki connection test failed: {str(e)}")
             return False
+
+        return False
 
     async def count_logs(
         self,

@@ -623,7 +623,7 @@ class ToolRegistry:
             output = [f"Found {len(runbooks)} relevant runbooks:\n"]
             for runbook in runbooks:
                 output.append(f"## {runbook.name}")
-                output.append(f"**View:** [Open runbook](/runbooks/{runbook.id}/view)")
+                output.append(f"📖 **[View Runbook →](/runbooks/{runbook.id}/view)** (Open in AIOps Platform)")
                 output.append(f"Description: {runbook.description or 'No description'}")
                 output.append(f"Severity: {runbook.severity}")
                 output.append(f"Auto-execute: {'Yes' if runbook.auto_execute else 'No'}")
@@ -950,6 +950,7 @@ class ToolRegistry:
                 for key, value in labels.items():
                     output.append(f"  - {key}: {value}")
 
+            if alert.ai_analysis:
                 output.append(f"\n**Previous AI Analysis:**")
                 output.append(f"{alert.ai_analysis[:500]}...")
 
@@ -970,6 +971,33 @@ class ToolRegistry:
 
         if not server or not command:
             return "Error: server and command are required"
+        
+        # BLOCK: Reject tool names being suggested as shell commands (AI hallucination)
+        tool_names = [
+            'query_grafana_metrics', 'query_grafana_logs', 'get_recent_changes',
+            'get_similar_incidents', 'search_knowledge', 'get_correlated_alerts',
+            'get_service_dependencies', 'get_feedback_history', 'get_alert_details',
+            'get_proven_solutions', 'suggest_ssh_command'
+        ]
+        cmd_base = command.strip().split()[0] if command.strip() else ''
+        if cmd_base in tool_names:
+            return (
+                f"⛔ INVALID COMMAND\n\n"
+                f"'{cmd_base}' is an INTERNAL TOOL NAME, not a shell command.\n\n"
+                f"**You called suggest_ssh_command with a tool name instead of a real shell command.**\n\n"
+                f"If you need to use '{cmd_base}', call it directly as a tool_call, do NOT suggest it to the user.\n\n"
+                f"Please suggest a REAL shell command (like systemctl, cat, grep, etc.) or call the internal tool directly."
+            )
+        
+        # Auto-fix: Add --no-pager to systemctl commands to prevent pager blocking terminal
+        if 'systemctl' in command and '--no-pager' not in command:
+            command = command.replace('systemctl ', 'systemctl --no-pager ', 1)
+            args["command"] = command  # Update args so CMD_CARD gets the fixed command
+            
+        # Auto-fix: Add --no-pager to journalctl commands
+        if 'journalctl' in command and '--no-pager' not in command:
+            command = command.replace('journalctl ', 'journalctl --no-pager ', 1)
+            args["command"] = command
 
         # Detect OS type from server name or default to linux
         # Simple heuristic: if server contains 'win' or ends with Windows-like patterns

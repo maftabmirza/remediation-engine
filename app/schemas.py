@@ -1,7 +1,7 @@
 """
 Pydantic schemas for request/response validation
 """
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, EmailStr, ConfigDict
 from typing import Optional, List, Any, Dict
 from datetime import datetime
 from uuid import UUID
@@ -34,7 +34,7 @@ class ChangePasswordRequest(BaseModel):
 
 class UserBase(BaseModel):
     username: str
-    email: Optional[str] = None
+    email: Optional[EmailStr] = None
     full_name: Optional[str] = None
     role: str = "operator"
 
@@ -45,7 +45,7 @@ class UserCreate(UserBase):
 
 
 class UserUpdate(BaseModel):
-    email: Optional[str] = None
+    email: Optional[EmailStr] = None
     full_name: Optional[str] = None
     password: Optional[str] = None
     role: Optional[str] = None
@@ -59,8 +59,7 @@ class UserResponse(UserBase):
     last_login: Optional[datetime] = None
     permissions: List[str] = []
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ============== LLM Provider Schemas ==============
@@ -104,8 +103,7 @@ class LLMProviderResponse(LLMProviderBase):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ============== Rule Schemas ==============
@@ -146,8 +144,7 @@ class RuleResponse(RuleBase):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class RuleTestRequest(BaseModel):
@@ -190,8 +187,7 @@ class AlertResponse(AlertBase):
     analysis_count: Optional[int] = 0
     created_at: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class AlertListResponse(BaseModel):
@@ -269,8 +265,7 @@ class AlertClusterResponse(AlertClusterBase):
     duration_hours: float = 0.0
     alerts_per_hour: float = 0.0
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class AlertClusterDetail(AlertClusterResponse):
@@ -402,8 +397,7 @@ class APICredentialProfileResponse(APICredentialProfileBase):
     has_oauth_secret: bool = False  # Indicates if OAuth secret is set
     oauth_scope: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 
@@ -444,8 +438,7 @@ class IncidentMetricsResponse(IncidentMetricsBase):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 # Analytics schemas
 class MTTRAnalytics(BaseModel):

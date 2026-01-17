@@ -91,23 +91,26 @@ class TempoClient:
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 response = await client.get(url)
-                response.raise_for_status()
 
-                data = response.json()
-
-                # Parse trace data
-                if "batches" in data and len(data["batches"]) > 0:
-                    return self._parse_trace(trace_id, data)
-                elif "resourceSpans" in data and len(data["resourceSpans"]) > 0:
-                    return self._parse_otlp_trace(trace_id, data)
-                else:
-                    logger.warning(f"Trace {trace_id} found but has no spans")
-                    return None
-
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == 404:
+            if response.status_code == 404:
                 logger.info(f"Trace {trace_id} not found")
                 return None
+            if response.status_code >= 400:
+                raise Exception(f"Tempo get_trace failed: {response.status_code}")
+            response.raise_for_status()
+
+            data = response.json()
+
+            # Parse trace data
+            if "batches" in data and len(data["batches"]) > 0:
+                return self._parse_trace(trace_id, data)
+            elif "resourceSpans" in data and len(data["resourceSpans"]) > 0:
+                return self._parse_otlp_trace(trace_id, data)
+            else:
+                logger.warning(f"Trace {trace_id} found but has no spans")
+                return None
+
+        except httpx.HTTPStatusError as e:
             logger.error(f"Tempo get_trace failed: {e.response.status_code} - {e.response.text}")
             raise Exception(f"Tempo get_trace failed: {e.response.status_code}")
         except Exception as e:
@@ -189,25 +192,28 @@ class TempoClient:
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 response = await client.get(url, params=params)
-                response.raise_for_status()
 
-                data = response.json()
+            if response.status_code >= 400:
+                raise Exception(f"Tempo search_traces failed: {response.status_code}")
+            response.raise_for_status()
 
-                # Parse search results
-                results = []
-                for trace_data in data.get("traces", []):
-                    result = TraceSearchResult(
-                        trace_id=trace_data.get("traceID", ""),
-                        root_service_name=trace_data.get("rootServiceName", ""),
-                        root_trace_name=trace_data.get("rootTraceName", ""),
-                        start_time_unix_nano=trace_data.get("startTimeUnixNano", 0),
-                        duration_ms=trace_data.get("durationMs", 0),
-                        span_sets=trace_data.get("spanSets", [])
-                    )
-                    results.append(result)
+            data = response.json()
 
-                logger.info(f"Found {len(results)} traces matching search criteria")
-                return results
+            # Parse search results
+            results = []
+            for trace_data in data.get("traces", []):
+                result = TraceSearchResult(
+                    trace_id=trace_data.get("traceID", ""),
+                    root_service_name=trace_data.get("rootServiceName", ""),
+                    root_trace_name=trace_data.get("rootTraceName", ""),
+                    start_time_unix_nano=trace_data.get("startTimeUnixNano", 0),
+                    duration_ms=trace_data.get("durationMs", 0),
+                    span_sets=trace_data.get("spanSets", [])
+                )
+                results.append(result)
+
+            logger.info(f"Found {len(results)} traces matching search criteria")
+            return results
 
         except httpx.HTTPStatusError as e:
             logger.error(f"Tempo search_traces failed: {e.response.status_code} - {e.response.text}")
@@ -246,13 +252,16 @@ class TempoClient:
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 response = await client.get(url, params=params)
-                response.raise_for_status()
 
-                data = response.json()
-                tags = data.get("tagNames", [])
+            if response.status_code >= 400:
+                raise Exception(f"Tempo get_tag_names failed: {response.status_code}")
+            response.raise_for_status()
 
-                logger.info(f"Found {len(tags)} tag names")
-                return tags
+            data = response.json()
+            tags = data.get("tagNames", [])
+
+            logger.info(f"Found {len(tags)} tag names")
+            return tags
 
         except httpx.HTTPStatusError as e:
             logger.error(f"Tempo get_tag_names failed: {e.response.status_code}")
@@ -293,13 +302,16 @@ class TempoClient:
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 response = await client.get(url, params=params)
-                response.raise_for_status()
 
-                data = response.json()
-                values = data.get("tagValues", [])
+            if response.status_code >= 400:
+                raise Exception(f"Tempo get_tag_values failed: {response.status_code}")
+            response.raise_for_status()
 
-                logger.info(f"Found {len(values)} values for tag '{tag_name}'")
-                return values
+            data = response.json()
+            values = data.get("tagValues", [])
+
+            logger.info(f"Found {len(values)} values for tag '{tag_name}'")
+            return values
 
         except httpx.HTTPStatusError as e:
             logger.error(f"Tempo get_tag_values failed: {e.response.status_code}")
@@ -333,6 +345,8 @@ class TempoClient:
         except Exception as e:
             logger.error(f"Tempo connection failed: {str(e)}")
             return False
+
+        return False
 
     def _parse_trace(self, trace_id: str, data: Dict[str, Any]) -> Trace:
         """Parse Jaeger-format trace data."""

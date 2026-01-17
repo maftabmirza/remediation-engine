@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     debug: bool = False
     app_port: int = 8080
     recording_dir: str = "storage/recordings"
+    testing: bool = False
 
     # Prometheus Integration
     prometheus_url: str = "http://prometheus:9090"
@@ -77,9 +78,10 @@ class Settings(BaseSettings):
     def database_url(self) -> str:
         return f"postgresql://{self.postgres_user}:{self.postgres_password}@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
+    model_config = {
+        "env_file": ".env",
+        "case_sensitive": False
+    }
 
 
 @lru_cache()

@@ -2,7 +2,7 @@
 Learning System Pydantic Schemas
 Request/response models for feedback and effectiveness APIs
 """
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 from uuid import UUID
@@ -20,14 +20,15 @@ class FeedbackCreate(BaseModel):
     what_was_missing: Optional[str] = None
     what_actually_worked: Optional[str] = None
     
-    @validator('accuracy')
+    @field_validator('accuracy')
+    @classmethod
     def validate_accuracy(cls, v):
         if v is not None and v not in ['accurate', 'partially_accurate', 'inaccurate']:
             raise ValueError("accuracy must be one of: accurate, partially_accurate, inaccurate")
         return v
     
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "helpful": True,
                 "rating": 4,
@@ -36,6 +37,7 @@ class FeedbackCreate(BaseModel):
                 "what_actually_worked": "Increased pool size to 100"
             }
         }
+    )
 
 
 class FeedbackResponse(BaseModel):
@@ -50,8 +52,7 @@ class FeedbackResponse(BaseModel):
     what_actually_worked: Optional[str]
     created_at: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ============================================================================
@@ -67,14 +68,15 @@ class ExecutionOutcomeCreate(BaseModel):
     manual_steps_taken: Optional[str] = None
     improvement_suggestion: Optional[str] = None
     
-    @validator('resolution_type')
+    @field_validator('resolution_type')
+    @classmethod
     def validate_resolution_type(cls, v):
         if v is not None and v not in ['full', 'partial', 'no_effect', 'made_worse']:
             raise ValueError("resolution_type must be one of: full, partial, no_effect, made_worse")
         return v
     
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "resolved_issue": True,
                 "resolution_type": "full",
@@ -83,6 +85,7 @@ class ExecutionOutcomeCreate(BaseModel):
                 "improvement_suggestion": "Add step to check pool size first"
             }
         }
+    )
 
 
 class ExecutionOutcomeResponse(BaseModel):
@@ -99,8 +102,7 @@ class ExecutionOutcomeResponse(BaseModel):
     improvement_suggestion: Optional[str]
     created_at: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ============================================================================
@@ -158,8 +160,8 @@ class SimilarIncident(BaseModel):
     instance: Optional[str]
     resolution: Optional[ResolutionInfo]
     
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "alert_id": "550e8400-e29b-41d4-a716-446655440000",
                 "alert_name": "HighCPU",
@@ -175,6 +177,7 @@ class SimilarIncident(BaseModel):
                 }
             }
         }
+    )
 
 
 class SimilarIncidentsResponse(BaseModel):

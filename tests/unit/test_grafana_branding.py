@@ -58,7 +58,7 @@ class TestGrafanaBrandingInjection:
         for input_html, expected_output in test_cases:
             # Simulate the regex replacement logic from grafana_proxy.py
             output_html = re.sub(
-                r'>(\s*)Grafana(\s*)<', 
+                r'>([^<]*?)Grafana([^<]*?)<', 
                 r'>\1AIOps\2<', 
                 input_html
             )
@@ -70,7 +70,7 @@ class TestGrafanaBrandingInjection:
         
         # Apply the visible text replacement only
         output_html = re.sub(
-            r'>(\s*)Grafana(\s*)<', 
+            r'>([^<]*?)Grafana([^<]*?)<', 
             r'>\1AIOps\2<', 
             html_input
         )
@@ -85,7 +85,7 @@ class TestGrafanaBrandingInjection:
         
         # Apply the visible text replacement only
         output_html = re.sub(
-            r'>(\s*)Grafana(\s*)<', 
+            r'>([^<]*?)Grafana([^<]*?)<', 
             r'>\1AIOps\2<', 
             html_input
         )
@@ -123,7 +123,7 @@ class TestGrafanaBrandingInjection:
         
         # Step 3: Replace in visible text
         html_output = re.sub(
-            r'>(\s*)Grafana(\s*)<', 
+            r'>([^<]*?)Grafana([^<]*?)<', 
             r'>\1AIOps\2<', 
             html_output
         )

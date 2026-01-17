@@ -127,8 +127,6 @@ async def troubleshoot_chat(
             db=db,
             provider=provider,
             alert=None,  # No specific alert context
-            max_iterations=15,
-            temperature=0.3,
             initial_messages=initial_messages
         )
         
@@ -267,8 +265,6 @@ async def troubleshoot_chat_stream(
                 db=db,
                 provider=provider,
                 alert=None,
-                max_iterations=15,
-                temperature=0.3,
                 initial_messages=initial_messages
             )
             
