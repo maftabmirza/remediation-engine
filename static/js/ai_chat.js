@@ -766,6 +766,32 @@ async function runQueuedCommand(cardId, btnEl) {
         // Execute command via terminal
         const result = await executeCommandViaTerminal(command, server);
 
+        // If command needs interaction/pager, allow manual capture
+        if (result.timedOut) {
+            actionsDiv.innerHTML = `
+                <div class="flex flex-col gap-2 p-3 bg-gray-900 rounded border border-yellow-600">
+                    <div class="text-yellow-400 text-xs font-bold">
+                        <i class="fas fa-clock mr-2"></i>Command still running / waiting for input
+                    </div>
+                    <div class="text-gray-300 text-xs">
+                        If the command opened a pager (e.g., press <b>q</b>) or needs input, complete it in the terminal, then:
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="captureQueuedOutput('${cardId}', '${command.replace(/'/g, "\\'")}', ${result.startLine})" 
+                                class="flex-1 bg-blue-600 hover:bg-blue-500 text-white text-xs px-3 py-2 rounded transition-colors flex items-center justify-center">
+                            <i class="fas fa-camera mr-1"></i>Capture Output
+                        </button>
+                        <button onclick="skipQueuedCommand('${cardId}')" 
+                                class="bg-yellow-600 hover:bg-yellow-500 text-white text-xs px-3 py-2 rounded transition-colors" title="Skip this command">
+                            <i class="fas fa-forward"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+            showToast('Command may need interaction. Complete it in terminal, then capture output.', 'warning');
+            return;
+        }
+
         // Update queue item
         queueItem.status = 'executed';
         queueItem.output = result.output;
@@ -802,6 +828,49 @@ async function runQueuedCommand(cardId, btnEl) {
     }
 
     // Update queue status
+    updateQueueStatus();
+}
+
+function captureQueuedOutput(cardId, command, startLine) {
+    const card = document.getElementById(cardId);
+    if (!card || !term) return;
+
+    const endLine = term.buffer.active.baseY + term.buffer.active.cursorY;
+    const output = getTerminalOutputRange(startLine, endLine);
+
+    let queueItem = commandQueue.find(c => c.id === cardId);
+    if (!queueItem) {
+        const serverLabel = card.querySelector('span.text-xs.text-gray-500')?.textContent || 'unknown';
+        queueItem = {
+            id: cardId,
+            server: serverLabel,
+            command: command,
+            explanation: 'Reconstructed from capture',
+            status: 'pending',
+            output: null,
+            exitCode: null
+        };
+        commandQueue.push(queueItem);
+    }
+
+    queueItem.status = 'executed';
+    queueItem.output = output;
+    queueItem.exitCode = 0;
+
+    const actionsDiv = card.querySelector('.cmd-actions');
+    actionsDiv.innerHTML = '<div class="text-green-400 text-xs p-2"><i class="fas fa-check-circle mr-1"></i>Output captured</div>';
+
+    const outputDiv = card.querySelector('.cmd-output');
+    if (outputDiv && output) {
+        let displayOutput = output;
+        if (displayOutput.length > 2000) {
+            displayOutput = displayOutput.substring(0, 1000) + '\n... [truncated] ...\n' + displayOutput.substring(displayOutput.length - 1000);
+        }
+        outputDiv.innerHTML = `<div class="border-t border-gray-700 p-2 bg-gray-950 mt-2 rounded"><pre class="text-xs text-gray-300 overflow-x-auto max-h-40 overflow-y-auto whitespace-pre-wrap">${escapeHtml(displayOutput)}</pre></div>`;
+        outputDiv.classList.remove('hidden');
+    }
+
+    showToast('Output captured', 'success');
     updateQueueStatus();
 }
 
@@ -1029,6 +1098,7 @@ async function executeCommandViaTerminal(command, server) {
     // Wait for output (poll for prompt AND new content)
     const MAX_WAIT = 30; // 30 seconds max
     let waitCount = 0;
+    let timedOut = false;
 
     // Wait for initial echo/reaction
     await new Promise(resolve => setTimeout(resolve, 500));
@@ -1053,18 +1123,22 @@ async function executeCommandViaTerminal(command, server) {
             if (lastLine) {
                 const lineText = lastLine.translateToString(true).trim();
                 // Common shell prompts
-                if (lineText.endsWith('$') || lineText.endsWith('#') || lineText.endsWith('>')) {
+                if (lineText.endsWith('$') || lineText.endsWith('#') || lineText.endsWith('>') || lineText.endsWith(':~$')) {
                     break;
                 }
             }
         }
     }
 
-    // Get terminal content
-    const output = getTerminalContent();
+    if (waitCount >= MAX_WAIT) {
+        timedOut = true;
+    }
+
+    const endLine = term ? term.buffer.active.baseY + term.buffer.active.cursorY : startLine;
+    const output = getTerminalOutputRange(startLine, endLine);
     const exitCode = 0; // Assume success for now since we're using terminal capture
 
-    return { output, exitCode };
+    return { output, exitCode, timedOut, startLine, endLine };
 }
 
 function appendUserMessage(text) {
@@ -1093,6 +1167,23 @@ function getTerminalContent() {
             lines.push(line.translateToString(true));
         }
     }
+    return lines.join('\n').trim();
+}
+
+function getTerminalOutputRange(startLine, endLine) {
+    if (!term) return '';
+    const buffer = term.buffer.active;
+    const lines = [];
+    const start = Math.max(0, startLine);
+    const end = Math.min(endLine, buffer.baseY + buffer.cursorY);
+
+    for (let i = start; i <= end; i++) {
+        const line = buffer.getLine(i);
+        if (line) {
+            lines.push(line.translateToString(true));
+        }
+    }
+
     return lines.join('\n').trim();
 }
 
