@@ -1043,8 +1043,23 @@ Tools called so far will be tracked. If you try to suggest a command without suf
 
                 else:
                     # No tool calls - final response
+                    content = message.content or ""
+                    
+                    # Check if model wrote CMD_CARD markers directly in text (hallucination workaround)
+                    # This happens when model doesn't use proper tool_call mechanism
+                    if "[CMD_CARD]" in content:
+                        logger.warning("Model wrote CMD_CARD markers in text instead of using tool_call - treating as valid response")
+                        # Extract and yield the content with CMD_CARD markers
+                        final_content = self._ensure_runbook_links_in_final(content)
+                        self.messages.append({
+                            "role": "assistant",
+                            "content": final_content
+                        })
+                        yield final_content
+                        return
+                    
                     # Enforce minimum tool calls only when the response is actionable.
-                    if len(self.tool_calls_made) < 2 and self._should_enforce_min_tool_calls(message.content or ""):
+                    if len(self.tool_calls_made) < 2 and self._should_enforce_min_tool_calls(content):
                         logger.warning(f"Stream: Agent tried to finish with only {len(self.tool_calls_made)} tool calls, forcing more investigation")
                         # Add system message to force more investigation
                         self.messages.append({
@@ -1055,7 +1070,7 @@ Tools called so far will be tracked. If you try to suggest a command without suf
                         continue
                     
                     # Final response - yield content
-                    final_content = self._ensure_runbook_links_in_final(message.content or "")
+                    final_content = self._ensure_runbook_links_in_final(content)
 
                     # Add to messages
                     self.messages.append({

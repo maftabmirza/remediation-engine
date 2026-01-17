@@ -403,10 +403,24 @@ function appendAIMessage(text, skipRunButtons = false) {
     let extractedCommands = [];
     let cardDataList = [];  // Store cards to render AFTER text
 
+    // Block tool names being suggested as shell commands (AI hallucination)
+    const toolNames = [
+        'query_grafana_metrics', 'query_grafana_logs', 'get_recent_changes',
+        'get_similar_incidents', 'search_knowledge', 'get_correlated_alerts',
+        'get_service_dependencies', 'get_feedback_history', 'get_alert_details',
+        'get_proven_solutions', 'suggest_ssh_command'
+    ];
+    
     while ((match = cmdCardRegex.exec(text)) !== null) {
-        hasCards = true;
         try {
             const cardData = JSON.parse(match[1]);
+            // Skip if the command is a tool name (AI hallucination)
+            const cmdBase = (cardData.command || '').trim().split(/\s+/)[0];
+            if (toolNames.includes(cmdBase)) {
+                console.warn('Skipping CMD_CARD with tool name as command:', cmdBase);
+                continue;  // Skip this invalid card
+            }
+            hasCards = true;
             extractedCommands.push(cardData.command);
             cardDataList.push(cardData);  // Save for later rendering
         } catch (e) {
