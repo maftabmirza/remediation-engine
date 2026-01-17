@@ -15,6 +15,7 @@ else:
     from app.models_learning import AnalysisFeedback
     from app.models_troubleshooting import AlertCorrelation
     from app.models_agent import AgentSession, AgentStep
+    from app.models_iteration import IterationLoop
     from app.models_agent_pool import AgentPool, AgentTask, ActionProposal
 
 
