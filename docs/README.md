@@ -1,187 +1,161 @@
 # Documentation Index
 
-This directory contains planning and architecture documentation for the AIOps Remediation Engine.
+This directory contains planning, architecture, and reference documentation for the AIOps Remediation Engine.
 
----
+## Quick Navigation
 
-## 📖 Document Hierarchy
+| If you want to... | Read this |
+|-------------------|-----------|
+| Understand current project status | [IMPLEMENTATION_STATUS.md](./IMPLEMENTATION_STATUS.md) |
+| Learn the full implementation plan | [CONSOLIDATED_IMPLEMENTATION_PLAN.md](./CONSOLIDATED_IMPLEMENTATION_PLAN.md) |
+| Use the dashboard builder | [DASHBOARD_BUILDER_USER_GUIDE.md](./DASHBOARD_BUILDER_USER_GUIDE.md) |
+| Test dashboard features | [DASHBOARD_TESTING_GUIDE.md](./DASHBOARD_TESTING_GUIDE.md) |
+| Set up Prometheus | [PROMETHEUS_CONFIGURATION.md](./PROMETHEUS_CONFIGURATION.md) |
+| Present to stakeholders | [EXECUTIVE_PRESENTATION.md](./EXECUTIVE_PRESENTATION.md) |
 
-### **Start Here**
+## Project Status Summary
 
-1. **[IMPLEMENTATION_STATUS.md](./IMPLEMENTATION_STATUS.md)** ⭐ **READ THIS FIRST**
-   - Quick reference for what's done vs pending
-   - Progress bars and checklists
-   - 5-minute overview
-   - **Best for:** Quick status check, daily standup reference
+**Last Updated:** January 2026
 
-2. **[CONSOLIDATED_IMPLEMENTATION_PLAN.md](./CONSOLIDATED_IMPLEMENTATION_PLAN.md)** 📘 **MAIN PLAN**
-   - Comprehensive implementation guide
-   - Detailed technical specifications
-   - Complete roadmap (Phases 1-5)
-   - **Best for:** Developers starting new phases, architects, detailed planning
+### Completed Features
 
----
+| Component | Status | Description |
+|-----------|--------|-------------|
+| **Dashboard Builder** | Complete | GridStack drag-drop, PromQL editor, panels, variables, snapshots, playlists |
+| **LGTM Observability Stack** | Complete | Prometheus, Loki, Tempo, Mimir, Alertmanager integration |
+| **Grafana SSO Integration** | Complete | Iframe embedding, auto user provisioning, white-labeling |
+| **Runbook Automation** | Complete | Native and ReAct agent execution, SSH/WinRM support |
+| **Alert Management** | Complete | Webhook ingestion, rules engine, clustering, correlation |
+| **AI Chat Interface** | Complete | LLM integration, knowledge base, context-aware responses |
+| **Security Features** | Complete | JWT auth, encrypted credentials, production isolation |
 
-## 📂 Document Categories
+### In Progress
 
-### Active Documents (Current)
+- Phase 3: Enhanced datasource expansion (Loki/Tempo programmatic access)
+- Phase 4: AI query translation (natural language to PromQL/LogQL)
+- Phase 5: Enhanced chat UI with split-screen data visualization
 
-| Document | Size | Purpose | Audience |
-|----------|------|---------|----------|
-| **IMPLEMENTATION_STATUS.md** | 7KB | Quick status & checklists | Everyone |
-| **CONSOLIDATED_IMPLEMENTATION_PLAN.md** | 45KB | Master implementation plan | Developers, Architects |
-| **PLAN_UPDATES_2025-12-26.md** | 12KB | Plan adjustments | Developers, PMs |
+## Document Categories
 
-### Archived Documents (Superseded)
+### Implementation & Planning
 
-These documents were consolidated into `CONSOLIDATED_IMPLEMENTATION_PLAN.md` on 2025-12-26.
-They are kept for historical reference but should **not** be used for active development.
+| Document | Description |
+|----------|-------------|
+| [IMPLEMENTATION_STATUS.md](./IMPLEMENTATION_STATUS.md) | Quick status reference with progress bars and checklists |
+| [CONSOLIDATED_IMPLEMENTATION_PLAN.md](./CONSOLIDATED_IMPLEMENTATION_PLAN.md) | Master implementation plan with all phases |
+| [PLAN_UPDATES_2025-12-26.md](./PLAN_UPDATES_2025-12-26.md) | Plan adjustments and updates |
+| [IMPLEMENTATION_ROADMAP.md](./IMPLEMENTATION_ROADMAP.md) | Original dashboard builder roadmap |
 
-| Document | Size | Status | Notes |
-|----------|------|--------|-------|
-| **GRAFANA_AI_CHAT_INTEGRATION_PLAN.md** | 27KB | 📦 Archived | Merged into consolidated plan |
-| **GRAFANA_INTEGRATION_PLAN.md** | 26KB | 📦 Archived | Merged into consolidated plan |
-| **AI_CHAT_GRAFANA_BRIEF_APPROACH.md** | 10KB | 📦 Archived | Merged into consolidated plan |
-| **IMPLEMENTATION_ROADMAP.md** | 20KB | 📦 Archived | Dashboard builder (mostly complete) |
+### Architecture & Design
 
-**Why Archived?**
-- Redundant content across multiple documents
-- Status information outdated (didn't reflect completed work)
-- Difficult to maintain consistency across 4+ docs
-- New consolidated plan is single source of truth
+| Document | Description |
+|----------|-------------|
+| [ARCHITECTURE_DIAGRAMS.md](./ARCHITECTURE_DIAGRAMS.md) | System architecture visuals and flow diagrams |
+| [AGENTIC_RAG_SUMMARY.md](./AGENTIC_RAG_SUMMARY.md) | Agentic RAG architecture overview |
+| [AI_CHAT_PLANNING_README.md](./AI_CHAT_PLANNING_README.md) | AI chat architecture design |
+| [AI_TERMINAL_IMPROVEMENT_PLAN.md](./AI_TERMINAL_IMPROVEMENT_PLAN.md) | Terminal enhancement plans |
 
-### Other Documentation
+### Dashboard & Visualization
 
-| Document | Purpose |
-|----------|---------|
-| **AI_CHAT_PLANNING_README.md** | Overview of AI chat architecture |
-| **ARCHITECTURE_DIAGRAMS.md** | System architecture visuals |
-| **DASHBOARD_BUILDER_STATUS.md** | Dashboard builder feature status |
-| **DASHBOARD_BUILDER_USER_GUIDE.md** | User guide for dashboard builder |
-| **DASHBOARD_TESTING_GUIDE.md** | Testing procedures for dashboards |
-| **ECHARTS_MIGRATION.md** | ECharts implementation guide |
-| **EXECUTIVE_PRESENTATION.md** | Executive summary slides |
-| **GRAFANA_COMPARISON.md** | Feature comparison vs Grafana |
-| **GRAFANA_TESTING_GUIDE.md** | Grafana integration testing |
-| **PROMETHEUS_CONFIGURATION.md** | Prometheus setup guide |
-| **PROMETHEUS_DASHBOARD_BUILDER.md** | Dashboard builder technical docs |
-| **QUICK_REFERENCE.md** | Quick command reference |
-| **QUICK_START_DRAG_DROP.md** | GridStack drag-drop guide |
-| **kb-ai-analysis.md** | Knowledge base AI analysis |
+| Document | Description |
+|----------|-------------|
+| [DASHBOARD_BUILDER_USER_GUIDE.md](./DASHBOARD_BUILDER_USER_GUIDE.md) | How to use the dashboard builder |
+| [DASHBOARD_BUILDER_STATUS.md](./DASHBOARD_BUILDER_STATUS.md) | Dashboard builder feature status |
+| [DASHBOARD_TESTING_GUIDE.md](./DASHBOARD_TESTING_GUIDE.md) | Dashboard testing procedures |
+| [PROMETHEUS_DASHBOARD_BUILDER.md](./PROMETHEUS_DASHBOARD_BUILDER.md) | Dashboard builder technical docs |
+| [ECHARTS_MIGRATION.md](./ECHARTS_MIGRATION.md) | ECharts implementation guide |
+| [QUICK_START_DRAG_DROP.md](./QUICK_START_DRAG_DROP.md) | GridStack drag-drop quick start |
 
----
+### Grafana Integration
 
-## 🎯 Use Cases
+| Document | Description |
+|----------|-------------|
+| [GRAFANA_INTEGRATION_PLAN.md](./GRAFANA_INTEGRATION_PLAN.md) | Grafana integration approach |
+| [GRAFANA_AI_CHAT_INTEGRATION_PLAN.md](./GRAFANA_AI_CHAT_INTEGRATION_PLAN.md) | AI chat with Grafana data |
+| [GRAFANA_TESTING_GUIDE.md](./GRAFANA_TESTING_GUIDE.md) | Grafana integration testing |
+| [GRAFANA_COMPARISON.md](./GRAFANA_COMPARISON.md) | Feature comparison vs Grafana |
+| [AI_CHAT_GRAFANA_BRIEF_APPROACH.md](./AI_CHAT_GRAFANA_BRIEF_APPROACH.md) | Brief integration approach |
 
-### "I'm a new developer joining the project"
+### Configuration & Operations
 
-**Read in this order:**
-1. [IMPLEMENTATION_STATUS.md](./IMPLEMENTATION_STATUS.md) - Understand current state
-2. [CONSOLIDATED_IMPLEMENTATION_PLAN.md](./CONSOLIDATED_IMPLEMENTATION_PLAN.md) - Learn the architecture
-3. [DASHBOARD_BUILDER_USER_GUIDE.md](./DASHBOARD_BUILDER_USER_GUIDE.md) - See what's built
+| Document | Description |
+|----------|-------------|
+| [PROMETHEUS_CONFIGURATION.md](./PROMETHEUS_CONFIGURATION.md) | Prometheus setup and configuration |
+| [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) | Quick command reference |
+| [API_EXECUTION.md](./API_EXECUTION.md) | API execution documentation |
+| [API_CREDENTIALS_REFACTOR_GUIDE.md](./API_CREDENTIALS_REFACTOR_GUIDE.md) | Credential management guide |
 
-### "I need to start Phase 3 development"
+### Knowledge Base
 
-**Read:**
-1. [CONSOLIDATED_IMPLEMENTATION_PLAN.md](./CONSOLIDATED_IMPLEMENTATION_PLAN.md) → Section "Phase 3: Datasource Expansion"
-2. [IMPLEMENTATION_STATUS.md](./IMPLEMENTATION_STATUS.md) → Section "Priority Checklist"
+| Document | Description |
+|----------|-------------|
+| [kb-ai-analysis.md](./kb-ai-analysis.md) | Knowledge base AI analysis documentation |
 
-### "I want to understand what's been built so far"
+### Executive Summary
 
-**Read:**
-1. [IMPLEMENTATION_STATUS.md](./IMPLEMENTATION_STATUS.md) → Section "What's Complete"
-2. [DASHBOARD_BUILDER_STATUS.md](./DASHBOARD_BUILDER_STATUS.md) - Detailed feature list
+| Document | Description |
+|----------|-------------|
+| [EXECUTIVE_PRESENTATION.md](./EXECUTIVE_PRESENTATION.md) | High-level presentation slides |
 
-### "I need to present the project status to stakeholders"
+## Getting Started by Role
 
-**Read:**
-1. [EXECUTIVE_PRESENTATION.md](./EXECUTIVE_PRESENTATION.md) - High-level slides
-2. [IMPLEMENTATION_STATUS.md](./IMPLEMENTATION_STATUS.md) → Progress bars
-3. [GRAFANA_COMPARISON.md](./GRAFANA_COMPARISON.md) - Competitive analysis
+### New Developer
 
-### "I'm troubleshooting an issue"
+1. Read [IMPLEMENTATION_STATUS.md](./IMPLEMENTATION_STATUS.md) to understand current state
+2. Review [CONSOLIDATED_IMPLEMENTATION_PLAN.md](./CONSOLIDATED_IMPLEMENTATION_PLAN.md) for architecture
+3. Follow [DASHBOARD_BUILDER_USER_GUIDE.md](./DASHBOARD_BUILDER_USER_GUIDE.md) to see what's built
+4. Check [../tests/README.md](../tests/README.md) for testing guidelines
 
-**Read:**
-1. [DASHBOARD_TESTING_GUIDE.md](./DASHBOARD_TESTING_GUIDE.md) - Test procedures
-2. [GRAFANA_TESTING_GUIDE.md](./GRAFANA_TESTING_GUIDE.md) - Grafana integration tests
-3. [PROMETHEUS_CONFIGURATION.md](./PROMETHEUS_CONFIGURATION.md) - Prometheus setup
+### DevOps/SRE
 
----
+1. Start with [PROMETHEUS_CONFIGURATION.md](./PROMETHEUS_CONFIGURATION.md) for setup
+2. Use [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) for common operations
+3. Review [GRAFANA_TESTING_GUIDE.md](./GRAFANA_TESTING_GUIDE.md) for integration testing
 
-## 📊 Current Project Status Summary
+### Product Manager
 
-**Last Updated:** 2025-12-26
+1. Read [EXECUTIVE_PRESENTATION.md](./EXECUTIVE_PRESENTATION.md) for overview
+2. Check [IMPLEMENTATION_STATUS.md](./IMPLEMENTATION_STATUS.md) for progress tracking
+3. Review [GRAFANA_COMPARISON.md](./GRAFANA_COMPARISON.md) for competitive analysis
 
-### What's Working Today ✅
+## Related Root-Level Documentation
 
-- ✅ **Full dashboard builder** (GridStack, variables, snapshots, playlists)
-- ✅ **LGTM observability stack** (Prometheus, Loki, Tempo, Mimir, Alertmanager)
-- ✅ **Grafana SSO integration** (iframe embedding, auto user provisioning)
-- ✅ **PromQL editor** (syntax highlighting, live preview)
-- ✅ **Custom panel types** (graph, stat, gauge, table, heatmap, bar, pie)
+These documents are in the project root directory:
 
-### What's Next 🚧
+| Document | Description |
+|----------|-------------|
+| [../README.md](../README.md) | Main project README |
+| [../USER_GUIDE.md](../USER_GUIDE.md) | End-user guide |
+| [../DEVELOPER_GUIDE.md](../DEVELOPER_GUIDE.md) | Developer setup and contribution |
+| [../DATABASE_SCHEMA.md](../DATABASE_SCHEMA.md) | Complete database documentation |
+| [../TESTING_QUICKSTART.md](../TESTING_QUICKSTART.md) | Testing quick start |
+| [../TESTING_PLAN.md](../TESTING_PLAN.md) | Comprehensive testing strategy |
+| [../TEST_COVERAGE_ANALYSIS.md](../TEST_COVERAGE_ANALYSIS.md) | Test coverage analysis |
+| [../DEPLOYMENT_CHECKLIST.md](../DEPLOYMENT_CHECKLIST.md) | Deployment checklist |
 
-**Phase 3 (Next 3 weeks):**
-- Build Loki client for programmatic log queries
-- Build Tempo client for trace retrieval
-- Create application profile management system
+## Contributing to Documentation
 
-**Phase 4 (Weeks 4-6):**
-- Natural language to PromQL/LogQL translation
-- Historical data aggregation service
-- AI-powered query execution
+### When to Update
 
-**Phase 5 (Weeks 7-8):**
-- Split-screen chat UI
-- Inline data visualization
-- Export functionality
+- After completing a phase or major milestone
+- When adding new features not in the plan
+- After making architecture decisions
+- When finding outdated or incorrect information
 
----
-
-## 🔄 Document Update History
-
-| Date | Event | Documents Updated |
-|------|-------|-------------------|
-| 2025-12-26 | Consolidated planning docs | Created CONSOLIDATED_IMPLEMENTATION_PLAN.md, IMPLEMENTATION_STATUS.md |
-| 2024-12-20 | Initial planning | Created GRAFANA_AI_CHAT_INTEGRATION_PLAN.md, GRAFANA_INTEGRATION_PLAN.md |
-| 2024-12-15 | Dashboard completion | Updated DASHBOARD_BUILDER_STATUS.md |
-
----
-
-## 📝 Contributing to Documentation
-
-### When to Update Docs
-
-**Always update when:**
-- Completing a phase or major milestone
-- Adding new features not in the plan
-- Discovering new architecture decisions
-- Finding issues with existing docs
-
-**Update these files:**
-1. **IMPLEMENTATION_STATUS.md** - Update progress bars and checklists
-2. **CONSOLIDATED_IMPLEMENTATION_PLAN.md** - Add detail if architecture changes
-
-### Documentation Style Guide
+### Style Guide
 
 **Formatting:**
 - Use GitHub-flavored Markdown
 - Include code examples where applicable
-- Add diagrams for complex flows (ASCII or Mermaid)
 - Use tables for comparisons and status tracking
+- Add diagrams for complex flows (ASCII or Mermaid)
 
 **Status Icons:**
-- ✅ Complete/Working
-- 🚧 In Progress
-- ❌ Not Started
-- 📦 Archived
-- ⭐ Important/Start Here
-- 📘 Reference Document
+- Complete: Use clear language indicating completion
+- In Progress: Note what's being worked on
+- Pending: Describe what's planned
 
----
-
-## 🔗 External References
+## External References
 
 - **Grafana Documentation:** https://grafana.com/docs/
 - **Prometheus Documentation:** https://prometheus.io/docs/
@@ -189,16 +163,5 @@ They are kept for historical reference but should **not** be used for active dev
 - **Tempo Documentation:** https://grafana.com/docs/tempo/
 - **PromQL Guide:** https://prometheus.io/docs/prometheus/latest/querying/basics/
 - **LogQL Guide:** https://grafana.com/docs/loki/latest/logql/
-
----
-
-## 💡 Quick Links
-
-- **Main Implementation Plan:** [CONSOLIDATED_IMPLEMENTATION_PLAN.md](./CONSOLIDATED_IMPLEMENTATION_PLAN.md)
-- **Current Status:** [IMPLEMENTATION_STATUS.md](./IMPLEMENTATION_STATUS.md)
-- **User Guide:** [DASHBOARD_BUILDER_USER_GUIDE.md](./DASHBOARD_BUILDER_USER_GUIDE.md)
-- **Testing Guide:** [DASHBOARD_TESTING_GUIDE.md](./DASHBOARD_TESTING_GUIDE.md)
-
----
-
-**Last Updated:** 2025-12-26
+- **FastAPI Documentation:** https://fastapi.tiangolo.com/
+- **SQLAlchemy Documentation:** https://docs.sqlalchemy.org/

@@ -1,32 +1,40 @@
 # AIOps Remediation Engine - Test Suite
 
-This directory contains the comprehensive test suite for the AIOps Remediation Engine. The tests are organized by type and follow industry best practices for testing Python applications.
+This directory contains the comprehensive test suite for the AIOps Remediation Engine. Tests are organized by type and follow pytest best practices for testing Python/FastAPI applications.
 
 ## Test Structure
 
 ```
 tests/
-├── conftest.py                 # Shared fixtures and pytest configuration
-├── unit/                       # Unit tests for individual components
-│   ├── services/              # Service layer tests
-│   │   ├── test_rules_engine.py
-│   │   └── test_llm_service.py
-│   ├── utils/                 # Utility function tests
-│   └── models/                # Model validation tests
-├── integration/               # Integration tests
-│   ├── test_alerts_api.py    # Alerts API endpoint tests
-│   ├── test_auth_api.py      # Authentication API tests
-│   └── test_rules_api.py     # Rules API tests
-├── e2e/                       # End-to-end tests
-│   └── test_alert_workflow.py # Complete workflow tests
-├── security/                  # Security-focused tests
-├── performance/              # Performance and load tests
-└── fixtures/                 # Test data fixtures
+├── conftest.py                          # Shared fixtures and pytest configuration
+├── unit/                                # Unit tests (fast, isolated)
+│   ├── services/                        # Service layer tests
+│   │   └── test_rules_engine.py         # Rules engine pattern matching
+│   ├── models/                          # Model validation tests
+│   ├── utils/                           # Utility function tests
+│   ├── test_grafana_branding.py         # Grafana white-labeling tests
+│   └── test_templates.py                # Template rendering tests
+├── integration/                         # Integration tests (require DB)
+│   ├── test_alerts_api.py               # Alerts API endpoints
+│   ├── test_alerts_rigorous.py          # Comprehensive alert testing
+│   ├── test_auth_api.py                 # Authentication API
+│   ├── test_clustering_integration.py   # Alert clustering
+│   └── test_runbook_views.py            # Runbook view endpoints
+├── e2e/                                 # End-to-end workflow tests
+│   └── test_alert_workflow.py           # Complete alert handling
+├── security/                            # Security-focused tests
+├── performance/                         # Performance/load tests
+├── fixtures/                            # Test data fixtures
+├── test_analytics_service.py            # Analytics service tests
+├── test_application_profiles_api.py     # Application profiles tests
+├── test_grafana_datasources_api.py      # Grafana datasources tests
+├── test_loki_client.py                  # Loki client tests
+└── test_tempo_client.py                 # Tempo client tests
 ```
 
-## Running Tests
+## Quick Start
 
-### Install Test Dependencies
+### Install Dependencies
 
 ```bash
 pip install -r requirements-test.txt
@@ -38,214 +46,333 @@ pip install -r requirements-test.txt
 pytest
 ```
 
-### Run Specific Test Categories
-
-```bash
-# Run only unit tests
-pytest tests/unit -m unit
-
-# Run only integration tests
-pytest tests/integration -m integration
-
-# Run only end-to-end tests
-pytest tests/e2e -m e2e
-
-# Run security tests
-pytest tests/security -m security
-```
-
 ### Run Tests with Coverage
 
 ```bash
-# Generate coverage report
+# Generate HTML coverage report
 pytest --cov=app --cov-report=html
 
-# View coverage report
-open htmlcov/index.html  # On macOS
-xdg-open htmlcov/index.html  # On Linux
+# View report
+open htmlcov/index.html      # macOS
+xdg-open htmlcov/index.html  # Linux
 ```
 
-### Run Specific Test Files
+## Running Specific Tests
+
+### By Category
+
+```bash
+# Unit tests only
+pytest tests/unit -v
+
+# Integration tests only
+pytest tests/integration -v
+
+# End-to-end tests only
+pytest tests/e2e -v
+
+# Security tests only
+pytest tests/security -v
+```
+
+### By Marker
+
+```bash
+# Run tests with specific markers
+pytest -m unit
+pytest -m integration
+pytest -m e2e
+pytest -m security
+
+# Exclude markers
+pytest -m "not requires_db"
+pytest -m "not slow"
+```
+
+### By File or Function
 
 ```bash
 # Run specific test file
-pytest tests/unit/services/test_rules_engine.py
+pytest tests/unit/services/test_rules_engine.py -v
 
 # Run specific test class
-pytest tests/unit/services/test_rules_engine.py::TestMatchPattern
+pytest tests/unit/services/test_rules_engine.py::TestMatchPattern -v
 
 # Run specific test function
-pytest tests/unit/services/test_rules_engine.py::TestMatchPattern::test_wildcard_matches_everything
-```
-
-### Run Tests in Parallel
-
-```bash
-# Run tests across 4 CPU cores
-pytest -n 4
-```
-
-### Run Tests with Verbose Output
-
-```bash
-pytest -v
-pytest -vv  # Extra verbose
+pytest tests/unit/services/test_rules_engine.py::TestMatchPattern::test_wildcard_matches -v
 ```
 
 ## Test Markers
 
-Tests are organized using pytest markers:
+Tests use pytest markers for categorization:
 
-- `@pytest.mark.unit` - Unit tests (fast, isolated)
-- `@pytest.mark.integration` - Integration tests (require DB, external services)
-- `@pytest.mark.e2e` - End-to-end tests (full workflow)
-- `@pytest.mark.security` - Security-focused tests
-- `@pytest.mark.performance` - Performance/load tests
-- `@pytest.mark.slow` - Tests that take a long time
-- `@pytest.mark.asyncio` - Async tests
-- `@pytest.mark.requires_db` - Requires database
-- `@pytest.mark.requires_llm` - Requires LLM API
-- `@pytest.mark.requires_ssh` - Requires SSH connection
+| Marker | Description |
+|--------|-------------|
+| `@pytest.mark.unit` | Fast, isolated unit tests |
+| `@pytest.mark.integration` | Tests requiring database or external services |
+| `@pytest.mark.e2e` | Full workflow end-to-end tests |
+| `@pytest.mark.security` | Security-focused tests |
+| `@pytest.mark.performance` | Performance and load tests |
+| `@pytest.mark.slow` | Long-running tests |
+| `@pytest.mark.asyncio` | Async tests |
+| `@pytest.mark.requires_db` | Tests requiring database |
+| `@pytest.mark.requires_llm` | Tests requiring LLM API access |
+| `@pytest.mark.requires_ssh` | Tests requiring SSH connection |
 
-### Using Markers
+## Fixtures
 
-```bash
-# Run only fast unit tests
-pytest -m unit
+Common fixtures are defined in `conftest.py` and automatically available to all tests:
 
-# Run tests that don't require external services
-pytest -m "not requires_llm and not requires_ssh"
-
-# Run only slow tests
-pytest -m slow
-```
-
-## Writing Tests
-
-### Test Naming Convention
-
-- Test files: `test_*.py`
-- Test classes: `Test*`
-- Test functions: `test_*`
-
-### Example Unit Test
-
-```python
-import pytest
-from app.services.rules_engine import match_pattern
-
-class TestMatchPattern:
-    def test_wildcard_matches_everything(self):
-        """Test that '*' pattern matches any value."""
-        assert match_pattern("*", "anything") is True
-    
-    def test_exact_match(self):
-        """Test exact string matching."""
-        assert match_pattern("HighCPU", "HighCPU") is True
-        assert match_pattern("HighCPU", "LowMemory") is False
-```
-
-### Example Integration Test
-
-```python
-import pytest
-from unittest.mock import patch
-
-class TestAlertsAPI:
-    def test_webhook_receives_alert(self, test_client, sample_alert_payload):
-        """Test receiving alert via webhook."""
-        response = test_client.post(
-            "/api/alerts/webhook",
-            json=sample_alert_payload
-        )
-        
-        assert response.status_code == 200
-        data = response.json()
-        assert data["status"] == "accepted"
-```
-
-### Using Fixtures
-
-Fixtures are defined in `conftest.py` and are automatically available to all tests:
+### Database Fixtures
 
 ```python
 def test_with_database(test_db_session):
-    """Test using database session fixture."""
+    """Uses SQLite in-memory database."""
     # test_db_session is automatically provided
     pass
+```
 
-def test_with_client(test_client):
-    """Test using FastAPI test client."""
-    response = test_client.get("/api/alerts")
-    assert response.status_code in [200, 401]
+### API Client Fixtures
+
+```python
+def test_api_endpoint(test_client):
+    """Uses FastAPI TestClient."""
+    response = test_client.get("/api/health")
+    assert response.status_code == 200
+```
+
+### Authentication Fixtures
+
+```python
+def test_protected_endpoint(test_client, admin_token):
+    """Uses pre-authenticated admin token."""
+    response = test_client.get(
+        "/api/admin/settings",
+        headers={"Authorization": f"Bearer {admin_token}"}
+    )
+    assert response.status_code == 200
 ```
 
 ## Test Configuration
 
 ### pytest.ini
 
-Configuration is defined in `pytest.ini` at the project root:
+Configuration in the project root includes:
 
-- Test discovery patterns
-- Coverage settings
-- Markers
-- Output formatting
-- Asyncio mode
+```ini
+[pytest]
+testpaths = tests
+python_files = test_*.py
+python_classes = Test*
+python_functions = test_*
+asyncio_mode = auto
+addopts = -v --tb=short
+markers =
+    unit: Unit tests
+    integration: Integration tests
+    e2e: End-to-end tests
+    security: Security tests
+    slow: Slow tests
+    requires_db: Requires database
+    requires_llm: Requires LLM API
+    requires_ssh: Requires SSH
+```
 
 ### Environment Variables
 
-Test environment variables should be set in `.env.test`:
+Create `.env.test` for test-specific configuration:
 
 ```bash
 DATABASE_URL=sqlite:///:memory:
-JWT_SECRET_KEY=test-secret-key
-# etc.
+JWT_SECRET_KEY=test-secret-key-for-testing
+TESTING=true
 ```
 
-## Continuous Integration
+## Writing Tests
 
-Tests are automatically run on:
-- Every commit
-- Pull requests
-- Before deployment
+### Naming Conventions
 
-### GitHub Actions Workflow
+- Test files: `test_*.py`
+- Test classes: `Test*`
+- Test functions: `test_*`
 
-See `.github/workflows/tests.yml` for CI configuration.
+### Unit Test Example
+
+```python
+import pytest
+from app.services.rules_engine import match_pattern
+
+class TestMatchPattern:
+    """Tests for the rules engine pattern matching."""
+
+    def test_wildcard_matches_everything(self):
+        """Wildcard pattern should match any string."""
+        assert match_pattern("*", "anything") is True
+        assert match_pattern("*", "") is True
+
+    def test_exact_match(self):
+        """Exact pattern should match only identical strings."""
+        assert match_pattern("HighCPU", "HighCPU") is True
+        assert match_pattern("HighCPU", "LowMemory") is False
+
+    def test_regex_pattern(self):
+        """Regex patterns should work correctly."""
+        assert match_pattern("High.*", "HighCPU") is True
+        assert match_pattern("High.*", "LowMemory") is False
+```
+
+### Integration Test Example
+
+```python
+import pytest
+
+class TestAlertsAPI:
+    """Integration tests for alerts API."""
+
+    def test_create_alert(self, test_client, test_db_session):
+        """Test creating an alert via API."""
+        response = test_client.post(
+            "/api/alerts",
+            json={
+                "name": "TestAlert",
+                "severity": "warning",
+                "instance": "server-01"
+            }
+        )
+        assert response.status_code == 201
+        data = response.json()
+        assert data["name"] == "TestAlert"
+
+    def test_webhook_receives_alert(self, test_client, sample_alert_payload):
+        """Test Alertmanager webhook endpoint."""
+        response = test_client.post(
+            "/webhook/alerts",
+            json=sample_alert_payload
+        )
+        assert response.status_code == 200
+        assert response.json()["status"] == "accepted"
+```
+
+### Async Test Example
+
+```python
+import pytest
+
+@pytest.mark.asyncio
+async def test_async_operation(test_db_session):
+    """Test an async service function."""
+    from app.services.llm_service import analyze_alert
+
+    result = await analyze_alert(
+        alert_name="HighCPU",
+        severity="critical"
+    )
+    assert result is not None
+```
+
+## Test Categories
+
+### Unit Tests (`tests/unit/`)
+
+Fast, isolated tests for individual functions and classes:
+
+- **Services**: Business logic tests
+- **Models**: SQLAlchemy model validation
+- **Utils**: Utility function tests
+- **Templates**: Jinja2 template rendering
+
+### Integration Tests (`tests/integration/`)
+
+Tests requiring database or service interactions:
+
+- **API Endpoints**: HTTP request/response testing
+- **Database Operations**: CRUD operations
+- **Service Integration**: Multi-service workflows
+
+### End-to-End Tests (`tests/e2e/`)
+
+Complete workflow tests:
+
+- Alert ingestion to analysis
+- Runbook creation to execution
+- User authentication flows
+
+### Security Tests (`tests/security/`)
+
+Security-focused testing:
+
+- Authentication bypass attempts
+- Authorization validation
+- Input sanitization
+- SQL injection prevention
+
+### Performance Tests (`tests/performance/`)
+
+Load and performance testing:
+
+- Response time benchmarks
+- Concurrent user handling
+- Database query performance
 
 ## Coverage Goals
 
-- Overall coverage: 80%+
-- Critical paths: 100%
-- Service layer: 90%+
-- API endpoints: 85%+
+| Category | Target | Description |
+|----------|--------|-------------|
+| **Overall** | 80%+ | Total codebase coverage |
+| **Critical Paths** | 100% | Authentication, security, core business logic |
+| **Service Layer** | 90%+ | Business logic services |
+| **API Endpoints** | 85%+ | All REST endpoints |
+| **Models** | 80%+ | Database model validation |
+
+## Continuous Integration
+
+Tests run automatically on:
+
+- Every commit to feature branches
+- Pull request creation/updates
+- Before deployment to staging/production
+
+See `.github/workflows/tests.yml` for CI configuration.
 
 ## Troubleshooting
 
-### Tests Fail Due to Missing Dependencies
+### Import Errors
+
+Ensure you're running from the project root:
 
 ```bash
-pip install -r requirements.txt
-pip install -r requirements-test.txt
+cd /path/to/remediation-engine
+pytest tests/
 ```
 
 ### Database Connection Errors
 
-Tests use SQLite in-memory database by default. If you see connection errors:
-- Check that SQLAlchemy is installed
-- Verify `conftest.py` database fixtures
+Tests use SQLite in-memory by default. Verify:
 
-### Import Errors
+```python
+# In conftest.py
+DATABASE_URL = "sqlite:///:memory:"
+```
 
-If tests can't import app modules:
-- Ensure you're running pytest from project root
-- Check PYTHONPATH is set correctly
+### Async Test Failures
 
-### Mock Errors
+Ensure `pytest-asyncio` is installed and configured:
 
-If mocks aren't working:
-- Ensure you're patching the correct import path
-- Use `where it's used` not `where it's defined`
+```bash
+pip install pytest-asyncio
+```
+
+### Mock Not Working
+
+Patch at the location where the function is used, not where it's defined:
+
+```python
+# Correct
+@patch("app.routers.alerts.llm_service.analyze")
+
+# Incorrect
+@patch("app.services.llm_service.analyze")
+```
 
 ## Best Practices
 
@@ -254,29 +381,13 @@ If mocks aren't working:
 3. **Mock external services** - Don't make real API calls
 4. **Test behavior, not implementation** - Focus on what, not how
 5. **Use descriptive names** - Test names should describe what they test
-6. **Add docstrings** - Explain the test's purpose
-7. **One assertion per test** - Keep tests focused
-8. **Test edge cases** - Include error conditions and boundary values
+6. **One assertion per test** - Keep tests focused
+7. **Test edge cases** - Include error conditions and boundary values
+8. **Clean up after tests** - Use fixtures with cleanup
 
-## Resources
+## Related Documentation
 
-- [pytest Documentation](https://docs.pytest.org/)
-- [FastAPI Testing](https://fastapi.tiangolo.com/tutorial/testing/)
-- [pytest-asyncio](https://github.com/pytest-dev/pytest-asyncio)
-- [Coverage.py](https://coverage.readthedocs.io/)
-
-## Contributing
-
-When adding new features:
-1. Write tests first (TDD)
-2. Ensure tests pass locally
-3. Check coverage doesn't decrease
-4. Add appropriate markers
-5. Update this README if needed
-
-## Support
-
-For questions or issues with tests:
-- Check existing test examples
-- Review conftest.py fixtures
-- Consult TESTING_PLAN.md for detailed test scenarios
+- [TESTING_QUICKSTART.md](../TESTING_QUICKSTART.md) - Quick start guide
+- [TESTING_PLAN.md](../TESTING_PLAN.md) - Comprehensive testing strategy
+- [TEST_COVERAGE_ANALYSIS.md](../TEST_COVERAGE_ANALYSIS.md) - Coverage analysis
+- [TEMPLATE_TESTING_README.md](./TEMPLATE_TESTING_README.md) - Template testing guide

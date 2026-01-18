@@ -1,96 +1,132 @@
 # AIOps Remediation Engine
 
-An intelligent, AI-powered operations platform designed to streamline incident response. This platform integrates with your existing monitoring stack (Prometheus/Alertmanager) to provide automated root cause analysis, actionable remediation steps, and interactive tools for resolving issues.
+An intelligent, AI-powered operations platform designed to streamline incident response and automated remediation. The platform integrates with your existing monitoring stack (Prometheus, Grafana, Loki, Tempo, Alertmanager) to provide automated root cause analysis, actionable remediation steps, runbook automation, and interactive tools for resolving issues.
 
-## 🚀 Key Features
+## Key Features
 
-- **Intelligent Alert Analysis**: Automatically analyzes incoming alerts using state-of-the-art LLMs (Claude, GPT-4, Gemini, Llama).
-- **Flexible Rules Engine**: Define custom logic to determine which alerts require immediate AI attention, which can wait, and which should be ignored.
-- **Multi-LLM Support**: Vendor-agnostic design via LiteLLM allows you to switch between AI providers or use local models (Ollama) seamlessly.
-- **Interactive Remediation**:
-    - **Web Terminal**: Secure, browser-based SSH access to your infrastructure for immediate troubleshooting.
-    - **AI Chat Assistant**: Context-aware chat interface to discuss alerts and potential fixes with the AI.
-- **Secure Design**: Enterprise-grade security with JWT authentication and encrypted storage for sensitive credentials (API keys, SSH keys).
-- **Modern UI**: Clean, responsive dashboard for managing alerts, rules, and system settings.
+### Intelligent Alert Analysis
+- Automatically analyzes incoming alerts using state-of-the-art LLMs (Claude, GPT-4, Gemini, Llama, Ollama)
+- Flexible rules engine to determine which alerts require immediate AI attention
+- Alert clustering and correlation to identify related issues
 
-## 🏗️ System Architecture & Design
+### Runbook Automation
+- Create and manage automated runbooks with step-by-step remediation procedures
+- Support for branching logic, conditionals, and loops in runbooks
+- Native agentic execution with ReAct agent framework
+- SSH and WinRM execution capabilities for remote command execution
+- Changeset management for tracking infrastructure changes
 
-The platform is built as a robust, modular application using modern Python standards.
+### Full LGTM Observability Stack
+- **Prometheus** - Metrics collection with 15-day retention
+- **Grafana Enterprise** - SSO-enabled, white-labeled dashboards with iframe embedding
+- **Loki** - Log aggregation with programmatic query access
+- **Tempo** - Distributed tracing with OTLP support
+- **Mimir** - Long-term metrics storage
+- **Alertmanager** - Alert routing and management
+
+### Dashboard Builder
+- Drag-and-drop dashboard creation with GridStack.js
+- CodeMirror-based PromQL editor with syntax highlighting
+- Multiple panel types: Graph, Stat, Gauge, Table, Heatmap, Bar, Pie
+- Template variables with chaining support
+- Dashboard snapshots and playlists with kiosk mode
+- Fine-grained permissions and access control
+
+### Interactive Remediation
+- **Web Terminal**: Secure, browser-based SSH access to your infrastructure
+- **AI Chat Assistant**: Context-aware chat interface for discussing alerts and potential fixes
+- **Knowledge Base**: Store and search organizational knowledge for AI-enhanced responses
+
+### Enterprise Security
+- JWT-based authentication with role-based access control
+- Encrypted storage for sensitive credentials (API keys, SSH keys) using Fernet encryption
+- Production/test environment isolation with comprehensive security checks
+- Audit logging for compliance tracking
+
+## System Architecture
 
 ### Core Components
 
-1.  **API Layer (FastAPI)**: High-performance, async-ready REST API handling all client requests, webhooks, and WebSocket connections.
-2.  **Service Layer**:
-    -   **Rules Engine**: Evaluates alerts against user-defined patterns (Regex/Wildcard) to automate workflows.
-    -   **LLM Service**: Abstraction layer using `LiteLLM` to communicate with various AI providers.
-    -   **SSH Service**: Manages secure, asynchronous SSH connections for the web terminal using `AsyncSSH`.
-    -   **Auth Service**: Handles user management and JWT token generation/validation.
-3.  **Data Layer (PostgreSQL)**: Persistent storage for alerts, analysis results, user profiles, and encrypted credentials.
-4.  **Frontend (Jinja2)**: Server-side rendered templates providing a lightweight, fast, and responsive user interface without the complexity of a heavy SPA framework.
+1. **API Layer (FastAPI)**: High-performance, async-ready REST API handling all client requests, webhooks, and WebSocket connections
+2. **Service Layer**:
+   - **Rules Engine**: Evaluates alerts against user-defined patterns (Regex/Wildcard)
+   - **LLM Service**: Abstraction layer using LiteLLM to communicate with various AI providers
+   - **Agentic Framework**: ReAct and Native agents for automated runbook execution
+   - **SSH/WinRM Services**: Secure remote execution on target infrastructure
+   - **Auth Service**: User management and JWT token generation/validation
+3. **Data Layer (PostgreSQL)**: Persistent storage with pgvector extension for embeddings
+4. **Frontend (Jinja2)**: Server-side rendered templates with modern JavaScript
 
 ### Technology Stack
 
--   **Language**: Python 3.12+
--   **Web Framework**: FastAPI, Uvicorn
--   **Database**: PostgreSQL, SQLAlchemy (ORM), Alembic (Migrations)
--   **AI/ML**: LiteLLM, LangChain, Anthropic SDK
--   **Security**: Python-Jose (JWT), Passlib (Bcrypt), Cryptography (Fernet encryption)
--   **Infrastructure**: Docker, Docker Compose
--   **Ops Integration**: AsyncSSH, Prometheus Webhooks
+| Category | Technologies |
+|----------|-------------|
+| **Language** | Python 3.12+ |
+| **Web Framework** | FastAPI, Uvicorn |
+| **Database** | PostgreSQL 16 with pgvector |
+| **ORM/Migrations** | SQLAlchemy, Alembic |
+| **AI/ML** | LiteLLM, LangChain, Anthropic SDK |
+| **Security** | python-jose (JWT), Passlib (bcrypt), Cryptography (Fernet) |
+| **Infrastructure** | Docker, Docker Compose |
+| **Observability** | Prometheus, Grafana, Loki, Tempo, Mimir, Alertmanager |
+| **Remote Execution** | AsyncSSH, pywinrm |
 
-## 🔄 Workflow
+## Workflow
 
 The platform follows a streamlined event-driven workflow:
 
-1.  **Ingestion**:
-    -   Prometheus/Alertmanager detects an issue and sends a JSON payload to the `/webhook/alerts` endpoint.
-2.  **Evaluation**:
-    -   The **Rules Engine** intercepts the alert.
-    -   It matches the alert's metadata (name, severity, instance, job) against configured **Auto-Analyze Rules**.
-    -   **Action Decision**:
-        -   `auto_analyze`: The alert is immediately sent to the LLM Service.
-        -   `manual`: The alert is saved to the DB for human review.
-        -   `ignore`: The alert is discarded (noise reduction).
-3.  **Analysis (AI Loop)**:
-    -   If triggered, the **LLM Service** constructs a context-rich prompt including the alert's summary, description, and labels.
-    -   It queries the configured Default LLM Provider (e.g., Claude 3.5 Sonnet).
-    -   The AI returns a structured analysis: **Root Cause**, **Impact**, **Immediate Actions**, and **Remediation Steps**.
-4.  **Remediation**:
-    -   **Review**: SREs view the alert and the AI's analysis on the dashboard.
-    -   **Interact**: SREs can launch a **Web Terminal** session directly to the affected server to execute the recommended commands.
-    -   **Refine**: SREs can use the **Chat** feature to ask follow-up questions to the AI about the specific alert context.
+1. **Ingestion**: Prometheus/Alertmanager detects an issue and sends a JSON payload to the `/webhook/alerts` endpoint
+2. **Evaluation**: The Rules Engine matches alert metadata against configured auto-analyze rules
+3. **Analysis**: The LLM Service constructs a context-rich prompt and queries the configured LLM provider
+4. **Remediation**: SREs review analysis, execute runbooks, or use the web terminal for immediate troubleshooting
 
-## 📦 Modules & Structure
+## Project Structure
 
 ```
-app/
-├── routers/            # API Endpoints & Controllers
-│   ├── alerts.py       # Alert management
-│   ├── rules.py        # Rule configuration
-│   ├── webhook.py      # Alertmanager ingestion
-│   ├── terminal_ws.py  # WebSocket for Web Terminal
-│   └── ...
-├── services/           # Business Logic
-│   ├── llm_service.py  # AI Provider integration
-│   ├── rules_engine.py # Pattern matching logic
-│   ├── ssh_service.py  # SSH connection management
-│   └── ...
-├── models.py           # SQLAlchemy Database Models
-├── schemas.py          # Pydantic Data Schemas
-└── main.py             # Application Entry Point
+.
+├── app/
+│   ├── routers/           # API Endpoints (50+ routers)
+│   │   ├── alerts.py      # Alert management
+│   │   ├── remediation.py # Runbook execution
+│   │   ├── webhook.py     # Alertmanager ingestion
+│   │   ├── terminal_ws.py # WebSocket for Web Terminal
+│   │   ├── dashboards_api.py # Dashboard CRUD
+│   │   ├── grafana_proxy.py # Grafana SSO proxy
+│   │   └── ...
+│   ├── services/          # Business Logic (60+ services)
+│   │   ├── llm_service.py     # AI Provider integration
+│   │   ├── rules_engine.py    # Pattern matching
+│   │   ├── runbook_executor.py # Runbook automation
+│   │   ├── agentic/           # Agentic framework
+│   │   │   ├── native_agent.py
+│   │   │   ├── react_agent.py
+│   │   │   └── tool_registry.py
+│   │   └── ...
+│   ├── models*.py         # SQLAlchemy Database Models
+│   ├── schemas*.py        # Pydantic Data Schemas
+│   └── main.py            # Application Entry Point
+├── templates/             # Jinja2 HTML Templates
+├── static/                # CSS, JavaScript, Assets
+├── tests/                 # Comprehensive Test Suite
+│   ├── unit/             # Unit tests
+│   ├── integration/      # Integration tests
+│   ├── e2e/              # End-to-end tests
+│   └── security/         # Security tests
+├── alembic/              # Database Migrations
+├── docs/                 # Documentation
+├── prometheus/           # Prometheus Configuration
+├── grafana/              # Grafana Provisioning
+├── loki/                 # Loki Configuration
+├── tempo/                # Tempo Configuration
+└── docker-compose.yml    # Service Orchestration
 ```
 
-## 📚 Documentation
-
--   **[User Guide](USER_GUIDE.md)**: How to use the dashboard, manage alerts, and use the AI assistant.
--   **[Developer Guide](DEVELOPER_GUIDE.md)**: Setup instructions, architecture overview, and contribution guidelines.
-
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
 - Docker & Docker Compose
-- An LLM API Key (Anthropic, OpenAI, or Google) OR a running Ollama instance.
+- An LLM API Key (Anthropic, OpenAI, or Google) OR a running Ollama instance
 
 ### Deployment
 
@@ -104,7 +140,6 @@ app/
    ```bash
    cp .env.example .env
    # Edit .env with your database credentials and API keys
-   nano .env
    ```
 
 3. **Launch Services**
@@ -116,11 +151,25 @@ app/
 4. **Access the Platform**
    - **UI**: `http://localhost:8080`
    - **API Docs**: `http://localhost:8080/docs`
+   - **Grafana**: `http://localhost:8080/grafana`
    - **Default Login**: `admin` / (password set in .env)
 
-## 🔌 Integrations
+## Docker Services
 
-### Alertmanager Configuration
+The platform runs the following services via Docker Compose:
+
+| Service | Port | Description |
+|---------|------|-------------|
+| `remediation-engine` | 8080 | Main application |
+| `postgres` | 5432 | PostgreSQL database with pgvector |
+| `prometheus` | 9090 | Metrics collection |
+| `grafana` | 3000 | Visualization (SSO via proxy) |
+| `loki` | 3100 | Log aggregation |
+| `tempo` | 3200 | Distributed tracing |
+| `mimir` | 9009 | Long-term metrics storage |
+| `alertmanager` | 9093 | Alert management |
+
+## Alertmanager Integration
 
 Add this receiver to your `alertmanager.yml` to route alerts to the engine:
 
@@ -132,17 +181,43 @@ receivers:
         send_resolved: true
 ```
 
-## 🛡️ Security Note
+## Documentation
 
-This platform is designed with security in mind.
--   **API Keys**: Stored encrypted in the database.
--   **SSH Keys**: Stored encrypted; never exposed to the client.
--   **Access Control**: Role-based access (Admin/User) protects sensitive settings.
+- **[User Guide](USER_GUIDE.md)**: How to use the dashboard, manage alerts, and use the AI assistant
+- **[Developer Guide](DEVELOPER_GUIDE.md)**: Setup instructions, architecture overview, and contribution guidelines
+- **[Testing Guide](TESTING_QUICKSTART.md)**: How to run and write tests
+- **[Database Schema](DATABASE_SCHEMA.md)**: Complete database documentation
+- **[docs/](docs/)**: Additional planning and architecture documentation
+
+## Testing
+
+```bash
+# Install test dependencies
+pip install -r requirements-test.txt
+
+# Run all tests
+pytest
+
+# Run with coverage
+pytest --cov=app --cov-report=html
+
+# Run specific test categories
+pytest tests/unit -v
+pytest tests/integration -v
+```
+
+## Security
+
+This platform is designed with enterprise security in mind:
+
+- **API Keys**: Stored encrypted in the database using Fernet encryption
+- **SSH Keys**: Stored encrypted; never exposed to the client
+- **Access Control**: Role-based access (Admin/User) protects sensitive settings
+- **Production Isolation**: Comprehensive security checks prevent test data in production
+- **Audit Logging**: Track all user actions for compliance
 
 ## License
 
 **Proprietary / Non-Commercial Use Only**
 
 This software is licensed for personal, non-commercial use only. Commercial use is strictly prohibited without prior written permission from the copyright holder. See the [LICENSE](LICENSE) file for details.
-
-# remediation-engine
