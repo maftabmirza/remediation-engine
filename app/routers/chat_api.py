@@ -10,6 +10,7 @@ from typing import Optional
 from uuid import UUID, uuid4
 from datetime import datetime
 import json
+from pydantic import BaseModel
 
 from app.database import get_db
 from app.models import User, LLMProvider
@@ -17,6 +18,12 @@ from app.services.auth_service import get_current_user
 from app.models_revive import AISession, AIMessage
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
+
+
+# Request models
+class CommandValidateRequest(BaseModel):
+    command: str
+    server: str
 
 
 @router.get("/providers")
@@ -287,6 +294,39 @@ async def switch_session_provider(
         }
     except ValueError:
          raise HTTPException(status_code=400, detail="Invalid session ID")
+
+
+@router.post("/commands/validate")
+async def validate_command(
+    request: CommandValidateRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Validate a command before execution.
+    Returns safety assessment and risk level.
+    """
+    from app.services.command_validator import CommandValidator, ValidationResult
+    
+    try:
+        validator = CommandValidator()
+        
+        # Detect OS type from server name
+        os_type = "windows" if any(x in request.server.lower() for x in ['win', 'windows']) else "linux"
+        
+        # Validate command
+        result = validator.validate_command(request.command, os_type)
+        
+        return {
+            "result": result.result.value,
+            "message": result.message,
+            "risk_level": result.risk_level if hasattr(result, 'risk_level') else 'unknown'
+        }
+    except Exception as e:
+        return {
+            "result": "unknown",
+            "message": f"Validation error: {str(e)}",
+            "risk_level": "unknown"
+        }
 
 
 # WebSocket endpoint for chat - gracefully close since chat is REST-based
