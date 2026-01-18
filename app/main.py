@@ -317,6 +317,10 @@ app.include_router(api_credential_profiles.router)
 app.include_router(roles.router)
 app.include_router(scheduler.router)
 
+# Commands API
+from app.routers import commands_router
+app.include_router(commands_router)
+
 app.include_router(applications.router)  # Phase 1: Application Registry
 app.include_router(application_profiles_api.router)  # Phase 3: Application Profiles
 app.include_router(grafana_datasources_api.router)  # Phase 3: Grafana Datasources

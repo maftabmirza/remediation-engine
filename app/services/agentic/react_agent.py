@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 from app.models import LLMProvider, Alert
 from app.services.ollama_service import ollama_completion
 from app.services.agentic.tool_registry import ToolRegistry
+from app.services.agentic.phase_detector import PhaseDetector
 
 logger = logging.getLogger(__name__)
 
@@ -343,6 +344,7 @@ DO NOT jump to Phase 4 or 5 without completing Phases 1-3 first.
 
         iterations = 0
         self.tool_calls_made = []
+        self._current_phase = None
 
         try:
             while iterations < self.max_iterations:
@@ -370,6 +372,11 @@ Continue investigating.\n\nThought:"""
 
                 # Add response to context
                 self.context += f"Thought:{response}\n"
+
+                # Detect phase for internal tracking
+                detected_phase = PhaseDetector.detect_phase(response)
+                if detected_phase:
+                    self._current_phase = detected_phase
 
                 # Check for final answer
                 final_answer = self._parse_final_answer(response)
@@ -401,6 +408,11 @@ Please continue investigating using the available tools.\n\nThought:"""
                     action_name, arguments = action
                     logger.info(f"ReAct executing tool: {action_name} with args: {arguments}")
                     self.tool_calls_made.append(action_name)
+
+                    # Detect phase from tool if not already detected
+                    tool_phase = PhaseDetector.detect_phase_from_tool(action_name)
+                    if tool_phase:
+                        self._current_phase = tool_phase
 
                     # Execute tool
                     result = await self.tool_registry.execute(action_name, arguments)
@@ -466,6 +478,7 @@ Please continue investigating using the available tools.\n\nThought:"""
 
         iterations = 0
         self.tool_calls_made = []
+        self._current_phase = None
 
         try:
             while iterations < self.max_iterations:
@@ -493,6 +506,19 @@ Continue investigating.\n\nThought:"""
                 # Add response to context
                 self.context += f"Thought:{response}\n"
 
+                # Detect phase and emit progress event
+                detected_phase = PhaseDetector.detect_phase(response)
+                if detected_phase and detected_phase != self._current_phase:
+                    self._current_phase = detected_phase
+                    # Emit progress event for UI
+                    yield f"[PROGRESS]{json.dumps({'phase': detected_phase, 'tools_called': len(self.tool_calls_made)})}[/PROGRESS]"
+                
+                # Extract and emit reasoning thought
+                thought_text = PhaseDetector.extract_thought(response)
+                if thought_text and len(thought_text) > 10:
+                    # Emit reasoning event for UI
+                    yield f"[REASONING]{json.dumps({'phase': detected_phase or self._current_phase or 'unknown', 'thought': thought_text[:200], 'step': iterations})}[/REASONING]"
+
                 # Check for final answer
                 final_answer = self._parse_final_answer(response)
                 if final_answer:
@@ -511,10 +537,19 @@ Please continue investigating using the available tools.\n\nThought:"""
                     action_name, arguments = action
                     self.tool_calls_made.append(action_name)
 
+                    # Detect phase from tool if not already detected
+                    tool_phase = PhaseDetector.detect_phase_from_tool(action_name)
+                    if tool_phase and tool_phase != self._current_phase:
+                        self._current_phase = tool_phase
+                        yield f"[PROGRESS]{json.dumps({'phase': tool_phase, 'tools_called': len(self.tool_calls_made)})}[/PROGRESS]"
+
                     # Get data classification for this tool
                     from app.services.agentic.progress_messages import get_data_classification, get_tool_message
                     classification = get_data_classification(action_name)
                     tool_msg = get_tool_message(action_name)
+
+                    # Emit reasoning event with tool info
+                    yield f"[REASONING]{json.dumps({'phase': self._current_phase or 'investigate', 'tool': action_name, 'step': iterations})}[/REASONING]"
 
                     # Notify about tool call with classification
                     yield f"\n{tool_msg}\n"

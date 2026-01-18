@@ -26,6 +26,76 @@
     .user-message-content pre {
         margin: 0.5rem 0;
     }
+
+    /* Progress Indicator Styles */
+    .progress-indicator {
+        animation: slideDown 0.3s ease-out;
+    }
+
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .phase-step.current .phase-icon {
+        animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+    }
+
+    .phase-step.completed .phase-icon {
+        animation: checkmark 0.3s ease-out;
+    }
+
+    @keyframes checkmark {
+        from { transform: scale(0); }
+        to { transform: scale(1); }
+    }
+
+    .progress-fill {
+        animation: shimmer 2s infinite;
+        background-size: 200% 100%;
+    }
+
+    @keyframes shimmer {
+        0% { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+    }
+
+    /* Reasoning Panel Styles */
+    .reasoning-panel {
+        transition: all 0.3s ease;
+    }
+
+    .reasoning-panel.collapsed .reasoning-body {
+        display: none;
+    }
+
+    .reasoning-step.current {
+        background: rgba(59, 130, 246, 0.1);
+        border-radius: 4px;
+        padding: 8px;
+        margin-left: -8px;
+    }
+
+    .reasoning-step {
+        transition: all 0.2s ease;
+    }
+
+    .border-blue-500 { border-color: #3b82f6; }
+    .border-green-500 { border-color: #10b981; }
+    .border-yellow-500 { border-color: #f59e0b; }
+    .border-purple-500 { border-color: #a855f7; }
+    .border-pink-500 { border-color: #ec4899; }
 </style>
 
 <div id="aiChatContent" class="flex flex-col h-full overflow-hidden">
@@ -530,7 +600,8 @@
 
 {% block scripts %}
 {{ super() }}
-<script src="/static/js/ai_chat.js?v=1.2"></script>
+<script src="/static/js/progress_indicator.js?v=1.0"></script>
+<script src="/static/js/ai_chat.js?v=1.3"></script>
 <script>
     // ============================================================================
     // Right Pane Toggle (Terminal / Data Output)
@@ -1470,6 +1541,14 @@
         // Initialize chat mode to 'general' (default)
         // This sets up the UI and placeholder text
         updateChatModeUI();
+
+        // Initialize progress indicator and reasoning panel
+        if (typeof initProgressIndicator === 'function') {
+            initProgressIndicator();
+        }
+        if (typeof initReasoningPanel === 'function') {
+            initReasoningPanel();
+        }
 
         // Try to restore previous session, otherwise show welcome
         restoreSession().then(() => {

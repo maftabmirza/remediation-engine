@@ -34,6 +34,10 @@ let isStreaming = false;              // Flag to track if streaming is active
 let commandQueue = [];        // Array of {id, server, command, explanation, status, output, exitCode}
 let commandQueueContainerId = null;  // ID of the container holding the command queue
 
+// Reasoning panel state
+let reasoningHistory = [];  // Store reasoning steps
+let reasoningPanelVisible = true;
+
 // Command History Functions
 function addToCommandHistory(command, output, exitCode, success) {
     const entry = {
@@ -115,6 +119,129 @@ function updateCommandHistoryPanel() {
             <div class="text-[10px] text-gray-500 mt-1">${entry.displayTime} • exit ${entry.exitCode}</div>
         </div>
     `).join('');
+}
+
+// ============= REASONING PANEL =============
+
+function initReasoningPanel() {
+    const chatMessages = document.getElementById('chatMessages');
+    if (!chatMessages || document.getElementById('reasoningPanel')) {
+        return; // Already exists or can't create
+    }
+    
+    const panel = document.createElement('div');
+    panel.id = 'reasoningPanel';
+    panel.className = 'reasoning-panel hidden bg-gray-900 border border-gray-700 rounded-lg mb-4';
+    panel.innerHTML = `
+        <div class="reasoning-header flex justify-between items-center p-2 border-b border-gray-700 cursor-pointer" 
+             onclick="toggleReasoningPanel()">
+            <span class="text-sm font-medium text-gray-300">
+                <i class="fas fa-brain mr-2 text-purple-400"></i>AI Reasoning
+            </span>
+            <i class="fas fa-chevron-down text-gray-500" id="reasoningToggleIcon"></i>
+        </div>
+        <div class="reasoning-body p-3 max-h-64 overflow-y-auto" id="reasoningBody">
+            <div class="text-gray-500 text-sm">Waiting for investigation to start...</div>
+        </div>
+    `;
+    
+    chatMessages.parentElement.insertBefore(panel, chatMessages);
+}
+
+function toggleReasoningPanel() {
+    const panel = document.getElementById('reasoningPanel');
+    const icon = document.getElementById('reasoningToggleIcon');
+    if (!panel) return;
+    
+    reasoningPanelVisible = !reasoningPanelVisible;
+    
+    if (reasoningPanelVisible) {
+        panel.classList.remove('collapsed');
+        icon.className = 'fas fa-chevron-down text-gray-500';
+    } else {
+        panel.classList.add('collapsed');
+        icon.className = 'fas fa-chevron-right text-gray-500';
+    }
+}
+
+function handleReasoningEvent(data) {
+    reasoningHistory.push(data);
+    renderReasoningSteps();
+    
+    // Show panel if hidden
+    const panel = document.getElementById('reasoningPanel');
+    if (panel && panel.classList.contains('hidden')) {
+        panel.classList.remove('hidden');
+    }
+}
+
+function renderReasoningSteps() {
+    const body = document.getElementById('reasoningBody');
+    if (!body) return;
+    
+    const phaseIcons = {
+        'identify': '🔍',
+        'verify': '✅',
+        'investigate': '📊',
+        'plan': '🧠',
+        'act': '🛠️'
+    };
+    
+    const phaseTitles = {
+        'identify': 'Identify',
+        'verify': 'Verify',
+        'investigate': 'Investigate',
+        'plan': 'Plan',
+        'act': 'Act'
+    };
+    
+    const phaseColors = {
+        'identify': 'border-blue-500',
+        'verify': 'border-green-500',
+        'investigate': 'border-yellow-500',
+        'plan': 'border-purple-500',
+        'act': 'border-pink-500'
+    };
+    
+    const currentPhase = reasoningHistory.length > 0 ? reasoningHistory[reasoningHistory.length - 1].phase : null;
+    
+    body.innerHTML = reasoningHistory.map((step, i) => {
+        const isCurrent = step.phase === currentPhase && i === reasoningHistory.length - 1;
+        const icon = phaseIcons[step.phase] || '❓';
+        const title = phaseTitles[step.phase] || step.phase;
+        const borderColor = phaseColors[step.phase] || 'border-gray-500';
+        
+        return `
+            <div class="reasoning-step ${isCurrent ? 'current' : ''} mb-3 pl-4 border-l-2 ${borderColor}">
+                <div class="flex items-center text-xs font-medium mb-1">
+                    <span class="mr-2">${icon}</span>
+                    <span>${title}</span>
+                    ${isCurrent ? '<span class="ml-2 text-blue-400">← Current</span>' : ''}
+                </div>
+                ${step.thought ? `<div class="text-gray-400 text-xs italic mb-1">"${escapeHtml(step.thought)}"</div>` : ''}
+                ${step.tool ? `
+                    <div class="text-xs mt-1">
+                        <span class="text-yellow-400">Tool:</span> <code class="text-green-400">${escapeHtml(step.tool)}</code>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }).join('');
+    
+    // Auto-scroll to bottom
+    body.scrollTop = body.scrollHeight;
+}
+
+function resetReasoningPanel() {
+    reasoningHistory = [];
+    const body = document.getElementById('reasoningBody');
+    if (body) {
+        body.innerHTML = '<div class="text-gray-500 text-sm">Waiting for investigation to start...</div>';
+    }
+    const panel = document.getElementById('reasoningPanel');
+    if (panel) {
+        panel.classList.add('hidden');
+    }
 }
 
 // Font Size Controls
@@ -396,6 +523,34 @@ function appendAIMessage(text, skipRunButtons = false) {
     removeTypingIndicator();
     const container = document.getElementById('chatMessages');
 
+    // Handle PROGRESS events
+    const progressRegex = /\[PROGRESS\](.*?)\[\/PROGRESS\]/g;
+    let progressMatch;
+    while ((progressMatch = progressRegex.exec(text)) !== null) {
+        try {
+            const progressData = JSON.parse(progressMatch[1]);
+            if (typeof handleProgressEvent === 'function') {
+                handleProgressEvent(progressData);
+            }
+        } catch (e) {
+            console.error('Failed to parse PROGRESS event:', e);
+        }
+    }
+
+    // Handle REASONING events
+    const reasoningRegex = /\[REASONING\](.*?)\[\/REASONING\]/g;
+    let reasoningMatch;
+    while ((reasoningMatch = reasoningRegex.exec(text)) !== null) {
+        try {
+            const reasoningData = JSON.parse(reasoningMatch[1]);
+            if (typeof handleReasoningEvent === 'function') {
+                handleReasoningEvent(reasoningData);
+            }
+        } catch (e) {
+            console.error('Failed to parse REASONING event:', e);
+        }
+    }
+
     // Check for CMD_CARD markers and extract them (but don't render yet)
     const cmdCardRegex = /\[CMD_CARD\](.*?)\[\/CMD_CARD\]/g;
     let match;
@@ -468,6 +623,8 @@ function appendAIMessage(text, skipRunButtons = false) {
     cleanText = cleanText.replace(suggestionsRegex, '');
     cleanText = cleanText.replace(fileOpenRegex, '');
     cleanText = cleanText.replace(changeSetRegex, '');
+    cleanText = cleanText.replace(progressRegex, '');  // Remove progress markers
+    cleanText = cleanText.replace(reasoningRegex, '');  // Remove reasoning markers
 
     // When CMD_CARD is present, aggressively clean up duplicate command text
     if (hasCards) {
@@ -545,7 +702,7 @@ function appendAIMessage(text, skipRunButtons = false) {
                 <span class="text-xs text-gray-500" id="${queueContainerId}-status">Waiting for execution...</span>
             </div>
             <div id="${queueContainerId}-cards" class="space-y-2"></div>
-            <div id="${queueContainerId}-actions" class="mt-4 flex gap-3 border-t border-gray-700 pt-3">
+            <div id="${queueContainerId}-actions" class="mt-4 flex gap-3 border-t border-gray-700 pt-3" style="${cardDataList.length === 1 ? 'display: none;' : ''}">
                 <button id="${queueContainerId}-continue" onclick="continueWithAI('${queueContainerId}')" 
                         class="flex-1 bg-blue-600 hover:bg-blue-500 text-white text-sm px-4 py-2 rounded font-medium transition-colors flex items-center justify-center">
                     <i class="fas fa-robot mr-2"></i>Continue with AI
@@ -601,10 +758,21 @@ function appendAIMessage(text, skipRunButtons = false) {
                                 class="flex-1 bg-green-600 hover:bg-green-500 text-white text-xs px-3 py-1.5 rounded font-medium transition-colors flex items-center justify-center">
                             <i class="fas fa-play mr-1"></i>Run
                         </button>
+                        <button data-cmd="${escapeHtml(cardData.command)}" data-server="${escapeHtml(cardData.server)}" data-explanation="${escapeHtml(cardData.explanation)}"
+                                onclick="openCommandEditor('${cardId}', this.dataset.cmd, this.dataset.server, this.dataset.explanation)" 
+                                class="bg-blue-600 hover:bg-blue-500 text-white text-xs px-2 py-1.5 rounded font-medium transition-colors"
+                                title="Edit command before running">
+                            <i class="fas fa-edit"></i>
+                        </button>
                         <button onclick="skipQueuedCommand('${cardId}')" 
                                 class="bg-yellow-600 hover:bg-yellow-500 text-white text-xs px-2 py-1.5 rounded font-medium transition-colors"
                                 title="Skip this command">
                             <i class="fas fa-forward"></i>
+                        </button>
+                        <button data-cmd="${escapeHtml(cardData.command)}" onclick="copyToClipboard(this.dataset.cmd)" 
+                                class="bg-gray-600 hover:bg-gray-500 text-white text-xs px-2 py-1.5 rounded font-medium transition-colors"
+                                title="Copy command">
+                            <i class="fas fa-copy"></i>
                         </button>
                     </div>
                     <div class="cmd-output hidden"></div>
@@ -732,6 +900,211 @@ async function skipCommand(cardId, command) {
     // Send skip notification to Agent so it knows to move on
     showToast('Command skipped', 'info');
     await autoSendCommandOutputToAgent(command, '[USER SKIPPED THIS COMMAND]', false, -1);
+}
+
+// ============= COMMAND EDITOR MODAL =============
+
+function openCommandEditor(cardId, command, server, explanation) {
+    // Remove any existing modal
+    closeCommandEditor();
+    
+    const modal = document.createElement('div');
+    modal.id = 'commandEditorModal';
+    modal.className = 'fixed inset-0 bg-black/70 flex items-center justify-center z-50';
+    modal.innerHTML = `
+        <div class="bg-gray-800 border border-gray-600 rounded-lg w-full max-w-2xl mx-4 shadow-2xl">
+            <div class="flex justify-between items-center p-4 border-b border-gray-700">
+                <h3 class="text-lg font-medium text-white">
+                    <i class="fas fa-edit mr-2 text-blue-400"></i>Review Command Before Execution
+                </h3>
+                <button onclick="closeCommandEditor()" class="text-gray-400 hover:text-white transition-colors">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="p-4">
+                <div class="mb-4">
+                    <label class="text-xs text-gray-400 block mb-1">Target Server</label>
+                    <div class="bg-gray-900 p-2 rounded text-sm text-gray-300">
+                        <i class="fas fa-server mr-2 text-blue-400"></i>${escapeHtml(server)}
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="text-xs text-gray-400 block mb-1">Command</label>
+                    <div class="relative">
+                        <textarea id="editableCommand" 
+                                  class="w-full bg-gray-900 border border-gray-700 rounded p-3 font-mono text-sm text-green-400 focus:border-blue-500 focus:outline-none resize-none"
+                                  rows="4">${escapeHtml(command)}</textarea>
+                        <button onclick="resetCommand('${escapeHtml(command).replace(/'/g, "\\'")}', '${cardId}')" 
+                                class="absolute top-2 right-2 text-xs text-gray-500 hover:text-white px-2 py-1 bg-gray-800 rounded transition-colors"
+                                title="Reset to original">
+                            <i class="fas fa-undo mr-1"></i>Reset
+                        </button>
+                    </div>
+                    <div id="commandModifiedBadge" class="hidden text-xs text-yellow-400 mt-1">
+                        <i class="fas fa-exclamation-triangle mr-1"></i>Modified from original suggestion
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="text-xs text-gray-400 block mb-1">Explanation</label>
+                    <div class="bg-gray-900/50 p-2 rounded text-xs text-gray-400 italic">
+                        "${escapeHtml(explanation)}"
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="text-xs text-gray-400 block mb-1">Safety Check</label>
+                    <div id="safetyCheckResult" class="bg-gray-900 p-2 rounded text-sm">
+                        <i class="fas fa-spinner fa-spin mr-2 text-blue-400"></i>Validating command...
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex justify-end gap-2 p-4 border-t border-gray-700 bg-gray-900/50">
+                <button onclick="closeCommandEditor()" 
+                        class="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors">
+                    Cancel
+                </button>
+                <button onclick="copyCommandFromEditor()" 
+                        class="px-4 py-2 text-sm bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors">
+                    <i class="fas fa-copy mr-1"></i>Copy
+                </button>
+                <button id="executeBtn" onclick="executeFromEditor('${cardId}', '${escapeHtml(server)}')" 
+                        class="px-4 py-2 text-sm bg-green-600 hover:bg-green-500 text-white rounded font-medium transition-colors">
+                    <i class="fas fa-play mr-1"></i>Execute
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Store original command
+    modal.dataset.originalCommand = command;
+    modal.dataset.cardId = cardId;
+    
+    // Setup change detection
+    const textarea = document.getElementById('editableCommand');
+    textarea.addEventListener('input', () => {
+        const modified = textarea.value !== command;
+        document.getElementById('commandModifiedBadge').classList.toggle('hidden', !modified);
+        // Re-validate when modified
+        validateCommand(textarea.value, server);
+    });
+    
+    // Initial validation
+    validateCommand(command, server);
+}
+
+async function validateCommand(command, server) {
+    const resultDiv = document.getElementById('safetyCheckResult');
+    if (!resultDiv) return;
+    
+    resultDiv.innerHTML = '<i class="fas fa-spinner fa-spin mr-2 text-blue-400"></i>Validating...';
+    
+    try {
+        const response = await fetch('/api/commands/validate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ command, server })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Validation failed');
+        }
+        
+        const data = await response.json();
+        
+        const icons = {
+            'allowed': '<i class="fas fa-check-circle text-green-400 mr-2"></i>',
+            'warning': '<i class="fas fa-exclamation-triangle text-yellow-400 mr-2"></i>',
+            'blocked': '<i class="fas fa-ban text-red-400 mr-2"></i>'
+        };
+        
+        const colors = {
+            'allowed': 'text-green-400',
+            'warning': 'text-yellow-400',
+            'blocked': 'text-red-400'
+        };
+        
+        resultDiv.innerHTML = `<span class="${colors[data.result] || 'text-gray-400'}">${icons[data.result] || ''}${escapeHtml(data.message || 'Unknown status')}</span>`;
+        
+        // Disable execute button if blocked
+        const executeBtn = document.getElementById('executeBtn');
+        if (executeBtn) {
+            executeBtn.disabled = data.result === 'blocked';
+            executeBtn.classList.toggle('opacity-50', data.result === 'blocked');
+            executeBtn.classList.toggle('cursor-not-allowed', data.result === 'blocked');
+        }
+    } catch (err) {
+        console.error('Validation error:', err);
+        resultDiv.innerHTML = '<i class="fas fa-question-circle text-gray-400 mr-2"></i>Could not validate command';
+    }
+}
+
+function resetCommand(originalCommand, cardId) {
+    const textarea = document.getElementById('editableCommand');
+    if (textarea) {
+        textarea.value = originalCommand;
+        document.getElementById('commandModifiedBadge').classList.add('hidden');
+        
+        // Re-validate original command
+        const modal = document.getElementById('commandEditorModal');
+        if (modal) {
+            const card = document.getElementById(cardId);
+            if (card) {
+                const server = card.querySelector('.text-gray-500')?.textContent || '';
+                validateCommand(originalCommand, server);
+            }
+        }
+    }
+}
+
+function copyCommandFromEditor() {
+    const textarea = document.getElementById('editableCommand');
+    if (textarea) {
+        copyToClipboard(textarea.value);
+    }
+}
+
+function closeCommandEditor() {
+    const modal = document.getElementById('commandEditorModal');
+    if (modal) {
+        modal.remove();
+    }
+}
+
+function executeFromEditor(cardId, server) {
+    const textarea = document.getElementById('editableCommand');
+    if (!textarea) return;
+    
+    const command = textarea.value.trim();
+    if (!command) {
+        showToast('Command cannot be empty', 'error');
+        return;
+    }
+    
+    closeCommandEditor();
+    
+    // Update the queue item with the edited command
+    const queueItem = commandQueue.find(c => c.id === cardId);
+    if (queueItem) {
+        queueItem.command = command;
+    }
+    
+    // Update the displayed command in the card
+    const card = document.getElementById(cardId);
+    if (card) {
+        const cmdDisplay = card.querySelector('.bg-black');
+        if (cmdDisplay) {
+            cmdDisplay.textContent = command;
+        }
+    }
+    
+    // Execute via existing flow
+    runQueuedCommand(cardId, { dataset: { cmd: command, server: server } });
 }
 
 // ============= COMMAND QUEUE SYSTEM =============
@@ -1256,6 +1629,14 @@ async function sendMessage(e) {
     const input = document.getElementById('chatInput');
     const text = input.value.trim();
     if (!text) return;
+
+    // Reset progress and reasoning panels for new investigation
+    if (typeof resetProgress === 'function') {
+        resetProgress();
+    }
+    if (typeof resetReasoningPanel === 'function') {
+        resetReasoningPanel();
+    }
 
     // Detect "issue resolved" type messages and show feedback prompt (lenient for typos)
     const resolvedPatterns = /\b(issue|problem|fixed|works|working|worked|solv|resolv|done|thank|thanks)\b/i;

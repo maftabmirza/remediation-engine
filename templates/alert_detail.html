@@ -322,6 +322,10 @@
         const labelsHtml = Object.entries(alert.labels_json || {})
             .map(([k, v]) => `<span class="inline-block bg-gray-700 px-2 py-1 rounded text-sm mr-2 mb-2">${k}: ${v}</span>`)
             .join('');
+        
+        // Update header title
+        const headerTitle = document.getElementById('header_alert_name');
+        if (headerTitle) headerTitle.textContent = alert.alert_name;
 
         const annotationsHtml = Object.entries(alert.annotations_json || {})
             .map(([k, v]) => `<div class="mb-1"><span class="text-gray-400">${k}:</span> <span class="ml-2">${v}</span></div>`)
