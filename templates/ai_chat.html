@@ -633,7 +633,25 @@
 {% block scripts %}
 {{ super() }}
 <script src="/static/js/progress_indicator.js?v=1.0"></script>
-<script src="/static/js/ai_chat.js?v=1.3"></script>
+<script src="/static/js/ai_chat.js?v=1.4"></script>
+<script>
+    // Minimal failsafe: keep inline onclick handlers working even if the main
+    // ai_chat.js bundle is cached/blocked/errored.
+    (function () {
+        if (typeof window.toggleSessionDropdown !== 'function') {
+            window.toggleSessionDropdown = function () {
+                const dropdown = document.getElementById('sessionDropdown');
+                if (dropdown) dropdown.classList.toggle('hidden');
+            };
+        }
+        if (typeof window.toggleModelDropdown !== 'function') {
+            window.toggleModelDropdown = function () {
+                const dropdown = document.getElementById('modelDropdown');
+                if (dropdown) dropdown.classList.toggle('hidden');
+            };
+        }
+    })();
+</script>
 <script>
     // ============================================================================
     // Right Pane Toggle (Terminal / Data Output)
