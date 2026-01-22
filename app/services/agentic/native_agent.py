@@ -753,6 +753,11 @@ Tools called so far will be tracked. If you try to suggest a command without suf
 
             # Execute the tool
             result = await self.tool_registry.execute(tool_name, arguments)
+            
+            # DEBUG: Log the actual tool result
+            logger.warning(f"=== TOOL RESULT for {tool_name} ===")
+            logger.warning(f"Result (first 500 chars): {str(result)[:500]}")
+            logger.warning(f"=== END TOOL RESULT ===")
 
             # Invoke callback if provided (e.g., for logging to DB)
             if self.on_tool_call_complete:

@@ -33,7 +33,7 @@ Start-Sleep -Seconds 10
 
 # 5. Run Migrations
 Write-Host "Running database migrations..." -ForegroundColor Cyan
-docker-compose exec remediation-engine python run_migrations.py
+docker-compose exec remediation-engine alembic upgrade head
 
 Write-Host "`nSetup Complete!" -ForegroundColor Green
 Write-Host "You can access the application at: http://localhost:8080"

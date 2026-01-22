@@ -292,6 +292,25 @@ class QueryTranslator:
                 limit=1
             ))
 
+        elif intent.intent_type == "alerts":
+            # Active firing alerts count
+            count_query = f'count(ALERTS{{alertstate="firing",{labels.strip("{}")}}})'
+            queries.append(TranslatedQuery(
+                query_language="promql",
+                query=count_query,
+                time_range=intent.time_range,
+                limit=1
+            ))
+
+            # List of active alerts
+            list_query = f'ALERTS{{alertstate="firing",{labels.strip("{}")}}}'
+            queries.append(TranslatedQuery(
+                query_language="promql",
+                query=list_query,
+                time_range=intent.time_range,
+                limit=10
+            ))
+
         elif intent.intent_type == "metrics":
             # Generic metrics queries
             # Request rate

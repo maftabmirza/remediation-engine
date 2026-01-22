@@ -108,165 +108,166 @@
 <div class="space-y-4">
     <div id="runbooksGrid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
 
-    <!-- Filters & Bulk Actions -->
-    <div class="card p-4 flex flex-wrap gap-4 items-center">
-        <div class="flex-1">
-            <input type="text" id="searchInput" placeholder="Search runbooks..." onkeyup="filterRunbooks()"
-                class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+        <!-- Filters & Bulk Actions -->
+        <div class="card p-4 flex flex-wrap gap-4 items-center">
+            <div class="flex-1">
+                <input type="text" id="searchInput" placeholder="Search runbooks..." onkeyup="filterRunbooks()"
+                    class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+            </div>
+            <select id="statusFilter" onchange="filterRunbooks()"
+                class="bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                <option value="">All Status</option>
+                <option value="active">Active</option>
+                <option value="draft">Draft</option>
+                <option value="disabled">Disabled</option>
+            </select>
+            <select id="categoryFilter" onchange="filterRunbooks()"
+                class="bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                <option value="">All Categories</option>
+                <option value="infrastructure">Infrastructure</option>
+                <option value="application">Application</option>
+                <option value="database">Database</option>
+                <option value="network">Network</option>
+                <option value="security">Security</option>
+            </select>
         </div>
-        <select id="statusFilter" onchange="filterRunbooks()"
-            class="bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
-            <option value="">All Status</option>
-            <option value="active">Active</option>
-            <option value="draft">Draft</option>
-            <option value="disabled">Disabled</option>
-        </select>
-        <select id="categoryFilter" onchange="filterRunbooks()"
-            class="bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
-            <option value="">All Categories</option>
-            <option value="infrastructure">Infrastructure</option>
-            <option value="application">Application</option>
-            <option value="database">Database</option>
-            <option value="network">Network</option>
-            <option value="security">Security</option>
-        </select>
+        <!-- Bulk Actions -->
+        <div id="bulkActionsBar"
+            class="hidden flex items-center gap-3 p-3 bg-blue-900 bg-opacity-20 rounded-lg border border-blue-500">
+            <span id="selectedCount" class="text-sm text-primary font-medium">0 selected</span>
+            <button onclick="bulkEnable()" class="btn-secondary px-3 py-1 rounded text-sm">
+                <i class="fas fa-check-circle mr-1"></i>Enable
+            </button>
+            <button onclick="bulkDisable()" class="btn-secondary px-3 py-1 rounded text-sm">
+                <i class="fas fa-ban mr-1"></i>Disable
+            </button>
+            <button onclick="bulkDelete()"
+                class="btn-secondary px-3 py-1 rounded text-sm text-red-400 hover:text-red-300">
+                <i class="fas fa-trash mr-1"></i>Delete
+            </button>
+            <button onclick="clearSelection()" class="btn-secondary px-3 py-1 rounded text-sm ml-auto">
+                Clear Selection
+            </button>
+        </div>
     </div>
-    <!-- Bulk Actions -->
-    <div id="bulkActionsBar"
-        class="hidden flex items-center gap-3 p-3 bg-blue-900 bg-opacity-20 rounded-lg border border-blue-500">
-        <span id="selectedCount" class="text-sm text-primary font-medium">0 selected</span>
-        <button onclick="bulkEnable()" class="btn-secondary px-3 py-1 rounded text-sm">
-            <i class="fas fa-check-circle mr-1"></i>Enable
-        </button>
-        <button onclick="bulkDisable()" class="btn-secondary px-3 py-1 rounded text-sm">
-            <i class="fas fa-ban mr-1"></i>Disable
-        </button>
-        <button onclick="bulkDelete()" class="btn-secondary px-3 py-1 rounded text-sm text-red-400 hover:text-red-300">
-            <i class="fas fa-trash mr-1"></i>Delete
-        </button>
-        <button onclick="clearSelection()" class="btn-secondary px-3 py-1 rounded text-sm ml-auto">
-            Clear Selection
-        </button>
-    </div>
-</div>
 
-<!-- Stats Cards -->
-<div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-    <div class="card p-4">
-        <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-lg bg-blue-500 bg-opacity-20 flex items-center justify-center">
-                <i class="fas fa-book text-blue-400"></i>
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="card p-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-blue-500 bg-opacity-20 flex items-center justify-center">
+                    <i class="fas fa-book text-blue-400"></i>
+                </div>
+                <div>
+                    <p class="text-secondary text-sm">Total Runbooks</p>
+                    <p class="text-xl font-bold text-primary" id="totalCount">0</p>
+                </div>
             </div>
-            <div>
-                <p class="text-secondary text-sm">Total Runbooks</p>
-                <p class="text-xl font-bold text-primary" id="totalCount">0</p>
+        </div>
+        <div class="card p-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-green-500 bg-opacity-20 flex items-center justify-center">
+                    <i class="fas fa-check-circle text-green-400"></i>
+                </div>
+                <div>
+                    <p class="text-secondary text-sm">Active</p>
+                    <p class="text-xl font-bold text-primary" id="activeCount">0</p>
+                </div>
+            </div>
+        </div>
+        <div class="card p-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-yellow-500 bg-opacity-20 flex items-center justify-center">
+                    <i class="fas fa-edit text-yellow-400"></i>
+                </div>
+                <div>
+                    <p class="text-secondary text-sm">Drafts</p>
+                    <p class="text-xl font-bold text-primary" id="draftCount">0</p>
+                </div>
+            </div>
+        </div>
+        <div class="card p-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-purple-500 bg-opacity-20 flex items-center justify-center">
+                    <i class="fas fa-play text-purple-400"></i>
+                </div>
+                <div>
+                    <p class="text-secondary text-sm">Executions Today</p>
+                    <p class="text-xl font-bold text-primary" id="executionCount">0</p>
+                </div>
             </div>
         </div>
     </div>
-    <div class="card p-4">
-        <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-lg bg-green-500 bg-opacity-20 flex items-center justify-center">
-                <i class="fas fa-check-circle text-green-400"></i>
-            </div>
-            <div>
-                <p class="text-secondary text-sm">Active</p>
-                <p class="text-xl font-bold text-primary" id="activeCount">0</p>
-            </div>
-        </div>
-    </div>
-    <div class="card p-4">
-        <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-lg bg-yellow-500 bg-opacity-20 flex items-center justify-center">
-                <i class="fas fa-edit text-yellow-400"></i>
-            </div>
-            <div>
-                <p class="text-secondary text-sm">Drafts</p>
-                <p class="text-xl font-bold text-primary" id="draftCount">0</p>
-            </div>
-        </div>
-    </div>
-    <div class="card p-4">
-        <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-lg bg-purple-500 bg-opacity-20 flex items-center justify-center">
-                <i class="fas fa-play text-purple-400"></i>
-            </div>
-            <div>
-                <p class="text-secondary text-sm">Executions Today</p>
-                <p class="text-xl font-bold text-primary" id="executionCount">0</p>
-            </div>
-        </div>
-    </div>
-</div>
 
-<!-- Runbooks Table -->
-<div class="card overflow-hidden">
-    <table class="w-full text-sm">
-        <thead>
-            <tr class="bg-[#181b1f] text-left text-[#8e8e8e]"
-                style="border-bottom: 1px solid rgba(204, 204, 220, 0.07);">
-                <th class="px-4 py-3 font-medium w-10">
-                    <input type="checkbox" id="selectAllCheckbox" onclick="toggleSelectAll()" class="h-4 w-4">
-                </th>
-                <th class="px-4 py-3 font-medium">Name</th>
-                <th class="px-4 py-3 font-medium">Status</th>
-                <th class="px-4 py-3 font-medium">Category</th>
-                <th class="px-4 py-3 font-medium hidden md:table-cell">Steps</th>
-                <th class="px-4 py-3 font-medium hidden md:table-cell">Triggers</th>
-                <th class="px-4 py-3 font-medium hidden lg:table-cell">Created</th>
-                <th class="px-4 py-3 font-medium hidden lg:table-cell">Updated</th>
-                <th class="px-4 py-3 font-medium text-right">Actions</th>
-            </tr>
-        </thead>
-        <tbody id="runbooks-tbody" class="text-[#ccccdc]">
-            <!-- Populated by JavaScript -->
-        </tbody>
-    </table>
-</div>
-
-<!-- Pagination -->
-<div id="pagination-container" class="flex items-center justify-between mt-4 text-sm hidden">
-    <div class="text-[#8e8e8e]">
-        Showing <span id="showing-start">0</span>-<span id="showing-end">0</span> of <span id="total-count">0</span>
-        runbooks
+    <!-- Runbooks Table -->
+    <div class="card overflow-hidden">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="bg-[#181b1f] text-left text-[#8e8e8e]"
+                    style="border-bottom: 1px solid rgba(204, 204, 220, 0.07);">
+                    <th class="px-4 py-3 font-medium w-10">
+                        <input type="checkbox" id="selectAllCheckbox" onclick="toggleSelectAll()" class="h-4 w-4">
+                    </th>
+                    <th class="px-4 py-3 font-medium">Name</th>
+                    <th class="px-4 py-3 font-medium">Status</th>
+                    <th class="px-4 py-3 font-medium">Category</th>
+                    <th class="px-4 py-3 font-medium hidden md:table-cell">Steps</th>
+                    <th class="px-4 py-3 font-medium hidden md:table-cell">Triggers</th>
+                    <th class="px-4 py-3 font-medium hidden lg:table-cell">Created</th>
+                    <th class="px-4 py-3 font-medium hidden lg:table-cell">Updated</th>
+                    <th class="px-4 py-3 font-medium text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="runbooks-tbody" class="text-[#ccccdc]">
+                <!-- Populated by JavaScript -->
+            </tbody>
+        </table>
     </div>
-    <div class="flex items-center gap-2">
-        <button onclick="goToPage(1)" id="first-page-btn" disabled
-            class="px-3 py-1.5 rounded border border-[rgba(204,204,220,0.12)] bg-[#181b1f] text-[#ccccdc] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#22252b] transition-colors">
-            <i class="fas fa-angle-double-left"></i>
-        </button>
-        <button onclick="goToPage(currentPage - 1)" id="prev-page-btn" disabled
-            class="px-3 py-1.5 rounded border border-[rgba(204,204,220,0.12)] bg-[#181b1f] text-[#ccccdc] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#22252b] transition-colors">
-            <i class="fas fa-angle-left"></i>
-        </button>
-        <span class="px-3 py-1.5 text-[#ccccdc]">Page <span id="current-page">1</span> of <span
-                id="total-pages">1</span></span>
-        <button onclick="goToPage(currentPage + 1)" id="next-page-btn" disabled
-            class="px-3 py-1.5 rounded border border-[rgba(204,204,220,0.12)] bg-[#181b1f] text-[#ccccdc] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#22252b] transition-colors">
-            <i class="fas fa-angle-right"></i>
-        </button>
-        <button onclick="goToPage(totalPages)" id="last-page-btn" disabled
-            class="px-3 py-1.5 rounded border border-[rgba(204,204,220,0.12)] bg-[#181b1f] text-[#ccccdc] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#22252b] transition-colors">
-            <i class="fas fa-angle-double-right"></i>
-        </button>
-        <select id="page-size" onchange="changePageSize(this.value)"
-            class="px-3 py-1.5 rounded border border-[rgba(204,204,220,0.12)] bg-[#181b1f] text-[#ccccdc] focus:outline-none focus:border-[#3d71d9]">
-            <option value="10">10 per page</option>
-            <option value="25" selected>25 per page</option>
-            <option value="50">50 per page</option>
-            <option value="100">100 per page</option>
-        </select>
-    </div>
-</div>
 
-<!-- Empty State -->
-<div id="emptyState" class="card p-12 text-center hidden">
-    <i class="fas fa-book-open text-4xl text-secondary mb-4"></i>
-    <h3 class="text-lg font-medium text-primary mb-2">No Runbooks Found</h3>
-    <p class="text-secondary mb-4">Create your first runbook to start automating remediation tasks.</p>
-    <button onclick="openCreateModal()" class="btn-primary px-4 py-2 rounded-lg">
-        <i class="fas fa-plus mr-2"></i>Create Runbook
-    </button>
-</div>
+    <!-- Pagination -->
+    <div id="pagination-container" class="flex items-center justify-between mt-4 text-sm hidden">
+        <div class="text-[#8e8e8e]">
+            Showing <span id="showing-start">0</span>-<span id="showing-end">0</span> of <span id="total-count">0</span>
+            runbooks
+        </div>
+        <div class="flex items-center gap-2">
+            <button onclick="goToPage(1)" id="first-page-btn" disabled
+                class="px-3 py-1.5 rounded border border-[rgba(204,204,220,0.12)] bg-[#181b1f] text-[#ccccdc] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#22252b] transition-colors">
+                <i class="fas fa-angle-double-left"></i>
+            </button>
+            <button onclick="goToPage(currentPage - 1)" id="prev-page-btn" disabled
+                class="px-3 py-1.5 rounded border border-[rgba(204,204,220,0.12)] bg-[#181b1f] text-[#ccccdc] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#22252b] transition-colors">
+                <i class="fas fa-angle-left"></i>
+            </button>
+            <span class="px-3 py-1.5 text-[#ccccdc]">Page <span id="current-page">1</span> of <span
+                    id="total-pages">1</span></span>
+            <button onclick="goToPage(currentPage + 1)" id="next-page-btn" disabled
+                class="px-3 py-1.5 rounded border border-[rgba(204,204,220,0.12)] bg-[#181b1f] text-[#ccccdc] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#22252b] transition-colors">
+                <i class="fas fa-angle-right"></i>
+            </button>
+            <button onclick="goToPage(totalPages)" id="last-page-btn" disabled
+                class="px-3 py-1.5 rounded border border-[rgba(204,204,220,0.12)] bg-[#181b1f] text-[#ccccdc] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#22252b] transition-colors">
+                <i class="fas fa-angle-double-right"></i>
+            </button>
+            <select id="page-size" onchange="changePageSize(this.value)"
+                class="px-3 py-1.5 rounded border border-[rgba(204,204,220,0.12)] bg-[#181b1f] text-[#ccccdc] focus:outline-none focus:border-[#3d71d9]">
+                <option value="10">10 per page</option>
+                <option value="25" selected>25 per page</option>
+                <option value="50">50 per page</option>
+                <option value="100">100 per page</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Empty State -->
+    <div id="emptyState" class="card p-12 text-center hidden">
+        <i class="fas fa-book-open text-4xl text-secondary mb-4"></i>
+        <h3 class="text-lg font-medium text-primary mb-2">No Runbooks Found</h3>
+        <p class="text-secondary mb-4">Create your first runbook to start automating remediation tasks.</p>
+        <button onclick="openCreateModal()" class="btn-primary px-4 py-2 rounded-lg">
+            <i class="fas fa-plus mr-2"></i>Create Runbook
+        </button>
+    </div>
 </div>
 
 <!-- Create/Edit Runbook Modal -->
@@ -1117,73 +1118,8 @@
     }
 
     async function viewRunbook(id) {
-        try {
-            const response = await fetch(`/api/remediation/runbooks/${id}`);
-            if (response.ok) {
-                const rb = await response.json();
-
-                const detailStatus = deriveStatus(rb);
-                document.getElementById('viewTitle').textContent = rb.name;
-                document.getElementById('viewContent').innerHTML = `
-                <div class="space-y-4">
-                    <div class="flex items-center gap-2">
-                        <span class="px-2 py-1 rounded text-xs font-medium ${getStatusClass(detailStatus)}">${detailStatus}</span>
-                        <span class="text-secondary text-sm">${rb.category || 'Uncategorized'}</span>
-                    </div>
-                    <p class="text-secondary">${escapeHtml(rb.description || 'No description')}</p>
-                    
-                    <div class="grid grid-cols-3 gap-4 text-sm">
-                        <div class="card p-3">
-                            <p class="text-secondary">Approval</p>
-                            <p class="text-primary font-medium">${rb.approval_required ? 'Required' : 'Not required'}</p>
-                        </div>
-                        <div class="card p-3">
-                            <p class="text-secondary">Cooldown</p>
-                            <p class="text-primary font-medium">${rb.cooldown_minutes || 0} min</p>
-                        </div>
-                        <div class="card p-3">
-                            <p class="text-secondary">Version</p>
-                            <p class="text-primary font-medium">${rb.version || 1}</p>
-                        </div>
-                    </div>
-                    
-                    <div>
-                        <h4 class="font-medium text-primary mb-2">Steps (${rb.steps?.length || 0})</h4>
-                        <div class="space-y-2">
-                            ${(rb.steps || []).map((step, i) => `
-                                <div class="card p-3">
-                                    <div class="flex items-center gap-2 mb-1">
-                                        <span class="w-6 h-6 rounded-full bg-blue-500 bg-opacity-20 text-blue-400 text-xs flex items-center justify-center">${i + 1}</span>
-                                        <span class="font-medium text-primary">${escapeHtml(step.name)}</span>
-                                        <span class="text-xs px-2 py-0.5 rounded bg-gray-700 text-secondary">${escapeHtml(step.target_os || 'any')}</span>
-                                    </div>
-                                    <code class="text-xs text-green-400 bg-gray-800 px-2 py-1 rounded block mt-2">${escapeHtml(step.command_linux || step.command_windows || '')}</code>
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>
-                    
-                    <div>
-                        <h4 class="font-medium text-primary mb-2">Triggers (${rb.triggers?.length || 0})</h4>
-                        <div class="space-y-2">
-                            ${(rb.triggers || []).map(trigger => `
-                                <div class="card p-3 flex items-center gap-2">
-                                    <i class="fas fa-bolt text-yellow-400"></i>
-                                    <span class="text-primary">Alert Pattern</span>
-                                    <span class="text-secondary">: ${escapeHtml(trigger.alert_name_pattern || 'N/A')}</span>
-                                </div>
-                            `).join('') || '<p class="text-secondary text-sm">No triggers configured</p>'}
-                        </div>
-                    </div>
-                </div>
-            `;
-
-                document.getElementById('viewModal').classList.remove('hidden');
-            }
-        } catch (error) {
-            console.error('Error viewing runbook:', error);
-            showToast('Error loading runbook details', 'error');
-        }
+        // Navigate to the runbook view page
+        window.location.href = `/runbooks/${id}/view`;
     }
 
     function closeViewModal() {

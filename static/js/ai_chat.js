@@ -266,7 +266,7 @@ function initReasoningPanel() {
     if (!chatMessages || document.getElementById('reasoningPanel')) {
         return; // Already exists or can't create
     }
-    
+
     const panel = document.createElement('div');
     panel.id = 'reasoningPanel';
     panel.className = 'reasoning-panel hidden bg-gray-900 border border-gray-700 rounded-lg mb-4';
@@ -282,7 +282,7 @@ function initReasoningPanel() {
             <div class="text-gray-500 text-sm">Waiting for investigation to start...</div>
         </div>
     `;
-    
+
     chatMessages.parentElement.insertBefore(panel, chatMessages);
 }
 
@@ -290,9 +290,9 @@ function toggleReasoningPanel() {
     const panel = document.getElementById('reasoningPanel');
     const icon = document.getElementById('reasoningToggleIcon');
     if (!panel) return;
-    
+
     reasoningPanelVisible = !reasoningPanelVisible;
-    
+
     if (reasoningPanelVisible) {
         panel.classList.remove('collapsed');
         icon.className = 'fas fa-chevron-down text-gray-500';
@@ -305,7 +305,7 @@ function toggleReasoningPanel() {
 function handleReasoningEvent(data) {
     reasoningHistory.push(data);
     renderReasoningSteps();
-    
+
     // Show panel if hidden
     const panel = document.getElementById('reasoningPanel');
     if (panel && panel.classList.contains('hidden')) {
@@ -316,7 +316,7 @@ function handleReasoningEvent(data) {
 function renderReasoningSteps() {
     const body = document.getElementById('reasoningBody');
     if (!body) return;
-    
+
     const phaseIcons = {
         'identify': '🔍',
         'verify': '✅',
@@ -324,7 +324,7 @@ function renderReasoningSteps() {
         'plan': '🧠',
         'act': '🛠️'
     };
-    
+
     const phaseTitles = {
         'identify': 'Identify',
         'verify': 'Verify',
@@ -332,7 +332,7 @@ function renderReasoningSteps() {
         'plan': 'Plan',
         'act': 'Act'
     };
-    
+
     const phaseColors = {
         'identify': 'border-blue-500',
         'verify': 'border-green-500',
@@ -340,15 +340,15 @@ function renderReasoningSteps() {
         'plan': 'border-purple-500',
         'act': 'border-pink-500'
     };
-    
+
     const currentPhase = reasoningHistory.length > 0 ? reasoningHistory[reasoningHistory.length - 1].phase : null;
-    
+
     body.innerHTML = reasoningHistory.map((step, i) => {
         const isCurrent = step.phase === currentPhase && i === reasoningHistory.length - 1;
         const icon = phaseIcons[step.phase] || '❓';
         const title = phaseTitles[step.phase] || step.phase;
         const borderColor = phaseColors[step.phase] || 'border-gray-500';
-        
+
         return `
             <div class="reasoning-step ${isCurrent ? 'current' : ''} mb-3 pl-4 border-l-2 ${borderColor}">
                 <div class="flex items-center text-xs font-medium mb-1">
@@ -365,7 +365,7 @@ function renderReasoningSteps() {
             </div>
         `;
     }).join('');
-    
+
     // Auto-scroll to bottom
     body.scrollTop = body.scrollHeight;
 }
@@ -699,7 +699,7 @@ function appendAIMessage(text, skipRunButtons = false) {
         'get_service_dependencies', 'get_feedback_history', 'get_alert_details',
         'get_proven_solutions', 'suggest_ssh_command'
     ];
-    
+
     while ((match = cmdCardRegex.exec(text)) !== null) {
         try {
             const cardData = JSON.parse(match[1]);
@@ -786,15 +786,31 @@ function appendAIMessage(text, skipRunButtons = false) {
         if (lastMessageRole !== 'assistant' || !currentMessageDiv) {
             const wrapper = document.createElement('div');
             wrapper.className = 'flex justify-start w-full pr-2';
+            const messageId = 'msg-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
             wrapper.innerHTML = `
                 <div class="ai-message-wrapper w-full">
-                    <div class="flex items-center mb-2">
-                        <div class="w-6 h-6 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center mr-2">
-                            <i class="fas fa-robot text-white text-xs"></i>
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="flex items-center">
+                            <div class="w-6 h-6 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center mr-2">
+                                <i class="fas fa-robot text-white text-xs"></i>
+                            </div>
+                            <span class="text-xs text-gray-400">AI Assistant</span>
                         </div>
-                        <span class="text-xs text-gray-400">AI Assistant</span>
+                        <!-- Feedback Buttons (only in troubleshoot mode) -->
+                        <div class="feedback-buttons hidden" id="feedback-${messageId}">
+                            <button onclick="submitFeedback('${messageId}', true, this)" 
+                                    class="text-xs text-gray-500 hover:text-green-400 px-2 py-1 transition-colors"
+                                    title="This solution was helpful">
+                                <i class="fas fa-thumbs-up"></i>
+                            </button>
+                            <button onclick="submitFeedback('${messageId}', false, this)" 
+                                    class="text-xs text-gray-500 hover:text-red-400 px-2 py-1 transition-colors"
+                                    title="This solution didn't help">
+                                <i class="fas fa-thumbs-down"></i>
+                            </button>
+                        </div>
                     </div>
-                    <div class="bg-gray-800/80 rounded-lg p-4 border border-gray-700 text-sm ai-message-content shadow-lg" data-full-text=""></div>
+                    <div class="bg-gray-800/80 rounded-lg p-4 border border-gray-700 text-sm ai-message-content shadow-lg" data-full-text="" data-message-id="${messageId}"></div>
                 </div>
             `;
             container.appendChild(wrapper);
@@ -803,15 +819,51 @@ function appendAIMessage(text, skipRunButtons = false) {
         }
         if (currentMessageDiv) {
             const currentText = currentMessageDiv.getAttribute('data-full-text') || '';
-            const newText = currentText + cleanText;
+            let newText = currentText + cleanText;
+
+            // Post-process for tags that may have been split across chunks (reconstituted in newText)
+            // 1. SUGGESTIONS
+            const fullSuggestionsRegex = /\[SUGGESTIONS\](.*?)\[\/SUGGESTIONS\]/gs;
+            let fullMatch;
+            let foundFullSuggestions = false;
+            let extractedFullSuggestions = [];
+
+            while ((fullMatch = fullSuggestionsRegex.exec(newText)) !== null) {
+                try {
+                    const parsed = JSON.parse(fullMatch[1]);
+                    if (Array.isArray(parsed)) {
+                        extractedFullSuggestions = extractedFullSuggestions.concat(parsed);
+                        foundFullSuggestions = true;
+                    }
+                } catch (e) { /* ignore parse errors until fully formed */ }
+            }
+
+            if (foundFullSuggestions) {
+                newText = newText.replace(fullSuggestionsRegex, '');
+                renderSuggestionButtons(extractedFullSuggestions);
+            }
+
             currentMessageDiv.setAttribute('data-full-text', newText);
             currentMessageDiv.innerHTML = marked.parse(newText);
-            // Only add "Run in Terminal" buttons in Inquiry mode (troubleshoot uses CMD_CARDs)
+
+            // Show feedback buttons in troubleshoot mode after message content is added
             const chatMode = typeof currentChatMode !== 'undefined' ? currentChatMode : 'troubleshoot';
+            if (chatMode === 'troubleshoot') {
+                const messageId = currentMessageDiv.getAttribute('data-message-id');
+                if (messageId) {
+                    const feedbackDiv = document.getElementById(`feedback-${messageId}`);
+                    if (feedbackDiv) {
+                        feedbackDiv.classList.remove('hidden');
+                    }
+                }
+            }
+
+            // Only add "Run in Terminal" buttons in Inquiry mode (troubleshoot uses CMD_CARDs)
             if (!skipRunButtons && !hasCards && chatMode === 'general') {
                 addRunButtons(currentMessageDiv);
             }
         }
+
     }
 
     // RENDER COMMAND CARDS AFTER TEXT (with queue system)
@@ -973,6 +1025,138 @@ function sendSuggestionAction(text) {
     }
 }
 
+/**
+ * Submit feedback on AI solution
+ * @param {string} messageId - The unique message ID
+ * @param {boolean} helpful - Whether the solution was helpful
+ * @param {HTMLElement} button - The button element that was clicked
+ */
+async function submitFeedback(messageId, helpful, button) {
+    try {
+        // Get the message content
+        const messageDiv = document.querySelector(`[data-message-id="${messageId}"]`);
+        if (!messageDiv) {
+            console.error('Message not found:', messageId);
+            return;
+        }
+
+        const aiResponseText = messageDiv.getAttribute('data-full-text') || messageDiv.textContent;
+        const currentToken = localStorage.getItem('token');
+
+        // Attempt to find the preceding user message for context (BETTER EMBEDDINGS)
+        let userProblemContext = "";
+        try {
+            // Traverse up to the major wrapper
+            const aiMessageRow = button.closest('.flex.justify-start') || messageDiv.closest('.flex.justify-start');
+            if (aiMessageRow) {
+                let sibling = aiMessageRow.previousElementSibling;
+                // Look back up to 5 siblings to find the user message
+                let attempts = 0;
+                while (sibling && attempts < 5) {
+                    // User messages have 'justify-end' class (see appendUserMessage)
+                    if (sibling.classList.contains('justify-end')) {
+                        const text = sibling.textContent.trim();
+                        // Skip system messages formatted in brackets like [Command Queue...]
+                        if (text.startsWith('[') && text.endsWith(']')) {
+                            console.log("Skipping system message:", text);
+                            sibling = sibling.previousElementSibling;
+                            continue;
+                        }
+
+                        userProblemContext = text;
+                        console.log("Found user context:", userProblemContext);
+                        break;
+                    }
+                    sibling = sibling.previousElementSibling;
+                    attempts++;
+                }
+            }
+        } catch (e) {
+            console.warn("Failed to find user context:", e);
+        }
+
+        // Construct a rich problem description for embedding
+        // If we found the user's question, use that as the primary signal
+        let finalProblemDesc = "";
+        if (userProblemContext) {
+            finalProblemDesc = `User asked: ${userProblemContext}`;
+        } else {
+            finalProblemDesc = `AI Context: ${aiResponseText.substring(0, 200)}`;
+        }
+
+        // Ensure session_id is a valid UUID string or null
+        let sessionId = null;
+        if (typeof currentSessionId !== 'undefined' && currentSessionId) {
+            // Check if it's a valid UUID (simple regex)
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+            if (uuidRegex.test(String(currentSessionId))) {
+                sessionId = String(currentSessionId);
+            } else {
+                console.warn("Current session ID is not a valid UUID, sending null:", currentSessionId);
+            }
+        }
+
+        // Prepare feedback payload matching SolutionFeedbackCreate schema
+        const feedback = {
+            solution_type: 'agent_suggestion',
+            solution_reference: aiResponseText.substring(0, 200) || "No reference",
+            problem_description: finalProblemDesc.substring(0, 500),
+            success: helpful,
+            session_id: sessionId,
+            user_feedback: helpful ? 'Solution was helpful' : 'Solution did not help'
+        };
+
+        console.log('Using token:', currentToken ? 'Yes (Present)' : 'No (Missing)');
+        console.log('Submitting feedback payload:', JSON.stringify(feedback, null, 2));
+
+        // Submit to API using direct fetch to ensure headers are correct
+        const response = await fetch('/api/v1/solution-feedback', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${currentToken}`
+            },
+            body: JSON.stringify(feedback)
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Feedback submission failed:', response.status, errorText);
+            try {
+                const errorJson = JSON.parse(errorText);
+                console.error('Validation details:', errorJson);
+            } catch (e) { }
+
+            throw new Error(`Failed to submit feedback: ${response.status} ${errorText}`);
+        }
+
+        const result = await response.json();
+        console.log('Feedback submitted successfully:', result);
+
+        // Show success state
+        const feedbackDiv = button.closest('.feedback-buttons');
+        if (feedbackDiv) {
+            feedbackDiv.innerHTML = `
+                <span class="text-xs ${helpful ? 'text-green-400' : 'text-yellow-400'} px-2 py-1">
+                    <i class="fas ${helpful ? 'fa-check' : 'fa-info-circle'} mr-1"></i>
+                    ${helpful ? 'Thanks for feedback!' : 'Noted, thanks!'}
+                </span>
+            `;
+        }
+
+        // Optional: Show toast notification
+        if (typeof showToast === 'function') {
+            showToast('Feedback submitted', 'success');
+        }
+
+    } catch (error) {
+        console.error('Error submitting feedback:', error);
+        if (typeof showToast === 'function') {
+            showToast('Failed to submit feedback', 'error');
+        }
+    }
+}
+
 // Render a structured command card from [CMD_CARD] data
 function renderCommandCard(command, server, explanation) {
     const container = document.getElementById('chatMessages');
@@ -998,9 +1182,10 @@ function renderCommandCard(command, server, explanation) {
                     <i class="fas fa-info-circle mr-1"></i>${escapeHtml(explanation)}
                 </div>
                 <div class="cmd-actions flex gap-2">
-                    <button data-cmd="${escapeHtml(command)}" onclick="executeCommandWithOutput('${cardId}', this.dataset.cmd)" 
-                            class="flex-1 bg-green-600 hover:bg-green-500 text-white text-sm px-4 py-2 rounded font-medium transition-colors flex items-center justify-center">
-                        <i class="fas fa-play mr-2"></i>Run in Terminal
+                    <button data-cmd="${escapeHtml(command)}" data-server="${escapeHtml(server)}" data-explanation="${escapeHtml(explanation)}" 
+                            onclick="openCommandEditor('${cardId}', this.dataset.cmd, this.dataset.server, this.dataset.explanation)" 
+                            class="flex-1 bg-blue-600 hover:bg-blue-500 text-white text-sm px-4 py-2 rounded font-medium transition-colors flex items-center justify-center">
+                        <i class="fas fa-play mr-2"></i>Review & Run
                     </button>
                     <button data-cmd="${escapeHtml(command)}" onclick="skipCommand('${cardId}', this.dataset.cmd)" 
                             class="bg-yellow-600 hover:bg-yellow-500 text-white text-sm px-3 py-2 rounded font-medium transition-colors"
@@ -1019,6 +1204,167 @@ function renderCommandCard(command, server, explanation) {
     container.appendChild(wrapper);
     container.scrollTop = container.scrollHeight;
     lastMessageRole = 'assistant';
+}
+
+// NEW: Command editor modal
+function openCommandEditor(cardId, command, server, explanation) {
+    // Remove existing modal if open
+    closeCommandEditor();
+
+    const modal = document.createElement('div');
+    modal.id = 'commandEditorModal';
+    modal.className = 'fixed inset-0 bg-black/70 flex items-center justify-center z-50';
+    modal.innerHTML = `
+        <div class="bg-gray-800 border border-gray-600 rounded-lg w-full max-w-lg mx-4 shadow-2xl">
+            <div class="flex justify-between items-center p-4 border-b border-gray-700">
+                <h3 class="text-lg font-medium text-white">
+                    <i class="fas fa-edit mr-2 text-blue-400"></i>Review Command
+                </h3>
+                <button onclick="closeCommandEditor()" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="p-4">
+                <div class="mb-4">
+                    <label class="text-xs text-gray-400 block mb-1">Target Server</label>
+                    <div class="bg-gray-900 p-2 rounded text-sm text-gray-300">
+                        <i class="fas fa-server mr-2 text-blue-400"></i>${escapeHtml(server)}
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="text-xs text-gray-400 block mb-1">Command</label>
+                    <div class="relative">
+                        <textarea id="editableCommand" 
+                                  class="w-full bg-gray-900 border border-gray-700 rounded p-3 font-mono text-sm text-green-400 focus:border-blue-500 focus:outline-none"
+                                  rows="3">${escapeHtml(command)}</textarea>
+                        <button onclick="resetCommand('${escapeHtml(command).replace(/'/g, "\\'")}')" 
+                                class="absolute top-2 right-2 text-xs text-gray-500 hover:text-white"
+                                title="Reset to original">
+                            <i class="fas fa-undo"></i>
+                        </button>
+                    </div>
+                    <div id="commandModifiedBadge" class="hidden text-xs text-yellow-400 mt-1">
+                        <i class="fas fa-exclamation-triangle mr-1"></i>Modified from original
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="text-xs text-gray-400 block mb-1">Explanation</label>
+                    <div class="bg-gray-900/50 p-2 rounded text-xs text-gray-400 italic">
+                        "${escapeHtml(explanation)}"
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="text-xs text-gray-400 block mb-1">Safety Check</label>
+                    <div id="safetyCheckResult" class="bg-gray-900 p-2 rounded text-sm">
+                        <i class="fas fa-spinner fa-spin mr-2 text-blue-400"></i>Validating...
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex justify-end gap-2 p-4 border-t border-gray-700 bg-gray-900/50">
+                <button onclick="closeCommandEditor()" 
+                        class="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors">
+                    Cancel
+                </button>
+                <button onclick="copyToClipboard(document.getElementById('editableCommand').value)" 
+                        class="px-4 py-2 text-sm bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors">
+                    <i class="fas fa-copy mr-1"></i>Copy
+                </button>
+                <button id="executeBtn" onclick="executeFromEditor('${cardId}', '${escapeHtml(server)}')" 
+                        class="px-4 py-2 text-sm bg-green-600 hover:bg-green-500 text-white rounded font-medium transition-colors">
+                    <i class="fas fa-play mr-1"></i>Execute
+                </button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // Setup change detection
+    const textarea = document.getElementById('editableCommand');
+    textarea.addEventListener('input', () => {
+        const modified = textarea.value !== command;
+        document.getElementById('commandModifiedBadge').classList.toggle('hidden', !modified);
+        if (modified) {
+            validateCommand(textarea.value, server);
+        }
+    });
+
+    // Initial validation
+    validateCommand(command, server);
+}
+
+async function validateCommand(command, server) {
+    const resultDiv = document.getElementById('safetyCheckResult');
+    resultDiv.innerHTML = '<i class="fas fa-spinner fa-spin mr-2 text-blue-400"></i>Validating...';
+
+    try {
+        const response = await fetch('/api/chat/commands/validate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify({ command, server })
+        });
+        const data = await response.json();
+
+        const icons = {
+            'allowed': '<i class="fas fa-check-circle text-green-400 mr-2"></i>',
+            'warning': '<i class="fas fa-exclamation-triangle text-yellow-400 mr-2"></i>',
+            'blocked': '<i class="fas fa-ban text-red-400 mr-2"></i>',
+            'unknown': '<i class="fas fa-question-circle text-gray-400 mr-2"></i>'
+        };
+
+        resultDiv.innerHTML = `${icons[data.result] || ''}${data.message}`;
+
+        // Disable execute button if blocked
+        const execBtn = document.getElementById('executeBtn');
+        if (execBtn) {
+            execBtn.disabled = data.result === 'blocked';
+            execBtn.classList.toggle('opacity-50', data.result === 'blocked');
+            execBtn.classList.toggle('cursor-not-allowed', data.result === 'blocked');
+        }
+    } catch (err) {
+        console.error(err);
+        if (resultDiv) resultDiv.innerHTML = '<i class="fas fa-question-circle text-gray-400 mr-2"></i>Could not validate';
+    }
+}
+
+function closeCommandEditor() {
+    const modal = document.getElementById('commandEditorModal');
+    if (modal) modal.remove();
+}
+
+function resetCommand(original) {
+    const textarea = document.getElementById('editableCommand');
+    if (textarea) {
+        textarea.value = original;
+        textarea.dispatchEvent(new Event('input'));
+    }
+}
+
+function executeFromEditor(cardId, server) {
+    const command = document.getElementById('editableCommand').value;
+    closeCommandEditor();
+
+    // Update the original card's command display if modified
+    const card = document.getElementById(cardId);
+    if (card) {
+        const codeBlock = card.querySelector('.font-mono');
+        if (codeBlock) codeBlock.innerText = command;
+
+        // Update data attributes on buttons for subsequent clicks
+        const buttons = card.querySelectorAll('.cmd-actions button');
+        buttons.forEach(btn => btn.setAttribute('data-cmd', command));
+    }
+
+    // Execute via existing flow
+    executeCommandWithOutput(cardId, command);
 }
 
 // Skip a suggested command and notify the Agent
@@ -1041,7 +1387,7 @@ async function skipCommand(cardId, command) {
 function openCommandEditor(cardId, command, server, explanation) {
     // Remove any existing modal
     closeCommandEditor();
-    
+
     const modal = document.createElement('div');
     modal.id = 'commandEditorModal';
     modal.className = 'fixed inset-0 bg-black/70 flex items-center justify-center z-50';
@@ -1112,13 +1458,13 @@ function openCommandEditor(cardId, command, server, explanation) {
             </div>
         </div>
     `;
-    
+
     document.body.appendChild(modal);
-    
+
     // Store original command
     modal.dataset.originalCommand = command;
     modal.dataset.cardId = cardId;
-    
+
     // Setup change detection
     const textarea = document.getElementById('editableCommand');
     textarea.addEventListener('input', () => {
@@ -1127,7 +1473,7 @@ function openCommandEditor(cardId, command, server, explanation) {
         // Re-validate when modified
         validateCommand(textarea.value, server);
     });
-    
+
     // Initial validation
     validateCommand(command, server);
 }
@@ -1135,36 +1481,36 @@ function openCommandEditor(cardId, command, server, explanation) {
 async function validateCommand(command, server) {
     const resultDiv = document.getElementById('safetyCheckResult');
     if (!resultDiv) return;
-    
+
     resultDiv.innerHTML = '<i class="fas fa-spinner fa-spin mr-2 text-blue-400"></i>Validating...';
-    
+
     try {
         const response = await fetch('/api/commands/validate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ command, server })
         });
-        
+
         if (!response.ok) {
             throw new Error('Validation failed');
         }
-        
+
         const data = await response.json();
-        
+
         const icons = {
             'allowed': '<i class="fas fa-check-circle text-green-400 mr-2"></i>',
             'warning': '<i class="fas fa-exclamation-triangle text-yellow-400 mr-2"></i>',
             'blocked': '<i class="fas fa-ban text-red-400 mr-2"></i>'
         };
-        
+
         const colors = {
             'allowed': 'text-green-400',
             'warning': 'text-yellow-400',
             'blocked': 'text-red-400'
         };
-        
+
         resultDiv.innerHTML = `<span class="${colors[data.result] || 'text-gray-400'}">${icons[data.result] || ''}${escapeHtml(data.message || 'Unknown status')}</span>`;
-        
+
         // Disable execute button if blocked
         const executeBtn = document.getElementById('executeBtn');
         if (executeBtn) {
@@ -1183,7 +1529,7 @@ function resetCommand(originalCommand, cardId) {
     if (textarea) {
         textarea.value = originalCommand;
         document.getElementById('commandModifiedBadge').classList.add('hidden');
-        
+
         // Re-validate original command
         const modal = document.getElementById('commandEditorModal');
         if (modal) {
@@ -1213,21 +1559,21 @@ function closeCommandEditor() {
 function executeFromEditor(cardId, server) {
     const textarea = document.getElementById('editableCommand');
     if (!textarea) return;
-    
+
     const command = textarea.value.trim();
     if (!command) {
         showToast('Command cannot be empty', 'error');
         return;
     }
-    
+
     closeCommandEditor();
-    
+
     // Update the queue item with the edited command
     const queueItem = commandQueue.find(c => c.id === cardId);
     if (queueItem) {
         queueItem.command = command;
     }
-    
+
     // Update the displayed command in the card
     const card = document.getElementById(cardId);
     if (card) {
@@ -1236,7 +1582,7 @@ function executeFromEditor(cardId, server) {
             cmdDisplay.textContent = command;
         }
     }
-    
+
     // Execute via existing flow
     runQueuedCommand(cardId, { dataset: { cmd: command, server: server } });
 }
@@ -1344,7 +1690,7 @@ async function runQueuedCommand(cardId, btnEl) {
         }
 
         showToast(`Command executed ${isSuccess ? 'successfully' : 'with errors'}`, isSuccess ? 'success' : 'warning');
-        
+
         // Auto-save command outcome for learning (fire-and-forget)
         saveCommandOutcome(command, result.output, isSuccess, result.exitCode);
 
@@ -1357,7 +1703,7 @@ async function runQueuedCommand(cardId, btnEl) {
 
         actionsDiv.innerHTML = '<div class="text-red-400 text-xs p-2"><i class="fas fa-times-circle mr-1"></i>Failed to execute</div>';
         showToast('Command execution failed: ' + err.message, 'error');
-        
+
         // Auto-save failed outcome for learning
         saveCommandOutcome(command, err.message, false, -1);
     }
@@ -2485,39 +2831,14 @@ async function captureTerminalOutput(cardId, command) {
 }
 
 // Submit feedback on whether a solution worked
-async function submitFeedback(feedbackId, command, success) {
-    const feedbackDiv = document.getElementById(feedbackId);
-    if (feedbackDiv) {
-        feedbackDiv.innerHTML = `
-            <div class="text-${success ? 'green' : 'yellow'}-400 text-sm p-2">
-                <i class="fas fa-${success ? 'check' : 'times'} mr-2"></i>
-                ${success ? 'Great! Feedback recorded.' : 'Thanks for letting us know.'}
-            </div>
-            `;
-    }
-
-    // Save feedback to backend
-    try {
-        await apiCall('/api/v1/solution-feedback', {
-            method: 'POST',
-            body: JSON.stringify({
-                solution_type: 'command',
-                solution_reference: command,
-                success: success,
-                session_id: currentSessionId
-            })
-        });
-    } catch (error) {
-        console.error('Failed to save feedback:', error);
-    }
-}
+// function submitFeedback removed (replaced by robust version above)
 
 // Auto-save command execution outcome for learning system (fire-and-forget)
 async function saveCommandOutcome(command, output, success, exitCode) {
     try {
         // Truncate output for storage
         const truncatedOutput = output ? output.substring(0, 500) : '';
-        
+
         await apiCall('/api/v1/solution-feedback', {
             method: 'POST',
             body: JSON.stringify({
@@ -3632,7 +3953,8 @@ async function refreshAgentHQ() {
     const label = document.getElementById('agentHQStatusLabel');
     if (label) label.textContent = 'Refreshing...';
     try {
-        const response = await apiCall(`/api/agents/hq/${currentSessionId}`);
+        const cleanSessionId = currentSessionId.replace('session-', '');
+        const response = await apiCall(`/api/agents/hq/${cleanSessionId}`);
 
         if (!response.ok) throw new Error('Failed to fetch Agent HQ status');
 
@@ -3771,3 +4093,84 @@ setInterval(() => {
         refreshAgentHQ();
     }
 }, 5000);
+
+// --- Missing UI Functions (Restored) ---
+
+function toggleSessionDropdown() {
+    const dropdown = document.getElementById('sessionDropdown');
+    if (dropdown) dropdown.classList.toggle('hidden');
+}
+
+function toggleModelDropdown() {
+    const dropdown = document.getElementById('modelDropdown');
+    if (dropdown) dropdown.classList.toggle('hidden');
+}
+
+function createNewSession() {
+    const dropdown = document.getElementById('sessionDropdown');
+    if (dropdown) dropdown.classList.add('hidden');
+
+    // Clear current state
+    currentSessionId = null;
+    currentSession = null;
+    const chatMsgs = document.getElementById('chatMessages');
+    if (chatMsgs) chatMsgs.innerHTML = '';
+
+    showToast('Starting new session...', 'info');
+
+    // Re-initialize (creates new session if needed via initChatSession logic)
+    // Note: initChatSession attempts 'standalone' first. API might need param for forced new.
+    // For now, simplified reload effect without page refresh.
+    initChatSession();
+}
+
+function switchChatMode(mode) {
+    if (typeof currentChatMode !== 'undefined') currentChatMode = mode;
+
+    const genBtn = document.getElementById('modeGeneralBtn');
+    const trbBtn = document.getElementById('modeTroubleshootBtn');
+
+    if (mode === 'general') {
+        if (genBtn) { genBtn.className = 'px-3 py-1 text-xs font-medium bg-blue-600 text-white rounded-l-lg border-r border-gray-600 flex items-center'; }
+        if (trbBtn) { trbBtn.className = 'px-3 py-1 text-xs font-medium bg-transparent text-gray-400 rounded-r-lg hover:text-white hover:bg-gray-700 flex items-center'; }
+
+        const sessWrap = document.getElementById('sessionSelectorWrapper');
+        if (sessWrap) sessWrap.classList.remove('hidden');
+
+    } else {
+        if (genBtn) { genBtn.className = 'px-3 py-1 text-xs font-medium bg-transparent text-gray-400 rounded-l-lg border-r border-gray-600 flex items-center hover:text-white hover:bg-gray-700'; }
+        if (trbBtn) { trbBtn.className = 'px-3 py-1 text-xs font-medium bg-blue-600 text-white rounded-r-lg flex items-center'; }
+
+        const sessWrap = document.getElementById('sessionSelectorWrapper');
+        if (sessWrap) sessWrap.classList.add('hidden');
+    }
+}
+
+// Bind to window to ensure HTML onclick attribute access
+window.toggleSessionDropdown = toggleSessionDropdown;
+window.toggleModelDropdown = toggleModelDropdown;
+window.createNewSession = createNewSession;
+window.switchChatMode = switchChatMode;
+
+// Compatibility Stubs
+function restoreSession() {
+    return initChatSession();
+}
+window.restoreSession = restoreSession;
+
+// Close dropdowns when clicking outside
+window.addEventListener('click', function (e) {
+    const sessionDropdown = document.getElementById('sessionDropdown');
+    const sessionBtn = document.getElementById('sessionDropdownBtn');
+    if (sessionDropdown && !sessionDropdown.classList.contains('hidden') &&
+        !sessionDropdown.contains(e.target) && (!sessionBtn || !sessionBtn.contains(e.target))) {
+        sessionDropdown.classList.add('hidden');
+    }
+
+    const modelDropdown = document.getElementById('modelDropdown');
+    const modelBtn = document.getElementById('modelIconBtn');
+    if (modelDropdown && !modelDropdown.classList.contains('hidden') &&
+        !modelDropdown.contains(e.target) && (!modelBtn || !modelBtn.contains(e.target))) {
+        modelDropdown.classList.add('hidden');
+    }
+});

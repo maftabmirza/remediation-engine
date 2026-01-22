@@ -26,7 +26,7 @@ from app.models_remediation import *
 from app.models_runbook_acl import *
 from app.models_scheduler import *
 from app.models_troubleshooting import *
-from app.models_revive import *
+from app.models_ai import *
 from app.models_zombies import *
 from app.models_changeset import *
 from app.models_agent_pool import *
@@ -98,6 +98,12 @@ def run_migrations_online() -> None:
 
         with context.begin_transaction():
             context.run_migrations()
+        try:
+             connection.commit()
+             print("DEBUG: Explicit commit executed")
+        except Exception as e:
+             print(f"DEBUG: Explicit commit failed: {e}")
+
 
 
 if context.is_offline_mode():

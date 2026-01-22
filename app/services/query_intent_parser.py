@@ -108,6 +108,12 @@ class QueryIntentParser:
         r'\bis.*running\b',
     ]
 
+    ALERTS_PATTERNS = [
+        r'\b(alerts?|alarms?|incidents?)\b',
+        r'\b(firing|active|pending)\b',
+        r'\b(notifications?)\b',
+    ]
+
     # Time range patterns
     TIME_PATTERNS = {
         r'\b(last|past) (\d+) (second|minute|hour|day|week)s?\b': lambda m: f"{m.group(2)}{m.group(3)[0]}",
@@ -117,27 +123,7 @@ class QueryIntentParser:
         r'\bthis month\b': '30d',
     }
 
-    # Log level patterns
-    LOG_LEVEL_PATTERNS = {
-        r'\b(error|errors)\b': 'error',
-        r'\b(warning|warnings|warn)\b': 'warn',
-        r'\b(info|information)\b': 'info',
-        r'\b(debug|debugging)\b': 'debug',
-    }
-
-    # Application/service patterns
-    APP_PATTERNS = [
-        r'\bfor ([\w-]+) (app|application|service)\b',
-        r'\bin ([\w-]+) (app|application|service)\b',
-        r'\b(app|application|service)[:\s]+([\w-]+)\b',
-    ]
-
-    # HTTP status code patterns
-    HTTP_STATUS_PATTERNS = {
-        r'\b(2\d\d|200|201|204)\b': 'success',
-        r'\b(4\d\d|400|401|403|404)\b': 'client_error',
-        r'\b(5\d\d|500|502|503|504)\b': 'server_error',
-    }
+    # ... (existing code) ...
 
     def parse(self, query: str) -> QueryIntent:
         """
@@ -166,6 +152,7 @@ class QueryIntentParser:
             "logs": self._score_patterns(query_lower, self.LOGS_PATTERNS),
             "traces": self._score_patterns(query_lower, self.TRACES_PATTERNS),
             "metrics": self._score_patterns(query_lower, self.METRICS_PATTERNS),
+            "alerts": self._score_patterns(query_lower, self.ALERTS_PATTERNS),
         }
 
         # Select highest scoring intent
@@ -183,7 +170,7 @@ class QueryIntentParser:
         )
         intent.requires_metrics = (
             intent_scores["metrics"] > 0 or
-            intent.intent_type in ["performance", "health", "metrics"]
+            intent.intent_type in ["performance", "health", "metrics", "alerts"]
         )
 
         # Extract time range

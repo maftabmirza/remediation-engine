@@ -15,12 +15,16 @@ passlib[bcrypt]==1.7.4
 bcrypt==4.1.2
 cryptography==42.0.2
 
-# LLM
+# AI/ML Libraries
 litellm>=1.55.0
-anthropic>=0.30.0
-langchain==0.1.16
-langchain-community==0.0.34
-asyncssh==2.14.2
+anthropic>=0.42.0
+openai>=1.12.0
+langchain>=0.1.0
+langchain-community>=0.0.19
+sentence-transformers>=2.3.1
+
+# MCP (Model Context Protocol) SDK
+mcp>=1.0.0  # Official Python MCP SDK for Grafana integration
 pywinrm>=0.4.3
 
 # Templates

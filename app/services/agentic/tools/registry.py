@@ -18,6 +18,10 @@ from app.services.agentic.tools.observability_tools import ObservabilityTools
 from app.services.agentic.tools.troubleshooting_tools import TroubleshootingTools
 from app.services.agentic.tools.background_tools import BackgroundTools
 from app.services.agentic.tools.system_info_tools import SystemInfoTools
+from app.services.agentic.tools.inquiry_tools import InquiryTools
+from app.services.revive.tools.grafana_tools import GrafanaTools
+from app.services.revive.tools.aiops_tools import AIOpsTools
+from app.services.revive.tools.revive_aiops_helper import ReviveAIOpsHelper
 
 logger = logging.getLogger(__name__)
 
@@ -29,27 +33,19 @@ class CompositeToolRegistry:
     Provides the same interface as the original ToolRegistry but
     internally delegates to modular tool modules. This allows
     different modes to use different combinations of tools.
-    
-    Usage:
-        # Full registry (all tools)
-        registry = CompositeToolRegistry(db, alert_id)
-        
-        # Knowledge only (for read-only modes)
-        registry = CompositeToolRegistry(db, modules=['knowledge'])
-        
-        # Custom combination
-        registry = CompositeToolRegistry(db, modules=['knowledge', 'observability'])
     """
     
-    # SECURITY: 'background' removed - prevented autonomous command execution
-    # 'system_info' added - safe, hardcoded read-only commands
-    AVAILABLE_MODULES = ['knowledge', 'observability', 'troubleshooting', 'system_info']
+    AVAILABLE_MODULES = [
+        'knowledge', 'observability', 'troubleshooting', 'system_info', 'inquiry',
+        'revive_grafana', 'revive_aiops', 'revive_aiops_helper'
+    ]
     
     def __init__(
         self, 
         db: Session, 
         alert_id: Optional[UUID] = None,
-        modules: Optional[List[str]] = None
+        modules: Optional[List[str]] = None,
+        mcp_client: Optional[Any] = None  # Added for MCP-dependent modules
     ):
         """
         Initialize the composite tool registry.
@@ -57,25 +53,17 @@ class CompositeToolRegistry:
         Args:
             db: Database session for tool execution
             alert_id: Current alert context (optional)
-            modules: List of module names to load. Default: all modules.
-                     Options: 'knowledge', 'observability', 'troubleshooting', 'background'
+            modules: List of module names to load.
+            mcp_client: Client for MCP tools (optional)
         """
         self.db = db
         self.alert_id = alert_id
+        self.mcp_client = mcp_client
         self._tools: Dict[str, Tool] = {}
         self._handlers: Dict[str, Callable] = {}
         self._modules: List[ToolModule] = []
         
-        # Determine which modules to load
-        # If no modules specified, load defaults (excluding background unless explicit?)
-        # Convention: if modules is None, load ALL available? 
-        # Or should 'background' be opt-in?
-        # Let's keep it consistent: load specified or all. 
-        # BUT 'background' tools might be dangerous if loaded by default for interactive sessions.
-        # Troubleshooting tools has 'suggest_ssh_command' which is safe.
-        # Background tools has 'execute_server_command' which is powerful.
-        
-        modules_to_load = modules or ['knowledge', 'observability', 'troubleshooting']
+        modules_to_load = modules or ['knowledge', 'observability', 'troubleshooting', 'inquiry']
         
         # Initialize and register each module
         for module_name in modules_to_load:
@@ -96,6 +84,17 @@ class CompositeToolRegistry:
             return BackgroundTools(self.db, self.alert_id)
         elif module_name == 'system_info':
             return SystemInfoTools(self.db, self.alert_id)
+        elif module_name == 'inquiry':
+            return InquiryTools(self.db, self.alert_id)
+        elif module_name == 'revive_grafana':
+            if not self.mcp_client:
+                logger.warning("Revive Grafana tools requested but MCP Client not provided")
+                return None
+            return GrafanaTools(self.db, self.mcp_client, self.alert_id)
+        elif module_name == 'revive_aiops':
+            return AIOpsTools(self.db, self.alert_id)
+        elif module_name == 'revive_aiops_helper':
+            return ReviveAIOpsHelper(self.db, self.alert_id)
         else:
             logger.warning(f"Unknown tool module: {module_name}")
             return None
@@ -153,7 +152,7 @@ class CompositeToolRegistry:
 
 def create_full_registry(db: Session, alert_id: Optional[UUID] = None) -> CompositeToolRegistry:
     """Create a registry with all interactive tools (for Troubleshooting mode)"""
-    return CompositeToolRegistry(db, alert_id, modules=['knowledge', 'observability', 'troubleshooting'])
+    return CompositeToolRegistry(db, alert_id, modules=['knowledge', 'observability', 'troubleshooting', 'inquiry'])
 
 
 def create_knowledge_registry(db: Session, alert_id: Optional[UUID] = None) -> CompositeToolRegistry:
@@ -162,8 +161,31 @@ def create_knowledge_registry(db: Session, alert_id: Optional[UUID] = None) -> C
 
 
 def create_inquiry_registry(db: Session, alert_id: Optional[UUID] = None) -> CompositeToolRegistry:
-    """Create a registry for Inquiry mode (knowledge + observability, no troubleshooting)"""
-    return CompositeToolRegistry(db, alert_id, modules=['knowledge', 'observability'])
+    """
+    Create a registry for Inquiry mode with MCP Grafana integration.
+    
+    Includes: knowledge, observability, inquiry tools, and MCP Grafana tools
+    for comprehensive querying of dashboards, alerts, and metrics.
+    """
+    import os
+    
+    # Try to create MCP client for Grafana tools
+    mcp_client = None
+    try:
+        from app.services.mcp.client import MCPClient
+        mcp_server_url = os.getenv("MCP_GRAFANA_URL", "http://localhost:8081")
+        mcp_client = MCPClient(server_url=mcp_server_url)
+        logger.info(f"MCP client created for Inquiry: {mcp_server_url}")
+    except Exception as e:
+        logger.warning(f"MCP client not available for Inquiry: {e}")
+    
+    # Include MCP Grafana tools if client is available
+    modules = ['knowledge', 'observability', 'inquiry']
+    if mcp_client:
+        modules.append('revive_grafana')
+        logger.info("MCP Grafana tools added to Inquiry registry")
+    
+    return CompositeToolRegistry(db, alert_id, modules=modules, mcp_client=mcp_client)
 
 def create_background_registry(db: Session, alert_id: Optional[UUID] = None) -> CompositeToolRegistry:
     """

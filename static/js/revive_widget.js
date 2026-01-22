@@ -217,7 +217,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         // 2. Special Handling for Runbook Steps (Dynamic Content)
+        // 2. Special Handling for Runbook Steps (Dynamic Content)
         if (context.page_type === 'runbooks') {
+            // A. Try standard edit form (has .step-card)
             const steps = document.querySelectorAll('.step-card');
             if (steps.length > 0) {
                 let stepsText = "Runbook Configured Steps:\n";
@@ -229,9 +231,26 @@ document.addEventListener('DOMContentLoaded', () => {
                     stepsText += `Step ${idx + 1}: ${name}\nCommand: ${cmd}\n---\n`;
                 });
                 context.form_data['runbook_steps_summary'] = stepsText;
-
-                // Also append to page_text so standard prompt sees it
                 context.page_text += "\n\n" + stepsText;
+            } else {
+                // B. Fallback for Runbook View page (no .step-card, use generic structure)
+                // Look for the specific styling of step containers
+                const stepValContainers = document.querySelectorAll('.border.border-gray-700.rounded-lg.p-4.bg-gray-800');
+                if (stepValContainers.length > 0) {
+                    let stepsText = "Runbook Steps (View Mode):\n";
+                    stepValContainers.forEach((step, idx) => {
+                        const nameEl = step.querySelector('h4');
+                        const name = nameEl ? nameEl.innerText : 'Unnamed Step';
+
+                        // Commands are in pre > code blocks
+                        const cmdEl = step.querySelector('pre code') || step.querySelector('pre');
+                        const cmd = cmdEl ? cmdEl.innerText : 'No command visible';
+
+                        stepsText += `Step ${idx + 1}: ${name}\nCommand: ${cmd}\n---\n`;
+                    });
+                    context.form_data['runbook_steps_summary'] = stepsText;
+                    context.page_text += "\n\n" + stepsText;
+                }
             }
         }
 
@@ -561,14 +580,96 @@ document.addEventListener('DOMContentLoaded', () => {
         showTyping();
 
         try {
+            console.log('%c[RE-VIVE Widget] 🚀 Sending Query', 'color: #2196F3; font-weight: bold; font-size: 14px');
+            console.log('User Query:', text);
+
+            // Get page context using client-side tools if available
+            let pageContext = null;
+            let clientToolsUsed = false;
+
+            if (window.reviveToolRegistry) {
+                console.log('%c[RE-VIVE Widget] Using Client-Side Tools for Context', 'color: #4CAF50; font-weight: bold');
+
+                const pageType = window.reviveToolRegistry.detectPageType();
+                console.log('Detected Page Type:', pageType);
+
+                const availableTools = window.reviveToolRegistry.getAvailableTools(pageType);
+                console.log('Available Tools:', availableTools.map(t => t.name));
+
+                // Execute page-specific tool based on page type
+                let pageSpecificContext = null;
+
+                try {
+                    if (pageType === 'runbooks') {
+                        console.log('%c[RE-VIVE Widget] Extracting Runbook Context...', 'color: #9C27B0; font-weight: bold');
+                        pageSpecificContext = await window.reviveToolRegistry.execute('read_runbook_page');
+                        console.log('Runbook Context:', pageSpecificContext);
+                        clientToolsUsed = true;
+                    } else if (pageType === 'alerts') {
+                        console.log('%c[RE-VIVE Widget] Extracting Alert Context...', 'color: #FF5722; font-weight: bold');
+                        pageSpecificContext = await window.reviveToolRegistry.execute('read_alert_page');
+                        console.log('Alert Context:', pageSpecificContext);
+                        clientToolsUsed = true;
+                    } else if (pageType === 'panels' || pageType === 'grafana' || pageType === 'prometheus') {
+                        console.log('%c[RE-VIVE Widget] Extracting PromQL Context...', 'color: #00BCD4; font-weight: bold');
+                        pageSpecificContext = await window.reviveToolRegistry.execute('extract_promql_query');
+                        console.log('PromQL Context:', pageSpecificContext);
+                        clientToolsUsed = true;
+                    }
+
+                    // Always get generic page context
+                    const genericContext = await window.reviveToolRegistry.execute('get_page_context');
+                    console.log('Generic Context:', genericContext);
+
+                    // Check if tool execution succeeded
+                    if (!genericContext.success) {
+                        throw new Error(genericContext.error || 'Failed to get page context');
+                    }
+
+                    // Combine contexts
+                    pageContext = {
+                        ...genericContext.result.data,
+                        client_tools_available: true,
+                        client_tools_used: clientToolsUsed,
+                        page_specific_data: pageSpecificContext && pageSpecificContext.success ? pageSpecificContext.result.data : null
+                    };
+
+                } catch (toolError) {
+                    console.error('%c[RE-VIVE Widget] Tool Execution Error:', 'color: #F44336; font-weight: bold', toolError);
+                    // Fallback to old context extraction
+                    pageContext = getPageContext();
+                    pageContext.client_tools_available = false;
+                    pageContext.client_tools_error = toolError.message;
+                }
+            } else {
+                console.log('%c[RE-VIVE Widget] Client Tools Not Available - Using Legacy Context', 'color: #FF9800; font-weight: bold');
+                pageContext = getPageContext();
+                pageContext.client_tools_available = false;
+            }
+
             const payload = {
                 query: text,
-                page_context: getPageContext()
+                page_context: pageContext
             };
 
             if (sessionId) {
                 payload.session_id = sessionId;
             }
+
+            // LOG FULL PAYLOAD BEING SENT
+            console.group('%c[RE-VIVE Widget] 📤 Payload Sent to Backend', 'color: #E91E63; font-weight: bold; font-size: 13px');
+            console.log('Query:', payload.query);
+            console.log('Session ID:', payload.session_id || 'none');
+            console.log('Page Context:', payload.page_context);
+            console.table({
+                'Page Type': payload.page_context?.page_type || 'unknown',
+                'Page Title': payload.page_context?.title || 'unknown',
+                'Client Tools Used': payload.page_context?.client_tools_used ? 'YES' : 'NO',
+                'Has Runbook Data': !!payload.page_context?.page_specific_data?.runbook_id,
+                'Has Steps': payload.page_context?.page_specific_data?.steps?.length || 0,
+                'Has PromQL Query': !!payload.page_context?.page_specific_data?.query
+            });
+            console.groupEnd();
 
             const response = await fetch('/api/ai-helper/query', {
                 method: 'POST',
@@ -583,6 +684,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const data = await response.json();
+
+            // LOG RESPONSE FROM BACKEND
+            console.group('%c[RE-VIVE Widget] 📥 Response from Backend', 'color: #00BCD4; font-weight: bold; font-size: 13px');
+            console.log('Full Response:', data);
+            console.log('Response Text Length:', data.response?.length || 0);
+            console.groupEnd();
 
             // Update session ID if returned
             if (data.session_id) {
@@ -628,7 +735,7 @@ document.addEventListener('DOMContentLoaded', () => {
             addMessage(aiText, 'ai', data.query_id);
 
         } catch (error) {
-            console.error('AI Error:', error);
+            console.error('%c[RE-VIVE Widget] ❌ Error:', 'color: #F44336; font-weight: bold; font-size: 14px', error);
             removeTyping();
             addMessage('Sorry, I encountered an error. Please try again.', 'ai');
         }

@@ -219,11 +219,17 @@
                 <i class="fas fa-bell w-5 flex-shrink-0 nav-icon text-yellow-400"></i>
                 <span class="sidebar-text whitespace-nowrap hidden">Alerts</span>
             </a>
+            <a href="/inquiry"
+                class="sidebar-item flex items-center space-x-3 px-4 py-3 rounded-lg {% if active_page == 'ai_inquiry' %}active{% endif %}"
+                data-tooltip="AI Analyst">
+                <i class="fas fa-search w-5 flex-shrink-0 nav-icon text-blue-400"></i>
+                <span class="sidebar-text whitespace-nowrap hidden">AI Analyst</span>
+            </a>
             <a href="/ai"
-                class="sidebar-item flex items-center space-x-3 px-4 py-3 rounded-lg {% if active_page == 'ai' %}active{% endif %}"
-                data-tooltip="AI Assistant">
-                <i class="fas fa-robot w-5 flex-shrink-0 nav-icon text-purple-400"></i>
-                <span class="sidebar-text whitespace-nowrap hidden">AI</span>
+                class="sidebar-item flex items-center space-x-3 px-4 py-3 rounded-lg {% if active_page == 'ai_troubleshoot' %}active{% endif %}"
+                data-tooltip="Troubleshoot Console">
+                <i class="fas fa-terminal w-5 flex-shrink-0 nav-icon text-green-400"></i>
+                <span class="sidebar-text whitespace-nowrap hidden">Troubleshoot</span>
             </a>
 
             <!-- Remediation with Submenu -->

@@ -37,6 +37,7 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), default=utc_now)
     last_login = Column(DateTime(timezone=True), nullable=True)
+    ai_preferences = Column(JSON, default={}, nullable=True)
 
     # Relationships
     default_llm_provider = relationship("LLMProvider", foreign_keys=[default_llm_provider_id])

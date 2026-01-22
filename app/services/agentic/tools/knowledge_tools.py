@@ -281,7 +281,7 @@ class KnowledgeTools(ToolModule):
             return f"Error fetching runbooks: {str(e)}"
 
     async def _get_proven_solutions(self, args: Dict[str, Any]) -> str:
-        """Find solutions that worked for similar problems in the past."""
+        """Find solutions that worked for similar problems in the past using semantic similarity."""
         import sqlalchemy as sa
         from sqlalchemy import func
         
@@ -293,43 +293,79 @@ class KnowledgeTools(ToolModule):
 
         try:
             from app.models import SolutionOutcome
+            from app.services.embedding_service import EmbeddingService
             
-            # Query for successful solutions
+            # Generate embedding for the current problem
+            embedding_service = EmbeddingService()
+            
+            if not embedding_service.is_configured():
+                logger.warning("Embedding service not configured - falling back to text-based search")
+                # Fallback: simple text search on problem_description
+                results = (
+                    self.db.query(SolutionOutcome)
+                    .filter(
+                        SolutionOutcome.success == True,
+                        SolutionOutcome.problem_description.ilike(f"%{problem_description[:50]}%")
+                    )
+                    .order_by(SolutionOutcome.feedback_timestamp.desc())
+                    .limit(limit)
+                    .all()
+                )
+                
+                if not results:
+                    return "No proven solutions found in the learning database yet. This is a new problem - proceed with your own analysis."
+                
+                output_parts = ["**Proven Solutions from Past Success (text search):**\n"]
+                for i, r in enumerate(results, 1):
+                    output_parts.append(
+                        f"{i}. **{r.solution_type.title()}**: `{r.solution_reference[:100] if r.solution_reference else 'N/A'}`\n"
+                        f"   - Original problem: {r.problem_description[:100] if r.problem_description else 'N/A'}...\n"
+                    )
+                return "\n".join(output_parts)
+            
+            # Generate embedding for current problem
+            problem_embedding = embedding_service.generate_embedding(problem_description)
+            
+            if not problem_embedding:
+                logger.error("Failed to generate embedding for problem description")
+                return "Error: Could not generate embedding for similarity search"
+            
+            # Find similar problems using vector similarity (cosine distance)
+            # Lower distance = more similar (distance = 1 - cosine_similarity)
+            MIN_SIMILARITY = 0.6  # Require at least 60% similarity
+            MAX_DISTANCE = 1 - MIN_SIMILARITY  # 0.4
+            
             results = (
                 self.db.query(
-                    SolutionOutcome.solution_type,
-                    SolutionOutcome.solution_reference,
-                    SolutionOutcome.solution_summary,
-                    SolutionOutcome.problem_description,
-                    func.count().label('total_uses'),
-                    func.sum(func.cast(SolutionOutcome.success == True, type_=sa.Integer)).label('success_count')
+                    SolutionOutcome,
+                    # Calculate similarity score (1 - distance)
+                    (1 - SolutionOutcome.problem_embedding.cosine_distance(problem_embedding)).label('similarity')
                 )
-                .filter(SolutionOutcome.success == True)
-                .group_by(
-                    SolutionOutcome.solution_type,
-                    SolutionOutcome.solution_reference,
-                    SolutionOutcome.solution_summary,
-                    SolutionOutcome.problem_description
+                .filter(
+                    SolutionOutcome.success == True,
+                    SolutionOutcome.problem_embedding.isnot(None),
+                    # Filter by minimum similarity
+                    SolutionOutcome.problem_embedding.cosine_distance(problem_embedding) <= MAX_DISTANCE
                 )
-                .order_by(func.count().desc())
+                .order_by(SolutionOutcome.problem_embedding.cosine_distance(problem_embedding))
                 .limit(limit)
                 .all()
             )
 
             if not results:
-                return "No proven solutions found in the learning database yet. This is a new problem - proceed with your own analysis."
+                return "No similar proven solutions found in the learning database. This appears to be a new type of problem - proceed with your own analysis."
 
-            output_parts = ["**Proven Solutions from Past Success:**\n"]
-            for i, r in enumerate(results, 1):
+            output_parts = ["**Proven Solutions from Similar Past Problems:**\n"]
+            for i, (outcome, similarity) in enumerate(results, 1):
+                similarity_pct = similarity * 100
                 output_parts.append(
-                    f"{i}. **{r.solution_type.title()}**: `{r.solution_reference[:100] if r.solution_reference else 'N/A'}`\n"
-                    f"   - Original problem: {r.problem_description[:100] if r.problem_description else 'N/A'}...\n"
-                    f"   - Used {r.total_uses} time(s), all successful\n"
+                    f"{i}. **{outcome.solution_type.title()}** (similarity: {similarity_pct:.1f}%): `{outcome.solution_reference[:100] if outcome.solution_reference else 'N/A'}`\n"
+                    f"   - Similar problem: {outcome.problem_description[:120] if outcome.problem_description else 'N/A'}...\n"
                 )
 
-            output_parts.append("\n*These solutions worked before - consider trying them first.*")
+            output_parts.append("\n*These solutions worked for similar problems - consider trying them first.*")
             return "\n".join(output_parts)
 
         except Exception as e:
-            logger.error(f"Error in get_proven_solutions: {e}")
+            logger.error(f"Error in get_proven_solutions: {e}", exc_info=True)
             return f"Error searching proven solutions: {str(e)}"

@@ -1,0 +1,144 @@
+{% extends "layout.html" %}
+{% set active_page = 'ai_inquiry' %}
+
+{% block title %}AI Inquiry Analyst - AIOps Platform{% endblock %}
+
+{% block breadcrumbs %}
+<span class="mx-2">/</span>
+<span class="text-gray-200 truncate">AI Analyst</span>
+{% endblock %}
+
+{% block header_title %}
+<i class="fas fa-search text-blue-400"></i>
+<span class="text-sm font-semibold text-white tracking-tight">AI Inquiry Analyst</span>
+{% endblock %}
+
+{% block content %}
+<style>
+    .user-message-content pre,
+    .user-message-content code {
+        max-width: 100% !important;
+        overflow-x: auto !important;
+        white-space: pre-wrap !important;
+        word-break: break-word !important;
+    }
+
+    .reasoning-panel.collapsed .reasoning-body {
+        display: none;
+    }
+</style>
+
+<div id="aiChatContent" class="flex flex-col h-full overflow-hidden">
+    <!-- Single Pane Layout (Chat + Data Output) -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-1 min-h-0 overflow-hidden">
+
+        <!-- Pane 1: Chat (4 cols ~ 33%) -->
+        <div class="lg:col-span-4 flex flex-col card h-full min-h-0 overflow-hidden">
+            <div class="px-3 py-2 border-b border-gray-700 flex justify-between items-center flex-shrink-0">
+                <div class="flex items-center flex-grow">
+                    <!-- Session Dropdown -->
+                    <button onclick="toggleSessionDropdown()" id="sessionDropdownBtn"
+                        class="px-2 py-1 text-xs bg-gray-700 text-gray-300 rounded hover:bg-gray-600 flex items-center border border-gray-600 mr-2"
+                        title="Session">
+                        <i class="fas fa-comments text-blue-400 mr-1.5"></i>
+                        <span id="currentSessionTitle" class="max-w-[120px] truncate">New Session</span>
+                        <i class="fas fa-caret-down text-[10px] ml-1.5 text-gray-400"></i>
+                    </button>
+                    <!-- LLM Model Selector -->
+                    <div class="relative" id="modelSelectorWrapper">
+                        <button onclick="toggleModelDropdown()" id="modelIconBtn"
+                            class="p-1.5 rounded transition-colors hover:bg-gray-700 flex items-center"
+                            title="LLM Model">
+                            <i class="fas fa-brain text-sm" id="modelStatusIcon"></i>
+                            <i class="fas fa-caret-down text-[10px] ml-1 text-gray-400"></i>
+                        </button>
+                        <div id="modelDropdown"
+                            class="hidden absolute left-0 top-full mt-1 bg-gray-800 border border-gray-600 rounded-lg shadow-xl z-50 min-w-[200px]">
+                            <div class="px-3 py-2 border-b border-gray-700 text-xs text-gray-400">
+                                <i class="fas fa-brain mr-1"></i> Select LLM Model
+                            </div>
+                            <div id="modelListContainer" class="max-h-48 overflow-y-auto">
+                                <div class="px-3 py-2 text-xs text-gray-500">Loading...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-1">
+                    <button onclick="adjustChatFont(-1)"
+                        class="text-gray-400 hover:text-white p-1.5 rounded transition-colors"
+                        title="Decrease Font Size"><i class="fas fa-minus text-sm"></i></button>
+                    <button onclick="adjustChatFont(1)"
+                        class="text-gray-400 hover:text-white p-1.5 rounded transition-colors"
+                        title="Increase Font Size"><i class="fas fa-plus text-sm"></i></button>
+                    <button onclick="clearChat()" class="text-gray-400 hover:text-red-400 p-1.5 rounded"
+                        title="Clear Chat">
+                        <i class="fas fa-trash-alt text-sm"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div id="chatMessages" class="flex-grow overflow-y-auto p-4 space-y-4 min-h-0 text-sm">
+                <!-- Welcome/Empty state handled by JS -->
+            </div>
+
+            <div class="p-3 border-t border-gray-700 flex-shrink-0 bg-gray-800 z-10">
+                <form id="chatForm" onsubmit="sendMessage(event)" class="flex space-x-2">
+                    <textarea id="chatInput" class="input-field flex-grow px-3 py-2 rounded resize-none h-12"
+                        placeholder="Ask about logs, metrics, traces, or infrastructure status..." autocomplete="off"
+                        title="Type your message here"></textarea>
+                    <button type="submit" class="btn-primary px-4 py-2 rounded h-12" title="Send Message"><i
+                            class="fas fa-paper-plane"></i></button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Pane 2: Knowledge / Data (8 cols ~ 66%) -->
+        <div class="lg:col-span-8 flex flex-col card h-full overflow-hidden relative">
+            <div class="p-2 border-b border-gray-800 flex justify-between items-center bg-gray-900 flex-shrink-0">
+                <div class="flex items-center">
+                    <span class="text-xs font-bold text-gray-400 uppercase tracking-wider px-2">Knowledge Base &
+                        Data</span>
+                </div>
+                <div id="dataOutputControls" class="flex items-center space-x-2">
+                    <button onclick="exportDataOutput()" class="text-gray-400 hover:text-white px-2 py-1 text-xs"
+                        title="Export Report">
+                        <i class="fas fa-file-export mr-1"></i>Export
+                    </button>
+                </div>
+            </div>
+
+            <!-- Data Output Container -->
+            <div id="dataOutputContainer" class="absolute inset-x-0 bottom-0 top-10 bg-gray-900 overflow-y-auto">
+                <div id="dataOutputResults" class="p-4 space-y-4">
+                    <!-- Results dynamically added here -->
+                    <div id="dataOutputEmpty"
+                        class="flex flex-col items-center justify-center h-64 text-center text-gray-500 mt-10">
+                        <i class="fas fa-chart-line text-6xl mb-4 text-gray-700"></i>
+                        <h3 class="text-lg font-semibold mb-2">Ready for Inquiry</h3>
+                        <p class="text-sm max-w-sm">Ask detailed questions about your infrastructure. I can analyze
+                            logs, metrics, and configurations.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Session Dropdown is embedded in the layout above -->
+<div id="sessionDropdown"
+    class="hidden absolute top-0 left-0 mt-1 bg-gray-800 border border-gray-600 rounded-lg shadow-xl z-50 min-w-[220px]">
+    <!-- Populated by JS -->
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="/static/js/ai_inquiry.js?v=2.0"></script>
+<script>
+    // Specific inits
+    let currentChatMode = 'general';
+</script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/vs2015.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+{% endblock %}

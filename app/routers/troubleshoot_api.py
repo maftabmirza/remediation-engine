@@ -13,6 +13,7 @@ from typing import Optional, List, Dict, Any, AsyncGenerator
 import logging
 import uuid
 import json
+import os
 import asyncio
 
 from app.database import get_db
@@ -93,6 +94,7 @@ async def troubleshoot_chat(
             # Create new session
             ai_session = AISession(
                 user_id=current_user.id,
+                pillar="troubleshooting",
                 title=message[:100] if message else "Troubleshooting Session"
             )
             db.add(ai_session)
@@ -185,11 +187,11 @@ async def troubleshoot_chat_stream(
 ):
     """
     Streaming endpoint for troubleshooting chat using Server-Sent Events (SSE).
-    
-    Returns real-time token-by-token responses for better UX.
-    Each SSE event is a JSON object with type and content.
+    Uses TroubleshootingOrchestrator for context enrichment and MCP tools.
     """
-    from app.services.agentic.native_agent import NativeToolAgent
+    from app.services.agentic.troubleshooting_orchestrator import TroubleshootingOrchestrator
+    from app.services.mcp.client import MCPClient
+    from app.services.ai_permission_service import AIPermissionService
     
     message = request.get("message", "")
     session_id = request.get("session_id", "")
@@ -202,22 +204,15 @@ async def troubleshoot_chat_stream(
         tool_calls = []
         
         try:
-            # Get the default LLM provider
-            provider = db.query(LLMProvider).filter(
-                LLMProvider.is_default == True,
-                LLMProvider.is_enabled == True
-            ).first()
-            
+            # Get Provider
+            provider = db.query(LLMProvider).filter(LLMProvider.is_default == True, LLMProvider.is_enabled == True).first()
             if not provider:
-                provider = db.query(LLMProvider).filter(
-                    LLMProvider.is_enabled == True
-                ).first()
-            
+                provider = db.query(LLMProvider).filter(LLMProvider.is_enabled == True).first()
             if not provider:
                 yield f"data: {json.dumps({'type': 'error', 'content': 'No LLM provider configured'})}\n\n"
                 return
             
-            # === SESSION PERSISTENCE ===
+            # Get Session
             ai_session = None
             initial_messages = []
             
@@ -229,58 +224,71 @@ async def troubleshoot_chat_stream(
                     pass
             
             if not ai_session:
-                ai_session = AISession(
-                    user_id=current_user.id,
-                    title=message[:100] if message else "Troubleshooting Session"
-                )
+                ai_session = AISession(user_id=current_user.id, pillar="troubleshooting", title=message[:100] if message else "Troubleshooting Session")
                 db.add(ai_session)
                 db.commit()
                 db.refresh(ai_session)
                 session_id = str(ai_session.id)
             else:
-                existing_messages = db.query(AIMessage).filter(
-                    AIMessage.session_id == ai_session.id
-                ).order_by(AIMessage.created_at).all()
-                
+                existing_messages = db.query(AIMessage).filter(AIMessage.session_id == ai_session.id).order_by(AIMessage.created_at).all()
                 for msg in existing_messages:
-                    initial_messages.append({
-                        "role": msg.role,
-                        "content": msg.content
-                    })
+                    initial_messages.append({"role": msg.role, "content": msg.content})
             
-            # Send session_id first
             yield f"data: {json.dumps({'type': 'session', 'session_id': session_id})}\n\n"
             
-            # Save user message
-            user_msg = AIMessage(
-                session_id=ai_session.id,
-                role="user",
-                content=message
-            )
+            # Save User Message
+            user_msg = AIMessage(session_id=ai_session.id, role="user", content=message)
             db.add(user_msg)
             db.commit()
             
-            # Create agent with history
-            agent = NativeToolAgent(
-                db=db,
-                provider=provider,
-                alert=None,
-                initial_messages=initial_messages
-            )
+            # Setup Dependencies
+            # Context alert_id (attempt to find from session context or request? For now assume None or derive)
+            # Logic to find alert_id if not passed explicitly is tricky. 
+            # Ideally frontend passes it.
+            # Retrieve alert_id from session if not provided
+            alert_id = None
+            if request.get("alert_id"):
+                 try:
+                     alert_id = uuid.UUID(request.get("alert_id"))
+                 except: pass
+            elif ai_session:
+                # Try to get from session context
+                if ai_session.context_type == 'alert' and ai_session.context_id:
+                    alert_id = ai_session.context_id
+                elif ai_session.context_context_json and ai_session.context_context_json.get("alert_id"):
+                    try:
+                        alert_id = uuid.UUID(ai_session.context_context_json.get("alert_id"))
+                    except: pass
+
+
+            # Initialize MCP client with server URL (defaulting to localhost if not configured)
+            mcp_server_url = os.getenv("MCP_GRAFANA_URL", "http://localhost:8081")
+            mcp_client = MCPClient(server_url=mcp_server_url)
+            # Connect MCP client (assuming auto-connect or we trigger it)
+            # mcp_client.connect() # implementation detail depends on client
             
-            # Stream chunks to client
-            async for chunk in agent.stream(message):
+            perm_service = AIPermissionService(db)
+
+            orchestrator = TroubleshootingOrchestrator(
+                db=db,
+                user=current_user,
+                alert_id=alert_id,
+                mcp_client=mcp_client,
+                permission_service=perm_service,
+                llm_provider=provider
+            )
+
+            # Stream Response
+            async for chunk in orchestrator.run_troubleshooting_turn(message, initial_messages):
                 full_response += chunk
-                # Send each chunk as SSE event
                 yield f"data: {json.dumps({'type': 'chunk', 'content': chunk})}\n\n"
-                # Small delay to prevent overwhelming the client
                 await asyncio.sleep(0.01)
             
-            # Get tool calls
-            if hasattr(agent, 'tool_calls_made'):
-                tool_calls = agent.tool_calls_made
+            # Get tools from orchestrator if available
+            if hasattr(orchestrator, 'tool_calls_made'):
+                tool_calls = orchestrator.tool_calls_made
             
-            # Save assistant response
+            # Save Assistant Response
             assistant_msg = AIMessage(
                 session_id=ai_session.id,
                 role="assistant",
@@ -290,7 +298,6 @@ async def troubleshoot_chat_stream(
             db.add(assistant_msg)
             db.commit()
             
-            # Send completion event
             yield f"data: {json.dumps({'type': 'done', 'tool_calls': tool_calls})}\n\n"
             
         except asyncio.CancelledError:
@@ -310,7 +317,6 @@ async def troubleshoot_chat_stream(
         }
     )
 
-
 @router.get("/sessions")
 async def list_troubleshoot_sessions(
     current_user: User = Depends(get_current_user),
@@ -321,7 +327,7 @@ async def list_troubleshoot_sessions(
     """
     sessions = db.query(AISession).filter(
         AISession.user_id == current_user.id
-    ).order_by(AISession.updated_at.desc()).all()
+    ).order_by(AISession.created_at.desc()).all()
     
     return {
         "sessions": [
@@ -329,7 +335,7 @@ async def list_troubleshoot_sessions(
                 "id": str(s.id),
                 "title": s.title or "Untitled Session",
                 "created_at": s.created_at.isoformat(),
-                "updated_at": s.updated_at.isoformat()
+                "updated_at": s.created_at.isoformat()
             }
             for s in sessions
         ],

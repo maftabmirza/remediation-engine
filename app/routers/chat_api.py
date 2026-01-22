@@ -13,7 +13,8 @@ import json
 from pydantic import BaseModel
 
 from app.database import get_db
-from app.models import User, LLMProvider
+from app.models import User, LLMProvider, Alert
+
 from app.services.auth_service import get_current_user
 from app.models_revive import AISession, AIMessage
 
@@ -24,6 +25,9 @@ router = APIRouter(prefix="/api/chat", tags=["chat"])
 class CommandValidateRequest(BaseModel):
     command: str
     server: str
+
+class CreateSessionRequest(BaseModel):
+    alert_id: Optional[str] = None
 
 
 @router.get("/providers")
@@ -90,7 +94,7 @@ async def get_session_by_alert(
         
         sessions = db.query(AISession).filter(
             AISession.user_id == current_user.id
-        ).order_by(AISession.updated_at.desc()).limit(20).all()
+        ).order_by(AISession.created_at.desc()).limit(20).all()
         
         for session in sessions:
             if session.context_context_json and session.context_context_json.get("alert_id") == alert_id:
@@ -147,7 +151,7 @@ async def list_chat_sessions(
     """
     sessions = db.query(AISession).filter(
         AISession.user_id == current_user.id
-    ).order_by(AISession.updated_at.desc()).all()
+    ).order_by(AISession.created_at.desc()).all()
     
     return {
         "sessions": [
@@ -155,7 +159,7 @@ async def list_chat_sessions(
                 "id": str(s.id),
                 "title": s.title or "Untitled Session",
                 "created_at": s.created_at.isoformat(),
-                "updated_at": s.updated_at.isoformat(),
+                "updated_at": s.created_at.isoformat(),
                 "message_count": len(s.messages)
             }
             for s in sessions
@@ -166,6 +170,7 @@ async def list_chat_sessions(
 
 @router.post("/sessions")
 async def create_chat_session(
+    request: Optional[CreateSessionRequest] = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -173,11 +178,30 @@ async def create_chat_session(
     Create a new chat session.
     """
     session_id = uuid4()
+    
+    # Context setup
+    context_type = None
+    context_id = None
+    context_json = None
+    
+    if request and request.alert_id:
+        try:
+            alert_uuid = UUID(request.alert_id)
+            context_type = 'alert'
+            context_id = alert_uuid
+            context_json = {"alert_id": request.alert_id}
+        except ValueError:
+            pass
+            
     new_session = AISession(
         id=session_id,
         user_id=current_user.id,
+        pillar="troubleshooting",
         title="New Chat",
-        created_at=datetime.utcnow()
+        created_at=datetime.utcnow(),
+        context_type=context_type,
+        context_id=context_id,
+        context_context_json=context_json
     )
     db.add(new_session)
     db.commit()

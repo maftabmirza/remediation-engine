@@ -4,6 +4,8 @@ AIOps Platform - Main Application
 import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Depends
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -47,10 +49,13 @@ from app.routers import (
     grafana_datasources_api,  # Phase 3: Grafana Datasources
     observability_api,  # Phase 4: AI-Powered Observability Queries
     revive_api,  # RE-VIVE Widget
+    revive,      # RE-VIVE Unified Assistant (New)
     knowledge,  # Phase 2: Knowledge Base
     feedback,  # Phase 3: Learning System
     troubleshooting,  # Phase 4: Troubleshooting Engine
-    troubleshooting,  # Phase 4: Troubleshooting Engine
+    troubleshoot_api,  # Phase 4: Troubleshooting Chat
+    inquiry,  # Phase 2: AI Inquiry
+    admin_ai,  # Phase 5: Admin AI Managementt Clustering
     clusters,  # Week 1-2: Alert Clustering
     analytics,  # Phase 3-4: Analytics API
     itsm,  # Week 5-6: Change Correlation
@@ -76,6 +81,8 @@ from app.routers import (
     knowledge_apps,
     remediation_view,
     agent_api,  # Agent Mode API
+    agent_hq_api, # Agent HQ API
+    inquiry,    # Phase 2: AI Inquiry Pillar
 )
 from app import api_credential_profiles
 from app.services.execution_worker import start_execution_worker, stop_execution_worker
@@ -294,6 +301,19 @@ async def redoc_html():
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    logger.error(f"Validation error for request {request.method} {request.url}: {exc.errors()}")
+    try:
+        body = await request.json()
+        logger.error(f"Request body: {body}")
+    except Exception:
+        pass
+    return JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors(), "body": exc.body},
+    )
+
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
@@ -326,8 +346,11 @@ app.include_router(application_profiles_api.router)  # Phase 3: Application Prof
 app.include_router(grafana_datasources_api.router)  # Phase 3: Grafana Datasources
 app.include_router(observability_api.router)  # Phase 4: AI-Powered Observability
 app.include_router(revive_api.router)  # RE-VIVE Widget
+app.include_router(revive.router)      # RE-VIVE Unified Assistant (New)
+app.include_router(revive.ws_router)   # RE-VIVE WebSocket
 app.include_router(knowledge.router)      # Phase 2: Knowledge Base
 app.include_router(feedback.router, prefix="/api/v1", tags=["learning"])  # Phase 3: Learning System
+app.include_router(admin_ai.router)       # Phase 5: Admin AI Management
 app.include_router(troubleshooting.router, prefix="/api/v1", tags=["troubleshooting"])  # Phase 4: Troubleshooting Engine
 app.include_router(clusters.router)       # Week 1-2: Alert Clustering
 app.include_router(analytics.router)      # Phase 3-4: Analytics API
@@ -355,6 +378,9 @@ app.include_router(knowledge_apps.router)
 app.include_router(remediation_view.router)
 app.include_router(agent_api.router)         # Agent Mode API
 app.include_router(agent_api.ws_router)      # Agent Mode WebSocket
+app.include_router(inquiry.router)           # Phase 2: AI Inquiry Pillar
+app.include_router(agent_hq_api.router)      # Agent HQ API
+
 
 
 @app.get("/profile", response_class=HTMLResponse)
@@ -582,12 +608,46 @@ async def ai_chat_page(
     current_user: User = Depends(get_current_user_optional)
 ):
     """
-    Standalone AI Chat page with terminal
+    Standalone Troubleshoot Console page
     """
     if not current_user:
         return RedirectResponse(url="/login", status_code=302)
     
-    return templates.TemplateResponse("ai_chat.html", {
+    return templates.TemplateResponse("ai_troubleshoot.html", {
+        "request": request,
+        "user": current_user
+    })
+
+
+@app.get("/revive", response_class=HTMLResponse)
+async def revive_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    RE-VIVE Unified Assistant page
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+    
+    return templates.TemplateResponse("revive.html", {
+        "request": request,
+        "user": current_user
+    })
+
+
+@app.get("/inquiry", response_class=HTMLResponse)
+async def inquiry_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    AI Inquiry Pillar page
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+    
+    return templates.TemplateResponse("ai_inquiry.html", {
         "request": request,
         "user": current_user
     })

@@ -6,8 +6,12 @@
  */
 
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('RE-VIVE: DOMContentLoaded fired');
+    console.log('RE-VIVE: window.self === window.top:', window.self === window.top);
+
     // Inject Widget HTML if not present
     if (!document.getElementById('agent-widget')) {
+        console.log('RE-VIVE: Widget HTML not found, injecting...');
         const widgetHTML = `
             <div id="agent-widget">
                 <div id="agent-window">
@@ -40,6 +44,9 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         `;
         document.body.insertAdjacentHTML('beforeend', widgetHTML);
+        console.log('RE-VIVE: Widget HTML injected');
+    } else {
+        console.log('RE-VIVE: Widget HTML already exists');
     }
 
     const agentWindow = document.getElementById('agent-window');
@@ -109,6 +116,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // METHOD 3: Send message to parent (Redundant if running in parent, but safe)
             window.postMessage({ type: 'REVIVE_TOGGLE', isOpen: true }, '*');
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage({ type: 'REVIVE_TOGGLE', isOpen: true }, '*');
+            }
 
             setTimeout(() => input?.focus(), 0);
         } else {
@@ -130,10 +140,14 @@ document.addEventListener('DOMContentLoaded', () => {
             document.body.style.setProperty('width', '100%', 'important');
 
             window.postMessage({ type: 'REVIVE_TOGGLE', isOpen: false }, '*');
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage({ type: 'REVIVE_TOGGLE', isOpen: false }, '*');
+            }
         }
     }
 
     function toggleWindow() {
+        console.log('RE-VIVE: toggleWindow() called, current isOpen:', isOpen);
         setOpen(!isOpen);
     }
 
@@ -444,23 +458,45 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Add toggle button to top of Grafana iframe (if in iframe context)
     // This will be visible when looking at the Grafana page
+    // Add toggle button to top of Grafana iframe (if in iframe context)
+    // This will be visible when looking at the Grafana page
     if (window.self !== window.top) {
-        // We're in an iframe - add a floating toggle button
-        const toggleBtn = document.createElement('button');
-        toggleBtn.id = 'grafana-ai-toggle';
-        toggleBtn.className = 'grafana-ai-toggle';
-        toggleBtn.innerHTML = '<i class="fas fa-robot"></i> RE-VIVE';
-        toggleBtn.onclick = toggleWindow;
-        document.body.appendChild(toggleBtn);
+        // Check if the parent already has a toggle (e.g. we are in the AIOps wrapper)
+        let parentHasToggle = false;
+        try {
+            if (window.parent && window.parent.document.getElementById('ai-helper-toggle')) {
+                parentHasToggle = true;
+                console.log('RE-VIVE: Detected parent wrapper, suppressing duplicate toggle button');
+            }
+        } catch (e) {
+            // Cross-origin, cannot check parent. Assume standalone or external embed.
+        }
+
+        if (!parentHasToggle) {
+            // We're in an iframe without a parent controller - add a floating toggle button
+            const toggleBtn = document.createElement('button');
+            toggleBtn.id = 'grafana-ai-toggle';
+            toggleBtn.className = 'grafana-ai-toggle';
+            toggleBtn.innerHTML = '<i class="fas fa-robot"></i> RE-VIVE';
+            toggleBtn.onclick = toggleWindow;
+            document.body.appendChild(toggleBtn);
+        }
     }
 
     // Bind to the global header toggle button (if present)
+    console.log('RE-VIVE: Looking for #ai-helper-toggle button...');
     const headerToggle = document.getElementById('ai-helper-toggle');
+    console.log('RE-VIVE: Header toggle found:', !!headerToggle);
     if (headerToggle) {
+        console.log('RE-VIVE: Attaching click listener to header toggle');
         headerToggle.addEventListener('click', (e) => {
             e.preventDefault();
+            console.log('RE-VIVE: Header toggle clicked!');
             toggleWindow();
         });
+        console.log('RE-VIVE: Header toggle listener attached successfully');
+    } else {
+        console.warn('RE-VIVE: Header toggle button NOT found in DOM');
     }
 
     // Keyboard shortcut: Ctrl+Shift+A to toggle
@@ -501,4 +537,11 @@ document.addEventListener('DOMContentLoaded', () => {
             document.body.style.cursor = '';
         });
     }
+
+    // LISTENER FOR PARENT WINDOW COMMANDS
+    window.addEventListener('message', (event) => {
+        if (event.data && event.data.type === 'REVIVE_TOGGLE_CMD') {
+            toggleWindow();
+        }
+    });
 });

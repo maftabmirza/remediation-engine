@@ -49,6 +49,8 @@ services:
       - PROMETHEUS_TIMEOUT=${PROMETHEUS_TIMEOUT:-30}
       # Grafana Integration
       - GRAFANA_URL=${GRAFANA_URL:-http://grafana:3000/grafana}
+      # MCP Grafana Integration (transport appends /sse automatically)
+      - MCP_GRAFANA_URL=${MCP_GRAFANA_URL:-http://mcp-grafana:8000}
     ports:
       - "8080:8080"
     volumes:
@@ -63,13 +65,7 @@ services:
       - aiops-network
       - aiops_aiops-network
     healthcheck:
-      test:
-        [
-          "CMD",
-          "python",
-          "-c",
-          "import urllib.request; urllib.request.urlopen('http://localhost:8080/health', timeout=5).read()",
-        ]
+      test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health', timeout=5).read()" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -90,6 +86,7 @@ services:
       - "9090:9090"
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
       - prometheus-data:/prometheus
     networks:
       - aiops-network
