@@ -37,6 +37,7 @@
             opacity: 0;
             transform: translateY(-10px);
         }
+
         to {
             opacity: 1;
             transform: translateY(0);
@@ -48,8 +49,15 @@
     }
 
     @keyframes pulse {
-        0%, 100% { transform: scale(1); }
-        50% { transform: scale(1.1); }
+
+        0%,
+        100% {
+            transform: scale(1);
+        }
+
+        50% {
+            transform: scale(1.1);
+        }
     }
 
     .phase-step.completed .phase-icon {
@@ -57,8 +65,13 @@
     }
 
     @keyframes checkmark {
-        from { transform: scale(0); }
-        to { transform: scale(1); }
+        from {
+            transform: scale(0);
+        }
+
+        to {
+            transform: scale(1);
+        }
     }
 
     .progress-fill {
@@ -67,8 +80,13 @@
     }
 
     @keyframes shimmer {
-        0% { background-position: 200% 0; }
-        100% { background-position: -200% 0; }
+        0% {
+            background-position: 200% 0;
+        }
+
+        100% {
+            background-position: -200% 0;
+        }
     }
 
     /* Reasoning Panel Styles */
@@ -91,11 +109,25 @@
         transition: all 0.2s ease;
     }
 
-    .border-blue-500 { border-color: #3b82f6; }
-    .border-green-500 { border-color: #10b981; }
-    .border-yellow-500 { border-color: #f59e0b; }
-    .border-purple-500 { border-color: #a855f7; }
-    .border-pink-500 { border-color: #ec4899; }
+    .border-blue-500 {
+        border-color: #3b82f6;
+    }
+
+    .border-green-500 {
+        border-color: #10b981;
+    }
+
+    .border-yellow-500 {
+        border-color: #f59e0b;
+    }
+
+    .border-purple-500 {
+        border-color: #a855f7;
+    }
+
+    .border-pink-500 {
+        border-color: #ec4899;
+    }
 </style>
 
 <div id="aiChatContent" class="flex flex-col h-full overflow-hidden">
@@ -1186,7 +1218,7 @@
     }
 
     /**
-     * Handle observability query using the API
+     * Handle observability query using the Inquiry API with MCP Grafana tools
      */
     async function handleObservabilityQuery(query) {
         try {
@@ -1201,7 +1233,8 @@
                 }
             }
 
-            const response = await apiCall('/api/observability/query/formatted', {
+            // Use the Inquiry API with MCP Grafana integration
+            const response = await apiCall('/api/v1/inquiry/query', {
                 method: 'POST',
                 body: JSON.stringify({
                     query: query,
@@ -1225,29 +1258,34 @@
             }
 
             // Display formatted results in Data Output pane
+            // Inquiry API returns {session_id, answer, tools_used, error}
             displayObservabilityResults({
                 query: query,
-                summary: result.summary || 'Query completed successfully.',
-                insights: result.insights || [],
-                recommendations: result.recommendations || [],
-                execution_time_ms: result.execution_time_ms,
-                intent_type: result.intent?.intent_type || 'general',
-                has_logs: result.total_logs > 0,
-                has_traces: result.total_traces > 0,
-                has_metrics: result.total_metrics > 0
+                summary: result.answer || 'Query completed successfully.',
+                insights: [],
+                recommendations: [],
+                execution_time_ms: 0,
+                intent_type: 'inquiry',
+                has_logs: false,
+                has_traces: false,
+                has_metrics: false,
+                tools_used: result.tools_used || []
             });
 
-            // Show brief summary in chat (without Run in Terminal buttons)
+            // Show AI answer in chat
             removeTypingIndicator();
-            const summaryText = result.summary || 'Query results displayed in Data Output panel →';
-            appendAIMessage(`📊 **${summaryText}**\n\n_See the Data Output panel for detailed results._`, true);
+            const toolsInfo = result.tools_used && result.tools_used.length > 0
+                ? `\n\n_Tools used: ${result.tools_used.join(', ')}_`
+                : '';
+            appendAIMessage(`${result.answer}${toolsInfo}`, true);
 
         } catch (error) {
-            console.error('Observability query failed:', error);
+            console.error('Inquiry query failed:', error);
             removeTypingIndicator();
             appendAIMessage(`❌ **Query Error:** ${error.message}\n\nTry rephrasing your question or switch to Troubleshoot mode for command execution.`, true);
         }
     }
+
 
     /**
      * Switch between Terminal and Data Output views
@@ -1557,7 +1595,43 @@
             }
         });
     });
-</script>
+
+    // --- Inline UI Functions (Failsafe) ---
+    function toggleSessionDropdown() {
+        const dropdown = document.getElementById('sessionDropdown');
+        if (dropdown) dropdown.classList.toggle('hidden');
+    }
+
+    function toggleModelDropdown() {
+        const dropdown = document.getElementById('modelDropdown');
+        if (dropdown) dropdown.classList.toggle('hidden');
+    }
+
+    function switchChatMode(mode) {
+        // Simple UI toggle if JS logic hasn't loaded
+        if (typeof window.switchChatMode === 'function' && window.switchChatMode !== switchChatMode) {
+            return window.switchChatMode(mode);
+        }
+        // Minimal visual toggle
+        const genBtn = document.getElementById('modeGeneralBtn');
+        const trbBtn = document.getElementById('modeTroubleshootBtn');
+        const sessWrap = document.getElementById('sessionSelectorWrapper');
+
+        if (mode === 'general') {
+            if (genBtn && genBtn.classList) genBtn.classList.add('bg-blue-600', 'text-white');
+            if (trbBtn && trbBtn.classList) trbBtn.classList.remove('bg-blue-600', 'text-white');
+            if (sessWrap) sessWrap.classList.remove('hidden');
+        } else {
+            if (genBtn && genBtn.classList) genBtn.classList.remove('bg-blue-600', 'text-white');
+            if (trbBtn && trbBtn.classList) trbBtn.classList.add('bg-blue-600', 'text-white');
+            if (sessWrap) sessWrap.classList.add('hidden');
+        }
+    }
+
+    // Expose globally
+    window.toggleSessionDropdown = toggleSessionDropdown;
+    window.toggleModelDropdown = toggleModelDropdown;
+    window.switchChatMode = switchChatMode;
 </script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/vs2015.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
