@@ -11,6 +11,144 @@ let currentSession = null;
 let term = null;
 let fitAddon = null;
 let availableProviders = [];
+
+// ============================================================================
+// UI Global Function Failsafes
+// ---------------------------------------------------------------------------
+// The AI chat template uses inline onclick="..." handlers (e.g. toggleSessionDropdown()).
+// If the template inline script fails to parse/execute for any reason, those globals
+// won't exist and the UI breaks. Provide small, safe defaults here so the page remains
+// usable and the LLM model dropdown can still populate.
+// ============================================================================
+
+if (typeof window !== 'undefined') {
+    // Fallback state that won't collide with template-scoped `let` declarations.
+    window.__aiChatModelDropdownOpen = window.__aiChatModelDropdownOpen ?? false;
+    window.__aiChatSelectedModelId = window.__aiChatSelectedModelId ?? null;
+}
+
+function getSelectedModelIdFallbackSafe() {
+    try {
+        // If the template defines `let selectedModelId`, it will be available as a global binding.
+        // (Not as window.selectedModelId, but still accessible here.)
+        if (typeof selectedModelId !== 'undefined') return selectedModelId;
+    } catch (_) {
+        // ignore
+    }
+    const root = (typeof window !== 'undefined') ? window : globalThis;
+    return root.__aiChatSelectedModelId;
+}
+
+function setSelectedModelIdFallbackSafe(modelId) {
+    try {
+        if (typeof selectedModelId !== 'undefined') {
+            selectedModelId = modelId;
+            return;
+        }
+    } catch (_) {
+        // ignore
+    }
+    const root = (typeof window !== 'undefined') ? window : globalThis;
+    root.__aiChatSelectedModelId = modelId;
+}
+
+if (typeof window !== 'undefined' && typeof window.toggleSessionDropdown !== 'function') {
+    window.toggleSessionDropdown = function toggleSessionDropdown() {
+        const dropdown = document.getElementById('sessionDropdown');
+        if (dropdown) dropdown.classList.toggle('hidden');
+    };
+}
+
+if (typeof window !== 'undefined' && typeof window.toggleModelDropdown !== 'function') {
+    window.toggleModelDropdown = function toggleModelDropdown() {
+        const dropdown = document.getElementById('modelDropdown');
+        window.__aiChatModelDropdownOpen = !window.__aiChatModelDropdownOpen;
+        if (!dropdown) return;
+        dropdown.classList.toggle('hidden', !window.__aiChatModelDropdownOpen);
+    };
+}
+
+if (typeof window !== 'undefined' && typeof window.updateModelStatusIcon !== 'function') {
+    window.updateModelStatusIcon = function updateModelStatusIcon(status) {
+        const icon = document.getElementById('modelStatusIcon');
+        const iconBtn = document.getElementById('modelIconBtn');
+        if (!icon) return;
+
+        icon.classList.remove(
+            'text-green-400', 'text-green-500',
+            'text-yellow-400', 'text-yellow-500',
+            'text-red-400', 'text-red-500',
+            'text-gray-400'
+        );
+
+        let tooltipText = 'LLM Status';
+        switch (status) {
+            case 'connected':
+                icon.classList.add('text-green-500');
+                tooltipText = 'Status: Connected';
+                break;
+            case 'connecting':
+                icon.classList.add('text-yellow-500');
+                tooltipText = 'Status: Connecting...';
+                break;
+            case 'disconnected':
+                icon.classList.add('text-red-500');
+                tooltipText = 'Status: Disconnected';
+                break;
+            default:
+                icon.classList.add('text-gray-400');
+                tooltipText = 'Status: Unknown';
+        }
+
+        if (iconBtn) iconBtn.title = tooltipText;
+    };
+}
+
+if (typeof window !== 'undefined' && typeof window.populateModelDropdown !== 'function') {
+    window.populateModelDropdown = function populateModelDropdown(providers) {
+        const container = document.getElementById('modelListContainer');
+        if (!container) return;
+
+        if (!providers || providers.length === 0) {
+            container.innerHTML = '<div class="px-3 py-2 text-xs text-red-400">No providers configured</div>';
+            window.updateModelStatusIcon?.('disconnected');
+            return;
+        }
+
+        const selectedId = getSelectedModelIdFallbackSafe();
+        container.innerHTML = providers.map(p => {
+            const isSelected = selectedId && selectedId === p.id;
+            return `
+                <button onclick="selectModel('${p.id}', '${(p.provider_name || '').replace(/'/g, "\\'")}' )"
+                    class="w-full text-left px-3 py-2 text-xs hover:bg-gray-700 transition-colors flex items-center justify-between ${isSelected ? 'bg-gray-700 text-blue-400' : 'text-gray-300'}">
+                    <span><i class="fas fa-robot mr-2 text-gray-500"></i>${escapeHtml(p.provider_name)}</span>
+                    ${p.is_default ? '<span class="text-yellow-400 text-[10px]">★ Default</span>' : ''}
+                    ${isSelected ? '<i class="fas fa-check text-blue-400"></i>' : ''}
+                </button>
+            `;
+        }).join('');
+
+        window.updateModelStatusIcon?.('connected');
+    };
+}
+
+if (typeof window !== 'undefined' && typeof window.selectModel !== 'function') {
+    window.selectModel = function selectModel(modelId, modelName) {
+        setSelectedModelIdFallbackSafe(modelId);
+        if (typeof switchModel === 'function') {
+            switchModel(modelId);
+        }
+        if (typeof window.toggleModelDropdown === 'function') {
+            // Close dropdown after selecting
+            const dropdown = document.getElementById('modelDropdown');
+            if (dropdown) dropdown.classList.add('hidden');
+            window.__aiChatModelDropdownOpen = false;
+        }
+        const btn = document.getElementById('modelIconBtn');
+        if (btn && modelName) btn.title = `LLM: ${modelName}`;
+    };
+}
+
 let commandHistory = [];
 const MAX_HISTORY_SIZE = 50;
 let lastMessageRole = null;
@@ -335,9 +473,7 @@ async function loadAvailableProviders() {
 function updateModelSelector() {
     // Set selected model ID for new dropdown
     if (currentSession && currentSession.llm_provider_id) {
-        if (typeof selectedModelId !== 'undefined') {
-            selectedModelId = currentSession.llm_provider_id;
-        }
+        setSelectedModelIdFallbackSafe(currentSession.llm_provider_id);
         // Update tooltip with model name
         const provider = availableProviders.find(p => p.id === currentSession.llm_provider_id);
         if (provider) {
@@ -347,9 +483,7 @@ function updateModelSelector() {
     } else {
         const defaultProvider = availableProviders.find(p => p.is_default);
         if (defaultProvider) {
-            if (typeof selectedModelId !== 'undefined') {
-                selectedModelId = defaultProvider.id;
-            }
+            setSelectedModelIdFallbackSafe(defaultProvider.id);
             const btn = document.getElementById('modelIconBtn');
             if (btn) btn.title = `LLM: ${defaultProvider.provider_name}`;
         }
