@@ -48,7 +48,8 @@ from app.routers import (
     application_profiles_api,  # Phase 3: Application Profiles
     grafana_datasources_api,  # Phase 3: Grafana Datasources
     observability_api,  # Phase 4: AI-Powered Observability Queries
-    revive_api,  # RE-VIVE Widget
+    revive_app,  # RE-VIVE App Helper (Independent Pillar 1)
+    revive_grafana,  # RE-VIVE Grafana Helper (Independent Pillar 2)
     revive,      # RE-VIVE Unified Assistant (New)
     knowledge,  # Phase 2: Knowledge Base
     feedback,  # Phase 3: Learning System
@@ -75,7 +76,7 @@ from app.routers import (
     query_history_api,  # Prometheus Dashboard Builder - Query History
     dashboard_permissions_api,  # Dashboard Permissions
     grafana_proxy,  # Grafana Integration - SSO Proxy
-    chat_api,  # AI Chat API
+    alerts_chat_api,  # Independent Pillar 5: Alerts Assistant
     prometheus_proxy,  # Prometheus Integration - Proxy
     troubleshoot_api,  # Troubleshooting Mode API (separated from revive_api)
     knowledge_apps,
@@ -345,7 +346,8 @@ app.include_router(applications.router)  # Phase 1: Application Registry
 app.include_router(application_profiles_api.router)  # Phase 3: Application Profiles
 app.include_router(grafana_datasources_api.router)  # Phase 3: Grafana Datasources
 app.include_router(observability_api.router)  # Phase 4: AI-Powered Observability
-app.include_router(revive_api.router)  # RE-VIVE Widget
+app.include_router(revive_app.router)  # RE-VIVE App Helper (Independent Pillar 1)
+app.include_router(revive_grafana.router)  # RE-VIVE Grafana Helper (Independent Pillar 2)
 app.include_router(revive.router)      # RE-VIVE Unified Assistant (New)
 app.include_router(revive.ws_router)   # RE-VIVE WebSocket
 app.include_router(knowledge.router)      # Phase 2: Knowledge Base
@@ -371,7 +373,7 @@ app.include_router(rows_api.router)         # Prometheus Dashboard Builder - Pan
 app.include_router(query_history_api.router) # Prometheus Dashboard Builder - Query History
 app.include_router(dashboard_permissions_api.router) # Dashboard Permissions
 app.include_router(grafana_proxy.router)    # Grafana Integration - SSO Proxy
-app.include_router(chat_api.router)          # AI Chat API
+app.include_router(alerts_chat_api.router)  # Alerts Chat API
 app.include_router(prometheus_proxy.router) # Prometheus Integration - Proxy
 app.include_router(troubleshoot_api.router)  # Troubleshooting Mode API
 app.include_router(knowledge_apps.router)
@@ -602,8 +604,8 @@ async def alert_detail_page(
     })
 
 
-@app.get("/ai", response_class=HTMLResponse)
-async def ai_chat_page(
+@app.get("/troubleshoot", response_class=HTMLResponse)
+async def troubleshoot_chat_page(
     request: Request,
     current_user: User = Depends(get_current_user_optional)
 ):
@@ -613,7 +615,7 @@ async def ai_chat_page(
     if not current_user:
         return RedirectResponse(url="/login", status_code=302)
     
-    return templates.TemplateResponse("ai_troubleshoot.html", {
+    return templates.TemplateResponse("troubleshoot_chat.html", {
         "request": request,
         "user": current_user
     })
@@ -647,7 +649,7 @@ async def inquiry_page(
     if not current_user:
         return RedirectResponse(url="/login", status_code=302)
     
-    return templates.TemplateResponse("ai_inquiry.html", {
+    return templates.TemplateResponse("inquiry_chat.html", {
         "request": request,
         "user": current_user
     })

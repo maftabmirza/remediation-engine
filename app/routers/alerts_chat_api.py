@@ -1,31 +1,25 @@
 """
-Chat API Router
+Alerts Chat API Router
 
-Provides API endpoints for the AI chat interface.
-Wraps around existing settings/providers functionality.
+Dedicated to the Alerts Assistant (Chat).
+Strictly independent from Troubleshoot and Revive.
 """
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 from typing import Optional
 from uuid import UUID, uuid4
 from datetime import datetime
-import json
 from pydantic import BaseModel
 
 from app.database import get_db
 from app.models import User, LLMProvider, Alert
-
 from app.services.auth_service import get_current_user
 from app.models_revive import AISession, AIMessage
 
-router = APIRouter(prefix="/api/chat", tags=["chat"])
+router = APIRouter(prefix="/api/alerts/chat", tags=["alerts-chat"])
 
 
 # Request models
-class CommandValidateRequest(BaseModel):
-    command: str
-    server: str
-
 class CreateSessionRequest(BaseModel):
     alert_id: Optional[str] = None
 
@@ -36,8 +30,7 @@ async def get_chat_providers(
     db: Session = Depends(get_db)
 ):
     """
-    Get available LLM providers for chat.
-    Returns enabled providers in a format suitable for the chat UI.
+    Get available LLM providers for alerts chat.
     """
     providers = db.query(LLMProvider).filter(LLMProvider.is_enabled == True).all()
     
@@ -55,24 +48,6 @@ async def get_chat_providers(
     ]
 
 
-@router.get("/sessions/standalone")
-async def get_standalone_session(
-    current_user: User = Depends(get_current_user)
-):
-    """
-    Get or create a standalone chat session.
-    For the AI chat page, we use a simple session model.
-    """
-    # Return a session object with the user's default session
-    return {
-        "id": f"session-{current_user.id}",
-        "user_id": str(current_user.id),
-        "created_at": datetime.utcnow().isoformat(),
-        "is_standalone": True,
-        "llm_provider_id": str(current_user.default_llm_provider_id) if current_user.default_llm_provider_id else None,
-    }
-
-
 @router.get("/sessions/by-alert/{alert_id}")
 async def get_session_by_alert(
     alert_id: str,
@@ -83,15 +58,10 @@ async def get_session_by_alert(
     Get the chat session associated with an alert for the current user.
     """
     try:
+        # Check if alert exists
         alert_uuid = UUID(alert_id)
-        # Find existing session for this alert and user
-        # Note: We don't have a direct alert_id on AISession, but we might store it in context
-        # Ideally, we should check for a session that has this alert in context
         
-        # Searching by context_json logic
-        # For now, let's look for a session that has "alert_id": alert_id in its context
-        # This is a bit inefficient without a dedicated column/index, but OK for now
-        
+        # Searching by context_json for now
         sessions = db.query(AISession).filter(
             AISession.user_id == current_user.id
         ).order_by(AISession.created_at.desc()).limit(20).all()
@@ -102,10 +72,10 @@ async def get_session_by_alert(
                     "id": str(session.id),
                     "user_id": str(session.user_id),
                     "title": session.title,
-                    "created_at": session.created_at.isoformat()
+                    "created_at": session.created_at.isoformat(),
+                    "llm_provider_id": session.context_context_json.get("llm_provider_id")
                 }
         
-        # If not found, return 404 - let frontend create one
         raise HTTPException(status_code=404, detail="Session not found for this alert")
         
     except ValueError:
@@ -121,10 +91,6 @@ async def get_context_status(
     """
     Check status of analysis context for an alert.
     """
-    # This endpoint is polled by frontend to see if context (e.g. analysis) is ready
-    # For now, we can just return a basic "ready" status if the alert exists
-    from app.models import Alert
-    
     try:
         alert_uuid = UUID(alert_id)
         alert = db.query(Alert).filter(Alert.id == alert_uuid).first()
@@ -135,37 +101,15 @@ async def get_context_status(
         return {
             "status": "ready",
             "analyzed": alert.analyzed,
-            "analysis_available": bool(alert.ai_analysis)
+            "analysis_available": bool(alert.ai_analysis),
+            # Add simple helpers for badge calculation if needed
+            "has_similar_incidents": False, # Placeholder
+            "similar_count": 0,
+            "has_feedback_history": False,
+            "has_correlation": False
         }
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid alert ID")
-
-
-@router.get("/sessions")
-async def list_chat_sessions(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """
-    List chat sessions for the current user.
-    """
-    sessions = db.query(AISession).filter(
-        AISession.user_id == current_user.id
-    ).order_by(AISession.created_at.desc()).all()
-    
-    return {
-        "sessions": [
-            {
-                "id": str(s.id),
-                "title": s.title or "Untitled Session",
-                "created_at": s.created_at.isoformat(),
-                "updated_at": s.created_at.isoformat(),
-                "message_count": len(s.messages)
-            }
-            for s in sessions
-        ],
-        "count": len(sessions)
-    }
 
 
 @router.post("/sessions")
@@ -175,11 +119,10 @@ async def create_chat_session(
     db: Session = Depends(get_db)
 ):
     """
-    Create a new chat session.
+    Create a new alerts chat session.
     """
     session_id = uuid4()
     
-    # Context setup
     context_type = None
     context_id = None
     context_json = None
@@ -196,8 +139,8 @@ async def create_chat_session(
     new_session = AISession(
         id=session_id,
         user_id=current_user.id,
-        pillar="troubleshooting",
-        title="New Chat",
+        pillar="alerts", # Explicit pillar
+        title="Alert Chat",
         created_at=datetime.utcnow(),
         context_type=context_type,
         context_id=context_id,
@@ -225,16 +168,12 @@ async def get_session_messages(
     """
     try:
         session_uuid = UUID(session_id)
-        # Verify ownership
         session = db.query(AISession).filter(
             AISession.id == session_uuid,
             AISession.user_id == current_user.id
         ).first()
         
         if not session:
-            # Check if it is a standalone session (special handling)
-            if session_id.startswith("session-"):
-                 return []
             raise HTTPException(status_code=404, detail="Session not found")
         
         messages = db.query(AIMessage).filter(
@@ -270,30 +209,15 @@ async def switch_session_provider(
         if not provider_id:
              raise HTTPException(status_code=400, detail="provider_id is required")
 
-        # Provider IDs are UUIDs in the DB; normalize early for consistent queries.
         try:
             provider_uuid = UUID(str(provider_id))
         except Exception:
             raise HTTPException(status_code=400, detail="Invalid provider ID")
 
-        # Verify provider exists
         provider = db.query(LLMProvider).filter(LLMProvider.id == provider_uuid).first()
         if not provider:
             raise HTTPException(status_code=404, detail="Provider not found")
 
-        # Standalone chat uses IDs like "session-<user_id>" (not stored in ai_sessions).
-        # For this mode, persist the selection as the user's default LLM provider.
-        if session_id.startswith("session-"):
-            current_user.default_llm_provider_id = provider_uuid
-            db.commit()
-            return {
-                "success": True,
-                "session_id": session_id,
-                "provider_name": provider.name,
-                "model_name": provider.model_id,
-            }
-
-        # Normal persisted AI sessions
         session_uuid = UUID(session_id)
         session = db.query(AISession).filter(
             AISession.id == session_uuid,
@@ -303,7 +227,6 @@ async def switch_session_provider(
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
 
-        # Save provider selection in session context for now (until we add column)
         ctx = dict(session.context_context_json) if session.context_context_json else {}
         ctx["llm_provider_id"] = str(provider_uuid)
         session.context_context_json = ctx
@@ -319,53 +242,11 @@ async def switch_session_provider(
     except ValueError:
          raise HTTPException(status_code=400, detail="Invalid session ID")
 
-
-@router.post("/commands/validate")
-async def validate_command(
-    request: CommandValidateRequest,
-    current_user: User = Depends(get_current_user)
-):
-    """
-    Validate a command before execution.
-    Returns safety assessment and risk level.
-    """
-    from app.services.command_validator import CommandValidator, ValidationResult
-    
-    try:
-        validator = CommandValidator()
-        
-        # Detect OS type from server name
-        os_type = "windows" if any(x in request.server.lower() for x in ['win', 'windows']) else "linux"
-        
-        # Validate command
-        result = validator.validate_command(request.command, os_type)
-        
-        return {
-            "result": result.result.value,
-            "message": result.message,
-            "risk_level": result.risk_level if hasattr(result, 'risk_level') else 'unknown'
-        }
-    except Exception as e:
-        return {
-            "result": "unknown",
-            "message": f"Validation error: {str(e)}",
-            "risk_level": "unknown"
-        }
-
-
-# WebSocket endpoint for chat - gracefully close since chat is REST-based
-# WebSocket endpoint for chat
 @router.websocket("/ws/{session_id}")
 async def chat_websocket(websocket: WebSocket, session_id: str):
-    """
-    WebSocket endpoint for chat status updates.
-    Keeps connection alive for real-time notifications.
-    """
     await websocket.accept()
     try:
         while True:
-            # Simple keep-alive loop
-            # In a full implementation, we would subscribe to a message queue here
             data = await websocket.receive_text()
             if data == "ping":
                 await websocket.send_text("pong")

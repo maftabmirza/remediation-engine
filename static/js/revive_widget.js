@@ -671,7 +671,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             console.groupEnd();
 
-            const response = await fetch('/api/ai-helper/query', {
+            const response = await fetch('/api/revive/app/query', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

@@ -15,7 +15,7 @@ let commandHistory = [];
 const MAX_HISTORY_SIZE = 50;
 let lastMessageRole = null;
 let currentMessageDiv = null;
-let chatFontSize = 14;
+// chatFontSize and termFontSize removed/handled by AIChatBase
 let currentServerId = null;
 let currentServerProtocol = 'ssh';
 let storedServers = [];
@@ -246,8 +246,7 @@ function resetReasoningPanel() {
 
 // Font Size Controls
 function adjustChatFont(delta) {
-    chatFontSize = Math.max(10, Math.min(24, chatFontSize + delta));
-    document.getElementById('chatMessages').style.fontSize = `${chatFontSize}px`;
+    AIChatBase.adjustChatFont(delta);
 }
 
 function adjustTermFont(delta) {
@@ -263,7 +262,7 @@ async function initChatSession() {
         await loadAvailableProviders();
 
         // Get or create standalone session
-        let response = await apiCall('/api/chat/sessions/standalone');
+        let response = await apiCall('/api/troubleshoot/sessions/standalone');
 
         if (response.ok) {
             currentSession = await response.json();
@@ -271,7 +270,7 @@ async function initChatSession() {
             console.log('Using chat session:', currentSessionId);
         } else {
             // Fallback: create new session
-            const createResponse = await apiCall('/api/chat/sessions', {
+            const createResponse = await apiCall('/api/troubleshoot/sessions', {
                 method: 'POST',
                 body: JSON.stringify({})
             });
@@ -304,7 +303,7 @@ async function loadAvailableProviders() {
             updateModelStatusIcon('connecting');
         }
 
-        const response = await apiCall('/api/chat/providers');
+        const response = await apiCall('/api/troubleshoot/providers');
         if (!response.ok) throw new Error('Failed to load providers');
         availableProviders = await response.json();
 
@@ -359,7 +358,7 @@ function updateModelSelector() {
 async function switchModel(providerId) {
     if (!currentSessionId || !providerId) return;
     try {
-        const response = await apiCall(`/api/chat/sessions/${currentSessionId}/provider`, {
+        const response = await apiCall(`/api/troubleshoot/sessions/${currentSessionId}/provider`, {
             method: 'PATCH',
             body: JSON.stringify({ provider_id: providerId })
         });
@@ -381,7 +380,7 @@ async function switchModel(providerId) {
 
 async function loadMessageHistory(sessionId) {
     try {
-        const response = await apiCall(`/api/chat/sessions/${sessionId}/messages`);
+        const response = await apiCall(`/api/troubleshoot/sessions/${sessionId}/messages`);
         if (!response.ok) throw new Error('Failed to load history');
         const messages = await response.json();
         const container = document.getElementById('chatMessages');
@@ -392,37 +391,12 @@ async function loadMessageHistory(sessionId) {
         }
         messages.forEach(msg => {
             if (msg.role === 'user') {
-                const wrapper = document.createElement('div');
-                const hasCodeBlock = msg.content.includes('```') || msg.content.includes('[TERMINAL') || msg.content.includes('[ERROR') || msg.content.includes('[SYSTEM');
-                wrapper.className = hasCodeBlock ? 'flex justify-start w-full pr-2 mb-3' : 'flex justify-end mb-3';
-                wrapper.innerHTML = `
-                    <div class="bg-gray-700/80 border border-gray-700 rounded-lg p-3 ${hasCodeBlock ? 'w-full' : 'max-w-xs lg:max-w-md'} text-sm text-white shadow-md" style="word-break: break-word;">
-                        <div class="user-message-content ${hasCodeBlock ? 'overflow-x-auto max-h-80 overflow-y-auto' : ''}">
-                            ${hasCodeBlock ? marked.parse(msg.content) : escapeHtml(msg.content)}
-                        </div>
-                    </div>
-                `;
-                container.appendChild(wrapper);
-                lastMessageRole = 'user';
+                AIChatBase.appendUserMessage(msg.content);
             } else if (msg.role === 'assistant') {
-                const wrapper = document.createElement('div');
-                wrapper.className = 'flex justify-start w-full pr-2 mb-3';
-                wrapper.innerHTML = `
-                    <div class="ai-message-wrapper w-full">
-                        <div class="flex items-center mb-2">
-                            <div class="w-6 h-6 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center mr-2">
-                                <i class="fas fa-robot text-white text-xs"></i>
-                            </div>
-                            <span class="text-xs text-gray-400">AI Assistant</span>
-                        </div>
-                        <div class="bg-gray-800/80 rounded-lg p-4 border border-gray-700 text-sm ai-message-content shadow-lg">
-                            ${marked.parse(msg.content)}
-                        </div>
-                    </div>
-                `;
-                container.appendChild(wrapper);
-                addRunButtons(wrapper);
-                lastMessageRole = 'assistant';
+                AIChatBase.appendAIMessage(msg.content, {
+                    skipRunButtons: true, // we handle it separately if needed
+                    messageId: msg.id
+                });
             }
         });
         container.scrollTop = container.scrollHeight;
@@ -433,28 +407,16 @@ async function loadMessageHistory(sessionId) {
 }
 
 function showWelcomeScreen() {
-    const container = document.getElementById('chatMessages');
-    container.innerHTML = `
-        <div class="text-center text-gray-400 mt-10">
-            <i class="fas fa-robot text-4xl mb-3 text-purple-400"></i>
-            <p class="mb-2 text-lg">👋 Hi! I'm your AI assistant.</p>
-            <p class="text-sm text-gray-500 mb-4">Connect to a server and ask me anything:</p>
-            <div class="mt-3 space-y-2 text-left max-w-sm mx-auto">
-                <button onclick="sendSuggestion('What can you help me with?')" class="w-full text-left bg-gray-800 hover:bg-gray-700 px-3 py-2 rounded text-sm border border-gray-700 transition-colors">
-                    <i class="fas fa-question-circle text-purple-400 mr-2"></i>What can you help me with?
-                </button>
-                <button onclick="sendSuggestion('How do I check disk space on a Linux server?')" class="w-full text-left bg-gray-800 hover:bg-gray-700 px-3 py-2 rounded text-sm border border-gray-700 transition-colors">
-                    <i class="fas fa-terminal text-green-400 mr-2"></i>How do I check disk space?
-                </button>
-                <button onclick="sendSuggestion('Show me common troubleshooting commands')" class="w-full text-left bg-gray-800 hover:bg-gray-700 px-3 py-2 rounded text-sm border border-gray-700 transition-colors">
-                    <i class="fas fa-wrench text-yellow-400 mr-2"></i>Common troubleshooting commands
-                </button>
-                <button onclick="sendSuggestion('Explain how to analyze server logs')" class="w-full text-left bg-gray-800 hover:bg-gray-700 px-3 py-2 rounded text-sm border border-gray-700 transition-colors">
-                    <i class="fas fa-file-alt text-blue-400 mr-2"></i>How to analyze server logs
-                </button>
-            </div>
-        </div>
-    `;
+    AIChatBase.showWelcomeScreen(
+        "Troubleshoot Console",
+        "Connect to a server and ask me anything to start investigation.",
+        [
+            { text: "What can you help me with?", icon: "fas fa-question-circle" },
+            { text: "How do I check disk space on a Linux server?", icon: "fas fa-terminal" },
+            { text: "Show me common troubleshooting commands", icon: "fas fa-wrench" },
+            { text: "Explain how to analyze server logs", icon: "fas fa-file-alt" }
+        ]
+    );
 }
 
 function sendSuggestion(text) {
@@ -1169,7 +1131,7 @@ async function validateCommand(command, server) {
     resultDiv.innerHTML = '<i class="fas fa-spinner fa-spin mr-2 text-blue-400"></i>Validating...';
 
     try {
-        const response = await fetch('/api/chat/commands/validate', {
+        const response = await fetch('/api/troubleshoot/commands/validate', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -1913,16 +1875,7 @@ async function executeCommandViaTerminal(command, server) {
 }
 
 function appendUserMessage(text) {
-    const container = document.getElementById('chatMessages');
-    const wrapper = document.createElement('div');
-    wrapper.className = 'flex justify-end';
-    wrapper.innerHTML = `
-        <div class="bg-gray-700/80 border border-gray-700 rounded-lg p-3 max-w-xs lg:max-w-md text-sm text-white shadow-md">
-            ${text}
-        </div>
-    `;
-    container.appendChild(wrapper);
-    container.scrollTop = container.scrollHeight;
+    AIChatBase.appendUserMessage(text);
     lastMessageRole = 'user';
 }
 
@@ -2170,63 +2123,20 @@ function cancelStreaming() {
 }
 
 function showTypingIndicator() {
-    const container = document.getElementById('chatMessages');
-    const indicator = document.createElement('div');
-    indicator.id = 'typingIndicator';
-    indicator.className = 'flex justify-start my-2';
-    indicator.innerHTML = `
-        <div class="bg-gray-700 rounded-lg px-4 py-3 flex items-center space-x-3">
-            <div class="flex space-x-1">
-                <div class="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style="animation-delay: 0ms"></div>
-                <div class="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style="animation-delay: 150ms"></div>
-                <div class="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style="animation-delay: 300ms"></div>
-            </div>
-            <span class="text-gray-400 text-xs">AI is thinking...</span>
-            <button onclick="cancelStreaming()" class="ml-2 text-red-400 hover:text-red-300 text-xs px-2 py-1 border border-red-400/50 rounded hover:bg-red-400/10 transition-colors" title="Stop generating">
-                <i class="fas fa-stop mr-1"></i>Stop
-            </button>
-        </div>
-    `;
-    container.appendChild(indicator);
-    container.scrollTop = container.scrollHeight;
+    AIChatBase.showTypingIndicator('AI is thinking...');
 }
 
 function removeTypingIndicator() {
-    const indicator = document.getElementById('typingIndicator');
-    if (indicator) indicator.remove();
+    AIChatBase.removeTypingIndicator();
 }
 
 // Utility Functions
 function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+    return AIChatBase.escapeHtml(text);
 }
 
 function copyToClipboard(text) {
-    if (navigator.clipboard && window.isSecureContext) {
-        return navigator.clipboard.writeText(text);
-    } else {
-        return new Promise((resolve, reject) => {
-            const textarea = document.createElement('textarea');
-            textarea.value = text;
-            textarea.style.position = 'fixed';
-            textarea.style.top = '-9999px';
-            textarea.style.left = '-9999px';
-            document.body.appendChild(textarea);
-            textarea.focus();
-            textarea.select();
-            try {
-                const successful = document.execCommand('copy');
-                document.body.removeChild(textarea);
-                if (successful) resolve();
-                else reject(new Error('Copy command failed'));
-            } catch (err) {
-                document.body.removeChild(textarea);
-                reject(err);
-            }
-        });
-    }
+    return AIChatBase.copyToClipboard(text);
 }
 
 // Clear Chat Functions
@@ -2308,6 +2218,15 @@ window.addEventListener('load', function () {
         return;
     }
     console.log('Initializing AI Chat...');
+
+    // Initialize Base Rendering - configured for Troubleshoot icons
+    AIChatBase.init({
+        aiIconClass: 'fas fa-robot',
+        aiGradientClass: 'from-purple-600 to-blue-600',
+        aiName: 'AI Assistant',
+        userGradientClass: 'bg-gray-700/80 shadow-md'
+    });
+
     initChatSession();
 });
 
@@ -3959,3 +3878,175 @@ setInterval(() => {
         refreshAgentHQ();
     }
 }, 5000);
+
+
+// ==========================================
+// UI Helper Functions (Dropdowns, Sessions)
+// ==========================================
+
+function toggleSessionDropdown() {
+    const dropdown = document.getElementById('sessionDropdown');
+    const btn = document.getElementById('sessionDropdownBtn');
+    if (!dropdown) return;
+
+    dropdown.classList.toggle('hidden');
+
+    // Refresh session list when opening
+    if (!dropdown.classList.contains('hidden')) {
+        loadSessions();
+    }
+}
+
+function toggleModelDropdown() {
+    const dropdown = document.getElementById('modelDropdown');
+    const btn = document.getElementById('modelIconBtn');
+    if (!dropdown) return;
+
+    dropdown.classList.toggle('hidden');
+}
+
+// Close dropdowns when clicking outside
+window.addEventListener('click', function (e) {
+    const sessionDropdown = document.getElementById('sessionDropdown');
+    const sessionBtn = document.getElementById('sessionDropdownBtn');
+    if (sessionDropdown && !sessionDropdown.classList.contains('hidden')) {
+        if (!sessionDropdown.contains(e.target) && (!sessionBtn || !sessionBtn.contains(e.target))) {
+            sessionDropdown.classList.add('hidden');
+        }
+    }
+
+    const modelDropdown = document.getElementById('modelDropdown');
+    const modelBtn = document.getElementById('modelIconBtn');
+    if (modelDropdown && !modelDropdown.classList.contains('hidden')) {
+        if (!modelDropdown.contains(e.target) && (!modelBtn || !modelBtn.contains(e.target))) {
+            modelDropdown.classList.add('hidden');
+        }
+    }
+});
+
+async function loadSessions() {
+    try {
+        const response = await apiCall('/api/troubleshoot/sessions');
+        if (!response.ok) return;
+
+        const data = await response.json();
+        const sessions = data.sessions || [];
+        populateSessionDropdown(sessions);
+    } catch (error) {
+        console.error('Failed to load sessions:', error);
+    }
+}
+
+function populateSessionDropdown(sessions) {
+    const container = document.getElementById('sessionListContainer');
+    if (!container) return;
+
+    if (sessions.length === 0) {
+        container.innerHTML = '<div class="px-3 py-2 text-xs text-gray-500">No previous sessions</div>';
+    } else {
+        container.innerHTML = sessions.map(session => `
+            <div class="px-3 py-2 hover:bg-gray-700 cursor-pointer flex justify-between items-center group" onclick="switchSession('${session.id}')">
+                <div class="truncate max-w-[180px] text-xs ${session.id === currentSessionId ? 'text-blue-400 font-bold' : 'text-gray-300'}">
+                    ${AIChatBase.escapeHtml(session.title || 'Untitled Session')}
+                </div>
+                <div class="text-[10px] text-gray-500">
+                    ${new Date(session.created_at).toLocaleDateString()}
+                </div>
+            </div>
+        `).join('');
+    }
+
+    const newSessionHtml = `
+        <div class="px-3 py-2 hover:bg-gray-700 cursor-pointer text-blue-400 border-b border-gray-700 flex items-center" onclick="createNewSession()">
+            <i class="fas fa-plus mr-2 text-xs"></i> <span class="text-xs font-bold">New Session</span>
+        </div>
+    `;
+    container.innerHTML = newSessionHtml + container.innerHTML;
+}
+
+async function createNewSession() {
+    try {
+        const response = await apiCall('/api/troubleshoot/sessions', {
+            method: 'POST',
+            body: JSON.stringify({})
+        });
+
+        if (response.ok) {
+            const session = await response.json();
+            switchSession(session.id);
+            showToast('New session created', 'success');
+        } else {
+            showToast('Failed to create session', 'error');
+        }
+    } catch (error) {
+        console.error('Create session failed:', error);
+        showToast('Error creating session', 'error');
+    }
+}
+
+async function switchSession(sessionId) {
+    if (sessionId === currentSessionId) return;
+
+    currentSessionId = sessionId;
+    document.getElementById('sessionDropdown').classList.add('hidden');
+
+    // Update UI title
+    const titleEl = document.getElementById('currentSessionTitle');
+    if (titleEl) titleEl.textContent = 'Loading...';
+
+    // Load messages
+    await loadMessageHistory(sessionId);
+
+    if (titleEl) titleEl.textContent = 'Active Session';
+    showToast('Session switched', 'info');
+}
+
+// Populate Model Dropdown
+function populateModelDropdown(providers) {
+    const list = document.getElementById('modelListContainer');
+    if (!list) return;
+
+    if (!providers || providers.length === 0) {
+        list.innerHTML = '<div class="px-3 py-2 text-xs text-gray-500">No providers available</div>';
+        return;
+    }
+
+    list.innerHTML = providers.map(p => `
+        <div class="px-3 py-2 hover:bg-gray-700 cursor-pointer flex items-center" onclick="selectModel('${p.id}')">
+            <div class="w-2 h-2 rounded-full ${p.is_enabled ? 'bg-green-400' : 'bg-red-400'} mr-2"></div>
+            <div class="text-xs text-gray-300">
+                <div class="font-bold">${AIChatBase.escapeHtml(p.name)}</div>
+                <div class="text-[10px] text-gray-500">${AIChatBase.escapeHtml(p.model_id)}</div>
+            </div>
+            ${p.is_default ? '<i class="fas fa-check ml-auto text-blue-400 text-xs"></i>' : ''}
+        </div>
+    `).join('');
+}
+
+async function selectModel(providerId) {
+    if (!currentSessionId) return;
+
+    try {
+        const response = await apiCall(`/api/troubleshoot/sessions/${currentSessionId}/provider`, {
+            method: 'PATCH',
+            body: JSON.stringify({ provider_id: providerId })
+        });
+
+        if (response.ok) {
+            document.getElementById('modelDropdown').classList.add('hidden');
+            showToast('Model switched', 'success');
+            // Optimistically update default checkmark (full refresh safer but lazy ok)
+        }
+    } catch (error) {
+        console.error('Switch model failed:', error);
+        showToast('Failed to switch model', 'error');
+    }
+}
+
+
+// Expose to window for inline onclicks
+window.toggleSessionDropdown = toggleSessionDropdown;
+window.toggleModelDropdown = toggleModelDropdown;
+window.createNewSession = createNewSession;
+window.switchSession = switchSession;
+window.selectModel = selectModel;

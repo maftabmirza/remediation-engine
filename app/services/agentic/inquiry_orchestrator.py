@@ -10,7 +10,7 @@ Responsible for:
 """
 
 import logging
-from typing import Dict, Any, Optional, List, Union
+from typing import Dict, Any, Optional, List, Union, AsyncGenerator
 from uuid import UUID
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -188,6 +188,53 @@ class InquiryOrchestrator:
                 answer=f"I encountered an error while processing your request: {str(e)}",
                 error=str(e)
             )
+
+    async def stream_query(
+        self,
+        query: str,
+        session_id: Optional[UUID] = None,
+        context: Optional[Dict] = None
+    ) -> AsyncGenerator[str, None]:
+        """
+        Stream an Inquiry query.
+        """
+        # Resolve Provider
+        provider = self.provider or get_default_provider(self.db)
+            
+        if not provider:
+            yield f"data: {json.dumps({'type': 'error', 'content': 'No LLM provider configured'})}\n\n"
+            return
+        
+        # Load Conversation History
+        initial_messages = []
+        if session_id:
+            from app.models_revive import AIMessage
+            history = self.db.query(AIMessage).filter(
+                AIMessage.session_id == session_id
+            ).order_by(AIMessage.created_at).all()
+            
+            for msg in history:
+                initial_messages.append({
+                    "role": msg.role,
+                    "content": msg.content
+                })
+        
+        # Use AiInquiryAgent
+        registry_factory = lambda db, alert_id: self.registry
+        agent = AiInquiryAgent(
+            db=self.db,
+            provider=provider,
+            registry_factory=registry_factory,
+            max_iterations=5,
+            initial_messages=initial_messages
+        )
+        
+        # Stream
+        async for chunk in agent.stream(query):
+            yield chunk
+
+        # Track tools used (accessible via self.tool_calls_made after generator finishes)
+        self.tool_calls_made = getattr(agent, 'tool_calls_made', [])
 
     def _build_system_prompt(self, tools: List) -> str:
         """

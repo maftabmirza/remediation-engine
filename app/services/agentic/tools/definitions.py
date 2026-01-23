@@ -10,6 +10,7 @@ class ToolParameter:
     required: bool = False
     default: Any = None
     enum: Optional[List[str]] = None
+    items: Optional[Dict[str, Any]] = None
 
 @dataclass
 class Tool:
@@ -35,6 +36,8 @@ class Tool:
             }
             if param.enum:
                 prop["enum"] = param.enum
+            if param.items:
+                prop["items"] = param.items
             properties[param.name] = prop
 
             if param.required:
@@ -65,6 +68,8 @@ class Tool:
             }
             if param.enum:
                 prop["enum"] = param.enum
+            if param.items:
+                prop["items"] = param.items
             properties[param.name] = prop
 
             if param.required:

@@ -399,7 +399,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const context = extractPageContext();
 
-            const response = await fetch('/api/ai-helper/query', {
+            const response = await fetch('/api/revive/grafana/query', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'

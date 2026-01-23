@@ -1,0 +1,134 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.8.10, pytest-8.3.5, pluggy-1.5.0
+benchmark: 4.0.0 (defaults: timer=time.perf_counter disable_gc=False min_rounds=5 min_time=0.000005 max_time=1.0 calibration_precision=10 warmup=False warmup_iterations=100000)
+rootdir: D:\remediate-engine-antigravity
+configfile: pytest.ini
+plugins: anyio-4.5.2, Faker-22.6.0, asyncio-0.24.0, base-url-2.1.0, benchmark-4.0.0, cov-4.1.0, mock-3.12.0, playwright-0.5.2, xdist-3.5.0
+asyncio: mode=auto, default_loop_scope=None
+collected 1 item
+
+tests\e2e\test_context_extraction.py F                                   [100%]
+
+================================== FAILURES ===================================
+_______________ test_runbook_view_context_extraction[chromium] ________________
+
+authenticated_page = <Page url='http://localhost:8080/runbooks'>
+
+    def test_runbook_view_context_extraction(authenticated_page: Page):
+        """
+        Verify that getPageContext() correctly extracts step information from the Runbook View page.
+        This ensures the generic fallback logic in revive_widget.js works as expected.
+        """
+        # 1. Navigate to a runbook view page
+        # We can use an existing runbook or just check if we can land on one.
+        # Ideally we'd create one, but for now let's assume at least one exists or we can mock the page structure.
+        # To be safe and robust, let's inject a mock runbook view structure into a blank page if we can't rely on data.
+        # However, since this is a "live" app test, we should try to use real pages.
+    
+        # Navigate to runbooks list
+        authenticated_page.goto("/runbooks")
+    
+        # Wait for runbook list validation
+        # If no runbooks, we can't test "View" page.
+        # Let's create a temporary runbook to be sure.
+    
+        # Click "Create" (Header Action)
+        authenticated_page.click("a[href='/runbooks/new']")
+        authenticated_page.wait_for_url("**/runbooks/new")
+    
+        # Fill form
+        runbook_name = "Context Extraction Test"
+        authenticated_page.fill("#runbookName", runbook_name)
+        authenticated_page.fill("#runbookDescription", "Testing context extraction")
+    
+        # Add a step
+        authenticated_page.click("text=Add Step")
+    
+        # Wait for step card
+        step_card = authenticated_page.locator(".step-card").first
+        expect(step_card).to_be_visible()
+    
+        # Fill step details
+        step_card.locator(".step-name").fill("Verify System")
+        step_card.locator(".CodeMirror").first.click()
+        authenticated_page.keyboard.type("echo 'System OK'")
+    
+        # Save Runbook
+        authenticated_page.click("text=Save Runbook")
+    
+        # Wait for redirect to list (or stay on edit?)
+        # Usually redirects to list. Let's wait for list.
+        authenticated_page.wait_for_url("**/runbooks")
+    
+        # Find the new runbook and click View
+        # Assuming list has links.
+        # We need to find the row with "Context Extraction Test"
+        row = authenticated_page.locator(f"tr:has-text('{runbook_name}')")
+        expect(row).to_be_visible()
+    
+        # Click the "View" button/icon (usually eye icon or just the name)
+        # Let's try clicking the name or the view action
+        row.click()
+        # Wait, usually clicking row or name goes to view.
+    
+        # Wait for view page
+>       authenticated_page.wait_for_selector("text=Runbook Steps")
+
+tests\e2e\test_context_extraction.py:63: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\mirza\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.8_qbz5n2kfra8p0\LocalCache\local-packages\Python38\site-packages\playwright\sync_api\_generated.py:8165: in wait_for_selector
+    self._sync(
+C:\Users\mirza\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.8_qbz5n2kfra8p0\LocalCache\local-packages\Python38\site-packages\playwright\_impl\_page.py:426: in wait_for_selector
+    return await self._main_frame.wait_for_selector(**locals_to_params(locals()))
+C:\Users\mirza\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.8_qbz5n2kfra8p0\LocalCache\local-packages\Python38\site-packages\playwright\_impl\_frame.py:323: in wait_for_selector
+    await self._channel.send("waitForSelector", locals_to_params(locals()))
+C:\Users\mirza\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.8_qbz5n2kfra8p0\LocalCache\local-packages\Python38\site-packages\playwright\_impl\_connection.py:59: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <playwright._impl._connection.Connection object at 0x0000020168C1DB50>
+cb = <function Channel.send.<locals>.<lambda> at 0x000002016A3AA4C0>
+is_internal = False
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        st: List[inspect.FrameInfo] = getattr(task, "__pw_stack__", inspect.stack())
+        parsed_st = _extract_stack_trace_information_from_stack(st, is_internal)
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Page.wait_for_selector: Timeout 30000ms exceeded.
+E           Call log:
+E           waiting for locator("text=Runbook Steps") to be visible
+
+C:\Users\mirza\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.8_qbz5n2kfra8p0\LocalCache\local-packages\Python38\site-packages\playwright\_impl\_connection.py:520: TimeoutError
+============================== warnings summary ===============================
+C:\Users\mirza\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.8_qbz5n2kfra8p0\LocalCache\local-packages\Python38\site-packages\litellm\litellm_core_utils\default_encoding.py:12
+  C:\Users\mirza\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.8_qbz5n2kfra8p0\LocalCache\local-packages\Python38\site-packages\litellm\litellm_core_utils\default_encoding.py:12: DeprecationWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html
+    import pkg_resources  # type: ignore
+
+C:\Users\mirza\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.8_qbz5n2kfra8p0\LocalCache\local-packages\Python38\site-packages\pkg_resources\__init__.py:3154
+C:\Users\mirza\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.8_qbz5n2kfra8p0\LocalCache\local-packages\Python38\site-packages\pkg_resources\__init__.py:3154
+  C:\Users\mirza\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.8_qbz5n2kfra8p0\LocalCache\local-packages\Python38\site-packages\pkg_resources\__init__.py:3154: DeprecationWarning: Deprecated call to `pkg_resources.declare_namespace('zope')`.
+  Implementing implicit namespace packages (as specified in PEP 420) is preferred to `pkg_resources.declare_namespace`. See https://setuptools.pypa.io/en/latest/references/keywords.html#keyword-namespace-packages
+    declare_namespace(pkg)
+
+C:\Users\mirza\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.8_qbz5n2kfra8p0\LocalCache\local-packages\Python38\site-packages\pydantic\_internal\_config.py:295: 36 warnings
+  C:\Users\mirza\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.8_qbz5n2kfra8p0\LocalCache\local-packages\Python38\site-packages\pydantic\_internal\_config.py:295: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.10/migration/
+    warnings.warn(DEPRECATION_MESSAGE, DeprecationWarning)
+
+C:\Users\mirza\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.8_qbz5n2kfra8p0\LocalCache\local-packages\Python38\site-packages\pydantic\_internal\_config.py:345
+  C:\Users\mirza\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.8_qbz5n2kfra8p0\LocalCache\local-packages\Python38\site-packages\pydantic\_internal\_config.py:345: UserWarning: Valid config keys have changed in V2:
+  * 'orm_mode' has been renamed to 'from_attributes'
+    warnings.warn(message, UserWarning)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/e2e/test_context_extraction.py::test_runbook_view_context_extraction[chromium]
+================== 1 failed, 40 warnings in 64.18s (0:01:04) ==================

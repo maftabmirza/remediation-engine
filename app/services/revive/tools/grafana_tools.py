@@ -68,7 +68,7 @@ class GrafanaTools(ToolModule):
                 parameters=[
                     ToolParameter("title", "string", "Dashboard title"),
                     ToolParameter("folder_uid", "string", "Folder UID (optional)"),
-                    ToolParameter("panels", "array", "List of panel definitions (JSON)")
+                    ToolParameter("panels", "array", "List of panel definitions (JSON)", items={"type": "object"})
                 ]
             ),
             self.create_dashboard

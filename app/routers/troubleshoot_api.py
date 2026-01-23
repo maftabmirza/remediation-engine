@@ -15,6 +15,7 @@ import uuid
 import json
 import os
 import asyncio
+from pydantic import BaseModel
 
 from app.database import get_db
 from app.services.auth_service import get_current_user
@@ -25,6 +26,13 @@ router = APIRouter(
     prefix="/api/troubleshoot",
     tags=["troubleshooting"]
 )
+
+class SwitchProviderRequest(dict):
+    provider_id: str
+
+class CommandValidateRequest(BaseModel):
+    command: str
+    server: str
 
 logger = logging.getLogger(__name__)
 
@@ -124,12 +132,15 @@ async def troubleshoot_chat(
         db.add(user_msg)
         db.commit()
         
+        from app.services.agentic.tools.registry import create_troubleshooting_registry
+        
         # Create the Native Tool Agent with conversation history
         agent = NativeToolAgent(
             db=db,
             provider=provider,
             alert=None,  # No specific alert context
-            initial_messages=initial_messages
+            initial_messages=initial_messages,
+            registry_factory=create_troubleshooting_registry
         )
         
         # Use stream() to get CMD_CARD markers for command buttons
@@ -360,3 +371,149 @@ async def create_troubleshoot_session(
         "created_at": datetime.utcnow().isoformat(),
         "mode": "troubleshoot"
     }
+@router.get("/providers")
+async def list_troubleshoot_providers(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """List available LLM providers for troubleshooting."""
+    from app.llm_core.provider_selection import get_available_providers
+    providers = get_available_providers(db)
+    return [
+        {
+            "id": str(p.id),
+            "name": p.name,
+            "provider_name": f"{p.name} ({p.provider_type})",
+            "provider_type": p.provider_type,
+            "model_id": p.model_id,
+            "is_default": p.is_default,
+            "is_enabled": p.is_enabled
+        }
+        for p in providers
+    ]
+
+@router.get("/sessions/standalone")
+async def get_standalone_session(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get the current standalone troubleshooting session or create one."""
+    session = db.query(AISession).filter(
+        AISession.user_id == current_user.id,
+        AISession.pillar == "troubleshooting",
+        AISession.context_type == "standalone"
+    ).order_by(AISession.created_at.desc()).first()
+
+    if not session:
+        session = AISession(
+            user_id=current_user.id,
+            pillar="troubleshooting",
+            context_type="standalone",
+            title="Troubleshooting Session"
+        )
+        db.add(session)
+        db.commit()
+        db.refresh(session)
+
+    # Get provider ID from context if set
+    llm_provider_id = None
+    if session.context_context_json:
+        llm_provider_id = session.context_context_json.get("llm_provider_id")
+
+    return {
+        "id": str(session.id),
+        "title": session.title,
+        "llm_provider_id": llm_provider_id
+    }
+
+@router.get("/sessions/{session_id}/messages")
+async def get_troubleshoot_messages(
+    session_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get messages for a troubleshooting session."""
+    try:
+        session_uuid = uuid.UUID(session_id)
+        messages = db.query(AIMessage).filter(
+            AIMessage.session_id == session_uuid
+        ).order_by(AIMessage.created_at).all()
+        
+        return [
+            {
+                "id": str(m.id),
+                "role": m.role,
+                "content": m.content,
+                "created_at": m.created_at.isoformat(),
+                "metadata": m.metadata_json
+            }
+            for m in messages
+        ]
+    except Exception as e:
+        logger.error(f"Failed to get messages: {e}")
+        raise HTTPException(status_code=400, detail="Invalid session ID")
+
+@router.patch("/sessions/{session_id}/provider")
+async def switch_troubleshoot_provider(
+    session_id: str,
+    payload: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Switch LLM provider for a session."""
+    try:
+        provider_id = payload.get("provider_id")
+        if not provider_id:
+            raise HTTPException(status_code=400, detail="provider_id required")
+
+        session_uuid = uuid.UUID(session_id)
+        session = db.query(AISession).filter(
+            AISession.id == session_uuid,
+            AISession.user_id == current_user.id
+        ).first()
+
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        ctx = dict(session.context_context_json) if session.context_context_json else {}
+        ctx["llm_provider_id"] = provider_id
+        session.context_context_json = ctx
+        db.commit()
+
+        return {"success": True}
+    except Exception as e:
+        logger.error(f"Switch provider failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/commands/validate")
+async def validate_command_troubleshoot(
+    request: CommandValidateRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Validate a command before execution.
+    Returns safety assessment and risk level.
+    """
+    from app.services.command_validator import CommandValidator
+    
+    try:
+        validator = CommandValidator()
+        
+        # Detect OS type from server name
+        os_type = "windows" if any(x in request.server.lower() for x in ['win', 'windows']) else "linux"
+        
+        # Validate command
+        result = validator.validate_command(request.command, os_type)
+        
+        return {
+            "result": result.result.value,
+            "message": result.message,
+            "risk_level": result.risk_level if hasattr(result, 'risk_level') else 'unknown'
+        }
+    except Exception as e:
+        return {
+            "result": "unknown",
+            "message": f"Validation error: {str(e)}",
+            "risk_level": "unknown"
+        }

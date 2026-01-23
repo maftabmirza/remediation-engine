@@ -1,5 +1,5 @@
 {% extends "layout.html" %}
-{% set active_page = 'ai_troubleshoot' %}
+{% set active_page = 'troubleshoot' %}
 
 {% block title %}Troubleshoot Console - AIOps Platform{% endblock %}
 
@@ -441,7 +441,8 @@
 {% block scripts %}
 {{ super() }}
 <script src="/static/js/progress_indicator.js?v=1.0"></script>
-<script src="/static/js/ai_troubleshoot.js?v=2.0"></script>
+<script src="/static/js/troubleshoot_chat_base.js?v=2.0"></script>
+<script src="/static/js/troubleshoot_chat.js?v=2.0"></script>
 <script>
     // Embedded initialization logic specifics
     let currentRightPane = 'terminal';

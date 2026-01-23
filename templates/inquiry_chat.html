@@ -1,5 +1,5 @@
 {% extends "layout.html" %}
-{% set active_page = 'ai_inquiry' %}
+{% set active_page = 'inquiry' %}
 
 {% block title %}AI Inquiry Analyst - AIOps Platform{% endblock %}
 
@@ -134,7 +134,8 @@
 
 {% block scripts %}
 {{ super() }}
-<script src="/static/js/ai_inquiry.js?v=2.0"></script>
+<script src="/static/js/troubleshoot_chat_base.js?v=2.0"></script>
+<script src="/static/js/inquiry_chat.js?v=2.0"></script>
 <script>
     // Specific inits
     let currentChatMode = 'general';

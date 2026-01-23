@@ -1,20 +1,21 @@
-"""
-Inquiry API Router
-
-API endpoints for the Inquiry Pillar.
-Enables the frontend to send natural language queries and receive analytical responses.
-"""
-
 from typing import Dict, Any, List, Optional
-from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, status
+from uuid import UUID, uuid4
+from datetime import datetime
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
+import logging
+import json
+import asyncio
 
 from app.database import get_db
-from app.models import User
+from app.models import User, LLMProvider
+from app.models_revive import AISession, AIMessage
 from app.services.auth_service import get_current_user
-from app.services.agentic.inquiry_orchestrator import InquiryOrchestrator, InquiryResponse
+from app.services.agentic.inquiry_orchestrator import InquiryOrchestrator
+from app.llm_core.provider_selection import get_available_providers
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/api/v1/inquiry",
@@ -37,34 +38,164 @@ class InquiryAPIResponse(BaseModel):
 
 # --- Endpoints ---
 
+@router.get("/providers")
+async def get_inquiry_providers(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get available LLM providers for inquiry Pillar."""
+    providers = get_available_providers(db)
+    return [
+        {
+            "id": str(p.id),
+            "name": p.name,
+            "provider_name": f"{p.name} ({p.provider_type})",
+            "provider_type": p.provider_type,
+            "model_id": p.model_id,
+            "is_default": p.is_default,
+            "is_enabled": p.is_enabled
+        }
+        for p in providers
+    ]
+
+@router.get("/sessions")
+async def list_inquiry_sessions(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """List inquiry chat sessions for the current user."""
+    sessions = db.query(AISession).filter(
+        AISession.user_id == current_user.id,
+        AISession.pillar == "inquiry"
+    ).order_by(AISession.created_at.desc()).all()
+    
+    return {
+        "sessions": [
+            {
+                "id": str(s.id),
+                "title": s.title or "Untitled Inquiry",
+                "created_at": s.created_at.isoformat(),
+                "message_count": len(s.messages)
+            }
+            for s in sessions
+        ],
+        "count": len(sessions)
+    }
+
+@router.post("/sessions")
+async def create_inquiry_session(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Create a new inquiry session."""
+    session_id = uuid4()
+    new_session = AISession(
+        id=session_id,
+        user_id=current_user.id,
+        pillar="inquiry",
+        title="New Inquiry",
+        created_at=datetime.utcnow()
+    )
+    db.add(new_session)
+    db.commit()
+    return {
+        "id": str(session_id),
+        "user_id": str(current_user.id),
+        "created_at": new_session.created_at.isoformat()
+    }
+
+@router.patch("/sessions/{session_id}/provider")
+async def switch_inquiry_provider(
+    session_id: str,
+    payload: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Switch the LLM provider for an inquiry session."""
+    try:
+        provider_id = payload.get("provider_id")
+        if not provider_id:
+             raise HTTPException(status_code=400, detail="provider_id is required")
+
+        provider_uuid = UUID(str(provider_id))
+        provider = db.query(LLMProvider).filter(LLMProvider.id == provider_uuid).first()
+        if not provider:
+            raise HTTPException(status_code=404, detail="Provider not found")
+
+        session_uuid = UUID(session_id)
+        session = db.query(AISession).filter(
+            AISession.id == session_uuid,
+            AISession.user_id == current_user.id,
+            AISession.pillar == "inquiry"
+        ).first()
+
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        ctx = dict(session.context_context_json) if session.context_context_json else {}
+        ctx["llm_provider_id"] = str(provider_uuid)
+        session.context_context_json = ctx
+        db.commit()
+
+        return {
+            "success": True,
+            "session_id": session_id,
+            "provider_name": provider.name,
+            "model_name": provider.model_id,
+        }
+    except ValueError:
+         raise HTTPException(status_code=400, detail="Invalid ID format")
+
+@router.get("/sessions/{session_id}/messages")
+async def get_inquiry_messages(
+    session_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get messages for an inquiry session."""
+    try:
+        session_uuid = UUID(session_id)
+        session = db.query(AISession).filter(
+            AISession.id == session_uuid,
+            AISession.user_id == current_user.id,
+            AISession.pillar == "inquiry"
+        ).first()
+        
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+        
+        messages = db.query(AIMessage).filter(
+            AIMessage.session_id == session_uuid
+        ).order_by(AIMessage.created_at).all()
+        
+        return [
+            {
+                "id": str(m.id),
+                "role": m.role,
+                "content": m.content,
+                "created_at": m.created_at.isoformat()
+            }
+            for m in messages
+        ]
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid session ID")
+
 @router.post("/query", response_model=InquiryAPIResponse)
 async def query_inquiry(
     request: InquiryRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """
-    Submit a natural language query to the Inquiry agent.
-    """
-    # Initialize orchestrator
-    orchestrator = InquiryOrchestrator(
-        db=db,
-        user=current_user
-    )
-    
-    # Process query
+    """Submit a natural language query to the Inquiry agent."""
+    orchestrator = InquiryOrchestrator(db=db, user=current_user)
     result = await orchestrator.process_query(
         query=request.query,
         session_id=request.session_id,
         context=request.context
     )
     
-    # Check for access denied or error in result
     if result.error == "AccessDenied":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=result.answer
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=result.answer)
         
     return InquiryAPIResponse(
         session_id=result.session_id,
@@ -73,89 +204,97 @@ async def query_inquiry(
         error=result.error
     )
 
-@router.get("/suggestions")
-async def get_suggestions(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """
-    Get suggested inquiry questions based on user role and history.
-    """
-    # For now, return static suggestions. 
-    # Future: Use AI or frequency analysis.
-    return [
-        "How many critical alerts occurred last week?",
-        "Show me the MTTR for payment-service.",
-        "Are alert volumes increasing for the frontend?",
-        "List resolved incidents from yesterday."
-    ]
-
-# --- Streaming Endpoint ---
-
-from fastapi.responses import StreamingResponse
-import json
-import asyncio
-
 @router.post("/stream")
 async def stream_inquiry(
     request: InquiryRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """
-    Stream the inquiry response using Server-Sent Events (SSE).
-    """
+    """Stream the inquiry response using SSE."""
+    session_id = request.session_id
+    
     async def event_generator():
-        # 1. Send session ID (if provided or new one will be generated)
-        # We'll just send a "connected" status first
-        yield f"data: {json.dumps({'type': 'status', 'content': 'Analyzing query...'})}\n\n"
-        
+        nonlocal session_id
+        full_response = ""
         try:
-            # Initialize orchestrator
-            orchestrator = InquiryOrchestrator(
-                db=db,
-                user=current_user
+            # 1. Resolve Session
+            ai_session = None
+            if session_id:
+                ai_session = db.query(AISession).filter(
+                    AISession.id == session_id,
+                    AISession.user_id == current_user.id,
+                    AISession.pillar == "inquiry"
+                ).first()
+            
+            if not ai_session:
+                ai_session = AISession(
+                    user_id=current_user.id,
+                    pillar="inquiry",
+                    title=request.query[:100]
+                )
+                db.add(ai_session)
+                db.commit()
+                db.refresh(ai_session)
+                session_id = ai_session.id
+            
+            yield f"data: {json.dumps({'type': 'session', 'session_id': str(session_id)})}\n\n"
+
+            # 2. Save User Message
+            user_msg = AIMessage(
+                session_id=session_id,
+                role="user",
+                content=request.query
             )
+            db.add(user_msg)
+            db.commit()
+
+            # 3. Stream from Orchestrator
+            provider = None
+            if ai_session and ai_session.context_context_json:
+                provider_id = ai_session.context_context_json.get("llm_provider_id")
+                if provider_id:
+                     try:
+                         provider = db.query(LLMProvider).filter(LLMProvider.id == UUID(provider_id)).first()
+                     except ValueError:
+                         pass
             
-            # 2. Process query (We await the full result for now as Agent doesn't stream yet)
-            # Use asyncio.to_thread if it was sync, but it is async
-            # yield "thinking" status
-            yield f"data: {json.dumps({'type': 'status', 'content': 'Consulting knowledge base & tools...'})}\n\n"
-            
-            result = await orchestrator.process_query(
+            orchestrator = InquiryOrchestrator(db=db, user=current_user, provider=provider)
+            async for chunk in orchestrator.stream_query(
                 query=request.query,
-                session_id=request.session_id,
+                session_id=session_id,
                 context=request.context
+            ):
+                # If chunk is already data: ... then pass it through
+                if chunk.startswith("data: "):
+                    yield chunk
+                    # Try to extract content if it's a chunk
+                    try:
+                        data = json.loads(chunk[6:].strip())
+                        if data.get('type') == 'chunk':
+                            full_response += data.get('content', '')
+                    except: pass
+                else:
+                    full_response += chunk
+                    yield f"data: {json.dumps({'type': 'chunk', 'content': chunk})}\n\n"
+                
+                await asyncio.sleep(0.01)
+
+            # 4. Save Assistant Response
+            tool_calls = getattr(orchestrator, 'tool_calls_made', [])
+            assistant_msg = AIMessage(
+                session_id=session_id,
+                role="assistant",
+                content=full_response,
+                metadata_json={"tool_calls": tool_calls} if tool_calls else None
             )
-            
-            # 3. Check error
-            if result.error:
-                yield f"data: {json.dumps({'type': 'error', 'content': result.answer})}\n\n"
-                return
+            db.add(assistant_msg)
+            db.commit()
 
-            # 4. Stream information about tools
-            if result.tools_used:
-                yield f"data: {json.dumps({'type': 'tools_used', 'content': result.tools_used})}\n\n"
-
-            # 5. Stream the answer (simulate chunks for better UX if it's long, or just one chunk)
-            # Since we have the full answer, we can just send it.
-            # Splitting by lines or chunks to simulate stream feeling
-            chunk_size = 50
-            for i in range(0, len(result.answer), chunk_size):
-                chunk = result.answer[i:i+chunk_size]
-                yield f"data: {json.dumps({'type': 'chunk', 'content': chunk})}\n\n"
-                await asyncio.sleep(0.01) # Slight delay for effect
-
-            # 6. Send session info update
-            if result.session_id:
-                yield f"data: {json.dumps({'type': 'session', 'session_id': str(result.session_id)})}\n\n"
-
-            # 7. Done
-            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+            yield f"data: {json.dumps({'type': 'done', 'tool_calls': tool_calls})}\n\n"
 
         except Exception as e:
-            import traceback
-            logger.error(f"Streaming error: {traceback.format_exc()}")
-            yield f"data: {json.dumps({'type': 'error', 'content': f'Internal Server Error: {str(e)}'})}\n\n"
+            logger.error(f"Inquiry Streaming error: {e}", exc_info=True)
+            yield f"data: {json.dumps({'type': 'error', 'content': f'Error: {str(e)}'})}\n\n"
 
+    from fastapi.responses import StreamingResponse
     return StreamingResponse(event_generator(), media_type="text/event-stream")

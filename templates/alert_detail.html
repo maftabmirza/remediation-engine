@@ -13,13 +13,15 @@
 {% block header_title %}
 <div class="flex items-center gap-3">
     <i class="fas fa-exclamation-triangle text-pink-400"></i>
-    <span id="header_alert_name" class="text-sm font-semibold text-white tracking-tight truncate">Loading alert...</span>
+    <span id="header_alert_name" class="text-sm font-semibold text-white tracking-tight truncate">Loading
+        alert...</span>
 </div>
 {% endblock %}
 
 {% block header_actions %}
 <div id="header_actions_container" class="flex items-center gap-2 hidden">
-    <button onclick="deleteAlert()" class="bg-gray-800 hover:bg-red-900/40 text-red-500 px-3 py-1 text-[11px] rounded flex items-center gap-2 border border-gray-700 transition-all">
+    <button onclick="deleteAlert()"
+        class="bg-gray-800 hover:bg-red-900/40 text-red-500 px-3 py-1 text-[11px] rounded flex items-center gap-2 border border-gray-700 transition-all">
         <i class="fas fa-trash"></i> Delete
     </button>
 </div>
@@ -322,7 +324,7 @@
         const labelsHtml = Object.entries(alert.labels_json || {})
             .map(([k, v]) => `<span class="inline-block bg-gray-700 px-2 py-1 rounded text-sm mr-2 mb-2">${k}: ${v}</span>`)
             .join('');
-        
+
         // Update header title
         const headerTitle = document.getElementById('header_alert_name');
         if (headerTitle) headerTitle.textContent = alert.alert_name;
@@ -603,7 +605,7 @@
             await loadAvailableProviders();
 
             // Try to find existing session for this alert
-            let existingResponse = await apiCall(`/api/chat/sessions/by-alert/${alertId}`);
+            let existingResponse = await apiCall(`/api/alerts/chat/sessions/by-alert/${alertId}`);
 
             if (existingResponse.ok) {
                 // Reuse existing session
@@ -612,7 +614,7 @@
                 console.log('Reusing existing chat session:', currentSessionId);
             } else {
                 // Create new session only if none exists
-                const createResponse = await apiCall('/api/chat/sessions', {
+                const createResponse = await apiCall('/api/alerts/chat/sessions', {
                     method: 'POST',
                     body: JSON.stringify({ alert_id: alertId })
                 });
@@ -644,7 +646,7 @@
 
     async function checkContextStatus(alertId) {
         try {
-            const res = await apiCall(`/api/chat/context-status/${alertId}`);
+            const res = await apiCall(`/api/alerts/chat/context-status/${alertId}`);
             if (res.ok) {
                 const status = await res.json();
                 renderContextBadges(status);
@@ -695,7 +697,7 @@
 
     async function loadAvailableProviders() {
         try {
-            const response = await apiCall('/api/chat/providers');
+            const response = await apiCall('/api/alerts/chat/providers');
             if (!response.ok) throw new Error('Failed to load providers');
 
             availableProviders = await response.json();
@@ -734,7 +736,7 @@
         if (!currentSessionId || !providerId) return;
 
         try {
-            const response = await apiCall(`/api/chat/sessions/${currentSessionId}/provider`, {
+            const response = await apiCall(`/api/alerts/chat/sessions/${currentSessionId}/provider`, {
                 method: 'PATCH',
                 body: JSON.stringify({ provider_id: providerId })
             });
@@ -763,7 +765,7 @@
 
     async function loadMessageHistory(sessionId) {
         try {
-            const response = await apiCall(`/api/chat/sessions/${sessionId}/messages`);
+            const response = await apiCall(`/api/alerts/chat/sessions/${sessionId}/messages`);
             if (!response.ok) throw new Error('Failed to load history');
 
             const messages = await response.json();

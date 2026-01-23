@@ -150,9 +150,17 @@ class CompositeToolRegistry:
 
 # Convenience factory functions for common configurations
 
-def create_full_registry(db: Session, alert_id: Optional[UUID] = None) -> CompositeToolRegistry:
-    """Create a registry with all interactive tools (for Troubleshooting mode)"""
+def create_troubleshooting_registry(db: Session, alert_id: Optional[UUID] = None) -> CompositeToolRegistry:
+    """
+    Create a registry for Troubleshooting mode.
+    
+    Includes all core investigation and action tools.
+    """
     return CompositeToolRegistry(db, alert_id, modules=['knowledge', 'observability', 'troubleshooting', 'inquiry'])
+
+def create_full_registry(db: Session, alert_id: Optional[UUID] = None) -> CompositeToolRegistry:
+    """Create a registry with all interactive tools (for back-compat)"""
+    return create_troubleshooting_registry(db, alert_id)
 
 
 def create_knowledge_registry(db: Session, alert_id: Optional[UUID] = None) -> CompositeToolRegistry:
