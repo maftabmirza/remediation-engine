@@ -604,6 +604,62 @@ async def alert_detail_page(
     })
 
 
+@app.get("/ai", include_in_schema=False)
+@app.get("/ai/", include_in_schema=False)
+async def ai_compat_root(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """Backward-compatible alias for the legacy /ai page.
+
+    Historically, the unified troubleshooting experience lived at /ai.
+    We now serve the equivalent UI at /troubleshoot.
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    return RedirectResponse(url="/troubleshoot", status_code=302)
+
+
+@app.get("/ai/troubleshoot", include_in_schema=False)
+@app.get("/ai/troubleshoot/", include_in_schema=False)
+async def ai_compat_troubleshoot(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """Backward-compatible alias for legacy deep-linking."""
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    return RedirectResponse(url="/troubleshoot", status_code=302)
+
+
+@app.get("/ai/inquiry", include_in_schema=False)
+@app.get("/ai/inquiry/", include_in_schema=False)
+async def ai_compat_inquiry(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """Backward-compatible alias for the Inquiry pillar page."""
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    return RedirectResponse(url="/inquiry", status_code=302)
+
+
+@app.get("/troubelshoot", include_in_schema=False)
+@app.get("/troubelshoot/", include_in_schema=False)
+async def troubleshoot_typo_alias(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """Compatibility alias for the common misspelling of /troubleshoot."""
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    return RedirectResponse(url="/troubleshoot", status_code=302)
+
+
 @app.get("/troubleshoot", response_class=HTMLResponse)
 async def troubleshoot_chat_page(
     request: Request,

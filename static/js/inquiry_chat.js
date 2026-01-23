@@ -1,7 +1,6 @@
 /**
  * AI Inquiry Page JavaScript
- * Dedicated Q&A interface for the AI Inquiry feature.
- * Removes terminal/command execution logic.
+ * Dedicated Q&A interface with Artifacts Panel (Claude-inspired)
  */
 
 // Global state
@@ -15,6 +14,12 @@ let chatFontSize = 14;
 let pendingCommandCancelled = false;  // Flag to cancel pending command polling
 let currentStreamController = null;   // AbortController for streaming requests
 let isStreaming = false;              // Flag to track if streaming is active
+
+// Artifacts state
+let artifacts = [];
+let activeArtifactId = null;
+let pinnedArtifacts = new Set();
+let currentArtifactTab = 'recent';
 
 // Reasoning panel state
 let reasoningHistory = [];
@@ -169,6 +174,7 @@ async function initChatSession() {
 
 async function loadAvailableProviders() {
     try {
+        updateModelStatusIcon('connecting');
         const response = await apiCall('/api/v1/inquiry/providers');
         if (!response.ok) throw new Error('Failed to load providers');
         availableProviders = await response.json();
@@ -176,8 +182,10 @@ async function loadAvailableProviders() {
         if (typeof populateModelDropdown === 'function') {
             populateModelDropdown(availableProviders);
         }
+        updateModelStatusIcon('connected');
     } catch (error) {
         console.error('Failed to load providers:', error);
+        updateModelStatusIcon('disconnected');
     }
 }
 
@@ -186,6 +194,28 @@ function updateModelSelector() {
         if (typeof selectedModelId !== 'undefined') {
             selectedModelId = currentSession.llm_provider_id;
         }
+    }
+}
+
+function updateModelStatusIcon(status) {
+    const icon = document.getElementById('modelStatusIcon');
+    if (!icon) return;
+    
+    // Remove all status classes
+    icon.classList.remove('text-green-400', 'text-red-400', 'text-yellow-400', 'text-gray-400');
+    
+    switch(status) {
+        case 'connected':
+            icon.classList.add('text-green-400');
+            break;
+        case 'disconnected':
+            icon.classList.add('text-red-400');
+            break;
+        case 'connecting':
+            icon.classList.add('text-yellow-400');
+            break;
+        default:
+            icon.classList.add('text-gray-400');
     }
 }
 
@@ -310,8 +340,9 @@ async function sendStreamingMessage(message) {
         const decoder = new TextDecoder();
         let buffer = '';
         let fullResponse = '';
+        let firstChunkReceived = false;
 
-        removeTypingIndicator();
+        // Keep typing indicator visible until first content chunk arrives
 
         while (true) {
             const { done, value } = await reader.read();
@@ -329,8 +360,25 @@ async function sendStreamingMessage(message) {
                         if (data.type === 'session') {
                             currentSessionId = data.session_id;
                         } else if (data.type === 'chunk') {
+                            // Remove typing indicator on first content chunk
+                            if (!firstChunkReceived) {
+                                removeTypingIndicator();
+                                firstChunkReceived = true;
+                            }
                             fullResponse += data.content;
                             appendStreamingChunk(data.content);
+                        } else if (data.type === 'artifact') {
+                            // Handle explicit artifact events from backend
+                            if (data.artifact) {
+                                addArtifact({
+                                    id: data.artifact.id || generateArtifactId(),
+                                    type: data.artifact.type || 'markdown',
+                                    title: data.artifact.title || 'Data',
+                                    content: data.artifact.content,
+                                    rawContent: data.artifact.content,
+                                    timestamp: new Date().toISOString()
+                                });
+                            }
                         } else if (data.type === 'tools_used') {
                             handleToolsUsedEvent(data.content);
                         } else if (data.type === 'done') {
@@ -469,6 +517,12 @@ function finalizeStreamingMessage(fullText) {
         currentMessageDiv = null;
     }
     appendAIMessage(fullText);
+    
+    // Detect and create artifacts from the response
+    const detectedArtifacts = detectArtifacts(fullText);
+    detectedArtifacts.forEach(artifact => {
+        addArtifact(artifact);
+    });
 }
 
 // --- UI Helpers ---
@@ -522,13 +576,6 @@ function populateSessionDropdown(sessions) {
             </div>
         `).join('');
     }
-
-    const newSessionHtml = `
-        <div class="px-3 py-2 hover:bg-gray-700 cursor-pointer text-blue-400 border-b border-gray-700 flex items-center" onclick="createNewSession()">
-            <i class="fas fa-plus mr-2 text-xs"></i> <span class="text-xs font-bold">New Session</span>
-        </div>
-    `;
-    container.innerHTML = newSessionHtml + container.innerHTML;
 }
 
 async function createNewSession() {
@@ -629,7 +676,7 @@ window.addEventListener('click', function (e) {
 });
 
 function showTypingIndicator() {
-    AIChatBase.showTypingIndicator('Analyzing system data...');
+    AIChatBase.showTypingIndicator('Analyzing data...');
 }
 
 function removeTypingIndicator() {
@@ -667,6 +714,553 @@ document.addEventListener('keydown', function (e) {
     }
     if (e.ctrlKey && e.key === 'l') { e.preventDefault(); clearChat(); }
 });
+
+// ============= ARTIFACTS SYSTEM =============
+
+/**
+ * Artifact type definitions with icons and colors
+ */
+const ARTIFACT_TYPES = {
+    table: { icon: 'fa-table', color: 'text-blue-400', bgColor: 'bg-blue-900/30', label: 'Table' },
+    code: { icon: 'fa-code', color: 'text-green-400', bgColor: 'bg-green-900/30', label: 'Code' },
+    json: { icon: 'fa-brackets-curly', color: 'text-yellow-400', bgColor: 'bg-yellow-900/30', label: 'JSON' },
+    yaml: { icon: 'fa-file-code', color: 'text-purple-400', bgColor: 'bg-purple-900/30', label: 'YAML' },
+    markdown: { icon: 'fa-file-alt', color: 'text-gray-400', bgColor: 'bg-gray-800', label: 'Document' },
+    list: { icon: 'fa-list', color: 'text-cyan-400', bgColor: 'bg-cyan-900/30', label: 'List' },
+    alert: { icon: 'fa-bell', color: 'text-red-400', bgColor: 'bg-red-900/30', label: 'Alerts' },
+    metrics: { icon: 'fa-chart-line', color: 'text-emerald-400', bgColor: 'bg-emerald-900/30', label: 'Metrics' }
+};
+
+/**
+ * Detect artifacts from AI response content
+ */
+function detectArtifacts(content) {
+    const detectedArtifacts = [];
+    
+    // 1. Detect Markdown tables
+    const tableRegex = /(\|[^\n]+\|\n\|[-:\s|]+\|\n(?:\|[^\n]+\|\n?)+)/g;
+    let match;
+    while ((match = tableRegex.exec(content)) !== null) {
+        const tableContent = match[1];
+        const lines = tableContent.trim().split('\n');
+        const title = extractTableTitle(content, match.index) || `Data Table`;
+        detectedArtifacts.push({
+            id: generateArtifactId(),
+            type: 'table',
+            title: title,
+            content: tableContent,
+            rawContent: tableContent,
+            timestamp: new Date().toISOString()
+        });
+    }
+    
+    // 2. Detect code blocks
+    const codeRegex = /```(\w+)?\n([\s\S]*?)```/g;
+    while ((match = codeRegex.exec(content)) !== null) {
+        const lang = match[1] || 'text';
+        const codeContent = match[2];
+        
+        // Skip if it's just a small inline code
+        if (codeContent.trim().split('\n').length < 3) continue;
+        
+        let artifactType = 'code';
+        if (lang === 'json') artifactType = 'json';
+        if (lang === 'yaml' || lang === 'yml') artifactType = 'yaml';
+        
+        detectedArtifacts.push({
+            id: generateArtifactId(),
+            type: artifactType,
+            title: `${lang.toUpperCase()} Snippet`,
+            content: codeContent,
+            language: lang,
+            rawContent: match[0],
+            timestamp: new Date().toISOString()
+        });
+    }
+    
+    // 3. Detect alert lists (common pattern: bullet points with alert names)
+    const alertListRegex = /(?:Found \d+ alerts?|Alerts?:)\s*\n((?:[-*•]\s*.+\n?)+)/gi;
+    while ((match = alertListRegex.exec(content)) !== null) {
+        const listContent = match[1];
+        const alertCount = (listContent.match(/[-*•]\s/g) || []).length;
+        if (alertCount >= 2) {
+            detectedArtifacts.push({
+                id: generateArtifactId(),
+                type: 'alert',
+                title: `${alertCount} Alerts`,
+                content: listContent,
+                rawContent: match[0],
+                timestamp: new Date().toISOString()
+            });
+        }
+    }
+    
+    // 4. Detect numbered/bulleted lists (5+ items)
+    const listRegex = /(?:^|\n)((?:(?:\d+\.|[-*•])\s+.+\n?){5,})/g;
+    while ((match = listRegex.exec(content)) !== null) {
+        // Skip if already captured as alert list
+        if (detectedArtifacts.some(a => a.rawContent && match[0].includes(a.rawContent))) continue;
+        
+        const listContent = match[1];
+        const itemCount = (listContent.match(/(?:\d+\.|[-*•])\s/g) || []).length;
+        detectedArtifacts.push({
+            id: generateArtifactId(),
+            type: 'list',
+            title: `List (${itemCount} items)`,
+            content: listContent,
+            rawContent: match[0],
+            timestamp: new Date().toISOString()
+        });
+    }
+    
+    return detectedArtifacts;
+}
+
+function extractTableTitle(content, tableIndex) {
+    // Look for heading or bold text before the table
+    const beforeTable = content.substring(Math.max(0, tableIndex - 200), tableIndex);
+    
+    // Check for markdown heading
+    const headingMatch = beforeTable.match(/#{1,3}\s+(.+?)(?:\n|$)/);
+    if (headingMatch) return headingMatch[1].trim();
+    
+    // Check for bold text
+    const boldMatch = beforeTable.match(/\*\*(.+?)\*\*(?:\s*:)?/);
+    if (boldMatch) return boldMatch[1].trim();
+    
+    return null;
+}
+
+function generateArtifactId() {
+    return 'artifact-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+}
+
+/**
+ * Add artifact to the panel
+ */
+function addArtifact(artifact) {
+    // Add to global list
+    artifacts.unshift(artifact);
+    
+    // Update count
+    updateArtifactCount();
+    
+    // Hide empty state
+    const emptyState = document.getElementById('artifactsEmpty');
+    if (emptyState) emptyState.classList.add('hidden');
+    
+    // Set as active and render
+    setActiveArtifact(artifact.id);
+    
+    // Add to history grid
+    addArtifactToHistory(artifact);
+    
+    // Add link in chat
+    addArtifactLinkToChat(artifact);
+}
+
+function updateArtifactCount() {
+    const countEl = document.getElementById('artifactCount');
+    if (countEl) countEl.textContent = artifacts.length;
+}
+
+/**
+ * Set active artifact (shows in large view)
+ */
+function setActiveArtifact(artifactId) {
+    const artifact = artifacts.find(a => a.id === artifactId);
+    if (!artifact) return;
+    
+    activeArtifactId = artifactId;
+    
+    const container = document.getElementById('activeArtifact');
+    const titleEl = document.getElementById('activeArtifactTitle');
+    const typeEl = document.getElementById('activeArtifactType');
+    const iconEl = document.getElementById('activeArtifactIcon');
+    const contentEl = document.getElementById('activeArtifactContent');
+    const pinBtn = document.getElementById('pinArtifactBtn');
+    
+    if (!container) return;
+    
+    // Show container
+    container.classList.remove('hidden');
+    
+    // Update header
+    const typeInfo = ARTIFACT_TYPES[artifact.type] || ARTIFACT_TYPES.markdown;
+    titleEl.textContent = artifact.title;
+    typeEl.textContent = typeInfo.label;
+    typeEl.className = `ml-2 px-2 py-0.5 text-[10px] ${typeInfo.bgColor} ${typeInfo.color} rounded`;
+    iconEl.className = `fas ${typeInfo.icon} ${typeInfo.color} mr-2`;
+    
+    // Update pin button state
+    if (pinBtn) {
+        pinBtn.classList.toggle('text-yellow-400', pinnedArtifacts.has(artifactId));
+    }
+    
+    // Render content based on type
+    contentEl.innerHTML = renderArtifactContent(artifact);
+    
+    // Highlight code if needed
+    if (artifact.type === 'code' || artifact.type === 'json' || artifact.type === 'yaml') {
+        contentEl.querySelectorAll('pre code').forEach(block => {
+            if (typeof hljs !== 'undefined') hljs.highlightElement(block);
+        });
+    }
+    
+    // Mark as active in history
+    document.querySelectorAll('.artifact-thumb').forEach(el => {
+        el.classList.toggle('ring-2', el.dataset.artifactId === artifactId);
+        el.classList.toggle('ring-blue-500', el.dataset.artifactId === artifactId);
+    });
+}
+
+/**
+ * Render artifact content based on type
+ */
+function renderArtifactContent(artifact) {
+    switch (artifact.type) {
+        case 'table':
+            return renderTableArtifact(artifact);
+        case 'code':
+        case 'json':
+        case 'yaml':
+            return renderCodeArtifact(artifact);
+        case 'alert':
+            return renderAlertArtifact(artifact);
+        case 'list':
+            return renderListArtifact(artifact);
+        default:
+            return `<div class="prose prose-invert max-w-none text-sm">${marked.parse(artifact.content)}</div>`;
+    }
+}
+
+function renderTableArtifact(artifact) {
+    // Parse markdown table and render as HTML table with styling
+    const lines = artifact.content.trim().split('\n');
+    if (lines.length < 2) return `<pre>${escapeHtml(artifact.content)}</pre>`;
+    
+    const headers = lines[0].split('|').filter(c => c.trim()).map(c => c.trim());
+    const rows = lines.slice(2).map(line => 
+        line.split('|').filter(c => c.trim()).map(c => c.trim())
+    );
+    
+    return `
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm text-left">
+                <thead class="text-xs text-gray-400 uppercase bg-gray-800">
+                    <tr>
+                        ${headers.map(h => `<th class="px-4 py-3 font-medium">${escapeHtml(h)}</th>`).join('')}
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-700">
+                    ${rows.map(row => `
+                        <tr class="hover:bg-gray-800/50">
+                            ${row.map(cell => `<td class="px-4 py-3 text-gray-300">${escapeHtml(cell)}</td>`).join('')}
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+        <div class="mt-3 text-xs text-gray-500">${rows.length} rows</div>
+    `;
+}
+
+function renderCodeArtifact(artifact) {
+    const lang = artifact.language || 'text';
+    return `
+        <div class="relative">
+            <div class="absolute top-2 right-2 text-xs text-gray-500 bg-gray-900 px-2 py-1 rounded">${lang}</div>
+            <pre class="bg-gray-900 rounded-lg p-4 overflow-x-auto"><code class="language-${lang} text-sm">${escapeHtml(artifact.content)}</code></pre>
+        </div>
+    `;
+}
+
+function renderAlertArtifact(artifact) {
+    const items = artifact.content.split('\n').filter(l => l.trim().match(/^[-*•]/));
+    return `
+        <div class="space-y-2">
+            ${items.map(item => {
+                const text = item.replace(/^[-*•]\s*/, '').trim();
+                const severity = detectAlertSeverity(text);
+                const severityColors = {
+                    critical: 'bg-red-900/30 border-red-700 text-red-300',
+                    warning: 'bg-yellow-900/30 border-yellow-700 text-yellow-300',
+                    info: 'bg-blue-900/30 border-blue-700 text-blue-300'
+                };
+                return `
+                    <div class="flex items-center p-3 rounded border ${severityColors[severity] || severityColors.info}">
+                        <i class="fas fa-exclamation-circle mr-3"></i>
+                        <span class="text-sm">${escapeHtml(text)}</span>
+                    </div>
+                `;
+            }).join('')}
+        </div>
+        <div class="mt-3 text-xs text-gray-500">${items.length} alerts</div>
+    `;
+}
+
+function detectAlertSeverity(text) {
+    const lower = text.toLowerCase();
+    if (lower.includes('critical') || lower.includes('error') || lower.includes('down')) return 'critical';
+    if (lower.includes('warning') || lower.includes('warn') || lower.includes('high')) return 'warning';
+    return 'info';
+}
+
+function renderListArtifact(artifact) {
+    return `<div class="prose prose-invert max-w-none text-sm">${marked.parse(artifact.content)}</div>`;
+}
+
+/**
+ * Add thumbnail to history grid
+ */
+function addArtifactToHistory(artifact) {
+    const history = document.getElementById('artifactHistory');
+    if (!history) return;
+    
+    const typeInfo = ARTIFACT_TYPES[artifact.type] || ARTIFACT_TYPES.markdown;
+    
+    const thumb = document.createElement('div');
+    thumb.className = `artifact-thumb cursor-pointer p-3 bg-gray-800 rounded-lg border border-gray-700 hover:border-gray-500 transition-all ${artifact.id === activeArtifactId ? 'ring-2 ring-blue-500' : ''}`;
+    thumb.dataset.artifactId = artifact.id;
+    thumb.onclick = () => setActiveArtifact(artifact.id);
+    
+    thumb.innerHTML = `
+        <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center">
+                <i class="fas ${typeInfo.icon} ${typeInfo.color} mr-2 text-sm"></i>
+                <span class="text-xs font-medium text-white truncate max-w-[120px]">${escapeHtml(artifact.title)}</span>
+            </div>
+            ${pinnedArtifacts.has(artifact.id) ? '<i class="fas fa-thumbtack text-yellow-400 text-xs"></i>' : ''}
+        </div>
+        <div class="text-[10px] text-gray-500">${new Date(artifact.timestamp).toLocaleTimeString()}</div>
+        <div class="mt-2 text-xs text-gray-400 line-clamp-2 h-8 overflow-hidden">${getArtifactPreview(artifact)}</div>
+    `;
+    
+    // Insert at beginning
+    history.insertBefore(thumb, history.firstChild);
+}
+
+function getArtifactPreview(artifact) {
+    const text = artifact.content.replace(/[#*`|]/g, '').trim();
+    return escapeHtml(text.substring(0, 80)) + (text.length > 80 ? '...' : '');
+}
+
+/**
+ * Add artifact link to the chat message
+ */
+function addArtifactLinkToChat(artifact) {
+    const typeInfo = ARTIFACT_TYPES[artifact.type] || ARTIFACT_TYPES.markdown;
+    
+    // Find the current streaming message or last AI message
+    const messages = document.querySelectorAll('.ai-message-content');
+    const lastMessage = messages[messages.length - 1];
+    
+    if (lastMessage) {
+        // Check if link container exists, if not create it
+        let linkContainer = lastMessage.querySelector('.artifact-links');
+        if (!linkContainer) {
+            linkContainer = document.createElement('div');
+            linkContainer.className = 'artifact-links mt-3 pt-3 border-t border-gray-700 flex flex-wrap gap-2';
+            lastMessage.appendChild(linkContainer);
+        }
+        
+        const link = document.createElement('button');
+        link.className = `inline-flex items-center px-3 py-1.5 text-xs ${typeInfo.bgColor} ${typeInfo.color} rounded-full hover:opacity-80 transition-opacity`;
+        link.onclick = (e) => { e.stopPropagation(); setActiveArtifact(artifact.id); };
+        link.innerHTML = `<i class="fas ${typeInfo.icon} mr-1.5"></i>${escapeHtml(artifact.title)} <i class="fas fa-arrow-right ml-2 text-[10px]"></i>`;
+        
+        linkContainer.appendChild(link);
+    }
+}
+
+/**
+ * Artifact Actions
+ */
+function copyArtifact() {
+    const artifact = artifacts.find(a => a.id === activeArtifactId);
+    if (!artifact) return;
+    
+    navigator.clipboard.writeText(artifact.content).then(() => {
+        showToast('Copied to clipboard', 'success');
+    }).catch(() => {
+        showToast('Failed to copy', 'error');
+    });
+}
+
+function exportArtifact() {
+    const artifact = artifacts.find(a => a.id === activeArtifactId);
+    if (!artifact) return;
+    
+    let filename, content, mimeType;
+    
+    switch (artifact.type) {
+        case 'json':
+            filename = 'artifact.json';
+            content = artifact.content;
+            mimeType = 'application/json';
+            break;
+        case 'yaml':
+            filename = 'artifact.yaml';
+            content = artifact.content;
+            mimeType = 'text/yaml';
+            break;
+        case 'table':
+            filename = 'artifact.csv';
+            content = convertTableToCSV(artifact.content);
+            mimeType = 'text/csv';
+            break;
+        default:
+            filename = 'artifact.txt';
+            content = artifact.content;
+            mimeType = 'text/plain';
+    }
+    
+    downloadFile(content, filename, mimeType);
+}
+
+function convertTableToCSV(tableContent) {
+    const lines = tableContent.trim().split('\n');
+    return lines
+        .filter((_, i) => i !== 1) // Skip separator line
+        .map(line => 
+            line.split('|')
+                .filter(c => c.trim())
+                .map(c => `"${c.trim().replace(/"/g, '""')}"`)
+                .join(',')
+        )
+        .join('\n');
+}
+
+function downloadFile(content, filename, mimeType) {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+function pinArtifact() {
+    if (!activeArtifactId) return;
+    
+    if (pinnedArtifacts.has(activeArtifactId)) {
+        pinnedArtifacts.delete(activeArtifactId);
+        showToast('Unpinned', 'info');
+    } else {
+        pinnedArtifacts.add(activeArtifactId);
+        showToast('Pinned', 'success');
+    }
+    
+    // Update UI
+    const pinBtn = document.getElementById('pinArtifactBtn');
+    if (pinBtn) {
+        pinBtn.classList.toggle('text-yellow-400', pinnedArtifacts.has(activeArtifactId));
+    }
+    
+    // Update thumbnail
+    const thumb = document.querySelector(`.artifact-thumb[data-artifact-id="${activeArtifactId}"]`);
+    if (thumb) {
+        const pinIcon = thumb.querySelector('.fa-thumbtack');
+        if (pinnedArtifacts.has(activeArtifactId) && !pinIcon) {
+            const headerDiv = thumb.querySelector('.flex');
+            headerDiv.insertAdjacentHTML('beforeend', '<i class="fas fa-thumbtack text-yellow-400 text-xs"></i>');
+        } else if (!pinnedArtifacts.has(activeArtifactId) && pinIcon) {
+            pinIcon.remove();
+        }
+    }
+}
+
+function minimizeArtifact() {
+    const container = document.getElementById('activeArtifact');
+    if (container) container.classList.add('hidden');
+    activeArtifactId = null;
+    
+    // Remove active ring from thumbnails
+    document.querySelectorAll('.artifact-thumb').forEach(el => {
+        el.classList.remove('ring-2', 'ring-blue-500');
+    });
+}
+
+function clearArtifacts() {
+    if (!confirm('Clear all artifacts?')) return;
+    
+    artifacts = [];
+    pinnedArtifacts.clear();
+    activeArtifactId = null;
+    
+    const history = document.getElementById('artifactHistory');
+    if (history) history.innerHTML = '';
+    
+    const active = document.getElementById('activeArtifact');
+    if (active) active.classList.add('hidden');
+    
+    const empty = document.getElementById('artifactsEmpty');
+    if (empty) empty.classList.remove('hidden');
+    
+    updateArtifactCount();
+}
+
+function exportAllArtifacts() {
+    if (artifacts.length === 0) {
+        showToast('No artifacts to export', 'info');
+        return;
+    }
+    
+    let content = `# AI Inquiry Artifacts Report\n`;
+    content += `Generated: ${new Date().toLocaleString()}\n\n`;
+    
+    artifacts.forEach((artifact, i) => {
+        content += `---\n\n## ${i + 1}. ${artifact.title}\n`;
+        content += `Type: ${artifact.type} | Time: ${new Date(artifact.timestamp).toLocaleString()}\n\n`;
+        content += artifact.content + '\n\n';
+    });
+    
+    downloadFile(content, 'inquiry-artifacts.md', 'text/markdown');
+}
+
+function switchArtifactTab(tab) {
+    currentArtifactTab = tab;
+    
+    // Update tab styles
+    document.querySelectorAll('.artifact-tab').forEach(el => {
+        el.classList.remove('border-blue-500', 'text-blue-400', 'bg-gray-800');
+        el.classList.add('border-transparent', 'text-gray-400');
+    });
+    
+    const activeTab = document.getElementById(`artifactTab${tab.charAt(0).toUpperCase() + tab.slice(1)}`);
+    if (activeTab) {
+        activeTab.classList.add('border-blue-500', 'text-blue-400', 'bg-gray-800');
+        activeTab.classList.remove('border-transparent');
+    }
+    
+    // Filter displayed artifacts
+    const history = document.getElementById('artifactHistory');
+    if (!history) return;
+    
+    if (tab === 'all') {
+        history.querySelectorAll('.artifact-thumb').forEach(el => el.style.display = '');
+    } else {
+        // Show only recent (last 5) or pinned
+        const thumbs = history.querySelectorAll('.artifact-thumb');
+        thumbs.forEach((el, i) => {
+            const isPinned = pinnedArtifacts.has(el.dataset.artifactId);
+            el.style.display = (i < 5 || isPinned) ? '' : 'none';
+        });
+    }
+}
+
+// Expose artifact functions globally
+window.setActiveArtifact = setActiveArtifact;
+window.copyArtifact = copyArtifact;
+window.exportArtifact = exportArtifact;
+window.pinArtifact = pinArtifact;
+window.minimizeArtifact = minimizeArtifact;
+window.clearArtifacts = clearArtifacts;
+window.exportAllArtifacts = exportAllArtifacts;
+window.switchArtifactTab = switchArtifactTab;
 
 window.addEventListener('load', function () {
     if (typeof marked === 'undefined') {

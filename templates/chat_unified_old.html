@@ -138,36 +138,9 @@
         <div class="lg:col-span-5 flex flex-col card h-full min-h-0 overflow-hidden">
             <div class="px-3 py-2 border-b border-gray-700 flex justify-between items-center flex-shrink-0">
                 <div class="flex items-center flex-grow">
-                    <!-- Mode Toggle: General Inquiry (default) | Troubleshooting -->
-                    <div class="flex border border-gray-600 rounded-lg mr-3" title="Chat Mode">
-                        <button id="modeGeneralBtn" onclick="switchChatMode('general')"
-                            class="px-3 py-1 text-xs font-medium bg-blue-600 text-white rounded-l-lg border-r border-gray-600 flex items-center">
-                            <i class="fas fa-search mr-1.5"></i>Inquiry
-                        </button>
-                        <button id="modeTroubleshootBtn" onclick="switchChatMode('troubleshoot')"
-                            class="px-3 py-1 text-xs font-medium bg-transparent text-gray-400 rounded-r-lg hover:text-white hover:bg-gray-700 flex items-center">
-                            <i class="fas fa-terminal mr-1.5"></i>Troubleshoot
-                        </button>
-                    </div>
-                    <!-- Session Dropdown (Inquiry mode only) -->
-                    <div class="relative mr-2" id="sessionSelectorWrapper">
-                        <button onclick="toggleSessionDropdown()" id="sessionDropdownBtn"
-                            class="px-2 py-1 text-xs bg-gray-700 text-gray-300 rounded hover:bg-gray-600 flex items-center border border-gray-600"
-                            title="Session">
-                            <i class="fas fa-comments text-blue-400 mr-1.5"></i>
-                            <span id="currentSessionTitle" class="max-w-[120px] truncate">New Session</span>
-                            <i class="fas fa-caret-down text-[10px] ml-1.5 text-gray-400"></i>
-                        </button>
-                        <div id="sessionDropdown"
-                            class="hidden absolute left-0 top-full mt-1 bg-gray-800 border border-gray-600 rounded-lg shadow-xl z-50 min-w-[220px]">
-                            <button onclick="createNewSession()"
-                                class="w-full text-left px-3 py-2 text-xs text-blue-400 hover:bg-gray-700 transition-colors border-b border-gray-700 flex items-center">
-                                <i class="fas fa-plus mr-2"></i>New Session
-                            </button>
-                            <div id="sessionListContainer" class="max-h-48 overflow-y-auto">
-                                <div class="px-3 py-2 text-xs text-gray-500">No sessions yet</div>
-                            </div>
-                        </div>
+                    <div class="flex items-center mr-2 text-xs text-gray-400" title="Troubleshooting Mode">
+                        <i class="fas fa-terminal text-green-400 mr-1.5"></i>
+                        <span>Troubleshoot</span>
                     </div>
                     <!-- LLM Model Selector (Icon with dropdown) -->
                     <div class="relative" id="modelSelectorWrapper">
@@ -658,31 +631,14 @@
     // ============================================================================
 
     let currentRightPane = 'terminal'; // Default to terminal
-    let currentChatMode = 'general'; // Default to general inquiry mode
+    let currentChatMode = 'troubleshoot'; // Troubleshoot-only on /ai
 
     /**
-     * Switch between Inquiry and Troubleshoot chat modes
+     * /ai is troubleshoot-only; keep this for backwards compatibility
      */
     function switchChatMode(mode) {
-        currentChatMode = mode;
-
-        // Update button styles
-        const generalBtn = document.getElementById('modeGeneralBtn');
-        const troubleshootBtn = document.getElementById('modeTroubleshootBtn');
-
-        if (mode === 'general') {
-            generalBtn.classList.add('bg-blue-600', 'text-white');
-            generalBtn.classList.remove('bg-transparent', 'text-gray-400');
-            troubleshootBtn.classList.remove('bg-blue-600', 'text-white');
-            troubleshootBtn.classList.add('bg-transparent', 'text-gray-400');
-        } else if (mode === 'troubleshoot') {
-            troubleshootBtn.classList.add('bg-blue-600', 'text-white');
-            troubleshootBtn.classList.remove('bg-transparent', 'text-gray-400');
-            generalBtn.classList.remove('bg-blue-600', 'text-white');
-            generalBtn.classList.add('bg-transparent', 'text-gray-400');
-        }
-
-        console.log('Switched to chat mode:', mode);
+        currentChatMode = 'troubleshoot';
+        console.log('Chat mode locked to troubleshoot:', mode);
     }
 
     // ============================================================================
@@ -1594,9 +1550,18 @@
 
     // Initialize on page load
     document.addEventListener('DOMContentLoaded', function () {
-        // Initialize chat mode to 'general' (default)
-        // This sets up the UI and placeholder text
-        updateChatModeUI();
+        // /ai is troubleshoot-only
+        currentChatMode = 'troubleshoot';
+
+        // If legacy elements exist for Inquiry, hide them
+        const sessionWrap = document.getElementById('sessionSelectorWrapper');
+        if (sessionWrap) sessionWrap.classList.add('hidden');
+
+        // Set a troubleshoot-appropriate placeholder
+        const chatInput = document.getElementById('chatInput');
+        if (chatInput) {
+            chatInput.placeholder = 'Ask AI about servers, run commands, troubleshoot issues...';
+        }
 
         // Initialize progress indicator and reasoning panel
         if (typeof initProgressIndicator === 'function') {
@@ -1605,13 +1570,6 @@
         if (typeof initReasoningPanel === 'function') {
             initReasoningPanel();
         }
-
-        // Try to restore previous session, otherwise show welcome
-        restoreSession().then(() => {
-            if (!currentInquirySessionId) {
-                showInquiryWelcome();
-            }
-        });
     });
 
     // --- Inline UI Functions (Failsafe) ---

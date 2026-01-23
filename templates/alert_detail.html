@@ -1216,8 +1216,9 @@
             const decoder = new TextDecoder();
             let buffer = '';
             let fullResponse = '';
+            let firstChunkReceived = false;
 
-            removeTypingIndicator();
+            // Keep typing indicator visible until first content chunk arrives
 
             while (true) {
                 const { done, value } = await reader.read();
@@ -1235,6 +1236,11 @@
                             if (data.type === 'session') {
                                 currentSessionId = data.session_id;
                             } else if (data.type === 'chunk') {
+                                // Remove typing indicator on first content chunk
+                                if (!firstChunkReceived) {
+                                    removeTypingIndicator();
+                                    firstChunkReceived = true;
+                                }
                                 fullResponse += data.content;
                                 appendStreamingChunk(data.content);
                             } else if (data.type === 'done') {
@@ -1333,7 +1339,7 @@
                     <div class="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style="animation-delay: 150ms"></div>
                     <div class="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style="animation-delay: 300ms"></div>
                 </div>
-                <span class="text-gray-400 text-xs">AI is thinking...</span>
+                <span class="text-gray-400 text-xs">Analyzing alert...</span>
                 <button onclick="cancelStreaming()" class="ml-2 text-red-400 hover:text-red-300 text-xs px-2 py-1 border border-red-400/50 rounded hover:bg-red-400/10 transition-colors" title="Stop generating">
                     <i class="fas fa-stop mr-1"></i>Stop
                 </button>

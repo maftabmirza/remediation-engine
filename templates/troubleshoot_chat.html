@@ -67,6 +67,25 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- LLM Model Selector -->
+                    <div class="relative" id="modelSelectorWrapper">
+                        <button onclick="toggleModelDropdown()" id="modelIconBtn"
+                            class="p-1.5 rounded transition-colors hover:bg-gray-700 flex items-center"
+                            title="LLM Model">
+                            <i class="fas fa-brain text-sm" id="modelStatusIcon"></i>
+                            <i class="fas fa-caret-down text-[10px] ml-1 text-gray-400"></i>
+                        </button>
+                        <div id="modelDropdown"
+                            class="hidden absolute left-0 top-full mt-1 bg-gray-800 border border-gray-600 rounded-lg shadow-xl z-50 min-w-[200px]">
+                            <div class="px-3 py-2 border-b border-gray-700 text-xs text-gray-400">
+                                <i class="fas fa-brain mr-1"></i> Select LLM Model
+                            </div>
+                            <div id="modelListContainer" class="max-h-48 overflow-y-auto">
+                                <div class="px-3 py-2 text-xs text-gray-500">Loading...</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div class="flex items-center space-x-1">
                     <button id="agentModeBtn" onclick="openAgentModal()"

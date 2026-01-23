@@ -59,7 +59,6 @@ services:
       - ./templates:/app/templates:ro
       - ./alembic.ini:/app/alembic.ini:ro
       - ./alembic:/app/alembic:ro
-      - ./entrypoint.sh:/app/entrypoint.sh:ro
       - ./storage:/app/storage
     networks:
       - aiops-network

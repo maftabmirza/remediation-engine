@@ -23,6 +23,7 @@ COPY alembic.ini .
 # NOTE: tests/ is excluded via .dockerignore
 
 COPY entrypoint.sh .
+RUN sed -i 's/\r$//' entrypoint.sh
 RUN chmod +x entrypoint.sh
 
 # Create non-root user

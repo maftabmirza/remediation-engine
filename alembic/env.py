@@ -89,6 +89,9 @@ def run_migrations_online() -> None:
     with connectable.connect() as connection:
         # Ensure uuid extension is available for uuid_generate_v4()
         connection.execute(text('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"'))
+        # Commit extension creation so it's visible before migrations run
+        connection.commit()
+
         context.configure(
             connection=connection,
             target_metadata=target_metadata,

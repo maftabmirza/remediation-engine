@@ -299,9 +299,7 @@ async function initChatSession() {
 async function loadAvailableProviders() {
     try {
         // Show connecting status
-        if (typeof updateModelStatusIcon === 'function') {
-            updateModelStatusIcon('connecting');
-        }
+        updateModelStatusIcon('connecting');
 
         const response = await apiCall('/api/troubleshoot/providers');
         if (!response.ok) throw new Error('Failed to load providers');
@@ -323,11 +321,10 @@ async function loadAvailableProviders() {
                 }
             }
         }
+        updateModelStatusIcon('connected');
     } catch (error) {
         console.error('Failed to load providers:', error);
-        if (typeof updateModelStatusIcon === 'function') {
-            updateModelStatusIcon('disconnected');
-        }
+        updateModelStatusIcon('disconnected');
     }
 }
 
@@ -352,6 +349,28 @@ function updateModelSelector() {
             const btn = document.getElementById('modelIconBtn');
             if (btn) btn.title = `LLM: ${defaultProvider.provider_name}`;
         }
+    }
+}
+
+function updateModelStatusIcon(status) {
+    const icon = document.getElementById('modelStatusIcon');
+    if (!icon) return;
+    
+    // Remove all status classes
+    icon.classList.remove('text-green-400', 'text-red-400', 'text-yellow-400', 'text-gray-400');
+    
+    switch(status) {
+        case 'connected':
+            icon.classList.add('text-green-400');
+            break;
+        case 'disconnected':
+            icon.classList.add('text-red-400');
+            break;
+        case 'connecting':
+            icon.classList.add('text-yellow-400');
+            break;
+        default:
+            icon.classList.add('text-gray-400');
     }
 }
 
@@ -433,9 +452,7 @@ function connectChatWebSocket(sessionId) {
     // Skip WebSocket if we've exceeded max attempts - chat works via REST API
     if (wsReconnectAttempts >= MAX_WS_RECONNECT_ATTEMPTS) {
         console.log('WebSocket disabled - using REST API for chat');
-        if (typeof updateModelStatusIcon === 'function') {
-            updateModelStatusIcon('connected'); // Show as connected since REST works
-        }
+        updateModelStatusIcon('connected'); // Show as connected since REST works
         return;
     }
 
@@ -451,9 +468,7 @@ function connectChatWebSocket(sessionId) {
         chatSocket = new WebSocket(`${protocol}//${window.location.host}/ws/chat/${sessionId}?token=${token}`);
         chatSocket.onopen = () => {
             wsReconnectAttempts = 0; // Reset on successful connection
-            if (typeof updateModelStatusIcon === 'function') {
-                updateModelStatusIcon('connected');
-            }
+            updateModelStatusIcon('connected');
         };
         chatSocket.onmessage = (event) => {
             const msg = event.data;
@@ -465,9 +480,7 @@ function connectChatWebSocket(sessionId) {
             console.log(`WebSocket error (attempt ${wsReconnectAttempts}/${MAX_WS_RECONNECT_ATTEMPTS})`);
         };
         chatSocket.onclose = () => {
-            if (typeof updateModelStatusIcon === 'function') {
-                updateModelStatusIcon('connected'); // Still show connected - REST works
-            }
+            updateModelStatusIcon('connected'); // Still show connected - REST works
             // Only reconnect if under max attempts
             if (wsReconnectAttempts < MAX_WS_RECONNECT_ATTEMPTS && currentSessionId) {
                 setTimeout(() => {
@@ -1948,24 +1961,9 @@ async function sendMessage(e) {
         }, 500);
     }
 
-    // Check which mode we're in (defined in ai_chat.html)
-    const chatMode = typeof currentChatMode !== 'undefined' ? currentChatMode : 'troubleshoot';
-
     appendUserMessage(escapeHtml(text));
     input.value = '';  // Clear input immediately after sending
     showTypingIndicator();
-
-    if (chatMode === 'general') {
-        // General Inquiry mode: Use observability API
-        // The handleObservabilityQuery function is defined in ai_chat.html
-        if (typeof handleObservabilityQuery === 'function') {
-            handleObservabilityQuery(text);
-        } else {
-            removeTypingIndicator();
-            appendAIMessage('Error: Observability query handler not available.');
-        }
-        return;
-    }
 
     // Troubleshooting mode: Use SSE streaming for real-time responses
     const termContent = getTerminalContent();
@@ -2009,9 +2007,9 @@ async function sendStreamingMessage(message) {
         const decoder = new TextDecoder();
         let buffer = '';
         let fullResponse = '';
+        let firstChunkReceived = false;
 
-        // Remove typing indicator and prepare for streaming content
-        removeTypingIndicator();
+        // Keep typing indicator visible until first content chunk arrives
 
         while (true) {
             const { done, value } = await reader.read();
@@ -2029,6 +2027,11 @@ async function sendStreamingMessage(message) {
                         if (data.type === 'session') {
                             currentSessionId = data.session_id;
                         } else if (data.type === 'chunk') {
+                            // Remove typing indicator on first content chunk
+                            if (!firstChunkReceived) {
+                                removeTypingIndicator();
+                                firstChunkReceived = true;
+                            }
                             fullResponse += data.content;
                             // Stream content to UI - update existing message
                             appendStreamingChunk(data.content);

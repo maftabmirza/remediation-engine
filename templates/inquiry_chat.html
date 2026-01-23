@@ -26,6 +26,89 @@
     .reasoning-panel.collapsed .reasoning-body {
         display: none;
     }
+    
+    /* Artifact Panel Styles */
+    .artifact-card-active {
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    }
+    
+    .artifact-content table {
+        border-collapse: collapse;
+    }
+    
+    .artifact-content table th,
+    .artifact-content table td {
+        border-bottom: 1px solid #374151;
+    }
+    
+    .artifact-content pre {
+        margin: 0;
+        background: #111827 !important;
+    }
+    
+    .artifact-content code {
+        font-family: 'JetBrains Mono', 'Fira Code', monospace;
+        font-size: 0.85em;
+    }
+    
+    .artifact-thumb {
+        transition: all 0.2s ease;
+    }
+    
+    .artifact-thumb:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+    
+    .artifact-links button {
+        transition: all 0.2s ease;
+    }
+    
+    .artifact-links button:hover {
+        transform: scale(1.02);
+    }
+    
+    .line-clamp-2 {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+    
+    /* Artifact tab active state */
+    .artifact-tab {
+        transition: all 0.15s ease;
+    }
+    
+    /* Smooth scroll for artifact container */
+    #artifactsContainer {
+        scroll-behavior: smooth;
+    }
+    
+    /* Prose styling for artifact content */
+    .artifact-content .prose {
+        color: #d1d5db;
+    }
+    
+    .artifact-content .prose strong {
+        color: #f3f4f6;
+    }
+    
+    .artifact-content .prose code {
+        background: #1f2937;
+        padding: 0.2em 0.4em;
+        border-radius: 0.25rem;
+        color: #fbbf24;
+    }
+    
+    .artifact-content .prose ul,
+    .artifact-content .prose ol {
+        padding-left: 1.5rem;
+    }
+    
+    .artifact-content .prose li {
+        margin: 0.5rem 0;
+    }
 </style>
 
 <div id="aiChatContent" class="flex flex-col h-full overflow-hidden">
@@ -92,31 +175,80 @@
             </div>
         </div>
 
-        <!-- Pane 2: Knowledge / Data (8 cols ~ 66%) -->
+        <!-- Pane 2: Artifacts Panel (8 cols ~ 66%) - Claude-inspired -->
         <div class="lg:col-span-8 flex flex-col card h-full overflow-hidden relative">
+            <!-- Artifacts Header with Tabs -->
             <div class="p-2 border-b border-gray-800 flex justify-between items-center bg-gray-900 flex-shrink-0">
-                <div class="flex items-center">
-                    <span class="text-xs font-bold text-gray-400 uppercase tracking-wider px-2">Knowledge Base &
-                        Data</span>
+                <div class="flex items-center space-x-1">
+                    <button onclick="switchArtifactTab('recent')" id="artifactTabRecent"
+                        class="artifact-tab px-3 py-1.5 text-xs font-medium rounded-t border-b-2 border-blue-500 text-blue-400 bg-gray-800">
+                        <i class="fas fa-clock mr-1"></i>Recent
+                    </button>
+                    <button onclick="switchArtifactTab('all')" id="artifactTabAll"
+                        class="artifact-tab px-3 py-1.5 text-xs font-medium rounded-t border-b-2 border-transparent text-gray-400 hover:text-gray-200">
+                        <i class="fas fa-layer-group mr-1"></i>All Artifacts
+                    </button>
+                    <span id="artifactCount" class="ml-2 px-2 py-0.5 text-[10px] bg-gray-700 text-gray-400 rounded-full">0</span>
                 </div>
-                <div id="dataOutputControls" class="flex items-center space-x-2">
-                    <button onclick="exportDataOutput()" class="text-gray-400 hover:text-white px-2 py-1 text-xs"
-                        title="Export Report">
+                <div id="artifactControls" class="flex items-center space-x-2">
+                    <button onclick="clearArtifacts()" class="text-gray-500 hover:text-red-400 px-2 py-1 text-xs" title="Clear All">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                    <button onclick="exportAllArtifacts()" class="text-gray-400 hover:text-white px-2 py-1 text-xs border border-gray-600 rounded hover:bg-gray-700" title="Export All">
                         <i class="fas fa-file-export mr-1"></i>Export
                     </button>
                 </div>
             </div>
 
-            <!-- Data Output Container -->
-            <div id="dataOutputContainer" class="absolute inset-x-0 bottom-0 top-10 bg-gray-900 overflow-y-auto">
-                <div id="dataOutputResults" class="p-4 space-y-4">
-                    <!-- Results dynamically added here -->
-                    <div id="dataOutputEmpty"
-                        class="flex flex-col items-center justify-center h-64 text-center text-gray-500 mt-10">
-                        <i class="fas fa-chart-line text-6xl mb-4 text-gray-700"></i>
-                        <h3 class="text-lg font-semibold mb-2">Ready for Inquiry</h3>
-                        <p class="text-sm max-w-sm">Ask detailed questions about your infrastructure. I can analyze
-                            logs, metrics, and configurations.</p>
+            <!-- Artifacts Container -->
+            <div id="artifactsContainer" class="absolute inset-x-0 bottom-0 top-12 bg-gray-900 overflow-y-auto p-4">
+                <!-- Active/Recent Artifact (Large) -->
+                <div id="activeArtifact" class="hidden mb-4">
+                    <div class="artifact-card-active bg-gray-800 rounded-lg border border-gray-600 shadow-xl">
+                        <div class="artifact-header flex justify-between items-center p-3 border-b border-gray-700">
+                            <div class="flex items-center">
+                                <i id="activeArtifactIcon" class="fas fa-table text-blue-400 mr-2"></i>
+                                <span id="activeArtifactTitle" class="text-sm font-semibold text-white">Artifact</span>
+                                <span id="activeArtifactType" class="ml-2 px-2 py-0.5 text-[10px] bg-blue-900/50 text-blue-300 rounded">table</span>
+                            </div>
+                            <div class="flex items-center space-x-1">
+                                <button onclick="copyArtifact()" class="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded" title="Copy">
+                                    <i class="fas fa-copy text-xs"></i>
+                                </button>
+                                <button onclick="exportArtifact()" class="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded" title="Export">
+                                    <i class="fas fa-download text-xs"></i>
+                                </button>
+                                <button onclick="pinArtifact()" id="pinArtifactBtn" class="p-1.5 text-gray-400 hover:text-yellow-400 hover:bg-gray-700 rounded" title="Pin">
+                                    <i class="fas fa-thumbtack text-xs"></i>
+                                </button>
+                                <button onclick="minimizeArtifact()" class="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded" title="Minimize">
+                                    <i class="fas fa-compress-alt text-xs"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div id="activeArtifactContent" class="artifact-content p-4 max-h-[60vh] overflow-auto">
+                            <!-- Rendered artifact content -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Artifact History Grid -->
+                <div id="artifactHistory" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <!-- Artifact thumbnails will be added here -->
+                </div>
+
+                <!-- Empty State -->
+                <div id="artifactsEmpty" class="flex flex-col items-center justify-center h-64 text-center text-gray-500">
+                    <div class="w-20 h-20 rounded-full bg-gray-800 flex items-center justify-center mb-4">
+                        <i class="fas fa-cube text-4xl text-gray-600"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold mb-2 text-gray-400">No Artifacts Yet</h3>
+                    <p class="text-sm max-w-sm text-gray-500">When you ask questions, structured data like tables, code, and charts will appear here for easy viewing and export.</p>
+                    <div class="mt-4 flex flex-wrap justify-center gap-2">
+                        <span class="px-2 py-1 text-[10px] bg-gray-800 text-gray-500 rounded"><i class="fas fa-table mr-1"></i>Tables</span>
+                        <span class="px-2 py-1 text-[10px] bg-gray-800 text-gray-500 rounded"><i class="fas fa-code mr-1"></i>Code</span>
+                        <span class="px-2 py-1 text-[10px] bg-gray-800 text-gray-500 rounded"><i class="fas fa-chart-bar mr-1"></i>Charts</span>
+                        <span class="px-2 py-1 text-[10px] bg-gray-800 text-gray-500 rounded"><i class="fas fa-file-alt mr-1"></i>Reports</span>
                     </div>
                 </div>
             </div>
@@ -127,7 +259,13 @@
 <!-- Session Dropdown is embedded in the layout above -->
 <div id="sessionDropdown"
     class="hidden absolute top-0 left-0 mt-1 bg-gray-800 border border-gray-600 rounded-lg shadow-xl z-50 min-w-[220px]">
-    <!-- Populated by JS -->
+    <button onclick="createNewSession()"
+        class="w-full text-left px-3 py-2 text-xs text-blue-400 hover:bg-gray-700 transition-colors border-b border-gray-700 flex items-center">
+        <i class="fas fa-plus mr-2"></i>New Session
+    </button>
+    <div id="sessionListContainer" class="max-h-48 overflow-y-auto">
+        <div class="px-3 py-2 text-xs text-gray-500">No sessions yet</div>
+    </div>
 </div>
 
 {% endblock %}
