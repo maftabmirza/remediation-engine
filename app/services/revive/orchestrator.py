@@ -77,15 +77,17 @@ class ReviveOrchestrator:
             logger.warning("Page Context Received: NO")
         logger.warning("=" * 80)
         
-        # 1. Detect Mode
+        # 1. Detect Mode with enhanced context
         current_page = page_context.get('url') if page_context else None
         
         mode_result = self.mode_detector.detect(
             message, 
             current_page=current_page,
-            explicit_mode=explicit_mode
+            explicit_mode=explicit_mode,
+            page_context=page_context,
+            conversation_history=session_messages
         )
-        logger.info(f"Detected mode: {mode_result.mode} ({mode_result.detected_intent})")
+        logger.info(f"Detected mode: {mode_result.mode} (confidence: {mode_result.confidence:.2f}, intent: {mode_result.detected_intent})")
         
         # 2. Determine Tool Modules
         modules = self._get_modules_for_mode(mode_result.mode)
@@ -107,26 +109,24 @@ class ReviveOrchestrator:
         
         # 4. Initialize Agent
         # Note: We might want a specialized system prompt based on mode
-        system_message = self._build_system_message(mode_result, page_context)
+        system_message = self._build_system_message(mode_result, page_context, len(session_messages))
         
         # DEBUG: Log system message content
         logger.warning("=" * 80)
         logger.warning("📋 SYSTEM MESSAGE SENT TO LLM")
         logger.warning("=" * 80)
+        logger.warning(f"Mode: {mode_result.mode} | Confidence: {mode_result.confidence}")
+        logger.warning(f"Session History Length: {len(session_messages)} messages")
         logger.warning(system_message['content'][:500] + "..." if len(system_message['content']) > 500 else system_message['content'])
         logger.warning("=" * 80)
         
-        # Combine system message with history if not present
-        if not session_messages or session_messages[0].get("role") != "system":
-            initial_messages = [system_message] + session_messages
+        # Combine system message with history
+        # Always use fresh system message for current context
+        if session_messages and session_messages[0].get("role") == "system":
+            # Replace old system message with updated one
+            initial_messages = [system_message] + session_messages[1:]
         else:
-            # Replace existing system message? Or append?
-            # Usually strict append or replace. Let's replace if we are changing modes dynamically?
-            # For now, just prepend if missing. If present, maybe the Agent handles it.
-            # But the agent expects initial_messages.
-            # If we switch modes, the system prompt typically should change.
-            # Simple approach: Prepend new system prompt as the latest system instruction?
-            # Or assume session_messages is just the USER/ASSISTANT history, and we prepend system.
+            # Prepend new system message
             initial_messages = [system_message] + session_messages
 
         agent = ReviveQuickHelpAgent(
