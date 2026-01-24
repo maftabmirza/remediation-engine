@@ -16,12 +16,12 @@ We have 5 ponit of LLM interaction
 
 1. RE-VIVE - is AI helper for application 
 2. RE-VIVE -  on Grafana stack, help user and call Grafana MCP
-3. /ai troubeshooting - Need to me manage and develop independed 
-4. /ai Inquiry - Read data and answer user question 
-5  /alerts help and troubehoot as /ai trouebshooting with some additionl detail
+3. /troubesh - Need to me manage and develop independed 
+4. /Inquiry - Read data and answer user question 
+5  /alerts help and troubehoot as /trouebshoot with some additionl detail
 
 
 Coding standard
 
 1. Any file which is dedicated to RE-VIVE should have file name with prefix revive
-2. Always review impact whcih modifying file , it can impacte other LLM interaction 
+2. Always review impact whcih modifying file , it can impacte other LLM interaction
