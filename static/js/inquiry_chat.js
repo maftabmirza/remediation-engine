@@ -382,7 +382,7 @@ async function sendStreamingMessage(message) {
                         } else if (data.type === 'tools_used') {
                             handleToolsUsedEvent(data.content);
                         } else if (data.type === 'done') {
-                            finalizeStreamingMessage(fullResponse);
+                            finalizeStreamingMessage(fullResponse, data.tool_calls || []);
                         } else if (data.type === 'error') {
                             appendAIMessage(`Error: ${data.content}`);
                         }
@@ -498,13 +498,49 @@ function appendStreamingChunk(chunk) {
         const newText = currentText + chunk;
         currentMessageDiv.setAttribute('data-full-text', newText);
 
-        let displayText = newText.replace(/\[\s*SUGGESTIONS\s*\]([\s\S]*?)\[\s*\/SUGGESTIONS\s*\]/gi, '');
+        // Extract and process artifacts from the stream
+        const artifactRegex = /\[ARTIFACT\]([\s\S]*?)\[\/ARTIFACT\]/g;
+        let match;
+        while ((match = artifactRegex.exec(newText)) !== null) {
+            try {
+                const artifactData = JSON.parse(match[1]);
+                // Validate artifact: content must be a string (real tool results are strings)
+                // Hallucinated artifacts often have object content (like chart configs)
+                if (typeof artifactData.content !== 'string') {
+                    console.warn('Skipping hallucinated artifact with non-string content');
+                    continue;
+                }
+                // Also validate that ID starts with 'tool-' (our real artifacts do)
+                if (artifactData.id && !artifactData.id.startsWith('tool-')) {
+                    console.warn('Skipping artifact with suspicious ID:', artifactData.id);
+                    continue;
+                }
+                // Check if we already added this artifact
+                if (!artifacts.find(a => a.id === artifactData.id)) {
+                    addArtifact({
+                        id: artifactData.id || generateArtifactId(),
+                        type: artifactData.type || 'markdown',
+                        title: artifactData.title || 'Tool Result',
+                        content: artifactData.content,
+                        rawContent: artifactData.content,
+                        timestamp: new Date().toISOString()
+                    });
+                }
+            } catch (e) {
+                console.error('Error parsing artifact:', e);
+            }
+        }
+
+        // Remove artifact markers and suggestions from display text
+        let displayText = newText
+            .replace(/\[\s*ARTIFACT\s*\][\s\S]*?\[\s*\/ARTIFACT\s*\]/gi, '')
+            .replace(/\[\s*SUGGESTIONS\s*\]([\s\S]*?)\[\s*\/SUGGESTIONS\s*\]/gi, '');
         currentMessageDiv.innerHTML = marked.parse(displayText);
     }
     container.scrollTop = container.scrollHeight;
 }
 
-function finalizeStreamingMessage(fullText) {
+function finalizeStreamingMessage(fullText, toolCalls = []) {
     // Re-render full message to handle any formatting properly
     if (currentMessageDiv) {
         // Safer removal: traverse up to the main wrapper
@@ -516,13 +552,61 @@ function finalizeStreamingMessage(fullText) {
         }
         currentMessageDiv = null;
     }
-    appendAIMessage(fullText);
     
-    // Detect and create artifacts from the response
-    const detectedArtifacts = detectArtifacts(fullText);
+    // Extract artifacts from the full text
+    const artifactRegex = /\[ARTIFACT\]([\s\S]*?)\[\/ARTIFACT\]/g;
+    let match;
+    while ((match = artifactRegex.exec(fullText)) !== null) {
+        try {
+            const artifactData = JSON.parse(match[1]);
+            // Validate artifact: content must be a string (real tool results are strings)
+            // Hallucinated artifacts often have object content (like chart configs)
+            if (typeof artifactData.content !== 'string') {
+                console.warn('Skipping hallucinated artifact with non-string content');
+                continue;
+            }
+            // Also validate that ID starts with 'tool-' (our real artifacts do)
+            if (artifactData.id && !artifactData.id.startsWith('tool-')) {
+                console.warn('Skipping artifact with suspicious ID:', artifactData.id);
+                continue;
+            }
+            // Check if we already added this artifact
+            if (!artifacts.find(a => a.id === artifactData.id)) {
+                addArtifact({
+                    id: artifactData.id || generateArtifactId(),
+                    type: artifactData.type || 'markdown',
+                    title: artifactData.title || 'Tool Result',
+                    content: artifactData.content,
+                    rawContent: artifactData.content,
+                    timestamp: new Date().toISOString()
+                });
+            }
+        } catch (e) {
+            console.error('Error parsing artifact:', e);
+        }
+    }
+    
+    // Remove artifact markers from display text
+    const cleanText = fullText.replace(/\[\s*ARTIFACT\s*\][\s\S]*?\[\s*\/ARTIFACT\s*\]/gi, '');
+    appendAIMessage(cleanText);
+    
+    // Detect and create additional artifacts from the cleaned response
+    const detectedArtifacts = detectArtifacts(cleanText);
     detectedArtifacts.forEach(artifact => {
         addArtifact(artifact);
     });
+    
+    // If tools were used but no artifacts detected, create a summary artifact
+    if (toolCalls && toolCalls.length > 0 && detectedArtifacts.length === 0 && artifacts.length === 0) {
+        addArtifact({
+            id: generateArtifactId(),
+            type: 'markdown',
+            title: 'Query Summary',
+            content: `**Tools Used:** ${toolCalls.join(', ')}\n\n${cleanText}`,
+            rawContent: cleanText,
+            timestamp: new Date().toISOString()
+        });
+    }
 }
 
 // --- UI Helpers ---
@@ -918,6 +1002,11 @@ function setActiveArtifact(artifactId) {
  * Render artifact content based on type
  */
 function renderArtifactContent(artifact) {
+    // Check if content contains chart data
+    if (artifact.content && artifact.content.includes('[CHART]')) {
+        return renderChartArtifact(artifact);
+    }
+    
     switch (artifact.type) {
         case 'table':
             return renderTableArtifact(artifact);
@@ -929,8 +1018,78 @@ function renderArtifactContent(artifact) {
             return renderAlertArtifact(artifact);
         case 'list':
             return renderListArtifact(artifact);
+        case 'chart':
+            return renderChartArtifact(artifact);
         default:
             return `<div class="prose prose-invert max-w-none text-sm">${marked.parse(artifact.content)}</div>`;
+    }
+}
+
+/**
+ * Render chart artifact using Chart.js
+ */
+function renderChartArtifact(artifact) {
+    const content = artifact.content;
+    
+    // Extract chart data from [CHART]...[/CHART] markers
+    const chartMatch = content.match(/\[CHART\]([\s\S]*?)\[\/CHART\]/);
+    if (!chartMatch) {
+        // No chart data, render as markdown
+        return `<div class="prose prose-invert max-w-none text-sm">${marked.parse(content)}</div>`;
+    }
+    
+    try {
+        const chartData = JSON.parse(chartMatch[1]);
+        const chartId = 'chart-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+        
+        // Extract text content (before chart marker)
+        const textContent = content.replace(/\[CHART\][\s\S]*?\[\/CHART\]/, '').trim();
+        
+        // Schedule chart rendering after DOM update
+        setTimeout(() => {
+            const canvas = document.getElementById(chartId);
+            if (canvas && typeof Chart !== 'undefined') {
+                new Chart(canvas, {
+                    type: chartData.type || 'bar',
+                    data: {
+                        labels: chartData.labels || [],
+                        datasets: chartData.datasets || []
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                labels: { color: '#9ca3af' }
+                            }
+                        },
+                        scales: chartData.type !== 'doughnut' && chartData.type !== 'pie' ? {
+                            x: {
+                                ticks: { color: '#9ca3af' },
+                                grid: { color: '#374151' }
+                            },
+                            y: {
+                                ticks: { color: '#9ca3af' },
+                                grid: { color: '#374151' },
+                                beginAtZero: true
+                            }
+                        } : undefined
+                    }
+                });
+            }
+        }, 100);
+        
+        return `
+            <div class="space-y-4">
+                ${textContent ? `<div class="prose prose-invert max-w-none text-sm">${marked.parse(textContent)}</div>` : ''}
+                <div class="bg-gray-800 rounded-lg p-4" style="height: 300px;">
+                    <canvas id="${chartId}"></canvas>
+                </div>
+            </div>
+        `;
+    } catch (e) {
+        console.error('Error rendering chart:', e);
+        return `<div class="prose prose-invert max-w-none text-sm">${marked.parse(content.replace(/\[CHART\][\s\S]*?\[\/CHART\]/, ''))}</div>`;
     }
 }
 

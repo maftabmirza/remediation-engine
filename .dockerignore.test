@@ -1,0 +1,35 @@
+# Docker ignore for test builds - allows tests and pytest.ini
+*.pyc
+__pycache__/
+.pytest_cache/
+htmlcov/
+.coverage
+
+# Development files
+.git/
+.gitignore
+.env
+.env.*
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+
+# Documentation
+docs/
+examples/
+archive-md/
+
+# Temporary files
+*.tmp
+temp/
+tmp/
+.DS_Store

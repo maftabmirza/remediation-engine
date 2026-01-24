@@ -30,10 +30,17 @@ class InquiryRequest(BaseModel):
     session_id: Optional[UUID] = None
     context: Optional[Dict[str, Any]] = None
 
+class ToolResult(BaseModel):
+    tool_name: str
+    arguments: Optional[Dict[str, Any]] = None
+    result: Optional[str] = None
+    execution_time_ms: Optional[int] = None
+
 class InquiryAPIResponse(BaseModel):
     session_id: UUID
     answer: str
     tools_used: List[str]
+    tool_results: Optional[List[ToolResult]] = None
     error: Optional[str] = None
 
 # --- Endpoints ---
@@ -196,11 +203,25 @@ async def query_inquiry(
     
     if result.error == "AccessDenied":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=result.answer)
+    
+    # Convert tool_results to ToolResult objects if present
+    tool_results = None
+    if hasattr(result, 'tool_results') and result.tool_results:
+        tool_results = [
+            ToolResult(
+                tool_name=tr.get('tool_name', 'unknown'),
+                arguments=tr.get('arguments'),
+                result=tr.get('result'),
+                execution_time_ms=tr.get('execution_time_ms')
+            )
+            for tr in result.tool_results
+        ]
         
     return InquiryAPIResponse(
         session_id=result.session_id,
         answer=result.answer,
         tools_used=result.tools_used,
+        tool_results=tool_results,
         error=result.error
     )
 

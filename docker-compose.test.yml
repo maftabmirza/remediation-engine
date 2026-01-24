@@ -39,11 +39,16 @@ services:
       POSTGRES_PASSWORD: aiops_secure_password
       JWT_SECRET: test-jwt-secret-key
       ENCRYPTION_KEY: test-encryption-key-32chars-ok!
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - test-network
+      - aiops_aiops-network
     volumes:
       - ./htmlcov:/app/htmlcov # Persist coverage reports
 
 networks:
   test-network:
     driver: bridge
+  aiops_aiops-network:
+    external: true

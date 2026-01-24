@@ -158,10 +158,11 @@ services:
       - GF_ANALYTICS_CHECK_FOR_UPDATES=false
       - GF_NEWS_NEWS_FEED_ENABLED=false
 
-      # Disable OpenFeature and Live updates to prevent console errors and WebSocket issues
-      - GF_FEATURE_TOGGLES_ENABLE=publicDashboards:false,enable_openfeature:false,live:false
-      - GF_LIVE_ALLOWED_ORIGINS=
+      # Disable OpenFeature/OFREP API to prevent console 404 errors
+      - GF_FEATURE_TOGGLES_OPENFEATURE_ENABLE_API=false
+      - GF_FEATURE_TOGGLES_OPENFEATURE_PROVIDER=
       - GF_LIVE_MAX_CONNECTIONS=0
+      - GF_LIVE_ALLOWED_ORIGINS=
     volumes:
       - grafana-data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
@@ -169,6 +170,12 @@ services:
       - ./grafana/custom.css:/usr/share/grafana/public/css/aiops-custom.css:ro
       - ./grafana/assets/logo.svg:/usr/share/grafana/public/img/aiops-logo.svg:ro
       - ./grafana/assets/logo-small.svg:/usr/share/grafana/public/img/aiops-logo-small.svg:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
     networks:
       - aiops-network
     depends_on:
@@ -176,6 +183,58 @@ services:
       - loki
       - tempo
       - mimir
+
+  # =============================================================================
+  # MCP Grafana - Model Context Protocol server for AI agent integration
+  # =============================================================================
+  # Provides standardized MCP tools for Grafana operations:
+  # - Dashboards: search_dashboards, get_dashboard, create_dashboard
+  # - Observability: query_prometheus, query_loki, query_tempo
+  # - Alerts: list_alert_rules, get_alert_rule
+  # - Metadata: list_datasources
+  #
+  # SETUP REQUIRED: Run './scripts/setup-mcp-grafana.sh' after first deployment
+  # to create the Grafana service account and token automatically.
+  # =============================================================================
+  mcp-grafana:
+    image: grafana/mcp-grafana:latest
+    container_name: mcp-grafana
+    restart: unless-stopped
+    environment:
+      # Grafana connection - connects to internal Grafana (no /grafana path internally)
+      - GRAFANA_URL=${GRAFANA_URL:-http://grafana:3000}
+      # Service Account Token - REQUIRED for API access
+      # Run './scripts/setup-mcp-grafana.sh' to generate this automatically
+      - GRAFANA_SERVICE_ACCOUNT_TOKEN=${GRAFANA_SERVICE_ACCOUNT_TOKEN:-}
+      # Server configuration
+      - MCP_SERVER_PORT=8000
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      # Direct datasource access (optional - MCP can query these directly)
+      - PROMETHEUS_URL=${PROMETHEUS_URL:-http://prometheus:9090}
+      - LOKI_URL=${LOKI_URL:-http://loki:3100}
+      - TEMPO_URL=${TEMPO_URL:-http://tempo:3200}
+    ports:
+      - "8001:8000"  # External:Internal - SSE endpoint at http://localhost:8001/sse
+    healthcheck:
+      # MCP Grafana uses SSE transport - check if port is listening
+      test: ["CMD-SHELL", "timeout 2 bash -c '</dev/tcp/localhost/8000' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - aiops-network
+    depends_on:
+      grafana:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
 
   # Loki for log aggregation
   loki:

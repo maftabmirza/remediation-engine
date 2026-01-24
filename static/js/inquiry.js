@@ -159,8 +159,57 @@ function showDetails(data) {
         `;
     }
 
-    // Raw Tools Execution (if available in future, mocked here)
-    // We expect the server response might carry more detailed logs later
+    // Tool Results - Detailed output from each tool
+    if (data.tool_results && data.tool_results.length > 0) {
+        html += `
+            <div class="bg-gray-800 p-3 rounded border border-gray-700">
+                <h4 class="text-xs font-semibold text-gray-400 uppercase mb-2">Detailed Tool Output</h4>
+                <div class="space-y-3">
+        `;
+        
+        for (const tr of data.tool_results) {
+            const executionTime = tr.execution_time_ms ? `<span class="text-gray-500 text-xs ml-2">(${tr.execution_time_ms}ms)</span>` : '';
+            
+            html += `
+                <div class="bg-gray-900 p-2 rounded border border-gray-600">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-sm font-medium text-blue-400">
+                            <i class="fas fa-wrench mr-1"></i>${tr.tool_name}${executionTime}
+                        </span>
+                    </div>
+            `;
+            
+            // Show arguments if any
+            if (tr.arguments && Object.keys(tr.arguments).length > 0) {
+                html += `
+                    <div class="text-xs text-gray-500 mb-2">
+                        Arguments: ${JSON.stringify(tr.arguments)}
+                    </div>
+                `;
+            }
+            
+            // Show result - format as pre for better readability
+            if (tr.result) {
+                // Escape HTML and format the result
+                const escapedResult = tr.result
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/\n/g, '<br>')
+                    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>'); // Bold markdown
+                    
+                html += `
+                    <div class="bg-gray-950 p-2 rounded max-h-64 overflow-y-auto">
+                        <div class="text-xs text-gray-300 font-mono whitespace-pre-wrap">${escapedResult}</div>
+                    </div>
+                `;
+            }
+            
+            html += `</div>`;
+        }
+        
+        html += `</div></div>`;
+    }
 
     html += `</div>`;
     panel.innerHTML = html;

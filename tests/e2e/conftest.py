@@ -23,9 +23,9 @@ def authenticated_page(page: Page, base_url: str) -> Page:
         return page
 
     # Fill credentials
-    # Using the default from docker-compose.yml
+    # Using the actual password from the database
     page.fill('input[name="username"]', "admin")
-    page.fill('input[name="password"]', "admin")
+    page.fill('input[name="password"]', "Passw0rd")
     
     # Click login
     page.click('button[type="submit"]')

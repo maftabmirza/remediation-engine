@@ -6,7 +6,7 @@ Enables transparent Grafana integration with automatic user provisioning.
 """
 
 from fastapi import APIRouter, Depends, Request, Response, WebSocket, WebSocketDisconnect
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
 import httpx
 import os
 import re

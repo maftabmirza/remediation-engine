@@ -384,6 +384,17 @@ app.include_router(inquiry.router)           # Phase 2: AI Inquiry Pillar
 app.include_router(agent_hq_api.router)      # Agent HQ API
 
 
+# Mock OFREP endpoint for Grafana OpenFeature - returns valid empty response to prevent 404 errors
+@app.post("/apis/features.grafana.app/v0alpha1/namespaces/default/ofrep/v1/evaluate/flags")
+async def mock_ofrep_evaluate_flags():
+    """
+    Mock OpenFeature OFREP endpoint for Grafana.
+    
+    Grafana 12.x makes calls to this endpoint regardless of server-side config.
+    Return a valid OFREP response with empty flags to prevent console 404 errors.
+    """
+    return {"flags": []}
+
 
 @app.get("/profile", response_class=HTMLResponse)
 async def profile_page(

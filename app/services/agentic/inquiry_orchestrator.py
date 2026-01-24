@@ -34,6 +34,7 @@ class InquiryResponse:
     session_id: UUID
     answer: str
     tools_used: List[str] = field(default_factory=list)
+    tool_results: List[Dict[str, Any]] = field(default_factory=list)
     tokens_used: int = 0
     error: Optional[str] = None
 
@@ -175,10 +176,22 @@ class InquiryOrchestrator:
             
             response_obj = await agent.run(query) 
             
+            # Capture tool results if available
+            tool_results = []
+            if hasattr(agent, 'tool_execution_history'):
+                for execution in agent.tool_execution_history:
+                    tool_results.append({
+                        'tool_name': execution.get('tool_name', 'unknown'),
+                        'arguments': execution.get('arguments', {}),
+                        'result': execution.get('result', ''),
+                        'execution_time_ms': execution.get('execution_time_ms', 0)
+                    })
+            
             return InquiryResponse(
                 session_id=session_id or UUID("00000000-0000-0000-0000-000000000000"),
                 answer=response_obj.content,
-                tools_used=response_obj.tool_calls_made
+                tools_used=response_obj.tool_calls_made,
+                tool_results=tool_results
             )
 
         except Exception as e:

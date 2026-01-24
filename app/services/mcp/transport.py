@@ -94,10 +94,11 @@ class SSETransport:
             if not url.startswith('http'):
                  url = f"{self.base_url}{url}"
 
+            # The post_endpoint already contains sessionId in the URL from SSE
+            # Don't add session_id as separate param - it's already in the URL
             response = await self._client.post(
                 url,
-                json=request.model_dump(),
-                params={"session_id": self.session_id} if self.session_id else None
+                json=request.model_dump()
             )
             response.raise_for_status()
             

@@ -98,6 +98,7 @@ class NativeToolAgent:
         # Conversation history - restore from initial_messages if provided
         self.messages: List[Dict[str, Any]] = initial_messages if initial_messages else []
         self.tool_calls_made: List[str] = []
+        self.tool_execution_history: List[Dict[str, Any]] = []  # Track detailed tool results
 
     @classmethod
     def supports_provider(cls, provider_type: str) -> bool:
@@ -751,13 +752,24 @@ Tools called so far will be tracked. If you try to suggest a command without suf
             logger.info(f"Executing tool: {tool_name} with args: {arguments}")
             self.tool_calls_made.append(tool_name)
 
-            # Execute the tool
+            # Execute the tool and track timing
+            import time
+            start_time = time.time()
             result = await self.tool_registry.execute(tool_name, arguments)
+            execution_time_ms = int((time.time() - start_time) * 1000)
             
             # DEBUG: Log the actual tool result
             logger.warning(f"=== TOOL RESULT for {tool_name} ===")
             logger.warning(f"Result (first 500 chars): {str(result)[:500]}")
             logger.warning(f"=== END TOOL RESULT ===")
+
+            # Record tool execution history for API response
+            self.tool_execution_history.append({
+                "tool_name": tool_name,
+                "arguments": arguments,
+                "result": str(result)[:5000],  # Limit result size
+                "execution_time_ms": execution_time_ms
+            })
 
             # Invoke callback if provided (e.g., for logging to DB)
             if self.on_tool_call_complete:
@@ -1018,6 +1030,25 @@ Tools called so far will be tracked. If you try to suggest a command without suf
                     # Execute all tools (including multiple suggest_ssh_command if present)
                     tool_results = await self._execute_tool_calls(tool_calls)
 
+                    # Emit tool results as artifacts for inquiry tools
+                    for result in tool_results:
+                        tool_name = result.get('name', '')
+                        tool_content = result.get('content', '')
+                        
+                        # Only emit artifact for inquiry/data tools (not suggest_ssh_command)
+                        if tool_name in ['query_alerts_history', 'get_mttr_statistics', 'get_alert_trends', 
+                                        'get_similar_incidents', 'get_alert_details', 'search_knowledge',
+                                        'get_runbook', 'query_grafana_metrics', 'query_grafana_logs']:
+                            # Emit as artifact for the frontend - use timestamp for unique ID
+                            import time
+                            artifact_data = {
+                                'id': f'tool-{tool_name}-{int(time.time() * 1000)}',
+                                'type': 'table' if '|' in tool_content else 'markdown',
+                                'title': tool_name.replace('_', ' ').title(),
+                                'content': tool_content
+                            }
+                            yield f"\n[ARTIFACT]{json.dumps(artifact_data)}[/ARTIFACT]\n"
+
                     # Yield CMD_CARD for each suggest_ssh_command
                     command_suggested = False
                     for tc in tool_calls:
@@ -1057,6 +1088,17 @@ Tools called so far will be tracked. If you try to suggest a command without suf
                 else:
                     # No tool calls - final response
                     content = message.content or ""
+                    
+                    # Check if model wrote ARTIFACT markers directly in text (hallucination)
+                    # This happens when model pretends to call tools but doesn't actually do it
+                    if "[ARTIFACT]" in content:
+                        logger.warning("Model hallucinated ARTIFACT markers in text - stripping fake data")
+                        # Remove the fake artifact data from the response
+                        import re
+                        content = re.sub(r'\[ARTIFACT\][\s\S]*?\[/ARTIFACT\]', '', content)
+                        content = content.strip()
+                        if not content:
+                            content = "I apologize, but I was unable to retrieve the actual data. Please try your query again."
                     
                     # Check if model wrote CMD_CARD markers directly in text (hallucination workaround)
                     # This happens when model doesn't use proper tool_call mechanism
