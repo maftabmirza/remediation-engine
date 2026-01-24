@@ -206,6 +206,7 @@ class GrafanaTools(ToolModule):
         if query_type == "instant":
             mcp_args["start"] = args.get("start", "now")
             mcp_args["end"] = args.get("end", "now")
+            logger.info(f"[INSTANT QUERY] Set start={mcp_args['start']}, end={mcp_args['end']}")
         else:
             # Range queries require explicit times
             if "start" not in args or "end" not in args:
@@ -215,7 +216,7 @@ class GrafanaTools(ToolModule):
             if "step" in args:
                 mcp_args["step"] = args["step"]
         
-        logger.info(f"Executing Prometheus query: {mcp_args}")
+        logger.info(f"Executing Prometheus query with MCP args: {mcp_args}")
         return await self._call_mcp("query_prometheus", mcp_args)
 
     async def get_oncall_schedule(self, args: Dict[str, Any]) -> str:

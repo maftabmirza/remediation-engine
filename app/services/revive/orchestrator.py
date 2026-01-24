@@ -174,7 +174,7 @@ class ReviveOrchestrator:
             # Ambiguous - keep it minimal
             return base_modules
 
-    def _build_system_message(self, mode_result, page_context: Optional[Dict[str, Any]] = None):
+    def _build_system_message(self, mode_result, page_context: Optional[Dict[str, Any]] = None, history_length: int = 0):
         if mode_result.mode == 'grafana':
             content = (
                 "You are the RE-VIVE Assistant (Quick Help Mode). "
@@ -200,12 +200,16 @@ class ReviveOrchestrator:
                 "- show_available_runbooks: Only if user asks 'what runbooks exist?'\\n"
                 "- show_available_servers: Only if user asks 'what servers are available?'\\n"
             )
+            if history_length > 0:
+                content += f"\n\n**Session Context**: This conversation has {history_length} previous messages."
         else:
             content = (
                 "You are the RE-VIVE Assistant (Quick Help Mode). "
                 "I can help you with quick questions about the current page. "
                 "For deep troubleshooting with metrics and logs, suggest '/ai troubleshooting' instead."
             )
+            if history_length > 0:
+                content += f" This conversation has {history_length} previous messages."
             
         # Add Page Context if available
         if page_context:

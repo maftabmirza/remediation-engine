@@ -48,6 +48,22 @@ class MCPToolAdapter:
         """
         Executes an MCP tool via the client.
         """
+        # Special handling for Prometheus query tool - ensure time parameters are set
+        if tool_name == "query_prometheus":
+            query_type = arguments.get("queryType", "instant")
+            
+            # For instant queries, ensure startTime/endTime are set to 'now' if not provided
+            # Note: MCP Grafana uses 'startTime' and 'endTime' (camelCase)
+            if query_type == "instant":
+                if not arguments.get("startTime"):
+                    arguments["startTime"] = "now"
+                if not arguments.get("endTime"):
+                    arguments["endTime"] = "now"
+            else:
+                # Range queries require explicit times
+                if not arguments.get("startTime") or not arguments.get("endTime"):
+                    return "Error: Range queries require 'startTime' and 'endTime' time parameters"
+        
         result = await self.mcp_client.call_tool(tool_name, arguments)
         
         # Format result content
