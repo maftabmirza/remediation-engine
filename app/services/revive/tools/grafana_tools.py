@@ -121,18 +121,24 @@ class GrafanaTools(ToolModule):
         )
 
     def _register_query_tools(self):
-        # Query Prometheus
+        # Query Prometheus (Fixed to handle instant vs range queries)
         self._register_tool(
             Tool(
                 name="query_prometheus",
-                description="Execute a PromQL query.",
+                description=(
+                    "Execute a PromQL query against Prometheus. "
+                    "For instant queries (current value), only provide 'expr' and 'queryType=instant'. "
+                    "For range queries (time series), provide 'expr', 'start', 'end', 'step', and 'queryType=range'."
+                ),
                 category="revive_grafana",
                 risk_level="read",
                 parameters=[
-                    ToolParameter("query", "string", "PromQL query"),
-                    ToolParameter("start", "string", "Start time (ISO 8601)"),
-                    ToolParameter("end", "string", "End time (ISO 8601)"),
-                    ToolParameter("step", "integer", "Step in seconds")
+                    ToolParameter("datasourceUid", "string", "Prometheus datasource UID"),
+                    ToolParameter("expr", "string", "PromQL query expression"),
+                    ToolParameter("queryType", "string", "Query type: 'instant' or 'range'", default="instant"),
+                    ToolParameter("start", "string", "Start time (ISO 8601 or relative like 'now-1h') - Required for range queries", required=False),
+                    ToolParameter("end", "string", "End time (ISO 8601 or 'now') - Required for range queries", required=False),
+                    ToolParameter("step", "integer", "Step in seconds - Required for range queries", required=False)
                 ]
             ),
             self.query_prometheus
@@ -184,7 +190,33 @@ class GrafanaTools(ToolModule):
         return await self._call_mcp("list_alert_rules", args)
 
     async def query_prometheus(self, args: Dict[str, Any]) -> str:
-        return await self._call_mcp("query_prometheus", args)
+        """
+        Execute Prometheus query with proper handling of instant vs range queries.
+        """
+        query_type = args.get("queryType", "instant")
+        
+        # Prepare MCP arguments based on query type
+        mcp_args = {
+            "datasourceUid": args.get("datasourceUid"),
+            "expr": args.get("expr"),
+            "queryType": query_type
+        }
+        
+        # For instant queries, set default time to 'now' if not provided
+        if query_type == "instant":
+            mcp_args["start"] = args.get("start", "now")
+            mcp_args["end"] = args.get("end", "now")
+        else:
+            # Range queries require explicit times
+            if "start" not in args or "end" not in args:
+                return "Error: Range queries require 'start' and 'end' time parameters"
+            mcp_args["start"] = args["start"]
+            mcp_args["end"] = args["end"]
+            if "step" in args:
+                mcp_args["step"] = args["step"]
+        
+        logger.info(f"Executing Prometheus query: {mcp_args}")
+        return await self._call_mcp("query_prometheus", mcp_args)
 
     async def get_oncall_schedule(self, args: Dict[str, Any]) -> str:
         return await self._call_mcp("get_current_oncall_users", args)
