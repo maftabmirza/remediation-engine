@@ -711,22 +711,70 @@ function populateModelDropdown(providers) {
         return;
     }
 
-    list.innerHTML = providers.map(p => `
-        <div class="px-3 py-2 hover:bg-gray-700 cursor-pointer flex items-center" onclick="selectModel('${p.id}')">
-            <div class="w-2 h-2 rounded-full ${p.is_enabled ? 'bg-green-400' : 'bg-red-400'} mr-2"></div>
-            <div class="text-xs text-gray-300">
-                <div class="font-bold">${AIChatBase.escapeHtml(p.name)}</div>
+    // Determine which provider is currently selected
+    const selectedId = (currentSession && currentSession.llm_provider_id) 
+        ? currentSession.llm_provider_id 
+        : (providers.find(p => p.is_default)?.id || '');
+
+    list.innerHTML = providers.map(p => {
+        const isSelected = p.id === selectedId;
+        return `
+        <div class="model-item px-3 py-2 hover:bg-gray-700 cursor-pointer flex items-center ${isSelected ? 'bg-blue-900/40 border-l-2 border-blue-400' : 'border-l-2 border-transparent'}" 
+             data-provider-id="${p.id}" onclick="selectModel('${p.id}')">
+            <div class="w-2 h-2 rounded-full ${p.is_enabled ? 'bg-green-400' : 'bg-red-400'} mr-2" title="${p.is_enabled ? 'Enabled' : 'Disabled'}"></div>
+            <div class="text-xs text-gray-300 flex-grow">
+                <div class="font-bold ${isSelected ? 'text-blue-300' : ''}">${AIChatBase.escapeHtml(p.name)}${p.is_default ? ' <span class="text-yellow-400">⭐</span>' : ''}</div>
                 <div class="text-[10px] text-gray-500">${AIChatBase.escapeHtml(p.model_id)}</div>
             </div>
-            ${p.is_default ? '<i class="fas fa-check ml-auto text-blue-400 text-xs"></i>' : ''}
+            ${isSelected ? '<i class="fas fa-check ml-2 text-blue-400 text-sm"></i>' : ''}
         </div>
-    `).join('');
+    `}).join('');
 }
 
 async function selectModel(providerId) {
     if (!currentSessionId) return;
-    // Inquiry calls switchModel, let's keep it consistent or redirect selectModel to switchModel
-    switchModel(providerId);
+    
+    try {
+        const response = await apiCall(`/api/v1/inquiry/sessions/${currentSessionId}/provider`, {
+            method: 'PATCH',
+            body: JSON.stringify({ provider_id: providerId })
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            
+            // Update session tracking FIRST
+            if (currentSession) {
+                currentSession.llm_provider_id = providerId;
+            } else {
+                currentSession = { llm_provider_id: providerId };
+            }
+            
+            // Re-render dropdown with new selection
+            populateModelDropdown(availableProviders);
+            
+            // Update model icon tooltip
+            const provider = availableProviders.find(p => p.id === providerId);
+            if (provider) {
+                const btn = document.getElementById('modelIconBtn');
+                if (btn) btn.title = `LLM: ${provider.provider_name || provider.name}`;
+            }
+            
+            // Add system message to chat
+            const container = document.getElementById('chatMessages');
+            const msg = document.createElement('div');
+            msg.className = 'text-center text-xs text-gray-500 my-2 italic';
+            msg.innerHTML = `<i class="fas fa-sync-alt mr-1"></i>Now using: ${result.provider_name} - ${result.model_name}`;
+            container.appendChild(msg);
+            container.scrollTop = container.scrollHeight;
+            
+            showToast(`Switched to ${result.provider_name}`, 'success');
+        }
+    } catch (error) {
+        console.error('Failed to switch model:', error);
+        showToast('Failed to switch model', 'error');
+    }
+    
     document.getElementById('modelDropdown').classList.add('hidden');
 }
 
