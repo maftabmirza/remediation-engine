@@ -5,13 +5,17 @@ Proxies requests to Grafana with SSO authentication via X-WEBAUTH-USER header.
 Enables transparent Grafana integration with automatic user provisioning.
 """
 
-from fastapi import APIRouter, Depends, Request, Response, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, Request, Response, WebSocket
 from fastapi.responses import StreamingResponse, JSONResponse
+from sqlalchemy.orm import Session
+import asyncio
 import httpx
 import os
 import re
-from app.routers.auth import get_current_user
-from app.services.auth_service import get_current_user_optional
+import logging
+import websockets
+from app.database import get_db
+from app.services.auth_service import get_current_user_optional, get_current_user_ws
 from app.models import User
 
 router = APIRouter(
@@ -20,18 +24,102 @@ router = APIRouter(
 )
 
 GRAFANA_URL = os.getenv("GRAFANA_URL", "http://grafana:3000")
+logger = logging.getLogger(__name__)
 
 
-# WebSocket endpoint to gracefully handle Grafana live connections
-@router.websocket("/api/live/ws")
-async def grafana_websocket(websocket: WebSocket):
-    """
-    Handle Grafana WebSocket connections.
-    
-    Grafana's live update feature requires WebSocket support which is not
-    implemented in this proxy. Close connections gracefully.
-    """
-    await websocket.close(code=1000, reason="WebSocket not supported through proxy")
+async def _proxy_grafana_websocket(websocket: WebSocket, db: Session, path: str) -> None:
+    token = websocket.cookies.get("access_token")
+    if not token:
+        token = websocket.query_params.get("access_token")
+
+    user = await get_current_user_ws(token, db) if token else None
+    if not user:
+        logger.info("Grafana WS rejected (no auth): path=%s client=%s", websocket.url.path, websocket.client)
+        await websocket.close(code=4401, reason="Authentication required")
+        return
+
+    requested_protocols_header = websocket.headers.get("sec-websocket-protocol")
+    requested_protocols = []
+    if requested_protocols_header:
+        requested_protocols = [p.strip() for p in requested_protocols_header.split(",") if p.strip()]
+
+    # Accept with the first requested subprotocol (Grafana commonly uses one).
+    await websocket.accept(subprotocol=requested_protocols[0] if requested_protocols else None)
+
+    upstream_base = GRAFANA_URL
+    if upstream_base.startswith("https://"):
+        upstream_base = "wss://" + upstream_base[len("https://"):]
+    elif upstream_base.startswith("http://"):
+        upstream_base = "ws://" + upstream_base[len("http://"):]
+
+    upstream_url = f"{upstream_base}/{path.lstrip('/')}"
+    if websocket.url.query:
+        upstream_url += f"?{websocket.url.query}"
+
+    origin = websocket.headers.get("origin")
+    extra_headers = {
+        "X-WEBAUTH-USER": user.username,
+    }
+    # Forward the browser's Origin when present.
+    if origin:
+        extra_headers["Origin"] = origin
+
+    try:
+        async with websockets.connect(
+            upstream_url,
+            extra_headers=extra_headers,
+            subprotocols=requested_protocols or None,
+        ) as upstream_ws:
+
+            async def client_to_upstream() -> None:
+                try:
+                    while True:
+                        message = await websocket.receive()
+                        if message.get("type") == "websocket.disconnect":
+                            break
+                        if message.get("text") is not None:
+                            await upstream_ws.send(message["text"])
+                        elif message.get("bytes") is not None:
+                            await upstream_ws.send(message["bytes"])
+                finally:
+                    try:
+                        await upstream_ws.close()
+                    except Exception:
+                        pass
+
+            async def upstream_to_client() -> None:
+                try:
+                    async for message in upstream_ws:
+                        if isinstance(message, (bytes, bytearray)):
+                            await websocket.send_bytes(bytes(message))
+                        else:
+                            await websocket.send_text(str(message))
+                finally:
+                    try:
+                        await websocket.close(code=1000)
+                    except Exception:
+                        pass
+
+            await asyncio.gather(client_to_upstream(), upstream_to_client())
+
+    except Exception as e:
+        logger.exception(
+            "Grafana WS proxy failed: upstream=%s user=%s origin=%s err=%s",
+            upstream_url,
+            getattr(user, "username", None),
+            origin,
+            repr(e),
+        )
+        try:
+            await websocket.close(code=1011, reason="Grafana WebSocket proxy failed")
+        except Exception:
+            pass
+
+
+# Generic WebSocket proxy for Grafana (covers /api/live/ws and datasource proxy WS).
+@router.websocket("/{path:path}")
+async def grafana_websocket_any(websocket: WebSocket, path: str, db: Session = Depends(get_db)):
+    await _proxy_grafana_websocket(websocket, db, path)
 
 
 @router.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])

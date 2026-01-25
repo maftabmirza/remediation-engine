@@ -92,10 +92,21 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 # Configure logging
+# Include trace/span fields when OpenTelemetry logging instrumentation is enabled.
+# A filter in app.telemetry ensures these fields exist even when OTEL is off.
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    format="%(asctime)s - %(name)s - %(levelname)s - %(otelTraceID)s - %(otelSpanID)s - %(message)s"
 )
+
+# Ensure log records always have otel fields (safe even when OTEL is disabled).
+try:
+    from app.telemetry import install_otel_log_filter
+
+    install_otel_log_filter()
+except Exception:
+    # Never block app startup on log correlation.
+    pass
 
 # Custom filter to suppress noisy Grafana WebSocket 403 errors
 class WebSocketLogFilter(logging.Filter):
@@ -188,6 +199,15 @@ async def lifespan(app: FastAPI):
     """Application lifespan handler"""
     # Startup
     logger.info("Starting AIOps Platform...")
+
+    # OpenTelemetry tracing (safe-by-default; enabled only via env vars)
+    try:
+        from app.telemetry import setup_telemetry
+
+        if not settings.testing:
+            setup_telemetry(app)
+    except Exception as e:
+        logger.debug(f"Telemetry setup skipped: {e}")
     
     # PRODUCTION SECURITY: Verify no test code in production
     if not settings.testing:
