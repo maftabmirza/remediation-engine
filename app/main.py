@@ -22,6 +22,7 @@ import app.models_knowledge  # noqa: F401
 import app.models_learning  # noqa: F401 - Phase 3: Learning System
 import app.models_dashboards  # noqa: F401 - Prometheus Dashboard Builder
 import app.models_agent  # noqa: F401 - Agent Mode
+import app.models_changeset  # noqa: F401 - File ops / change sets
 from app.services.auth_service import (
     get_current_user_optional,
     create_user,
