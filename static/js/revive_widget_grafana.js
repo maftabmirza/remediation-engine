@@ -57,6 +57,47 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let isOpen = false;
     let sessionId = getValidSessionId();
+    let conversationHistory = []; // Store conversation for context
+    let currentMode = 'auto'; // Track detected mode
+
+    // Load existing session history from backend
+    async function loadSessionHistory() {
+        try {
+            const token = localStorage.getItem('token');
+            if (!token || !sessionId) return;
+            
+            const response = await fetch(`/api/revive/sessions/${sessionId}/messages`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                conversationHistory = data.messages || [];
+                console.log(`RE-VIVE: Loaded ${conversationHistory.length} messages from session`);
+                
+                // Restore messages to UI if any
+                if (conversationHistory.length > 1) { // More than welcome message
+                    restoreMessagesToUI();
+                }
+            }
+        } catch (e) {
+            console.warn('RE-VIVE: Failed to load session history:', e);
+        }
+    }
+    
+    function restoreMessagesToUI() {
+        messagesContainer.innerHTML = ''; // Clear welcome
+        conversationHistory.forEach(msg => {
+            if (msg.role === 'user') {
+                addMessage(msg.content, 'user');
+            } else if (msg.role === 'assistant') {
+                addMessage(msg.content, 'ai');
+            }
+        });
+    }
 
     function getValidSessionId() {
         let id = localStorage.getItem('revive_grafana_session_id');
@@ -99,6 +140,11 @@ document.addEventListener('DOMContentLoaded', () => {
             document.body.classList.add('ai-helper-open');
             const widget = document.getElementById('agent-widget');
             if (widget) widget.style.pointerEvents = 'auto';
+            
+            // Load session history on first open
+            if (conversationHistory.length === 0) {
+                loadSessionHistory();
+            }
 
             // METHOD 1: Direct Resize of Parent Containers with !important
             // METHOD 1: Direct Resize of Parent Containers with !important
@@ -151,7 +197,7 @@ document.addEventListener('DOMContentLoaded', () => {
         setOpen(!isOpen);
     }
 
-    // Extract page context for Grafana
+    // Extract page context for Grafana with enhanced metadata
     function extractPageContext() {
         // Try getting iframe window/location
         let win = window;
@@ -170,7 +216,15 @@ document.addEventListener('DOMContentLoaded', () => {
             page_type: 'grafana_stack',
             url: win.location.href,
             title: win.document.title || document.title,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            conversation_history_length: conversationHistory.length,
+            session_id: sessionId,
+            current_mode: currentMode,
+            user_context: {
+                viewport: { width: win.innerWidth, height: win.innerHeight },
+                scroll_position: { x: win.scrollX, y: win.scrollY },
+                time_on_page: getTimeOnPage()
+            }
         };
 
         // Detect specific page type using effectively "win"
@@ -219,6 +273,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         console.log('RE-VIVE: Full Page Context:', context);
         return context;
+    }
+    
+    // Helper: Track time on page
+    let pageLoadTime = Date.now();
+    function getTimeOnPage() {
+        return Math.floor((Date.now() - pageLoadTime) / 1000); // seconds
     }
 
     function extractPrometheusQuery(win) {
@@ -395,6 +455,9 @@ document.addEventListener('DOMContentLoaded', () => {
     async function sendQuery(query) {
         addMessage(query, 'user');
         showTypingIndicator();
+        
+        // Store in conversation history
+        conversationHistory.push({ role: 'user', content: query });
 
         try {
             const context = extractPageContext();
@@ -415,16 +478,39 @@ document.addEventListener('DOMContentLoaded', () => {
             hideTypingIndicator();
 
             if (!response.ok) {
-                throw new Error('Network response was not ok');
+                // Check for specific error codes
+                if (response.status === 401) {
+                    addMessage('❌ Session expired. Please refresh the page and try again.', 'ai');
+                } else if (response.status === 503) {
+                    addMessage('⚠️ Service temporarily unavailable. Please try again in a moment.', 'ai');
+                } else {
+                    throw new Error(`Server error: ${response.status}`);
+                }
+                return;
             }
 
             const data = await response.json();
-            addMessage(data.response, 'ai', data.query_id);
+            const aiResponse = data.response;
+            addMessage(aiResponse, 'ai', data.query_id);
+            
+            // Store in conversation history
+            conversationHistory.push({ role: 'assistant', content: aiResponse });
+            
+            // Update detected mode if provided
+            if (data.mode) {
+                currentMode = data.mode;
+            }
 
         } catch (error) {
             hideTypingIndicator();
-            addMessage('Sorry, I encountered an error. Please try again.', 'ai');
             console.error('RE-VIVE query error:', error);
+            
+            // User-friendly error messages
+            if (error.message.includes('Failed to fetch')) {
+                addMessage('🔌 Connection lost. Please check your internet connection and try again.', 'ai');
+            } else {
+                addMessage('❌ Sorry, I encountered an error. Please try again or refresh the page.', 'ai');
+            }
         }
     }
 

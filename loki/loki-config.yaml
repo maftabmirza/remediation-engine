@@ -16,6 +16,11 @@ common:
     kvstore:
       store: inmemory
 
+ingester:
+  # Increase the time-sharding window so Loki can ingest older/backfilled logs
+  # without rejecting them as "too far behind".
+  max_chunk_age: 720h
+
 query_range:
   results_cache:
     cache:
@@ -38,3 +43,8 @@ ruler:
 
 limits_config:
   volume_enabled: true
+  reject_old_samples: true
+  reject_old_samples_max_age: 720h
+  # Backfills can be bursty; relax the default 4MB/s ingestion limit.
+  ingestion_rate_mb: 16
+  ingestion_burst_size_mb: 32

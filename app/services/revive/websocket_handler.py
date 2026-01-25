@@ -25,6 +25,9 @@ logger = logging.getLogger(__name__)
 # Track active WebSocket connections per session
 active_connections: Dict[UUID, Set[WebSocket]] = {}
 
+# Connection metadata for better management
+connection_metadata: Dict[UUID, Dict[str, any]] = {}
+
 
 async def broadcast_to_session(session_id: UUID, message: dict):
     """Broadcast a message to all WebSocket connections for a session"""
@@ -42,6 +45,10 @@ async def broadcast_to_session(session_id: UUID, message: dict):
         # Clean up dead connections
         for ws in dead_connections:
             active_connections[session_id].discard(ws)
+            
+        # Update connection metadata
+        if session_id in connection_metadata:
+            connection_metadata[session_id]['last_broadcast'] = asyncio.get_event_loop().time()
 
 
 async def handle_revive_websocket(
@@ -97,10 +104,20 @@ async def handle_revive_websocket(
         for msg in existing_messages:
             initial_messages.append({"role": msg.role, "content": msg.content})
     
-    # Register connection
+    # Register connection with metadata
     if session_uuid not in active_connections:
         active_connections[session_uuid] = set()
     active_connections[session_uuid].add(websocket)
+    
+    # Track connection metadata for monitoring
+    connection_metadata[session_uuid] = {
+        'user_id': user.id,
+        'user_name': user.username,
+        'connected_at': asyncio.get_event_loop().time(),
+        'last_activity': asyncio.get_event_loop().time(),
+        'message_count': 0,
+        'current_page': current_page
+    }
     
     # Send connected message
     await websocket.send_json({
@@ -122,6 +139,13 @@ async def handle_revive_websocket(
                 
                 if msg_type == "stop":
                     stop_requested = True
+                    continue
+                
+                # Handle heartbeat/ping messages
+                if msg_type == "ping":
+                    await websocket.send_json({"type": "pong", "timestamp": asyncio.get_event_loop().time()})
+                    if session_uuid in connection_metadata:
+                        connection_metadata[session_uuid]['last_activity'] = asyncio.get_event_loop().time()
                     continue
                 
                 if msg_type != "message":
@@ -255,8 +279,12 @@ async def handle_revive_websocket(
     except Exception as e:
         logger.error(f"WebSocket error: {e}", exc_info=True)
     finally:
-        # Cleanup connection
+        # Cleanup connection and metadata
         if session_uuid and session_uuid in active_connections:
             active_connections[session_uuid].discard(websocket)
             if not active_connections[session_uuid]:
                 del active_connections[session_uuid]
+                # Clean up metadata when last connection closes
+                if session_uuid in connection_metadata:
+                    logger.info(f"Session {session_uuid} disconnected. Total messages: {connection_metadata[session_uuid].get('message_count', 0)}")
+                    del connection_metadata[session_uuid]

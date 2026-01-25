@@ -37,10 +37,12 @@ class ReviveModeDetector:
         self,
         message: str,
         current_page: Optional[str] = None,
-        explicit_mode: Optional[str] = None
+        explicit_mode: Optional[str] = None,
+        page_context: Optional[Dict[str, Any]] = None,
+        conversation_history: Optional[List[Dict]] = None
     ) -> ModeDetectionResult:
         """
-        Detect mode based on keywords and context.
+        Detect mode based on keywords, page context, and conversation history.
         """
         if explicit_mode and explicit_mode in ['grafana', 'aiops']:
             return ModeDetectionResult(
@@ -56,12 +58,30 @@ class ReviveModeDetector:
         grafana_score = sum(1 for kw in self.GRAFANA_KEYWORDS if kw in message_lower)
         aiops_score = sum(1 for kw in self.AIOPS_KEYWORDS if kw in message_lower)
 
-        # Context boosting
+        # Enhanced context boosting from page_context
+        if page_context:
+            page_type = page_context.get('page_type', '')
+            if page_type in ['prometheus', 'loki', 'tempo', 'grafana_dashboard', 'alertmanager']:
+                grafana_score += 3
+            elif page_type in ['aiops_runbooks', 'aiops_servers', 'aiops_settings']:
+                aiops_score += 3
+                
+        # URL-based context boosting (fallback)
         if current_page:
-            if any(p in current_page for p in ['dashboard', 'explore', 'alert-rules']):
+            if any(p in current_page for p in ['dashboard', 'explore', 'alert-rules', 'grafana', 'prometheus']):
                 grafana_score += 2
-            elif any(p in current_page for p in ['runbooks', 'servers', 'settings', 'admin']):
+            elif any(p in current_page for p in ['runbooks', 'servers', 'settings', 'admin', 'credentials']):
                 aiops_score += 2
+        
+        # Conversation history context (if user was discussing Grafana before, bias towards it)
+        if conversation_history and len(conversation_history) > 0:
+            recent_messages = conversation_history[-3:]  # Last 3 messages
+            for msg in recent_messages:
+                content = msg.get('content', '').lower()
+                if any(kw in content for kw in self.GRAFANA_KEYWORDS):
+                    grafana_score += 0.5
+                if any(kw in content for kw in self.AIOPS_KEYWORDS):
+                    aiops_score += 0.5
 
         # Decision
         if grafana_score > aiops_score:
