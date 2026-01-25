@@ -49,3 +49,14 @@ groups:
       annotations:
         summary: "Disk Space Low"
         description: "Simulated alert for disk usage > 90%."
+
+    - alert: ApacheDown
+      expr: apache_up == 0
+      for: 30s
+      labels:
+        severity: critical
+        service: apache
+        instance: "{{ $labels.instance }}"
+      annotations:
+        summary: "Apache Service Down"
+        description: "Apache web server is down on {{ $labels.instance }}."

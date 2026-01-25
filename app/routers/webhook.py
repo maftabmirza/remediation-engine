@@ -53,8 +53,14 @@ async def perform_auto_remediation(alert_id: str):
             logger.info(f"Checking auto-remediation triggers for alert: {alert.alert_name}")
             
             # Match alert against runbook triggers
+            from app.services.runbook_executor import RunbookExecutor
+            from app.config import get_settings
+            
+            settings = get_settings()
+            executor = RunbookExecutor(db, fernet_key=settings.encryption_key)
+            
             trigger_matcher = AlertTriggerMatcher(db)
-            remediation_result = await trigger_matcher.process_alert_for_remediation(alert)
+            remediation_result = await trigger_matcher.process_alert_for_remediation(alert, executor_service=executor)
             
             if remediation_result.get("auto_executed"):
                 logger.info(
@@ -140,6 +146,7 @@ async def receive_alertmanager_webhook(
     
     from app.config import get_settings
     settings = get_settings()
+    logger.info("DEBUG: Webhook handler received request - PATCH VERIFICATION")
     
     processed = []
     

@@ -74,13 +74,8 @@ class AlertTriggerMatcher:
     async def match_alert(self, alert: Alert) -> MatchResult:
         """
         Find all matching triggers for an alert.
-        
-        Args:
-            alert: The alert to match.
-        
-        Returns:
-            MatchResult with all matching triggers categorized.
         """
+        logger.info("DEBUG: MATCH_ALERT CALLED - CODE RELOAD VERIFIED")
         matches: List[TriggerMatch] = []
         
         # Get all enabled triggers with their runbooks
@@ -486,11 +481,19 @@ class AlertTriggerMatcher:
             target_identifier = alert_labels.get(runbook.target_alert_label)
             
             if target_identifier:
-                # Look up server by name or hostname
+                # Strip port if present (e.g., 15.204.233.209:9117 -> 15.204.233.209)
+                # This handles common Prometheus instance label format
+                cleaned_identifier = target_identifier
+                if ":" in target_identifier:
+                    cleaned_identifier = target_identifier.split(":")[0]
+                
+                # Look up server by name or hostname (try exact match first, then cleaned)
                 result = await self.db.execute(
                     select(ServerCredential).where(
                         (ServerCredential.name == target_identifier) |
-                        (ServerCredential.hostname == target_identifier)
+                        (ServerCredential.hostname == target_identifier) |
+                        (ServerCredential.name == cleaned_identifier) |
+                        (ServerCredential.hostname == cleaned_identifier)
                     )
                 )
                 server = result.scalar_one_or_none()
@@ -541,10 +544,23 @@ class AlertTriggerMatcher:
         await self.db.commit()
         await self.db.refresh(execution)
         
+        logger.info(f"DEBUG: Execution {execution.id} committed to DB. Status: {execution.status}")
+
         # Start execution (non-blocking)
-        # In production, this would be queued to a background task
         logger.info(f"Starting auto-execution {execution.id} for runbook {match.runbook.name}")
         
+        if executor_service:
+            logger.info(f"DEBUG: Executor service present. Invoking execute_runbook for {execution.id}")
+            try:
+                # We run this in the same await loop since perform_auto_remediation is already backgrounded
+                # Note: execute_runbook returns execution with updated status
+                await executor_service.execute_runbook(execution)
+                logger.info(f"DEBUG: execute_runbook completed for {execution.id}. New Result: {execution.result_summary}")
+            except Exception as e:
+                logger.error(f"DEBUG: execute_runbook exceeded with error: {e}")
+        else:
+             logger.warning(f"DEBUG: Executor service is None for {execution.id}")
+            
         return execution
     
     async def _create_pending_approval(

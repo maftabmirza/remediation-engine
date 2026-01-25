@@ -76,7 +76,7 @@ class CircuitBreakerService:
             return SafetyCheckResult(
                 allowed=False,
                 reason=f"Circuit breaker is open due to {circuit.failure_count} failures",
-                retry_after=circuit.reset_at
+                retry_after=circuit.closes_at
             )
         
         return SafetyCheckResult(allowed=True)
@@ -89,16 +89,18 @@ class CircuitBreakerService:
             runbook_id: The runbook that succeeded.
         """
         circuit = await self._get_or_create_circuit(runbook_id)
-        circuit.last_execution_at = datetime.utcnow()
+        circuit.last_success_at = datetime.utcnow()
+        circuit.success_count += 1
         
         if circuit.state == CircuitState.HALF_OPEN:
-            circuit.consecutive_successes += 1
             
-            if circuit.consecutive_successes >= (circuit.success_threshold or self.DEFAULT_SUCCESS_THRESHOLD):
+            if circuit.success_count >= (circuit.success_threshold or self.DEFAULT_SUCCESS_THRESHOLD):
                 # Close the circuit - service has recovered
                 circuit.state = CircuitState.CLOSED
                 circuit.failure_count = 0
-                circuit.consecutive_successes = 0
+                circuit.success_count = 0  # Reset consecutive successes counter
+                circuit.closes_at = None
+                circuit.opened_at = None
                 logger.info(f"Circuit breaker for runbook {runbook_id} closed after recovery")
         
         elif circuit.state == CircuitState.CLOSED:
@@ -116,17 +118,17 @@ class CircuitBreakerService:
             error: Optional error message.
         """
         circuit = await self._get_or_create_circuit(runbook_id)
-        circuit.last_execution_at = datetime.utcnow()
         circuit.last_failure_at = datetime.utcnow()
         circuit.failure_count += 1
-        circuit.consecutive_successes = 0
+        circuit.success_count = 0  # Reset consecutive successes
         
         if circuit.state == CircuitState.HALF_OPEN:
             # Failure during half-open, reopen the circuit
             circuit.state = CircuitState.OPEN
-            circuit.reset_at = datetime.utcnow() + timedelta(
-                seconds=(circuit.reset_timeout_seconds or self.DEFAULT_RESET_TIMEOUT_SECONDS) * 2
-            )
+            open_duration = circuit.open_duration_minutes or (self.DEFAULT_RESET_TIMEOUT_SECONDS // 60)
+            # Double the duration for half-open failure
+            circuit.closes_at = datetime.utcnow() + timedelta(minutes=open_duration * 2)
+            circuit.opened_at = datetime.utcnow()
             logger.warning(
                 f"Circuit breaker for runbook {runbook_id} reopened after half-open failure"
             )
@@ -137,9 +139,9 @@ class CircuitBreakerService:
             if circuit.failure_count >= threshold:
                 # Open the circuit
                 circuit.state = CircuitState.OPEN
-                circuit.reset_at = datetime.utcnow() + timedelta(
-                    seconds=circuit.reset_timeout_seconds or self.DEFAULT_RESET_TIMEOUT_SECONDS
-                )
+                open_duration = circuit.open_duration_minutes or (self.DEFAULT_RESET_TIMEOUT_SECONDS // 60)
+                circuit.closes_at = datetime.utcnow() + timedelta(minutes=open_duration)
+                circuit.opened_at = datetime.utcnow()
                 logger.warning(
                     f"Circuit breaker for runbook {runbook_id} opened after {circuit.failure_count} failures"
                 )
@@ -162,10 +164,11 @@ class CircuitBreakerService:
         """
         circuit = await self._get_or_create_circuit(runbook_id)
         circuit.state = CircuitState.OPEN
-        circuit.reset_at = datetime.utcnow() + timedelta(minutes=duration_minutes)
-        circuit.manual_override = True
-        circuit.override_reason = reason
-        circuit.override_by = None  # TODO: Add user context
+        circuit.closes_at = datetime.utcnow() + timedelta(minutes=duration_minutes)
+        circuit.manually_opened = True
+        circuit.manually_opened_reason = reason
+        circuit.manually_opened_by = None  # TODO: Add user context
+        circuit.opened_at = datetime.utcnow()
         
         await self.db.commit()
         logger.info(f"Circuit breaker for runbook {runbook_id} manually opened: {reason}")
@@ -181,10 +184,11 @@ class CircuitBreakerService:
         circuit = await self._get_or_create_circuit(runbook_id)
         circuit.state = CircuitState.CLOSED
         circuit.failure_count = 0
-        circuit.consecutive_successes = 0
-        circuit.manual_override = True
-        circuit.override_reason = reason
-        circuit.reset_at = None
+        circuit.success_count = 0
+        circuit.manually_opened = False
+        circuit.manually_opened_reason = reason
+        circuit.closes_at = None
+        circuit.opened_at = None
         
         await self.db.commit()
         logger.info(f"Circuit breaker for runbook {runbook_id} manually closed: {reason}")
@@ -206,28 +210,34 @@ class CircuitBreakerService:
             "state": circuit.state,
             "failure_count": circuit.failure_count,
             "failure_threshold": circuit.failure_threshold or self.DEFAULT_FAILURE_THRESHOLD,
-            "consecutive_successes": circuit.consecutive_successes,
+            "consecutive_successes": circuit.success_count,
             "success_threshold": circuit.success_threshold or self.DEFAULT_SUCCESS_THRESHOLD,
-            "reset_at": circuit.reset_at.isoformat() if circuit.reset_at else None,
+            "reset_at": circuit.closes_at.isoformat() if circuit.closes_at else None,  # Mapped for API compatibility
             "last_failure_at": circuit.last_failure_at.isoformat() if circuit.last_failure_at else None,
-            "manual_override": circuit.manual_override,
-            "override_reason": circuit.override_reason
+            "manual_override": circuit.manually_opened,  # Mapped for API compatibility
+            "override_reason": circuit.manually_opened_reason
         }
     
     async def _get_or_create_circuit(self, runbook_id: int) -> CircuitBreaker:
         """Get or create circuit breaker for runbook."""
         result = await self.db.execute(
             select(CircuitBreaker)
-            .where(CircuitBreaker.runbook_id == runbook_id)
+            .where(
+                and_(
+                    CircuitBreaker.scope == "runbook",
+                    CircuitBreaker.scope_id == runbook_id
+                )
+            )
         )
         circuit = result.scalar_one_or_none()
         
         if not circuit:
             circuit = CircuitBreaker(
-                runbook_id=runbook_id,
+                scope="runbook",
+                scope_id=runbook_id,
                 state=CircuitState.CLOSED,
                 failure_count=0,
-                consecutive_successes=0
+                success_count=0
             )
             self.db.add(circuit)
             await self.db.commit()
@@ -239,13 +249,27 @@ class CircuitBreakerService:
         """Check if circuit should transition states."""
         if circuit.state == CircuitState.OPEN:
             # Check if reset timeout has passed
-            if circuit.reset_at and circuit.reset_at <= datetime.utcnow():
+            if circuit.closes_at and circuit.closes_at <= datetime.utcnow():
                 circuit.state = CircuitState.HALF_OPEN
-                circuit.consecutive_successes = 0
+                circuit.success_count = 0
                 await self.db.commit()
                 logger.info(
-                    f"Circuit breaker for runbook {circuit.runbook_id} "
+                    f"Circuit breaker for runbook {circuit.scope_id} "
                     f"transitioned to half-open"
+                )
+                return
+
+            # Check if configuration changed (failure count below current threshold)
+            # This allows auto-recovery if the threshold is increased
+            current_threshold = circuit.failure_threshold or self.DEFAULT_FAILURE_THRESHOLD
+            if not circuit.manually_opened and circuit.failure_count < current_threshold:
+                circuit.state = CircuitState.CLOSED
+                circuit.closes_at = None
+                circuit.opened_at = None
+                await self.db.commit()
+                logger.info(
+                    f"Circuit breaker for runbook {circuit.scope_id} "
+                    f"auto-closed due to threshold adjustment ({circuit.failure_count} < {current_threshold})"
                 )
 
 

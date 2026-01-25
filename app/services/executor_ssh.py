@@ -7,6 +7,8 @@ Uses AsyncSSH for async, non-blocking operations.
 
 import asyncio
 import time
+import shlex
+import logging
 from datetime import datetime, timezone
 from typing import Optional, Dict, AsyncIterator
 import logging
@@ -176,16 +178,18 @@ class SSHExecutor(BaseExecutor):
             # Add environment variables
             if env:
                 env_prefix = " ".join(f'{k}="{v}"' for k, v in env.items())
-                full_command = f"{env_prefix} {full_command}"
-            
             # Handle sudo
             if with_elevation:
+                # Wrap command in sh -c to handle shell keywords (if, for, etc) and builtins (cd)
+                safe_command = shlex.quote(full_command)
+                
                 if self.sudo_password:
                     # Sudo with password via stdin
-                    full_command = f"echo '{self.sudo_password}' | sudo -S {full_command}"
+                    # Note: We use sh -c explicitly to run the quoted command
+                    full_command = f"echo '{self.sudo_password}' | sudo -S sh -c {safe_command}"
                 else:
                     # Passwordless sudo
-                    full_command = f"sudo {full_command}"
+                    full_command = f"sudo sh -c {safe_command}"
             
             # Execute command
             result = await asyncio.wait_for(

@@ -1168,8 +1168,10 @@
                     </div>
 
                     <!-- WinRM-specific Settings -->
-                    <div id="winrmSettings" class="hidden mt-4 p-3 border border-gray-600 rounded bg-gray-800 bg-opacity-50">
-                        <h5 class="text-sm font-semibold mb-3 text-yellow-400"><i class="fab fa-windows mr-1"></i> WinRM Configuration</h5>
+                    <div id="winrmSettings"
+                        class="hidden mt-4 p-3 border border-gray-600 rounded bg-gray-800 bg-opacity-50">
+                        <h5 class="text-sm font-semibold mb-3 text-yellow-400"><i class="fab fa-windows mr-1"></i> WinRM
+                            Configuration</h5>
                         <div class="grid md:grid-cols-2 gap-3">
                             <div>
                                 <label class="block text-sm font-medium mb-1">Transport</label>
@@ -1182,12 +1184,14 @@
                             </div>
                             <div>
                                 <label class="block text-sm font-medium mb-1">Domain (optional)</label>
-                                <input type="text" id="winrmDomain" class="input-field w-full px-3 py-2 rounded text-sm" placeholder="MYDOMAIN">
+                                <input type="text" id="winrmDomain" class="input-field w-full px-3 py-2 rounded text-sm"
+                                    placeholder="MYDOMAIN">
                             </div>
                         </div>
                         <div class="flex flex-wrap gap-4 mt-3">
                             <label class="flex items-center space-x-2 text-sm">
-                                <input type="checkbox" id="winrmUseSsl" class="form-checkbox rounded" onchange="toggleWinrmSsl()">
+                                <input type="checkbox" id="winrmUseSsl" class="form-checkbox rounded"
+                                    onchange="toggleWinrmSsl()">
                                 <span>Use SSL (HTTPS)</span>
                             </label>
                             <label class="flex items-center space-x-2 text-sm">
@@ -3205,22 +3209,18 @@
         event.preventDefault();
         const id = document.getElementById('credentialProfileEditingId').value;
         const data = {
-            name: document.getElementById('credentialName').value.trim(),
-            description: document.getElementById('credentialDescription').value.trim(),
-            backend: document.getElementById('credentialBackend').value,
+            name: document.getElementById('credentialProfileName').value.trim(),
+            description: document.getElementById('credentialProfileDescription').value.trim(),
+            backend: document.getElementById('credentialProfileBackend').value,
+            credential_type: document.getElementById('credentialProfileType').value,
             group_id: document.getElementById('credentialProfileGroup').value || null,
-            login_username: document.getElementById('credentialUsername').value.trim(),
-            login_password: document.getElementById('credentialPassword').value || null,
-            ssh_private_key: document.getElementById('credentialSshKey').value || null,
-            ssh_key_passphrase: document.getElementById('credentialSshPassphrase').value || null
+            username: document.getElementById('credentialProfileUsername').value.trim(),
+            secret_value: document.getElementById('credentialProfileSecret').value || null,
+            metadata_json: parseYamlOrJson(document.getElementById('credentialProfileMetadata').value || '{}')
         };
 
-        if (data.backend === 'ssh' && !data.ssh_private_key && !id) {
-            showToast('SSH private key is required for SSH backend', 'error');
-            return;
-        }
-        if (data.backend === 'winrm' && !data.login_password && !id) {
-            showToast('Password is required for WinRM backend', 'error');
+        if (data.backend === 'inline' && !data.secret_value && !id) {
+            showToast('Secret value is required for new inline credentials', 'error');
             return;
         }
 
@@ -3291,14 +3291,14 @@
 
         setText('credentialModalTitle', 'Edit Credential Profile');
         setVal('credentialProfileEditingId', p.id);
-        setVal('credentialName', p.name);
-        setVal('credentialDescription', p.description || '');
-        setVal('credentialBackend', p.backend);
+        setVal('credentialProfileName', p.name);
+        setVal('credentialProfileDescription', p.description || '');
+        setVal('credentialProfileBackend', p.backend);
+        setVal('credentialProfileType', p.credential_type);
         setVal('credentialProfileGroup', p.group_id || '');
-        setVal('credentialUsername', p.login_username || '');
-        setVal('credentialPassword', '');
-        setVal('credentialSshKey', '');
-        setVal('credentialSshPassphrase', '');
+        setVal('credentialProfileUsername', p.username || ''); // Note: API returns 'username', HTML input ID is credentialProfileUsername
+        setVal('credentialProfileSecret', ''); // Don't show existing secret
+        setVal('credentialProfileMetadata', p.metadata_json ? JSON.stringify(p.metadata_json, null, 2) : '');
 
         const modal = document.getElementById('credentialModal');
         if (modal) {
@@ -3314,15 +3314,18 @@
     }
 
     function toggleCredentialBackendFields() {
-        const backend = document.getElementById('credentialBackend').value;
-        const sshFields = document.getElementById('credentialSshFields');
-        const winrmFields = document.getElementById('credentialWinrmFields');
-        if (backend === 'ssh') {
-            sshFields?.classList.remove('hidden');
-            winrmFields?.classList.add('hidden');
-        } else {
-            sshFields?.classList.add('hidden');
-            winrmFields?.classList.remove('hidden');
+        // Updated to use the correct ID and just set placeholders since fields are unified
+        const backend = document.getElementById('credentialProfileBackend').value;
+        const secretField = document.getElementById('credentialProfileSecret');
+
+        if (secretField) {
+            if (backend === 'vault') {
+                secretField.placeholder = "path/to/secret";
+            } else if (backend === 'cyberark') {
+                secretField.placeholder = "Safe=...;Object=...";
+            } else {
+                secretField.placeholder = "Paste private key or password here";
+            }
         }
     }
     // Save API Credential
@@ -3493,7 +3496,7 @@
         const useSsl = document.getElementById('winrmUseSsl').checked;
         const portField = document.getElementById('serverPort');
         const protocol = document.getElementById('serverProtocol').value;
-        
+
         if (protocol === 'winrm') {
             portField.value = useSsl ? '5986' : '5985';
         }
