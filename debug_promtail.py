@@ -12,12 +12,14 @@ from app.services.executor_factory import ExecutorFactory
 from sqlalchemy import text
 
 async def main():
-    server_name = "t-aiops-01"
-    print(f"--- Debugging Promtail on {server_name} ---")
+    # Use IP as identifier
+    server_identifier = "15.204.233.209"
+    print(f"--- Debugging Promtail on {server_identifier} ---")
     
     async with AsyncSessionLocal() as db:
-        query = text("SELECT * FROM server_credentials WHERE hostname = :name OR name = :name")
-        result = await db.execute(query, {"name": server_name})
+        # Match hostname (IP)
+        query = text("SELECT * FROM server_credentials WHERE hostname = :name")
+        result = await db.execute(query, {"name": server_identifier})
         server = result.fetchone()
         
         executor = ExecutorFactory.get_executor(server, None)
