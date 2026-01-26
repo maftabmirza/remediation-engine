@@ -413,7 +413,7 @@ async function loadMessageHistory(sessionId) {
                 AIChatBase.appendUserMessage(msg.content);
             } else if (msg.role === 'assistant') {
                 AIChatBase.appendAIMessage(msg.content, {
-                    skipRunButtons: true, // we handle it separately if needed
+                    skipRunButtons: true,
                     messageId: msg.id
                 });
             }
@@ -2227,7 +2227,7 @@ window.addEventListener('load', function () {
         aiIconClass: 'fas fa-robot',
         aiGradientClass: 'from-purple-600 to-blue-600',
         aiName: 'AI Assistant',
-        userGradientClass: 'bg-gray-700/80 shadow-md'
+        userGradientClass: 'bg-blue-600 shadow-md'
     });
 
     initChatSession();
@@ -2649,6 +2649,70 @@ async function saveCommandOutcome(command, output, success, exitCode) {
 // ============================================================================
 
 let sessionFeedbackButtonVisible = false;
+
+// ============================================================================
+// Agent Mode: Execute in Terminal (not in background)
+// ============================================================================
+
+let currentApprovalStep = null;
+let agentCommandInFlight = false;
+
+async function executeAgentStepInTerminal(step) {
+    if (!step || !step.content) return;
+    if (!terminalSocket || terminalSocket.readyState !== WebSocket.OPEN) {
+        showToast('Terminal not connected (agent cannot execute)', 'error');
+        return;
+    }
+    if (!agentSocket || agentSocket.readyState !== WebSocket.OPEN) {
+        showToast('Agent connection not ready', 'error');
+        return;
+    }
+    if (agentCommandInFlight) {
+        showToast('Another agent command is still running', 'info');
+        return;
+    }
+
+    agentCommandInFlight = true;
+    try {
+        const sanitizeAgentCommand = (cmd) => {
+            if (!cmd || typeof cmd !== 'string') return cmd;
+            let out = cmd.trim();
+
+            // Avoid systemd pager blocking the terminal ("press q")
+            if (/^\s*systemctl\s+status\b/i.test(out) && !/\s--no-pager\b/i.test(out)) {
+                out = out + ' --no-pager';
+            }
+
+            // Avoid journalctl pager blocking the terminal
+            if (/^\s*journalctl\b/i.test(out) && !/\s--no-pager\b/i.test(out)) {
+                out = out + ' --no-pager';
+            }
+
+            return out;
+        };
+
+        // Use the same terminal-centric execution used elsewhere in /troubleshoot.
+        const cmd = sanitizeAgentCommand(step.content);
+        const result = await executeCommandViaTerminal(cmd, currentServerId);
+        const output = (result && result.output) ? result.output : '';
+        const exitCode = (result && typeof result.exitCode === 'number') ? result.exitCode : 0;
+
+        agentSocket.send(JSON.stringify({
+            type: 'command_result',
+            output: output,
+            exit_code: exitCode
+        }));
+    } catch (e) {
+        console.error('Agent terminal execution failed:', e);
+        agentSocket.send(JSON.stringify({
+            type: 'command_result',
+            output: `Terminal execution failed: ${e && e.message ? e.message : String(e)}`,
+            exit_code: 1
+        }));
+    } finally {
+        agentCommandInFlight = false;
+    }
+}
 
 // Show floating feedback button after first command execution
 function showSessionFeedbackButton() {
@@ -3301,7 +3365,12 @@ function addAgentStep(step, autoApproveEnabled = false) {
     stepEl.className = 'bg-gray-800 rounded-lg p-4 border border-gray-700';
     if (step.step_type === 'command') {
         stepEl.innerHTML = `<div class="flex items-start"><div class="w-6 h-6 rounded-full bg-blue-600/30 flex items-center justify-center mr-3 mt-0.5 flex-shrink-0"><i class="fas fa-terminal text-blue-400 text-xs"></i></div><div class="flex-grow min-w-0"><div class="text-xs text-gray-400 mb-1">Step ${step.step_number} - Command</div><div class="bg-gray-900 rounded p-2 font-mono text-sm text-green-400 break-all">${escapeHtml(step.content)}</div>${step.reasoning ? `<div class="text-xs text-gray-500 mt-2"><i class="fas fa-lightbulb text-yellow-500 mr-1"></i>${escapeHtml(step.reasoning)}</div>` : ''}<div id="step-output-${step.id}" class="mt-2 hidden"><div class="text-xs text-gray-400 mb-1">Output:</div><pre class="bg-gray-900 rounded p-2 text-xs text-gray-300 overflow-x-auto max-h-40 overflow-y-auto"></pre></div><div id="step-status-${step.id}" class="mt-2 flex items-center text-xs text-gray-400"><i class="fas fa-clock mr-1"></i>Pending...</div></div></div>`;
-        if (step.status === 'pending' && !autoApproveEnabled) showApprovalPanel(step);
+        if (step.status === 'pending' && !autoApproveEnabled) {
+            showApprovalPanel(step);
+        } else if (step.status === 'pending' && autoApproveEnabled) {
+            // Auto-approve: run immediately in the user's terminal
+            executeAgentStepInTerminal(step);
+        }
     } else if (step.step_type === 'complete') {
         stepEl.className = 'bg-green-900/30 rounded-lg p-4 border border-green-500/30';
         stepEl.innerHTML = `<div class="flex items-start"><div class="w-6 h-6 rounded-full bg-green-600/30 flex items-center justify-center mr-3 mt-0.5 flex-shrink-0"><i class="fas fa-check text-green-400 text-xs"></i></div><div class="flex-grow"><div class="text-xs text-green-400 mb-1 font-semibold">Goal Achieved!</div><div class="text-sm text-gray-300">${marked.parse(step.content)}</div></div></div>`;
@@ -3343,6 +3412,7 @@ function updateAgentStep(step) {
 
 function showApprovalPanel(step) {
     updateAgentStatus('awaiting_approval');
+    currentApprovalStep = step;
     const panel = document.getElementById('agentApprovalPanel');
     if (!panel) return;
     panel.className = 'bg-gradient-to-r from-yellow-900/30 to-orange-900/30 rounded-lg p-4 mt-4 border border-yellow-500/30';
@@ -3354,11 +3424,13 @@ function showApprovalPanel(step) {
 function hideApprovalPanel() {
     const panel = document.getElementById('agentApprovalPanel');
     if (panel) { panel.className = 'hidden'; panel.innerHTML = ''; }
+    currentApprovalStep = null;
 }
 
 async function approveAgentStep() {
     if (!currentAgentSession) return;
     try {
+        const stepToRun = currentApprovalStep;
         if (agentSocket && agentSocket.readyState === WebSocket.OPEN) {
             agentSocket.send(JSON.stringify({ type: 'approve' }));
         } else {
@@ -3366,6 +3438,8 @@ async function approveAgentStep() {
         }
         hideApprovalPanel();
         updateAgentStatus('executing', 'Running command...');
+        // Execute the approved step in the connected terminal.
+        await executeAgentStepInTerminal(stepToRun);
     } catch (error) {
         console.error('Failed to approve step:', error);
         showToast('Failed to approve step', 'error');
@@ -3958,13 +4032,6 @@ function populateSessionDropdown(sessions) {
             </div>
         `).join('');
     }
-
-    const newSessionHtml = `
-        <div class="px-3 py-2 hover:bg-gray-700 cursor-pointer text-blue-400 border-b border-gray-700 flex items-center" onclick="createNewSession()">
-            <i class="fas fa-plus mr-2 text-xs"></i> <span class="text-xs font-bold">New Session</span>
-        </div>
-    `;
-    container.innerHTML = newSessionHtml + container.innerHTML;
 }
 
 async function createNewSession() {

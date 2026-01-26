@@ -6,7 +6,7 @@ Provides API endpoints for AI Agent Mode - autonomous goal-driven SSH execution.
 import asyncio
 import logging
 import json
-from typing import Dict, Optional, Set
+from typing import Dict, Optional, Set, Annotated
 from datetime import datetime, timezone, timedelta
 from uuid import UUID, uuid4
 
@@ -14,12 +14,13 @@ from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisco
 from pydantic import BaseModel, Field
 from pydantic import ConfigDict
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from starlette.websockets import WebSocketState
 
 from app.database import get_db
 from app.models import User, LLMProvider, ServerCredential
 from app.models_agent import AgentSession, AgentStep, AgentAuditLog, AgentRateLimit
-from app.models_revive import AISession
+from app.models_revive import AISession, AIMessage
 from app.services.auth_service import get_current_user, get_current_user_ws
 from app.services.ssh_service import get_ssh_connection
 from app.services.llm_service import get_api_key_for_provider
@@ -37,8 +38,8 @@ SESSION_IDLE_TIMEOUT_MINUTES = 30
 SESSION_MAX_DURATION_HOURS = 2
 
 # Rate limit settings
-DEFAULT_MAX_COMMANDS_PER_MINUTE = 10
-DEFAULT_MAX_SESSIONS_PER_HOUR = 10
+DEFAULT_MAX_COMMANDS_PER_MINUTE = settings.agent_max_commands_per_minute
+DEFAULT_MAX_SESSIONS_PER_HOUR = settings.agent_max_sessions_per_hour
 
 
 # ============= Schemas =============
@@ -47,11 +48,11 @@ class AgentStartRequest(BaseModel):
     """Request to start a new agent session"""
     model_config = ConfigDict(populate_by_name=True)
 
-    chat_session_id: Optional[str] = Field(default=None, alias="chatSessionId")
-    server_id: str = Field(alias="serverId")
+    chat_session_id: Annotated[Optional[str], Field(alias="chatSessionId")] = None
+    server_id: Annotated[str, Field(alias="serverId")]
     goal: str
-    auto_approve: bool = Field(default=False, alias="autoApprove")
-    max_steps: int = Field(default=20, alias="maxSteps")
+    auto_approve: Annotated[bool, Field(alias="autoApprove")] = False
+    max_steps: Annotated[int, Field(alias="maxSteps")] = 20
 
 
 class AgentStepResponse(BaseModel):
@@ -126,26 +127,41 @@ def check_rate_limit(db: Session, user_id: UUID, limit_type: str = "command") ->
         )
         db.add(rate_limit)
         db.commit()
+
+    # Ensure stored per-user limits match current configured defaults.
+    # This keeps existing DB rows (created under older defaults) in sync.
+    dirty = False
+    if rate_limit.max_commands_per_minute != DEFAULT_MAX_COMMANDS_PER_MINUTE:
+        rate_limit.max_commands_per_minute = DEFAULT_MAX_COMMANDS_PER_MINUTE
+        dirty = True
+    if rate_limit.max_sessions_per_hour != DEFAULT_MAX_SESSIONS_PER_HOUR:
+        rate_limit.max_sessions_per_hour = DEFAULT_MAX_SESSIONS_PER_HOUR
+        dirty = True
     
     # Reset counters if time has passed
     if now - rate_limit.minute_window_start > timedelta(minutes=1):
         rate_limit.commands_this_minute = 0
         rate_limit.minute_window_start = now
+        dirty = True
     
     if now - rate_limit.hour_window_start > timedelta(hours=1):
         rate_limit.sessions_this_hour = 0
         rate_limit.hour_window_start = now
+        dirty = True
     
     if limit_type == "command":
         if rate_limit.commands_this_minute >= rate_limit.max_commands_per_minute:
             return False, f"Rate limit exceeded: max {rate_limit.max_commands_per_minute} commands per minute"
         rate_limit.commands_this_minute += 1
+        dirty = True
     elif limit_type == "session":
         if rate_limit.sessions_this_hour >= rate_limit.max_sessions_per_hour:
             return False, f"Rate limit exceeded: max {rate_limit.max_sessions_per_hour} sessions per hour"
         rate_limit.sessions_this_hour += 1
+        dirty = True
     
-    db.commit()
+    if dirty:
+        db.commit()
     return True, ""
 
 
@@ -260,9 +276,31 @@ async def start_agent(
     
     # Optionally link to chat session
     chat_session_id = None
+    seeded_chat = False
     if request.chat_session_id:
         try:
-            chat_session_id = UUID(request.chat_session_id)
+            candidate_chat_session_id = UUID(request.chat_session_id)
+
+            # Ensure the referenced ai_sessions row exists (or create it).
+            # Without this, Postgres will reject the insert due to FK constraint.
+            ai_session = db.query(AISession).filter(AISession.id == candidate_chat_session_id).first()
+
+            if ai_session:
+                if ai_session.user_id != current_user.id:
+                    raise HTTPException(status_code=403, detail="Chat session access denied")
+            else:
+                ai_session = AISession(
+                    id=candidate_chat_session_id,
+                    user_id=current_user.id,
+                    pillar="troubleshooting",
+                    context_type="agent",
+                    title=(request.goal or "Agent Session")[:100],
+                )
+                db.add(ai_session)
+                db.commit()
+                seeded_chat = True
+
+            chat_session_id = candidate_chat_session_id
         except ValueError:
             pass  # Not a valid UUID, ignore
     
@@ -282,8 +320,34 @@ async def start_agent(
     )
     
     db.add(agent_session)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail="Unable to start agent session due to invalid related data (chatSessionId/serverId).",
+        )
     db.refresh(agent_session)
+
+    # If we created a new linked troubleshoot session (or it has no messages yet),
+    # add a minimal chat history so selecting it in /troubleshoot isn't blank.
+    if chat_session_id is not None:
+        try:
+            existing_msg = db.query(AIMessage).filter(AIMessage.session_id == chat_session_id).first()
+            if seeded_chat or not existing_msg:
+                db.add(AIMessage(session_id=chat_session_id, role="user", content=request.goal))
+                db.add(AIMessage(
+                    session_id=chat_session_id,
+                    role="assistant",
+                    content=(
+                        "Agent Mode started. I will propose and execute steps in the terminal, "
+                        "and stream results here as we go."
+                    ),
+                ))
+                db.commit()
+        except Exception as e:
+            logger.warning(f"Failed to seed chat history for linked session {chat_session_id}: {e}")
     
     # Audit log: session start
     client_ip = http_request.client.host if http_request.client else None
@@ -624,18 +688,7 @@ async def agent_websocket(
             })
             return
         
-        # Get SSH connection
-        try:
-            ssh_client = await get_ssh_connection(db, session.server_id)
-            await ssh_client.connect()
-        except Exception as e:
-            logger.error(f"SSH connection failed: {e}")
-            await websocket.send_json({
-                "type": "error",
-                "message": f"SSH connection failed: {str(e)}"
-            })
-            return
-        
+        # Commands are executed in the user's connected terminal (frontend), not server-side.
         try:
             # Update session status
             session.status = 'thinking'
@@ -668,6 +721,7 @@ If you need information from the user:
 
 Important rules:
 - Always use non-interactive commands (add -y for apt, etc.)
+- Never invoke pagers or interactive UIs. For `systemctl status` and `journalctl`, always include `--no-pager` (or use `SYSTEMD_PAGER=cat`).
 - Check command results before proceeding
 - Maximum {session.max_steps} steps allowed
 - Current step: {session.current_step_number}"""
@@ -1022,17 +1076,26 @@ Important rules:
                             command=command, details={"auto_approve": True}
                         )
                     
-                    # Execute the approved command server-side via SSH
+                    # Wait for the frontend terminal to execute the command and return result
                     session.status = 'executing'
                     db.commit()
                     await websocket.send_json({"type": "status_changed", "status": "executing"})
 
+                    approval_result["output"] = ""
+                    approval_result["exit_code"] = 0
+                    approval_event.clear()
+
                     try:
-                        stdout, stderr, exit_code = await ssh_client.execute_command(command)
-                        output = (stdout or "") + (("\n" + stderr) if stderr else "")
-                    except Exception as e:
-                        exit_code = 1
-                        output = f"Command execution failed: {type(e).__name__}: {e}"
+                        await asyncio.wait_for(approval_event.wait(), timeout=180)
+                    except asyncio.TimeoutError:
+                        output = "Timed out waiting for terminal execution result"
+                        exit_code = 124
+                    else:
+                        output = approval_result.get("output", "")
+                        exit_code = approval_result.get("exit_code", 0)
+
+                    if stop_requested:
+                        break
 
                     step.output = (output or "")[:50000]  # Limit output size
                     step.exit_code = exit_code
@@ -1080,11 +1143,7 @@ Important rules:
                 })
                 
         finally:
-            # Close SSH connection
-            try:
-                await ssh_client.close()
-            except Exception:
-                pass
+            pass
     
     # Run both tasks
     message_task = asyncio.create_task(handle_messages())

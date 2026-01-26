@@ -148,7 +148,10 @@ const AIChatBase = {
      */
     appendUserMessage(text) {
         const container = this.getChatContainer();
-        if (!container) return;
+        if (!container) {
+            console.error('[appendUserMessage] Container not found!');
+            return;
+        }
 
         const msgDiv = document.createElement('div');
         msgDiv.className = 'flex justify-end mb-3';

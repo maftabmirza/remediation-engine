@@ -34,6 +34,10 @@ class Settings(BaseSettings):
     recording_dir: str = "storage/recordings"
     testing: bool = False
 
+    # Agent rate limits
+    agent_max_commands_per_minute: int = 10
+    agent_max_sessions_per_hour: int = 30
+
     # Prometheus Integration
     prometheus_url: str = "http://prometheus:9090"
     enable_prometheus_queries: bool = True
