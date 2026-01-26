@@ -3268,7 +3268,7 @@ function handleAgentMessage(data) {
     switch (data.type) {
         case 'connected': updateAgentStatus('thinking', 'Analyzing goal...'); break;
         case 'status_changed': updateAgentStatus(data.status); break;
-        case 'step_created': addAgentStep(data.step); break;
+        case 'step_created': addAgentStep(data.step, data.auto_approve === true); break;
         case 'step_updated': updateAgentStep(data.step); break;
         case 'complete': handleAgentComplete(data); break;
         case 'error': showToast(data.message || 'Agent error', 'error'); break;
@@ -3291,7 +3291,7 @@ function updateAgentStatus(status, text) {
     badge.innerHTML = `<i class="fas ${config.icon} mr-1"></i>${config.text}`;
 }
 
-function addAgentStep(step) {
+function addAgentStep(step, autoApproveEnabled = false) {
     const container = document.getElementById('agentSteps');
     if (!container) return;
     const stepNum = document.getElementById('agentStepNum');
@@ -3301,7 +3301,7 @@ function addAgentStep(step) {
     stepEl.className = 'bg-gray-800 rounded-lg p-4 border border-gray-700';
     if (step.step_type === 'command') {
         stepEl.innerHTML = `<div class="flex items-start"><div class="w-6 h-6 rounded-full bg-blue-600/30 flex items-center justify-center mr-3 mt-0.5 flex-shrink-0"><i class="fas fa-terminal text-blue-400 text-xs"></i></div><div class="flex-grow min-w-0"><div class="text-xs text-gray-400 mb-1">Step ${step.step_number} - Command</div><div class="bg-gray-900 rounded p-2 font-mono text-sm text-green-400 break-all">${escapeHtml(step.content)}</div>${step.reasoning ? `<div class="text-xs text-gray-500 mt-2"><i class="fas fa-lightbulb text-yellow-500 mr-1"></i>${escapeHtml(step.reasoning)}</div>` : ''}<div id="step-output-${step.id}" class="mt-2 hidden"><div class="text-xs text-gray-400 mb-1">Output:</div><pre class="bg-gray-900 rounded p-2 text-xs text-gray-300 overflow-x-auto max-h-40 overflow-y-auto"></pre></div><div id="step-status-${step.id}" class="mt-2 flex items-center text-xs text-gray-400"><i class="fas fa-clock mr-1"></i>Pending...</div></div></div>`;
-        if (step.status === 'pending') showApprovalPanel(step);
+        if (step.status === 'pending' && !autoApproveEnabled) showApprovalPanel(step);
     } else if (step.step_type === 'complete') {
         stepEl.className = 'bg-green-900/30 rounded-lg p-4 border border-green-500/30';
         stepEl.innerHTML = `<div class="flex items-start"><div class="w-6 h-6 rounded-full bg-green-600/30 flex items-center justify-center mr-3 mt-0.5 flex-shrink-0"><i class="fas fa-check text-green-400 text-xs"></i></div><div class="flex-grow"><div class="text-xs text-green-400 mb-1 font-semibold">Goal Achieved!</div><div class="text-sm text-gray-300">${marked.parse(step.content)}</div></div></div>`;

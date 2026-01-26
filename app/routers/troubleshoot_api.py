@@ -68,26 +68,7 @@ async def troubleshoot_chat(
     logger.info(f"Troubleshoot chat from {current_user.username}: {message[:100]}...")
     
     try:
-        # Get the default LLM provider
-        provider = db.query(LLMProvider).filter(
-            LLMProvider.is_default == True,
-            LLMProvider.is_enabled == True
-        ).first()
-        
-        if not provider:
-            provider = db.query(LLMProvider).filter(
-                LLMProvider.is_enabled == True
-            ).first()
-        
-        if not provider:
-            return {
-                "response": "No LLM provider is configured. Please configure an LLM provider in Settings.",
-                "message": "No LLM provider is configured. Please configure an LLM provider in Settings.",
-                "session_id": session_id,
-                "mode": "troubleshoot"
-            }
-        
-        # === SESSION PERSISTENCE: Load or create session ===
+        # === SESSION PERSISTENCE: Load or create session FIRST ===
         ai_session = None
         initial_messages = []
         
@@ -122,6 +103,43 @@ async def troubleshoot_chat(
                     "content": msg.content
                 })
             logger.info(f"Loaded {len(initial_messages)} messages from session {session_id}")
+        
+        # === Get LLM Provider - check session's stored provider first ===
+        provider = None
+        session_ctx = ai_session.context_context_json or {}
+        stored_provider_id = session_ctx.get("llm_provider_id")
+        
+        if stored_provider_id:
+            try:
+                provider_uuid = uuid.UUID(str(stored_provider_id))
+                provider = db.query(LLMProvider).filter(
+                    LLMProvider.id == provider_uuid,
+                    LLMProvider.is_enabled == True
+                ).first()
+                if provider:
+                    logger.info(f"Using session's stored provider: {provider.name}")
+            except (ValueError, TypeError):
+                logger.warning(f"Invalid stored provider_id: {stored_provider_id}")
+        
+        # Fallback to default provider if no session provider
+        if not provider:
+            provider = db.query(LLMProvider).filter(
+                LLMProvider.is_default == True,
+                LLMProvider.is_enabled == True
+            ).first()
+        
+        if not provider:
+            provider = db.query(LLMProvider).filter(
+                LLMProvider.is_enabled == True
+            ).first()
+        
+        if not provider:
+            return {
+                "response": "No LLM provider is configured. Please configure an LLM provider in Settings.",
+                "message": "No LLM provider is configured. Please configure an LLM provider in Settings.",
+                "session_id": session_id,
+                "mode": "troubleshoot"
+            }
         
         # Save the user message to DB
         user_msg = AIMessage(
@@ -216,22 +234,7 @@ async def troubleshoot_chat_stream(
         tool_calls = []
         
         try:
-            # Get the default LLM provider
-            provider = db.query(LLMProvider).filter(
-                LLMProvider.is_default == True,
-                LLMProvider.is_enabled == True
-            ).first()
-            
-            if not provider:
-                provider = db.query(LLMProvider).filter(
-                    LLMProvider.is_enabled == True
-                ).first()
-            
-            if not provider:
-                yield f"data: {json.dumps({'type': 'error', 'content': 'No LLM provider configured'})}\n\n"
-                return
-            
-            # === SESSION PERSISTENCE ===
+            # === SESSION PERSISTENCE - Load or create session FIRST ===
             ai_session = None
             initial_messages = []
             
@@ -262,6 +265,39 @@ async def troubleshoot_chat_stream(
                         "role": msg.role,
                         "content": msg.content
                     })
+            
+            # === Get LLM Provider - check session's stored provider first ===
+            provider = None
+            session_ctx = ai_session.context_context_json or {}
+            stored_provider_id = session_ctx.get("llm_provider_id")
+            
+            if stored_provider_id:
+                try:
+                    provider_uuid = uuid.UUID(str(stored_provider_id))
+                    provider = db.query(LLMProvider).filter(
+                        LLMProvider.id == provider_uuid,
+                        LLMProvider.is_enabled == True
+                    ).first()
+                    if provider:
+                        logger.info(f"Streaming: Using session's stored provider: {provider.name}")
+                except (ValueError, TypeError):
+                    logger.warning(f"Invalid stored provider_id: {stored_provider_id}")
+            
+            # Fallback to default provider if no session provider
+            if not provider:
+                provider = db.query(LLMProvider).filter(
+                    LLMProvider.is_default == True,
+                    LLMProvider.is_enabled == True
+                ).first()
+            
+            if not provider:
+                provider = db.query(LLMProvider).filter(
+                    LLMProvider.is_enabled == True
+                ).first()
+            
+            if not provider:
+                yield f"data: {json.dumps({'type': 'error', 'content': 'No LLM provider configured'})}\n\n"
+                return
             
             # Send session_id first
             yield f"data: {json.dumps({'type': 'session', 'session_id': session_id})}\n\n"
@@ -463,6 +499,16 @@ async def switch_troubleshoot_provider(
         if not provider_id:
             raise HTTPException(status_code=400, detail="provider_id required")
 
+        # Look up the provider to get its name and model_id
+        try:
+            provider_uuid = uuid.UUID(str(provider_id))
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid provider ID format")
+        
+        provider = db.query(LLMProvider).filter(LLMProvider.id == provider_uuid).first()
+        if not provider:
+            raise HTTPException(status_code=404, detail="Provider not found")
+
         session_uuid = uuid.UUID(session_id)
         session = db.query(AISession).filter(
             AISession.id == session_uuid,
@@ -473,11 +519,18 @@ async def switch_troubleshoot_provider(
             raise HTTPException(status_code=404, detail="Session not found")
 
         ctx = dict(session.context_context_json) if session.context_context_json else {}
-        ctx["llm_provider_id"] = provider_id
+        ctx["llm_provider_id"] = str(provider_uuid)
         session.context_context_json = ctx
         db.commit()
 
-        return {"success": True}
+        return {
+            "success": True,
+            "session_id": session_id,
+            "provider_name": provider.name,
+            "model_name": provider.model_id,
+        }
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Switch provider failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
