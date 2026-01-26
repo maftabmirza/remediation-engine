@@ -163,7 +163,7 @@ class AgentRateLimit(Base):
     
     # Limits (can be customized per user)
     max_commands_per_minute = Column(Integer, default=10)
-    max_sessions_per_hour = Column(Integer, default=10)
+    max_sessions_per_hour = Column(Integer, default=30)
     
     # Rate limit status
     is_rate_limited = Column(Boolean, default=False)

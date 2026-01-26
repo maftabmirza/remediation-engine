@@ -20,6 +20,7 @@ from pydantic import BaseModel
 from app.database import get_db
 from app.services.auth_service import get_current_user
 from app.models import User, LLMProvider
+from app.models_agent import AgentSession, AgentStep
 from app.models_revive import AISession, AIMessage
 
 router = APIRouter(
@@ -370,7 +371,8 @@ async def list_troubleshoot_sessions(
     List troubleshooting sessions for the current user.
     """
     sessions = db.query(AISession).filter(
-        AISession.user_id == current_user.id
+        AISession.user_id == current_user.id,
+        AISession.pillar == "troubleshooting",
     ).order_by(AISession.created_at.desc()).all()
     
     return {
@@ -389,20 +391,28 @@ async def list_troubleshoot_sessions(
 
 @router.post("/sessions")
 async def create_troubleshoot_session(
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
     """
     Create a new troubleshooting session.
     """
-    from uuid import uuid4
-    from datetime import datetime
-    
-    session_id = str(uuid4())
+
+    session = AISession(
+        user_id=current_user.id,
+        pillar="troubleshooting",
+        context_type="standalone",
+        title="Troubleshooting Session",
+    )
+    db.add(session)
+    db.commit()
+    db.refresh(session)
+
     return {
-        "id": session_id,
+        "id": str(session.id),
         "user_id": str(current_user.id),
-        "created_at": datetime.utcnow().isoformat(),
-        "mode": "troubleshoot"
+        "created_at": session.created_at.isoformat(),
+        "mode": "troubleshoot",
     }
 @router.get("/providers")
 async def list_troubleshoot_providers(
@@ -468,11 +478,98 @@ async def get_troubleshoot_messages(
     """Get messages for a troubleshooting session."""
     try:
         session_uuid = uuid.UUID(session_id)
+        session = db.query(AISession).filter(
+            AISession.id == session_uuid,
+            AISession.user_id == current_user.id,
+            AISession.pillar == "troubleshooting",
+        ).first()
+
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+
         messages = db.query(AIMessage).filter(
             AIMessage.session_id == session_uuid
         ).order_by(AIMessage.created_at).all()
+
+        logger.info(f"get_troubleshoot_messages: session={session_id}, found {len(messages)} persisted messages")
+
+        # Agent-linked sessions can exist with partial/empty persisted chat history.
+        # If linked, we ensure the UI sees at least the goal and any agent steps.
+        agent = db.query(AgentSession).filter(
+            AgentSession.user_id == current_user.id,
+            AgentSession.chat_session_id == session_uuid,
+        ).order_by(AgentSession.created_at.desc()).first()
+
+        if agent:
+            logger.info(f"  -> agent-linked session: agent_id={agent.id}, goal={agent.goal[:50] if agent.goal else 'None'}")
+            goal_text = agent.goal or (session.title or "Agent Session")
+            has_user = any(m.role == "user" for m in messages)
+            has_any = len(messages) > 0
+
+            # If there are no persisted chat messages at all, return a synthetic history.
+            if not has_any:
+                synthetic = [
+                    {
+                        "id": f"agent-{agent.id}-goal",
+                        "role": "user",
+                        "content": goal_text,
+                        "created_at": agent.created_at.isoformat() if agent.created_at else session.created_at.isoformat(),
+                        "metadata": {"synthetic": True, "source": "agent_goal", "agent_session_id": str(agent.id)},
+                    }
+                ]
+                steps = db.query(AgentStep).filter(
+                    AgentStep.agent_session_id == agent.id
+                ).order_by(AgentStep.step_number.asc()).all()
+
+                for st in steps:
+                    if st.step_type == "command":
+                        content = st.content
+                        if st.output:
+                            content += "\n\nOutput:\n" + st.output
+                        if st.exit_code is not None:
+                            content += f"\n\nExit code: {st.exit_code}"
+                    else:
+                        content = st.content
+
+                    synthetic.append(
+                        {
+                            "id": f"agent-{agent.id}-step-{st.step_number}",
+                            "role": "assistant",
+                            "content": content,
+                            "created_at": st.created_at.isoformat() if st.created_at else session.created_at.isoformat(),
+                            "metadata": {
+                                "synthetic": True,
+                                "source": "agent_step",
+                                "agent_session_id": str(agent.id),
+                                "step_number": st.step_number,
+                                "step_type": st.step_type,
+                                "status": st.status,
+                            },
+                        }
+                    )
+                return synthetic
+
+            # If we have messages but no user goal message, prepend a synthetic goal.
+            if not has_user:
+                prepend = {
+                    "id": f"agent-{agent.id}-goal",
+                    "role": "user",
+                    "content": goal_text,
+                    "created_at": agent.created_at.isoformat() if agent.created_at else session.created_at.isoformat(),
+                    "metadata": {"synthetic": True, "source": "agent_goal", "agent_session_id": str(agent.id)},
+                }
+                return [prepend] + [
+                    {
+                        "id": str(m.id),
+                        "role": m.role,
+                        "content": m.content,
+                        "created_at": m.created_at.isoformat(),
+                        "metadata": m.metadata_json,
+                    }
+                    for m in messages
+                ]
         
-        return [
+        result = [
             {
                 "id": str(m.id),
                 "role": m.role,
@@ -482,6 +579,8 @@ async def get_troubleshoot_messages(
             }
             for m in messages
         ]
+        logger.info(f"  -> returning {len(result)} messages (roles: {[m['role'] for m in result]})")
+        return result
     except Exception as e:
         logger.error(f"Failed to get messages: {e}")
         raise HTTPException(status_code=400, detail="Invalid session ID")
