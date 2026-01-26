@@ -30,6 +30,7 @@ fi
 
 # Run database migrations
 echo "Running database migrations..."
+# Upgrade to the latest single head (or merge point)
 python -m alembic upgrade head
 
 # Start application

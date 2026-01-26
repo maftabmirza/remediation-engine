@@ -208,13 +208,16 @@ def create_audit_log(
     try:
         server = db.query(ServerCredential).filter(ServerCredential.id == session.server_id).first()
         
+        # Serialize details dict to JSON string since column is TEXT in database
+        details_str = json.dumps(details) if details else None
+        
         audit = AgentAuditLog(
             session_id=session.id,
             step_id=step.id if step else None,
             user_id=user_id,
             action=action,
             command=command,
-            details=details,
+            details=details_str,
             server_id=session.server_id,
             server_name=server.name if server else None,
             exit_code=exit_code,

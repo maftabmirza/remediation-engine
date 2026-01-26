@@ -92,10 +92,11 @@ class AgentStep(Base):
     
     # Command validation
     validation_result = Column(String(20), nullable=True)  # allowed, blocked, suspicious
-    blocked_reason = Column(Text, nullable=True)
+    blocked_reason = Column(String(500), nullable=True)
     
     # User feedback and additional data (note: 'metadata' is reserved in SQLAlchemy)
-    step_metadata = Column(JSON, nullable=True)
+    # Database schema has this as TEXT, not JSON
+    step_metadata = Column(Text, nullable=True)
 
     
     # Relationships
@@ -112,22 +113,26 @@ class AgentAuditLog(Base):
     __tablename__ = "agent_audit_logs"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    session_id = Column(UUID(as_uuid=True), ForeignKey("agent_sessions.id", ondelete="CASCADE"), nullable=False)
+    session_id = Column(UUID(as_uuid=True), ForeignKey("agent_sessions.id", ondelete="SET NULL"), nullable=True)
     step_id = Column(UUID(as_uuid=True), ForeignKey("agent_steps.id", ondelete="SET NULL"), nullable=True)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     
     action = Column(String(50), nullable=False)  # session_start, command_proposed, command_approved, command_executed, command_blocked, command_rejected, session_complete, session_timeout
     command = Column(Text, nullable=True)
-    details = Column(JSON, nullable=True)  # Additional context
-    
-    server_id = Column(UUID(as_uuid=True), nullable=True)
-    server_name = Column(String(255), nullable=True)
-    
-    exit_code = Column(Integer, nullable=True)
-    output_preview = Column(Text, nullable=True)  # First 500 chars of output
+    details = Column(Text, nullable=True)  # Additional context - stored as TEXT in DB, serialize JSON manually
     
     ip_address = Column(String(45), nullable=True)  # Client IP
     user_agent = Column(String(500), nullable=True)
+    
+    # Command validation fields (matching database schema order)
+    validation_result = Column(String(20), nullable=True)  # allowed, blocked, suspicious
+    blocked_reason = Column(String(500), nullable=True)
+    
+    output_preview = Column(String(1000), nullable=True)  # First chars of output
+    exit_code = Column(Integer, nullable=True)
+    
+    server_id = Column(UUID(as_uuid=True), nullable=True)
+    server_name = Column(String(255), nullable=True)
     
     created_at = Column(DateTime(timezone=True), default=utc_now, index=True)
     

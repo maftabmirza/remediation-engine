@@ -17,8 +17,14 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # Add summary column to alert_correlations
-    op.add_column('alert_correlations', sa.Column('summary', sa.String(length=255), nullable=False, server_default='Auto Correlation'))
+    # Add summary column to alert_correlations (only if it doesn't exist)
+    from sqlalchemy import inspect
+    conn = op.get_bind()
+    inspector = inspect(conn)
+    columns = [col['name'] for col in inspector.get_columns('alert_correlations')]
+    
+    if 'summary' not in columns:
+        op.add_column('alert_correlations', sa.Column('summary', sa.String(length=255), nullable=False, server_default='Auto Correlation'))
 
 
 def downgrade() -> None:
