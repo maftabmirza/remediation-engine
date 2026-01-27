@@ -6,8 +6,12 @@ engine = create_engine(url)
 insp = inspect(engine)
 from sqlalchemy import text
 with engine.connect() as conn:
-    result = conn.execute(text("SELECT * FROM alembic_version"))
-    print("Alembic Version:", result.fetchall())
+    # Check Atlas migration status
+    try:
+        result = conn.execute(text("SELECT * FROM atlas_schema_revisions"))
+        print("Atlas Migration Version:", result.fetchall())
+    except Exception as e:
+        print(f"Atlas table not found (might be fresh install): {e}")
 
 print("Tables:", insp.get_table_names())
 

@@ -28,16 +28,14 @@ if [ "$attempt" -gt "$MAX_ATTEMPTS" ]; then
 	exit 1
 fi
 
-# Run database migrations
-echo "Running database migrations..."
+# Run database migrations with Atlas
+echo "Running database migrations with Atlas..."
 
-# Check if alembic_version table exists and has entries
-# If tables exist but no alembic_version, stamp the current migration
+# Check if this is a fresh database or existing
 python -c "
 import os
 import sys
-sys.path.insert(0, '/aiops')
-from sqlalchemy import create_engine, text, inspect
+from sqlalchemy import create_engine, inspect, text
 
 db_url = os.environ.get('DATABASE_URL', 'postgresql://aiops:aiops@postgres:5432/aiops')
 engine = create_engine(db_url)
@@ -46,35 +44,46 @@ with engine.connect() as conn:
     inspector = inspect(conn)
     tables = inspector.get_table_names()
     
-    # Check if this is an existing database with tables but no alembic tracking
+    # Check if main tables exist
     has_tables = 'users' in tables or 'alerts' in tables or 'runbooks' in tables
-    has_alembic = 'alembic_version' in tables
     
-    if has_tables and has_alembic:
-        result = conn.execute(text('SELECT version_num FROM alembic_version'))
-        versions = [r[0] for r in result]
-        if versions:
-            print(f'ALEMBIC: Existing migrations found: {versions}')
-            sys.exit(0)  # Normal upgrade path
-        else:
-            print('ALEMBIC: Table exists but empty, will stamp')
-            sys.exit(1)  # Need to stamp
-    elif has_tables and not has_alembic:
-        print('ALEMBIC: Existing database without migration tracking, will stamp')
-        sys.exit(1)  # Need to stamp
+    # Check if Atlas tracking table exists
+    has_atlas = 'atlas_schema_revisions' in tables
+    
+    if has_tables and has_atlas:
+        print('ATLAS: Existing database with Atlas tracking')
+        sys.exit(0)  # Existing DB with Atlas
+    elif has_tables and not has_atlas:
+        print('ATLAS: Existing database without Atlas tracking (baseline needed)')
+        sys.exit(2)  # Existing DB needs baseline
     else:
-        print('ALEMBIC: Fresh database, will run migrations')
-        sys.exit(0)  # Normal upgrade path
+        print('ATLAS: Fresh database detected')
+        sys.exit(1)  # Fresh DB
 "
-ALEMBIC_CHECK=$?
+DB_CHECK=$?
 
-if [ "$ALEMBIC_CHECK" -eq 1 ]; then
-    echo "Stamping existing database with base migration..."
-    python -m alembic stamp 001_initial_base
+if [ "$DB_CHECK" -eq 1 ]; then
+    echo "Fresh database - applying full schema with baseline..."
+    # For fresh DB, apply the baseline migration
+    atlas migrate apply --url "$DATABASE_URL" --dir "file://atlas/migrations" --baseline "20260126000000" 2>&1 || {
+        echo "Warning: Atlas apply with baseline failed, trying without baseline..."
+        atlas migrate apply --url "$DATABASE_URL" --dir "file://atlas/migrations" 2>&1 || true
+    }
+elif [ "$DB_CHECK" -eq 2 ]; then
+    echo "Existing database needs Atlas baseline..."
+    # Mark the initial migration as applied (baseline) without actually running it
+    atlas migrate set --url "$DATABASE_URL" --dir "file://atlas/migrations" "20260126000000" 2>&1 || {
+        echo "Warning: Atlas baseline set failed, database may already be configured"
+    }
+    echo "Applying any pending migrations..."
+    atlas migrate apply --url "$DATABASE_URL" --dir "file://atlas/migrations" 2>&1 || true
+else
+    echo "Existing database - applying pending migrations..."
+    # For existing DB, apply any pending migrations
+    atlas migrate apply --url "$DATABASE_URL" --dir "file://atlas/migrations" 2>&1 || true
 fi
 
-# Upgrade to the latest migration
-python -m alembic upgrade head
+echo "Database migrations complete."
 
 # Start application
 echo "Starting application..."

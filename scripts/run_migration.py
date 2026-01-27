@@ -1,22 +1,42 @@
+"""
+Migration runner using Atlas (replaced Alembic).
+Use this script to run Atlas migrations from command line.
+
+Usage:
+    python scripts/run_migration.py
+
+Or run Atlas directly:
+    atlas migrate apply --url "$DATABASE_URL" --dir "file://atlas/migrations"
+"""
 import sys
 import os
+import subprocess
 sys.path.append(os.getcwd())
 import logging
 
-from alembic.config import Config
-from alembic import command
-
-# Setup logging to see errors
-logging.basicConfig(level=logging.INFO) # INFO is usually enough
-logger = logging.getLogger("alembic")
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("atlas-migration")
 logger.setLevel(logging.DEBUG)
 
 def run_upgrade():
-    alembic_cfg = Config("alembic.ini")
-    # env var is already set in shell
+    """Run Atlas migrations."""
+    db_url = os.environ.get("DATABASE_URL", "postgresql://aiops:aiops@localhost:5432/aiops")
+    
     try:
-        command.upgrade(alembic_cfg, "head")
-        print("Upgrade successful")
+        # Run Atlas migration
+        result = subprocess.run(
+            ["atlas", "migrate", "apply", "--url", db_url, "--dir", "file://atlas/migrations"],
+            capture_output=True,
+            text=True
+        )
+        
+        if result.returncode != 0:
+            print(f"Migration failed: {result.stderr}")
+            return
+            
+        print("Migration successful")
+        print(result.stdout)
         
         # Verify
         from sqlalchemy import create_engine, inspect

@@ -7,7 +7,7 @@ python-multipart>=0.0.6
 sqlalchemy>=2.0.25,<3.0.0
 psycopg2-binary>=2.9.9
 asyncpg>=0.29.0
-alembic>=1.13.1,<2.0.0
+# Note: Alembic removed - using Atlas for migrations
 
 # Authentication
 python-jose[cryptography]>=3.3.0
