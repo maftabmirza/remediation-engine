@@ -4,6 +4,13 @@
 
 The remediation engine now uses **Alembic** for automatic database schema management. Migrations run automatically on application startup.
 
+## Current State (January 2026)
+
+**All migrations have been consolidated into a single base migration:**
+- `001_initial_base_schema.py` - Contains the complete current database schema
+
+This was done to fix deployment issues on new VMs where accumulated migrations were causing conflicts.
+
 ## What Changed
 
 ### ✅ Auto-run on Startup
@@ -13,6 +20,9 @@ Every time the Docker container starts, Alembic automatically:
 3. Logs success/failure
 
 **You don't need to run migrations manually!**
+
+### ⚠️ Fresh Database Deployment
+For new VM deployments, the single base migration will create all tables from scratch. No need for historical migration files.
 
 ### ✅ Auto-generation from Models
 When you change SQLAlchemy models, Alembic can auto-generate migration files.
