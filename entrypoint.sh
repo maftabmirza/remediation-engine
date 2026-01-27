@@ -30,7 +30,50 @@ fi
 
 # Run database migrations
 echo "Running database migrations..."
-# Upgrade to the latest single head (or merge point)
+
+# Check if alembic_version table exists and has entries
+# If tables exist but no alembic_version, stamp the current migration
+python -c "
+import os
+import sys
+sys.path.insert(0, '/aiops')
+from sqlalchemy import create_engine, text, inspect
+
+db_url = os.environ.get('DATABASE_URL', 'postgresql://aiops:aiops@postgres:5432/aiops')
+engine = create_engine(db_url)
+
+with engine.connect() as conn:
+    inspector = inspect(conn)
+    tables = inspector.get_table_names()
+    
+    # Check if this is an existing database with tables but no alembic tracking
+    has_tables = 'users' in tables or 'alerts' in tables or 'runbooks' in tables
+    has_alembic = 'alembic_version' in tables
+    
+    if has_tables and has_alembic:
+        result = conn.execute(text('SELECT version_num FROM alembic_version'))
+        versions = [r[0] for r in result]
+        if versions:
+            print(f'ALEMBIC: Existing migrations found: {versions}')
+            sys.exit(0)  # Normal upgrade path
+        else:
+            print('ALEMBIC: Table exists but empty, will stamp')
+            sys.exit(1)  # Need to stamp
+    elif has_tables and not has_alembic:
+        print('ALEMBIC: Existing database without migration tracking, will stamp')
+        sys.exit(1)  # Need to stamp
+    else:
+        print('ALEMBIC: Fresh database, will run migrations')
+        sys.exit(0)  # Normal upgrade path
+"
+ALEMBIC_CHECK=$?
+
+if [ "$ALEMBIC_CHECK" -eq 1 ]; then
+    echo "Stamping existing database with base migration..."
+    python -m alembic stamp 001_initial_base
+fi
+
+# Upgrade to the latest migration
 python -m alembic upgrade head
 
 # Start application
