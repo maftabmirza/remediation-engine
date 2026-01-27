@@ -17,6 +17,15 @@ from app.services.ollama_service import ollama_completion
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
+# Module-level PII service instance (will be injected)
+_pii_service = None
+
+
+def set_pii_service(pii_service):
+    """Set the PII service instance for LLM output scanning."""
+    global _pii_service
+    _pii_service = pii_service
+
 
 def get_api_key_for_provider(provider: LLMProvider) -> Optional[str]:
     """Get API key for a provider."""
@@ -221,6 +230,42 @@ async def generate_completion(
                     model=model_name
                 ).observe(duration)
                 raise
+
+        # Scan and redact PII/secrets from LLM response if service is available
+        if _pii_service and analysis:
+            try:
+                # Detect PII/secrets in the response
+                detection_response = await _pii_service.detect(
+                    text=analysis,
+                    source_type="llm_response",
+                    source_id=f"{provider.id}_{int(time.time())}"
+                )
+                
+                # Log detections if any found
+                if detection_response.detections:
+                    logger.info(
+                        f"Detected {detection_response.detection_count} PII/secret(s) "
+                        f"in LLM response from {provider.name}"
+                    )
+                    
+                    for detection in detection_response.detections:
+                        await _pii_service.log_detection(
+                            detection=detection.model_dump(),
+                            source_type="llm_response",
+                            source_id=f"{provider.id}"
+                        )
+                    
+                    # Redact the response
+                    redaction_response = await _pii_service.redact(
+                        text=analysis,
+                        redaction_type="tag"  # Use tags for LLM responses to maintain readability
+                    )
+                    
+                    analysis = redaction_response.redacted_text
+                    
+            except Exception as e:
+                logger.error(f"PII detection failed for LLM response: {e}")
+                # Continue even if PII detection fails
 
         return analysis, provider
         

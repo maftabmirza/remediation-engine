@@ -13,3 +13,7 @@ from app.routers.commands_api import router as commands_router
 
 from app.routers.terminal_ws import router as terminal_ws_router
 from app.routers.audit import router as audit_router
+
+# PII & Secret Detection routers
+from app.routers import pii
+from app.routers import pii_logs

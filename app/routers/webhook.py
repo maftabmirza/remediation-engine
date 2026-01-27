@@ -27,6 +27,15 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/webhook", tags=["Webhook"])
 
+# Module-level PII service instance (will be injected)
+_pii_service = None
+
+
+def set_pii_service(pii_service):
+    """Set the PII service instance for alert data scanning."""
+    global _pii_service
+    _pii_service = pii_service
+
 
 async def perform_auto_remediation(alert_id: str):
     """
@@ -202,6 +211,62 @@ async def receive_alertmanager_webhook(
                 })
                 continue
             
+            # Scan and redact PII/secrets from alert data if service is available
+            alert_annotations = annotations
+            if _pii_service:
+                try:
+                    # Combine alert text for scanning
+                    alert_text = f"{alert_name}\n"
+                    if annotations:
+                        alert_text += f"Summary: {annotations.get('summary', '')}\n"
+                        alert_text += f"Description: {annotations.get('description', '')}\n"
+                    if labels:
+                        alert_text += f"Labels: {str(labels)}\n"
+                    
+                    # Detect PII/secrets
+                    detection_response = await _pii_service.detect(
+                        text=alert_text,
+                        source_type="alert_data",
+                        source_id=fingerprint
+                    )
+                    
+                    # Log detections if any found
+                    if detection_response.detections:
+                        logger.info(
+                            f"Detected {detection_response.detection_count} PII/secret(s) "
+                            f"in alert '{alert_name}'"
+                        )
+                        
+                        for detection in detection_response.detections:
+                            await _pii_service.log_detection(
+                                detection=detection.model_dump(),
+                                source_type="alert_data",
+                                source_id=fingerprint
+                            )
+                        
+                        # Redact annotations if needed
+                        if annotations:
+                            annotations_text = f"Summary: {annotations.get('summary', '')}\n"
+                            annotations_text += f"Description: {annotations.get('description', '')}"
+                            
+                            redaction_response = await _pii_service.redact(
+                                text=annotations_text,
+                                redaction_type="mask"
+                            )
+                            
+                            # Parse redacted annotations
+                            redacted_lines = redaction_response.redacted_text.split('\n')
+                            if len(redacted_lines) >= 2:
+                                alert_annotations = {
+                                    **annotations,
+                                    'summary': redacted_lines[0].replace('Summary: ', ''),
+                                    'description': redacted_lines[1].replace('Description: ', '')
+                                }
+                        
+                except Exception as e:
+                    logger.error(f"PII detection failed for alert {alert_name}: {e}")
+                    # Continue even if PII detection fails
+            
             # Create alert record
             alert = Alert(
                 fingerprint=fingerprint,
@@ -212,7 +277,7 @@ async def receive_alertmanager_webhook(
                 job=job,
                 status=alert_data.status,
                 labels_json=labels,
-                annotations_json=annotations,
+                annotations_json=alert_annotations,  # Use redacted annotations
                 raw_alert_json=alert_data.model_dump(),
                 matched_rule_id=matched_rule.id if matched_rule else None,
                 action_taken=action if action != "manual" else "pending",

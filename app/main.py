@@ -85,6 +85,8 @@ from app.routers import (
     agent_api,  # Agent Mode API
     agent_hq_api, # Agent HQ API
     inquiry,    # Phase 2: AI Inquiry Pillar
+    pii,  # PII & Secret Detection
+    pii_logs,  # PII Detection Logs
 )
 from app import api_credential_profiles
 from app.services.execution_worker import start_execution_worker, stop_execution_worker
@@ -403,6 +405,8 @@ app.include_router(agent_api.router)         # Agent Mode API
 app.include_router(agent_api.ws_router)      # Agent Mode WebSocket
 app.include_router(inquiry.router)           # Phase 2: AI Inquiry Pillar
 app.include_router(agent_hq_api.router)      # Agent HQ API
+app.include_router(pii.router)               # PII & Secret Detection
+app.include_router(pii_logs.router)          # PII Detection Logs
 
 
 # Mock OFREP endpoint for Grafana OpenFeature - returns valid empty response to prevent 404 errors
@@ -813,6 +817,49 @@ async def audit_page(
     return templates.TemplateResponse("audit.html", {
         "request": request,
         "user": current_user
+    })
+
+
+@app.get("/pii-detection", response_class=HTMLResponse)
+async def pii_detection_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    PII Detection configuration page (Admin only)
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+    
+    if current_user.role != "admin":
+        return RedirectResponse(url="/", status_code=302)
+    
+    return templates.TemplateResponse("pii_detection.html", {
+        "request": request,
+        "user": current_user,
+        "active_page": "pii_detection"
+    })
+
+
+@app.get("/pii-logs", response_class=HTMLResponse)
+async def pii_logs_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    PII Detection logs page (Security viewer role or admin)
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+    
+    # Allow admin or security_viewer roles
+    if current_user.role not in ["admin", "security_viewer"]:
+        return RedirectResponse(url="/", status_code=302)
+    
+    return templates.TemplateResponse("pii_logs.html", {
+        "request": request,
+        "user": current_user,
+        "active_page": "pii_logs"
     })
 
 

@@ -1,0 +1,428 @@
+{% extends "base.html" %}
+
+{% block title %}PII & Secret Detection - Settings{% endblock %}
+
+{% block extra_css %}
+<style>
+    .pii-container {
+        padding: 20px;
+    }
+    
+    .pii-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+    }
+    
+    .pii-header h1 {
+        margin: 0;
+        font-size: 24px;
+        color: #333;
+    }
+    
+    .global-settings {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 30px;
+    }
+    
+    .global-settings h3 {
+        margin-top: 0;
+        font-size: 18px;
+        color: #495057;
+    }
+    
+    .setting-row {
+        display: flex;
+        gap: 30px;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+    
+    .checkbox-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+    }
+    
+    .form-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .form-group label {
+        margin: 0;
+        font-weight: 500;
+    }
+    
+    .tabs {
+        border-bottom: 2px solid #dee2e6;
+        margin-bottom: 25px;
+    }
+    
+    .tab-buttons {
+        display: flex;
+        gap: 5px;
+    }
+    
+    .tab-button {
+        padding: 12px 24px;
+        background: none;
+        border: none;
+        border-bottom: 3px solid transparent;
+        cursor: pointer;
+        font-size: 15px;
+        color: #6c757d;
+        transition: all 0.2s;
+    }
+    
+    .tab-button:hover {
+        color: #495057;
+    }
+    
+    .tab-button.active {
+        color: #007bff;
+        border-bottom-color: #007bff;
+        font-weight: 600;
+    }
+    
+    .tab-content {
+        display: none;
+    }
+    
+    .tab-content.active {
+        display: block;
+        animation: fadeIn 0.3s;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    
+    .entity-table, .plugin-table {
+        width: 100%;
+        border-collapse: collapse;
+        background: white;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    
+    .entity-table th, .plugin-table th {
+        background: #f8f9fa;
+        padding: 12px;
+        text-align: left;
+        font-weight: 600;
+        color: #495057;
+        border-bottom: 2px solid #dee2e6;
+    }
+    
+    .entity-table td, .plugin-table td {
+        padding: 12px;
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    .entity-table tr:last-child td, .plugin-table tr:last-child td {
+        border-bottom: none;
+    }
+    
+    .entity-table tr:hover, .plugin-table tr:hover {
+        background: #f8f9fa;
+    }
+    
+    .slider {
+        width: 150px;
+        margin: 0 10px;
+    }
+    
+    .threshold-display {
+        display: inline-block;
+        min-width: 35px;
+        font-weight: 600;
+        color: #495057;
+    }
+    
+    .custom-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        background: #17a2b8;
+        color: white;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 600;
+    }
+    
+    .test-sandbox {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 20px;
+    }
+    
+    .test-sandbox h3 {
+        margin-top: 0;
+        font-size: 18px;
+        color: #495057;
+    }
+    
+    .test-input {
+        width: 100%;
+        min-height: 120px;
+        padding: 12px;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        font-family: 'Courier New', monospace;
+        font-size: 14px;
+        margin-bottom: 15px;
+    }
+    
+    .results-box {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        padding: 15px;
+        margin-top: 15px;
+        max-height: 400px;
+        overflow-y: auto;
+    }
+    
+    .detection-item {
+        background: white;
+        border-left: 3px solid #28a745;
+        padding: 10px;
+        margin-bottom: 10px;
+        border-radius: 4px;
+    }
+    
+    .detection-item.presidio {
+        border-left-color: #007bff;
+    }
+    
+    .detection-item.detect-secrets {
+        border-left-color: #ffc107;
+    }
+    
+    .redacted-preview {
+        background: #fff3cd;
+        border: 1px solid #ffc107;
+        border-radius: 4px;
+        padding: 15px;
+        margin-top: 15px;
+        font-family: 'Courier New', monospace;
+        font-size: 14px;
+    }
+    
+    .btn-primary {
+        background: #007bff;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 600;
+    }
+    
+    .btn-primary:hover {
+        background: #0056b3;
+    }
+    
+    .btn-secondary {
+        background: #6c757d;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 13px;
+    }
+    
+    .btn-secondary:hover {
+        background: #545b62;
+    }
+    
+    .btn-success {
+        background: #28a745;
+        color: white;
+        border: none;
+        padding: 10px 24px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 600;
+        float: right;
+    }
+    
+    .btn-success:hover {
+        background: #218838;
+    }
+    
+    .loading {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border: 2px solid #f3f3f3;
+        border-top: 2px solid #007bff;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-left: 10px;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    .alert {
+        padding: 12px 20px;
+        border-radius: 4px;
+        margin-bottom: 20px;
+    }
+    
+    .alert-success {
+        background: #d4edda;
+        border: 1px solid #c3e6cb;
+        color: #155724;
+    }
+    
+    .alert-error {
+        background: #f8d7da;
+        border: 1px solid #f5c6cb;
+        color: #721c24;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="pii-container">
+    <div class="pii-header">
+        <h1>PII & Secret Detection</h1>
+        <button class="btn-success" onclick="saveConfiguration()">
+            Save Configuration
+        </button>
+    </div>
+    
+    <div id="alertMessage"></div>
+    
+    <!-- Global Settings -->
+    <div class="global-settings">
+        <h3>Global Settings</h3>
+        <div class="setting-row">
+            <label class="checkbox-label">
+                <input type="checkbox" id="enablePresidio" checked>
+                Enable PII Detection (Presidio)
+            </label>
+            <label class="checkbox-label">
+                <input type="checkbox" id="enableSecrets" checked>
+                Enable Secret Detection
+            </label>
+            <label class="checkbox-label">
+                <input type="checkbox" id="autoRedact" checked>
+                Auto-redact in outputs
+            </label>
+            <label class="checkbox-label">
+                <input type="checkbox" id="logDetections" checked>
+                Log all detections
+            </label>
+        </div>
+        <div class="setting-row">
+            <div class="form-group">
+                <label for="defaultRedaction">Default Redaction:</label>
+                <select id="defaultRedaction" class="form-control">
+                    <option value="mask">Mask</option>
+                    <option value="hash">Hash</option>
+                    <option value="remove">Remove</option>
+                    <option value="tag">Tag</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="maskChar">Mask Character:</label>
+                <input type="text" id="maskChar" value="*" maxlength="1" style="width: 50px;" class="form-control">
+            </div>
+        </div>
+    </div>
+    
+    <!-- Tabs -->
+    <div class="tabs">
+        <div class="tab-buttons">
+            <button class="tab-button active" onclick="switchTab('presidio')">Presidio Entities</button>
+            <button class="tab-button" onclick="switchTab('secrets')">detect-secrets Plugins</button>
+            <button class="tab-button" onclick="switchTab('test')">Test Detection</button>
+        </div>
+    </div>
+    
+    <!-- Presidio Entities Tab -->
+    <div id="presidio-tab" class="tab-content active">
+        <table class="entity-table">
+            <thead>
+                <tr>
+                    <th>Entity Type</th>
+                    <th>Enabled</th>
+                    <th>Threshold</th>
+                    <th>Redaction</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="presidioEntitiesTable">
+                <!-- Populated by JavaScript -->
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- detect-secrets Plugins Tab -->
+    <div id="secrets-tab" class="tab-content">
+        <table class="plugin-table">
+            <thead>
+                <tr>
+                    <th>Plugin</th>
+                    <th>Enabled</th>
+                    <th>Settings</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="pluginsTable">
+                <!-- Populated by JavaScript -->
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Test Detection Tab -->
+    <div id="test-tab" class="tab-content">
+        <div class="test-sandbox">
+            <h3>Test Detection</h3>
+            <textarea 
+                id="testInput" 
+                class="test-input" 
+                placeholder="Enter text to test detection...&#10;Example: My email is test@example.com and API key is sk_live_abcd123xyz"
+            ></textarea>
+            
+            <button class="btn-primary" onclick="runTest()">
+                Run Detection
+                <span id="testLoading" class="loading" style="display: none;"></span>
+            </button>
+            
+            <div id="testResults" style="display: none;">
+                <h4 style="margin-top: 20px;">Results:</h4>
+                <div id="detectionsResults" class="results-box">
+                    <!-- Detection results -->
+                </div>
+                
+                <h4>Redacted Preview:</h4>
+                <div id="redactedPreview" class="redacted-preview">
+                    <!-- Redacted text -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/pii_detection.js"></script>
+{% endblock %}

@@ -353,6 +353,51 @@
                 <span class="sidebar-text whitespace-nowrap hidden">Audit Logs</span>
             </a>
             {% endif %}
+            
+            <!-- PII Detection with Submenu -->
+            <div class="nav-group relative" onmouseenter="showFlyout('piiDetectionFlyout')"
+                onmouseleave="hideFlyout('piiDetectionFlyout')">
+                <button onclick="toggleSubmenu('piiDetectionSubmenu')"
+                    class="sidebar-item flex items-center justify-between w-full px-4 py-3 rounded-lg {% if active_page == 'pii_detection' or active_page == 'pii_logs' %}active{% endif %}"
+                    data-tooltip="PII Detection" data-has-submenu="true">
+                    <div class="flex items-center space-x-3">
+                        <i class="fas fa-shield-alt w-5 flex-shrink-0 nav-icon text-yellow-400"></i>
+                        <span class="sidebar-text whitespace-nowrap hidden">PII Detection</span>
+                    </div>
+                    <i class="fas fa-chevron-down text-xs text-gray-500 sidebar-text hidden submenu-arrow"
+                        id="piiDetectionSubmenuArrow"></i>
+                </button>
+                <!-- Inline submenu (shown when sidebar expanded) -->
+                <div id="piiDetectionSubmenu"
+                    class="submenu ml-4 mt-1 space-y-1 sidebar-text hidden overflow-hidden transition-all duration-200">
+                    <a href="/pii-detection"
+                        class="sidebar-subitem flex items-center space-x-3 px-4 py-2 rounded-lg text-sm {% if active_page == 'pii_detection' %}bg-gray-800 text-white{% else %}text-gray-400 hover:text-white hover:bg-gray-800{% endif %}">
+                        <i class="fas fa-cog w-4 text-yellow-300"></i>
+                        <span>Configuration</span>
+                    </a>
+                    <a href="/pii-logs"
+                        class="sidebar-subitem flex items-center space-x-3 px-4 py-2 rounded-lg text-sm {% if active_page == 'pii_logs' %}bg-gray-800 text-white{% else %}text-gray-400 hover:text-white hover:bg-gray-800{% endif %}">
+                        <i class="fas fa-list w-4 text-orange-300"></i>
+                        <span>Detection Logs</span>
+                    </a>
+                </div>
+                <!-- Flyout submenu (shown on hover when sidebar collapsed) -->
+                <div id="piiDetectionFlyout"
+                    class="flyout-menu fixed left-20 bg-gray-900 border border-gray-700 rounded-lg shadow-xl py-2 z-50 hidden min-w-48">
+                    <div class="px-3 py-2 text-xs text-gray-500 uppercase tracking-wider border-b border-gray-700 mb-1">
+                        PII Detection</div>
+                    <a href="/pii-detection"
+                        class="flex items-center space-x-3 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">
+                        <i class="fas fa-cog w-4 text-yellow-300"></i>
+                        <span>Configuration</span>
+                    </a>
+                    <a href="/pii-logs"
+                        class="flex items-center space-x-3 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">
+                        <i class="fas fa-list w-4 text-orange-300"></i>
+                        <span>Detection Logs</span>
+                    </a>
+                </div>
+            </div>
         </nav>
 
         <!-- User Profile Dropdown -->

@@ -24,6 +24,9 @@ from ..models_remediation import (
 )
 from .executor_base import ExecutionResult, ErrorType
 from .executor_factory import ExecutorFactory
+from .pii_service import PIIService
+from .presidio_service import PresidioService
+from .secret_detection_service import SecretDetectionService
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +52,8 @@ class RunbookExecutor:
     def __init__(
         self,
         db: AsyncSession,
-        fernet_key: Optional[str] = None
+        fernet_key: Optional[str] = None,
+        pii_service: Optional[PIIService] = None
     ):
         """
         Initialize the runbook executor.
@@ -57,11 +61,13 @@ class RunbookExecutor:
         Args:
             db: Database session for status updates.
             fernet_key: Encryption key for credentials.
+            pii_service: Optional PII detection service for output scanning.
         """
         self.db = db
         self.fernet_key = fernet_key
         self.jinja_env = Environment(loader=BaseLoader())
         self._cancelled = False
+        self.pii_service = pii_service
     
     def cancel(self):
         """Signal cancellation of current execution."""
@@ -290,6 +296,58 @@ class RunbookExecutor:
 
                     step_exec.completed_at = utc_now()
                     step_exec.duration_ms = result.duration_ms
+                    
+                    # Scan and redact PII/secrets from output if service is available
+                    if self.pii_service and (step_exec.stdout or step_exec.stderr or step_exec.http_response_body):
+                        try:
+                            # Combine all output for scanning
+                            output_text = ""
+                            if step_exec.stdout:
+                                output_text += step_exec.stdout
+                            if step_exec.stderr:
+                                output_text += "\n" + step_exec.stderr
+                            if step_exec.http_response_body:
+                                output_text += "\n" + step_exec.http_response_body
+                            
+                            # Detect PII/secrets
+                            detection_response = await self.pii_service.detect(
+                                text=output_text,
+                                source_type="runbook_output",
+                                source_id=str(step_exec.id)
+                            )
+                            
+                            # Log detections if any found
+                            if detection_response.detections:
+                                logger.info(
+                                    f"Detected {detection_response.detection_count} PII/secret(s) "
+                                    f"in step '{step.name}' output"
+                                )
+                                
+                                for detection in detection_response.detections:
+                                    await self.pii_service.log_detection(
+                                        detection=detection.model_dump(),
+                                        source_type="runbook_output",
+                                        source_id=str(step_exec.id)
+                                    )
+                                
+                                # Redact the output
+                                redaction_response = await self.pii_service.redact(
+                                    text=output_text,
+                                    redaction_type="mask"
+                                )
+                                
+                                # Update step execution with redacted output
+                                redacted_text = redaction_response.redacted_text
+                                if step_exec.stdout:
+                                    step_exec.stdout = redacted_text[:len(step_exec.stdout)]
+                                if step_exec.stderr and len(redacted_text) > len(step_exec.stdout or ""):
+                                    step_exec.stderr = redacted_text[len(step_exec.stdout or ""):]
+                                if step_exec.http_response_body:
+                                    step_exec.http_response_body = redacted_text[:10000]
+                                
+                        except Exception as e:
+                            logger.error(f"PII detection failed for step {step.name}: {e}")
+                            # Continue execution even if PII detection fails
                     
                     # Check success criteria
                     step_success = self._check_step_success(result, step)
