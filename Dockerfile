@@ -17,6 +17,9 @@ RUN curl -sSf https://atlasgo.sh | sh
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Install SpaCy language model for Presidio
+RUN python -m spacy download en_core_web_lg
+
 # Copy application code
 COPY app/ ./app/
 COPY templates/ ./templates/

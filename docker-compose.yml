@@ -35,6 +35,7 @@ services:
       - POSTGRES_DB=${POSTGRES_DB:-aiops}
       - POSTGRES_USER=${POSTGRES_USER:-aiops}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-aiops_secure_password}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-aiops}:${POSTGRES_PASSWORD:-aiops_secure_password}@postgres:5432/${POSTGRES_DB:-aiops}?sslmode=disable
       - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
       - JWT_EXPIRY_HOURS=${JWT_EXPIRY_HOURS:-24}
       - ENCRYPTION_KEY=${ENCRYPTION_KEY}

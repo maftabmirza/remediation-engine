@@ -36,30 +36,16 @@ class SecretDetectionService:
         self.hex_limit = hex_limit
         self.keyword_exclude = keyword_exclude or []
         
-        # Initialize settings
-        self.settings = default_settings
-        self.settings.filters = {}
-        
-        # Configure plugins
-        self._configure_plugins()
+        # Note: Settings configuration has been simplified in newer versions
+        # Plugin configuration is now handled at scan time
         
         logger.info("Secret detection service initialized")
     
     def _configure_plugins(self):
-        """Configure detect-secrets plugins."""
-        # Set entropy limits
-        self.settings.plugins['Base64HighEntropyString'] = {
-            'base64_limit': self.base64_limit
-        }
-        self.settings.plugins['HexHighEntropyString'] = {
-            'hex_limit': self.hex_limit
-        }
-        
-        # Configure keyword detector
-        if self.keyword_exclude:
-            self.settings.plugins['KeywordDetector'] = {
-                'keyword_exclude': ','.join(self.keyword_exclude)
-            }
+        """Configure detect-secrets plugins (deprecated - kept for compatibility)."""
+        # Configuration is now handled differently in newer versions
+        # This method is kept for backward compatibility but does nothing
+        pass
     
     def scan_text(
         self,

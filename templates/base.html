@@ -959,13 +959,7 @@
         }
 
         /* Extra CSS from child templates */
-            {
-            % block extra_css %
-        }
-
-            {
-            % endblock %
-        }
+        {% block extra_css %}{% endblock %}
     </style>
 
     <!-- Apache ECharts for advanced visualizations -->

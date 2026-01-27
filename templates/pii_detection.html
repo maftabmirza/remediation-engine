@@ -1,8 +1,29 @@
-{% extends "base.html" %}
+{% extends "layout.html" %}
+{% set active_page = 'settings' %}
 
 {% block title %}PII & Secret Detection - Settings{% endblock %}
 
-{% block extra_css %}
+{% block breadcrumbs %}
+<span class="mx-2">/</span>
+<span class="text-gray-400">Settings</span>
+<span class="mx-2">/</span>
+<span class="text-gray-200">PII Detection</span>
+{% endblock %}
+
+{% block header_title %}
+<i class="fas fa-shield-alt text-blue-400"></i>
+<span class="text-sm font-semibold text-white tracking-tight">PII & Secret Detection</span>
+{% endblock %}
+
+{% block header_actions %}
+<button class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors" onclick="saveConfiguration()">
+    <i class="fas fa-save mr-2"></i>Save Configuration
+</button>
+{% endblock %}
+
+{% block head %}
+<script src="/static/js/pii_detection.js"></script>
+<style>
 <style>
     .pii-container {
         padding: 20px;
@@ -18,12 +39,12 @@
     .pii-header h1 {
         margin: 0;
         font-size: 24px;
-        color: #333;
+        color: var(--text-primary);
     }
     
     .global-settings {
-        background: #f8f9fa;
-        border: 1px solid #dee2e6;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-color);
         border-radius: 8px;
         padding: 20px;
         margin-bottom: 30px;
@@ -32,7 +53,7 @@
     .global-settings h3 {
         margin-top: 0;
         font-size: 18px;
-        color: #495057;
+        color: var(--text-primary);
     }
     
     .setting-row {
@@ -61,7 +82,7 @@
     }
     
     .tabs {
-        border-bottom: 2px solid #dee2e6;
+        border-bottom: 2px solid var(--border-color);
         margin-bottom: 25px;
     }
     
@@ -77,17 +98,17 @@
         border-bottom: 3px solid transparent;
         cursor: pointer;
         font-size: 15px;
-        color: #6c757d;
+        color: var(--text-secondary);
         transition: all 0.2s;
     }
     
     .tab-button:hover {
-        color: #495057;
+        color: var(--text-primary);
     }
     
     .tab-button.active {
-        color: #007bff;
-        border-bottom-color: #007bff;
+        color: var(--accent-blue);
+        border-bottom-color: var(--accent-blue);
         font-weight: 600;
     }
     
@@ -108,24 +129,25 @@
     .entity-table, .plugin-table {
         width: 100%;
         border-collapse: collapse;
-        background: white;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        background: var(--bg-secondary);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.3);
         border-radius: 8px;
         overflow: hidden;
     }
     
     .entity-table th, .plugin-table th {
-        background: #f8f9fa;
+        background: var(--bg-tertiary);
         padding: 12px;
         text-align: left;
         font-weight: 600;
-        color: #495057;
-        border-bottom: 2px solid #dee2e6;
+        color: var(--text-primary);
+        border-bottom: 2px solid var(--border-color);
     }
     
     .entity-table td, .plugin-table td {
         padding: 12px;
-        border-bottom: 1px solid #dee2e6;
+        border-bottom: 1px solid var(--border-color);
+        color: var(--text-primary);
     }
     
     .entity-table tr:last-child td, .plugin-table tr:last-child td {
@@ -133,7 +155,7 @@
     }
     
     .entity-table tr:hover, .plugin-table tr:hover {
-        background: #f8f9fa;
+        background: var(--bg-tertiary);
     }
     
     .slider {
@@ -145,13 +167,13 @@
         display: inline-block;
         min-width: 35px;
         font-weight: 600;
-        color: #495057;
+        color: var(--text-primary);
     }
     
     .custom-badge {
         display: inline-block;
         padding: 2px 8px;
-        background: #17a2b8;
+        background: var(--accent-blue);
         color: white;
         border-radius: 12px;
         font-size: 11px;
@@ -159,8 +181,8 @@
     }
     
     .test-sandbox {
-        background: white;
-        border: 1px solid #dee2e6;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-color);
         border-radius: 8px;
         padding: 20px;
     }
@@ -168,14 +190,16 @@
     .test-sandbox h3 {
         margin-top: 0;
         font-size: 18px;
-        color: #495057;
+        color: var(--text-primary);
     }
     
     .test-input {
         width: 100%;
         min-height: 120px;
         padding: 12px;
-        border: 1px solid #ced4da;
+        border: 1px solid var(--border-color);
+        background: var(--bg-tertiary);
+        color: var(--text-primary);
         border-radius: 4px;
         font-family: 'Courier New', monospace;
         font-size: 14px;
@@ -183,8 +207,8 @@
     }
     
     .results-box {
-        background: #f8f9fa;
-        border: 1px solid #dee2e6;
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-color);
         border-radius: 4px;
         padding: 15px;
         margin-top: 15px;
@@ -193,33 +217,35 @@
     }
     
     .detection-item {
-        background: white;
-        border-left: 3px solid #28a745;
+        background: var(--bg-secondary);
+        border-left: 3px solid var(--accent-green);
         padding: 10px;
         margin-bottom: 10px;
         border-radius: 4px;
+        color: var(--text-primary);
     }
     
     .detection-item.presidio {
-        border-left-color: #007bff;
+        border-left-color: var(--accent-blue);
     }
     
     .detection-item.detect-secrets {
-        border-left-color: #ffc107;
+        border-left-color: var(--accent-yellow);
     }
     
     .redacted-preview {
-        background: #fff3cd;
-        border: 1px solid #ffc107;
+        background: var(--bg-tertiary);
+        border: 1px solid var(--accent-yellow);
         border-radius: 4px;
         padding: 15px;
         margin-top: 15px;
         font-family: 'Courier New', monospace;
         font-size: 14px;
+        color: var(--text-primary);
     }
     
     .btn-primary {
-        background: #007bff;
+        background: var(--accent-blue);
         color: white;
         border: none;
         padding: 10px 20px;
@@ -230,13 +256,13 @@
     }
     
     .btn-primary:hover {
-        background: #0056b3;
+        opacity: 0.9;
     }
     
     .btn-secondary {
-        background: #6c757d;
-        color: white;
-        border: none;
+        background: var(--bg-tertiary);
+        color: var(--text-primary);
+        border: 1px solid var(--border-color);
         padding: 8px 16px;
         border-radius: 4px;
         cursor: pointer;
@@ -244,11 +270,11 @@
     }
     
     .btn-secondary:hover {
-        background: #545b62;
+        background: var(--bg-secondary);
     }
     
     .btn-success {
-        background: #28a745;
+        background: var(--accent-green);
         color: white;
         border: none;
         padding: 10px 24px;
@@ -260,15 +286,15 @@
     }
     
     .btn-success:hover {
-        background: #218838;
+        opacity: 0.9;
     }
     
     .loading {
         display: inline-block;
         width: 16px;
         height: 16px;
-        border: 2px solid #f3f3f3;
-        border-top: 2px solid #007bff;
+        border: 2px solid var(--bg-tertiary);
+        border-top: 2px solid var(--accent-blue);
         border-radius: 50%;
         animation: spin 1s linear infinite;
         margin-left: 10px;
@@ -286,28 +312,21 @@
     }
     
     .alert-success {
-        background: #d4edda;
-        border: 1px solid #c3e6cb;
-        color: #155724;
+        background: rgba(108, 207, 142, 0.2);
+        border: 1px solid var(--accent-green);
+        color: var(--accent-green);
     }
     
     .alert-error {
-        background: #f8d7da;
-        border: 1px solid #f5c6cb;
-        color: #721c24;
+        background: rgba(255, 82, 134, 0.2);
+        border: 1px solid var(--accent-red);
+        color: var(--accent-red);
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="pii-container">
-    <div class="pii-header">
-        <h1>PII & Secret Detection</h1>
-        <button class="btn-success" onclick="saveConfiguration()">
-            Save Configuration
-        </button>
-    </div>
-    
+<div class="p-6">
     <div id="alertMessage"></div>
     
     <!-- Global Settings -->
@@ -421,8 +440,4 @@
         </div>
     </div>
 </div>
-{% endblock %}
-
-{% block extra_js %}
-<script src="/static/js/pii_detection.js"></script>
 {% endblock %}
