@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime, timezone
 from sqlalchemy import Column, String, Boolean, Integer, Text, ForeignKey, DateTime, JSON, CheckConstraint
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, validates
 from typing import TYPE_CHECKING
 from pgvector.sqlalchemy import Vector
 
@@ -71,6 +71,13 @@ class LLMProvider(Base):
     config_json = Column(JSON, default={"temperature": 0.3, "max_tokens": 2000})
     created_at = Column(DateTime(timezone=True), default=utc_now)
     updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+
+    @validates('provider_type')
+    def normalize_provider_type(self, key, value):
+        """Automatically normalize provider_type to lowercase and strip whitespace"""
+        if value:
+            return value.lower().strip()
+        return value
 
 
 class AutoAnalyzeRule(Base):

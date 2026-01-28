@@ -7,7 +7,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_db
+from app.database import get_async_db
 from app.schemas.pii_schemas import (
     DetectionRequest,
     DetectionResponse,
@@ -34,7 +34,7 @@ router = APIRouter(prefix="/api/v1/pii", tags=["PII Detection"])
 
 
 # Dependency to get PII service
-async def get_pii_service(db: AsyncSession = Depends(get_db)) -> PIIService:
+async def get_pii_service(db: AsyncSession = Depends(get_async_db)) -> PIIService:
     """
     Dependency to create PII service instance.
     

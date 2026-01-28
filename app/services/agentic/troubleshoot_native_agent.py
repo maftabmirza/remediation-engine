@@ -687,8 +687,13 @@ Tools called so far will be tracked. If you try to suggest a command without suf
         """Call the LLM with current messages and tools"""
         api_key = get_api_key_for_provider(self.provider)
 
+        # Log provider details for debugging
+        provider_type = (self.provider.provider_type or "").lower().strip()
+        logger.info(f"_call_llm: provider_type='{provider_type}', model={self.provider.model_id}, has_api_key={bool(api_key)}")
+
         # For Anthropic, use direct SDK to avoid litellm bugs
-        if self.provider.provider_type == "anthropic" and api_key:
+        if provider_type == "anthropic" and api_key:
+            logger.info("Using direct Anthropic SDK")
             return await self._call_anthropic_directly(api_key)
 
         # Prepare tools

@@ -335,15 +335,31 @@ function displayTestResults(result) {
     
     // Display detections
     if (result.detections && result.detections.length > 0) {
-        detectionsDiv.innerHTML = result.detections.map(detection => `
-            <div class="detection-item ${detection.engine}">
-                <strong>${detection.entity_type}</strong> (${detection.engine})
-                <br>
-                <small>Confidence: ${(detection.confidence_score * 100).toFixed(1)}%</small>
-                <br>
-                <small>Position: ${detection.position_start}-${detection.position_end}</small>
-            </div>
-        `).join('');
+        detectionsDiv.innerHTML = result.detections.map(detection => {
+            const confidenceRaw = (detection.confidence ?? detection.confidence_score);
+            const confidencePct = (typeof confidenceRaw === 'number' && Number.isFinite(confidenceRaw))
+                ? `${(confidenceRaw * 100).toFixed(1)}%`
+                : 'N/A';
+
+            const start = (typeof detection.start === 'number') ? detection.start : detection.position_start;
+            const end = (typeof detection.end === 'number') ? detection.end : detection.position_end;
+            const position = (typeof start === 'number' && typeof end === 'number')
+                ? `${start}-${end}`
+                : 'N/A';
+
+            const engine = detection.engine || 'unknown';
+            const entityType = detection.entity_type || detection.entity || 'UNKNOWN';
+
+            return `
+                <div class="detection-item ${engine}">
+                    <strong>${entityType}</strong> (${engine})
+                    <br>
+                    <small>Confidence: ${confidencePct}</small>
+                    <br>
+                    <small>Position: ${position}</small>
+                </div>
+            `;
+        }).join('');
     } else {
         detectionsDiv.innerHTML = '<p>No detections found</p>';
     }

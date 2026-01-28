@@ -84,6 +84,7 @@ class LLMProviderCreate(LLMProviderBase):
 
 class LLMProviderUpdate(BaseModel):
     name: Optional[str] = None
+    provider_type: Optional[str] = None  # Allow updating provider type
     model_id: Optional[str] = None
     api_key: Optional[str] = None
     api_base_url: Optional[str] = None

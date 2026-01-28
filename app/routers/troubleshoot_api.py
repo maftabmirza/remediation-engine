@@ -118,7 +118,9 @@ async def troubleshoot_chat(
                     LLMProvider.is_enabled == True
                 ).first()
                 if provider:
-                    logger.info(f"Using session's stored provider: {provider.name}")
+                    logger.info(f"Using session's stored provider: {provider.name} (type={provider.provider_type}, model={provider.model_id})")
+                else:
+                    logger.warning(f"Stored provider_id {stored_provider_id} not found or not enabled")
             except (ValueError, TypeError):
                 logger.warning(f"Invalid stored provider_id: {stored_provider_id}")
         
@@ -128,11 +130,15 @@ async def troubleshoot_chat(
                 LLMProvider.is_default == True,
                 LLMProvider.is_enabled == True
             ).first()
+            if provider:
+                logger.info(f"Using default provider: {provider.name} (type={provider.provider_type}, model={provider.model_id})")
         
         if not provider:
             provider = db.query(LLMProvider).filter(
                 LLMProvider.is_enabled == True
             ).first()
+            if provider:
+                logger.info(f"Using first enabled provider: {provider.name} (type={provider.provider_type}, model={provider.model_id})")
         
         if not provider:
             return {
@@ -280,7 +286,9 @@ async def troubleshoot_chat_stream(
                         LLMProvider.is_enabled == True
                     ).first()
                     if provider:
-                        logger.info(f"Streaming: Using session's stored provider: {provider.name}")
+                        logger.info(f"Streaming: Using session's stored provider: {provider.name} (type={provider.provider_type}, model={provider.model_id})")
+                    else:
+                        logger.warning(f"Streaming: Stored provider_id {stored_provider_id} not found or not enabled")
                 except (ValueError, TypeError):
                     logger.warning(f"Invalid stored provider_id: {stored_provider_id}")
             
@@ -290,11 +298,15 @@ async def troubleshoot_chat_stream(
                     LLMProvider.is_default == True,
                     LLMProvider.is_enabled == True
                 ).first()
+                if provider:
+                    logger.info(f"Streaming: Using default provider: {provider.name} (type={provider.provider_type}, model={provider.model_id})")
             
             if not provider:
                 provider = db.query(LLMProvider).filter(
                     LLMProvider.is_enabled == True
                 ).first()
+                if provider:
+                    logger.info(f"Streaming: Using first enabled provider: {provider.name} (type={provider.provider_type}, model={provider.model_id})")
             
             if not provider:
                 yield f"data: {json.dumps({'type': 'error', 'content': 'No LLM provider configured'})}\n\n"

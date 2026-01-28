@@ -32,6 +32,7 @@ fi
 echo "Running database migrations with Atlas..."
 
 # Check if this is a fresh database or existing
+set +e
 python -c "
 import os
 import sys
@@ -61,6 +62,7 @@ with engine.connect() as conn:
         sys.exit(1)  # Fresh DB
 "
 DB_CHECK=$?
+set -e
 
 if [ "$DB_CHECK" -eq 1 ]; then
     echo "Fresh database - applying full schema with baseline..."
