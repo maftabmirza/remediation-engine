@@ -247,7 +247,7 @@ You often try to "complete" the task by inventing tool outputs. **STOP.**
 ## TOOL REFERENCE
 
 ### Knowledge Tools (may or may not return results):
-- **search_knowledge**: Search runbooks, SOPs, architecture docs
+- **search_knowledge**: Search SOPs and Architecture docs (primary), Code repos (optional for implementation details)
 - **get_runbook**: Step-by-step procedures (may not exist)
 - **get_similar_incidents**: Past incidents (reference only, context may differ)
 - **get_proven_solutions**: Past fixes (hints, not guarantees)
@@ -804,10 +804,53 @@ Tools called so far will be tracked. If you try to suggest a command without suf
                 "content": self._get_system_prompt()
             })
 
-        # Add user message
+        # Scan user input for PII/secrets before sending to LLM
+        processed_message = user_message
+        pii_service = None
+        try:
+            from app.services import llm_service
+            import time
+            if llm_service._pii_service_factory and user_message:
+                pii_service = await llm_service._pii_service_factory()
+                detection_response = await pii_service.detect(
+                    text=user_message,
+                    source_type="user_input",
+                    source_id=f"agent_{int(time.time())}"
+                )
+                
+                if detection_response.detections:
+                    logger.warning(
+                        f"Detected {detection_response.detection_count} PII/secret(s) "
+                        f"in user input"
+                    )
+                    
+                    # Log detections
+                    for detection in detection_response.detections:
+                        await pii_service.log_detection(
+                            detection=detection.model_dump(),
+                            source_type="user_input",
+                            source_id="agent_chat"
+                        )
+                    
+                    # Redact user input before sending to LLM
+                    redaction_response = await pii_service.redact(
+                        text=user_message,
+                        redaction_type="tag"
+                    )
+                    processed_message = redaction_response.redacted_text
+                    logger.info(f"User input redacted: {len(detection_response.detections)} PII items removed")
+        except Exception as e:
+            logger.error(f"PII detection failed for user input: {e}")
+            # Continue with original message if PII detection fails
+        finally:
+            # Close PII service session to prevent connection leaks
+            if pii_service:
+                await pii_service.close()
+
+        # Add user message (potentially redacted)
         self.messages.append({
             "role": "user",
-            "content": user_message
+            "content": processed_message
         })
 
         # DEBUG: Log full conversation being sent to LLM
@@ -884,6 +927,46 @@ Tools called so far will be tracked. If you try to suggest a command without suf
                     
                     final_content = self._ensure_runbook_links_in_final(message.content or "")
 
+                    # Scan for PII/secrets in agent response
+                    pii_service_resp = None
+                    try:
+                        from app.services import llm_service
+                        if llm_service._pii_service_factory and final_content:
+                            pii_service_resp = await llm_service._pii_service_factory()
+                            detection_response = await pii_service_resp.detect(
+                                text=final_content,
+                                source_type="agent_response",
+                                source_id=f"{self.provider.id}_{int(time.time())}"
+                            )
+                            
+                            if detection_response.detections:
+                                logger.warning(
+                                    f"Detected {detection_response.detection_count} PII/secret(s) "
+                                    f"in agent response"
+                                )
+                                
+                                # Log detections
+                                for detection in detection_response.detections:
+                                    await pii_service_resp.log_detection(
+                                        detection=detection.model_dump(),
+                                        source_type="agent_response",
+                                        source_id=f"{self.provider.id}"
+                                    )
+                                
+                                # Redact the response
+                                redaction_response = await pii_service_resp.redact(
+                                    text=final_content,
+                                    redaction_type="tag"
+                                )
+                                final_content = redaction_response.redacted_text
+                    except Exception as e:
+                        logger.error(f"PII detection failed for agent response: {e}")
+                        # Continue even if PII detection fails
+                    finally:
+                        # Close PII service session to prevent connection leaks
+                        if pii_service_resp:
+                            await pii_service_resp.close()
+
                     # Add to messages
                     self.messages.append({
                         "role": "assistant",
@@ -938,6 +1021,48 @@ Tools called so far will be tracked. If you try to suggest a command without suf
                 "content": self._get_system_prompt()
             })
 
+        # Scan user input for PII/secrets before sending to LLM
+        processed_message = user_message
+        pii_service_input = None
+        try:
+            from app.services import llm_service
+            import time
+            if llm_service._pii_service_factory and user_message:
+                pii_service_input = await llm_service._pii_service_factory()
+                detection_response = await pii_service_input.detect(
+                    text=user_message,
+                    source_type="user_input",
+                    source_id=f"agent_{int(time.time())}"
+                )
+                
+                if detection_response.detections:
+                    logger.warning(
+                        f"Detected {detection_response.detection_count} PII/secret(s) "
+                        f"in user input - redacting before sending to LLM"
+                    )
+                    
+                    # Log detections
+                    for detection in detection_response.detections:
+                        await pii_service_input.log_detection(
+                            detection=detection.model_dump(),
+                            source_type="user_input",
+                            source_id="agent_chat"
+                        )
+                    
+                    # Redact user input before sending to LLM
+                    redaction_response = await pii_service_input.redact(
+                        text=user_message,
+                        redaction_type="tag"
+                    )
+                    processed_message = redaction_response.redacted_text
+        except Exception as e:
+            logger.error(f"PII detection failed for user input: {e}")
+            # Continue with original message if PII detection fails
+        finally:
+            # Close PII service session to prevent connection leaks
+            if pii_service_input:
+                await pii_service_input.close()
+
         # DEBUG: Log full conversation being sent to LLM
         logger.warning("="*80)
         logger.warning(f"🔍 AGENT DEBUG: Sending {len(self.messages) + 1} messages to LLM (History + New)")
@@ -945,13 +1070,13 @@ Tools called so far will be tracked. If you try to suggest a command without suf
             role = msg.get("role", "unknown")
             content = msg.get("content", "")
             logger.warning(f"  History {i} [{role}]: {content[:50]}...")
-        logger.warning(f"  New User Msg: {user_message[:50]}...")
+        logger.warning(f"  New User Msg: {processed_message[:50]}...")
         logger.warning("="*80)
 
-        # Add user message
+        # Add user message (potentially redacted)
         self.messages.append({
             "role": "user",
-            "content": user_message
+            "content": processed_message
         })
 
         # DEBUG: Log full conversation being sent to LLM
@@ -1161,6 +1286,47 @@ Tools called so far will be tracked. If you try to suggest a command without suf
                     
                     # Final response - yield content
                     final_content = self._ensure_runbook_links_in_final(content)
+
+                    # Scan for PII/secrets in agent response
+                    pii_service_stream = None
+                    try:
+                        from app.services import llm_service
+                        import time
+                        if llm_service._pii_service_factory and final_content:
+                            pii_service_stream = await llm_service._pii_service_factory()
+                            detection_response = await pii_service_stream.detect(
+                                text=final_content,
+                                source_type="agent_response",
+                                source_id=f"{self.provider.id}_{int(time.time())}"
+                            )
+                            
+                            if detection_response.detections:
+                                logger.warning(
+                                    f"Detected {detection_response.detection_count} PII/secret(s) "
+                                    f"in agent response"
+                                )
+                                
+                                # Log detections
+                                for detection in detection_response.detections:
+                                    await pii_service_stream.log_detection(
+                                        detection=detection.model_dump(),
+                                        source_type="agent_response",
+                                        source_id=f"{self.provider.id}"
+                                    )
+                                
+                                # Redact the response
+                                redaction_response = await pii_service_stream.redact(
+                                    text=final_content,
+                                    redaction_type="tag"
+                                )
+                                final_content = redaction_response.redacted_text
+                    except Exception as e:
+                        logger.error(f"PII detection failed for agent response: {e}")
+                        # Continue even if PII detection fails
+                    finally:
+                        # Close PII service session to prevent connection leaks
+                        if pii_service_stream:
+                            await pii_service_stream.close()
 
                     # Add to messages
                     self.messages.append({

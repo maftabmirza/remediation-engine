@@ -16,6 +16,7 @@ from app.models import User, LLMProvider
 from app.services.revive.orchestrator import ReviveOrchestrator
 from app.services.ai_permission_service import AIPermissionService
 from app.schemas_revive import AIHelperQueryRequest, AIHelperQueryResponse
+from app.services.pii_mapping_manager import PIIMappingManager
 
 # Unique prefix for this flow
 router = APIRouter(
@@ -38,6 +39,8 @@ async def revive_app_query(
     """
     logger.info(f"RE-VIVE App query from {current_user.username}: {request.query}")
     
+    pii_service = None
+    
     try:
         # Get LLM Provider
         provider = db.query(LLMProvider).filter(LLMProvider.is_default == True, LLMProvider.is_enabled == True).first()
@@ -46,6 +49,52 @@ async def revive_app_query(
         
         if not provider:
             raise HTTPException(status_code=503, detail="No LLM provider configured")
+        
+        # PII Detection for user query
+        query_to_use = request.query
+        pii_mapping = {}
+        pii_manager = PIIMappingManager({})
+        
+        try:
+            from app.services import llm_service
+
+            pii_factory = getattr(llm_service, "_pii_service_factory", None)
+            logger.info(f"🔍 PII CHECK [RE-VIVE APP]: pii_factory={pii_factory is not None}, query_len={len(request.query) if request.query else 0}")
+            
+            if pii_factory and request.query:
+                pii_service = await pii_factory()
+                detection_response = await pii_service.detect(
+                    text=request.query,
+                    source_type="user_input",
+                )
+                
+                detections = getattr(detection_response, "detections", None) or []
+                logger.info(f"🔍 PII DETECTIONS [RE-VIVE APP]: found {len(detections)} items")
+
+                if detections:
+                    logger.warning(f"Detected {len(detections)} PII/secret(s) in RE-VIVE App query")
+                    
+                    for detection in detections:
+                        await pii_service.log_detection(
+                            detection=detection.model_dump(),
+                            source_type="user_input",
+                            source_id=None,
+                        )
+
+                    detection_dicts = [d.model_dump() for d in detections]
+                    query_to_use, _ = pii_manager.redact_text_with_mappings(
+                        text=request.query,
+                        detections=detection_dicts
+                    )
+                    
+                    pii_mapping = pii_manager.get_all_mappings()
+                    logger.info(f"🔍 PII REDACTED [RE-VIVE APP]: total mappings: {len(pii_manager)}")
+        except Exception as e:
+            logger.error(f"PII detection failed for RE-VIVE App: {e}", exc_info=True)
+        finally:
+            if pii_service:
+                await pii_service.close()
+                pii_service = None
         
         # Initialize services
         perm_service = AIPermissionService(db)
@@ -67,9 +116,9 @@ async def revive_app_query(
         confidence = 0.0
         sources = []
         
-        # Stream response
+        # Stream response (with potentially redacted query)
         async for chunk in orchestrator.run_revive_turn(
-            message=request.query,
+            message=query_to_use,
             session_messages=[], # TODO: Add session state if needed
             page_context=request.page_context,
             explicit_mode="general" # Bias towards general app assistance

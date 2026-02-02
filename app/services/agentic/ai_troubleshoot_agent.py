@@ -244,7 +244,7 @@ You often try to "complete" the task by inventing tool outputs. **STOP.**
 ## TOOL REFERENCE
 
 ### Knowledge Tools (may or may not return results):
-- **search_knowledge**: Search runbooks, SOPs, architecture docs
+- **search_knowledge**: Search SOPs and Architecture docs (primary), Code repos (optional for implementation details)
 - **get_runbook**: Step-by-step procedures (may not exist)
 - **get_similar_incidents**: Past incidents (reference only, context may differ)
 - **get_proven_solutions**: Past fixes (hints, not guarantees)

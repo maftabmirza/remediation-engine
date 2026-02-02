@@ -8,6 +8,7 @@ import pytest
 from uuid import uuid4
 
 from app.services.ai_permission_service import AIPermissionService
+from app.services.auth_service import get_password_hash
 from app.models import User
 from app.models_ai import AIPermission
 
@@ -19,7 +20,14 @@ def permission_service(db):
 
 @pytest.fixture
 def admin_user(db):
-    user = User(id=uuid4(), username="admin", email="admin@test.com", role="admin")
+    user = User(
+        id=uuid4(),
+        username="admin",
+        email="admin@test.com",
+        role="admin",
+        password_hash=get_password_hash("TestPassword123!"),
+        is_active=True
+    )
     db.add(user)
     db.commit()
     return user
@@ -27,7 +35,14 @@ def admin_user(db):
 
 @pytest.fixture
 def operator_user(db):
-    user = User(id=uuid4(), username="operator", email="op@test.com", role="operator")
+    user = User(
+        id=uuid4(),
+        username="operator",
+        email="op@test.com",
+        role="operator",
+        password_hash=get_password_hash("TestPassword123!"),
+        is_active=True
+    )
     db.add(user)
     db.commit()
     return user
@@ -35,7 +50,14 @@ def operator_user(db):
 
 @pytest.fixture
 def engineer_user(db):
-    user = User(id=uuid4(), username="engineer", email="eng@test.com", role="engineer")
+    user = User(
+        id=uuid4(),
+        username="engineer",
+        email="eng@test.com",
+        role="engineer",
+        password_hash=get_password_hash("TestPassword123!"),
+        is_active=True
+    )
     db.add(user)
     db.commit()
     return user
@@ -43,7 +65,14 @@ def engineer_user(db):
 
 @pytest.fixture
 def viewer_user(db):
-    user = User(id=uuid4(), username="viewer", email="view@test.com", role="viewer")
+    user = User(
+        id=uuid4(),
+        username="viewer",
+        email="view@test.com",
+        role="viewer",
+        password_hash=get_password_hash("TestPassword123!"),
+        is_active=True
+    )
     db.add(user)
     db.commit()
     return user

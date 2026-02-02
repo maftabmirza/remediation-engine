@@ -46,6 +46,8 @@ services:
       - aiops_aiops-network
     volumes:
       - ./htmlcov:/app/htmlcov # Persist coverage reports
+      - ./tests:/app/tests:ro
+      - ./pytest.ini:/app/pytest.ini:ro
 
 networks:
   test-network:

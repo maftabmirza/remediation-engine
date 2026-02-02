@@ -5,23 +5,28 @@
 let currentConfig = null;
 let entities = [];
 let plugins = [];
+let whitelistItems = [];
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
     loadConfiguration();
     loadEntities();
     loadPlugins();
+    loadWhitelist();
 });
 
 /**
  * Switch between tabs
  */
-function switchTab(tabName) {
+function switchTab(tabName, button) {
     // Update buttons
     document.querySelectorAll('.tab-button').forEach(btn => {
         btn.classList.remove('active');
     });
-    event.target.classList.add('active');
+    const activeButton = button || document.querySelector(`.tab-button[data-tab="${tabName}"]`);
+    if (activeButton) {
+        activeButton.classList.add('active');
+    }
     
     // Update content
     document.querySelectorAll('.tab-content').forEach(content => {
@@ -43,6 +48,14 @@ async function loadConfiguration() {
     } catch (error) {
         showAlert('Error loading configuration: ' + error.message, 'error');
     }
+}
+
+/**
+ * Build auth headers (if token is available)
+ */
+function getAuthHeaders() {
+    const token = localStorage.getItem('token');
+    return token ? { 'Authorization': `Bearer ${token}` } : {};
 }
 
 /**
@@ -69,6 +82,7 @@ async function loadEntities() {
         const data = await response.json();
         entities = data.presidio_entities || [];
         renderEntitiesTable();
+        updateExceptionEntityOptions();
     } catch (error) {
         showAlert('Error loading entities: ' + error.message, 'error');
     }
@@ -81,15 +95,18 @@ function renderEntitiesTable() {
     const tbody = document.getElementById('presidioEntitiesTable');
     tbody.innerHTML = '';
     
+    // Presidio built-in PII entity types
+    // Secrets (passwords, API keys, tokens) are detected by detect-secrets library
     const defaultEntities = [
-        { name: 'EMAIL', description: 'Email addresses', built_in: true, threshold: 0.7, enabled: true, redaction: 'mask' },
+        { name: 'EMAIL_ADDRESS', description: 'Email addresses', built_in: true, threshold: 0.7, enabled: true, redaction: 'mask' },
         { name: 'PHONE_NUMBER', description: 'Phone numbers', built_in: true, threshold: 0.6, enabled: true, redaction: 'mask' },
-        { name: 'US_SSN', description: 'Social Security Numbers', built_in: true, threshold: 0.8, enabled: true, redaction: 'hash' },
+        { name: 'US_SSN', description: 'US Social Security Numbers', built_in: true, threshold: 0.8, enabled: true, redaction: 'hash' },
         { name: 'CREDIT_CARD', description: 'Credit card numbers', built_in: true, threshold: 0.8, enabled: true, redaction: 'mask' },
         { name: 'PERSON', description: 'Person names', built_in: true, threshold: 0.5, enabled: false, redaction: 'tag' },
-        { name: 'HIGH_ENTROPY', description: 'High entropy strings', built_in: false, threshold: 0.7, enabled: true, redaction: 'mask' },
-        { name: 'INTERNAL_HOSTNAME', description: 'Internal hostnames', built_in: false, threshold: 0.7, enabled: true, redaction: 'mask' },
-        { name: 'PRIVATE_IP', description: 'Private IP addresses', built_in: false, threshold: 0.7, enabled: true, redaction: 'mask' }
+        { name: 'IP_ADDRESS', description: 'IP addresses', built_in: true, threshold: 0.7, enabled: true, redaction: 'mask' },
+        { name: 'US_PASSPORT', description: 'US passport numbers', built_in: true, threshold: 0.8, enabled: true, redaction: 'mask' },
+        { name: 'US_DRIVER_LICENSE', description: 'US driver license numbers', built_in: true, threshold: 0.8, enabled: true, redaction: 'mask' },
+        { name: 'IBAN_CODE', description: 'IBAN bank codes', built_in: true, threshold: 0.8, enabled: true, redaction: 'mask' }
     ];
     
     // Merge with current config if available
@@ -143,6 +160,7 @@ async function loadPlugins() {
         const data = await response.json();
         plugins = data.detect_secrets_plugins || [];
         renderPluginsTable();
+        updateExceptionEntityOptions();
     } catch (error) {
         showAlert('Error loading plugins: ' + error.message, 'error');
     }
@@ -155,15 +173,26 @@ function renderPluginsTable() {
     const tbody = document.getElementById('pluginsTable');
     tbody.innerHTML = '';
     
+    // detect-secrets plugins - optimized for low false positives
+    // High entropy detectors are DISABLED by default
     const defaultPlugins = [
-        { name: 'HighEntropyString', description: 'Detects high entropy strings', configurable: true, settings: 'Base64: 4.5, Hex: 3.0', enabled: true },
-        { name: 'KeywordDetector', description: 'Detects keywords like password', configurable: true, settings: 'Keywords: password, secret', enabled: true },
-        { name: 'AWSKeyDetector', description: 'Detects AWS access keys', configurable: false, settings: '-', enabled: true },
-        { name: 'GitHubTokenDetector', description: 'Detects GitHub tokens', configurable: false, settings: '-', enabled: true },
-        { name: 'PrivateKeyDetector', description: 'Detects private keys', configurable: false, settings: '-', enabled: true },
-        { name: 'JwtTokenDetector', description: 'Detects JWT tokens', configurable: false, settings: '-', enabled: true },
-        { name: 'SlackDetector', description: 'Detects Slack tokens', configurable: false, settings: '-', enabled: true },
-        { name: 'StripeDetector', description: 'Detects Stripe API keys', configurable: false, settings: '-', enabled: true }
+        { name: 'KeywordDetector', description: 'Detects secrets by context (password=, secret=, api_key=, token=)', enabled: true },
+        { name: 'AWSKeyDetector', description: 'AWS access keys and secret keys', enabled: true },
+        { name: 'GitHubTokenDetector', description: 'GitHub tokens (ghp_, gho_, ghu_, ghs_, ghr_)', enabled: true },
+        { name: 'GitLabTokenDetector', description: 'GitLab tokens (glpat-)', enabled: true },
+        { name: 'OpenAIDetector', description: 'OpenAI API keys (sk-)', enabled: true },
+        { name: 'JwtTokenDetector', description: 'JSON Web Tokens (JWT)', enabled: true },
+        { name: 'PrivateKeyDetector', description: 'RSA/SSH/EC private keys', enabled: true },
+        { name: 'SlackDetector', description: 'Slack tokens (xoxb-, xoxp-)', enabled: true },
+        { name: 'StripeDetector', description: 'Stripe API keys (sk_live_, sk_test_)', enabled: true },
+        { name: 'BasicAuthDetector', description: 'Basic auth in URLs (user:pass@host)', enabled: true },
+        { name: 'AzureStorageKeyDetector', description: 'Azure storage account keys', enabled: true },
+        { name: 'TwilioKeyDetector', description: 'Twilio API keys', enabled: true },
+        { name: 'SendGridDetector', description: 'SendGrid API keys', enabled: true },
+        { name: 'DiscordBotTokenDetector', description: 'Discord bot tokens', enabled: true },
+        { name: 'TelegramBotTokenDetector', description: 'Telegram bot tokens', enabled: true },
+        { name: 'Base64HighEntropyString', description: 'High entropy base64 (⚠️ causes false positives)', enabled: false },
+        { name: 'HexHighEntropyString', description: 'High entropy hex (⚠️ causes false positives)', enabled: false }
     ];
     
     // Merge with current config if available
@@ -174,19 +203,23 @@ function renderPluginsTable() {
     });
     
     mergedPlugins.forEach(plugin => {
+        const isWarning = plugin.name.includes('HighEntropy');
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td>${plugin.name}</td>
+            <td>
+                <strong>${plugin.name}</strong>
+            </td>
             <td>
                 <input type="checkbox" ${plugin.enabled ? 'checked' : ''} 
                     onchange="updatePluginEnabled('${plugin.name}', this.checked)">
             </td>
-            <td>${plugin.settings}</td>
+            <td style="color: ${isWarning ? '#FFD54F' : 'var(--text-secondary)'}; font-size: 13px;">
+                ${plugin.description}
+            </td>
             <td>
-                ${plugin.configurable ? 
-                    `<button class="btn-secondary" onclick="configurePlugin('${plugin.name}')">Configure</button>` : 
-                    '-'
-                }
+                <span style="color: ${plugin.enabled ? '#4CAF50' : '#9E9E9E'}; font-size: 12px;">
+                    ${plugin.enabled ? '● Active' : '○ Disabled'}
+                </span>
             </td>
         `;
         tbody.appendChild(row);
@@ -261,8 +294,165 @@ function updatePluginEnabled(pluginName, enabled) {
 function testEntity(entityName) {
     document.getElementById('testInput').value = getTestText(entityName);
     switchTab('test');
-    document.querySelectorAll('.tab-button')[2].click();
     setTimeout(() => runTest(), 100);
+}
+
+/**
+ * Load whitelist entries
+ */
+async function loadWhitelist() {
+    try {
+        const showInactive = document.getElementById('showInactiveWhitelist');
+        const activeOnly = showInactive ? !showInactive.checked : true;
+        const response = await fetch(`/api/v1/pii/feedback/whitelist?active_only=${activeOnly}`, {
+            headers: {
+                ...getAuthHeaders()
+            },
+            credentials: 'same-origin'
+        });
+        if (!response.ok) throw new Error('Failed to load whitelist');
+        const data = await response.json();
+        whitelistItems = data.items || [];
+        renderWhitelistTable();
+    } catch (error) {
+        showAlert('Error loading exceptions: ' + error.message, 'error');
+    }
+}
+
+/**
+ * Render whitelist table
+ */
+function renderWhitelistTable() {
+    const tbody = document.getElementById('whitelistTable');
+    tbody.innerHTML = '';
+
+    if (!whitelistItems.length) {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td colspan="5" style="color: var(--text-secondary);">
+                No exceptions added yet.
+            </td>
+        `;
+        tbody.appendChild(row);
+        return;
+    }
+
+    whitelistItems.forEach(item => {
+        const row = document.createElement('tr');
+        const addedAt = item.added_at ? new Date(item.added_at).toLocaleString() : 'N/A';
+        const statusLabel = item.active ? 'Active' : 'Inactive';
+        const statusColor = item.active ? 'var(--accent-green)' : 'var(--text-secondary)';
+        const reporter = item.reported_by || 'N/A';
+        const sessionId = item.session_id || 'N/A';
+        row.innerHTML = `
+            <td>${item.text}</td>
+            <td>${item.entity_type}</td>
+            <td>${item.scope}</td>
+            <td>${addedAt}</td>
+            <td>${reporter}</td>
+            <td>${sessionId}</td>
+            <td style="color: ${statusColor}; font-weight: 600;">${statusLabel}</td>
+            <td>
+                <button class="btn-secondary" onclick="deleteWhitelistEntry('${item.id}')">Delete</button>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+/**
+ * Add a whitelist entry
+ */
+async function addWhitelistEntry() {
+    const detectedText = document.getElementById('exceptionText').value.trim();
+    const entityType = document.getElementById('exceptionEntityType').value.trim();
+    const detectionEngine = document.getElementById('exceptionEngine').value;
+    const userComment = document.getElementById('exceptionComment').value.trim();
+
+    if (!detectedText) {
+        showAlert('Please enter the detected text to whitelist', 'error');
+        return;
+    }
+    if (!entityType) {
+        showAlert('Please enter the entity type', 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/v1/pii/feedback/false-positive', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                ...getAuthHeaders()
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({
+                detected_text: detectedText,
+                detected_entity_type: entityType,
+                detection_engine: detectionEngine,
+                user_comment: userComment || null
+            })
+        });
+
+        if (!response.ok) throw new Error('Failed to add exception');
+
+        document.getElementById('exceptionText').value = '';
+        document.getElementById('exceptionEntityType').value = '';
+        document.getElementById('exceptionComment').value = '';
+
+        showAlert('Exception added successfully.', 'success');
+        await loadWhitelist();
+    } catch (error) {
+        showAlert('Error adding exception: ' + error.message, 'error');
+    }
+}
+
+/**
+ * Delete whitelist entry
+ */
+async function deleteWhitelistEntry(entryId) {
+    if (!confirm('Delete this exception?')) return;
+
+    try {
+        const response = await fetch(`/api/v1/pii/feedback/${entryId}`, {
+            method: 'DELETE',
+            headers: {
+                ...getAuthHeaders()
+            },
+            credentials: 'same-origin'
+        });
+        if (!response.ok) throw new Error('Failed to delete exception');
+
+        showAlert('Exception deleted successfully.', 'success');
+        await loadWhitelist();
+    } catch (error) {
+        showAlert('Error deleting exception: ' + error.message, 'error');
+    }
+}
+
+/**
+ * Update exception entity options
+ */
+function updateExceptionEntityOptions() {
+    const datalist = document.getElementById('exceptionEntityList');
+    if (!datalist) return;
+
+    const options = new Set();
+    (entities || []).forEach(entity => {
+        if (entity && entity.name) options.add(entity.name);
+    });
+    (plugins || []).forEach(plugin => {
+        if (plugin && plugin.name) options.add(plugin.name);
+    });
+    options.add('SECRET');
+    options.add('UNKNOWN');
+
+    datalist.innerHTML = '';
+    Array.from(options).sort().forEach(value => {
+        const option = document.createElement('option');
+        option.value = value;
+        datalist.appendChild(option);
+    });
 }
 
 /**
@@ -270,14 +460,15 @@ function testEntity(entityName) {
  */
 function getTestText(entityName) {
     const testTexts = {
-        'EMAIL': 'Contact support@example.com for help',
-        'PHONE_NUMBER': 'Call us at 555-123-4567',
+        'EMAIL_ADDRESS': 'Contact support@example.com for help',
+        'PHONE_NUMBER': 'Call us at (555) 123-4567',
         'US_SSN': 'SSN: 123-45-6789',
         'CREDIT_CARD': 'Card: 4532-1234-5678-9010',
         'PERSON': 'John Doe submitted the report',
-        'HIGH_ENTROPY': 'Token: aGVsbG8gd29ybGQgdGhpcyBpcyBhIHRlc3Q=',
-        'INTERNAL_HOSTNAME': 'Connect to server.internal.local',
-        'PRIVATE_IP': 'Database at 192.168.1.100'
+        'IP_ADDRESS': 'Server at 8.8.8.8',
+        'US_PASSPORT': 'Passport: 123456789',
+        'US_DRIVER_LICENSE': 'License: A1234567',
+        'IBAN_CODE': 'IBAN: DE89370400440532013000'
     };
     return testTexts[entityName] || 'Enter test text here';
 }

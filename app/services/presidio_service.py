@@ -22,7 +22,7 @@ class PresidioService:
     def __init__(
         self,
         language: str = "en",
-        default_threshold: float = 0.7,
+        default_threshold: float = 0.4,
         base64_threshold: float = 4.5,
         hex_threshold: float = 3.0,
         internal_domains: Optional[List[str]] = None
@@ -32,7 +32,7 @@ class PresidioService:
         
         Args:
             language: Language code for analysis
-            default_threshold: Default confidence threshold
+            default_threshold: Default confidence threshold (0.4 to include phone numbers)
             base64_threshold: Entropy threshold for base64 strings
             hex_threshold: Entropy threshold for hex strings
             internal_domains: List of internal domain suffixes
@@ -102,7 +102,7 @@ class PresidioService:
         analyzer_results: List[RecognizerResult],
         redaction_type: str = "mask",
         mask_char: str = "*"
-    ) -> str:
+    ) -> dict:
         """
         Anonymize/redact text based on analyzer results.
         
@@ -113,10 +113,10 @@ class PresidioService:
             mask_char: Character to use for masking
             
         Returns:
-            Anonymized text
+            Dict with 'text' (anonymized) and 'items' (mapping for de-anonymization)
         """
         if not text or not analyzer_results:
-            return text
+            return {"text": text, "items": []}
         
         try:
             # Map redaction types to Presidio operators
@@ -149,18 +149,32 @@ class PresidioService:
                 else:  # redact
                     operators[result.entity_type] = OperatorConfig("redact", {})
             
-            # Anonymize text
+            # Build mapping BEFORE anonymization using original text positions
+            # analyzer_results have correct positions in the original text
+            items_list = []
+            for ar in analyzer_results:
+                original_value = text[ar.start:ar.end]
+                placeholder = f"[{ar.entity_type}]"
+                items_list.append({
+                    "placeholder": placeholder,
+                    "original": original_value,
+                    "entity_type": ar.entity_type,
+                    "start": ar.start,
+                    "end": ar.end
+                })
+            
+            # Anonymize text - returns EngineResult with text
             result = self.anonymizer.anonymize(
                 text=text,
                 analyzer_results=analyzer_results,
                 operators=operators
             )
             
-            return result.text
+            return {"text": result.text, "items": items_list}
             
         except Exception as e:
             logger.error(f"Error anonymizing text with Presidio: {e}", exc_info=True)
-            return text
+            return {"text": text, "items": []}
     
     def get_supported_entities(self) -> List[Dict[str, any]]:
         """
@@ -175,8 +189,8 @@ class PresidioService:
             
             for recognizer in recognizers:
                 for entity in recognizer.supported_entities:
-                    # Determine if it's a built-in recognizer
-                    is_custom = entity in ["HIGH_ENTROPY_SECRET", "INTERNAL_HOSTNAME", "PRIVATE_IP"]
+                    # All Presidio recognizers are built-in
+                    # Custom secret detection is handled by detect-secrets library
                     
                     # Get description based on entity type
                     descriptions = {
@@ -187,20 +201,19 @@ class PresidioService:
                         "PERSON": "Person names",
                         "LOCATION": "Geographic locations",
                         "DATE_TIME": "Dates and times",
-                        "IP_ADDRESS": "IP addresses",
+                        "IP_ADDRESS": "IP addresses (public)",
                         "IBAN_CODE": "IBAN codes",
                         "NRP": "National Registry of Persons",
                         "US_DRIVER_LICENSE": "US driver licenses",
                         "US_PASSPORT": "US passport numbers",
-                        "HIGH_ENTROPY_SECRET": "High entropy strings (potential secrets)",
-                        "INTERNAL_HOSTNAME": "Internal hostnames",
-                        "PRIVATE_IP": "Private IP addresses"
+                        "US_BANK_NUMBER": "US bank account numbers",
+                        "MEDICAL_LICENSE": "Medical license numbers"
                     }
                     
                     entities.append({
                         "name": entity,
                         "description": descriptions.get(entity, entity.replace("_", " ").title()),
-                        "built_in": not is_custom
+                        "built_in": True  # All Presidio recognizers are built-in
                     })
             
             # Deduplicate by name

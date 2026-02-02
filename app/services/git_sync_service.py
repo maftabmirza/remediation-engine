@@ -260,9 +260,47 @@ class GitSyncService:
                 
                 try: 
                     logger.debug(f"Processing file: {rel_path}")
-                    result = self._process_doc_file(
-                        file_path, rel_path, app_id, user_id, config, source_url
-                    )
+                    # Create code document
+                    content = file_path.read_text(encoding='utf-8', errors='ignore')
+                    file_source_url = f"{source_url}/blob/main/{rel_path}"
+                    
+                    existing = self.db.query(DesignDocument).filter(
+                        DesignDocument.source_url == file_source_url
+                    ).first()
+                    
+                    if existing:
+                        existing.raw_content = content
+                        existing.updated_at = datetime.now(timezone.utc)
+                        existing.version += 1
+                        document = existing
+                        stats["updated"] += 1
+                    else:
+                        document = self.doc_service.create_document(
+                            title=file_path.name,
+                            doc_type='code',
+                            content=content,
+                            format='markdown',
+                            app_id=app_id,
+                            user_id=user_id,
+                            source_url=file_source_url,
+                            source_type='git'
+                        )
+                        stats["synced"] += 1
+                    
+                    # Create chunks
+                    if config.auto_chunk:
+                        chunks = self.doc_service.create_chunks_for_document(document)
+                        if chunks:
+                            stats["chunks"] += len(chunks)
+                            
+                            # Generate embeddings
+                            if config.generate_embeddings and self.embedding_service.is_configured():
+                                chunk_texts = [chunk.content for chunk in chunks]
+                                embeddings = self.embedding_service.generate_embeddings_batch(chunk_texts)
+                                for chunk, embedding in zip(chunks, embeddings):
+                                    if embedding:
+                                        chunk.embedding = embedding
+                                        stats["embeddings"] += 1
                     if result["new"]:
                         stats["synced"] += 1
                         logger.info(f"Synced new document: {rel_path}")
@@ -375,8 +413,7 @@ class GitSyncService:
                     continue
                 
                 try:
-                    # Treat code as a document for now, mapping to 'design_doc'
-                    # In the future we might want a dedicated 'code' doc_type
+                    # Map code files to 'code' doc_type
                     
                     # Read content
                     content = file_path.read_text(encoding='utf-8', errors='ignore')

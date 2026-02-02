@@ -17,14 +17,14 @@ from app.services.ollama_service import ollama_completion
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
-# Module-level PII service instance (will be injected)
-_pii_service = None
+# Module-level PII service factory (will be injected)
+_pii_service_factory = None
 
 
-def set_pii_service(pii_service):
-    """Set the PII service instance for LLM output scanning."""
-    global _pii_service
-    _pii_service = pii_service
+def set_pii_service_factory(factory):
+    """Set the PII service factory for LLM output scanning."""
+    global _pii_service_factory
+    _pii_service_factory = factory
 
 
 def get_api_key_for_provider(provider: LLMProvider) -> Optional[str]:
@@ -231,11 +231,15 @@ async def generate_completion(
                 ).observe(duration)
                 raise
 
-        # Scan and redact PII/secrets from LLM response if service is available
-        if _pii_service and analysis:
+        # Scan and redact PII/secrets from LLM response if factory is available
+        if _pii_service_factory and analysis:
+            pii_service = None
             try:
+                # Create PII service instance with async session
+                pii_service = await _pii_service_factory()
+                
                 # Detect PII/secrets in the response
-                detection_response = await _pii_service.detect(
+                detection_response = await pii_service.detect(
                     text=analysis,
                     source_type="llm_response",
                     source_id=f"{provider.id}_{int(time.time())}"
@@ -249,14 +253,14 @@ async def generate_completion(
                     )
                     
                     for detection in detection_response.detections:
-                        await _pii_service.log_detection(
+                        await pii_service.log_detection(
                             detection=detection.model_dump(),
                             source_type="llm_response",
                             source_id=f"{provider.id}"
                         )
                     
                     # Redact the response
-                    redaction_response = await _pii_service.redact(
+                    redaction_response = await pii_service.redact(
                         text=analysis,
                         redaction_type="tag"  # Use tags for LLM responses to maintain readability
                     )
@@ -266,6 +270,10 @@ async def generate_completion(
             except Exception as e:
                 logger.error(f"PII detection failed for LLM response: {e}")
                 # Continue even if PII detection fails
+            finally:
+                # Close PII service session to prevent connection leaks
+                if pii_service:
+                    await pii_service.close()
 
         return analysis, provider
         

@@ -175,6 +175,12 @@ def test_db_session(test_db_engine) -> Generator[Session, None, None]:
 
 
 @pytest.fixture(scope="function")
+def db(test_db_session) -> Generator[Session, None, None]:
+    """Alias for integration tests expecting a `db` fixture."""
+    yield test_db_session
+
+
+@pytest.fixture(scope="function")
 def test_client(test_db_session) -> Generator[TestClient, None, None]:
     """Create a FastAPI test client with test database."""
     if fastapi_app is None or TestClient is None or get_db is None:

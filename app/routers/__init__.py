@@ -17,3 +17,4 @@ from app.routers.audit import router as audit_router
 # PII & Secret Detection routers
 from app.routers import pii
 from app.routers import pii_logs
+from app.routers import pii_feedback

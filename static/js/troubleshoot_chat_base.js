@@ -156,7 +156,7 @@ const AIChatBase = {
         const msgDiv = document.createElement('div');
         msgDiv.className = 'flex justify-end mb-3';
         msgDiv.innerHTML = `
-            <div class="${this.config.userGradientClass} border border-blue-800 rounded-lg p-3 max-w-xs lg:max-w-md text-sm text-white shadow-md" style="word-break: break-word;">
+            <div class="user-message-text ${this.config.userGradientClass} border border-blue-800 rounded-lg p-3 max-w-xs lg:max-w-md text-sm text-white shadow-md" style="word-break: break-word;">
                 ${this.escapeHtml(text)}
             </div>
         `;

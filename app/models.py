@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime, timezone
 from sqlalchemy import Column, String, Boolean, Integer, Text, ForeignKey, DateTime, JSON, CheckConstraint
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import relationship, validates
+from sqlalchemy.orm import relationship, validates, object_session
 from typing import TYPE_CHECKING
 from pgvector.sqlalchemy import Vector
 
@@ -43,6 +43,31 @@ class User(Base):
     default_llm_provider = relationship("LLMProvider", foreign_keys=[default_llm_provider_id])
     rules_created = relationship("AutoAnalyzeRule", back_populates="created_by_user")
     alerts_analyzed = relationship("Alert", back_populates="analyzed_by_user")
+
+    @property
+    def role_id(self):
+        """
+        Resolve role ID from role name.
+
+        This is a computed property (not a DB column) used by AI RBAC tests and
+        services that depend on Role IDs. If the role does not exist in the DB,
+        it is created on-demand for the current session.
+        """
+        session = object_session(self)
+        if session is None:
+            return None
+
+        normalized_role = (self.role or "").strip()
+        if not normalized_role:
+            return None
+
+        role = session.query(Role).filter(Role.name == normalized_role).first()
+        if role is None:
+            role = Role(name=normalized_role, description=f"Auto-created role: {normalized_role}")
+            session.add(role)
+            session.flush()
+
+        return role.id
 
 
 class Role(Base):

@@ -126,7 +126,7 @@
         to { opacity: 1; }
     }
     
-    .entity-table, .plugin-table {
+    .entity-table, .plugin-table, .whitelist-table {
         width: 100%;
         border-collapse: collapse;
         background: var(--bg-secondary);
@@ -135,7 +135,7 @@
         overflow: hidden;
     }
     
-    .entity-table th, .plugin-table th {
+    .entity-table th, .plugin-table th, .whitelist-table th {
         background: var(--bg-tertiary);
         padding: 12px;
         text-align: left;
@@ -144,18 +144,51 @@
         border-bottom: 2px solid var(--border-color);
     }
     
-    .entity-table td, .plugin-table td {
+    .entity-table td, .plugin-table td, .whitelist-table td {
         padding: 12px;
         border-bottom: 1px solid var(--border-color);
         color: var(--text-primary);
     }
     
-    .entity-table tr:last-child td, .plugin-table tr:last-child td {
+    .entity-table tr:last-child td, .plugin-table tr:last-child td, .whitelist-table tr:last-child td {
         border-bottom: none;
     }
     
-    .entity-table tr:hover, .plugin-table tr:hover {
+    .entity-table tr:hover, .plugin-table tr:hover, .whitelist-table tr:hover {
         background: var(--bg-tertiary);
+    }
+
+    .exception-panel {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+
+    .exception-form {
+        display: grid;
+        grid-template-columns: 2fr 1fr 1fr;
+        gap: 12px;
+        margin-top: 12px;
+    }
+
+    .exception-form .form-group {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+    }
+
+    .exception-actions {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 12px;
+    }
+
+    .exception-help {
+        color: var(--text-secondary);
+        font-size: 13px;
+        margin-top: 6px;
     }
     
     .slider {
@@ -329,6 +362,32 @@
 <div class="p-6">
     <div id="alertMessage"></div>
     
+    <!-- Info Banner -->
+    <div style="background: linear-gradient(135deg, #1e3a5f, #2d4a6f); border: 1px solid #3b5998; border-radius: 8px; padding: 20px; margin-bottom: 25px;">
+        <h3 style="margin: 0 0 10px 0; color: #fff; font-size: 16px;">
+            <i class="fas fa-info-circle" style="color: #4CAF50; margin-right: 8px;"></i>
+            Detection Engines
+        </h3>
+        <div style="display: flex; gap: 30px; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 250px;">
+                <h4 style="color: #64B5F6; margin: 0 0 5px 0; font-size: 14px;">
+                    <i class="fas fa-shield-alt" style="margin-right: 5px;"></i>Presidio (Microsoft)
+                </h4>
+                <p style="color: #B0BEC5; margin: 0; font-size: 13px;">
+                    Standard PII: Email, Phone, SSN, Credit Card, Names, Passport, Driver License, IBAN
+                </p>
+            </div>
+            <div style="flex: 1; min-width: 250px;">
+                <h4 style="color: #FFD54F; margin: 0 0 5px 0; font-size: 14px;">
+                    <i class="fas fa-key" style="margin-right: 5px;"></i>detect-secrets (Yelp)
+                </h4>
+                <p style="color: #B0BEC5; margin: 0; font-size: 13px;">
+                    Secrets: Passwords, API Keys (AWS, GitHub, Slack, Stripe), JWT, Private Keys
+                </p>
+            </div>
+        </div>
+    </div>
+    
     <!-- Global Settings -->
     <div class="global-settings">
         <h3>Global Settings</h3>
@@ -339,7 +398,7 @@
             </label>
             <label class="checkbox-label">
                 <input type="checkbox" id="enableSecrets" checked>
-                Enable Secret Detection
+                Enable Secret Detection (detect-secrets)
             </label>
             <label class="checkbox-label">
                 <input type="checkbox" id="autoRedact" checked>
@@ -370,14 +429,27 @@
     <!-- Tabs -->
     <div class="tabs">
         <div class="tab-buttons">
-            <button class="tab-button active" onclick="switchTab('presidio')">Presidio Entities</button>
-            <button class="tab-button" onclick="switchTab('secrets')">detect-secrets Plugins</button>
-            <button class="tab-button" onclick="switchTab('test')">Test Detection</button>
+            <button class="tab-button active" data-tab="presidio" onclick="switchTab('presidio', this)">
+                <i class="fas fa-shield-alt" style="margin-right: 5px; color: #64B5F6;"></i>Presidio (PII)
+            </button>
+            <button class="tab-button" data-tab="secrets" onclick="switchTab('secrets', this)">
+                <i class="fas fa-key" style="margin-right: 5px; color: #FFD54F;"></i>detect-secrets (Secrets)
+            </button>
+            <button class="tab-button" data-tab="exceptions" onclick="switchTab('exceptions', this)">
+                <i class="fas fa-list-alt" style="margin-right: 5px;"></i>Exceptions
+            </button>
+            <button class="tab-button" data-tab="test" onclick="switchTab('test', this)">
+                <i class="fas fa-flask" style="margin-right: 5px;"></i>Test Detection
+            </button>
         </div>
     </div>
     
     <!-- Presidio Entities Tab -->
     <div id="presidio-tab" class="tab-content active">
+        <div style="margin-bottom: 15px; padding: 10px; background: var(--bg-tertiary); border-radius: 4px;">
+            <strong style="color: #64B5F6;">Microsoft Presidio</strong>
+            <span style="color: var(--text-secondary); margin-left: 10px;">Built-in PII detection with NLP support</span>
+        </div>
         <table class="entity-table">
             <thead>
                 <tr>
@@ -396,16 +468,79 @@
     
     <!-- detect-secrets Plugins Tab -->
     <div id="secrets-tab" class="tab-content">
+        <div style="margin-bottom: 15px; padding: 10px; background: var(--bg-tertiary); border-radius: 4px;">
+            <strong style="color: #FFD54F;">Yelp detect-secrets</strong>
+            <span style="color: var(--text-secondary); margin-left: 10px;">20+ plugins for API keys, tokens, passwords, and credentials</span>
+        </div>
         <table class="plugin-table">
             <thead>
                 <tr>
                     <th>Plugin</th>
                     <th>Enabled</th>
-                    <th>Settings</th>
-                    <th>Actions</th>
+                    <th>Description</th>
+                    <th>Status</th>
                 </tr>
             </thead>
             <tbody id="pluginsTable">
+                <!-- Populated by JavaScript -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Exceptions Tab -->
+    <div id="exceptions-tab" class="tab-content">
+        <div class="exception-panel">
+            <h3>Exceptions (Whitelist)</h3>
+            <p class="exception-help">
+                Add known safe values to the whitelist so they are excluded from future detections.
+            </p>
+            <label class="checkbox-label" style="margin-top: 10px;">
+                <input type="checkbox" id="showInactiveWhitelist" onchange="loadWhitelist()">
+                Show inactive entries
+            </label>
+            <div class="exception-form">
+                <div class="form-group">
+                    <label for="exceptionText">Detected Text</label>
+                    <input type="text" id="exceptionText" class="form-control" placeholder="e.g. test@example.com or sk_test_...">
+                </div>
+                <div class="form-group">
+                    <label for="exceptionEntityType">Entity Type</label>
+                    <input type="text" id="exceptionEntityType" class="form-control" list="exceptionEntityList" placeholder="EMAIL_ADDRESS">
+                    <datalist id="exceptionEntityList"></datalist>
+                </div>
+                <div class="form-group">
+                    <label for="exceptionEngine">Detection Engine</label>
+                    <select id="exceptionEngine" class="form-control">
+                        <option value="presidio">presidio</option>
+                        <option value="detect_secrets">detect_secrets</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group" style="margin-top: 12px;">
+                <label for="exceptionComment">Comment (optional)</label>
+                <input type="text" id="exceptionComment" class="form-control" placeholder="Why this should be excluded">
+            </div>
+            <div class="exception-actions">
+                <button class="btn-primary" onclick="addWhitelistEntry()">
+                    <i class="fas fa-plus" style="margin-right: 5px;"></i>Add Exception
+                </button>
+            </div>
+        </div>
+
+        <table class="whitelist-table">
+            <thead>
+                <tr>
+                    <th>Detected Text</th>
+                    <th>Entity Type</th>
+                    <th>Scope</th>
+                    <th>Added</th>
+                    <th>Reporter</th>
+                    <th>Session</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="whitelistTable">
                 <!-- Populated by JavaScript -->
             </tbody>
         </table>
@@ -415,19 +550,22 @@
     <div id="test-tab" class="tab-content">
         <div class="test-sandbox">
             <h3>Test Detection</h3>
+            <p style="color: var(--text-secondary); margin-bottom: 15px;">
+                Test both detection engines. Presidio handles PII (email, phone, SSN), detect-secrets handles passwords and API keys.
+            </p>
             <textarea 
                 id="testInput" 
                 class="test-input" 
-                placeholder="Enter text to test detection...&#10;Example: My email is test@example.com and API key is sk_live_abcd123xyz"
+                placeholder="Enter text to test detection...&#10;&#10;Example:&#10;My email is test@example.com&#10;password = &quot;SecretPass@123&quot;&#10;API_KEY = &quot;sk-1234567890abcdef&quot;&#10;SSN: 123-45-6789"
             ></textarea>
             
             <button class="btn-primary" onclick="runTest()">
-                Run Detection
+                <i class="fas fa-search" style="margin-right: 5px;"></i>Run Detection
                 <span id="testLoading" class="loading" style="display: none;"></span>
             </button>
             
             <div id="testResults" style="display: none;">
-                <h4 style="margin-top: 20px;">Results:</h4>
+                <h4 style="margin-top: 20px;">Detection Results:</h4>
                 <div id="detectionsResults" class="results-box">
                     <!-- Detection results -->
                 </div>

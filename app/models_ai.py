@@ -40,6 +40,15 @@ class AISession(Base):
     message_count = Column(Integer, default=0)
     
     created_at = Column(DateTime(timezone=True), default=utc_now)
+    
+    # PII/Secret mapping for consistent redaction across conversation
+    # Structure: {
+    #   "[EMAIL_ADDRESS_1]": "john@example.com",
+    #   "[EMAIL_ADDRESS_2]": "jane@company.com", 
+    #   "_counters": {"EMAIL_ADDRESS": 2, "PHONE_NUMBER": 0, ...},
+    #   "_reverse": {"john@example.com": "[EMAIL_ADDRESS_1]", ...}
+    # }
+    pii_mapping_json = Column(JSON, nullable=True, default=dict)
 
     # Relationships
     user = relationship("User")

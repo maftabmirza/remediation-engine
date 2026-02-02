@@ -45,12 +45,22 @@ class RedactionRequest(BaseModel):
     preserve_length: bool = False
 
 
+class RedactionItem(BaseModel):
+    """Single redaction item with mapping for de-anonymization."""
+    placeholder: str  # e.g., "[EMAIL_ADDRESS]"
+    original: str     # e.g., "john@example.com"
+    entity_type: str
+    start: int
+    end: int
+
+
 class RedactionResponse(BaseModel):
     """Response from redaction endpoint."""
     original_length: int
     redacted_text: str
     redactions_applied: int
     detections: List[DetectionResult]
+    items: List[RedactionItem] = []  # Mapping for de-anonymization
 
 
 # Configuration Models
@@ -221,3 +231,102 @@ class PluginInfo(BaseModel):
 class PluginListResponse(BaseModel):
     """List of available plugins."""
     detect_secrets_plugins: List[PluginInfo]
+
+
+# False Positive Feedback Models
+class FalsePositiveFeedbackRequest(BaseModel):
+    """Request to report a false positive PII detection."""
+    detected_text: str = Field(..., max_length=500, description="The text that was incorrectly flagged")
+    detected_entity_type: str = Field(..., description="Entity type that was detected")
+    detection_engine: str = Field(..., description="Engine that made detection")
+    session_id: Optional[str] = Field(None, description="Agent session ID for context")
+    agent_mode: Optional[str] = Field(None, description="alert/revive/troubleshoot")
+    detection_log_id: Optional[UUID] = Field(None, description="Reference to detection log entry")
+    user_comment: Optional[str] = Field(None, max_length=1000, description="Optional reason")
+    original_confidence: Optional[float] = Field(None, ge=0.0, le=1.0, description="Original confidence score")
+
+
+class FalsePositiveFeedbackResponse(BaseModel):
+    """Response after submitting false positive feedback."""
+    id: UUID
+    detected_text: str
+    detected_entity_type: str
+    whitelisted: bool
+    review_status: str
+    reported_at: datetime
+    message: str = Field(default="Feedback submitted successfully. This text will no longer be flagged.")
+    
+    class Config:
+        from_attributes = True
+
+
+class FalsePositiveFeedbackDetail(BaseModel):
+    """Detailed view of false positive feedback."""
+    id: UUID
+    detected_text: str
+    detected_entity_type: str
+    detection_engine: str
+    original_confidence: Optional[float]
+    user_id: UUID
+    session_id: Optional[str]
+    agent_mode: Optional[str]
+    reported_at: datetime
+    user_comment: Optional[str]
+    whitelisted: bool
+    whitelisted_at: datetime
+    whitelist_scope: str
+    review_status: str
+    reviewed_by: Optional[UUID]
+    reviewed_at: Optional[datetime]
+    review_notes: Optional[str]
+    created_at: datetime
+    updated_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+class FalsePositiveFeedbackListResponse(BaseModel):
+    """Paginated list of false positive feedback."""
+    items: List[FalsePositiveFeedbackDetail]
+    total: int
+    page: int
+    limit: int
+    pages: int
+
+
+class WhitelistEntry(BaseModel):
+    """Single whitelist entry."""
+    id: UUID
+    text: str
+    entity_type: str
+    scope: str
+    added_at: datetime
+    added_by: UUID
+    reported_by: Optional[str] = None
+    session_id: Optional[str] = None
+    active: bool
+
+
+class WhitelistResponse(BaseModel):
+    """List of whitelisted items."""
+    items: List[WhitelistEntry]
+    total: int
+
+
+class WhitelistUpdateRequest(BaseModel):
+    """Request to update whitelist entry."""
+    whitelisted: bool = Field(..., description="Enable or disable this whitelist entry")
+    review_notes: Optional[str] = Field(None, description="Admin notes")
+
+
+class PIIHighlightInfo(BaseModel):
+    """Information about PII detection for UI highlighting."""
+    detection_id: Optional[UUID] = Field(None, description="Reference to detection log")
+    text: str = Field(..., description="The detected text")
+    entity_type: str = Field(..., description="Type of PII detected")
+    start_pos: int = Field(..., ge=0, description="Start position in response")
+    end_pos: int = Field(..., ge=0, description="End position in response")
+    confidence: float = Field(..., ge=0.0, le=1.0, description="Detection confidence")
+    can_report: bool = Field(default=True, description="User can report as false positive")
+    already_whitelisted: bool = Field(default=False, description="Already in whitelist")

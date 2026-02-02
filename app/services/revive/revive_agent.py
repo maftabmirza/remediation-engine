@@ -20,8 +20,9 @@ litellm.set_verbose = True
 import anthropic
 
 from app.models import LLMProvider, Alert
-from app.services.llm_service import get_api_key_for_provider
+from app.services.llm_service import get_api_key_for_provider, _pii_service_factory
 from app.services.agentic.tools.registry import CompositeToolRegistry, create_full_registry
+from app.services.pii_mapping_manager import PIIMappingManager
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +67,8 @@ class ReviveQuickHelpAgent:
         max_tokens: Optional[int] = None,
         initial_messages: Optional[List[Dict[str, Any]]] = None,
         on_tool_call_complete: Optional[Callable[[str, Dict[str, Any], str], None]] = None,
-        registry_factory: Optional[Callable] = None
+        registry_factory: Optional[Callable] = None,
+        pii_mapping_manager: Optional[PIIMappingManager] = None
     ):
         """
         Initialize the native tool agent.
@@ -81,6 +83,7 @@ class ReviveQuickHelpAgent:
             initial_messages: Pre-existing conversation history to restore session context
             on_tool_call_complete: Callback for tool execution logging
             registry_factory: Factory function to create tool registry (default: create_full_registry)
+            pii_mapping_manager: Optional PIIMappingManager for session-persistent PII redaction
         """
         self.db = db
         self.provider = provider
@@ -90,6 +93,7 @@ class ReviveQuickHelpAgent:
         self.temperature = temperature if temperature is not None else provider_config.get("temperature", 0.3)
         self.max_tokens = max_tokens if max_tokens is not None else provider_config.get("max_tokens", 2000)
         self.on_tool_call_complete = on_tool_call_complete
+        self.pii_mapping_manager = pii_mapping_manager
 
         # Initialize tool registry
         alert_id = alert.id if alert else None
@@ -247,7 +251,7 @@ You often try to "complete" the task by inventing tool outputs. **STOP.**
 ## TOOL REFERENCE
 
 ### Knowledge Tools (may or may not return results):
-- **search_knowledge**: Search runbooks, SOPs, architecture docs
+- **search_knowledge**: Search SOPs and Architecture docs (primary), Code repos (optional for implementation details)
 - **get_runbook**: Step-by-step procedures (may not exist)
 - **get_similar_incidents**: Past incidents (reference only, context may differ)
 - **get_proven_solutions**: Past fixes (hints, not guarantees)
@@ -494,6 +498,74 @@ No alert context - this is a user-initiated request. Focus on what the user is a
         if provider_type == "anthropic":
             return self.tool_registry.get_anthropic_tools()
         return self.tool_registry.get_openai_tools()
+
+    async def _scan_and_redact_text(
+        self,
+        text: str,
+        *,
+        source_type: str,
+        redaction_type: str = "tag",
+        context_label: str = "text",
+    ) -> str:
+        """Detect + log + redact PII/secrets using the global PII service factory.
+
+        This agent uses LiteLLM directly (not app.services.llm_service.generate_completion),
+        so we must explicitly invoke PII scanning to keep behavior consistent with troubleshoot_native_agent.
+        """
+        processed = text
+        pii_service = None
+        try:
+            from app.services import llm_service
+
+            pii_factory = getattr(llm_service, "_pii_service_factory", None)
+            logger.info(f"🔍 PII SCAN [RE-VIVE]: pii_factory={pii_factory is not None}, text_len={len(text) if text else 0}, context={context_label}")
+            if not pii_factory or not text:
+                logger.warning(f"⚠️ PII SCAN SKIPPED [RE-VIVE]: pii_factory={pii_factory}, text={bool(text)}")
+                return processed
+
+            pii_service = await pii_factory()
+            logger.info(f"🔍 PII SERVICE [RE-VIVE] created, calling detect on: '{text[:100]}...'")
+            detection_response = await pii_service.detect(
+                text=text,
+                source_type=source_type,
+            )
+
+            detections = getattr(detection_response, "detections", None) or []
+            logger.info(f"🔍 PII DETECTION RESULT [RE-VIVE]: found {len(detections)} detections")
+            if detections:
+                detection_count = getattr(detection_response, "detection_count", len(detections))
+                logger.warning(
+                    f"Detected {detection_count} PII/secret(s) in {context_label} (source_type={source_type})"
+                )
+
+                for detection in detections:
+                    await pii_service.log_detection(
+                        detection=detection.model_dump(),
+                        source_type=source_type,
+                        source_id=None,  # Don't pass invalid UUID strings
+                    )
+
+                # Use PIIMappingManager if available for consistent indexed redaction
+                if self.pii_mapping_manager:
+                    detection_dicts = [d.model_dump() for d in detections]
+                    processed, _ = self.pii_mapping_manager.redact_text_with_mappings(
+                        text=text,
+                        detections=detection_dicts
+                    )
+                else:
+                    redaction_response = await pii_service.redact(
+                        text=text,
+                        redaction_type=redaction_type,
+                    )
+                    processed = getattr(redaction_response, "redacted_text", processed)
+        except Exception as e:
+            logger.error(f"PII detection failed for {context_label}: {e}")
+            # Continue with original text if detection fails
+        finally:
+            # Close PII service session to prevent connection leaks
+            if pii_service:
+                await pii_service.close()
+        return processed
     
     async def _call_anthropic_directly(self, api_key: str) -> Dict[str, Any]:
         """
@@ -784,10 +856,18 @@ No alert context - this is a user-initiated request. Focus on what the user is a
                 "content": self._get_system_prompt()
             })
 
-        # Add user message
+        # Scan user input for PII/secrets before sending to LLM
+        import time
+        processed_message = await self._scan_and_redact_text(
+            user_message,
+            source_type="user_input",
+            context_label="RE-VIVE user input",
+        )
+
+        # Add user message (potentially redacted)
         self.messages.append({
             "role": "user",
-            "content": user_message
+            "content": processed_message
         })
 
         # DEBUG: Log full conversation being sent to LLM
@@ -911,6 +991,13 @@ No alert context - this is a user-initiated request. Focus on what the user is a
                 "content": self._get_system_prompt()
             })
 
+        # Scan user input for PII/secrets before sending to LLM
+        processed_message = await self._scan_and_redact_text(
+            user_message,
+            source_type="user_input",
+            context_label="RE-VIVE user input (stream)",
+        )
+
         # DEBUG: Log full conversation being sent to LLM
         logger.warning("="*80)
         logger.warning(f"🔍 AGENT DEBUG: Sending {len(self.messages) + 1} messages to LLM (History + New)")
@@ -918,13 +1005,13 @@ No alert context - this is a user-initiated request. Focus on what the user is a
             role = msg.get("role", "unknown")
             content = msg.get("content", "")
             logger.warning(f"  History {i} [{role}]: {content[:50]}...")
-        logger.warning(f"  New User Msg: {user_message[:50]}...")
+        logger.warning(f"  New User Msg: {processed_message[:50]}...")
         logger.warning("="*80)
 
-        # Add user message
+        # Add user message (potentially redacted)
         self.messages.append({
             "role": "user",
-            "content": user_message
+            "content": processed_message
         })
 
         # DEBUG: Log full conversation being sent to LLM

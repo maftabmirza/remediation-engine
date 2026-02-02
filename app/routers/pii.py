@@ -26,11 +26,36 @@ from app.schemas.pii_schemas import (
 from app.services.pii_service import PIIService
 from app.services.presidio_service import PresidioService
 from app.services.secret_detection_service import SecretDetectionService
+from app.services.pii_whitelist_service import PIIWhitelistService
+from app.services.auth_service import require_permission
 
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/pii", tags=["PII Detection"])
+
+
+# Global instances for caching
+_presidio_instance = None
+_secret_service_instance = None
+
+def get_presidio_service() -> PresidioService:
+    """Get cached Presidio service instance to avoid reloading models."""
+    global _presidio_instance
+    if _presidio_instance is None:
+        logger.info("Creating new PresidioService instance for PII router (Cache Miss)")
+        _presidio_instance = PresidioService()
+    else:
+        logger.info("Using cached PresidioService instance for PII router")
+    return _presidio_instance
+
+
+def get_secret_service() -> SecretDetectionService:
+    """Get cached Secret detection service instance."""
+    global _secret_service_instance
+    if _secret_service_instance is None:
+        _secret_service_instance = SecretDetectionService()
+    return _secret_service_instance
 
 
 # Dependency to get PII service
@@ -44,9 +69,8 @@ async def get_pii_service(db: AsyncSession = Depends(get_async_db)) -> PIIServic
     Returns:
         PIIService instance
     """
-    presidio = PresidioService()
-    secrets = SecretDetectionService()
-    return PIIService(db, presidio, secrets)
+    whitelist_service = PIIWhitelistService(db)
+    return PIIService(db, get_presidio_service(), get_secret_service(), whitelist_service=whitelist_service)
 
 
 @router.post("/detect", response_model=DetectionResponse)
@@ -124,7 +148,8 @@ async def redact_pii(
 
 @router.get("/config", response_model=PIIConfigResponse)
 async def get_config(
-    service: PIIService = Depends(get_pii_service)
+    service: PIIService = Depends(get_pii_service),
+    _: object = Depends(require_permission(["pii_view_config"]))
 ):
     """
     Get current PII detection configuration.
@@ -150,7 +175,8 @@ async def get_config(
 @router.put("/config", response_model=PIIConfigResponse)
 async def update_config(
     update: PIIConfigUpdate,
-    service: PIIService = Depends(get_pii_service)
+    service: PIIService = Depends(get_pii_service),
+    _: object = Depends(require_permission(["pii_edit_config"]))
 ):
     """
     Update PII detection configuration.

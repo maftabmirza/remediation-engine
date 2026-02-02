@@ -1,41 +1,29 @@
 """
 Recognizer registry and initialization.
+
+This module is kept for backward compatibility.
+All PII detection now uses:
+- Presidio (Microsoft) - for standard PII (email, phone, SSN, credit card, etc.)
+- detect-secrets (Yelp) - for secrets (API keys, tokens, passwords, etc.)
+
+No custom recognizers are needed.
 """
 from typing import List
-
 from presidio_analyzer import EntityRecognizer
 
-from .high_entropy_recognizer import HighEntropySecretRecognizer
-from .hostname_recognizer import InternalHostnameRecognizer
-from .private_ip_recognizer import PrivateIPRecognizer
 
-
-def get_custom_recognizers(
-    base64_threshold: float = 4.5,
-    hex_threshold: float = 3.0,
-    internal_domains: List[str] = None
-) -> List[EntityRecognizer]:
+def get_custom_recognizers(**kwargs) -> List[EntityRecognizer]:
     """
-    Get list of custom recognizers.
+    Get list of custom recognizers (returns empty list).
     
-    Args:
-        base64_threshold: Entropy threshold for base64 strings
-        hex_threshold: Entropy threshold for hex strings
-        internal_domains: List of internal domain suffixes
-        
+    Custom recognizers have been removed. All detection is now handled by:
+    - Presidio built-in recognizers (PII)
+    - detect-secrets library (secrets/credentials)
+    
     Returns:
-        List of EntityRecognizer instances
+        Empty list (no custom recognizers)
     """
-    recognizers = [
-        HighEntropySecretRecognizer(
-            base64_threshold=base64_threshold,
-            hex_threshold=hex_threshold
-        ),
-        InternalHostnameRecognizer(internal_domains=internal_domains),
-        PrivateIPRecognizer()
-    ]
-    
-    return recognizers
+    return []
 
 
 def register_recognizers(analyzer, recognizers: List[EntityRecognizer]) -> None:
@@ -51,9 +39,6 @@ def register_recognizers(analyzer, recognizers: List[EntityRecognizer]) -> None:
 
 
 __all__ = [
-    'HighEntropySecretRecognizer',
-    'InternalHostnameRecognizer',
-    'PrivateIPRecognizer',
     'get_custom_recognizers',
     'register_recognizers'
 ]

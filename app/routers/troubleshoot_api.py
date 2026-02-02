@@ -22,6 +22,7 @@ from app.services.auth_service import get_current_user
 from app.models import User, LLMProvider
 from app.models_agent import AgentSession, AgentStep
 from app.models_revive import AISession, AIMessage
+from app.services.pii_mapping_manager import PIIMappingManager
 
 router = APIRouter(
     prefix="/api/troubleshoot",
@@ -147,6 +148,72 @@ async def troubleshoot_chat(
                 "session_id": session_id,
                 "mode": "troubleshoot"
             }
+
+        # Scan + redact user input for PII/secrets BEFORE persisting and before sending to agent
+        # Use session-persistent PIIMappingManager for consistent indexed placeholders
+        pii_manager = PIIMappingManager(ai_session.pii_mapping_json or {})
+        pii_mapping = {}
+        pii_service = None
+        pii_detections_for_ui = []  # For frontend highlighting
+        original_message = message  # Store original for UI comparison
+        
+        try:
+            from app.services import llm_service
+
+            if getattr(llm_service, "_pii_service_factory", None) and message:
+                pii_service = await llm_service._pii_service_factory()
+                detection_response = await pii_service.detect(
+                    text=message,
+                    source_type="user_input",
+                )
+
+                detections = getattr(detection_response, "detections", None) or []
+                if detections:
+                    logger.warning(
+                        f"Detected {len(detections)} "
+                        "PII/secret(s) in troubleshoot user input - redacting with indexed placeholders"
+                    )
+                    
+                    # Log detections (without UUID source_id - just use source_type for tracking)
+                    for detection in detections:
+                        await pii_service.log_detection(
+                            detection=detection.model_dump(),
+                            source_type="user_input",
+                            source_id=None,  # Don't pass invalid UUID
+                        )
+
+                    # Use PIIMappingManager for consistent indexed redaction
+                    detection_dicts = [d.model_dump() for d in detections]
+                    message, placeholders_used = pii_manager.redact_text_with_mappings(
+                        text=message,
+                        detections=detection_dicts
+                    )
+                    
+                    # Get mapping and save to session
+                    pii_mapping = pii_manager.get_all_mappings()
+                    ai_session.pii_mapping_json = pii_manager.to_dict()
+                    db.commit()
+                    
+                    # Build detection info for UI highlighting
+                    for detection, placeholder in zip(detections, placeholders_used):
+                        pii_detections_for_ui.append({
+                            "original_text": detection.value,
+                            "placeholder": placeholder.placeholder,  # Extract placeholder string from PIIPlaceholder object
+                            "entity_type": detection.entity_type,
+                            "confidence": detection.confidence,
+                            "start": detection.start,
+                            "end": detection.end,
+                            "detection_engine": detection.engine
+                        })
+                    
+                    logger.info(f"🔍 PII REDACTED: '{message[:100]}' | total mappings: {len(pii_manager)}")
+        except Exception as e:
+            logger.error(f"PII detection failed for troubleshoot user input: {e}", exc_info=True)
+            # Continue with original message if PII detection fails
+        finally:
+            # Close PII service session to prevent connection leaks
+            if pii_service:
+                await pii_service.close()
         
         # Save the user message to DB
         user_msg = AIMessage(
@@ -160,12 +227,14 @@ async def troubleshoot_chat(
         from app.services.agentic.tools.registry import create_troubleshooting_registry
         
         # Create the Troubleshoot Agent with conversation history
+        # Pass PIIMappingManager for consistent PII redaction in tool outputs
         agent = TroubleshootNativeAgent(
             db=db,
             provider=provider,
             alert=None,  # No specific alert context
             initial_messages=initial_messages,
-            registry_factory=create_troubleshooting_registry
+            registry_factory=create_troubleshooting_registry,
+            pii_mapping_manager=pii_manager
         )
         
         # Use stream() to get CMD_CARD markers for command buttons
@@ -202,7 +271,9 @@ async def troubleshoot_chat(
             "message": full_response,
             "session_id": session_id,
             "tool_calls": tool_calls,
-            "mode": "troubleshoot"
+            "mode": "troubleshoot",
+            "pii_detections": pii_detections_for_ui,  # For UI highlighting
+            "pii_mapping": pii_mapping  # For de-anonymization
         }
         
     except Exception as e:
@@ -239,6 +310,8 @@ async def troubleshoot_chat_stream(
         nonlocal session_id
         full_response = ""
         tool_calls = []
+        
+        logger.info(f"🚀 STREAM GENERATOR STARTED for message: '{message[:50]}...'")
         
         try:
             # === SESSION PERSISTENCE - Load or create session FIRST ===
@@ -311,35 +384,131 @@ async def troubleshoot_chat_stream(
             if not provider:
                 yield f"data: {json.dumps({'type': 'error', 'content': 'No LLM provider configured'})}\n\n"
                 return
+
+            # Scan + redact user input for PII/secrets BEFORE persisting and before sending to agent
+            # Use session-persistent PIIMappingManager for consistent indexed placeholders
+            message_to_use = message
+            pii_mapping = {}
+            pii_service = None
+            pii_detections_for_ui = []  # For UI highlighting
+            
+            # Load existing PII mapping from session for consistency across messages
+            pii_manager = PIIMappingManager(ai_session.pii_mapping_json or {})
+            logger.info(f"🔍 PII MANAGER: loaded with {len(pii_manager)} existing mappings")
+            
+            try:
+                from app.services import llm_service
+
+                pii_factory = getattr(llm_service, "_pii_service_factory", None)
+                logger.info(f"🔍 PII CHECK: pii_factory={pii_factory is not None}, message_len={len(message) if message else 0}")
+                
+                if pii_factory and message:
+                    pii_service = await pii_factory()
+                    logger.info(f"🔍 PII SERVICE: created, detecting on '{message[:50]}...'")
+                    detection_response = await pii_service.detect(
+                        text=message,
+                        source_type="user_input",
+                    )
+                    
+                    detections = getattr(detection_response, "detections", None) or []
+                    logger.info(f"🔍 PII DETECTIONS: found {len(detections)} items")
+
+                    if detections:
+                        logger.warning(
+                            f"Detected {len(detections)} "
+                            "PII/secret(s) in troubleshoot user input - redacting with indexed placeholders"
+                        )
+                        
+                        # Log detections to database (without UUID source_id)
+                        for detection in detections:
+                            logger.info(f"🔍 PII ITEM: {detection}")
+                            await pii_service.log_detection(
+                                detection=detection.model_dump(),
+                                source_type="user_input",
+                                source_id=None,  # Don't pass invalid UUID
+                            )
+
+                        # Use PIIMappingManager for consistent indexed redaction
+                        # This ensures same PII value always gets same placeholder across session
+                        detection_dicts = [d.model_dump() for d in detections]
+                        message_to_use, placeholders_used = pii_manager.redact_text_with_mappings(
+                            text=message,
+                            detections=detection_dicts
+                        )
+                        
+                        # Get full mapping for frontend (for de-anonymization of AI response)
+                        pii_mapping = pii_manager.get_all_mappings()
+                        
+                        # Save updated mapping back to session
+                        ai_session.pii_mapping_json = pii_manager.to_dict()
+                        db.commit()
+                        
+                        # Build detection info for UI highlighting
+                        for detection, placeholder in zip(detections, placeholders_used):
+                            pii_detections_for_ui.append({
+                                "original_text": detection.value,
+                                "placeholder": placeholder.placeholder,  # Extract placeholder string from PIIPlaceholder object
+                                "entity_type": detection.entity_type,
+                                "confidence": detection.confidence,
+                                "start": detection.start,
+                                "end": detection.end,
+                                "detection_engine": detection.engine
+                            })
+                        
+                        logger.info(f"🔍 PII REDACTED: '{message_to_use[:100]}' | total mappings: {len(pii_manager)}")
+                        logger.info(f"🔍 PII MAPPING SAVED to session: {pii_manager.get_stats()}")
+                else:
+                    logger.warning(f"⚠️ PII SKIPPED: factory={pii_factory is not None}, message={bool(message)}")
+            except Exception as e:
+                logger.error(f"PII detection failed for troubleshoot user input: {e}", exc_info=True)
+                message_to_use = message
+                pii_mapping = {}
+            finally:
+                # Close PII service session to prevent connection leaks
+                if pii_service:
+                    await pii_service.close()
             
             # Send session_id first
             yield f"data: {json.dumps({'type': 'session', 'session_id': session_id})}\n\n"
+            
+            # If message was redacted, notify frontend with detection details for highlighting
+            if pii_detections_for_ui:
+                yield f"data: {json.dumps({'type': 'pii_detections', 'detections': pii_detections_for_ui})}\n\n"
+                yield f"data: {json.dumps({'type': 'redacted_input', 'pii_mapping': pii_mapping})}\n\n"
             
             # Save user message
             user_msg = AIMessage(
                 session_id=ai_session.id,
                 role="user",
-                content=message
+                content=message_to_use
             )
             db.add(user_msg)
             db.commit()
             
             # Create agent with history and troubleshooting-specific tools
+            # Pass PIIMappingManager for consistent PII redaction in tool outputs
             agent = TroubleshootNativeAgent(
                 db=db,
                 provider=provider,
                 alert=None,
                 initial_messages=initial_messages,
-                registry_factory=create_troubleshooting_registry
+                registry_factory=create_troubleshooting_registry,
+                pii_mapping_manager=pii_manager
             )
             
             # Stream chunks to client
-            async for chunk in agent.stream(message):
+            async for chunk in agent.stream(message_to_use):
                 full_response += chunk
                 # Send each chunk as SSE event
                 yield f"data: {json.dumps({'type': 'chunk', 'content': chunk})}\n\n"
                 # Small delay to prevent overwhelming the client
                 await asyncio.sleep(0.01)
+            
+            # Save updated PII mapping after streaming (may have new mappings from tool outputs)
+            if pii_manager and len(pii_manager) > 0:
+                ai_session.pii_mapping_json = pii_manager.to_dict()
+                db.commit()
+                logger.info(f"🔍 PII MAPPING FINAL: saved {len(pii_manager)} mappings to session")
             
             # Get tool calls
             if hasattr(agent, 'tool_calls_made'):
@@ -487,7 +656,7 @@ async def get_troubleshoot_messages(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Get messages for a troubleshooting session."""
+    """Get messages for a troubleshooting session with PII de-anonymization mapping."""
     try:
         session_uuid = uuid.UUID(session_id)
         session = db.query(AISession).filter(
@@ -498,6 +667,15 @@ async def get_troubleshoot_messages(
 
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
+
+        # Load PII mapping for de-anonymization (placeholder → original)
+        pii_mapping = {}
+        if session.pii_mapping_json:
+            # Extract only the forward mappings (placeholder → original), not metadata
+            for key, value in session.pii_mapping_json.items():
+                if not key.startswith("_"):  # Skip _counters, _reverse
+                    pii_mapping[key] = value
+            logger.info(f"get_troubleshoot_messages: loaded {len(pii_mapping)} PII mappings for de-anonymization")
 
         messages = db.query(AIMessage).filter(
             AIMessage.session_id == session_uuid
@@ -559,7 +737,7 @@ async def get_troubleshoot_messages(
                             },
                         }
                     )
-                return synthetic
+                return {"messages": synthetic, "pii_mapping": pii_mapping}
 
             # If we have messages but no user goal message, prepend a synthetic goal.
             if not has_user:
@@ -570,7 +748,7 @@ async def get_troubleshoot_messages(
                     "created_at": agent.created_at.isoformat() if agent.created_at else session.created_at.isoformat(),
                     "metadata": {"synthetic": True, "source": "agent_goal", "agent_session_id": str(agent.id)},
                 }
-                return [prepend] + [
+                msgs = [prepend] + [
                     {
                         "id": str(m.id),
                         "role": m.role,
@@ -580,6 +758,7 @@ async def get_troubleshoot_messages(
                     }
                     for m in messages
                 ]
+                return {"messages": msgs, "pii_mapping": pii_mapping}
         
         result = [
             {
@@ -591,8 +770,8 @@ async def get_troubleshoot_messages(
             }
             for m in messages
         ]
-        logger.info(f"  -> returning {len(result)} messages (roles: {[m['role'] for m in result]})")
-        return result
+        logger.info(f"  -> returning {len(result)} messages (roles: {[m['role'] for m in result]}), pii_mapping={len(pii_mapping)} entries")
+        return {"messages": result, "pii_mapping": pii_mapping}
     except Exception as e:
         logger.error(f"Failed to get messages: {e}")
         raise HTTPException(status_code=400, detail="Invalid session ID")

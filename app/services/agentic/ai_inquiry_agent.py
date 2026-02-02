@@ -53,6 +53,7 @@ If you use any banned phrase, you have FAILED.
 - `get_mttr_statistics`: Calculate MTTR.
 - `get_alert_trends`: Analyze alert trends.
 - `get_similar_incidents`: Find similar past incidents.
+- `search_knowledge`: Search SOPs and Architecture docs (primary), Code repos (optional for implementation details).
 - `get_runbook`: Find runbooks for a service.
 
 ## RESPONSE FORMAT

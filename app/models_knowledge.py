@@ -59,7 +59,7 @@ class DesignDocument(Base):
     
     __table_args__ = (
         CheckConstraint(
-            doc_type.in_(['architecture', 'api_spec', 'runbook', 'sop', 'troubleshooting', 'design_doc', 'postmortem', 'onboarding']),
+            doc_type.in_(['sop', 'architecture', 'code']),
             name='ck_design_documents_doc_type'
         ),
         CheckConstraint(

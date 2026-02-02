@@ -19,8 +19,9 @@ litellm.set_verbose = True
 import anthropic
 
 from app.models import LLMProvider, Alert
-from app.services.llm_service import get_api_key_for_provider
+from app.services.llm_service import get_api_key_for_provider, _pii_service_factory
 from app.services.agentic.tools.registry import CompositeToolRegistry, create_full_registry
+from app.services.pii_mapping_manager import PIIMappingManager
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +65,8 @@ class AiAlertHelpAgent:
         max_tokens: Optional[int] = None,
         initial_messages: Optional[List[Dict[str, Any]]] = None,
         on_tool_call_complete: Optional[Callable[[str, Dict[str, Any], str], None]] = None,
-        registry_factory: Optional[Callable] = None
+        registry_factory: Optional[Callable] = None,
+        pii_mapping_manager: Optional[PIIMappingManager] = None
     ):
         """
         Initialize the AI Alert Help agent.
@@ -77,6 +79,7 @@ class AiAlertHelpAgent:
         self.temperature = temperature if temperature is not None else provider_config.get("temperature", 0.3)
         self.max_tokens = max_tokens if max_tokens is not None else provider_config.get("max_tokens", 2000)
         self.on_tool_call_complete = on_tool_call_complete
+        self.pii_mapping_manager = pii_mapping_manager
 
         alert_id = alert.id if alert else None
         factory = registry_factory or create_full_registry
@@ -199,6 +202,72 @@ Rules:
         if provider_type == "anthropic": return self.tool_registry.get_anthropic_tools()
         return self.tool_registry.get_openai_tools()
 
+    async def _scan_and_redact_text(
+        self,
+        text: str,
+        *,
+        source_type: str,
+        redaction_type: str = "tag",
+        context_label: str = "text",
+    ) -> str:
+        """Detect + log + redact PII/secrets using the global PII service factory.
+
+        This agent uses LiteLLM directly (not app.services.llm_service.generate_completion),
+        so we must explicitly invoke PII scanning to keep behavior consistent with other agents.
+        """
+        processed = text
+        pii_service = None
+        try:
+            from app.services import llm_service
+
+            pii_factory = getattr(llm_service, "_pii_service_factory", None)
+            logger.info(f"🔍 PII SCAN [ALERT HELP]: pii_factory={pii_factory is not None}, text_len={len(text) if text else 0}, context={context_label}")
+            if not pii_factory or not text:
+                logger.warning(f"⚠️ PII SCAN SKIPPED [ALERT HELP]: pii_factory={pii_factory}, text={bool(text)}")
+                return processed
+
+            pii_service = await pii_factory()
+            logger.info(f"🔍 PII SERVICE [ALERT HELP] created, calling detect on: '{text[:100]}...'")
+            detection_response = await pii_service.detect(
+                text=text,
+                source_type=source_type,
+            )
+
+            detections = getattr(detection_response, "detections", None) or []
+            logger.info(f"🔍 PII DETECTION RESULT [ALERT HELP]: found {len(detections)} detections")
+            if detections:
+                detection_count = getattr(detection_response, "detection_count", len(detections))
+                logger.warning(
+                    f"Detected {detection_count} PII/secret(s) in {context_label} (source_type={source_type})"
+                )
+
+                for detection in detections:
+                    await pii_service.log_detection(
+                        detection=detection.model_dump(),
+                        source_type=source_type,
+                        source_id=None,
+                    )
+
+                # Use PIIMappingManager if available for consistent indexed redaction
+                if self.pii_mapping_manager:
+                    detection_dicts = [d.model_dump() for d in detections]
+                    processed, _ = self.pii_mapping_manager.redact_text_with_mappings(
+                        text=text,
+                        detections=detection_dicts
+                    )
+                else:
+                    redaction_response = await pii_service.redact(
+                        text=text,
+                        redaction_type=redaction_type,
+                    )
+                    processed = getattr(redaction_response, "redacted_text", processed)
+        except Exception as e:
+            logger.error(f"PII detection failed for {context_label}: {e}")
+        finally:
+            if pii_service:
+                await pii_service.close()
+        return processed
+
     # Reuse _call_llm, _call_anthropic_directly, _execute_tool_calls from AiTroubleshootAgent
     # To avoid code bloat here, I will assume the user considers "Duplication" as 
     # "Copy-Paste" to ensure independence. I will implement them fully.
@@ -247,7 +316,14 @@ Rules:
     async def run(self, user_message: str) -> AgentResponse:
         # (Standard run logic)
         if not self.messages: self.messages.append({"role": "system", "content": self._get_system_prompt()})
-        self.messages.append({"role": "user", "content": user_message})
+        
+        # Scan user input for PII/secrets before sending to LLM
+        processed_message = await self._scan_and_redact_text(
+            user_message,
+            source_type="user_input",
+            context_label="Alert Help user input",
+        )
+        self.messages.append({"role": "user", "content": processed_message})
         
         iterations = 0; self.tool_calls_made = []
         try:
@@ -277,7 +353,14 @@ Rules:
     async def stream(self, user_message: str) -> AsyncGenerator[str, None]:
         # (Standard stream logic support for command cards)
         if not self.messages: self.messages.append({"role": "system", "content": self._get_system_prompt()})
-        self.messages.append({"role": "user", "content": user_message})
+        
+        # Scan user input for PII/secrets before sending to LLM
+        processed_message = await self._scan_and_redact_text(
+            user_message,
+            source_type="user_input",
+            context_label="Alert Help user input (stream)",
+        )
+        self.messages.append({"role": "user", "content": processed_message})
         iterations = 0; self.tool_calls_made = []
         
         try:

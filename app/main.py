@@ -87,6 +87,7 @@ from app.routers import (
     inquiry,    # Phase 2: AI Inquiry Pillar
     pii,  # PII & Secret Detection
     pii_logs,  # PII Detection Logs
+    pii_feedback,  # PII False Positive Feedback
 )
 from app import api_credential_profiles
 from app.services.execution_worker import start_execution_worker, stop_execution_worker
@@ -274,6 +275,48 @@ async def lifespan(app: FastAPI):
         from app.services.itsm_sync_worker import start_itsm_sync_jobs
         start_itsm_sync_jobs(scheduler._scheduler)  # Pass APScheduler instance
         logger.info("✅ ITSM sync jobs started")
+        
+        # Initialize PII service factory for LLM scanning
+        logger.info("Initializing PII detection for LLM scanning...")
+        try:
+            from app.database import AsyncSessionLocal
+            from app.services.pii_service import PIIService
+            from app.services.presidio_service import PresidioService
+            from app.services.secret_detection_service import SecretDetectionService
+            from app.services import llm_service
+            
+            # Create singleton instances of expensive services at startup
+            # This avoids re-initializing Presidio (~6 seconds) on every request
+            _shared_presidio_service = PresidioService()
+            _shared_secret_service = SecretDetectionService()
+            logger.info("✅ Presidio and SecretDetection services initialized (singleton)")
+            
+            # Create factory function that returns PII service with async session
+            async def create_pii_service():
+                """Factory to create PII service with async database session.
+                
+                Uses singleton Presidio/Secret services but creates a fresh 
+                async session for each call to avoid transaction state issues.
+                The PIIService owns the session and will close it when done.
+                """
+                # Create session directly instead of using get_async_db generator
+                # to avoid IllegalStateChangeError when session is closed during GC
+                session = AsyncSessionLocal()
+                try:
+                    # owns_session=True ensures the session is closed when PIIService.close() is called
+                    from app.services.pii_whitelist_service import PIIWhitelistService
+                    whitelist_service = PIIWhitelistService(session)
+                    return PIIService(session, _shared_presidio_service, _shared_secret_service, owns_session=True, whitelist_service=whitelist_service)
+                except Exception:
+                    await session.close()
+                    raise
+            
+            # Inject factory into LLM service
+            llm_service.set_pii_service_factory(create_pii_service)
+            logger.info("✅ PII detection enabled for LLM requests")
+        except Exception as e:
+            logger.error(f"Failed to initialize PII service: {e}")
+            # Don't fail startup, but log the issue
     else:
         logger.info("Testing mode enabled: skipping init_db and background jobs")
     
@@ -407,6 +450,7 @@ app.include_router(inquiry.router)           # Phase 2: AI Inquiry Pillar
 app.include_router(agent_hq_api.router)      # Agent HQ API
 app.include_router(pii.router)               # PII & Secret Detection
 app.include_router(pii_logs.router)          # PII Detection Logs
+app.include_router(pii_feedback.router)      # PII False Positive Feedback
 
 
 # Mock OFREP endpoint for Grafana OpenFeature - returns valid empty response to prevent 404 errors
@@ -823,7 +867,8 @@ async def audit_page(
 @app.get("/pii-detection", response_class=HTMLResponse)
 async def pii_detection_page(
     request: Request,
-    current_user: User = Depends(get_current_user_optional)
+    current_user: User = Depends(get_current_user_optional),
+    db: Session = Depends(get_db)
 ):
     """
     PII Detection configuration page (Admin only)
@@ -831,7 +876,8 @@ async def pii_detection_page(
     if not current_user:
         return RedirectResponse(url="/login", status_code=302)
     
-    if current_user.role != "admin":
+    user_permissions = get_permissions_for_user(db, current_user)
+    if "pii_view_config" not in user_permissions:
         return RedirectResponse(url="/", status_code=302)
     
     return templates.TemplateResponse("pii_detection.html", {
@@ -844,7 +890,8 @@ async def pii_detection_page(
 @app.get("/pii-logs", response_class=HTMLResponse)
 async def pii_logs_page(
     request: Request,
-    current_user: User = Depends(get_current_user_optional)
+    current_user: User = Depends(get_current_user_optional),
+    db: Session = Depends(get_db)
 ):
     """
     PII Detection logs page (Security viewer role or admin)
@@ -852,8 +899,8 @@ async def pii_logs_page(
     if not current_user:
         return RedirectResponse(url="/login", status_code=302)
     
-    # Allow admin or security_viewer roles
-    if current_user.role not in ["admin", "security_viewer"]:
+    user_permissions = get_permissions_for_user(db, current_user)
+    if "pii_read_logs" not in user_permissions:
         return RedirectResponse(url="/", status_code=302)
     
     return templates.TemplateResponse("pii_logs.html", {

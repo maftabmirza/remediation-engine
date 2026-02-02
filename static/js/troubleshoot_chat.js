@@ -401,7 +401,18 @@ async function loadMessageHistory(sessionId) {
     try {
         const response = await apiCall(`/api/troubleshoot/sessions/${sessionId}/messages`);
         if (!response.ok) throw new Error('Failed to load history');
-        const messages = await response.json();
+        const data = await response.json();
+        
+        // Handle both old format (array) and new format (object with messages + pii_mapping)
+        const messages = Array.isArray(data) ? data : (data.messages || []);
+        const piiMapping = data.pii_mapping || {};
+        
+        // Store PII mapping for de-anonymization
+        if (Object.keys(piiMapping).length > 0) {
+            window.currentPiiMapping = piiMapping;
+            console.log('🔍 PII: Loaded mapping for de-anonymization:', Object.keys(piiMapping).length, 'entries');
+        }
+        
         const container = document.getElementById('chatMessages');
         container.innerHTML = '';
         if (messages.length === 0) {
@@ -409,10 +420,18 @@ async function loadMessageHistory(sessionId) {
             return;
         }
         messages.forEach(msg => {
+            // De-anonymize content for user display (replace placeholders with original values)
+            let displayContent = msg.content;
+            if (piiMapping && Object.keys(piiMapping).length > 0) {
+                for (const [placeholder, original] of Object.entries(piiMapping)) {
+                    displayContent = displayContent.split(placeholder).join(original);
+                }
+            }
+            
             if (msg.role === 'user') {
-                AIChatBase.appendUserMessage(msg.content);
+                AIChatBase.appendUserMessage(displayContent);
             } else if (msg.role === 'assistant') {
-                AIChatBase.appendAIMessage(msg.content, {
+                AIChatBase.appendAIMessage(displayContent, {
                     skipRunButtons: true,
                     messageId: msg.id
                 });
@@ -1892,6 +1911,75 @@ function appendUserMessage(text) {
     lastMessageRole = 'user';
 }
 
+/**
+ * Show a PII redaction notification after the user message
+ * The original message is kept, but user is informed PII was redacted before sending to AI
+ */
+function updateLastUserMessageWithRedaction() {
+    const container = document.getElementById('chatMessages');
+    if (!container) return;
+    
+    // Find the last user message (has justify-end class)
+    const allMessages = container.querySelectorAll('.flex.justify-end');
+    const lastUserMsg = allMessages[allMessages.length - 1];
+    
+    if (lastUserMsg) {
+        // Check if notification already exists
+        if (lastUserMsg.nextSibling && lastUserMsg.nextSibling.classList && 
+            lastUserMsg.nextSibling.classList.contains('pii-redaction-notification')) {
+            return; // Already added
+        }
+        
+        // Add a small notification below the user message
+        const notification = document.createElement('div');
+        notification.className = 'flex justify-end mb-3 pii-redaction-notification';
+        notification.innerHTML = `
+            <div class="text-xs flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-amber-900/20 to-amber-800/10 rounded-lg backdrop-blur-sm">
+                <svg class="w-3.5 h-3.5 text-amber-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"></path>
+                </svg>
+                <span class="text-amber-300 font-medium">🔒 PII Detected & Redacted</span>
+            </div>
+        `;
+        lastUserMsg.parentNode.insertBefore(notification, lastUserMsg.nextSibling);
+    }
+}
+
+/**
+ * Highlight PII detections in the last user message
+ */
+function highlightPIIInLastUserMessage(detections, originalText) {
+    const container = document.getElementById('chatMessages');
+    if (!container || !window.piiFeedbackUI) {
+        console.warn('🔍 PII: Cannot highlight - container or piiFeedbackUI not found');
+        return;
+    }
+    
+    // Find the last user message element (has justify-end class, but not pii-redaction-notification)
+    const allMessages = container.querySelectorAll('.flex.justify-end');
+    let lastUserMsg = null;
+    for (let i = allMessages.length - 1; i >= 0; i--) {
+        if (!allMessages[i].classList.contains('pii-redaction-notification')) {
+            lastUserMsg = allMessages[i];
+            break;
+        }
+    }
+    
+    if (lastUserMsg) {
+        // Find the actual text content div
+        const messageContent = lastUserMsg.querySelector('.user-message-text');
+        
+        if (messageContent) {
+            console.log('🔍 PII: Highlighting in user message element');
+            window.piiFeedbackUI.highlightDetections(messageContent, detections, originalText);
+        } else {
+            console.warn('🔍 PII: Could not find message content element with .user-message-text class');
+        }
+    } else {
+        console.warn('🔍 PII: Could not find last user message');
+    }
+}
+
 function getTerminalContent() {
     if (!term) return '';
     const buffer = term.buffer.active;
@@ -2008,6 +2096,9 @@ async function sendStreamingMessage(message) {
         let buffer = '';
         let fullResponse = '';
         let firstChunkReceived = false;
+        let piiMapping = {}; // Store mapping of redacted placeholders to original values
+        let piiDetections = []; // Store PII detections for highlighting
+        let originalUserMessage = message; // Store original message for highlighting
 
         // Keep typing indicator visible until first content chunk arrives
 
@@ -2026,15 +2117,37 @@ async function sendStreamingMessage(message) {
 
                         if (data.type === 'session') {
                             currentSessionId = data.session_id;
+                            // Set session ID for PII feedback
+                            if (window.piiFeedbackUI) {
+                                window.piiFeedbackUI.setSessionId(currentSessionId);
+                            }
+                        } else if (data.type === 'pii_detections') {
+                            // Store detections for highlighting user message
+                            piiDetections = data.detections || [];
+                            console.log('🔍 PII: Received detections for highlighting:', piiDetections);
+                        } else if (data.type === 'redacted_input') {
+                            // PII was detected - store mapping for de-anonymizing AI response
+                            piiMapping = data.pii_mapping || {};
+                            // Show notification that PII was redacted
+                            updateLastUserMessageWithRedaction();
+                            // Highlight PII in user message if detections available
+                            if (piiDetections.length > 0 && window.piiFeedbackUI) {
+                                highlightPIIInLastUserMessage(piiDetections, originalUserMessage);
+                            }
                         } else if (data.type === 'chunk') {
                             // Remove typing indicator on first content chunk
                             if (!firstChunkReceived) {
                                 removeTypingIndicator();
                                 firstChunkReceived = true;
                             }
-                            fullResponse += data.content;
-                            // Stream content to UI - update existing message
-                            appendStreamingChunk(data.content);
+                            // De-anonymize the chunk using Presidio's mapping
+                            let processedChunk = data.content;
+                            for (const [placeholder, original] of Object.entries(piiMapping)) {
+                                processedChunk = processedChunk.split(placeholder).join(original);
+                            }
+                            fullResponse += processedChunk;
+                            // Stream de-anonymized content to UI
+                            appendStreamingChunk(processedChunk);
                         } else if (data.type === 'done') {
                             // Finalize the message and render suggestions
                             finalizeStreamingMessage(fullResponse);

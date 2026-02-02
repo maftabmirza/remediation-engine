@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID, uuid4
 
-from sqlalchemy import Boolean, Column, DateTime, Float, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, Column, DateTime, Float, Integer, String, Text, UniqueConstraint, ForeignKey
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PGUUID
 from sqlalchemy.sql import func
 
@@ -77,3 +77,45 @@ class SecretBaseline(Base):
     
     def __repr__(self):
         return f"<SecretBaseline(type={self.secret_type}, acknowledged={self.is_acknowledged}, count={self.detection_count})>"
+
+
+class PIIFalsePositiveFeedback(Base):
+    """User feedback for false positive PII/secret detections."""
+    
+    __tablename__ = "pii_false_positive_feedback"
+    
+    id = Column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    
+    # What was flagged
+    detected_text = Column(String(500), nullable=False, index=True, comment='The text incorrectly flagged as PII')
+    detected_entity_type = Column(String(100), nullable=False, index=True, comment='Entity type that was detected')
+    detection_engine = Column(String(50), nullable=False, comment='presidio or detect_secrets')
+    original_confidence = Column(Float, nullable=True, comment='Original confidence score')
+    
+    # Context
+    user_id = Column(PGUUID(as_uuid=True), ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
+    session_id = Column(String(255), nullable=True, index=True, comment='Agent session ID')
+    agent_mode = Column(String(50), nullable=True, index=True, comment='alert/revive/troubleshoot')
+    detection_log_id = Column(PGUUID(as_uuid=True), ForeignKey('pii_detection_logs.id', ondelete='SET NULL'), nullable=True)
+    
+    # Feedback details
+    reported_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), index=True)
+    user_comment = Column(Text, nullable=True, comment='Optional reason from user')
+    
+    # Whitelist status
+    whitelisted = Column(Boolean, nullable=False, default=True, index=True, comment='Active in whitelist')
+    whitelisted_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    whitelist_scope = Column(String(50), nullable=False, default='organization', comment='organization/user/global')
+    
+    # Admin review workflow (optional)
+    review_status = Column(String(50), nullable=False, default='auto_approved', index=True, comment='approved/rejected/pending')
+    reviewed_by = Column(PGUUID(as_uuid=True), ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    reviewed_at = Column(DateTime(timezone=True), nullable=True)
+    review_notes = Column(Text, nullable=True)
+    
+    # Audit
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+    
+    def __repr__(self):
+        return f"<PIIFalsePositiveFeedback(text='{self.detected_text[:30]}...', type={self.detected_entity_type}, whitelisted={self.whitelisted})>"

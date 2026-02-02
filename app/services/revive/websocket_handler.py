@@ -19,6 +19,7 @@ from app.models_ai import AISession, AIMessage
 from app.services.revive.orchestrator import ReviveOrchestrator
 from app.services.mcp.client import MCPClient
 from app.services.ai_permission_service import AIPermissionService
+from app.services.pii_mapping_manager import PIIMappingManager
 
 logger = logging.getLogger(__name__)
 
@@ -161,11 +162,73 @@ async def handle_revive_websocket(
                 # Reset stop flag
                 stop_requested = False
                 
-                # Save user message
+                # PII Detection - Load existing mapping from session for consistency
+                pii_manager = PIIMappingManager(ai_session.pii_mapping_json or {})
+                logger.info(f"🔍 PII MANAGER [RE-VIVE WS]: loaded with {len(pii_manager)} existing mappings")
+                
+                message_to_use = user_message
+                pii_mapping = {}
+                pii_service = None
+                
+                try:
+                    from app.services import llm_service
+
+                    pii_factory = getattr(llm_service, "_pii_service_factory", None)
+                    logger.info(f"🔍 PII CHECK [RE-VIVE WS]: pii_factory={pii_factory is not None}, message_len={len(user_message)}")
+                    
+                    if pii_factory and user_message:
+                        pii_service = await pii_factory()
+                        detection_response = await pii_service.detect(
+                            text=user_message,
+                            source_type="user_input",
+                        )
+                        
+                        detections = getattr(detection_response, "detections", None) or []
+                        logger.info(f"🔍 PII DETECTIONS [RE-VIVE WS]: found {len(detections)} items")
+
+                        if detections:
+                            logger.warning(
+                                f"Detected {len(detections)} PII/secret(s) in RE-VIVE WS user input"
+                            )
+                            
+                            for detection in detections:
+                                await pii_service.log_detection(
+                                    detection=detection.model_dump(),
+                                    source_type="user_input",
+                                    source_id=None,
+                                )
+
+                            detection_dicts = [d.model_dump() for d in detections]
+                            message_to_use, _ = pii_manager.redact_text_with_mappings(
+                                text=user_message,
+                                detections=detection_dicts
+                            )
+                            
+                            pii_mapping = pii_manager.get_all_mappings()
+                            
+                            # Save updated mapping to session
+                            ai_session.pii_mapping_json = pii_manager.to_dict()
+                            db.commit()
+                            
+                            logger.info(f"🔍 PII REDACTED [RE-VIVE WS]: total mappings: {len(pii_manager)}")
+                except Exception as e:
+                    logger.error(f"PII detection failed for RE-VIVE WS: {e}", exc_info=True)
+                finally:
+                    if pii_service:
+                        await pii_service.close()
+                
+                # Notify frontend if message was redacted
+                if message_to_use != user_message:
+                    await websocket.send_json({
+                        "type": "redacted_input",
+                        "pii_mapping": pii_mapping
+                    })
+                
+                # Save user message (potentially redacted)
                 user_msg = AIMessage(
                     session_id=session_uuid,
                     role="user",
-                    content=user_message
+                    content=message_to_use
                 )
                 db.add(user_msg)
                 db.commit()
@@ -207,7 +270,7 @@ async def handle_revive_websocket(
                 
                 try:
                     async for chunk in orchestrator.run_revive_turn(
-                        user_message,
+                        message_to_use,  # Use potentially redacted message
                         initial_messages,
                         current_page=current_page,
                         explicit_mode=explicit_mode
@@ -254,9 +317,15 @@ async def handle_revive_websocket(
                         db.add(assistant_msg)
                         db.commit()
                         
-                        # Update message history
-                        initial_messages.append({"role": "user", "content": user_message})
+                        # Update message history (use redacted version)
+                        initial_messages.append({"role": "user", "content": message_to_use})
                         initial_messages.append({"role": "assistant", "content": full_response})
+                        
+                        # Save updated PII mapping after streaming
+                        if pii_manager and len(pii_manager) > 0:
+                            ai_session.pii_mapping_json = pii_manager.to_dict()
+                            db.commit()
+                            logger.info(f"🔍 PII MAPPING FINAL [RE-VIVE WS]: saved {len(pii_manager)} mappings")
                         
                         await websocket.send_json({
                             "type": "done",

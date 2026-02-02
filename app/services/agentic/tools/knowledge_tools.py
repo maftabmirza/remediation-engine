@@ -35,7 +35,7 @@ class KnowledgeTools(ToolModule):
         self._register_tool(
             Tool(
                 name="search_knowledge",
-                description="Search the knowledge base for runbooks, SOPs, architecture docs, troubleshooting guides, and postmortems. Use this to find documented procedures and past solutions.",
+                description="Search the knowledge base for documented procedures and system design. PRIMARY sources: SOPs (Standard Operating Procedures) and Architecture docs - always check these first. OPTIONAL: Code repositories when you need implementation details or code examples.",
                 parameters=[
                     ToolParameter(
                         name="query",
@@ -46,9 +46,9 @@ class KnowledgeTools(ToolModule):
                     ToolParameter(
                         name="doc_type",
                         type="string",
-                        description="Filter by document type",
+                        description="Filter by type: 'sop' or 'architecture' (recommended for procedures/design), 'code' (only when implementation details needed)",
                         required=False,
-                        enum=["runbook", "sop", "architecture", "troubleshooting", "postmortem", "design_doc"]
+                        enum=["sop", "architecture", "code"]
                     ),
                     ToolParameter(
                         name="limit",

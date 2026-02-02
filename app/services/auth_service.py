@@ -36,6 +36,10 @@ ROLE_PERMISSIONS = {
         "view_knowledge",
         "upload_documents",
         "manage_knowledge",
+        "pii_view_config",
+        "pii_edit_config",
+        "pii_read_logs",
+        "pii_report_false_positive",
     },
     "admin": {
         "manage_users",
@@ -49,6 +53,23 @@ ROLE_PERMISSIONS = {
         "view_knowledge",
         "upload_documents",
         "manage_knowledge",
+        "pii_view_config",
+        "pii_edit_config",
+        "pii_read_logs",
+        "pii_report_false_positive",
+    },
+    "security_admin": {
+        "read",
+        "view_audit",
+        "pii_view_config",
+        "pii_edit_config",
+        "pii_read_logs",
+        "pii_report_false_positive",
+    },
+    "security_viewer": {
+        "read",
+        "pii_view_config",
+        "pii_read_logs",
     },
     "maintainer": {
         "manage_servers",
@@ -66,6 +87,7 @@ ROLE_PERMISSIONS = {
         "read",
         "view_knowledge",
         "upload_documents",
+        "pii_report_false_positive",
     },
     "viewer": {
         "read",
@@ -79,7 +101,7 @@ ROLE_PERMISSIONS = {
 }
 
 DEFAULT_ROLE = "operator"
-ADMIN_ROLES = {"owner", "admin"}
+ADMIN_ROLES = {"owner", "admin", "security_admin"}
 VALID_ROLES = set(ROLE_PERMISSIONS.keys())
 
 # Password hashing

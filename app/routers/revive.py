@@ -12,6 +12,7 @@ from app.database import get_db
 from app.services.auth_service import get_current_user, get_current_user_ws
 from app.models import User, LLMProvider
 from app.models_ai import AISession, AIMessage
+from app.services.pii_mapping_manager import PIIMappingManager
 
 router = APIRouter(
     prefix="/api/revive",
@@ -46,6 +47,9 @@ async def revive_chat_stream(
         nonlocal session_id
         full_response = ""
         tool_calls = []
+        message_to_use = message
+        pii_mapping = {}
+        pii_service = None
         
         try:
             # 1. Get LLM Provider
@@ -80,8 +84,70 @@ async def revive_chat_stream(
             
             yield f"data: {json.dumps({'type': 'session', 'session_id': session_id})}\n\n"
             
-            # 3. Save User Message
-            user_msg = AIMessage(session_id=ai_session.id, role="user", content=message)
+            # 2.5. PII Detection - Load existing PII mapping from session for consistency
+            pii_manager = PIIMappingManager(ai_session.pii_mapping_json or {})
+            logger.info(f"🔍 PII MANAGER [RE-VIVE]: loaded with {len(pii_manager)} existing mappings")
+            
+            try:
+                from app.services import llm_service
+
+                pii_factory = getattr(llm_service, "_pii_service_factory", None)
+                logger.info(f"🔍 PII CHECK [RE-VIVE]: pii_factory={pii_factory is not None}, message_len={len(message) if message else 0}")
+                
+                if pii_factory and message:
+                    pii_service = await pii_factory()
+                    logger.info(f"🔍 PII SERVICE [RE-VIVE]: created, detecting on '{message[:50]}...'")
+                    detection_response = await pii_service.detect(
+                        text=message,
+                        source_type="user_input",
+                    )
+                    
+                    detections = getattr(detection_response, "detections", None) or []
+                    logger.info(f"🔍 PII DETECTIONS [RE-VIVE]: found {len(detections)} items")
+
+                    if detections:
+                        logger.warning(
+                            f"Detected {len(detections)} "
+                            "PII/secret(s) in RE-VIVE user input - redacting with indexed placeholders"
+                        )
+                        
+                        for detection in detections:
+                            await pii_service.log_detection(
+                                detection=detection.model_dump(),
+                                source_type="user_input",
+                                source_id=None,
+                            )
+
+                        # Use PIIMappingManager for consistent indexed redaction
+                        detection_dicts = [d.model_dump() for d in detections]
+                        message_to_use, _ = pii_manager.redact_text_with_mappings(
+                            text=message,
+                            detections=detection_dicts
+                        )
+                        
+                        pii_mapping = pii_manager.get_all_mappings()
+                        
+                        # Save updated mapping back to session
+                        ai_session.pii_mapping_json = pii_manager.to_dict()
+                        db.commit()
+                        
+                        logger.info(f"🔍 PII REDACTED [RE-VIVE]: '{message_to_use[:100]}' | total mappings: {len(pii_manager)}")
+                else:
+                    logger.warning(f"⚠️ PII SKIPPED [RE-VIVE]: factory={pii_factory is not None}, message={bool(message)}")
+            except Exception as e:
+                logger.error(f"PII detection failed for RE-VIVE user input: {e}", exc_info=True)
+                message_to_use = message
+                pii_mapping = {}
+            finally:
+                if pii_service:
+                    await pii_service.close()
+            
+            # Notify frontend if message was redacted
+            if message_to_use != message:
+                yield f"data: {json.dumps({'type': 'redacted_input', 'pii_mapping': pii_mapping})}\n\n"
+            
+            # 3. Save User Message (potentially redacted)
+            user_msg = AIMessage(session_id=ai_session.id, role="user", content=message_to_use)
             db.add(user_msg)
             db.commit()
             
@@ -108,9 +174,9 @@ async def revive_chat_stream(
                 alert_id=None # Revive is general purpose, but could support alert context if passed
             )
             
-            # 5. Run Orchestrator Loop
+            # 5. Run Orchestrator Loop (with potentially redacted message)
             async for chunk in orchestrator.run_revive_turn(
-                message, 
+                message_to_use, 
                 initial_messages,
                 current_page=current_page,
                 explicit_mode=explicit_mode
@@ -124,6 +190,12 @@ async def revive_chat_stream(
                     full_response += chunk
                     yield f"data: {json.dumps({'type': 'chunk', 'content': chunk})}\n\n"
                 await asyncio.sleep(0.01)
+            
+            # Save updated PII mapping after streaming (may have new mappings from tool outputs)
+            if pii_manager and len(pii_manager) > 0:
+                ai_session.pii_mapping_json = pii_manager.to_dict()
+                db.commit()
+                logger.info(f"🔍 PII MAPPING FINAL [RE-VIVE]: saved {len(pii_manager)} mappings to session")
                 
             # 6. Finalize
             if hasattr(orchestrator, 'tool_calls_made'):

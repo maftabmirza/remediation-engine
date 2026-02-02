@@ -4791,6 +4791,40 @@ CREATE TABLE public.secret_baselines (
 
 
 --
+-- Name: pii_false_positive_feedback; Type: TABLE; Schema: public; Owner: aiops
+--
+
+CREATE TABLE public.pii_false_positive_feedback (
+    id uuid NOT NULL,
+    detected_text character varying(500) NOT NULL,
+    detected_entity_type character varying(100) NOT NULL,
+    detection_engine character varying(50) NOT NULL,
+    original_confidence double precision,
+    user_id uuid NOT NULL,
+    session_id character varying(255),
+    agent_mode character varying(50),
+    detection_log_id uuid,
+    reported_at timestamp with time zone DEFAULT now() NOT NULL,
+    user_comment text,
+    whitelisted boolean DEFAULT true NOT NULL,
+    whitelisted_at timestamp with time zone DEFAULT now() NOT NULL,
+    whitelist_scope character varying(50) DEFAULT 'organization'::character varying NOT NULL,
+    review_status character varying(50) DEFAULT 'auto_approved'::character varying NOT NULL,
+    reviewed_by uuid,
+    reviewed_at timestamp with time zone,
+    review_notes text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT pii_false_positive_feedback_pkey PRIMARY KEY (id),
+    CONSTRAINT pii_false_positive_feedback_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE,
+    CONSTRAINT pii_false_positive_feedback_reviewed_by_fkey FOREIGN KEY (reviewed_by) REFERENCES public.users(id) ON DELETE SET NULL,
+    CONSTRAINT pii_false_positive_feedback_detection_log_id_fkey FOREIGN KEY (detection_log_id) REFERENCES public.pii_detection_logs(id) ON DELETE SET NULL,
+    CONSTRAINT chk_whitelist_scope CHECK (whitelist_scope IN ('organization', 'user', 'global')),
+    CONSTRAINT chk_review_status CHECK (review_status IN ('auto_approved', 'approved', 'rejected', 'pending'))
+);
+
+
+--
 -- Name: ix_pii_detection_config_config_type; Type: INDEX; Schema: public; Owner: aiops
 --
 
@@ -4872,6 +4906,62 @@ CREATE INDEX ix_secret_baselines_secret_type ON public.secret_baselines USING bt
 --
 
 CREATE INDEX ix_secret_baselines_is_acknowledged ON public.secret_baselines USING btree (is_acknowledged);
+
+
+--
+-- Name: idx_pii_feedback_text; Type: INDEX; Schema: public; Owner: aiops
+--
+
+CREATE INDEX idx_pii_feedback_text ON public.pii_false_positive_feedback USING btree (detected_text);
+
+
+--
+-- Name: idx_pii_feedback_entity_type; Type: INDEX; Schema: public; Owner: aiops
+--
+
+CREATE INDEX idx_pii_feedback_entity_type ON public.pii_false_positive_feedback USING btree (detected_entity_type);
+
+
+--
+-- Name: idx_pii_feedback_user_id; Type: INDEX; Schema: public; Owner: aiops
+--
+
+CREATE INDEX idx_pii_feedback_user_id ON public.pii_false_positive_feedback USING btree (user_id);
+
+
+--
+-- Name: idx_pii_feedback_whitelisted; Type: INDEX; Schema: public; Owner: aiops
+--
+
+CREATE INDEX idx_pii_feedback_whitelisted ON public.pii_false_positive_feedback USING btree (whitelisted) WHERE whitelisted = true;
+
+
+--
+-- Name: idx_pii_feedback_reported_at; Type: INDEX; Schema: public; Owner: aiops
+--
+
+CREATE INDEX idx_pii_feedback_reported_at ON public.pii_false_positive_feedback USING btree (reported_at);
+
+
+--
+-- Name: idx_pii_feedback_session; Type: INDEX; Schema: public; Owner: aiops
+--
+
+CREATE INDEX idx_pii_feedback_session ON public.pii_false_positive_feedback USING btree (session_id);
+
+
+--
+-- Name: idx_pii_feedback_review_status; Type: INDEX; Schema: public; Owner: aiops
+--
+
+CREATE INDEX idx_pii_feedback_review_status ON public.pii_false_positive_feedback USING btree (review_status);
+
+
+--
+-- Name: idx_pii_feedback_whitelist_lookup; Type: INDEX; Schema: public; Owner: aiops
+--
+
+CREATE INDEX idx_pii_feedback_whitelist_lookup ON public.pii_false_positive_feedback USING btree (detected_text, whitelisted, whitelist_scope) WHERE whitelisted = true;
 
 
 --
