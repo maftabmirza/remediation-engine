@@ -877,7 +877,9 @@ async def pii_detection_page(
         return RedirectResponse(url="/login", status_code=302)
     
     user_permissions = get_permissions_for_user(db, current_user)
+    print(f"DEBUG [pii_detection_page]: User={current_user.username}, Role={current_user.role}, Permissions={user_permissions}", flush=True)
     if "pii_view_config" not in user_permissions:
+        print(f"DEBUG [pii_detection_page]: Redirecting to /. Missing pii_view_config. User perms: {user_permissions}", flush=True)
         return RedirectResponse(url="/", status_code=302)
     
     return templates.TemplateResponse("pii_detection.html", {
