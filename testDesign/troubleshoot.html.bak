@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% set active_page = "ai_analyst" %}
+{% set current_path = "/troubleshoot.html" %}
+
+{% block header_title %}Troubleshoot Console{% endblock %}
+{% block header_subtitle %}AI Troubleshooting Assistant{% endblock %}
+
+{% block title %}Troubleshoot Console | Enterprise AIOps{% endblock %}
+
+{% block content %}
+<main class="troubleshoot-main">
+    <!-- Left Panel - Chat -->
+    <div class="ts-chat-panel">
+        <!-- Session Header -->
+        <div class="ts-session-header">
+            <div class="ts-session-left">
+                <span class="ts-session-label">SESSION</span>
+                <button class="ts-session-btn">
+                    <i data-feather="zap" style="width: 14px; height: 14px;"></i>
+                    <span>New Session</span>
+                    <i data-feather="chevron-down" style="width: 12px; height: 12px;"></i>
+                </button>
+                <div class="ts-model-badge">
+                    <span class="ts-model-dot"></span>
+                    <span>GPT-4</span>
+                </div>
+            </div>
+            <div class="ts-session-actions">
+                <button class="ts-icon-btn" title="Edit">
+                    <i data-feather="edit-2"></i>
+                </button>
+                <button class="ts-icon-btn" title="Refresh">
+                    <i data-feather="refresh-cw"></i>
+                </button>
+                <button class="ts-icon-btn" title="Minimize">
+                    <i data-feather="minus"></i>
+                </button>
+                <button class="ts-icon-btn" title="Add">
+                    <i data-feather="plus"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Chat Messages -->
+        <div class="ts-chat-messages">
+            <!-- User Message -->
+            <div class="ts-message ts-message-user">
+                <div class="ts-message-bubble">
+                    Hello, I am experiencing issues with my production database cluster.
+                </div>
+            </div>
+
+            <!-- AI Response -->
+            <div class="ts-message ts-message-ai">
+                <div class="ts-ai-avatar">
+                    <i data-feather="cpu"></i>
+                </div>
+                <div class="ts-message-content">
+                    <span class="ts-ai-label">AI Assistant</span>
+                    <div class="ts-message-bubble">
+                        <p>Hello! I'm your AI Troubleshooting Assistant, ready to help you investigate and
+                            resolve any production incidents or system issues.</p>
+                        <p>How can I assist you today? Are you experiencing:</p>
+                        <ul>
+                            <li>An active alert that needs investigation?</li>
+                            <li>Performance issues with a specific application or service?</li>
+                            <li>Problems with a particular server?</li>
+                            <li>Or do you have another system-related question?</li>
+                        </ul>
+                        <p>Please let me know what you'd like me to help troubleshoot!</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Input -->
+        <div class="ts-chat-input-container">
+            <div class="ts-chat-input-wrapper">
+                <input type="text" class="ts-chat-input"
+                    placeholder="Ask to run commands, check logs, or troubleshoot issues...">
+                <button class="ts-send-btn">
+                    <i data-feather="send"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Panel - Terminal/Tools -->
+    <div class="ts-tools-panel">
+        <!-- Tools Header with Tabs -->
+        <div class="ts-tools-header">
+            <div class="ts-tabs">
+                <button class="ts-tab active">
+                    <i data-feather="terminal" style="width: 14px; height: 14px;"></i>
+                    <span>Terminal</span>
+                </button>
+                <button class="ts-tab">
+                    <i data-feather="file" style="width: 14px; height: 14px;"></i>
+                    <span>File</span>
+                </button>
+                <button class="ts-tab">
+                    <i data-feather="git-pull-request" style="width: 14px; height: 14px;"></i>
+                    <span>Diff</span>
+                </button>
+                <button class="ts-tab">
+                    <i data-feather="globe" style="width: 14px; height: 14px;"></i>
+                    <span>HQ</span>
+                </button>
+                <div class="ts-tab-actions">
+                    <button class="ts-icon-btn"><i data-feather="minus"></i></button>
+                    <button class="ts-icon-btn"><i data-feather="plus"></i></button>
+                </div>
+            </div>
+            <div class="ts-connection-status">
+                <span class="ts-status-dot disconnected"></span>
+                <span>Disconnected</span>
+                <button class="ts-connect-btn">
+                    <i data-feather="wifi" style="width: 12px; height: 12px;"></i>
+                    <span>Connect</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Terminal Content -->
+        <div class="ts-terminal">
+            <div class="ts-terminal-output">
+                <div class="ts-terminal-line">
+                    <span class="ts-prompt">$</span>
+                    <span class="ts-command">kubectl get pods -n production</span>
+                </div>
+                <div class="ts-terminal-line ts-output">
+                    NAME READY STATUS RESTARTS AGE
+                    api-gateway-7d8f9c6b5-x2k4m 1/1 Running 0 2d
+                    auth-service-5c7d8e9f1-p3n7q 1/1 Running 0 2d
+                    db-cluster-primary-0 1/1 Running 0 5d
+                    db-cluster-replica-0 0/1 CrashLoopBackOff 5 1h
+                    payment-svc-3a4b5c6d7-m8n9o 1/1 Running 0 2d
+                </div>
+                <div class="ts-terminal-line">
+                    <span class="ts-prompt">$</span>
+                    <span class="ts-command">kubectl logs db-cluster-replica-0 --tail=20</span>
+                </div>
+                <div class="ts-terminal-line ts-output ts-error">
+                    ERROR: Failed to connect to primary node
+                    ERROR: Replication lag exceeded threshold
+                    FATAL: Could not establish connection to master
+                </div>
+                <div class="ts-terminal-line ts-cursor">
+                    <span class="ts-prompt">$</span>
+                    <span class="ts-cursor-blink">|</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+    // Tab switching
+    document.querySelectorAll('.ts-tab').forEach(tab => {
+        tab.addEventListener('click', function () {
+            document.querySelectorAll('.ts-tab').forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+        });
+    });
+
+    // Send button animation
+    document.querySelector('.ts-send-btn').addEventListener('click', function () {
+        this.style.transform = 'scale(0.9)';
+        setTimeout(() => this.style.transform = 'scale(1)', 150);
+    });
+</script>
+{% endblock %}

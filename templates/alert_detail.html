@@ -1,4 +1,4 @@
-{% extends "layout.html" %}
+{% extends "base.html" %}
 {% set active_page = 'alerts' %}
 
 {% block title %}Alert Details - AIOps Platform{% endblock %}
@@ -25,6 +25,7 @@
         <i class="fas fa-trash"></i> Delete
     </button>
 </div>
+{{ super() }}
 {% endblock %}
 
 {% block content %}
@@ -2913,49 +2914,49 @@
             case 'error':
                 showToast(data.message || 'Agent error', 'error');
                 break;
-                
+
             default:
                 console.warn('Unknown agent message type:', data.type, data);
         }
     }
-    
+
     // Execute agent command in terminal and send result back
     async function executeAgentCommandInTerminal(step) {
         console.log('Executing command in terminal:', step.content);
-        
+
         if (!currentServerId) {
             console.error('No server connected');
             sendAgentCommandResult(step.id, 'No server connected', 1);
             return;
         }
-        
+
         try {
             // Send command to terminal for visibility
             if (terminalSocket && terminalSocket.readyState === WebSocket.OPEN) {
                 terminalSocket.send(step.content + '\r');
             }
-            
+
             // Execute via SSH API for clean output capture
             const response = await apiCall(`/api/servers/${currentServerId}/execute`, {
                 method: 'POST',
                 body: JSON.stringify({ command: step.content, timeout: 120 })
             });
-            
+
             const result = await response.json();
             console.log('Command result:', result);
-            
+
             const output = result.stdout || result.stderr || result.error || '';
             const exitCode = result.exit_code !== undefined ? result.exit_code : (result.success ? 0 : 1);
-            
+
             // Send result back to agent backend
             sendAgentCommandResult(step.id, output, exitCode);
-            
+
         } catch (error) {
             console.error('Command execution failed:', error);
             sendAgentCommandResult(step.id, error.message || 'Execution failed', 1);
         }
     }
-    
+
     function sendAgentCommandResult(stepId, output, exitCode) {
         if (agentSocket && agentSocket.readyState === WebSocket.OPEN) {
             agentSocket.send(JSON.stringify({
@@ -3002,7 +3003,7 @@
 
     function addAgentStep(step, autoApprove = false) {
         console.log('addAgentStep called with:', step, 'autoApprove:', autoApprove);
-        
+
         const container = document.getElementById('agentSteps');
         if (!container) {
             console.error('agentSteps container not found');

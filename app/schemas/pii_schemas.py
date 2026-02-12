@@ -147,6 +147,7 @@ class DetectionLogQuery(BaseModel):
     source_type: Optional[str] = None
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
+    q: Optional[str] = None
 
 
 class DetectionLogSearchResponse(BaseModel):

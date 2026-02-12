@@ -1,64 +1,55 @@
-{% extends "layout.html" %}
+{% extends "base.html" %}
 {% set active_page = 'executions' %}
 
 {% block title %}Executions - AIOps Platform{% endblock %}
 
+{% block header_title %}
+<i class="fas fa-tasks text-blue-400"></i>
+<span class="text-sm font-semibold text-white tracking-tight">Executions</span>
+{% endblock %}
+
+{% block breadcrumbs %}
+<span class="mx-2">/</span>
+<span class="text-gray-200">Executions</span>
+{% endblock %}
+
 {% block content %}
 <div class="space-y-4">
-    <!-- Enterprise Standard Toolbar -->
-    <div class="dashboard-header"
-        style="padding: 12px; background: #16171b; border-bottom: 1px solid rgba(255,255,255,0.05); border-radius: 8px;">
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <!-- Left: Breadcrumbs & Title -->
-            <div class="flex flex-col min-w-0">
-                <!-- Breadcrumbs -->
-                <nav class="flex items-center text-xs text-gray-400 mb-1">
-                    <a href="/" class="hover:text-blue-400 transition-colors">Home</a>
-                    <span class="mx-2">/</span>
-                    <span class="text-gray-200">Executions</span>
-                </nav>
-                <div class="flex items-center gap-3">
-                    <h1 class="text-xl font-bold text-white tracking-tight truncate">Executions</h1>
-                </div>
-                <p class="text-xs text-gray-500 mt-1">Monitor runbook execution history and status</p>
-            </div>
-
-            <!-- Right: Actions -->
-            <div class="flex items-center gap-2">
-                <button onclick="loadExecutions()"
-                    class="bg-gray-700 hover:bg-gray-600 px-3 py-1.5 rounded text-white text-sm flex items-center gap-2 transition-colors">
-                    <i class="fas fa-sync-alt"></i>
-                    Refresh
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Filters -->
+    <!-- Toolbar with Search, Filters and Refresh -->
     <div class="card p-4">
-        <div class="flex flex-wrap gap-4">
-            <div class="flex-1 min-w-[200px]">
-                <input type="text" id="searchInput" placeholder="Search by runbook name..."
-                    class="input-field w-full px-3 py-2 rounded" onkeyup="filterExecutions()">
+        <div class="flex flex-col md:flex-row gap-4 items-center justify-between">
+            <!-- Left: Filters & Search -->
+            <div class="flex flex-wrap gap-4 flex-1 w-full md:w-auto">
+                <div class="flex-1 min-w-[200px]">
+                    <input type="text" id="searchInput" placeholder="Search by runbook name..."
+                        class="input-field w-full px-3 py-2 rounded" onkeyup="filterExecutions()">
+                </div>
+                <div class="w-48">
+                    <select id="statusFilter" class="input-field w-full px-3 py-2 rounded" onchange="filterExecutions()">
+                        <option value="">All Status</option>
+                        <option value="pending">Pending</option>
+                        <option value="running">Running</option>
+                        <option value="success">Success</option>
+                        <option value="failed">Failed</option>
+                        <option value="cancelled">Cancelled</option>
+                    </select>
+                </div>
+                <div class="w-48">
+                    <select id="timeFilter" class="input-field w-full px-3 py-2 rounded" onchange="filterExecutions()">
+                        <option value="24h">Last 24 Hours</option>
+                        <option value="7d">Last 7 Days</option>
+                        <option value="30d">Last 30 Days</option>
+                        <option value="all">All Time</option>
+                    </select>
+                </div>
             </div>
-            <div class="w-48">
-                <select id="statusFilter" class="input-field w-full px-3 py-2 rounded" onchange="filterExecutions()">
-                    <option value="">All Status</option>
-                    <option value="pending">Pending</option>
-                    <option value="running">Running</option>
-                    <option value="success">Success</option>
-                    <option value="failed">Failed</option>
-                    <option value="cancelled">Cancelled</option>
-                </select>
-            </div>
-            <div class="w-48">
-                <select id="timeFilter" class="input-field w-full px-3 py-2 rounded" onchange="filterExecutions()">
-                    <option value="24h">Last 24 Hours</option>
-                    <option value="7d">Last 7 Days</option>
-                    <option value="30d">Last 30 Days</option>
-                    <option value="all">All Time</option>
-                </select>
-            </div>
+            
+            <!-- Right: Actions -->
+            <button onclick="loadExecutions()"
+                class="bg-blue-600 hover:bg-blue-500 px-3 py-1.5 rounded text-white text-sm flex items-center gap-2 transition-colors shadow-sm whitespace-nowrap">
+                <i class="fas fa-sync-alt"></i>
+                Refresh
+            </button>
         </div>
     </div>
 

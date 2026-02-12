@@ -1,0 +1,376 @@
+/* Additional custom styles if needed */
+/* Most styling is done via Tailwind CDN */
+
+/* Custom animations */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+    animation: fadeIn 0.3s ease;
+}
+
+/* Markdown content styling */
+.prose h3 {
+    color: #89b4fa;
+    margin-top: 1.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.prose strong {
+    color: #cdd6f4;
+}
+
+.prose code {
+    background-color: #313244;
+    padding: 0.125rem 0.375rem;
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+}
+
+.prose ul, .prose ol {
+    margin-left: 1.5rem;
+}
+
+.prose li {
+    margin-bottom: 0.25rem;
+}
+
+/* Custom Scrollbar for dark theme */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: rgba(30, 30, 46, 0.5);
+    border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(69, 71, 90, 0.8);
+    border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(88, 91, 112, 1);
+}
+/* ============================================
+   PII Highlighting & False Positive Feedback
+   ============================================ */
+
+/* PII Highlighted Text */
+.pii-highlight {
+    position: relative;
+    display: inline-block;
+    background: transparent;
+    padding: 0 2px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-weight: 500;
+    border-bottom: 2px solid rgba(251, 191, 36, 0.8);
+}
+
+.pii-highlight:hover {
+    background: transparent;
+    box-shadow: none;
+}
+
+/* "Not PII" Hover Dialog */
+.pii-hover-dialog {
+    display: none !important;
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 10px 12px;
+    min-width: 200px;
+    white-space: nowrap;
+    z-index: 1000;
+    color: var(--text-primary);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(6px);
+    font-family: Inter, Helvetica, Arial, sans-serif;
+    font-size: 12px;
+}
+
+.pii-hover-dialog::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-top: 8px solid var(--bg-secondary);
+}
+
+.pii-highlight:hover .pii-hover-dialog {
+    display: block !important;
+    animation: tooltipFadeIn 0.2s ease-out;
+}
+
+@keyframes tooltipFadeIn {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
+.pii-dialog-header {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.pii-entity-badge {
+    display: inline-block;
+    background: rgba(251, 191, 36, 0.15);
+    color: var(--accent-yellow);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border: 1px solid rgba(251, 191, 36, 0.25);
+}
+
+.pii-confidence-badge {
+    display: inline-block;
+    background: rgba(59, 130, 246, 0.15);
+    color: var(--accent-blue);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    border: 1px solid rgba(59, 130, 246, 0.25);
+}
+
+/* Report Button Inside Dialog */
+.pii-report-btn {
+    display: block;
+    width: 100%;
+    background: rgba(255, 82, 134, 0.12);
+    color: var(--accent-red);
+    border: 1px solid rgba(255, 82, 134, 0.4);
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+    box-shadow: none;
+}
+
+.pii-report-btn:hover {
+    background: rgba(255, 82, 134, 0.2);
+    border-color: rgba(255, 82, 134, 0.7);
+    transform: translateY(-1px);
+}
+
+.pii-report-btn:active {
+    transform: translateY(0);
+}
+
+/* Toast Notifications */
+.pii-toast {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: #1f2937;
+    color: #f3f4f6;
+    padding: 14px 20px;
+    border-radius: 8px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+    transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    z-index: 10000;
+    max-width: 400px;
+    min-width: 300px;
+    border-left: 4px solid #6b7280;
+}
+
+.pii-toast.show {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+}
+
+.pii-toast-success {
+    background: linear-gradient(135deg, #10b981, #059669);
+    border-left-color: #34d399;
+}
+
+.pii-toast-error {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    border-left-color: #f87171;
+}
+
+.pii-toast-info {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    border-left-color: #60a5fa;
+}
+
+.pii-toast-content {
+    font-size: 14px;
+    line-height: 1.5;
+    font-weight: 500;
+}
+
+/* PII Modal Backdrop */
+.pii-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    padding: 1rem;
+}
+
+.pii-modal-backdrop.hidden {
+    display: none;
+}
+
+/* PII Modal Container */
+.pii-modal {
+    background-color: var(--bg-secondary, #181b1f);
+    border: 1px solid var(--border-color, rgba(204, 204, 220, 0.12));
+    border-radius: 0.5rem;
+    width: 100%;
+    max-width: 28rem;
+    padding: 1.5rem;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+}
+
+/* PII Modal Header */
+.pii-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+}
+
+.pii-modal-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-primary, #e4e4e7);
+}
+
+.pii-modal-close {
+    background: none;
+    border: none;
+    color: var(--text-secondary, #a1a1aa);
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0;
+    width: 2rem;
+    height: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s;
+}
+
+.pii-modal-close:hover {
+    color: var(--text-primary, #e4e4e7);
+}
+
+/* PII Modal Body */
+.pii-modal-body {
+    margin-bottom: 1.5rem;
+}
+
+.pii-modal-text {
+    color: var(--text-secondary, #a1a1aa);
+    margin-bottom: 1rem;
+    line-height: 1.5;
+}
+
+.pii-modal-label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-secondary, #a1a1aa);
+    margin-bottom: 0.5rem;
+}
+
+.pii-modal-input {
+    width: 100%;
+    background-color: var(--bg-primary, #1e1e2e);
+    border: 1px solid var(--border-color, rgba(204, 204, 220, 0.12));
+    border-radius: 0.375rem;
+    padding: 0.5rem 0.75rem;
+    color: var(--text-primary, #e4e4e7);
+    font-size: 0.875rem;
+    line-height: 1.5;
+    resize: vertical;
+    transition: border-color 0.2s;
+}
+
+.pii-modal-input:focus {
+    outline: none;
+    border-color: var(--color-link, #6e9fff);
+}
+
+.pii-modal-input::placeholder {
+    color: var(--text-muted, #71717a);
+}
+
+/* PII Modal Actions */
+.pii-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+}
+
+.pii-modal-cancel {
+    padding: 0.5rem 1rem;
+    background-color: var(--bg-tertiary, #27272a);
+    border: 1px solid var(--border-color, rgba(204, 204, 220, 0.12));
+    border-radius: 0.5rem;
+    color: var(--text-primary, #e4e4e7);
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.pii-modal-cancel:hover {
+    background-color: var(--bg-hover, #3f3f46);
+}
+
+.pii-modal-confirm {
+    padding: 0.5rem 1rem;
+    background-color: #dc2626;
+    border: none;
+    border-radius: 0.5rem;
+    color: white;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.pii-modal-confirm:hover {
+    background-color: #b91c1c;
+}
+
+/* Enterprise UI Standard Card */
+.card {
+    background-color: #181b1f;
+    border: 1px solid rgba(204, 204, 220, 0.12);
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}

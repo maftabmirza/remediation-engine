@@ -1,59 +1,299 @@
-{% extends "layout.html" %}
+{% extends "base.html" %}
+
+{% block head %}
+{{ super() }}
+<style>
+    /* Shared styles from Runbooks/Schedules reference */
+    .app-action-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 16px;
+        font-size: 13px;
+        font-weight: 600;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: none;
+        text-decoration: none;
+        white-space: nowrap;
+    }
+
+    .app-action-primary {
+        background: linear-gradient(135deg, #3b82f6, #2563eb);
+        color: white;
+        box-shadow: 0 2px 6px rgba(59, 130, 246, 0.25);
+    }
+
+    .app-action-primary:hover {
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        box-shadow: 0 4px 14px rgba(59, 130, 246, 0.35);
+        transform: translateY(-1px);
+    }
+
+    .app-action-secondary {
+        background: #ffffff;
+        color: #475569;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    }
+
+    .app-action-secondary:hover {
+        border-color: #cbd5e1;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+        background: #f8fafc;
+        transform: translateY(-1px);
+    }
+
+    .app-action-secondary i {
+        color: #64748b;
+    }
+
+    /* Badges aligned with Runbooks */
+    .app-badge {
+        padding: 3px 10px;
+        border-radius: 20px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+    }
+
+    .app-badge-critical {
+        background-color: #fef2f2;
+        color: #dc2626;
+        border: 1px solid #fecaca;
+    }
+
+    .app-badge-critical::before {
+        content: '';
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #dc2626;
+        display: inline-block;
+    }
+
+    .app-badge-high {
+        background-color: #fffbeb;
+        color: #d97706;
+        border: 1px solid #fde68a;
+    }
+
+    .app-badge-high::before {
+        content: '';
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #f59e0b;
+        display: inline-block;
+    }
+
+    .app-badge-medium {
+        background-color: #eff6ff;
+        color: #2563eb;
+        border: 1px solid #bfdbfe;
+    }
+
+    .app-badge-medium::before {
+        content: '';
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #3b82f6;
+        display: inline-block;
+    }
+
+    .app-badge-low {
+        background-color: #f0fdf4;
+        color: #16a34a;
+        border: 1px solid #bbf7d0;
+    }
+
+    .app-badge-low::before {
+        content: '';
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #16a34a;
+        display: inline-block;
+    }
+
+    .app-detail-icon {
+        background: rgba(59, 130, 246, 0.1);
+        color: #60a5fa;
+        border: 1px solid rgba(59, 130, 246, 0.2);
+    }
+
+    .app-detail-section-title {
+        font-size: 11px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #94a3b8;
+    }
+
+    .app-detail-panel {
+        background-color: #111316;
+        border: 1px solid rgba(204, 204, 220, 0.08);
+        border-radius: 4px;
+    }
+
+    /* Custom Dropdown Component Styles */
+    .custom-select-wrapper {
+        position: relative;
+        width: 100%;
+    }
+
+    .custom-select-trigger {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        padding: 10px 12px 10px 40px;
+        background: #1a1d21;
+        border: 1px solid rgba(107, 114, 128, 0.4);
+        border-radius: 8px;
+        color: #fff;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .custom-select-trigger:hover {
+        border-color: rgba(59, 130, 246, 0.5);
+    }
+
+    .custom-select-trigger.open {
+        border-color: rgba(59, 130, 246, 0.5);
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+    }
+
+    .custom-select-trigger i.trigger-icon {
+        position: absolute;
+        left: 14px;
+        color: #6b7280;
+        font-size: 13px;
+    }
+
+    .custom-select-trigger .chevron {
+        color: #6b7280;
+        font-size: 10px;
+        transition: transform 0.2s;
+    }
+
+    .custom-select-trigger.open .chevron {
+        transform: rotate(180deg);
+    }
+
+    .custom-select-dropdown {
+        position: absolute;
+        top: calc(100% + 4px);
+        left: 0;
+        right: 0;
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        max-height: 280px;
+        overflow-y: auto;
+        z-index: 1000;
+        display: none;
+    }
+
+    .custom-select-dropdown.show {
+        display: block;
+    }
+
+    .custom-select-group {
+        padding: 8px 0;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .custom-select-group:last-child {
+        border-bottom: none;
+    }
+
+    .custom-select-group-label {
+        padding: 6px 14px;
+        font-size: 11px;
+        font-weight: 700;
+        color: #6b7280;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        background: #f9fafb;
+    }
+
+    .custom-select-option {
+        padding: 10px 14px;
+        font-size: 14px;
+        color: #1f2937;
+        cursor: pointer;
+        transition: background 0.15s;
+    }
+
+    .custom-select-option:hover {
+        background: #eff6ff;
+        color: #1d4ed8;
+    }
+
+    .custom-select-option.selected {
+        background: #dbeafe;
+        color: #1d4ed8;
+        font-weight: 500;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="space-y-4">
-    <!-- Enterprise Standard Toolbar -->
-    <div class="dashboard-header"
-        style="padding: 12px; background: #16171b; border-bottom: 1px solid rgba(255,255,255,0.05); border-radius: 8px;">
+    <!-- Header Toolbar -->
+    <div class="card p-6">
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <!-- Left: Icon + Breadcrumbs & Title -->
             <div class="flex items-start gap-4 min-w-0">
                 <!-- Icon (Preserved ID) -->
-                <div class="w-10 h-10 rounded-lg bg-gray-700 flex-shrink-0 flex items-center justify-center text-gray-300 font-bold text-sm"
-                    id="appIcon">
-                    --
-                </div>
+                <div class="app-detail-icon w-10 h-10 rounded-lg flex-shrink-0 flex items-center justify-center font-bold text-sm"
+                    id="appIcon">--</div>
 
-                <div class="flex flex-col min-w-0">
-                    <!-- Breadcrumbs -->
-                    <nav class="flex items-center text-xs text-gray-400 mb-1">
-                        <a href="/" class="hover:text-blue-400 transition-colors">Home</a>
-                        <span class="mx-2">/</span>
-                        <a href="/applications" class="hover:text-blue-400 transition-colors">Applications</a>
-                        <span class="mx-2">/</span>
-                        <span class="text-gray-200">Details</span>
-                    </nav>
+                <div class="flex flex-col justify-center min-w-0 h-10">
 
                     <div class="flex items-center gap-3">
                         <h1 class="text-xl font-bold text-white tracking-tight truncate">
                             <span id="appDisplayName">Loading...</span>
                         </h1>
                         <!-- Criticality Badge (Preserved ID) -->
-                        <span id="appCriticalityBadge" class="text-xs px-2 py-0.5 rounded border hidden"></span>
+                        <span id="appCriticalityBadge" class="app-badge hidden"></span>
                     </div>
 
-                    <div class="flex items-center gap-2 text-xs text-gray-500 mt-1">
-                        <span class="font-mono" id="appName">...</span>
-                        <span>&bull;</span>
-                        <span id="appOwner">...</span>
+                    <div class="flex items-center gap-3 mt-1.5">
+                        <div
+                            class="flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-gray-800/40 border border-gray-700/50 text-xs text-gray-400">
+                            <i class="fas fa-fingerprint text-blue-400/80 text-[10px]"></i>
+                            <span class="font-mono tracking-wide" id="appName">...</span>
+                        </div>
+                        <div
+                            class="flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-gray-800/40 border border-gray-700/50 text-xs text-gray-400">
+                            <i class="fas fa-user-shield text-purple-400/80 text-[10px]"></i>
+                            <span id="appOwner">...</span>
+                        </div>
                     </div>
                 </div>
             </div>
 
             <!-- Right: Actions -->
             <div class="flex items-center gap-2">
-                <button onclick="openComponentModal()"
-                    class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1.5 rounded text-sm flex items-center gap-2 transition-colors">
+                <button onclick="openComponentModal()" class="app-action-btn app-action-secondary">
                     <i class="fas fa-cube"></i>
                     Component
                 </button>
-                <button onclick="openDependencyModal()"
-                    class="bg-purple-600 hover:bg-purple-500 text-white px-3 py-1.5 rounded text-sm flex items-center gap-2 transition-colors">
+                <button onclick="openDependencyModal()" class="app-action-btn app-action-secondary">
                     <i class="fas fa-link"></i>
                     Dependency
                 </button>
-                <button onclick="openEditAppModal()"
-                    class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded text-sm flex items-center gap-2 transition-colors">
+                <button onclick="openEditAppModal()" class="app-action-btn app-action-primary">
                     <i class="fas fa-edit"></i>
                     Edit
                 </button>
@@ -66,12 +306,12 @@
         <div class="md:col-span-2 card p-6">
             <h3 class="text-lg font-bold text-white mb-4">Topology Map</h3>
             <div
-                class="bg-gray-900 rounded-lg p-4 h-[400px] border border-gray-700 flex items-center justify-center overflow-hidden relative">
+                class="app-detail-panel h-[400px] flex items-center justify-center overflow-hidden relative border border-gray-800 shadow-inner rounded-xl bg-gray-900/50">
                 <div id="topologyGraph" class="w-full h-full">Loading topology...</div>
 
                 <!-- Legend -->
                 <div
-                    class="absolute bottom-4 right-4 bg-gray-800/90 p-3 rounded border border-gray-700 text-xs text-gray-400 backdrop-blur-sm space-y-1">
+                    class="absolute bottom-4 right-4 bg-slate-900/90 p-3 rounded border border-slate-700 text-xs text-gray-400 backdrop-blur-sm space-y-1">
                     <div class="flex items-center"><span
                             class="w-3 h-3 rounded-full bg-blue-500 mr-2"></span>Service/Compute</div>
                     <div class="flex items-center"><span class="w-3 h-3 rounded-full bg-green-500 mr-2"></span>Database
@@ -90,7 +330,7 @@
 
         <div class="space-y-6">
             <div class="card p-6">
-                <h3 class="text-xs uppercase text-gray-500 font-bold tracking-wider mb-4">Details</h3>
+                <h3 class="app-detail-section-title font-bold mb-4">Details</h3>
                 <div class="space-y-4">
                     <div>
                         <span class="text-gray-400 text-sm block">Description</span>
@@ -106,14 +346,14 @@
             </div>
 
             <div class="card p-6">
-                <h3 class="text-xs uppercase text-gray-500 font-bold tracking-wider mb-4">Components</h3>
+                <h3 class="app-detail-section-title font-bold mb-4">Components</h3>
                 <div class="space-y-2 max-h-[200px] overflow-y-auto" id="componentList">
                     <!-- List -->
                 </div>
             </div>
 
             <div class="card p-6">
-                <h3 class="text-xs uppercase text-gray-500 font-bold tracking-wider mb-4">Dependencies</h3>
+                <h3 class="app-detail-section-title font-bold mb-4">Dependencies</h3>
                 <div class="space-y-2 max-h-[200px] overflow-y-auto" id="dependencyList">
                     <!-- List -->
                 </div>
@@ -123,80 +363,183 @@
 </div>
 
 <!-- Add Component Modal -->
-<div id="componentModal" class="fixed inset-0 bg-black bg-opacity-60 hidden items-center justify-center z-50">
-    <div class="card p-0 w-full max-w-lg m-4">
-        <div class="p-4 border-b border-gray-700 flex justify-between items-center bg-gray-800/50">
-            <h3 id="componentModalTitle" class="text-lg font-bold text-white">Add Component</h3>
-            <button onclick="closeComponentModal()" class="text-gray-400 hover:text-white"><i
-                    class="fas fa-times"></i></button>
-        </div>
-        <div class="p-6 space-y-4">
+<div id="componentModal" class="fixed inset-0 bg-black/90 hidden items-center justify-center z-50">
+    <div
+        class="w-full max-w-2xl m-4 bg-[#1a1d21] border border-gray-600/50 shadow-2xl rounded-xl overflow-hidden transform transition-all">
+        <!-- Header -->
+        <div class="px-6 py-5 border-b border-gray-600/30 flex justify-between items-center bg-[#1e2227]">
             <div>
-                <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Name</label>
-                <input type="text" id="compName" class="w-full input-dark" placeholder="e.g. api-server">
+                <h3 id="componentModalTitle" class="text-xl font-bold text-white tracking-tight">Add Component</h3>
+                <p class="text-xs text-gray-400 mt-1">Define a new infrastructure component or service</p>
             </div>
-            <div>
-                <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Type</label>
-                <select id="compType" class="w-full input-dark" onchange="updateSubtypeOptions()">
-                    <optgroup label="Compute">
-                        <option value="compute">Service/Application</option>
-                        <option value="container">Container</option>
-                        <option value="vm">Virtual Machine</option>
-                    </optgroup>
-                    <optgroup label="Data">
-                        <option value="database">Database</option>
-                        <option value="cache">Cache</option>
-                        <option value="queue">Message Queue</option>
-                        <option value="storage">Storage</option>
-                    </optgroup>
-                    <optgroup label="Network">
-                        <option value="load_balancer">Load Balancer</option>
-                        <option value="firewall">Firewall</option>
-                        <option value="switch">Network Switch</option>
-                        <option value="router">Router</option>
-                    </optgroup>
-                    <optgroup label="Cloud">
-                        <option value="cloud_function">Serverless Function</option>
-                        <option value="cloud_storage">Cloud Storage</option>
-                        <option value="cloud_db">Managed Database</option>
-                    </optgroup>
-                    <optgroup label="Other">
-                        <option value="external">External API</option>
-                        <option value="monitoring">Monitoring Tool</option>
-                    </optgroup>
-                </select>
-            </div>
-            <div id="subtypeContainer" style="display:none;">
-                <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Subtype</label>
-                <select id="compSubtype" class="w-full input-dark">
-                    <option value="">-- Select Subtype --</option>
-                </select>
-            </div>
-            <div class="grid grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Hostname</label>
-                    <input type="text" id="compHostname" class="w-full input-dark" placeholder="e.g. db-prod-01">
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">IP Address</label>
-                    <input type="text" id="compIP" class="w-full input-dark" placeholder="e.g. 10.0.1.45">
-                </div>
-            </div>
-            <div>
-                <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Criticality</label>
-                <select id="compCriticality" class="w-full input-dark">
-                    <option value="high">High</option>
-                    <option value="medium">Medium</option>
-                    <option value="low">Low</option>
-                    <option value="critical">Critical</option>
-                </select>
-            </div>
-        </div>
-        <div class="p-4 border-t border-gray-700 bg-gray-800/50 flex justify-end space-x-3">
             <button onclick="closeComponentModal()"
-                class="px-4 py-2 rounded text-gray-300 hover:text-white hover:bg-gray-700">Cancel</button>
+                class="text-gray-500 hover:text-white transition-colors p-2 rounded-lg hover:bg-gray-800">
+                <i class="fas fa-times text-lg"></i>
+            </button>
+        </div>
+
+        <!-- Body -->
+        <div class="p-8 space-y-6" style="background-color: #ffffff;">
+            <!-- Name Field -->
+            <div>
+                <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">Component
+                    Name</label>
+                <div class="relative">
+                    <i class="fas fa-tag absolute left-4 top-3 text-gray-500 text-sm"></i>
+                    <input type="text" id="compName"
+                        class="w-full border rounded-lg pl-10 pr-4 py-2.5 text-sm transition-all"
+                        style="background-color: #f9fafb; border-color: #d1d5db; color: #1f2937;"
+                        placeholder="e.g. payment-api-v1">
+                </div>
+            </div>
+
+            <!-- Type & Subtype Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">Component
+                        Type</label>
+                    <!-- Custom Dropdown for Component Type -->
+                    <div class="custom-select-wrapper" id="compTypeWrapper">
+                        <input type="hidden" id="compType" value="compute">
+                        <div class="custom-select-trigger" onclick="toggleCustomSelect('compTypeWrapper')"
+                            style="background-color: #f9fafb; border-color: #d1d5db; color: #1f2937;">
+                            <i class="fas fa-layer-group trigger-icon" style="color: #6b7280;"></i>
+                            <span class="selected-text">Service/Application</span>
+                            <i class="fas fa-chevron-down chevron" style="color: #6b7280;"></i>
+                        </div>
+                        <div class="custom-select-dropdown"
+                            style="background: white !important; background-color: #ffffff !important; border: 1px solid #d1d5db; box-shadow: 0 10px 40px rgba(0,0,0,0.4); z-index: 9999; border-radius: 8px;">
+                            <div class="custom-select-group"
+                                style="background: white !important; background-color: #ffffff !important;">
+                                <div class="custom-select-group-label"
+                                    style="background-color: #f3f4f6; color: #6b7280;">Compute</div>
+                                <div class="custom-select-option selected" data-value="compute" style="color: #1f2937;">
+                                    Service/Application</div>
+                                <div class="custom-select-option" data-value="container" style="color: #1f2937;">
+                                    Container</div>
+                                <div class="custom-select-option" data-value="vm" style="color: #1f2937;">Virtual
+                                    Machine</div>
+                            </div>
+                            <div class="custom-select-group" style="background-color: #ffffff;">
+                                <div class="custom-select-group-label"
+                                    style="background-color: #f3f4f6; color: #6b7280;">Data</div>
+                                <div class="custom-select-option" data-value="database" style="color: #1f2937;">Database
+                                </div>
+                                <div class="custom-select-option" data-value="cache" style="color: #1f2937;">Cache</div>
+                                <div class="custom-select-option" data-value="queue" style="color: #1f2937;">Message
+                                    Queue</div>
+                                <div class="custom-select-option" data-value="storage" style="color: #1f2937;">Storage
+                                </div>
+                            </div>
+                            <div class="custom-select-group" style="background-color: #ffffff;">
+                                <div class="custom-select-group-label"
+                                    style="background-color: #f3f4f6; color: #6b7280;">Network</div>
+                                <div class="custom-select-option" data-value="load_balancer" style="color: #1f2937;">
+                                    Load Balancer</div>
+                                <div class="custom-select-option" data-value="firewall" style="color: #1f2937;">Firewall
+                                </div>
+                                <div class="custom-select-option" data-value="switch" style="color: #1f2937;">Network
+                                    Switch</div>
+                                <div class="custom-select-option" data-value="router" style="color: #1f2937;">Router
+                                </div>
+                            </div>
+                            <div class="custom-select-group" style="background-color: #ffffff;">
+                                <div class="custom-select-group-label"
+                                    style="background-color: #f3f4f6; color: #6b7280;">Cloud</div>
+                                <div class="custom-select-option" data-value="cloud_function" style="color: #1f2937;">
+                                    Serverless Function</div>
+                                <div class="custom-select-option" data-value="cloud_storage" style="color: #1f2937;">
+                                    Cloud Storage</div>
+                                <div class="custom-select-option" data-value="cloud_db" style="color: #1f2937;">Managed
+                                    Database</div>
+                            </div>
+                            <div class="custom-select-group" style="background-color: #ffffff;">
+                                <div class="custom-select-group-label"
+                                    style="background-color: #f3f4f6; color: #6b7280;">Other</div>
+                                <div class="custom-select-option" data-value="external" style="color: #1f2937;">External
+                                    API</div>
+                                <div class="custom-select-option" data-value="monitoring" style="color: #1f2937;">
+                                    Monitoring Tool</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Subtype (Conditional) -->
+                <div id="subtypeContainer" style="display:none;">
+                    <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">Specific
+                        Technology</label>
+                    <div class="relative">
+                        <i class="fas fa-code-branch absolute left-4 top-3 text-gray-500 text-sm"></i>
+                        <select id="compSubtype"
+                            class="w-full border rounded-lg pl-10 pr-4 py-2.5 text-sm transition-all appearance-none"
+                            style="background-color: #f9fafb; border-color: #d1d5db; color: #1f2937;">
+                            <option value="">-- Select Subtype --</option>
+                        </select>
+                        <div class="absolute right-4 top-3 pointer-events-none text-gray-500">
+                            <i class="fas fa-chevron-down text-xs"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Network Details Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label
+                        class="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">Hostname</label>
+                    <div class="relative">
+                        <i class="fas fa-server absolute left-4 top-3 text-gray-500 text-sm"></i>
+                        <input type="text" id="compHostname"
+                            class="w-full border rounded-lg pl-10 pr-4 py-2.5 text-sm transition-all"
+                            style="background-color: #f9fafb; border-color: #d1d5db; color: #1f2937;"
+                            placeholder="e.g. db-prod-01">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">IP
+                        Address</label>
+                    <div class="relative">
+                        <i class="fas fa-network-wired absolute left-4 top-3 text-gray-500 text-sm"></i>
+                        <input type="text" id="compIP"
+                            class="w-full border rounded-lg pl-10 pr-4 py-2.5 text-sm transition-all"
+                            style="background-color: #f9fafb; border-color: #d1d5db; color: #1f2937;"
+                            placeholder="e.g. 10.0.1.45">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Criticality -->
+            <div>
+                <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">Criticality
+                    Level</label>
+                <div class="relative">
+                    <i class="fas fa-heartbeat absolute left-4 top-3 text-gray-500 text-sm"></i>
+                    <select id="compCriticality"
+                        class="w-full border rounded-lg pl-10 pr-4 py-2.5 text-sm transition-all appearance-none"
+                        style="background-color: #f9fafb; border-color: #d1d5db; color: #1f2937;">
+                        <option value="high">High - Important service</option>
+                        <option value="medium">Medium - Standard service</option>
+                        <option value="low">Low - Non-critical</option>
+                        <option value="critical">Critical - Core infrastructure</option>
+                    </select>
+                    <div class="absolute right-4 top-3 pointer-events-none text-gray-500">
+                        <i class="fas fa-chevron-down text-xs"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="px-6 py-5 border-t border-gray-600/30 bg-[#1e2227] flex justify-end gap-3">
+            <button onclick="closeComponentModal()"
+                class="px-5 py-2.5 rounded-lg text-sm font-medium text-gray-400 hover:text-white hover:bg-gray-800 transition-all">
+                Cancel
+            </button>
             <button id="saveComponentBtn" onclick="saveComponent()"
-                class="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white font-medium">Add Component</button>
+                class="px-6 py-2.5 rounded-lg text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 shadow-lg shadow-blue-500/20 transition-all transform hover:-translate-y-0.5">
+                Add Component
+            </button>
         </div>
     </div>
 </div>
@@ -416,7 +759,35 @@
         cloud_db: ['rds', 'azure-sql', 'cloud-sql', 'dynamodb', 'cosmos-db']
     };
 
+    // Utility function for toast notifications
+    function showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.className = `fixed bottom-4 right-4 px-4 py-2 rounded shadow-lg text-white text-sm z-50 ${type === 'error' ? 'bg-red-600' : type === 'success' ? 'bg-green-600' : 'bg-gray-800'
+            }`;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
+        // Initialize custom dropdown click handlers
+        document.querySelectorAll('.custom-select-option').forEach(option => {
+            option.addEventListener('click', (e) => {
+                const wrapper = e.target.closest('.custom-select-wrapper');
+                selectCustomOption(wrapper.id, e.target.dataset.value, e.target.textContent);
+            });
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.custom-select-wrapper')) {
+                document.querySelectorAll('.custom-select-wrapper').forEach(wrapper => {
+                    wrapper.querySelector('.custom-select-trigger')?.classList.remove('open');
+                    wrapper.querySelector('.custom-select-dropdown')?.classList.remove('show');
+                });
+            }
+        });
+
         loadAppDetails();
     });
 
@@ -438,9 +809,14 @@
             const badge = document.getElementById('appCriticalityBadge');
             badge.textContent = app.criticality;
             badge.classList.remove('hidden');
-            badge.className = `text-xs px-2 py-0.5 rounded border uppercase tracking-wider font-bold ml-3 
-            ${app.criticality === 'critical' ? 'text-red-400 border-red-500/50 bg-red-900/20' :
-                    app.criticality === 'high' ? 'text-orange-400 border-orange-500/50 bg-orange-900/20' : 'text-blue-400 border-blue-500/50 bg-blue-900/20'}`;
+
+            // Map criticality to new badge classes
+            const badgeClass = `app-badge ${app.criticality === 'critical' ? 'app-badge-critical' :
+                app.criticality === 'high' ? 'app-badge-high' :
+                    app.criticality === 'medium' ? 'app-badge-medium' :
+                        'app-badge-low'
+                }`;
+            badge.className = badgeClass;
 
             // Tech Stack
             const stackContainer = document.getElementById('appStack');
@@ -527,6 +903,80 @@
         }
     }
 
+    // Custom Dropdown Functions
+    function toggleCustomSelect(wrapperId) {
+        const wrapper = document.getElementById(wrapperId);
+        const trigger = wrapper.querySelector('.custom-select-trigger');
+        const dropdown = wrapper.querySelector('.custom-select-dropdown');
+
+        // Close all other dropdowns first
+        document.querySelectorAll('.custom-select-wrapper').forEach(w => {
+            if (w.id !== wrapperId) {
+                w.querySelector('.custom-select-trigger').classList.remove('open');
+                w.querySelector('.custom-select-dropdown').classList.remove('show');
+            }
+        });
+
+        trigger.classList.toggle('open');
+        dropdown.classList.toggle('show');
+    }
+
+    function selectCustomOption(wrapperId, value, label) {
+        const wrapper = document.getElementById(wrapperId);
+        const hiddenInput = wrapper.querySelector('input[type="hidden"]');
+        const trigger = wrapper.querySelector('.custom-select-trigger');
+        const dropdown = wrapper.querySelector('.custom-select-dropdown');
+        const selectedText = trigger.querySelector('.selected-text');
+
+        // Update hidden input value
+        hiddenInput.value = value;
+
+        // Update display text
+        selectedText.textContent = label;
+
+        // Update selected styling
+        wrapper.querySelectorAll('.custom-select-option').forEach(opt => {
+            opt.classList.remove('selected');
+            if (opt.dataset.value === value) {
+                opt.classList.add('selected');
+            }
+        });
+
+        // Close dropdown
+        trigger.classList.remove('open');
+        dropdown.classList.remove('show');
+
+        // Trigger subtype update if this is component type
+        if (wrapperId === 'compTypeWrapper') {
+            updateSubtypeOptions();
+        }
+    }
+
+    // Helper function to set custom dropdown value programmatically
+    function setCustomSelectValue(wrapperId, value) {
+        const wrapper = document.getElementById(wrapperId);
+        if (!wrapper) return;
+
+        const hiddenInput = wrapper.querySelector('input[type="hidden"]');
+        const selectedText = wrapper.querySelector('.selected-text');
+
+        // Find the option with the matching value
+        const option = wrapper.querySelector(`.custom-select-option[data-value="${value}"]`);
+        if (option) {
+            // Update hidden input
+            hiddenInput.value = value;
+
+            // Update display text
+            selectedText.textContent = option.textContent;
+
+            // Update selected styling
+            wrapper.querySelectorAll('.custom-select-option').forEach(opt => {
+                opt.classList.remove('selected');
+            });
+            option.classList.add('selected');
+        }
+    }
+
     function openComponentModal() {
         editingComponentId = null;
         document.getElementById('componentModalTitle').textContent = 'Add Component';
@@ -546,7 +996,7 @@
 
         // Populate form
         document.getElementById('compName').value = component.name || '';
-        document.getElementById('compType').value = component.component_type || 'compute';
+        setCustomSelectValue('compTypeWrapper', component.component_type || 'compute');
         document.getElementById('compHostname').value = component.hostname || '';
         document.getElementById('compIP').value = component.ip_address || '';
         document.getElementById('compCriticality').value = component.criticality || 'high';

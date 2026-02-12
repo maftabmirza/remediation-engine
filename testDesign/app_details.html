@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AIOps Dashboard | Enterprise</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Icons (feather icons for simplicity) -->
+    <script src="https://unpkg.com/feather-icons"></script>
+    <!-- ECharts (Apache) -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div class="app-container collapsed">
+        <!-- Sidebar -->
+        <!-- Sidebar -->
+        <nav class="sidebar" id="sidebar">
+            <!-- Logo moved to Header -->
+            <div style="height: 12px;"></div> <!-- Spacer -->
+
+            <ul class="nav-menu">
+                <li class="nav-item" onclick="window.location.href='index.html'">
+                    <i data-feather="monitor"></i>
+                    <span class="nav-text">Command Center</span>
+                </li>
+                <li class="nav-item active">
+                    <i data-feather="grid"></i>
+                    <span class="nav-text">App Details</span>
+                </li>
+                <!-- Monitoring Group -->
+                <li class="nav-group">
+                    <div class="nav-item has-submenu">
+                        <i data-feather="activity"></i>
+                        <span class="nav-text">Monitoring</span>
+                        <i data-feather="chevron-right" class="submenu-toggle-icon"
+                            style="width: 14px; margin-left: auto;"></i>
+                    </div>
+                    <ul class="submenu">
+                        <li class="nav-item submenu-item">
+                            <span class="nav-text">Real-time</span>
+                        </li>
+                        <li class="nav-item submenu-item">
+                            <span class="nav-text">Historical</span>
+                        </li>
+                        <li class="nav-item submenu-item">
+                            <span class="nav-text">Logs</span>
+                        </li>
+                    </ul>
+                </li>
+
+                <!-- Incidents Group -->
+                <li class="nav-group">
+                    <div class="nav-item has-submenu">
+                        <i data-feather="alert-circle"></i>
+                        <span class="nav-text">Incidents</span>
+                        <i data-feather="chevron-right" class="submenu-toggle-icon"
+                            style="width: 14px; margin-left: auto;"></i>
+                    </div>
+                    <ul class="submenu">
+                        <li class="nav-item submenu-item">
+                            <span class="nav-text">Active</span>
+                        </li>
+                        <li class="nav-item submenu-item">
+                            <span class="nav-text">Resolved</span>
+                        </li>
+                        <li class="nav-item submenu-item">
+                            <span class="nav-text">Post-mortems</span>
+                        </li>
+                    </ul>
+                </li>
+                <li class="nav-item">
+                    <i data-feather="zap"></i>
+                    <span class="nav-text">AI Insights</span>
+                </li>
+                <li class="nav-item">
+                    <i data-feather="layers"></i>
+                    <span class="nav-text">Services</span>
+                </li>
+                <li class="nav-item">
+                    <i data-feather="file-text"></i>
+                    <span class="nav-text">Reports</span>
+                </li>
+            </ul>
+
+            <div class="sidebar-footer">
+                <ul class="nav-menu">
+                    <li class="nav-item">
+                        <i data-feather="settings"></i>
+                        <span class="nav-text">Settings</span>
+                    </li>
+                </ul>
+                <div class="sidebar-toggle-wrapper">
+                    <button id="sidebarToggleBtn" class="sidebar-toggle-btn">
+                        <i data-feather="skip-forward"></i>
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Header -->
+        <header class="top-header">
+            <!-- Page Header Info -->
+            <div class="header-logo-area">
+                <div class="logo-icon">
+                    <span style="font-weight: 700;">A</span>
+                </div>
+                <span class="logo-text">AIOps Enterprise</span>
+            </div>
+            <!-- Divider removed -->
+            <div class="header-info">
+                <h1 class="header-title">Overview</h1>
+                <div class="header-status">
+                    <span class="status-dot"></span>
+                    <span>System Status: Healthy</span>
+                    <span class="separator">•</span>
+                    <span>Last updated: Just now</span>
+                </div>
+            </div>
+
+            <!-- Command Bar (Enterprise) -->
+            <div class="search-bar">
+                <i data-feather="search" style="width: 16px;"></i>
+                <input type="text" placeholder="Search resources...">
+                <div style="display: flex; gap: 6px; align-items: center;">
+                    <span class="kbd-shortcut">/</span>
+                </div>
+            </div>
+
+            <div class="header-actions">
+                <button class="icon-btn">
+                    <i data-feather="help-circle" style="width: 20px;"></i>
+                </button>
+                <button class="icon-btn">
+                    <i data-feather="bell" style="width: 20px;"></i>
+                    <span class="notification-dot"></span>
+                </button>
+                <div class="user-profile">
+                    <div class="avatar">AD</div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Page Title Area (Moved to Header) -->
+
+
+            <div class="dashboard-grid">
+                <!-- Service Health & SLOs (Replaces simple Health) -->
+                <div class="card service-health-card">
+                    <div class="card-header">
+                        <h3>Service Health & SLOs</h3>
+                        <i data-feather="more-horizontal" class="action-icon"></i>
+                    </div>
+                    <div class="slo-list">
+                        <div class="slo-item">
+                            <div class="slo-info">
+                                <span class="slo-name">Frontend Service</span>
+                                <span class="slo-value">99.98%</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: 99.98%; background: var(--status-success);">
+                                </div>
+                            </div>
+                            <div class="slo-budget">Error Budget: <span class="budget-ok">43m remaining</span></div>
+                        </div>
+                        <div class="slo-item">
+                            <div class="slo-info">
+                                <span class="slo-name">Checkout API</span>
+                                <span class="slo-value">99.50%</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: 98.5%; background: var(--status-warning);">
+                                </div>
+                            </div>
+                            <div class="slo-budget">Error Budget: <span class="budget-warn">12m remaining</span>
+                            </div>
+                        </div>
+                        <div class="slo-item">
+                            <div class="slo-info">
+                                <span class="slo-name">Inventory DB</span>
+                                <span class="slo-value">99.99%</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: 99.99%; background: var(--status-success);">
+                                </div>
+                            </div>
+                            <div class="slo-budget">Error Budget: <span class="budget-ok">2h remaining</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Smart Alerts (Replaces Incidents) -->
+                <div class="card incidents-card">
+                    <div class="card-header">
+                        <h3>Smart Alerts</h3>
+                        <span class="badge danger">1 Critical</span>
+                    </div>
+                    <div class="incident-list">
+                        <div class="incident-item critical-glow">
+                            <div class="priority-indicator p-critical"></div>
+                            <div class="incident-info">
+                                <div class="i-title">Checkout Failure Rate Spike</div>
+                                <div class="i-badges">
+                                    <span class="root-cause-badge"><i data-feather="crosshair" style="width:10px;"></i>
+                                        Root Cause: DB Lock</span>
+                                </div>
+                                <div class="i-meta">us-east-1 • 3m ago</div>
+                            </div>
+                            <button class="btn-sm">Investigate</button>
+                        </div>
+                        <div class="incident-item">
+                            <div class="priority-indicator p-warning"></div>
+                            <div class="incident-info">
+                                <div class="i-title">High Latency: Payment Gateway</div>
+                                <div class="i-meta">gateway-04 • 15m ago</div>
+                            </div>
+                            <button class="btn-sm">View</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Predictive Analytics (New Wide Widget) -->
+                <div class="card forecast-card">
+                    <div class="card-header">
+                        <h3>Predictive Analytics: Database Capacity</h3>
+                        <span class="badge magic">AI Forecast</span>
+                    </div>
+                    <div id="forecastChart" style="height: 250px; width: 100%;"></div>
+                </div>
+
+                <!-- Metric Charts (Existing but Refined) -->
+                <div class="card metrics-card">
+                    <div class="card-header">
+                        <h3>Traffic Volume</h3>
+                        <span class="badge info">Live</span>
+                    </div>
+                    <div id="trafficChart" style="height: 220px; width: 100%;"></div>
+                </div>
+
+                <div class="card metrics-card">
+                    <div class="card-header">
+                        <h3>Error Rate</h3>
+                        <span class="badge success">Normal</span>
+                    </div>
+                    <div id="errorChart" style="height: 220px; width: 100%;"></div>
+                </div>
+
+                <!-- Service Topology (Replaces Infra Grid) -->
+                <div class="card topology-card">
+                    <div class="card-header">
+                        <h3>Service Map & Dependencies</h3>
+                        <div class="infra-controls">
+                            <span class="active">Live Status</span>
+                        </div>
+                    </div>
+                    <div id="topologyChart" style="height: 350px; width: 100%;"></div>
+                </div>
+            </div>
+            <!-- End Dashboard Grid -->
+        </main>
+    </div>
+
+    <script src="script.js?v=6"></script>
+    <script>
+        feather.replace();
+    </script>
+</body>
+
+</html>

@@ -1,104 +1,169 @@
-/* Agent Widget Styles (Docked Right Panel) */
+/* Agent Widget Styles (Docked Right Panel) - Light Glassmorphism Theme */
+/* Scoped to .app-container so these styles do NOT affect the
+   Grafana-specific fixed-position widget (which lives on document.body
+   and is styled by revive_widget_grafana.css instead). */
 :root {
     --ai-helper-width: 380px;
-    --aftab-bg-darker: #111217;
-    --aftab-bg-dark: #16171b;
-    --aftab-bg-card: #181b1f;
-    --aftab-border: rgba(204, 204, 220, 0.12);
-    --aftab-text: #ccccdc;
-    --aftab-accent: #3b82f6;
 }
 
-#agent-widget {
-    position: fixed;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 2000;
+.app-container #agent-widget {
+    grid-column: 3;
+    grid-row: 1 / -1;
+    height: 100%;
+    width: 100%;
+    position: relative;
+    z-index: 100;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    pointer-events: auto;
+    overflow: hidden;
+    background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+    border-left: 1px solid rgba(226, 232, 240, 0.8);
+    box-shadow: -4px 0 15px rgba(0, 0, 0, 0.05);
+}
+
+/* Hide when closed */
+.app-container:not(.ai-open) #agent-widget {
+    visibility: hidden;
     pointer-events: none;
-}
-
-body.ai-helper-open #main-wrapper {
-    margin-right: var(--ai-helper-width);
-    transition: margin-right 0.2s ease;
-}
-
-#global-header {
-    z-index: 1000;
+    width: 0;
 }
 
 #agent-fab {
     display: none !important;
 }
 
-#agent-window {
-    position: fixed;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    width: var(--ai-helper-width);
-    height: 100vh;
-    background-color: var(--aftab-bg-darker);
-    border-left: 1px solid var(--aftab-border);
-    box-shadow: -4px 0 15px rgba(0, 0, 0, 0.3);
+.app-container #agent-window {
+    width: 100%;
+    height: 100%;
+    background: transparent;
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    transition: transform 0.2s ease, opacity 0.2s ease;
     opacity: 0;
-    pointer-events: none;
-    transform: translateX(20px);
+    transition: opacity 0.2s ease;
 }
 
-#agent-window.visible {
+.app-container.ai-open #agent-window {
     opacity: 1;
-    pointer-events: auto;
-    transform: translateX(0);
 }
 
+/* Header - matches app header style */
 .agent-header {
     height: 48px;
     padding: 0 1rem;
-    background-color: var(--aftab-bg-dark);
-    border-bottom: 1px solid var(--aftab-border);
+    background: var(--bg-header, #0f0e47);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     display: flex;
     align-items: center;
     justify-content: space-between;
     flex-shrink: 0;
+    color: white;
 }
 
+.agent-header .font-semibold {
+    font-weight: 600;
+    font-size: 14px;
+    color: white;
+}
+
+.agent-header button {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.7);
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 6px;
+    transition: all 0.2s;
+}
+
+.agent-header button:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+/* Messages Area - Light glass style */
 .agent-messages {
     flex: 1;
     padding: 1.25rem 1rem;
     overflow-y: auto;
-    background-color: var(--aftab-bg-darker);
+    background: linear-gradient(180deg, #f1f5f9 0%, #e8ecf1 100%);
     display: flex;
     flex-direction: column;
-    gap: 1.25rem;
+    gap: 1rem;
 }
 
+/* Message Bubbles - Premium Glass */
+.agent-message {
+    max-width: 90%;
+    padding: 0.875rem 1rem;
+    border-radius: 12px;
+    font-size: 0.875rem;
+    line-height: 1.6;
+    position: relative;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.agent-message.user {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    color: white;
+    align-self: flex-end;
+    border-bottom-right-radius: 4px;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
+}
+
+.agent-message.ai {
+    background: rgba(255, 255, 255, 0.85);
+    color: #1e293b;
+    align-self: flex-start;
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    border-bottom-left-radius: 4px;
+    backdrop-filter: blur(10px);
+}
+
+.agent-message pre {
+    background: #1e293b;
+    margin-top: 0.75rem;
+    padding: 0.75rem;
+    border-radius: 8px;
+    overflow-x: auto;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #e2e8f0;
+}
+
+.agent-message code {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.85em;
+}
+
+/* Input Area - Glass Style */
 .agent-input-area {
     padding: 1rem;
-    background-color: var(--aftab-bg-dark);
-    border-top: 1px solid var(--aftab-border);
+    background: rgba(255, 255, 255, 0.9);
+    border-top: 1px solid rgba(226, 232, 240, 0.8);
     flex-shrink: 0;
+    backdrop-filter: blur(10px);
 }
 
 #agent-input {
     width: 100%;
-    background-color: var(--aftab-bg-darker);
-    border: 1px solid var(--aftab-border);
-    border-radius: 0.5rem;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    border-radius: 10px;
     padding: 0.75rem 3rem 0.75rem 1rem;
-    color: var(--aftab-text);
+    color: #1e293b;
     font-size: 0.9rem;
     outline: none;
-    transition: border-color 0.2s;
+    transition: all 0.2s;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+#agent-input::placeholder {
+    color: #94a3b8;
 }
 
 #agent-input:focus {
-    border-color: var(--aftab-accent);
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
 }
 
 #agent-send {
@@ -106,51 +171,19 @@ body.ai-helper-open #main-wrapper {
     right: 1.5rem;
     top: 50%;
     transform: translateY(-50%);
-    color: var(--aftab-accent);
+    color: #3b82f6;
     background: none;
     border: none;
     cursor: pointer;
     padding: 0.5rem;
+    transition: color 0.2s;
 }
 
-.agent-message {
-    max-width: 90%;
-    padding: 0.75rem 1rem;
-    border-radius: 0.5rem;
-    font-size: 0.875rem;
-    line-height: 1.5;
-    position: relative;
+#agent-send:hover {
+    color: #2563eb;
 }
 
-.agent-message.user {
-    background-color: #2563eb;
-    color: white;
-    align-self: flex-end;
-    border-bottom-right-radius: 0.1rem;
-}
-
-.agent-message.ai {
-    background-color: var(--aftab-bg-card);
-    color: var(--aftab-text);
-    align-self: flex-start;
-    border: 1px solid var(--aftab-border);
-    border-bottom-left-radius: 0.1rem;
-}
-
-.agent-message pre {
-    background: #000;
-    margin-top: 0.75rem;
-    padding: 0.75rem;
-    border-radius: 4px;
-    overflow-x: auto;
-    border: 1px solid rgba(255,255,255,0.1);
-}
-
-.agent-message code {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.85em;
-}
-
+/* Resize Handle */
 .resize-handle {
     position: absolute;
     left: 0;
@@ -159,13 +192,14 @@ body.ai-helper-open #main-wrapper {
     width: 6px;
     cursor: ew-resize;
     z-index: 100;
+    background: transparent;
 }
 
 .resize-handle:hover {
-    background-color: var(--aftab-accent);
-    opacity: 0.5;
+    background: linear-gradient(180deg, transparent, rgba(59, 130, 246, 0.3), transparent);
 }
 
+/* Typing Indicator */
 .typing-indicator {
     display: flex;
     gap: 4px;
@@ -175,15 +209,50 @@ body.ai-helper-open #main-wrapper {
 .typing-dot {
     width: 6px;
     height: 6px;
-    background-color: #6b7280;
+    background-color: #94a3b8;
     border-radius: 50%;
     animation: typing 1.4s infinite ease-in-out;
 }
 
-.typing-dot:nth-child(2) { animation-delay: 0.2s; }
-.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+.typing-dot:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.typing-dot:nth-child(3) {
+    animation-delay: 0.4s;
+}
 
 @keyframes typing {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-4px); }
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-4px);
+    }
+}
+
+/* Status indicator in header */
+.agent-header .bg-green-400 {
+    background-color: #4ade80;
+}
+
+/* Scrollbar styling for messages */
+.agent-messages::-webkit-scrollbar {
+    width: 6px;
+}
+
+.agent-messages::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.agent-messages::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.4);
+    border-radius: 3px;
+}
+
+.agent-messages::-webkit-scrollbar-thumb:hover {
+    background: rgba(148, 163, 184, 0.6);
 }

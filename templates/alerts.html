@@ -1,4 +1,4 @@
-{% extends "layout.html" %}
+{% extends "base.html" %}
 {% set active_page = 'alerts' %}
 
 {% block title %}Alerts - AIOps Platform{% endblock %}
@@ -29,6 +29,67 @@
         title="Refresh Data">
         <i class="fas fa-sync-alt text-green-400 text-xs"></i>
     </button>
+</div>
+<!-- RE-VIVE Chat Button -->
+<button class="revive-chat-btn" id="ai-helper-toggle" title="RE-VIVE AI Assistant">
+    <i data-feather="message-circle" style="width: 18px;"></i>
+</button>
+<!-- Notifications -->
+<button class="icon-btn" title="Notifications">
+    <i data-feather="bell" style="width: 18px;"></i>
+    <span class="notification-dot"></span>
+</button>
+
+<!-- User Profile Dropdown -->
+<div class="relative ml-2 user-profile-container">
+    class="flex items-center justify-center w-8 h-8 rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2
+    focus:ring-offset-[#0f0e47] focus:ring-blue-500 transition-all duration-200"
+    id="user-menu-button" aria-expanded="false" aria-haspopup="true" onclick="toggleUserMenu()">
+    <span class="sr-only">Open user menu</span>
+    <div
+        class="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-medium text-xs shadow-md hover:bg-blue-700 transition-colors border border-blue-400">
+        {{ user.username[0].upper() if user and user.username else 'U' }}
+    </div>
+    </button>
+    <div id="user-menu-dropdown"
+        class="origin-top-right absolute right-0 mt-2 w-56 rounded-xl shadow-2xl py-2 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none hidden z-50 transform transition-all duration-200 ease-out scale-95 opacity-0 border border-slate-100"
+        role="menu" aria-orientation="vertical" aria-labelledby="user-menu-button" tabindex="-1">
+        <div class="px-4 py-3 border-b border-slate-100 bg-slate-50 rounded-t-xl">
+            <p class="text-xs text-slate-500 uppercase font-semibold tracking-wider">Signed in as</p>
+            <p class="text-sm font-bold text-slate-800 truncate mt-1">{{ user.username if user and user.username else
+                'User' }}</p>
+            <p class="text-xs text-slate-400 truncate">{{ user.role if user and user.role else 'Guest' }}</p>
+        </div>
+
+        <div class="py-1">
+            <a href="/profile"
+                class="group flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                role="menuitem" tabindex="-1">
+                <i data-feather="user"
+                    class="mr-3 h-4 w-4 text-slate-400 group-hover:text-blue-500 transition-colors"></i>
+                Profile
+            </a>
+            <a href="/settings"
+                class="group flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                role="menuitem" tabindex="-1">
+                <i data-feather="settings"
+                    class="mr-3 h-4 w-4 text-slate-400 group-hover:text-blue-500 transition-colors"></i>
+                Settings
+            </a>
+        </div>
+
+        <div class="border-t border-slate-100 my-1"></div>
+
+        <div class="py-1">
+            <a href="#" onclick="logoutUser(event)"
+                class="group flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                role="menuitem" tabindex="-1">
+                <i data-feather="log-out"
+                    class="mr-3 h-4 w-4 text-red-400 group-hover:text-red-500 transition-colors"></i>
+                Sign out
+            </a>
+        </div>
+    </div>
 </div>
 {% endblock %}
 

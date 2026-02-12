@@ -1,4 +1,4 @@
-{% extends "layout.html" %}
+{% extends "base.html" %}
 {% set active_page = 'dashboard' %}
 
 {% block title %}Dashboard - AIOps Platform{% endblock %}
@@ -25,24 +25,86 @@
 {% endblock %}
 
 {% block header_actions %}
-<div class="flex items-center bg-gray-800 rounded-lg p-1 border border-gray-700 h-8">
+<div class="flex items-center bg-white bg-opacity-10 rounded-lg p-1 border border-white border-opacity-20 h-8">
     <div class="relative">
         <select id="timeRange"
-            class="appearance-none bg-transparent text-gray-300 text-xs pl-3 pr-7 py-1 focus:outline-none cursor-pointer hover:text-white transition-colors">
-            <option value="24h">Last 24h</option>
-            <option value="7d">Last 7d</option>
-            <option value="30d">Last 30d</option>
+            class="appearance-none bg-transparent text-gray-200 text-xs pl-3 pr-7 py-1 focus:outline-none cursor-pointer hover:text-white transition-colors">
+            <option value="24h" class="text-gray-900">Last 24h</option>
+            <option value="7d" class="text-gray-900">Last 7d</option>
+            <option value="30d" class="text-gray-900">Last 30d</option>
         </select>
-        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
+        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
             <i class="fas fa-chevron-down text-[9px]"></i>
         </div>
     </div>
-    <div class="w-px h-4 bg-gray-600 mx-1"></div>
+    <div class="w-px h-4 bg-white bg-opacity-20 mx-1"></div>
     <button id="refresh-btn" onclick="refreshDashboard()"
-        class="toolbar-btn p-1 rounded hover:bg-gray-700 transition-colors text-gray-400 hover:text-white"
+        class="toolbar-btn p-1 rounded hover:bg-white hover:bg-opacity-10 transition-colors text-gray-300 hover:text-white"
         title="Refresh Data">
         <i class="fas fa-sync-alt text-green-400 text-xs"></i>
     </button>
+</div>
+<!-- RE-VIVE Chat Button -->
+<button class="revive-chat-btn" id="ai-helper-toggle" title="RE-VIVE AI Assistant">
+    <i data-feather="message-circle" style="width: 18px;"></i>
+</button>
+<!-- Notifications -->
+<button class="icon-btn" title="Notifications">
+    <i data-feather="bell" style="width: 18px;"></i>
+    <span class="notification-dot"></span>
+</button>
+
+<!-- User Profile Dropdown -->
+<div class="relative ml-2 user-profile-container">
+    <button type="button" class="flex items-center justify-center w-8 h-8 rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2
+    focus:ring-offset-[#0f0e47] focus:ring-blue-500 transition-all duration-200" id="user-menu-button"
+        aria-expanded="false" aria-haspopup="true" onclick="toggleUserMenu()">
+        <span class="sr-only">Open user menu</span>
+        <div
+            class="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-medium text-xs shadow-md hover:bg-blue-700 transition-colors border border-blue-400">
+            {{ user.username[0].upper() if user and user.username else 'U' }}
+        </div>
+    </button>
+    <!-- Dropdown Menu -->
+    <div id="user-menu-dropdown"
+        class="origin-top-right absolute right-0 mt-2 w-56 rounded-xl shadow-2xl py-2 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none hidden z-50 transform transition-all duration-200 ease-out scale-95 opacity-0 border border-slate-100"
+        role="menu" aria-orientation="vertical" aria-labelledby="user-menu-button" tabindex="-1">
+        <div class="px-4 py-3 border-b border-slate-100 bg-slate-50 rounded-t-xl">
+            <p class="text-xs text-slate-500 uppercase font-semibold tracking-wider">Signed in as</p>
+            <p class="text-sm font-bold text-slate-800 truncate mt-1">{{ user.username if user and user.username else
+                'User' }}</p>
+            <p class="text-xs text-slate-400 truncate">{{ user.role if user and user.role else 'Guest' }}</p>
+        </div>
+
+        <div class="py-1">
+            <a href="/profile"
+                class="group flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                role="menuitem" tabindex="-1">
+                <i data-feather="user"
+                    class="mr-3 h-4 w-4 text-slate-400 group-hover:text-blue-500 transition-colors"></i>
+                Profile
+            </a>
+            <a href="/settings"
+                class="group flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                role="menuitem" tabindex="-1">
+                <i data-feather="settings"
+                    class="mr-3 h-4 w-4 text-slate-400 group-hover:text-blue-500 transition-colors"></i>
+                Settings
+            </a>
+        </div>
+
+        <div class="border-t border-slate-100 my-1"></div>
+
+        <div class="py-1">
+            <a href="#" onclick="logoutUser(event)"
+                class="group flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                role="menuitem" tabindex="-1">
+                <i data-feather="log-out"
+                    class="mr-3 h-4 w-4 text-red-400 group-hover:text-red-500 transition-colors"></i>
+                Sign out
+            </a>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
@@ -635,13 +697,9 @@
     async function refreshDashboard() {
         hideDashboardError();
         try {
-            const response = await apiCall(`/api/alerts/stats?time_range=${currentRange}`);
-            if (!response) return;
-            if (!response.ok) {
-                const text = await response.text();
-                throw new Error(text || 'Request failed');
-            }
-            const data = await response.json();
+            const data = await apiCall(`/api/alerts/stats?time_range=${currentRange}`);
+            if (!data) return;
+
             updateStats(data);
             renderTrend(data.alert_trend);
             renderSeverity(data.severity_distribution);
@@ -659,10 +717,9 @@
 
     async function loadClusteringStats() {
         try {
-            const response = await apiCall('/api/clusters/stats/overview');
-            if (!response || !response.ok) return;
+            const stats = await apiCall('/api/clusters/stats/overview');
+            if (!stats) return;
 
-            const stats = await response.json();
             document.getElementById('statActiveClusters').textContent = stats.active_clusters || 0;
             document.getElementById('statNoiseReduction').textContent = `${stats.noise_reduction_pct || 0}%`;
             document.getElementById('statAvgClusterSize').textContent = stats.avg_cluster_size ? stats.avg_cluster_size.toFixed(1) : '0.0';
@@ -673,21 +730,23 @@
     }
 
     // Recent alerts handling
+    // Recent alerts handling
     async function loadRecentAlerts() {
         const skeleton = document.getElementById('recentAlertsSkeleton');
         const errorBox = document.getElementById('recentAlertsError');
         const container = document.getElementById('recentAlerts');
+
         if (skeleton) skeleton.classList.remove('hidden');
-        errorBox.classList.add('hidden');
+        if (errorBox) errorBox.classList.add('hidden');
+
         try {
-            const response = await apiCall('/api/alerts?page_size=5');
-            if (!response) return;
-            if (!response.ok) {
-                throw new Error('Failed to fetch alerts');
-            }
-            const data = await response.json();
-            const alerts = data.alerts || [];
-            if (skeleton) skeleton.classList.add('hidden');
+            const data = await apiCall('/api/alerts?page_size=5');
+            // apiCall handles 401 redirects. If null, we just return.
+            if (!data) return;
+
+            // data is expected to be a list of alerts based on API definition
+            // But let's handle if it returns { alerts: [...] } wrapper
+            const alerts = Array.isArray(data) ? data : (data.alerts || []);
 
             if (alerts.length === 0) {
                 container.innerHTML = `
@@ -704,16 +763,15 @@
                 <a href="/alerts/${alert.id}" class="block p-3 rounded-lg bg-gray-800 hover:bg-gray-700 transition">
                     <div class="flex items-center justify-between">
                         <div class="flex items-center space-x-3">
-                            <span class="badge-${alert.severity || 'info'} px-2 py-1 rounded text-xs font-medium">
+                            <span class="badge-${(alert.severity || 'info').toLowerCase()} px-2 py-1 rounded text-xs font-medium">
                                 ${alert.severity || 'info'}
                             </span>
-                            <span class="font-medium">${alert.alert_name}</span>
+                            <span class="font-medium text-white">${alert.alert_name}</span>
                         </div>
                         <div class="flex items-center space-x-2">
-                            ${alert.analyzed
-                    ? '<i class="fas fa-check-circle text-green-400" title="Analyzed"></i>'
-                    : '<i class="fas fa-clock text-yellow-400" title="Pending"></i>'
-                }
+                             ${alert.status === 'firing'
+                    ? '<i class="fas fa-fire text-red-400" title="Firing"></i>'
+                    : '<i class="fas fa-check-circle text-green-400" title="Resolved"></i>'}
                         </div>
                     </div>
                     <div class="text-sm text-gray-400 mt-1">
@@ -721,11 +779,17 @@
                     </div>
                 </a>
             `).join('');
-            document.getElementById('lastUpdated').textContent = new Date().toLocaleTimeString();
+
+            // Update timestamp
+            const timeDisplay = document.getElementById('lastUpdated');
+            if (timeDisplay) timeDisplay.textContent = new Date().toLocaleTimeString();
+
         } catch (error) {
             console.error('Failed to load alerts:', error);
+            if (errorBox) errorBox.classList.remove('hidden');
+            if (container) container.innerHTML = '';
+        } finally {
             if (skeleton) skeleton.classList.add('hidden');
-            errorBox.classList.remove('hidden');
         }
     }
 

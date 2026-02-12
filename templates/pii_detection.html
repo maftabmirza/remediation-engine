@@ -1,581 +1,411 @@
-{% extends "layout.html" %}
+{% extends "base.html" %}
 {% set active_page = 'settings' %}
+{% set active_section = 'pii-detection' %}
+{% set section_label = 'PII Detection' %}
 
 {% block title %}PII & Secret Detection - Settings{% endblock %}
 
-{% block breadcrumbs %}
-<span class="mx-2">/</span>
-<span class="text-gray-400">Settings</span>
-<span class="mx-2">/</span>
-<span class="text-gray-200">PII Detection</span>
-{% endblock %}
-
-{% block header_title %}
-<i class="fas fa-shield-alt text-blue-400"></i>
-<span class="text-sm font-semibold text-white tracking-tight">PII & Secret Detection</span>
-{% endblock %}
-
-{% block header_actions %}
-<button class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors" onclick="saveConfiguration()">
-    <i class="fas fa-save mr-2"></i>Save Configuration
-</button>
-{% endblock %}
-
-{% block head %}
-<script src="/static/js/pii_detection.js"></script>
+{% block content %}
 <style>
-<style>
-    .pii-container {
-        padding: 20px;
-    }
-    
-    .pii-header {
+    /* Tab Styling matching settings theme */
+    .pii-tabs {
         display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 30px;
+        border-bottom: 1px solid #e2e8f0;
+        margin-bottom: 24px;
+        gap: 24px;
     }
-    
-    .pii-header h1 {
-        margin: 0;
-        font-size: 24px;
-        color: var(--text-primary);
-    }
-    
-    .global-settings {
-        background: var(--bg-secondary);
-        border: 1px solid var(--border-color);
-        border-radius: 8px;
-        padding: 20px;
-        margin-bottom: 30px;
-    }
-    
-    .global-settings h3 {
-        margin-top: 0;
-        font-size: 18px;
-        color: var(--text-primary);
-    }
-    
-    .setting-row {
-        display: flex;
-        gap: 30px;
-        align-items: center;
-        margin-bottom: 15px;
-    }
-    
-    .checkbox-label {
+
+    .tab-button {
+        padding: 12px 4px;
+        background: none;
+        border: none;
+        border-bottom: 2px solid transparent;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+        color: #64748b;
+        transition: all 0.2s;
         display: flex;
         align-items: center;
         gap: 8px;
-        cursor: pointer;
     }
-    
-    .form-group {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-    
-    .form-group label {
-        margin: 0;
-        font-weight: 500;
-    }
-    
-    .tabs {
-        border-bottom: 2px solid var(--border-color);
-        margin-bottom: 25px;
-    }
-    
-    .tab-buttons {
-        display: flex;
-        gap: 5px;
-    }
-    
-    .tab-button {
-        padding: 12px 24px;
-        background: none;
-        border: none;
-        border-bottom: 3px solid transparent;
-        cursor: pointer;
-        font-size: 15px;
-        color: var(--text-secondary);
-        transition: all 0.2s;
-    }
-    
+
     .tab-button:hover {
-        color: var(--text-primary);
+        color: #0f172a;
     }
-    
+
     .tab-button.active {
-        color: var(--accent-blue);
-        border-bottom-color: var(--accent-blue);
-        font-weight: 600;
+        color: #3b82f6;
+        border-bottom-color: #3b82f6;
     }
-    
+
     .tab-content {
         display: none;
     }
-    
+
     .tab-content.active {
         display: block;
         animation: fadeIn 0.3s;
     }
-    
+
     @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
-    }
-    
-    .entity-table, .plugin-table, .whitelist-table {
-        width: 100%;
-        border-collapse: collapse;
-        background: var(--bg-secondary);
-        box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-        border-radius: 8px;
-        overflow: hidden;
-    }
-    
-    .entity-table th, .plugin-table th, .whitelist-table th {
-        background: var(--bg-tertiary);
-        padding: 12px;
-        text-align: left;
-        font-weight: 600;
-        color: var(--text-primary);
-        border-bottom: 2px solid var(--border-color);
-    }
-    
-    .entity-table td, .plugin-table td, .whitelist-table td {
-        padding: 12px;
-        border-bottom: 1px solid var(--border-color);
-        color: var(--text-primary);
-    }
-    
-    .entity-table tr:last-child td, .plugin-table tr:last-child td, .whitelist-table tr:last-child td {
-        border-bottom: none;
-    }
-    
-    .entity-table tr:hover, .plugin-table tr:hover, .whitelist-table tr:hover {
-        background: var(--bg-tertiary);
+        from {
+            opacity: 0;
+        }
+
+        to {
+            opacity: 1;
+        }
     }
 
-    .exception-panel {
-        background: var(--bg-secondary);
-        border: 1px solid var(--border-color);
-        border-radius: 8px;
-        padding: 20px;
-        margin-bottom: 20px;
-    }
-
-    .exception-form {
-        display: grid;
-        grid-template-columns: 2fr 1fr 1fr;
-        gap: 12px;
-        margin-top: 12px;
-    }
-
-    .exception-form .form-group {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 6px;
-    }
-
-    .exception-actions {
-        display: flex;
-        justify-content: flex-end;
-        margin-top: 12px;
-    }
-
-    .exception-help {
-        color: var(--text-secondary);
+    /* Helper classes for JS compatibility */
+    .btn-secondary {
+        /* Map to settings-btn-secondary style */
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 12px;
+        background: #ffffff;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        color: #475569;
         font-size: 13px;
-        margin-top: 6px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.15s ease;
     }
-    
-    .slider {
-        width: 150px;
-        margin: 0 10px;
+
+    .btn-secondary:hover {
+        background: #f8fafc;
+        border-color: #94a3b8;
+        color: #1e293b;
     }
-    
-    .threshold-display {
-        display: inline-block;
-        min-width: 35px;
+
+    .btn-primary {
+        display: inline-flex;
+        align-items: center;
+        padding: 8px 16px;
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
         font-weight: 600;
-        color: var(--text-primary);
+        cursor: pointer;
+        box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
+        transition: all 0.2s ease;
     }
-    
+
+    .btn-primary:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 6px rgba(59, 130, 246, 0.3);
+    }
+
     .custom-badge {
         display: inline-block;
         padding: 2px 8px;
-        background: var(--accent-blue);
+        background: #3b82f6;
         color: white;
         border-radius: 12px;
         font-size: 11px;
         font-weight: 600;
     }
-    
-    .test-sandbox {
-        background: var(--bg-secondary);
-        border: 1px solid var(--border-color);
-        border-radius: 8px;
-        padding: 20px;
+
+    /* Ensure tables inside settings-table class behave */
+    .settings-table td {
+        vertical-align: middle;
     }
-    
-    .test-sandbox h3 {
-        margin-top: 0;
-        font-size: 18px;
-        color: var(--text-primary);
-    }
-    
-    .test-input {
-        width: 100%;
-        min-height: 120px;
-        padding: 12px;
-        border: 1px solid var(--border-color);
-        background: var(--bg-tertiary);
-        color: var(--text-primary);
-        border-radius: 4px;
-        font-family: 'Courier New', monospace;
-        font-size: 14px;
-        margin-bottom: 15px;
-    }
-    
-    .results-box {
-        background: var(--bg-tertiary);
-        border: 1px solid var(--border-color);
-        border-radius: 4px;
-        padding: 15px;
-        margin-top: 15px;
-        max-height: 400px;
-        overflow-y: auto;
-    }
-    
-    .detection-item {
-        background: var(--bg-secondary);
-        border-left: 3px solid var(--accent-green);
-        padding: 10px;
-        margin-bottom: 10px;
-        border-radius: 4px;
-        color: var(--text-primary);
-    }
-    
-    .detection-item.presidio {
-        border-left-color: var(--accent-blue);
-    }
-    
-    .detection-item.detect-secrets {
-        border-left-color: var(--accent-yellow);
-    }
-    
-    .redacted-preview {
-        background: var(--bg-tertiary);
-        border: 1px solid var(--accent-yellow);
-        border-radius: 4px;
-        padding: 15px;
-        margin-top: 15px;
-        font-family: 'Courier New', monospace;
-        font-size: 14px;
-        color: var(--text-primary);
-    }
-    
-    .btn-primary {
-        background: var(--accent-blue);
-        color: white;
-        border: none;
-        padding: 10px 20px;
-        border-radius: 4px;
+
+    .checkbox-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
         cursor: pointer;
         font-size: 14px;
-        font-weight: 600;
+        color: #1e293b;
     }
-    
-    .btn-primary:hover {
-        opacity: 0.9;
-    }
-    
-    .btn-secondary {
-        background: var(--bg-tertiary);
-        color: var(--text-primary);
-        border: 1px solid var(--border-color);
-        padding: 8px 16px;
-        border-radius: 4px;
-        cursor: pointer;
+
+    .form-group label {
+        display: block;
         font-size: 13px;
+        font-weight: 500;
+        color: #475569;
+        margin-bottom: 4px;
     }
-    
-    .btn-secondary:hover {
-        background: var(--bg-secondary);
-    }
-    
-    .btn-success {
-        background: var(--accent-green);
-        color: white;
-        border: none;
-        padding: 10px 24px;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 14px;
-        font-weight: 600;
-        float: right;
-    }
-    
-    .btn-success:hover {
-        opacity: 0.9;
-    }
-    
-    .loading {
-        display: inline-block;
-        width: 16px;
-        height: 16px;
-        border: 2px solid var(--bg-tertiary);
-        border-top: 2px solid var(--accent-blue);
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
-        margin-left: 10px;
-    }
-    
-    @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-    }
-    
-    .alert {
-        padding: 12px 20px;
-        border-radius: 4px;
-        margin-bottom: 20px;
-    }
-    
-    .alert-success {
-        background: rgba(108, 207, 142, 0.2);
-        border: 1px solid var(--accent-green);
-        color: var(--accent-green);
-    }
-    
-    .alert-error {
-        background: rgba(255, 82, 134, 0.2);
-        border: 1px solid var(--accent-red);
-        color: var(--accent-red);
+
+    .form-control {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 8px 12px;
+        font-size: 13px;
+        color: #1e293b;
+        width: 100%;
     }
 </style>
-{% endblock %}
 
-{% block content %}
-<div class="p-6">
-    <div id="alertMessage"></div>
-    
-    <!-- Info Banner -->
-    <div style="background: linear-gradient(135deg, #1e3a5f, #2d4a6f); border: 1px solid #3b5998; border-radius: 8px; padding: 20px; margin-bottom: 25px;">
-        <h3 style="margin: 0 0 10px 0; color: #fff; font-size: 16px;">
-            <i class="fas fa-info-circle" style="color: #4CAF50; margin-right: 8px;"></i>
-            Detection Engines
-        </h3>
-        <div style="display: flex; gap: 30px; flex-wrap: wrap;">
-            <div style="flex: 1; min-width: 250px;">
-                <h4 style="color: #64B5F6; margin: 0 0 5px 0; font-size: 14px;">
-                    <i class="fas fa-shield-alt" style="margin-right: 5px;"></i>Presidio (Microsoft)
-                </h4>
-                <p style="color: #B0BEC5; margin: 0; font-size: 13px;">
-                    Standard PII: Email, Phone, SSN, Credit Card, Names, Passport, Driver License, IBAN
-                </p>
-            </div>
-            <div style="flex: 1; min-width: 250px;">
-                <h4 style="color: #FFD54F; margin: 0 0 5px 0; font-size: 14px;">
-                    <i class="fas fa-key" style="margin-right: 5px;"></i>detect-secrets (Yelp)
-                </h4>
-                <p style="color: #B0BEC5; margin: 0; font-size: 13px;">
-                    Secrets: Passwords, API Keys (AWS, GitHub, Slack, Stripe), JWT, Private Keys
-                </p>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Global Settings -->
-    <div class="global-settings">
-        <h3>Global Settings</h3>
-        <div class="setting-row">
-            <label class="checkbox-label">
-                <input type="checkbox" id="enablePresidio" checked>
-                Enable PII Detection (Presidio)
-            </label>
-            <label class="checkbox-label">
-                <input type="checkbox" id="enableSecrets" checked>
-                Enable Secret Detection (detect-secrets)
-            </label>
-            <label class="checkbox-label">
-                <input type="checkbox" id="autoRedact" checked>
-                Auto-redact in outputs
-            </label>
-            <label class="checkbox-label">
-                <input type="checkbox" id="logDetections" checked>
-                Log all detections
-            </label>
-        </div>
-        <div class="setting-row">
-            <div class="form-group">
-                <label for="defaultRedaction">Default Redaction:</label>
-                <select id="defaultRedaction" class="form-control">
-                    <option value="mask">Mask</option>
-                    <option value="hash">Hash</option>
-                    <option value="remove">Remove</option>
-                    <option value="tag">Tag</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="maskChar">Mask Character:</label>
-                <input type="text" id="maskChar" value="*" maxlength="1" style="width: 50px;" class="form-control">
-            </div>
-        </div>
-    </div>
-    
-    <!-- Tabs -->
-    <div class="tabs">
-        <div class="tab-buttons">
-            <button class="tab-button active" data-tab="presidio" onclick="switchTab('presidio', this)">
-                <i class="fas fa-shield-alt" style="margin-right: 5px; color: #64B5F6;"></i>Presidio (PII)
-            </button>
-            <button class="tab-button" data-tab="secrets" onclick="switchTab('secrets', this)">
-                <i class="fas fa-key" style="margin-right: 5px; color: #FFD54F;"></i>detect-secrets (Secrets)
-            </button>
-            <button class="tab-button" data-tab="exceptions" onclick="switchTab('exceptions', this)">
-                <i class="fas fa-list-alt" style="margin-right: 5px;"></i>Exceptions
-            </button>
-            <button class="tab-button" data-tab="test" onclick="switchTab('test', this)">
-                <i class="fas fa-flask" style="margin-right: 5px;"></i>Test Detection
-            </button>
-        </div>
-    </div>
-    
-    <!-- Presidio Entities Tab -->
-    <div id="presidio-tab" class="tab-content active">
-        <div style="margin-bottom: 15px; padding: 10px; background: var(--bg-tertiary); border-radius: 4px;">
-            <strong style="color: #64B5F6;">Microsoft Presidio</strong>
-            <span style="color: var(--text-secondary); margin-left: 10px;">Built-in PII detection with NLP support</span>
-        </div>
-        <table class="entity-table">
-            <thead>
-                <tr>
-                    <th>Entity Type</th>
-                    <th>Enabled</th>
-                    <th>Threshold</th>
-                    <th>Redaction</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody id="presidioEntitiesTable">
-                <!-- Populated by JavaScript -->
-            </tbody>
-        </table>
-    </div>
-    
-    <!-- detect-secrets Plugins Tab -->
-    <div id="secrets-tab" class="tab-content">
-        <div style="margin-bottom: 15px; padding: 10px; background: var(--bg-tertiary); border-radius: 4px;">
-            <strong style="color: #FFD54F;">Yelp detect-secrets</strong>
-            <span style="color: var(--text-secondary); margin-left: 10px;">20+ plugins for API keys, tokens, passwords, and credentials</span>
-        </div>
-        <table class="plugin-table">
-            <thead>
-                <tr>
-                    <th>Plugin</th>
-                    <th>Enabled</th>
-                    <th>Description</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody id="pluginsTable">
-                <!-- Populated by JavaScript -->
-            </tbody>
-        </table>
+<div class="settings-full-width">
+    <!-- Header -->
+    <div class="settings-header-bar">
+        {% include 'partials/settings_nav_dropdown.html' %}
+        <span class="admin-badge"><i data-feather="shield"></i> PII Admin</span>
     </div>
 
-    <!-- Exceptions Tab -->
-    <div id="exceptions-tab" class="tab-content">
-        <div class="exception-panel">
-            <h3>Exceptions (Whitelist)</h3>
-            <p class="exception-help">
-                Add known safe values to the whitelist so they are excluded from future detections.
-            </p>
-            <label class="checkbox-label" style="margin-top: 10px;">
-                <input type="checkbox" id="showInactiveWhitelist" onchange="loadWhitelist()">
-                Show inactive entries
-            </label>
-            <div class="exception-form">
-                <div class="form-group">
-                    <label for="exceptionText">Detected Text</label>
-                    <input type="text" id="exceptionText" class="form-control" placeholder="e.g. test@example.com or sk_test_...">
+    <!-- Active Section Container -->
+    <div class="settings-section active space-y-4" style="display:block; margin-top:12px;">
+
+        <!-- Toolbar -->
+        <div class="settings-toolbar">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div class="flex flex-col min-w-0">
+                    <h1 class="toolbar-title">PII & Secret Detection</h1>
+                    <p class="toolbar-subtitle">Configure Presidio and detect-secrets engines</p>
                 </div>
-                <div class="form-group">
-                    <label for="exceptionEntityType">Entity Type</label>
-                    <input type="text" id="exceptionEntityType" class="form-control" list="exceptionEntityList" placeholder="EMAIL_ADDRESS">
-                    <datalist id="exceptionEntityList"></datalist>
+                <div class="flex items-center gap-3">
+                    <button class="settings-btn-primary" onclick="saveConfiguration()">
+                        <i data-feather="save" class="w-4 h-4 mr-2"></i>
+                        Save Configuration
+                    </button>
+                    <!-- Notification Bell (Reused from header if needed, or kept separately) -->
                 </div>
+            </div>
+        </div>
+
+        <div id="alertMessage"></div>
+
+        <!-- Info Card (Simplified) -->
+        <div class="settings-light-card p-6 bg-gradient-to-r from-slate-50 to-white">
+            <h3 class="font-semibold text-slate-800 mb-4 flex items-center">
+                <i data-feather="info" class="w-4 h-4 mr-2 text-blue-500"></i> Detection Engines
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <h4 class="text-sm font-semibold text-blue-600 mb-1">Presidio (Microsoft)</h4>
+                    <p class="text-xs text-slate-500">Standard PII: Email, Phone, SSN, Credit Card, Names, Driver
+                        License, IBAN</p>
+                </div>
+                <div>
+                    <h4 class="text-sm font-semibold text-amber-500 mb-1">detect-secrets (Yelp)</h4>
+                    <p class="text-xs text-slate-500">Secrets: Passwords, API Keys (AWS, GitHub, Slack, Stripe), JWT,
+                        Private Keys</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Global Settings Card -->
+        <div class="settings-light-card p-6">
+            <h3 class="text-lg font-bold text-slate-800 mb-4">Global Settings</h3>
+            <div class="flex flex-wrap gap-6 mb-6">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="enablePresidio" checked>
+                    Enable PII Detection (Presidio)
+                </label>
+                <label class="checkbox-label">
+                    <input type="checkbox" id="enableSecrets" checked>
+                    Enable Secret Detection (detect-secrets)
+                </label>
+                <label class="checkbox-label">
+                    <input type="checkbox" id="autoRedact" checked>
+                    Auto-redact in outputs
+                </label>
+                <label class="checkbox-label">
+                    <input type="checkbox" id="logDetections" checked>
+                    Log all detections
+                </label>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl">
                 <div class="form-group">
-                    <label for="exceptionEngine">Detection Engine</label>
-                    <select id="exceptionEngine" class="form-control">
-                        <option value="presidio">presidio</option>
-                        <option value="detect_secrets">detect_secrets</option>
+                    <label for="defaultRedaction">Default Redaction:</label>
+                    <select id="defaultRedaction" class="form-control">
+                        <option value="mask">Mask</option>
+                        <option value="hash">Hash</option>
+                        <option value="remove">Remove</option>
+                        <option value="tag">Tag</option>
                     </select>
                 </div>
-            </div>
-            <div class="form-group" style="margin-top: 12px;">
-                <label for="exceptionComment">Comment (optional)</label>
-                <input type="text" id="exceptionComment" class="form-control" placeholder="Why this should be excluded">
-            </div>
-            <div class="exception-actions">
-                <button class="btn-primary" onclick="addWhitelistEntry()">
-                    <i class="fas fa-plus" style="margin-right: 5px;"></i>Add Exception
-                </button>
+                <div class="form-group">
+                    <label for="maskChar">Mask Character:</label>
+                    <input type="text" id="maskChar" value="*" maxlength="1" class="form-control" style="width: 60px;">
+                </div>
             </div>
         </div>
 
-        <table class="whitelist-table">
-            <thead>
-                <tr>
-                    <th>Detected Text</th>
-                    <th>Entity Type</th>
-                    <th>Scope</th>
-                    <th>Added</th>
-                    <th>Reporter</th>
-                    <th>Session</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody id="whitelistTable">
-                <!-- Populated by JavaScript -->
-            </tbody>
-        </table>
-    </div>
-    
-    <!-- Test Detection Tab -->
-    <div id="test-tab" class="tab-content">
-        <div class="test-sandbox">
-            <h3>Test Detection</h3>
-            <p style="color: var(--text-secondary); margin-bottom: 15px;">
-                Test both detection engines. Presidio handles PII (email, phone, SSN), detect-secrets handles passwords and API keys.
-            </p>
-            <textarea 
-                id="testInput" 
-                class="test-input" 
-                placeholder="Enter text to test detection...&#10;&#10;Example:&#10;My email is test@example.com&#10;password = &quot;SecretPass@123&quot;&#10;API_KEY = &quot;sk-1234567890abcdef&quot;&#10;SSN: 123-45-6789"
-            ></textarea>
-            
-            <button class="btn-primary" onclick="runTest()">
-                <i class="fas fa-search" style="margin-right: 5px;"></i>Run Detection
-                <span id="testLoading" class="loading" style="display: none;"></span>
-            </button>
-            
-            <div id="testResults" style="display: none;">
-                <h4 style="margin-top: 20px;">Detection Results:</h4>
-                <div id="detectionsResults" class="results-box">
-                    <!-- Detection results -->
+        <!-- Configuration Tabs -->
+        <div class="settings-light-card">
+            <!-- Tab Headers -->
+            <div class="px-6 pt-2">
+                <div class="pii-tabs">
+                    <button class="tab-button active" data-tab="presidio" onclick="switchTab('presidio', this)">
+                        <i data-feather="shield" class="w-4 h-4"></i> Presidio (PII)
+                    </button>
+                    <button class="tab-button" data-tab="secrets" onclick="switchTab('secrets', this)">
+                        <i data-feather="key" class="w-4 h-4"></i> detect-secrets
+                    </button>
+                    <button class="tab-button" data-tab="exceptions" onclick="switchTab('exceptions', this)">
+                        <i data-feather="list" class="w-4 h-4"></i> Exceptions
+                    </button>
+                    <button class="tab-button" data-tab="test" onclick="switchTab('test', this)">
+                        <i data-feather="activity" class="w-4 h-4"></i> Test Detection
+                    </button>
                 </div>
-                
-                <h4>Redacted Preview:</h4>
-                <div id="redactedPreview" class="redacted-preview">
-                    <!-- Redacted text -->
+            </div>
+
+            <!-- Presidio Tab -->
+            <div id="presidio-tab" class="tab-content active p-6 pt-0">
+                <table class="settings-table w-full">
+                    <thead>
+                        <tr>
+                            <th class="p-4 text-left">Entity Type</th>
+                            <th class="p-4 text-left">Enabled</th>
+                            <th class="p-4 text-left">Threshold</th>
+                            <th class="p-4 text-left">Redaction</th>
+                            <th class="p-4 text-left">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="presidioEntitiesTable">
+                        <!-- Populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Secrets Tab -->
+            <div id="secrets-tab" class="tab-content p-6 pt-0">
+                <table class="settings-table w-full">
+                    <thead>
+                        <tr>
+                            <th class="p-4 text-left">Plugin</th>
+                            <th class="p-4 text-left">Enabled</th>
+                            <th class="p-4 text-left">Description</th>
+                            <th class="p-4 text-left">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pluginsTable">
+                        <!-- Populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Exceptions Tab -->
+            <div id="exceptions-tab" class="tab-content p-6 pt-0">
+                <div class="bg-slate-50 border border-slate-200 rounded-lg p-5 mb-6">
+                    <h3 class="font-semibold text-slate-800 mb-2">Add Exception</h3>
+                    <p class="text-xs text-slate-500 mb-4">Add known safe values to the whitelist.</p>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <div class="form-group">
+                            <label for="exceptionText">Detected Text</label>
+                            <input type="text" id="exceptionText" class="form-control"
+                                placeholder="e.g. test@example.com">
+                        </div>
+                        <div class="form-group">
+                            <label for="exceptionEntityType">Entity Type</label>
+                            <input type="text" id="exceptionEntityType" class="form-control" list="exceptionEntityList"
+                                placeholder="EMAIL_ADDRESS">
+                            <datalist id="exceptionEntityList"></datalist>
+                        </div>
+                        <div class="form-group">
+                            <label for="exceptionEngine">Engine</label>
+                            <select id="exceptionEngine" class="form-control">
+                                <option value="presidio">presidio</option>
+                                <option value="detect_secrets">detect_secrets</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group mb-4">
+                        <label for="exceptionComment">Comment</label>
+                        <input type="text" id="exceptionComment" class="form-control"
+                            placeholder="Reason for exclusion">
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="showInactiveWhitelist" onchange="loadWhitelist()">
+                            Show inactive entries
+                        </label>
+                        <button class="settings-btn-primary" onclick="addWhitelistEntry()">Add Exception</button>
+                    </div>
+                </div>
+
+                <table class="settings-table w-full">
+                    <thead>
+                        <tr>
+                            <th class="p-4 text-left">Detected Text</th>
+                            <th class="p-4 text-left">Entity Type</th>
+                            <th class="p-4 text-left">Scope</th>
+                            <th class="p-4 text-left">Added</th>
+                            <th class="p-4 text-left">Reporter</th>
+                            <th class="p-4 text-left">Session</th>
+                            <th class="p-4 text-left">Status</th>
+                            <th class="p-4 text-left">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="whitelistTable">
+                        <!-- Populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Test Tab -->
+            <div id="test-tab" class="tab-content p-6 pt-0">
+                <div class="grid grid-cols-1 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Test Text</label>
+                        <textarea id="testInput" class="form-control" style="min-height: 120px; font-family: monospace;"
+                            placeholder="Enter text to test detection...&#10;&#10;Example:&#10;My email is test@example.com&#10;password = &quot;SecretPass@123&quot;"></textarea>
+                    </div>
+                    <div>
+                        <button class="settings-btn-primary" onclick="runTest()">
+                            <i data-feather="search" class="w-4 h-4 mr-2"></i> Run Detection
+                            <span id="testLoading"
+                                class="loading inline-block w-4 h-4 ml-2 border-2 border-white border-t-transparent rounded-full animate-spin"
+                                style="display: none;"></span>
+                        </button>
+                    </div>
+
+                    <div id="testResults" style="display: none;" class="border-t border-slate-200 pt-6">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <h4 class="font-semibold text-slate-800 mb-3">Detection Results</h4>
+                                <div id="detectionsResults"
+                                    class="bg-slate-50 border border-slate-200 rounded p-4 max-h-64 overflow-y-auto">
+                                </div>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-slate-800 mb-3">Redacted Preview</h4>
+                                <div id="redactedPreview"
+                                    class="bg-slate-900 text-slate-50 rounded p-4 font-mono text-sm"></div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+{% endblock %}
+
+{% block head %}
+<!-- Load PII Logic -->
+<script src="/static/js/pii_detection.js"></script>
+<script>
+    // Local implementation of dropdown toggle since we are on a separate page
+    function toggleSettingsDropdown(e) {
+        e.stopPropagation();
+        const dropdown = document.getElementById('settingsDropdownMenu');
+        const btn = document.getElementById('settingsDropdownBtn');
+        dropdown.classList.toggle('open');
+        btn.classList.toggle('open');
+    }
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function (e) {
+        const dropdown = document.getElementById('settingsDropdownMenu');
+        const btn = document.getElementById('settingsDropdownBtn');
+        if (dropdown && dropdown.classList.contains('open')) {
+            if (!dropdown.contains(e.target) && !btn.contains(e.target)) {
+                dropdown.classList.remove('open');
+                btn.classList.remove('open');
+            }
+        }
+    });
+</script>
 {% endblock %}

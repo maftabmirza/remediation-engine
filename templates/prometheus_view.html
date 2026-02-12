@@ -1,4 +1,4 @@
-{% extends "layout.html" %}
+{% extends "base.html" %}
 
 {% block title %}Prometheus - AIOps Platform{% endblock %}
 
@@ -7,13 +7,13 @@
 <style>
     .prometheus-container {
         position: fixed !important;
-        top: 64px !important;
-        /* Leave room for top navbar */
-        left: 80px !important;
-        /* Sidebar width */
+        top: 48px !important;
+        /* Leave room for top navbar (matches grid-template-rows: 48px) */
+        left: 48px !important;
+        /* Sidebar collapsed width */
         right: 0 !important;
         bottom: 0 !important;
-        height: calc(100% - 64px) !important;
+        height: calc(100vh - 48px) !important;
         /* Subtract navbar height */
         overflow: hidden !important;
         background: #1e1e1e !important;
@@ -22,9 +22,9 @@
         /* Lower than sidebar (z-20) */
     }
 
-    /* Adjust for expanded sidebar if needed via JS or just let it overlap */
-    body.sidebar-expanded .prometheus-container {
-        left: 256px !important;
+    /* Adjust for expanded sidebar */
+    .app-container:not(.collapsed) .prometheus-container {
+        left: 170px !important;
     }
 
     .prometheus-container iframe {

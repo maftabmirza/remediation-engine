@@ -1,35 +1,407 @@
-{% extends "layout.html" %}
+{% extends "base.html" %}
+{% set active_page = 'applications' %}
+
+{% block title %}Application Registry - AIOps Platform{% endblock %}
+
+{% block breadcrumbs %}
+<span class="mx-2">/</span>
+<span class="text-gray-200">Applications</span>
+{% endblock %}
+
+{% block header_title %}
+<i class="fas fa-layer-group text-blue-400"></i>
+<span class="text-sm font-semibold text-white tracking-tight">Application Registry</span>
+{% endblock %}
+
+{% block header_actions %}
+{{ super() }}
+{% endblock %}
+
+{% block head %}
+<style>
+    /* Action Buttons - Same as Runbooks */
+    .app-action-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 16px;
+        font-size: 13px;
+        font-weight: 600;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: none;
+        text-decoration: none;
+        white-space: nowrap;
+    }
+
+    .app-action-primary {
+        background: linear-gradient(135deg, #3b82f6, #2563eb);
+        color: white;
+        box-shadow: 0 2px 6px rgba(59, 130, 246, 0.25);
+    }
+
+    .app-action-primary:hover {
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        box-shadow: 0 4px 14px rgba(59, 130, 246, 0.35);
+        transform: translateY(-1px);
+    }
+
+    .app-action-primary:active {
+        transform: translateY(0);
+        box-shadow: 0 1px 3px rgba(59, 130, 246, 0.3);
+    }
+
+    .app-action-secondary {
+        background: #ffffff;
+        color: #475569;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    }
+
+    .app-action-secondary:hover {
+        border-color: #cbd5e1;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+        background: #f8fafc;
+        transform: translateY(-1px);
+    }
+
+    .app-action-secondary:active {
+        transform: translateY(0);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    }
+
+    .app-action-btn i {
+        font-size: 12px;
+    }
+
+    /* Search Input Styling */
+    .app-search-input {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 8px 14px 8px 36px;
+        font-size: 13px;
+        color: #1e293b;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+        outline: none;
+    }
+
+    .app-search-input::placeholder {
+        color: #94a3b8;
+    }
+
+    .app-search-input:hover {
+        border-color: #cbd5e1;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+    }
+
+    .app-search-input:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+    }
+
+    .app-search-wrapper {
+        position: relative;
+    }
+
+    .app-search-wrapper .search-icon {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #94a3b8;
+        font-size: 13px;
+        pointer-events: none;
+    }
+
+    /* Custom Dropdown Component - Same as Runbooks rb-dropdown */
+    .app-dropdown {
+        position: relative;
+        min-width: 150px;
+    }
+
+    .app-dropdown-trigger {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 8px 12px 8px 14px;
+        font-size: 13px;
+        font-weight: 500;
+        color: #475569;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+        outline: none;
+        user-select: none;
+        white-space: nowrap;
+    }
+
+    .app-dropdown-trigger:hover {
+        border-color: #cbd5e1;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+    }
+
+    .app-dropdown.open .app-dropdown-trigger {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+    }
+
+    .app-dropdown-trigger .app-dd-chevron {
+        width: 14px;
+        height: 14px;
+        color: #94a3b8;
+        transition: transform 0.2s ease;
+        flex-shrink: 0;
+    }
+
+    .app-dropdown.open .app-dd-chevron {
+        transform: rotate(180deg);
+    }
+
+    .app-dropdown-menu {
+        display: none;
+        position: absolute;
+        top: calc(100% + 6px);
+        left: 0;
+        min-width: 100%;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.06);
+        z-index: 9999;
+        padding: 5px;
+        overflow: hidden;
+    }
+
+    .app-dropdown.open .app-dropdown-menu {
+        display: block;
+        animation: appDropIn 0.15s ease-out;
+    }
+
+    @keyframes appDropIn {
+        from {
+            opacity: 0;
+            transform: translateY(-6px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .app-dropdown-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        font-size: 13px;
+        font-weight: 500;
+        color: #475569;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.12s ease;
+        white-space: nowrap;
+    }
+
+    .app-dropdown-item:hover {
+        background: #f1f5f9;
+        color: #1e293b;
+    }
+
+    .app-dropdown-item.selected {
+        background: rgba(59, 130, 246, 0.08);
+        color: #2563eb;
+    }
+
+    .app-dropdown-item .app-dd-check {
+        width: 14px;
+        font-size: 11px;
+        color: #3b82f6;
+        opacity: 0;
+    }
+
+    .app-dropdown-item.selected .app-dd-check {
+        opacity: 1;
+    }
+
+    .app-dropdown select {
+        display: none;
+    }
+
+    .app-dd-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        display: inline-block;
+        flex-shrink: 0;
+    }
+
+    /* Modern Badge Styles - Same as Runbooks */
+    .badge {
+        padding: 3px 10px;
+        border-radius: 20px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        letter-spacing: 0.03em;
+    }
+
+    .badge-critical {
+        background-color: #fef2f2;
+        color: #dc2626;
+        border: 1px solid #fecaca;
+    }
+
+    .badge-critical::before {
+        content: '';
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #dc2626;
+        display: inline-block;
+    }
+
+    .badge-high {
+        background-color: #fffbeb;
+        color: #d97706;
+        border: 1px solid #fde68a;
+    }
+
+    .badge-high::before {
+        content: '';
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #f59e0b;
+        display: inline-block;
+    }
+
+    .badge-medium {
+        background-color: #eff6ff;
+        color: #2563eb;
+        border: 1px solid #bfdbfe;
+    }
+
+    .badge-medium::before {
+        content: '';
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #3b82f6;
+        display: inline-block;
+    }
+
+    .badge-low {
+        background-color: #f1f5f9;
+        color: #64748b;
+        border: 1px solid #e2e8f0;
+    }
+
+    .badge-low::before {
+        content: '';
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #94a3b8;
+        display: inline-block;
+    }
+
+    .app-modal-overlay {
+        z-index: 2000;
+    }
+
+    @media (max-width: 640px) {
+        .app-action-btn {
+            padding: 8px 12px;
+        }
+
+        .app-dropdown {
+            min-width: 120px;
+        }
+    }
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="space-y-4">
-    <!-- Enterprise Standard Toolbar -->
-    <!-- Enterprise Standard Toolbar -->
-    <div class="dashboard-header"
-        style="padding: 12px; background: #16171b; border-bottom: 1px solid rgba(255,255,255,0.05); border-radius: 8px;">
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <!-- Left: Breadcrumbs & Title -->
-            <div class="flex flex-col min-w-0">
-                <nav class="flex items-center text-xs text-gray-400 mb-1">
-                    <a href="/" class="hover:text-blue-400 transition-colors">Home</a>
-                    <span class="mx-2">/</span>
-                    <span class="text-gray-200">Applications</span>
-                </nav>
-                <div class="flex items-center gap-3">
-                    <h1 class="text-xl font-bold text-white tracking-tight truncate">Application Registry</h1>
+    <!-- Toolbar with Filters and Actions -->
+    <div class="card p-4" style="overflow: visible; position: relative; z-index: 200;">
+        <div class="flex flex-wrap gap-4 items-center justify-between">
+            <!-- Left: Filters -->
+            <div class="flex flex-wrap gap-3 items-center flex-1">
+                <div class="app-search-wrapper flex-1 min-w-[200px]">
+                    <i class="fas fa-search search-icon"></i>
+                    <input type="text" id="searchInput" placeholder="Search applications..."
+                        onkeyup="filterApplications()" class="app-search-input w-full">
                 </div>
-                <p class="text-xs text-gray-500 mt-1">Manage applications and dependency topology</p>
+                <!-- Criticality Dropdown -->
+                <div class="app-dropdown" id="criticalityDropdown">
+                    <select id="criticalityFilter">
+                        <option value="">All Criticality</option>
+                        <option value="critical">Critical</option>
+                        <option value="high">High</option>
+                        <option value="medium">Medium</option>
+                        <option value="low">Low</option>
+                    </select>
+                    <div class="app-dropdown-trigger" onclick="toggleAppDropdown('criticalityDropdown')">
+                        <div class="flex items-center gap-2">
+                            <i class="fas fa-circle-dot" style="font-size: 11px; color: #94a3b8;"></i>
+                            <span class="app-dd-label">All Criticality</span>
+                        </div>
+                        <svg class="app-dd-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </div>
+                    <div class="app-dropdown-menu">
+                        <div class="app-dropdown-item selected" data-value=""
+                            onclick="selectAppOption('criticalityDropdown','','All Criticality')">
+                            <i class="fas fa-check app-dd-check"></i>
+                            <span class="app-dd-dot"
+                                style="background: linear-gradient(135deg, #ef4444, #f97316, #3b82f6);"></span>
+                            All Criticality
+                        </div>
+                        <div class="app-dropdown-item" data-value="critical"
+                            onclick="selectAppOption('criticalityDropdown','critical','Critical')">
+                            <i class="fas fa-check app-dd-check"></i>
+                            <span class="app-dd-dot" style="background: #ef4444;"></span>
+                            Critical
+                        </div>
+                        <div class="app-dropdown-item" data-value="high"
+                            onclick="selectAppOption('criticalityDropdown','high','High')">
+                            <i class="fas fa-check app-dd-check"></i>
+                            <span class="app-dd-dot" style="background: #f97316;"></span>
+                            High
+                        </div>
+                        <div class="app-dropdown-item" data-value="medium"
+                            onclick="selectAppOption('criticalityDropdown','medium','Medium')">
+                            <i class="fas fa-check app-dd-check"></i>
+                            <span class="app-dd-dot" style="background: #3b82f6;"></span>
+                            Medium
+                        </div>
+                        <div class="app-dropdown-item" data-value="low"
+                            onclick="selectAppOption('criticalityDropdown','low','Low')">
+                            <i class="fas fa-check app-dd-check"></i>
+                            <span class="app-dd-dot" style="background: #94a3b8;"></span>
+                            Low
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <!-- Right: Actions -->
-            <div class="flex items-center gap-3">
-                <div class="relative">
-                    <input type="text" id="searchInput" placeholder="Search applications..."
-                        class="bg-gray-700 border-none rounded px-3 py-1.5 pl-9 text-sm text-white focus:outline-none focus:ring-1 focus:ring-blue-500 w-64"
-                        oninput="debouncedSearch()">
-                    <i class="fas fa-search absolute left-3 top-2.5 text-gray-400 text-xs"></i>
-                </div>
-                <button onclick="openCreateModal()"
-                    class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded text-sm flex items-center gap-2 transition-colors shadow-sm">
+            <!-- Right: Action Buttons -->
+            <div class="flex items-center gap-2 flex-wrap" style="position: relative; z-index: 210;">
+                <button onclick="openCreateModal()" class="app-action-btn app-action-primary"
+                    title="Register New Application">
                     <i class="fas fa-plus"></i>
                     <span>Register App</span>
                 </button>
@@ -39,145 +411,374 @@
 
     <!-- Stats Cards -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div class="card p-4 border-l-4 border-blue-500">
-            <div class="flex justify-between items-start">
-                <div>
-                    <h3 class="text-gray-400 text-xs uppercase font-bold tracking-wider">Total Apps</h3>
-                    <p class="text-2xl font-bold text-white mt-1" id="statTotal">0</p>
+        <div class="card p-4" style="border-left: 3px solid #3b82f6;">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center"
+                    style="background: linear-gradient(135deg, #eff6ff, #dbeafe);">
+                    <i class="fas fa-layer-group" style="color: #2563eb; font-size: 14px;"></i>
                 </div>
-                <i class="fas fa-layer-group text-blue-500/20 text-2xl"></i>
+                <div>
+                    <p class="text-secondary text-xs"
+                        style="font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase;">Total Apps</p>
+                    <p class="text-2xl font-bold text-primary" id="statTotal" style="line-height: 1.2;">0</p>
+                </div>
             </div>
         </div>
-        <div class="card p-4 border-l-4 border-red-500">
-            <div class="flex justify-between items-start">
-                <div>
-                    <h3 class="text-gray-400 text-xs uppercase font-bold tracking-wider">Critical</h3>
-                    <p class="text-2xl font-bold text-white mt-1" id="statCritical">0</p>
+        <div class="card p-4" style="border-left: 3px solid #ef4444;">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center"
+                    style="background: linear-gradient(135deg, #fef2f2, #fee2e2);">
+                    <i class="fas fa-exclamation-triangle" style="color: #dc2626; font-size: 14px;"></i>
                 </div>
-                <i class="fas fa-exclamation-triangle text-red-500/20 text-2xl"></i>
+                <div>
+                    <p class="text-secondary text-xs"
+                        style="font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase;">Critical</p>
+                    <p class="text-2xl font-bold" id="statCritical" style="color: #dc2626; line-height: 1.2;">0</p>
+                </div>
             </div>
         </div>
-        <div class="card p-4 border-l-4 border-purple-500">
-            <div class="flex justify-between items-start">
-                <div>
-                    <h3 class="text-gray-400 text-xs uppercase font-bold tracking-wider">Components</h3>
-                    <p class="text-2xl font-bold text-white mt-1" id="statComponents">0</p>
+        <div class="card p-4" style="border-left: 3px solid #8b5cf6;">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center"
+                    style="background: linear-gradient(135deg, #f5f3ff, #ede9fe);">
+                    <i class="fas fa-cubes" style="color: #7c3aed; font-size: 14px;"></i>
                 </div>
-                <i class="fas fa-cubes text-purple-500/20 text-2xl"></i>
+                <div>
+                    <p class="text-secondary text-xs"
+                        style="font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase;">Components</p>
+                    <p class="text-2xl font-bold" id="statComponents" style="color: #7c3aed; line-height: 1.2;">0</p>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Applications List -->
-    <div class="card overflow-hidden">
-        <div class="overflow-x-auto">
-            <table class="w-full text-left border-collapse">
-                <thead>
-                    <tr class="bg-gray-800/50 text-gray-400 text-xs uppercase tracking-wider">
-                        <th class="p-4 border-b border-gray-700">Display Name / Slug</th>
-                        <th class="p-4 border-b border-gray-700">Team Owner</th>
-                        <th class="p-4 border-b border-gray-700">Criticality</th>
-                        <th class="p-4 border-b border-gray-700">Stack</th>
-                        <th class="p-4 border-b border-gray-700">Updated</th>
-                        <th class="p-4 border-b border-gray-700 text-right">Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="appTableBody" class="text-sm">
-                    <!-- Loaded via JS -->
-                </tbody>
-            </table>
+    <!-- Applications Table -->
+    <div class="card overflow-hidden" id="tableContainer">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="bg-[#f8fafc] text-left text-[#64748b]" style="border-bottom: 1px solid #e2e8f0;">
+                    <th class="px-4 py-3 font-medium">Application</th>
+                    <th class="px-4 py-3 font-medium">Criticality</th>
+                    <th class="px-4 py-3 font-medium hidden md:table-cell">Team Owner</th>
+                    <th class="px-4 py-3 font-medium hidden md:table-cell">Stack</th>
+                    <th class="px-4 py-3 font-medium hidden lg:table-cell">Updated</th>
+                    <th class="px-4 py-3 font-medium text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="appTableBody" class="text-[#334155]">
+                <!-- Populated by JavaScript -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    <div id="pagination-container" class="flex items-center justify-between mt-4 text-sm hidden">
+        <div class="text-[#64748b]">
+            Showing <span id="showing-start">0</span>-<span id="showing-end">0</span> of <span id="total-count">0</span>
+            applications
         </div>
-        <!-- Pagination -->
-        <div class="p-4 border-t border-gray-700 flex justify-between items-center">
-            <div class="text-xs text-gray-400" id="paginationInfo">Showing 0 of 0</div>
-            <div class="flex space-x-2" id="paginationControls">
-                <!-- JS -->
-            </div>
+        <div class="flex items-center gap-2">
+            <button onclick="goToPage(1)" id="first-page-btn" disabled
+                class="px-3 py-1.5 rounded border border-[#e2e8f0] bg-white text-[#475569] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#f8fafc] transition-colors">
+                <i class="fas fa-angle-double-left"></i>
+            </button>
+            <button onclick="goToPage(currentPage - 1)" id="prev-page-btn" disabled
+                class="px-3 py-1.5 rounded border border-[#e2e8f0] bg-white text-[#475569] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#f8fafc] transition-colors">
+                <i class="fas fa-angle-left"></i>
+            </button>
+            <span class="px-3 py-1.5 text-[#475569]">Page <span id="current-page">1</span> of <span
+                    id="total-pages">1</span></span>
+            <button onclick="goToPage(currentPage + 1)" id="next-page-btn" disabled
+                class="px-3 py-1.5 rounded border border-[#e2e8f0] bg-white text-[#475569] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#f8fafc] transition-colors">
+                <i class="fas fa-angle-right"></i>
+            </button>
+            <button onclick="goToPage(totalPages)" id="last-page-btn" disabled
+                class="px-3 py-1.5 rounded border border-[#e2e8f0] bg-white text-[#475569] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#f8fafc] transition-colors">
+                <i class="fas fa-angle-double-right"></i>
+            </button>
+            <select id="page-size" onchange="changePageSize(this.value)"
+                class="px-3 py-1.5 rounded border border-[#e2e8f0] bg-white text-[#475569] focus:outline-none focus:border-[#3b82f6]">
+                <option value="10">10 per page</option>
+                <option value="25" selected>25 per page</option>
+                <option value="50">50 per page</option>
+            </select>
         </div>
+    </div>
+
+    <!-- Empty State -->
+    <div id="emptyState" class="card p-12 text-center hidden">
+        <i class="fas fa-layer-group text-4xl text-secondary mb-4"></i>
+        <h3 class="text-lg font-medium text-primary mb-2">No Applications Found</h3>
+        <p class="text-secondary mb-4">Register an application to start mapping services and dependencies.</p>
+        <button onclick="openCreateModal()" class="btn-primary px-4 py-2 rounded-lg">
+            <i class="fas fa-plus mr-2"></i>Register App
+        </button>
     </div>
 </div>
 
-<!-- Create Application Modal -->
-<div id="createModal" class="fixed inset-0 bg-black bg-opacity-60 hidden items-center justify-center z-50">
-    <div class="card p-0 w-full max-w-lg m-4">
-        <div class="p-4 border-b border-gray-700 flex justify-between items-center bg-gray-800/50">
-            <h3 class="text-lg font-bold text-white" id="modalTitle">Register New Application</h3>
-            <button onclick="closeCreateModal()" class="text-gray-400 hover:text-white">
-                <i class="fas fa-times"></i>
+<!-- Create/Edit Application Modal -->
+<div id="createModal"
+    class="fixed inset-0 bg-black bg-opacity-50 hidden app-modal-overlay flex items-center justify-center p-4">
+    <div class="card p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-xl font-bold text-primary" id="modalTitle">Register New Application</h2>
+            <button onclick="closeCreateModal()" class="text-secondary hover:text-primary">
+                <i class="fas fa-times text-xl"></i>
             </button>
         </div>
-        <div class="p-6 space-y-4">
-            <div>
-                <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Application Name (Slug)</label>
-                <input type="text" id="appName" class="w-full input-dark font-mono text-sm"
-                    placeholder="e.g. payment-service">
-                <p class="text-xs text-gray-500 mt-1">Unique identifier, no spaces</p>
-            </div>
-            <div>
-                <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Display Name</label>
-                <input type="text" id="appDisplayName" class="w-full input-dark"
-                    placeholder="e.g. Payment Processing Service">
-            </div>
-            <div class="grid grid-cols-2 gap-4">
+        <form id="appForm" onsubmit="saveApplication(event)">
+            <div class="space-y-4">
                 <div>
-                    <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Criticality</label>
-                    <select id="appCriticality" class="w-full input-dark">
-                        <option value="critical">Critical</option>
-                        <option value="high">High</option>
-                        <option value="medium">Medium</option>
-                        <option value="low">Low</option>
-                    </select>
+                    <label class="block text-secondary text-sm mb-1">Application Name (Slug)</label>
+                    <input type="text" id="appName" required
+                        class="input-field w-full px-3 py-2 rounded text-sm font-mono"
+                        placeholder="e.g. payment-service">
+                    <p class="text-xs text-secondary mt-1">Unique identifier, no spaces</p>
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Team Owner</label>
-                    <input type="text" id="appOwner" class="w-full input-dark" placeholder="e.g. Payments Team">
+                    <label class="block text-secondary text-sm mb-1">Display Name</label>
+                    <input type="text" id="appDisplayName" class="input-field w-full px-3 py-2 rounded text-sm"
+                        placeholder="e.g. Payment Processing Service">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-secondary text-sm mb-1">Criticality</label>
+                        <select id="appCriticality" class="input-field w-full px-3 py-2 rounded text-sm">
+                            <option value="critical">Critical</option>
+                            <option value="high">High</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="low">Low</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-secondary text-sm mb-1">Team Owner</label>
+                        <input type="text" id="appOwner" class="input-field w-full px-3 py-2 rounded text-sm"
+                            placeholder="e.g. Payments Team">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-secondary text-sm mb-1">Description</label>
+                    <textarea id="appDescription" rows="3"
+                        class="input-field w-full px-3 py-2 rounded text-sm resize-none"
+                        placeholder="Brief description of the application..."></textarea>
                 </div>
             </div>
-            <div>
-                <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Description</label>
-                <textarea id="appDescription" class="w-full input-dark h-24 resize-none"
-                    placeholder="Brief description of the application..."></textarea>
+            <div class="flex justify-end gap-3 mt-6">
+                <button type="button" onclick="closeCreateModal()" class="btn-secondary px-4 py-2 rounded-lg">
+                    Cancel
+                </button>
+                <button type="submit" class="btn-primary px-4 py-2 rounded-lg">
+                    <i class="fas fa-plus mr-2"></i>Register Application
+                </button>
             </div>
-        </div>
-        <div class="p-4 border-t border-gray-700 bg-gray-800/50 flex justify-end space-x-3">
-            <button onclick="closeCreateModal()"
-                class="px-4 py-2 rounded text-gray-300 hover:text-white hover:bg-gray-700 transition-colors">Cancel</button>
-            <button onclick="saveApplication()"
-                class="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors">Register
-                Application</button>
-        </div>
+        </form>
     </div>
 </div>
 
+<!-- Confirm Delete Modal -->
+<div id="confirmModal"
+    class="fixed inset-0 bg-black bg-opacity-50 hidden app-modal-overlay flex items-center justify-center p-4">
+    <div class="card p-6 w-full max-w-md">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-xl font-bold text-primary" id="confirmTitle">Confirm Action</h2>
+            <button onclick="closeConfirmModal()" class="text-secondary hover:text-primary">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <p class="text-secondary mb-6" id="confirmMessage">Are you sure?</p>
+        <div class="flex justify-end gap-3">
+            <button onclick="closeConfirmModal()" class="btn-secondary px-4 py-2 rounded-lg">Cancel</button>
+            <button id="confirmBtn" class="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white">Delete</button>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
-{{ super() }}
 <script>
+    // ========================================================================
+    // Custom Dropdown Logic
+    // ========================================================================
+    function toggleAppDropdown(id) {
+        const dd = document.getElementById(id);
+        const wasOpen = dd.classList.contains('open');
+        document.querySelectorAll('.app-dropdown.open').forEach(d => d.classList.remove('open'));
+        if (!wasOpen) dd.classList.add('open');
+    }
+
+    function selectAppOption(dropdownId, value, label) {
+        const dd = document.getElementById(dropdownId);
+        const select = dd.querySelector('select');
+        const trigger = dd.querySelector('.app-dd-label');
+        select.value = value;
+        trigger.textContent = label;
+        dd.querySelectorAll('.app-dropdown-item').forEach(item => {
+            item.classList.toggle('selected', item.dataset.value === value);
+        });
+        dd.classList.remove('open');
+        filterApplications();
+    }
+
+    document.addEventListener('click', function (e) {
+        if (!e.target.closest('.app-dropdown')) {
+            document.querySelectorAll('.app-dropdown.open').forEach(d => d.classList.remove('open'));
+        }
+    });
+
+    // ========================================================================
+    // Application Data & Logic
+    // ========================================================================
     let currentPage = 1;
-    const pageSize = 10;
+    let pageSize = 25;
+    let totalPages = 1;
+    let totalCount = 0;
     let debounceTimer;
 
-    document.addEventListener('DOMContentLoaded', () => {
-        loadStats();
+    document.addEventListener('DOMContentLoaded', function () {
         loadApplications();
+        loadStats();
     });
 
     async function loadStats() {
         try {
             const res = await fetch('/api/applications/stats');
-            if (!res.ok) throw new Error('Failed to load stats');
-            const stats = await res.json();
-
-            document.getElementById('statTotal').textContent = stats.total;
-            document.getElementById('statCritical').textContent = stats.critical;
-            document.getElementById('statComponents').textContent = stats.total_components;
+            if (res.ok) {
+                const stats = await res.json();
+                document.getElementById('statTotal').textContent = stats.total || 0;
+                document.getElementById('statCritical').textContent = stats.critical || 0;
+                document.getElementById('statComponents').textContent = stats.total_components || 0;
+            }
         } catch (e) {
             console.error('Error loading stats:', e);
         }
     }
 
-    function debouncedSearch() {
+    async function loadApplications() {
+        const tbody = document.getElementById('appTableBody');
+        const emptyState = document.getElementById('emptyState');
+        const paginationContainer = document.getElementById('pagination-container');
+        const tableContainer = document.getElementById('tableContainer');
+
+        const searchTerm = document.getElementById('searchInput').value;
+        const critFilter = document.getElementById('criticalityFilter').value;
+
+        try {
+            let url = `/api/applications?page=${currentPage}&page_size=${pageSize}`;
+            if (searchTerm) url += `&search=${encodeURIComponent(searchTerm)}`;
+            if (critFilter) url += `&criticality=${encodeURIComponent(critFilter)}`;
+
+            const res = await fetch(url);
+            if (!res.ok) throw new Error('Failed to load applications');
+
+            const data = await res.json();
+            const items = data.items || [];
+            totalCount = data.total || 0;
+            totalPages = Math.ceil(totalCount / pageSize) || 1;
+            if (currentPage > totalPages) currentPage = totalPages;
+
+            if (items.length === 0) {
+                tableContainer.classList.add('hidden');
+                paginationContainer.classList.add('hidden');
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            tableContainer.classList.remove('hidden');
+            paginationContainer.classList.remove('hidden');
+            emptyState.classList.add('hidden');
+
+            const start = (currentPage - 1) * pageSize;
+            const end = Math.min(start + items.length, totalCount);
+
+            // Update pagination info
+            document.getElementById('showing-start').textContent = totalCount > 0 ? start + 1 : 0;
+            document.getElementById('showing-end').textContent = end;
+            document.getElementById('total-count').textContent = totalCount;
+            document.getElementById('current-page').textContent = currentPage;
+            document.getElementById('total-pages').textContent = totalPages;
+
+            document.getElementById('first-page-btn').disabled = currentPage <= 1;
+            document.getElementById('prev-page-btn').disabled = currentPage <= 1;
+            document.getElementById('next-page-btn').disabled = currentPage >= totalPages;
+            document.getElementById('last-page-btn').disabled = currentPage >= totalPages;
+
+            renderTable(items);
+
+        } catch (error) {
+            console.error('Error loading applications:', error);
+            showToast('Error loading applications', 'error');
+        }
+    }
+
+    function renderTable(items) {
+        const tbody = document.getElementById('appTableBody');
+
+        tbody.innerHTML = items.map(app => {
+            const badgeClass = `badge-${app.criticality || 'medium'}`;
+            const stackKeys = Object.keys(app.tech_stack || {}).slice(0, 3);
+            const stackHtml = stackKeys.map(k =>
+                `<span class="px-1.5 py-0.5 rounded text-[10px] bg-[#f1f5f9] text-[#475569] border border-[#e2e8f0]">${escapeHtml(k)}</span>`
+            ).join('');
+
+            return `
+            <tr class="border-b border-[#f1f5f9] hover:bg-[#f8fafc] transition-colors">
+                <td class="px-4 py-3">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-white text-xs"
+                            style="background: linear-gradient(135deg, #3b82f6, #2563eb);">
+                            ${escapeHtml(app.name.substring(0, 2).toUpperCase())}
+                        </div>
+                        <div>
+                            <div class="font-medium text-[#1e40af] cursor-pointer hover:text-blue-500 hover:underline" onclick="window.location.href='/applications/${app.id}'">
+                                ${escapeHtml(app.display_name || app.name)}
+                            </div>
+                            <div class="text-xs text-[#94a3b8] font-mono">${escapeHtml(app.name)}</div>
+                        </div>
+                    </div>
+                </td>
+                <td class="px-4 py-3">
+                    <span class="badge ${badgeClass}">${(app.criticality || 'MEDIUM').toUpperCase()}</span>
+                </td>
+                <td class="px-4 py-3 text-[#475569] hidden md:table-cell">
+                    ${escapeHtml(app.team_owner || '-')}
+                </td>
+                <td class="px-4 py-3 hidden md:table-cell">
+                    <div class="flex flex-wrap gap-1">
+                        ${stackHtml || '<span class="text-[#94a3b8] text-xs">-</span>'}
+                    </div>
+                </td>
+                <td class="px-4 py-3 text-[#64748b] text-xs hidden lg:table-cell">
+                    ${formatDate(app.updated_at)}
+                </td>
+                <td class="px-4 py-3 text-right">
+                    <div class="flex justify-end gap-1">
+                        <a href="/applications/${app.id}"
+                            class="p-1.5 hover:bg-[#f1f5f9] rounded transition-colors"
+                            style="color: #3b82f6;"
+                            title="View Details">
+                            <i class="fas fa-eye"></i>
+                        </a>
+                        <button onclick='deleteApp(${JSON.stringify(app.id)})'
+                            class="p-1.5 hover:bg-[#fef2f2] rounded transition-colors"
+                            style="color: #dc2626;"
+                            title="Delete">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+            `;
+        }).join('');
+    }
+
+    function formatDate(dateStr) {
+        if (!dateStr) return '-';
+        return new Date(dateStr).toLocaleDateString('en-US', {
+            month: 'short', day: 'numeric', year: 'numeric'
+        });
+    }
+
+    function filterApplications() {
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(() => {
             currentPage = 1;
@@ -185,133 +786,41 @@
         }, 300);
     }
 
-    async function loadApplications() {
-        const search = document.getElementById('searchInput').value;
-        const tbody = document.getElementById('appTableBody');
-
-        try {
-            let url = `/api/applications?page=${currentPage}&page_size=${pageSize}`;
-            if (search) url += `&search=${encodeURIComponent(search)}`;
-
-            const res = await fetch(url);
-            if (!res.ok) throw new Error('Failed to load apps');
-            const data = await res.json();
-
-            // Update stats (simple mock for now, ideally API returns stats)
-            document.getElementById('statTotal').textContent = data.total;
-
-            tbody.innerHTML = '';
-
-            if (data.items.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-gray-500">No applications found</td></tr>`;
-                return;
-            }
-
-            data.items.forEach(app => {
-                const row = document.createElement('tr');
-                row.className = 'border-b border-gray-700 hover:bg-gray-700/30 transition-colors';
-
-                const criticalityColor = {
-                    'critical': 'text-red-400 bg-red-400/10 border-red-500/20',
-                    'high': 'text-orange-400 bg-orange-400/10 border-orange-500/20',
-                    'medium': 'text-yellow-400 bg-yellow-400/10 border-yellow-500/20',
-                    'low': 'text-blue-400 bg-blue-400/10 border-blue-500/20'
-                }[app.criticality] || 'text-gray-400';
-
-                row.innerHTML = `
-                <td class="p-4">
-                    <div class="flex items-center space-x-3">
-                        <div class="w-8 h-8 rounded bg-gray-700 flex items-center justify-center text-gray-300 font-bold">
-                            ${app.name.substring(0, 2).toUpperCase()}
-                        </div>
-                        <div>
-                            <a href="/applications/${app.id}" class="font-medium text-blue-400 hover:underline hover:text-blue-300">
-                                ${app.display_name || app.name}
-                            </a>
-                            <div class="text-xs text-gray-500 font-mono">${app.name}</div>
-                        </div>
-                    </div>
-                </td>
-                <td class="p-4 text-gray-300">${app.team_owner || '<span class="text-gray-600">-</span>'}</td>
-                <td class="p-4">
-                    <span class="px-2 py-0.5 rounded text-xs border ${criticalityColor} uppercase tracking-wider font-bold">
-                        ${app.criticality || 'Unknown'}
-                    </span>
-                </td>
-                <td class="p-4">
-                    <div class="flex flex-wrap gap-1">
-                        ${Object.keys(app.tech_stack || {}).slice(0, 3).map(k =>
-                    `<span class="px-1.5 py-0.5 bg-gray-800 rounded text-xs text-gray-400 border border-gray-600">${k}</span>`
-                ).join('')}
-                    </div>
-                </td>
-                <td class="p-4 text-gray-400 text-xs">
-                    ${new Date(app.updated_at).toLocaleDateString()}
-                </td>
-                <td class="p-4 text-right">
-                    <button onclick="window.location.href='/applications/${app.id}'" class="text-gray-400 hover:text-blue-400 mx-1" title="View Details">
-                        <i class="fas fa-eye"></i>
-                    </button>
-                    <button onclick="deleteApp('${app.id}')" class="text-gray-400 hover:text-red-400 mx-1" title="Delete">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </td>
-            `;
-                tbody.appendChild(row);
-            });
-
-            renderPagination(data.total, data.page, data.page_size);
-
-        } catch (e) {
-            console.error(e);
-            showToast('Error loading applications', 'error');
-        }
-    }
-
-    function renderPagination(total, page, size) {
-        const info = document.getElementById('paginationInfo');
-        const controls = document.getElementById('paginationControls');
-
-        const start = (page - 1) * size + 1;
-        const end = Math.min(page * size, total);
-        info.textContent = `Showing ${start} to ${end} of ${total}`;
-
-        const totalPages = Math.ceil(total / size);
-        controls.innerHTML = `
-        <button class="px-2 py-1 rounded bg-gray-700 text-gray-300 ${page === 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-600'}" 
-                onclick="changePage(${page - 1})" ${page === 1 ? 'disabled' : ''}>
-            <i class="fas fa-chevron-left"></i>
-        </button>
-        <span class="px-2 py-1 text-gray-400 text-sm">Page ${page} of ${totalPages}</span>
-        <button class="px-2 py-1 rounded bg-gray-700 text-gray-300 ${page === totalPages ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-600'}" 
-                onclick="changePage(${page + 1})" ${page === totalPages ? 'disabled' : ''}>
-            <i class="fas fa-chevron-right"></i>
-        </button>
-    `;
-    }
-
-    function changePage(p) {
-        if (p < 1) return;
-        currentPage = p;
+    function goToPage(page) {
+        if (page < 1 || page > totalPages) return;
+        currentPage = page;
         loadApplications();
     }
 
+    function changePageSize(size) {
+        pageSize = parseInt(size);
+        currentPage = 1;
+        loadApplications();
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // ========================================================================
+    // Create Modal
+    // ========================================================================
     function openCreateModal() {
+        document.getElementById('modalTitle').textContent = 'Register New Application';
+        document.getElementById('appForm').reset();
         document.getElementById('createModal').classList.remove('hidden');
-        document.getElementById('createModal').classList.add('flex');
     }
 
     function closeCreateModal() {
         document.getElementById('createModal').classList.add('hidden');
-        document.getElementById('createModal').classList.remove('flex');
-        // clear inputs
-        document.getElementById('appName').value = '';
-        document.getElementById('appDisplayName').value = '';
-        document.getElementById('appOwner').value = '';
-        document.getElementById('appDescription').value = '';
     }
 
-    async function saveApplication() {
+    async function saveApplication(event) {
+        if (event) event.preventDefault();
+
         const data = {
             name: document.getElementById('appName').value,
             display_name: document.getElementById('appDisplayName').value || null,
@@ -341,23 +850,69 @@
             showToast('Application registered successfully', 'success');
             closeCreateModal();
             loadApplications();
-
+            loadStats();
         } catch (e) {
             showToast(e.message, 'error');
         }
     }
 
-    async function deleteApp(id) {
-        if (!confirm('Are you sure you want to delete this application? This cannot be undone.')) return;
+    // ========================================================================
+    // Delete with Confirm Modal
+    // ========================================================================
+    let confirmCallback = null;
 
-        try {
-            const res = await fetch(`/api/applications/${id}`, { method: 'DELETE' });
-            if (!res.ok) throw new Error('Failed to delete');
-            showToast('Application deleted', 'success');
-            loadApplications();
-        } catch (e) {
-            showToast('Error deleting application', 'error');
-        }
+    function showConfirmModal(title, message, callback) {
+        document.getElementById('confirmTitle').textContent = title;
+        document.getElementById('confirmMessage').textContent = message;
+        confirmCallback = callback;
+        document.getElementById('confirmModal').classList.remove('hidden');
+    }
+
+    function closeConfirmModal() {
+        document.getElementById('confirmModal').classList.add('hidden');
+        confirmCallback = null;
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        document.getElementById('confirmBtn').addEventListener('click', function () {
+            if (confirmCallback) confirmCallback();
+            closeConfirmModal();
+        });
+    });
+
+    function deleteApp(id) {
+        showConfirmModal(
+            'Delete Application',
+            'Are you sure you want to delete this application? This action cannot be undone.',
+            async () => {
+                try {
+                    const res = await fetch(`/api/applications/${id}`, { method: 'DELETE' });
+                    if (!res.ok) throw new Error('Failed to delete');
+                    showToast('Application deleted successfully', 'success');
+                    loadApplications();
+                    loadStats();
+                } catch (e) {
+                    showToast('Error deleting application', 'error');
+                }
+            }
+        );
+    }
+
+    // Only define showToast if not already defined by parent
+    if (typeof showToast === 'undefined') {
+        window.showToast = function (message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `fixed bottom-4 right-4 px-4 py-3 rounded-lg shadow-lg z-[10000] flex items-center gap-2 ${type === 'success' ? 'bg-green-600' :
+                type === 'error' ? 'bg-red-600' : 'bg-blue-600'
+                }`;
+            toast.innerHTML = `
+            <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
+            <span>${escapeHtml(message)}</span>
+        `;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        };
     }
 </script>
+{{ super() }}
 {% endblock %}

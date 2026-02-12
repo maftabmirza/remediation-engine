@@ -1,0 +1,650 @@
+{% extends "base.html" %}
+
+{% set active_page = "schedules" %}
+{% set current_path = "/schedules" %}
+
+{% block header_title %}Schedules{% endblock %}
+{% block header_subtitle %}Home / Automation / Schedules{% endblock %}
+
+{% block title %}Schedules | Enterprise AIOps{% endblock %}
+
+{% block header_extra %}
+<div class="header-actions">
+    <button class="header-action-btn primary" onclick="openScheduleModal()">
+        <i data-feather="plus" style="width: 14px; height: 14px;"></i>
+        <span>Create Schedule</span>
+    </button>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Modal Styles */
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(15, 23, 42, 0.6);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(4px);
+    }
+
+    .modal-overlay.active {
+        display: flex;
+    }
+
+    .modal-container {
+        background: white;
+        border-radius: 16px;
+        width: 90%;
+        max-width: 600px;
+        max-height: 85vh;
+        overflow-y: auto;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        display: flex;
+        flex-direction: column;
+    }
+
+    .modal-container.large {
+        max-width: 800px;
+    }
+
+    .modal-container.small {
+        max-width: 400px;
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px 24px;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .modal-title {
+        font-size: 18px;
+        font-weight: 700;
+        color: #0f172a;
+        margin: 0;
+    }
+
+    .modal-close-btn {
+        background: none;
+        border: none;
+        padding: 8px;
+        border-radius: 8px;
+        color: #64748b;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal-close-btn:hover {
+        background: #f1f5f9;
+        color: #0f172a;
+    }
+
+    .modal-body {
+        padding: 24px;
+        overflow-y: auto;
+    }
+
+    .modal-footer {
+        padding: 20px 24px;
+        border-top: 1px solid #e2e8f0;
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+        background: #f8fafc;
+        border-radius: 0 0 16px 16px;
+    }
+
+    /* Form Styles */
+    .form-group {
+        margin-bottom: 16px;
+    }
+
+    .form-label {
+        display: block;
+        font-size: 13px;
+        font-weight: 600;
+        color: #475569;
+        margin-bottom: 6px;
+    }
+
+    .form-input,
+    .form-select,
+    .form-textarea {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        font-size: 14px;
+        color: #0f172a;
+        transition: border-color 0.2s;
+        background: #ffffff;
+    }
+
+    .form-input:focus,
+    .form-select:focus,
+    .form-textarea:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .form-textarea {
+        resize: vertical;
+        min-height: 80px;
+    }
+
+    .schedule-type-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        margin-bottom: 8px;
+    }
+
+    .type-btn {
+        padding: 12px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        background: white;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .type-btn:hover {
+        background: #f8fafc;
+        border-color: #94a3b8;
+    }
+
+    .type-btn.active {
+        background: #eff6ff;
+        border-color: #3b82f6;
+        color: #1d4ed8;
+    }
+
+    .type-icon {
+        display: block;
+        margin: 0 auto 4px;
+    }
+
+    .type-name {
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .preset-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+        margin-top: 8px;
+    }
+
+    .preset-btn {
+        padding: 6px 10px;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        background: white;
+        font-size: 12px;
+        color: #475569;
+        cursor: pointer;
+        text-align: left;
+    }
+
+    .preset-btn:hover {
+        background: #f1f5f9;
+        color: #0f172a;
+    }
+
+    /* Toggle Switch */
+    .toggle-switch {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        cursor: pointer;
+    }
+
+    .toggle-input {
+        display: none;
+    }
+
+    .toggle-track {
+        width: 44px;
+        height: 24px;
+        background: #cbd5e1;
+        border-radius: 12px;
+        position: relative;
+        transition: background 0.3s;
+    }
+
+    .toggle-thumb {
+        width: 20px;
+        height: 20px;
+        background: white;
+        border-radius: 50%;
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        transition: transform 0.3s;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    }
+
+    .toggle-input:checked+.toggle-track {
+        background: #22c55e;
+    }
+
+    .toggle-input:checked+.toggle-track .toggle-thumb {
+        transform: translateX(20px);
+    }
+
+    .toggle-label {
+        font-size: 14px;
+        color: #334155;
+        font-weight: 500;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<main class="runbooks-main">
+
+    <!-- KPI Cards -->
+    <div class="rb-kpi-row">
+        <!-- ... (Keep existing KPI cards) ... -->
+        <div class="rb-kpi-card">
+            <div class="rb-kpi-icon blue">
+                <i data-feather="calendar"></i>
+            </div>
+            <div class="rb-kpi-content">
+                <span class="rb-kpi-label">Total Schedules</span>
+                <span class="rb-kpi-value">0</span>
+            </div>
+        </div>
+        <div class="rb-kpi-card">
+            <div class="rb-kpi-icon green">
+                <i data-feather="check-circle"></i>
+            </div>
+            <div class="rb-kpi-content">
+                <span class="rb-kpi-label">Active</span>
+                <span class="rb-kpi-value">0</span>
+            </div>
+        </div>
+        <div class="rb-kpi-card">
+            <div class="rb-kpi-icon purple">
+                <i data-feather="clock"></i>
+            </div>
+            <div class="rb-kpi-content">
+                <span class="rb-kpi-label">Next Run</span>
+                <span class="rb-kpi-value">-</span>
+            </div>
+        </div>
+        <div class="rb-kpi-card">
+            <div class="rb-kpi-icon amber">
+                <i data-feather="play-circle"></i>
+            </div>
+            <div class="rb-kpi-content">
+                <span class="rb-kpi-label">Runs Today</span>
+                <span class="rb-kpi-value">0</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Content Area -->
+    <div style="margin-top: 32px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px;">
+            <h2 style="font-size: 18px; font-weight: 600; color: #1e293b; margin: 0;">Scheduled Jobs</h2>
+
+            <div style="display: flex; gap: 12px;">
+                <!-- Runbook Filter -->
+                <div class="custom-dropdown rb-filter" id="runbookFilter" style="width: 200px;">
+                    <div class="dropdown-trigger">
+                        <span class="dropdown-text">All Runbooks</span>
+                        <i data-feather="chevron-down" class="dropdown-icon"></i>
+                    </div>
+                    <div class="dropdown-menu">
+                        <div class="dropdown-item selected" data-value="all">All Runbooks</div>
+                    </div>
+                </div>
+
+                <!-- Type Filter -->
+                <div class="custom-dropdown rb-filter" id="typeFilter" style="width: 140px;">
+                    <div class="dropdown-trigger">
+                        <span class="dropdown-text">All Types</span>
+                        <i data-feather="chevron-down" class="dropdown-icon"></i>
+                    </div>
+                    <div class="dropdown-menu">
+                        <div class="dropdown-item selected" data-value="all">All Types</div>
+                        <div class="dropdown-item" data-value="cron">Cron</div>
+                        <div class="dropdown-item" data-value="interval">Interval</div>
+                        <div class="dropdown-item" data-value="date">One-time</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Empty State -->
+        <div class="empty-state-container" id="emptyState">
+            <div class="empty-state-icon">
+                <i data-feather="calendar" width="48" height="48"></i>
+            </div>
+            <h3 class="empty-state-title">No Schedules Found</h3>
+            <p class="empty-state-desc">Create your first schedule to automate runbook execution.</p>
+            <button class="header-action-btn primary" style="margin-top: 24px;" onclick="openScheduleModal()">
+                <i data-feather="plus" style="width: 16px; height: 16px;"></i>
+                <span>Create Schedule</span>
+            </button>
+        </div>
+
+        <!-- Schedules Grid (Populated via JS) -->
+        <div id="schedulesGrid"
+            style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px;">
+        </div>
+
+    </div>
+
+    <!-- Modals -->
+
+    <!-- Create/Edit Schedule Modal -->
+    <div id="scheduleModal" class="modal-overlay">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modalTitle">Create Schedule</h3>
+                <button class="modal-close-btn" onclick="closeScheduleModal()">
+                    <i data-feather="x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="scheduleForm">
+                    <input type="hidden" id="scheduleId">
+
+                    <div class="form-group">
+                        <label class="form-label">Runbook</label>
+                        <select id="runbookId" class="form-select" required>
+                            <option value="">Select a runbook...</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Schedule Name</label>
+                        <input type="text" id="scheduleName" class="form-input" placeholder="e.g., Daily Cleanup"
+                            required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Description (Optional)</label>
+                        <textarea id="scheduleDescription" class="form-textarea"
+                            placeholder="Describe the purpose of this schedule..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Schedule Type</label>
+                        <div class="schedule-type-grid">
+                            <div class="type-btn active" data-type="cron" onclick="setScheduleType('cron')">
+                                <i data-feather="clock" class="type-icon"></i>
+                                <span class="type-name">Cron</span>
+                            </div>
+                            <div class="type-btn" data-type="interval" onclick="setScheduleType('interval')">
+                                <i data-feather="repeat" class="type-icon"></i>
+                                <span class="type-name">Interval</span>
+                            </div>
+                            <div class="type-btn" data-type="date" onclick="setScheduleType('date')">
+                                <i data-feather="calendar" class="type-icon"></i>
+                                <span class="type-name">One-time</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Cron Config -->
+                    <div id="cronConfig" class="config-section">
+                        <div class="form-group">
+                            <label class="form-label">Cron Expression</label>
+                            <input type="text" id="cronExpression" class="form-input" placeholder="0 2 * * *"
+                                style="font-family: monospace;">
+                            <div class="preset-grid">
+                                <button type="button" class="preset-btn" onclick="setCron('0 * * * *')">Every
+                                    Hour</button>
+                                <button type="button" class="preset-btn" onclick="setCron('0 9 * * *')">Daily 9
+                                    AM</button>
+                                <button type="button" class="preset-btn" onclick="setCron('0 0 * * 0')">Weekly
+                                    (Sun)</button>
+                                <button type="button" class="preset-btn" onclick="setCron('0 0 1 * *')">Monthly
+                                    (1st)</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Interval Config -->
+                    <div id="intervalConfig" class="config-section hidden" style="display: none;">
+                        <div class="form-group">
+                            <label class="form-label">Run Every</label>
+                            <div style="display: flex; gap: 8px;">
+                                <input type="number" id="intervalValue" class="form-input" placeholder="5" min="1">
+                                <select id="intervalUnit" class="form-select" style="width: 120px;">
+                                    <option value="60">Minutes</option>
+                                    <option value="3600">Hours</option>
+                                    <option value="86400">Days</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Date Config -->
+                    <div id="dateConfig" class="config-section hidden" style="display: none;">
+                        <div class="form-group">
+                            <label class="form-label">Run At</label>
+                            <input type="datetime-local" id="runDate" class="form-input">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Timezone</label>
+                        <select id="timezone" class="form-select">
+                            <option value="UTC">UTC</option>
+                            <option value="America/New_York">America/New_York (EST/EDT)</option>
+                            <option value="America/Chicago">America/Chicago (CST/CDT)</option>
+                            <option value="America/Denver">America/Denver (MST/MDT)</option>
+                            <option value="America/Los_Angeles">America/Los_Angeles (PST/PDT)</option>
+                            <option value="Europe/London">Europe/London (GMT/BST)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Target Server Override (Optional)</label>
+                        <select id="targetServer" class="form-select">
+                            <option value="">Use Runbook Default</option>
+                            <!-- Populated via JS -->
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="scheduleEnabled" class="toggle-input" checked>
+                            <span class="toggle-track">
+                                <span class="toggle-thumb"></span>
+                            </span>
+                            <span class="toggle-label">Enable Schedule</span>
+                        </label>
+                    </div>
+
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeScheduleModal()"
+                    style="padding: 8px 16px; border: 1px solid #cbd5e1; background: white; border-radius: 8px; font-weight: 500; cursor: pointer;">Cancel</button>
+                <button class="header-action-btn primary" onclick="saveSchedule()">
+                    <span>Save Schedule</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- History Modal -->
+    <div id="historyModal" class="modal-overlay">
+        <div class="modal-container large">
+            <div class="modal-header">
+                <h3 class="modal-title">Execution History</h3>
+                <button class="modal-close-btn" onclick="closeHistoryModal()">
+                    <i data-feather="x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="historyList">
+                    <!-- Populated via JS -->
+                    <div style="text-align: center; color: #64748b; padding: 20px;">No execution history available.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div id="confirmModal" class="modal-overlay">
+        <div class="modal-container small">
+            <div class="modal-header">
+                <h3 class="modal-title" id="confirmTitle">Confirm Action</h3>
+                <button class="modal-close-btn" onclick="closeConfirmModal()">
+                    <i data-feather="x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p id="confirmMessage" style="color: #64748b; margin: 0;">Are you sure?</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeConfirmModal()"
+                    style="padding: 8px 16px; border: 1px solid #cbd5e1; background: white; border-radius: 8px; font-weight: 500; cursor: pointer;">Cancel</button>
+                <button id="confirmBtn" class="header-action-btn primary"
+                    style="background: #ef4444; border-color: #ef4444;">
+                    <span>Confirm</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+</main>
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+    feather.replace();
+
+    let currentType = 'cron';
+
+    // Dropdown Logic
+    document.querySelectorAll('.custom-dropdown').forEach(dropdown => {
+        const trigger = dropdown.querySelector('.dropdown-trigger');
+        const items = dropdown.querySelectorAll('.dropdown-item');
+        const textDisplay = dropdown.querySelector('.dropdown-text');
+
+        trigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.querySelectorAll('.custom-dropdown').forEach(d => {
+                if (d !== dropdown) d.classList.remove('open');
+            });
+            dropdown.classList.toggle('open');
+        });
+
+        items.forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.stopPropagation();
+                items.forEach(i => i.classList.remove('selected'));
+                item.classList.add('selected');
+                textDisplay.textContent = item.textContent;
+                dropdown.classList.remove('open');
+            });
+        });
+    });
+
+    document.addEventListener('click', () => {
+        document.querySelectorAll('.custom-dropdown').forEach(d => {
+            d.classList.remove('open');
+        });
+    });
+
+    // Schedule Type Switching
+    function setScheduleType(type) {
+        currentType = type;
+
+        // Update Buttons
+        document.querySelectorAll('.type-btn').forEach(btn => {
+            if (btn.dataset.type === type) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+
+        // Show/Hide Sections
+        document.getElementById('cronConfig').style.display = type === 'cron' ? 'block' : 'none';
+        document.getElementById('intervalConfig').style.display = type === 'interval' ? 'block' : 'none';
+        document.getElementById('dateConfig').style.display = type === 'date' ? 'block' : 'none';
+    }
+
+    function setCron(expr) {
+        document.getElementById('cronExpression').value = expr;
+    }
+
+    // Modal Functions
+    function openScheduleModal(id = null) {
+        document.getElementById('modalTitle').textContent = id ? 'Edit Schedule' : 'Create Schedule';
+        // Reset form...
+        if (!id) {
+            document.getElementById('scheduleForm').reset();
+            setScheduleType('cron');
+        }
+        document.getElementById('scheduleModal').classList.add('active');
+        feather.replace();
+    }
+
+    function closeScheduleModal() {
+        document.getElementById('scheduleModal').classList.remove('active');
+    }
+
+    function saveSchedule() {
+        // Logic to save
+        closeScheduleModal();
+        // Show success toast (mock)
+        alert('Schedule saved successfully!');
+    }
+
+    function openHistoryModal(id) {
+        document.getElementById('historyModal').classList.add('active');
+        feather.replace();
+    }
+
+    function closeHistoryModal() {
+        document.getElementById('historyModal').classList.remove('active');
+    }
+
+    let confirmCallback = null;
+    function showConfirm(title, message, callback) {
+        document.getElementById('confirmTitle').textContent = title;
+        document.getElementById('confirmMessage').textContent = message;
+        confirmCallback = callback;
+        document.getElementById('confirmModal').classList.add('active');
+        feather.replace();
+    }
+
+    function closeConfirmModal() {
+        document.getElementById('confirmModal').classList.remove('active');
+        confirmCallback = null;
+    }
+
+    document.getElementById('confirmBtn').addEventListener('click', () => {
+        if (confirmCallback) confirmCallback();
+        closeConfirmModal();
+    });
+
+    // Wire up header button
+    document.querySelector('.header-action-btn.primary').addEventListener('click', () => openScheduleModal());
+
+</script>
+{% endblock %}

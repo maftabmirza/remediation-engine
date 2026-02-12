@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% set active_page = 'grafana-advanced' %}
+
+{% block title %}Grafana Debug — Step Index{% endblock %}
+
+{% block content %}
+<div style="padding: 40px; color: #fff; max-width: 700px;">
+    <h1 style="font-size: 28px; margin-bottom: 8px;">🔬 Grafana Advanced — Debug Steps</h1>
+    <p style="font-size: 14px; color: #888; margin-bottom: 32px;">
+        Click each step in order. The first step that shows a <strong>blank page</strong> is where the bug lives.
+    </p>
+
+    <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+        <thead>
+            <tr style="border-bottom: 2px solid #333; text-align: left;">
+                <th style="padding: 10px;">Step</th>
+                <th style="padding: 10px;">What's Added</th>
+                <th style="padding: 10px;">Tests</th>
+                <th style="padding: 10px;">Link</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr style="border-bottom: 1px solid #222;">
+                <td style="padding: 10px; color: #4ade80; font-weight: 600;">1</td>
+                <td style="padding: 10px; color: #ccc;">Bare HTML — just text inside base.html</td>
+                <td style="padding: 10px; color: #888;">Is base.html itself broken?</td>
+                <td style="padding: 10px;"><a href="/grafana-debug/step1" style="color: #60a5fa; text-decoration: underline;">Open →</a></td>
+            </tr>
+            <tr style="border-bottom: 1px solid #222;">
+                <td style="padding: 10px; color: #4ade80; font-weight: 600;">2</td>
+                <td style="padding: 10px; color: #ccc;">+ Grafana CSS (.grafana-container)</td>
+                <td style="padding: 10px; color: #888;">Does the CSS cause blank?</td>
+                <td style="padding: 10px;"><a href="/grafana-debug/step2" style="color: #60a5fa; text-decoration: underline;">Open →</a></td>
+            </tr>
+            <tr style="border-bottom: 1px solid #222;">
+                <td style="padding: 10px; color: #facc15; font-weight: 600;">3</td>
+                <td style="padding: 10px; color: #ccc;">+ iframe (loads Grafana, no widget JS)</td>
+                <td style="padding: 10px; color: #888;">Does the iframe cause blank?</td>
+                <td style="padding: 10px;"><a href="/grafana-debug/step3" style="color: #60a5fa; text-decoration: underline;">Open →</a></td>
+            </tr>
+            <tr style="border-bottom: 1px solid #222;">
+                <td style="padding: 10px; color: #f97316; font-weight: 600;">4</td>
+                <td style="padding: 10px; color: #ccc;">+ revive_widget_grafana.js (+ base's revive_widget.js)</td>
+                <td style="padding: 10px; color: #888;">Widget conflict?</td>
+                <td style="padding: 10px;"><a href="/grafana-debug/step4" style="color: #60a5fa; text-decoration: underline;">Open →</a></td>
+            </tr>
+            <tr style="border-bottom: 1px solid #222;">
+                <td style="padding: 10px; color: #ef4444; font-weight: 600;">5</td>
+                <td style="padding: 10px; color: #ccc;">Full page (identical to /grafana-advanced)</td>
+                <td style="padding: 10px; color: #888;">Final state</td>
+                <td style="padding: 10px;"><a href="/grafana-debug/step5" style="color: #60a5fa; text-decoration: underline;">Open →</a></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div style="margin-top: 32px; padding: 16px; background: #1a1a2e; border-radius: 8px; border: 1px solid #333;">
+        <h3 style="font-size: 14px; color: #facc15; margin-bottom: 8px;">⚠️ Known Potential Issue Spotted</h3>
+        <p style="font-size: 13px; color: #aaa; line-height: 1.6;">
+            <strong>Dual widget conflict:</strong> base.html always loads <code style="color: #60a5fa;">revive_widget.js</code>.
+            The grafana-advanced page loads <code style="color: #60a5fa;">revive_widget_grafana.js</code> on top of it.
+            Both scripts try to inject an AI panel and bind to <code style="color: #60a5fa;">#ai-helper-toggle</code>.
+            Step 4 specifically tests this.
+        </p>
+    </div>
+
+    <p style="margin-top: 24px; font-size: 13px; color: #555;">
+        Compare: <a href="/grafana-advanced" style="color: #f97316; text-decoration: underline;">Real /grafana-advanced page</a>
+    </p>
+</div>
+{% endblock %}

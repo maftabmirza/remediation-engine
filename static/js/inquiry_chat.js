@@ -707,7 +707,7 @@ function populateModelDropdown(providers) {
     if (!list) return;
 
     if (!providers || providers.length === 0) {
-        list.innerHTML = '<div class="px-3 py-2 text-xs text-gray-500">No providers available</div>';
+        list.innerHTML = '<div style="padding: 9px 12px; font-size: 13px; color: #94a3b8;">No providers available</div>';
         return;
     }
 
@@ -716,19 +716,32 @@ function populateModelDropdown(providers) {
         ? currentSession.llm_provider_id 
         : (providers.find(p => p.is_default)?.id || '');
 
+    // Update the currently displayed model name
+    const currentModelNameEl = document.getElementById('currentModelName');
+    if (currentModelNameEl && selectedId) {
+        const selectedProvider = providers.find(p => p.id === selectedId);
+        if (selectedProvider) {
+            currentModelNameEl.textContent = selectedProvider.name || 'Select Model';
+        }
+    }
+
     list.innerHTML = providers.map(p => {
         const isSelected = p.id === selectedId;
         return `
-        <div class="model-item px-3 py-2 hover:bg-gray-700 cursor-pointer flex items-center ${isSelected ? 'bg-blue-900/40 border-l-2 border-blue-400' : 'border-l-2 border-transparent'}" 
+        <div class="inq-llm-option ${isSelected ? 'selected' : ''}" 
              data-provider-id="${p.id}" onclick="selectModel('${p.id}')">
-            <div class="w-2 h-2 rounded-full ${p.is_enabled ? 'bg-green-400' : 'bg-red-400'} mr-2" title="${p.is_enabled ? 'Enabled' : 'Disabled'}"></div>
-            <div class="text-xs text-gray-300 flex-grow">
-                <div class="font-bold ${isSelected ? 'text-blue-300' : ''}">${AIChatBase.escapeHtml(p.name)}${p.is_default ? ' <span class="text-yellow-400">⭐</span>' : ''}</div>
-                <div class="text-[10px] text-gray-500">${AIChatBase.escapeHtml(p.model_id)}</div>
+            <div style="width: 8px; height: 8px; border-radius: 50%; background: ${p.is_enabled ? '#22c55e' : '#ef4444'};" 
+                 title="${p.is_enabled ? 'Enabled' : 'Disabled'}"></div>
+            <div style="flex-grow: 1;">
+                <div style="font-weight: ${isSelected ? '600' : '500'};">${AIChatBase.escapeHtml(p.name)}${p.is_default ? ' ⭐' : ''}</div>
+                <div style="font-size: 11px; color: #64748b;">${AIChatBase.escapeHtml(p.model_id)}</div>
             </div>
-            ${isSelected ? '<i class="fas fa-check ml-2 text-blue-400 text-sm"></i>' : ''}
+            ${isSelected ? '<i data-feather="check" style="width: 14px; height: 14px; color: #3b82f6;"></i>' : ''}
         </div>
     `}).join('');
+    
+    // Re-initialize feather icons
+    if (typeof feather !== 'undefined') feather.replace();
 }
 
 async function selectModel(providerId) {
@@ -753,11 +766,13 @@ async function selectModel(providerId) {
             // Re-render dropdown with new selection
             populateModelDropdown(availableProviders);
             
-            // Update model icon tooltip
+            // Update model name display
             const provider = availableProviders.find(p => p.id === providerId);
             if (provider) {
-                const btn = document.getElementById('modelIconBtn');
-                if (btn) btn.title = `LLM: ${provider.provider_name || provider.name}`;
+                const currentModelNameEl = document.getElementById('currentModelName');
+                if (currentModelNameEl) {
+                    currentModelNameEl.textContent = provider.name;
+                }
             }
             
             // Add system message to chat
@@ -775,18 +790,23 @@ async function selectModel(providerId) {
         showToast('Failed to switch model', 'error');
     }
     
-    document.getElementById('modelDropdown').classList.add('hidden');
+    // Close the dropdown
+    const list = document.getElementById('modelListContainer');
+    const selector = document.getElementById('llmSelector');
+    if (list) list.style.display = 'none';
+    if (selector) selector.classList.remove('open');
 }
 
-// Expose these new functions
-window.createNewSession = createNewSession;
-window.switchSession = switchSession;
-window.selectModel = selectModel;
-
 function toggleModelDropdown() {
-    const dropdown = document.getElementById('modelDropdown');
-    if (dropdown) {
-        dropdown.classList.toggle('hidden');
+    const list = document.getElementById('modelListContainer');
+    const selector = document.getElementById('llmSelector');
+    if (list) {
+        const isHidden = list.style.display === 'none' || !list.style.display;
+        list.style.display = isHidden ? 'block' : 'none';
+        if (selector) {
+            if (isHidden) selector.classList.add('open');
+            else selector.classList.remove('open');
+        }
     }
 }
 
@@ -799,11 +819,11 @@ window.addEventListener('click', function (e) {
         sessionDropdown.classList.add('hidden');
     }
 
-    const modelDropdown = document.getElementById('modelDropdown');
-    const modelBtn = document.getElementById('modelIconBtn');
-    if (modelDropdown && !modelDropdown.classList.contains('hidden') &&
-        !modelDropdown.contains(e.target) && (!modelBtn || !modelBtn.contains(e.target))) {
-        modelDropdown.classList.add('hidden');
+    const llmSelector = document.getElementById('llmSelector');
+    const modelListContainer = document.getElementById('modelListContainer');
+    if (llmSelector && !llmSelector.contains(e.target)) {
+        if (modelListContainer) modelListContainer.style.display = 'none';
+        llmSelector.classList.remove('open');
     }
 });
 
@@ -1469,24 +1489,22 @@ window.clearArtifacts = clearArtifacts;
 window.exportAllArtifacts = exportAllArtifacts;
 window.switchArtifactTab = switchArtifactTab;
 
+// Expose functions for inline onclick handlers
+window.createNewSession = createNewSession;
+window.switchSession = switchSession;
+window.selectModel = selectModel;
+window.toggleModelDropdown = toggleModelDropdown;
+window.toggleSessionDropdown = toggleSessionDropdown;
+
 window.addEventListener('load', function () {
     if (typeof marked === 'undefined') {
         console.error('marked.js failed to load');
-        showToast('Failed to load chat library', 'error');
+        if (typeof showToast === 'function') {
+            showToast('Failed to load chat library', 'error');
+        }
         return;
     }
     console.log('Initializing AI Inquiry...');
-
-    // Explicitly bind UI toggles to window to ensure visibility
-    window.toggleSessionDropdown = toggleSessionDropdown;
-    window.toggleModelDropdown = toggleModelDropdown;
-
-    // Also bind directly to elements as fallback
-    const sBtn = document.getElementById('sessionDropdownBtn');
-    if (sBtn) sBtn.onclick = toggleSessionDropdown;
-
-    const mBtn = document.getElementById('modelIconBtn');
-    if (mBtn) mBtn.onclick = toggleModelDropdown;
 
     AIChatBase.init({
         aiIconClass: 'fas fa-search',

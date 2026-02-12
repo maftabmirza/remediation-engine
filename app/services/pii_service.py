@@ -8,7 +8,7 @@ from typing import Dict, List, Optional, Any
 from uuid import UUID
 import logging
 
-from sqlalchemy import select, and_, func, desc
+from sqlalchemy import select, and_, or_, func, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 from presidio_analyzer import RecognizerResult
 
@@ -460,8 +460,21 @@ class PIIService:
             stmt = stmt.where(PIIDetectionLog.detected_at >= query.start_date)
         
         if query.end_date:
-            stmt = stmt.where(PIIDetectionLog.detected_at <= query.end_date)
-            
+            # inclusive end date
+            end_date = query.end_date.replace(hour=23, minute=59, second=59, microsecond=999999)
+            stmt = stmt.where(PIIDetectionLog.detected_at <= end_date)
+
+        if query.q:
+            search_term = f"%{query.q}%"
+            stmt = stmt.where(
+                or_(
+                    PIIDetectionLog.context_snippet.ilike(search_term),
+                    PIIDetectionLog.entity_type.ilike(search_term),
+                    PIIDetectionLog.detection_engine.ilike(search_term),
+                    PIIDetectionLog.source_type.ilike(search_term)
+                )
+            )
+
         # Optimize count query
         # Instead of subquery, use direct count if no filters are applied
         # Or use a simpler count that avoids loading all columns
@@ -479,7 +492,19 @@ class PIIService:
         if query.start_date:
             count_stmt = count_stmt.where(PIIDetectionLog.detected_at >= query.start_date)
         if query.end_date:
-            count_stmt = count_stmt.where(PIIDetectionLog.detected_at <= query.end_date)
+            end_date = query.end_date.replace(hour=23, minute=59, second=59, microsecond=999999)
+            count_stmt = count_stmt.where(PIIDetectionLog.detected_at <= end_date)
+            
+        if query.q:
+            search_term = f"%{query.q}%"
+            count_stmt = count_stmt.where(
+                or_(
+                    PIIDetectionLog.context_snippet.ilike(search_term),
+                    PIIDetectionLog.entity_type.ilike(search_term),
+                    PIIDetectionLog.detection_engine.ilike(search_term),
+                    PIIDetectionLog.source_type.ilike(search_term)
+                )
+            )
             
         result = await self.db.execute(count_stmt)
         total = result.scalar() or 0

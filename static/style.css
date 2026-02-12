@@ -203,7 +203,8 @@ body {
     background: var(--bg-header);
     z-index: var(--z-header);
     color: var(--text-on-dark);
-    overflow: hidden;
+    overflow: visible !important;
+    /* Forces dropdown visibility */
 }
 
 /* Logo Area in Header */
@@ -826,7 +827,8 @@ body {
     padding-right: 16px;
     flex-shrink: 0;
     height: 48px;
-    overflow: visible;
+    overflow: visible !important;
+    /* Force visible for dropdowns */
     margin-left: auto;
 }
 
@@ -906,6 +908,56 @@ body {
 .user-profile .avatar:hover {
     border-color: rgba(255, 255, 255, 0.4);
     transform: scale(1.05);
+}
+
+.user-profile-container {
+    position: relative !important;
+    z-index: 1000 !important;
+    /* ensure reliable z-index context */
+}
+
+#user-menu-dropdown {
+    z-index: 99999 !important;
+    /* Force top */
+    right: 0 !important;
+    color: #1e293b !important;
+    text-align: left;
+}
+
+#user-menu-dropdown p,
+#user-menu-dropdown span,
+#user-menu-dropdown div {
+    color: #1e293b;
+}
+
+#user-menu-dropdown .text-slate-500 {
+    color: #64748b !important;
+}
+
+#user-menu-dropdown .text-slate-800 {
+    color: #1e293b !important;
+}
+
+#user-menu-dropdown .text-slate-400 {
+    color: #94a3b8 !important;
+}
+
+#user-menu-dropdown .text-slate-700 {
+    color: #334155 !important;
+}
+
+#user-menu-dropdown a {
+    color: #334155 !important;
+    text-decoration: none;
+}
+
+#user-menu-dropdown a:hover {
+    color: #2563eb !important;
+    background-color: #f8fafc !important;
+}
+
+#user-menu-dropdown .text-red-600 {
+    color: #dc2626 !important;
 }
 
 .header-action-btn {

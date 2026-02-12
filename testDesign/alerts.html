@@ -1,0 +1,577 @@
+{% extends "base.html" %}
+
+{% set active_page = "alerts" %}
+{% set current_path = "/alerts" %}
+
+{% block header_title %}Alerts{% endblock %}
+{% block header_subtitle %}Home / Observability / Alerts{% endblock %}
+
+{% block title %}Alerts | Enterprise AIOps{% endblock %}
+
+{% block header_extra %}
+<div class="header-actions">
+    <!-- View Switcher -->
+    <div class="view-switcher" style="background: #f1f5f9; padding: 4px; border-radius: 8px; display: flex; gap: 4px;">
+        <button id="viewIndividual" onclick="switchView('individual')"
+            style="padding: 6px 12px; border-radius: 6px; font-size: 13px; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s;"
+            class="active-view">
+            <i data-feather="list"
+                style="width: 14px; height: 14px; vertical-align: text-bottom; margin-right: 4px;"></i>Individual
+        </button>
+        <button id="viewGrouped" onclick="switchView('grouped')"
+            style="padding: 6px 12px; border-radius: 6px; font-size: 13px; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s; color: #64748b; background: transparent;">
+            <i data-feather="layers"
+                style="width: 14px; height: 14px; vertical-align: text-bottom; margin-right: 4px;"></i>Grouped
+        </button>
+    </div>
+
+    <div style="width: 1px; height: 24px; background: #e2e8f0; margin: 0 8px;"></div>
+
+    <button class="header-action-btn">
+        <i data-feather="refresh-cw" style="width: 14px; height: 14px;"></i>
+        <span>Refresh</span>
+    </button>
+</div>
+
+<style>
+    .active-view {
+        background: white !important;
+        color: #0f172a !important;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<main class="runbooks-main">
+
+    <!-- KPI Row -->
+    <div class="rb-kpi-row compact-4">
+        <div class="rb-kpi-card">
+            <div class="rb-kpi-icon red">
+                <i data-feather="bell"></i>
+            </div>
+            <div class="rb-kpi-content">
+                <span class="rb-kpi-label">Active Alerts</span>
+                <span class="rb-kpi-value">24</span>
+            </div>
+        </div>
+        <div class="rb-kpi-card">
+            <div class="rb-kpi-icon red"
+                style="background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); color: #ef4444;">
+                <i data-feather="alert-circle"></i>
+            </div>
+            <div class="rb-kpi-content">
+                <span class="rb-kpi-label">Critical</span>
+                <span class="rb-kpi-value">3</span>
+            </div>
+        </div>
+        <div class="rb-kpi-card">
+            <div class="rb-kpi-icon amber">
+                <i data-feather="alert-triangle"></i>
+            </div>
+            <div class="rb-kpi-content">
+                <span class="rb-kpi-label">Warning</span>
+                <span class="rb-kpi-value">8</span>
+            </div>
+        </div>
+        <div class="rb-kpi-card">
+            <div class="rb-kpi-icon blue">
+                <i data-feather="activity"></i>
+            </div>
+            <div class="rb-kpi-content">
+                <span class="rb-kpi-label">Analyzed</span>
+                <span class="rb-kpi-value">12</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters Row -->
+    <div class="rb-filters">
+        <input type="text" placeholder="Search alerts..." class="rb-search-input"
+            style="flex: 1; padding: 10px 16px; border: 1px solid #e2e8f0; border-radius: 8px; background: white; font-size: 14px; color: #1e293b; outline: none;">
+
+        <!-- Severity Filter -->
+        <div class="custom-dropdown rb-filter" id="severityFilter">
+            <div class="dropdown-trigger">
+                <span class="dropdown-text">All Severities</span>
+                <i data-feather="chevron-down" class="dropdown-icon"></i>
+            </div>
+            <div class="dropdown-menu">
+                <div class="dropdown-item selected" data-value="all">All Severities</div>
+                <div class="dropdown-item" data-value="critical"><span class="status-dot red"></span>Critical</div>
+                <div class="dropdown-item" data-value="warning"><span class="status-dot amber"></span>Warning</div>
+                <div class="dropdown-item" data-value="info"><span class="status-dot blue"></span>Info</div>
+            </div>
+        </div>
+
+        <!-- Status Filter -->
+        <div class="custom-dropdown rb-filter" id="statusFilter">
+            <div class="dropdown-trigger">
+                <span class="dropdown-text">All Status</span>
+                <i data-feather="chevron-down" class="dropdown-icon"></i>
+            </div>
+            <div class="dropdown-menu">
+                <div class="dropdown-item selected" data-value="all">All Status</div>
+                <div class="dropdown-item" data-value="firing">Firing</div>
+                <div class="dropdown-item" data-value="resolved">Resolved</div>
+            </div>
+        </div>
+
+        <!-- Analyzed Filter -->
+        <div class="custom-dropdown rb-filter" id="analyzedFilter">
+            <div class="dropdown-trigger">
+                <span class="dropdown-text">All Analysis</span>
+                <i data-feather="chevron-down" class="dropdown-icon"></i>
+            </div>
+            <div class="dropdown-menu">
+                <div class="dropdown-item selected" data-value="all">All Analysis</div>
+                <div class="dropdown-item" data-value="analyzed">Analyzed</div>
+                <div class="dropdown-item" data-value="pending">Pending</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Individual View -->
+    <div id="individualView" class="rb-table-container">
+        <table class="rb-table">
+            <thead>
+                <tr>
+                    <th style="width: 100px;">Severity</th>
+                    <th style="width: 100px;">Status</th>
+                    <th>Alert Name</th>
+                    <th>Instance</th>
+                    <th>Job</th>
+                    <th>Time</th>
+                    <th>AI Analysis</th>
+                    <th style="text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Critical Alert -->
+                <tr>
+                    <td><span class="badge red">CRITICAL</span></td>
+                    <td><span class="status-text firing">Firing</span></td>
+                    <td style="font-weight: 600; color: #0f172a;">High CPU Usage</td>
+                    <td style="color: #64748b; font-family: monospace;">prod-db-01</td>
+                    <td style="color: #64748b;">node-exporter</td>
+                    <td style="color: #64748b;">10m ago</td>
+                    <td>
+                        <span
+                            style="display: inline-flex; align-items: center; gap: 6px; color: #10b981; font-weight: 500; font-size: 13px;">
+                            <i data-feather="check-circle" style="width: 14px; height: 14px;"></i> Analyzed
+                        </span>
+                    </td>
+                    <td class="rb-actions">
+                        <button class="rb-action-btn" title="View Analysis"
+                            onclick="openAnalysisModal('High CPU Usage')"><i data-feather="eye"></i></button>
+                        <button class="rb-action-btn" title="Re-analyze"><i data-feather="refresh-cw"></i></button>
+                    </td>
+                </tr>
+
+                <!-- Warning Alert -->
+                <tr>
+                    <td><span class="badge amber">WARNING</span></td>
+                    <td><span class="status-text firing">Firing</span></td>
+                    <td style="font-weight: 600; color: #0f172a;">Disk Space Low</td>
+                    <td style="color: #64748b; font-family: monospace;">prod-app-02</td>
+                    <td style="color: #64748b;">node-exporter</td>
+                    <td style="color: #64748b;">25m ago</td>
+                    <td>
+                        <span
+                            style="display: inline-flex; align-items: center; gap: 6px; color: #64748b; font-size: 13px;">
+                            <i data-feather="clock" style="width: 14px; height: 14px;"></i> Pending
+                        </span>
+                    </td>
+                    <td class="rb-actions">
+                        <button class="rb-action-btn" title="Analyze"
+                            onclick="openAnalysisModal('Disk Space Low', true)"><i data-feather="zap"></i></button>
+                    </td>
+                </tr>
+
+                <!-- Resolved Alert -->
+                <tr>
+                    <td><span class="badge blue">INFO</span></td>
+                    <td><span class="status-text resolved">Resolved</span></td>
+                    <td style="font-weight: 600; color: #0f172a;">Pod Restarted</td>
+                    <td style="color: #64748b; font-family: monospace;">k8s-worker-05</td>
+                    <td style="color: #64748b;">kube-state-metrics</td>
+                    <td style="color: #64748b;">1h ago</td>
+                    <td><span style="color: #94a3b8;">-</span></td>
+                    <td class="rb-actions">
+                        <button class="rb-action-btn" title="Details"><i data-feather="external-link"></i></button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Grouped View -->
+    <div id="groupedView" class="rb-table-container" style="display: none;">
+        <table class="rb-table">
+            <thead>
+                <tr>
+                    <th style="width: 100px;">Severity</th>
+                    <th style="width: 100px;">Status</th>
+                    <th>Cluster / Summary</th>
+                    <th>Count</th>
+                    <th style="text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><span class="badge red">CRITICAL</span></td>
+                    <td><span class="status-text firing">Active</span></td>
+                    <td>
+                        <div style="font-weight: 600; color: #0f172a;">Database Connectivity Spike</div>
+                        <div style="font-size: 13px; color: #64748b; margin-top: 2px;">Multiple instances reporting
+                            connection timeouts to primary DB</div>
+                    </td>
+                    <td><span style="font-weight: 700; color: #0f172a;">12</span></td>
+                    <td class="rb-actions">
+                        <button class="rb-action-btn" title="Expand"><i data-feather="chevron-down"></i></button>
+                        <button class="rb-action-btn" title="Resolve Cluster"><i data-feather="check"></i></button>
+                    </td>
+                </tr>
+                <tr>
+                    <td><span class="badge amber">WARNING</span></td>
+                    <td><span class="status-text firing">Active</span></td>
+                    <td>
+                        <div style="font-weight: 600; color: #0f172a;">High Memory Utilization Group</div>
+                        <div style="font-size: 13px; color: #64748b; margin-top: 2px;">Memory usage > 85% across
+                            multiple app nodes</div>
+                    </td>
+                    <td><span style="font-weight: 700; color: #0f172a;">5</span></td>
+                    <td class="rb-actions">
+                        <button class="rb-action-btn" title="Expand"><i data-feather="chevron-down"></i></button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="rb-pagination">
+        <span class="rb-page-info">Showing 1-20 of 24 alerts</span>
+        <div class="rb-page-controls">
+            <button class="rb-page-btn" disabled><i data-feather="chevrons-left"></i></button>
+            <button class="rb-page-btn" disabled><i data-feather="chevron-left"></i></button>
+            <span class="rb-page-current">Page 1 of 2</span>
+            <button class="rb-page-btn"><i data-feather="chevron-right"></i></button>
+            <button class="rb-page-btn"><i data-feather="chevrons-right"></i></button>
+        </div>
+    </div>
+</main>
+
+<!-- AI Analysis Modal -->
+<div id="analysisModal" class="modal-overlay">
+    <div class="modal-container large">
+        <div class="modal-header">
+            <h3 class="modal-title">AI Alert Analysis</h3>
+            <button class="modal-close-btn" onclick="closeAnalysisModal()">
+                <i data-feather="x"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="analysis-content">
+                <div class="analysis-meta mb-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
+                    <h4 id="analysisAlertName"
+                        style="margin: 0 0 8px 0; font-size: 16px; font-weight: 600; color: #0f172a;">High CPU Usage
+                    </h4>
+                    <div style="display: flex; gap: 16px; font-size: 13px; color: #64748b;">
+                        <span><i data-feather="clock" style="width: 12px; height: 12px; vertical-align: middle;"></i>
+                            Analyzed: Just now</span>
+                        <span><i data-feather="activity" style="width: 12px; height: 12px; vertical-align: middle;"></i>
+                            Confidence: 92%</span>
+                    </div>
+                </div>
+
+                <div class="analysis-section mb-6">
+                    <h5
+                        style="font-size: 14px; font-weight: 600; color: #334155; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em;">
+                        Root Cause Analysis</h5>
+                    <p style="font-size: 14px; line-height: 1.6; color: #1e293b;">
+                        The CPU spike on <code
+                            style="background: #f1f5f9; padding: 2px 4px; rounded: 4px; font-family: monospace;">prod-db-01</code>
+                        correlates with a scheduled backup job <code
+                            style="background: #f1f5f9; padding: 2px 4px; rounded: 4px; font-family: monospace;">backup-daily-full</code>
+                        that started at 02:00 UTC. The usage pattern is consistent with previous execution windows.
+                    </p>
+                </div>
+
+                <div class="analysis-section mb-6">
+                    <h5
+                        style="font-size: 14px; font-weight: 600; color: #334155; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em;">
+                        Impact Assessment</h5>
+                    <ul
+                        style="font-size: 14px; line-height: 1.6; color: #1e293b; padding-left: 20px; list-style-type: disc;">
+                        <li>Database query latency increased by 15% (within SLA).</li>
+                        <li>No dropped connections observed.</li>
+                        <li>Disk I/O is within normal backup limits.</li>
+                    </ul>
+                </div>
+
+                <div class="recommendations bg-blue-50 border border-blue-100 p-4 rounded-lg">
+                    <h5
+                        style="font-size: 14px; font-weight: 600; color: #1e40af; margin: 0 0 8px 0; display: flex; align-items: center; gap: 6px;">
+                        <i data-feather="check-square" style="width: 14px; height: 14px;"></i> Recommended Actions
+                    </h5>
+                    <ul
+                        style="font-size: 14px; line-height: 1.6; color: #1e3a8a; padding-left: 20px; list-style-type: disc; margin: 0;">
+                        <li>Acknowledge alert as expected behavior during maintenance window.</li>
+                        <li>Consider adjusting alert threshold during 02:00-04:00 UTC window.</li>
+                    </ul>
+                </div>
+            </div>
+            <!-- Pending State (Hidden by default) -->
+            <div id="analysisLoading" style="display: none; text-align: center; padding: 40px;">
+                <div class="spinner" style="margin: 0 auto 16px;"></div> <!-- Needs spinner CSS -->
+                <p style="color: #64748b;">Analyzing alert patterns and telemetry...</p>
+            </div>
+        </div>
+        <div class="modal-footer"
+            style="padding: 20px 24px; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 12px; background: #f8fafc; border-radius: 0 0 16px 16px;">
+            <button class="btn-secondary" onclick="closeAnalysisModal()"
+                style="padding: 8px 16px; border: 1px solid #cbd5e1; background: white; border-radius: 8px; font-weight: 500; cursor: pointer; color: #475569;">Close</button>
+            <button class="btn-primary"
+                style="padding: 8px 16px; background: #3b82f6; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">Execute
+                Runbook</button>
+        </div>
+    </div>
+</div>
+
+{% block extra_css %}
+<style>
+    /* Status Badges & Text */
+    .badge {
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        display: inline-block;
+    }
+
+    .badge.red {
+        background: #fef2f2;
+        color: #ef4444;
+        border: 1px solid #fee2e2;
+    }
+
+    .badge.amber {
+        background: #fffbeb;
+        color: #f59e0b;
+        border: 1px solid #fef3c7;
+    }
+
+    .badge.blue {
+        background: #eff6ff;
+        color: #3b82f6;
+        border: 1px solid #dbeafe;
+    }
+
+    .status-text {
+        font-size: 13px;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .status-text.firing::before {
+        content: '';
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #ef4444;
+        box-shadow: 0 0 0 2px #fee2e2;
+    }
+
+    .status-text.resolved::before {
+        content: '';
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #10b981;
+        box-shadow: 0 0 0 2px #d1fae5;
+    }
+
+    .status-text.firing {
+        color: #ef4444;
+    }
+
+    .status-text.resolved {
+        color: #10b981;
+    }
+
+    .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        display: inline-block;
+    }
+
+    .status-dot.red {
+        background: #ef4444;
+    }
+
+    .status-dot.amber {
+        background: #f59e0b;
+    }
+
+    .status-dot.blue {
+        background: #3b82f6;
+    }
+
+    /* Modal Styles (Reused) */
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.6);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(4px);
+    }
+
+    .modal-overlay.active {
+        display: flex;
+    }
+
+    .modal-container {
+        background: white;
+        border-radius: 16px;
+        width: 90%;
+        max-width: 600px;
+        max-height: 85vh;
+        overflow-y: auto;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        display: flex;
+        flex-direction: column;
+    }
+
+    .modal-container.large {
+        max-width: 800px;
+    }
+
+    .modal-header {
+        padding: 20px 24px;
+        border-bottom: 1px solid #e2e8f0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .modal-title {
+        font-size: 18px;
+        font-weight: 700;
+        color: #0f172a;
+        margin: 0;
+    }
+
+    .modal-body {
+        padding: 24px;
+        overflow-y: auto;
+    }
+</style>
+{% endblock %}
+
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+    feather.replace();
+
+    // View Switching
+    function switchView(view) {
+        const individualBtn = document.getElementById('viewIndividual');
+        const groupedBtn = document.getElementById('viewGrouped');
+        const individualView = document.getElementById('individualView');
+        const groupedView = document.getElementById('groupedView');
+
+        if (view === 'individual') {
+            individualBtn.classList.add('active-view');
+            individualBtn.style.color = '#0f172a';
+            individualBtn.style.background = 'white';
+
+            groupedBtn.classList.remove('active-view');
+            groupedBtn.style.color = '#64748b';
+            groupedBtn.style.background = 'transparent';
+
+            individualView.style.display = 'block';
+            groupedView.style.display = 'none';
+        } else {
+            groupedBtn.classList.add('active-view');
+            groupedBtn.style.color = '#0f172a';
+            groupedBtn.style.background = 'white';
+
+            individualBtn.classList.remove('active-view');
+            individualBtn.style.color = '#64748b';
+            individualBtn.style.background = 'transparent';
+
+            groupedView.style.display = 'block';
+            individualView.style.display = 'none';
+        }
+    }
+
+    // Modal Logic
+    function openAnalysisModal(alertName, pending = false) {
+        document.getElementById('analysisAlertName').textContent = alertName;
+        const modal = document.getElementById('analysisModal');
+        const content = document.querySelector('.analysis-content');
+        const loading = document.getElementById('analysisLoading');
+
+        if (pending) {
+            content.style.display = 'none';
+            loading.style.display = 'block';
+            modal.classList.add('active');
+
+            // Simulate loading
+            setTimeout(() => {
+                loading.style.display = 'none';
+                content.style.display = 'block';
+            }, 1500);
+        } else {
+            content.style.display = 'block';
+            loading.style.display = 'none';
+            modal.classList.add('active');
+        }
+        feather.replace();
+    }
+
+    function closeAnalysisModal() {
+        document.getElementById('analysisModal').classList.remove('active');
+    }
+
+    // Dropdowns (Shared Logic from base/other pages)
+    document.querySelectorAll('.custom-dropdown').forEach(dropdown => {
+        const trigger = dropdown.querySelector('.dropdown-trigger');
+        const textDisplay = dropdown.querySelector('.dropdown-text');
+        const items = dropdown.querySelectorAll('.dropdown-item');
+
+        trigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.querySelectorAll('.custom-dropdown').forEach(d => {
+                if (d !== dropdown) d.classList.remove('open');
+            });
+            dropdown.classList.toggle('open');
+        });
+
+        items.forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.stopPropagation();
+                items.forEach(i => i.classList.remove('selected'));
+                item.classList.add('selected');
+                textDisplay.innerHTML = item.innerHTML; // Use innerHTML to keep colors/dots
+                dropdown.classList.remove('open');
+            });
+        });
+    });
+
+    document.addEventListener('click', () => {
+        document.querySelectorAll('.custom-dropdown').forEach(d => d.classList.remove('open'));
+    });
+</script>
+{% endblock %}

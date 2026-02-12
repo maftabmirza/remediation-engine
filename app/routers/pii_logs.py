@@ -128,9 +128,13 @@ async def get_logs(
 @router.get("/search", response_model=DetectionLogSearchResponse)
 async def search_logs(
     q: str = Query(..., description="Search query"),
+    page: int = Query(1, ge=1, description="Page number"),
+    limit: int = Query(50, ge=1, le=1000, description="Items per page"),
+    entity_type: Optional[str] = Query(None, description="Filter by entity type"),
     engine: Optional[str] = Query(None, description="Filter by engine"),
-    confidence_min: Optional[float] = Query(None, ge=0.0, le=1.0, description="Minimum confidence"),
-    confidence_max: Optional[float] = Query(None, ge=0.0, le=1.0, description="Maximum confidence"),
+    source_type: Optional[str] = Query(None, description="Filter by source type"),
+    start_date: Optional[datetime] = Query(None, description="Start date filter"),
+    end_date: Optional[datetime] = Query(None, description="End date filter"),
     service: PIIService = Depends(get_pii_service),
     _: object = Depends(require_permission(["pii_read_logs"]))
 ):
@@ -139,9 +143,13 @@ async def search_logs(
     
     Args:
         q: Search query
-        engine: Filter by engine
-        confidence_min: Minimum confidence score
-        confidence_max: Maximum confidence score
+        page: Page number
+        limit: Items per page
+        entity_type: Filter by entity type
+        engine: Filter by detection engine
+        source_type: Filter by source type
+        start_date: Filter by start date
+        end_date: Filter by end date
         service: PII service instance
         
     Returns:
@@ -150,17 +158,28 @@ async def search_logs(
     try:
         logger.info(f"Search logs: query={q}")
         
-        # TODO: Implement actual search functionality
-        # For now, return empty results
+        query = DetectionLogQuery(
+            page=page,
+            limit=limit,
+            entity_type=entity_type,
+            engine=engine,
+            source_type=source_type,
+            start_date=start_date,
+            end_date=end_date,
+            q=q
+        )
+        
+        result = await service.get_logs(query)
         
         return DetectionLogSearchResponse(
-            results=[],
-            total=0,
+            results=result.logs,
+            total=result.total,
             query=q,
             filters_applied={
+                "entity_type": entity_type,
                 "engine": engine,
-                "confidence_min": confidence_min,
-                "confidence_max": confidence_max
+                "source_type": source_type,
+                "date_range": "custom" if start_date or end_date else "all"
             }
         )
         

@@ -1,0 +1,76 @@
+{# Settings Navigation Dropdown Menu - Reusable Component #}
+{# Usage: include this file in settings.html with Jinja include statement #}
+{# Requires: settings_section variable to be set (e.g., 'overview', 'users', 'providers') #}
+
+<div class="section-selector">
+    <button class="section-dropdown-btn" id="settingsDropdownBtn" type="button" onclick="toggleSettingsDropdown(event)">
+        <i data-feather="layout" class="dropdown-icon"></i>
+        <span id="currentSectionLabel">{{ section_label | default('System Overview') }}</span>
+        <i data-feather="chevron-down" class="dropdown-arrow"></i>
+    </button>
+    <div class="section-dropdown-menu" id="settingsDropdownMenu">
+        <a href="/settings#section-overview"
+            class="dropdown-item {{ 'active' if active_section == 'section-overview' }}"
+            data-section="section-overview">
+            <i data-feather="pie-chart"></i>
+            <span>Overview</span>
+        </a>
+        {% if 'manage_users' in permissions %}
+        <a href="/settings#section-users" class="dropdown-item {{ 'active' if active_section == 'section-users' }}"
+            data-section="section-users">
+            <i data-feather="users"></i>
+            <span>Users</span>
+        </a>
+        <a href="/settings#section-roles" class="dropdown-item {{ 'active' if active_section == 'section-roles' }}"
+            data-section="section-roles">
+            <i data-feather="shield"></i>
+            <span>Roles (RBAC)</span>
+        </a>
+        <a href="/settings#section-groups" class="dropdown-item {{ 'active' if active_section == 'section-groups' }}"
+            data-section="section-groups">
+            <i data-feather="folder"></i>
+            <span>Groups</span>
+        </a>
+        {% endif %}
+        <a href="/settings#section-providers"
+            class="dropdown-item {{ 'active' if active_section == 'section-providers' }}"
+            data-section="section-providers">
+            <i data-feather="cpu"></i>
+            <span>LLM Providers</span>
+        </a>
+        <a href="/settings#section-servers" class="dropdown-item {{ 'active' if active_section == 'section-servers' }}"
+            data-section="section-servers">
+            <i data-feather="server"></i>
+            <span>Servers</span>
+        </a>
+        {% if 'manage_servers' in permissions %}
+        <a href="/settings#section-api-credentials"
+            class="dropdown-item {{ 'active' if active_section == 'section-api-credentials' }}"
+            data-section="section-api-credentials">
+            <i data-feather="globe"></i>
+            <span>API Credentials</span>
+        </a>
+        <a href="/settings#section-credentials"
+            class="dropdown-item {{ 'active' if active_section == 'section-credentials' }}"
+            data-section="section-credentials">
+            <i data-feather="key"></i>
+            <span>Credential Profiles</span>
+        </a>
+        {% endif %}
+        {% if 'manage_providers' in permissions %}
+        <a href="/settings#section-auth" class="dropdown-item {{ 'active' if active_section == 'section-auth' }}"
+            data-section="section-auth">
+            <i data-feather="lock"></i>
+            <span>Authentication</span>
+        </a>
+        {% endif %}
+        <a href="/pii-detection" class="dropdown-item {{ 'active' if active_section == 'pii-detection' }}">
+            <i data-feather="alert-triangle"></i>
+            <span>PII Detection</span>
+        </a>
+        <a href="/pii-logs" class="dropdown-item {{ 'active' if active_section == 'pii-logs' }}">
+            <i data-feather="file-text"></i>
+            <span>PII Logs</span>
+        </a>
+    </div>
+</div>

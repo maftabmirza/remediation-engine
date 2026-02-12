@@ -5,1118 +5,274 @@
     <meta charset="UTF-8">
     <base href="/">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}AIOps Platform{% endblock %}</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="/static/style.css?v=20260201" rel="stylesheet">
-    <!-- Inter font (Grafana's font) -->
+    <title>{% block title %}Enterprise AIOps | Command Center{% endblock %}</title>
+
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- xterm.js CSS -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
-    <style>
-        /* Aftab Theme - Based on Grafana dark mode (Default Theme) */
-        :root,
-        [data-theme="aftab"] {
-            --bg-primary: #111217;
-            --bg-secondary: #181b1f;
-            --bg-tertiary: #22252b;
-            --text-primary: #ccccdc;
-            --text-secondary: #8e8e8e;
-            --accent-blue: #6e9fff;
-            --accent-green: #6ccf8e;
-            --accent-red: #ff5286;
-            --accent-yellow: #fbad37;
-            --accent-purple: #b877d9;
-            --accent-orange: #eb7b18;
-            --border-color: rgba(204, 204, 220, 0.12);
-        }
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-        [data-theme="default"] {
-            /* Default Theme (Catppuccin Mocha-ish) */
-            --bg-primary: #1e1e2e;
-            --bg-secondary: #282a36;
-            --bg-tertiary: #313244;
-            --text-primary: #cdd6f4;
-            --text-secondary: #a6adc8;
-            --accent-blue: #89b4fa;
-            --accent-green: #a6e3a1;
-            --accent-red: #f38ba8;
-            --accent-yellow: #f9e2af;
-            --accent-purple: #cba6f7;
-        }
+    <!-- Icons -->
+    <script src="https://unpkg.com/feather-icons"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 
-        [data-theme="light"] {
-            --bg-primary: #f9fafb;
-            --bg-secondary: #ffffff;
-            --bg-tertiary: #e5e7eb;
-            --text-primary: #111827;
-            --text-secondary: #4b5563;
-            --accent-blue: #2563eb;
-            --accent-green: #059669;
-            --accent-red: #dc2626;
-            --accent-yellow: #d97706;
-            --accent-purple: #7c3aed;
-        }
+    <!-- Tailwind (Optional - keeping for utility classes support if needed) -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 
-        [data-theme="twilight"] {
-            --bg-primary: #282a36;
-            --bg-secondary: #44475a;
-            --bg-tertiary: #6272a4;
-            --text-primary: #f8f8f2;
-            --text-secondary: #bd93f9;
-            --accent-blue: #8be9fd;
-            --accent-green: #50fa7b;
-            --accent-red: #ff5555;
-            --accent-yellow: #f1fa8c;
-            --accent-purple: #bd93f9;
-        }
+    <!-- Main Styles -->
+    <link href="/static/style.css?v=20260207j" rel="stylesheet">
+    <link href="/static/style_agent_widget.css?v=20260211a" rel="stylesheet">
 
-        [data-theme="midnight"] {
-            --bg-primary: #0f172a;
-            --bg-secondary: #1e293b;
-            --bg-tertiary: #334155;
-            --text-primary: #f1f5f9;
-            --text-secondary: #94a3b8;
-            --accent-blue: #38bdf8;
-            --accent-green: #4ade80;
-            --accent-red: #f87171;
-            --accent-yellow: #facc15;
-            --accent-purple: #c084fc;
-        }
-
-        /* Grafana Dark Theme - Exact match to Grafana's default dark mode */
-        [data-theme="aftab"] {
-            --bg-primary: #111217;
-            --bg-secondary: #181b1f;
-            --bg-tertiary: #22252b;
-            --text-primary: #ccccdc;
-            --text-secondary: #8e8e8e;
-            --accent-blue: #6e9fff;
-            --accent-green: #6ccf8e;
-            --accent-red: #ff5286;
-            --accent-yellow: #fbad37;
-            --accent-purple: #b877d9;
-            --accent-orange: #eb7b18;
-            --border-color: rgba(204, 204, 220, 0.12);
-        }
-
-        /* Grafana theme specific overrides */
-        [data-theme="aftab"] .sidebar {
-            background-color: #181b1f;
-            border-right: 1px solid rgba(204, 204, 220, 0.12);
-        }
-
-        [data-theme="aftab"] .card {
-            background-color: #181b1f;
-            border: 1px solid rgba(204, 204, 220, 0.12);
-        }
-
-        [data-theme="aftab"] .input-field {
-            background-color: #111217;
-            border: 1px solid rgba(204, 204, 220, 0.2);
-        }
-
-        [data-theme="aftab"] .btn-primary {
-            background-color: #4979db;
-            background-image: linear-gradient(180deg, #3d71d9, #5a86de);
-            border-color: #3d71d9;
-            color: #fff;
-            text-shadow: 0 1px 0 rgba(0, 0, 0, 0.1);
-        }
-
-        [data-theme="aftab"] .btn-primary:hover {
-            background-color: #3d71d9;
-            background-image: none;
-        }
-
-        [data-theme="aftab"] .btn-secondary {
-            background-color: #2a2a2c;
-            background-image: linear-gradient(180deg, #262628, #303032);
-            border-color: #262628;
-            color: #ccccdc;
-        }
-
-        [data-theme="aftab"] .btn-secondary:hover {
-            background-color: #262628;
-            background-image: none;
-        }
-
-        [data-theme="aftab"] .btn-danger {
-            background-color: #d31c66;
-            background-image: linear-gradient(180deg, #d10e5c, #d73274);
-            border-color: #d10e5c;
-            color: #fff;
-        }
-
-        [data-theme="aftab"] a {
-            color: #6e9fff;
-        }
-
-        [data-theme="aftab"] a:hover {
-            color: #6e9fff;
-            text-decoration: underline;
-        }
-
-        [data-theme="aftab"] .badge-critical {
-            background-color: #d10e5c;
-            color: #fff;
-        }
-
-        [data-theme="aftab"] .badge-warning {
-            background-color: #f90;
-            color: #fff;
-        }
-
-        [data-theme="aftab"] .badge-info {
-            background-color: #6e9fff;
-            color: #fff;
-        }
-
-        [data-theme="aftab"] .badge-success {
-            background-color: #1a7f4b;
-            color: #fff;
-        }
-
-        /* Grafana dropdown/modal backgrounds */
-        [data-theme="aftab"] .dropdown-menu,
-        [data-theme="aftab"] .modal-content {
-            background-color: #181b1f;
-            border: 1px solid rgba(204, 204, 220, 0.12);
-        }
-
-        /* Grafana code blocks */
-        [data-theme="aftab"] code,
-        [data-theme="aftab"] pre {
-            background-color: #141414;
-            border: 1px solid #343436;
-            color: #ccccdc;
-            font-family: 'Roboto Mono', monospace;
-        }
-
-        /* Grafana tooltip */
-        [data-theme="aftab"] .tooltip {
-            background-color: #141414;
-            color: #ccccdc;
-        }
-
-        /* Grafana form inputs - exact match */
-        [data-theme="aftab"] .gf-form-input,
-        [data-theme="aftab"] input[type="text"],
-        [data-theme="aftab"] input[type="password"],
-        [data-theme="aftab"] input[type="email"],
-        [data-theme="aftab"] input[type="number"],
-        [data-theme="aftab"] select,
-        [data-theme="aftab"] textarea {
-            background-color: #111217;
-            border: 1px solid rgba(204, 204, 220, 0.2);
-            color: #ccccdc;
-            border-radius: 2px;
-        }
-
-        [data-theme="aftab"] input:focus,
-        [data-theme="aftab"] select:focus,
-        [data-theme="aftab"] textarea:focus {
-            border-color: #3d71d9;
-            outline: none;
-        }
-
-        /* Grafana font family override */
-        [data-theme="aftab"] {
-            font-family: Inter, Helvetica, Arial, sans-serif;
-        }
-
-        [data-theme="aftab"] body,
-        [data-theme="aftab"] .sidebar,
-        [data-theme="aftab"] .sidebar-item {
-            font-family: Inter, Helvetica, Arial, sans-serif;
-            font-size: 14px;
-            line-height: 1.5714285714;
-        }
-
-        /* Grafana sidebar styling */
-        [data-theme="aftab"] .sidebar {
-            background-color: #181b1f;
-        }
-
-        body {
-            background-color: var(--bg-primary);
-            color: var(--text-primary);
-            font-family: 'Segoe UI', system-ui, sans-serif;
-        }
-
-        .sidebar {
-            background-color: var(--bg-secondary);
-            border-right: 1px solid var(--bg-tertiary);
-        }
-
-        .sidebar-item {
-            transition: all 0.2s ease;
-        }
-
-        .sidebar-item:hover {
-            background-color: var(--bg-tertiary);
-        }
-
-        .sidebar-item.active {
-            background-color: var(--bg-tertiary);
-            border-left: 3px solid var(--accent-blue);
-        }
-
-        .card {
-            background-color: var(--bg-secondary);
-            border: 1px solid var(--bg-tertiary);
-            border-radius: 8px;
-        }
-
-        .btn-primary {
-            background-color: var(--accent-blue);
-            color: var(--bg-primary);
-            transition: all 0.2s ease;
-        }
-
-        .btn-primary:hover {
-            opacity: 0.9;
-            transform: translateY(-1px);
-        }
-
-        .btn-secondary {
-            background-color: var(--bg-tertiary);
-            color: var(--text-primary);
-            border: 1px solid var(--bg-tertiary);
-        }
-
-        .btn-secondary:hover {
-            border-color: var(--accent-blue);
-        }
-
-        .input-field {
-            background-color: var(--bg-tertiary);
-            border: 1px solid var(--bg-tertiary);
-            color: var(--text-primary);
-        }
-
-        .input-field:focus {
-            outline: none;
-            border-color: var(--accent-blue);
-        }
-
-        .badge-critical {
-            background-color: var(--accent-red);
-            color: var(--bg-primary);
-        }
-
-        .badge-warning {
-            background-color: var(--accent-yellow);
-            color: var(--bg-primary);
-        }
-
-        .badge-info {
-            background-color: var(--accent-blue);
-            color: var(--bg-primary);
-        }
-
-        .badge-success {
-            background-color: var(--accent-green);
-            color: var(--bg-primary);
-        }
-
-        .status-firing {
-            color: var(--accent-red);
-        }
-
-        .status-resolved {
-            color: var(--accent-green);
-        }
-
-        .loading-spinner {
-            border: 3px solid var(--bg-tertiary);
-            border-top: 3px solid var(--accent-blue);
-            border-radius: 50%;
-            width: 24px;
-            height: 24px;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            0% {
-                transform: rotate(0deg);
-            }
-
-            100% {
-                transform: rotate(360deg);
-            }
-        }
-
-        .toast {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            padding: 12px 24px;
-            border-radius: 8px;
-            z-index: 1000;
-            animation: slideIn 0.3s ease;
-        }
-
-        @keyframes slideIn {
-            from {
-                transform: translateX(100%);
-                opacity: 0;
-            }
-
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
-        }
-
-        .toast-success {
-            background-color: var(--accent-green);
-            color: var(--bg-primary);
-        }
-
-        .toast-error {
-            background-color: var(--accent-red);
-            color: var(--bg-primary);
-        }
-
-        /* Scrollbar styling */
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: var(--bg-primary);
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: var(--bg-tertiary);
-            border-radius: 4px;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: var(--text-secondary);
-        }
-
-        /* Light Theme Overrides for Tailwind Utility Classes */
-        [data-theme="light"] .text-gray-400 {
-            color: #6b7280 !important;
-        }
-
-        [data-theme="light"] .text-gray-300 {
-            color: #4b5563 !important;
-        }
-
-        [data-theme="light"] .hover\:text-white:hover {
-            color: #111827 !important;
-        }
-
-        /* Light Theme: Fix dark backgrounds */
-        [data-theme="light"] .bg-gray-700 {
-            background-color: #e5e7eb !important;
-        }
-
-        [data-theme="light"] .bg-gray-800 {
-            background-color: #f3f4f6 !important;
-        }
-
-        [data-theme="light"] .bg-gray-900 {
-            background-color: #e5e7eb !important;
-        }
-
-        /* Light Theme: Fix border colors */
-        [data-theme="light"] .border-gray-700 {
-            border-color: #d1d5db !important;
-        }
-
-        [data-theme="light"] .border-gray-600 {
-            border-color: #d1d5db !important;
-        }
-
-        /* Light Theme: Fix text colors on dark backgrounds */
-        [data-theme="light"] .text-green-400 {
-            color: #059669 !important;
-        }
-
-        [data-theme="light"] .text-blue-400 {
-            color: #2563eb !important;
-        }
-
-        [data-theme="light"] .text-red-400 {
-            color: #dc2626 !important;
-        }
-
-        [data-theme="light"] .text-yellow-400 {
-            color: #d97706 !important;
-        }
-
-        [data-theme="light"] .text-purple-400 {
-            color: #7c3aed !important;
-        }
-
-        /* Light Theme: Fix opacity backgrounds */
-        [data-theme="light"] .bg-blue-500.bg-opacity-20 {
-            background-color: rgba(37, 99, 235, 0.15) !important;
-        }
-
-        [data-theme="light"] .bg-green-500.bg-opacity-20 {
-            background-color: rgba(5, 150, 105, 0.15) !important;
-        }
-
-        [data-theme="light"] .bg-red-500.bg-opacity-20 {
-            background-color: rgba(220, 38, 38, 0.15) !important;
-        }
-
-        [data-theme="light"] .bg-yellow-500.bg-opacity-20 {
-            background-color: rgba(217, 119, 6, 0.15) !important;
-        }
-
-        [data-theme="light"] .bg-purple-500.bg-opacity-20 {
-            background-color: rgba(124, 58, 237, 0.15) !important;
-        }
-
-        /* Light Theme: Fix modal overlays */
-        [data-theme="light"] .bg-black.bg-opacity-50 {
-            background-color: rgba(0, 0, 0, 0.4) !important;
-        }
-
-        /* Light Theme: Fix hover states */
-        [data-theme="light"] .hover\:bg-tertiary:hover {
-            background-color: #f3f4f6 !important;
-        }
-
-        /* Light Theme: Fix secondary text */
-        .text-secondary {
-            color: var(--text-secondary);
-        }
-
-        .text-primary {
-            color: var(--text-primary);
-        }
-
-        .bg-tertiary {
-            background-color: var(--bg-tertiary);
-        }
-
-        /* Light Theme: Code blocks */
-        [data-theme="light"] code {
-            background-color: #f3f4f6 !important;
-            color: #1f2937 !important;
-        }
-
-        [data-theme="light"] pre {
-            background-color: #1f2937 !important;
-            color: #10b981 !important;
-        }
-
-        /* Light Theme: Additional fixes for runbooks/executions pages */
-        [data-theme="light"] .bg-red-900 {
-            background-color: #fef2f2 !important;
-        }
-
-        [data-theme="light"] .bg-red-900.bg-opacity-20 {
-            background-color: rgba(254, 226, 226, 0.8) !important;
-        }
-
-        [data-theme="light"] .bg-tertiary,
-        [data-theme="light"] [class*="bg-tertiary"] {
-            background-color: var(--bg-tertiary) !important;
-        }
-
-        /* Light Theme: Fix font-mono code elements */
-        [data-theme="light"] .font-mono {
-            color: var(--text-primary) !important;
-        }
-
-        /* Light Theme: Fix card nested backgrounds */
-        [data-theme="light"] .card .card {
-            background-color: #f9fafb !important;
-            border-color: #e5e7eb !important;
-        }
-
-        /* Light Theme: Fix step/trigger items */
-        [data-theme="light"] .step-item,
-        [data-theme="light"] .trigger-item {
-            background-color: #f9fafb !important;
-        }
-
-        /* Light Theme: Fix line-clamp text */
-        [data-theme="light"] .line-clamp-2 {
-            color: var(--text-secondary) !important;
-        }
-
-        /* Light Theme: Fix table headers and rows */
-        [data-theme="light"] thead tr {
-            background-color: #f3f4f6 !important;
-        }
-
-        [data-theme="light"] tbody tr {
-            border-color: #e5e7eb !important;
-        }
-
-        [data-theme="light"] tbody tr:hover {
-            background-color: #f9fafb !important;
-        }
-
-        /* Light Theme: Fix button disabled states */
-        [data-theme="light"] button:disabled {
-            opacity: 0.5;
-        }
-
-        /* Light Theme: Fix toast notifications */
-        [data-theme="light"] .bg-green-600 {
-            background-color: #059669 !important;
-            color: white !important;
-        }
-
-        [data-theme="light"] .bg-red-600 {
-            background-color: #dc2626 !important;
-            color: white !important;
-        }
-
-        [data-theme="light"] .bg-blue-600 {
-            background-color: #2563eb !important;
-            color: white !important;
-        }
-
-        /* Light Theme: Fix all gray scale text colors */
-        [data-theme="light"] .text-gray-500 {
-            color: #6b7280 !important;
-        }
-
-        [data-theme="light"] .text-gray-600 {
-            color: #4b5563 !important;
-        }
-
-        /* Light Theme: Fix input placeholders */
-        [data-theme="light"] input::placeholder,
-        [data-theme="light"] textarea::placeholder {
-            color: #9ca3af !important;
-        }
-
-        /* Light Theme: Fix select dropdowns */
-        [data-theme="light"] select {
-            background-color: var(--bg-tertiary) !important;
-            color: var(--text-primary) !important;
-        }
-
-        [data-theme="light"] select option {
-            background-color: white !important;
-            color: #111827 !important;
-        }
-
-        /* Light Theme: Fix status badge backgrounds */
-        [data-theme="light"] .bg-gray-500.bg-opacity-20 {
-            background-color: rgba(107, 114, 128, 0.15) !important;
-        }
-
-        /* Grafana Theme Overrides for Tailwind Utility Classes */
-        [data-theme="aftab"] .text-gray-400 {
-            color: #8e8e8e !important;
-        }
-
-        [data-theme="aftab"] .text-gray-300 {
-            color: #ccccdc !important;
-        }
-
-        [data-theme="aftab"] .text-gray-500 {
-            color: #8e8e8e !important;
-        }
-
-        [data-theme="aftab"] .bg-gray-700 {
-            background-color: #22252b !important;
-        }
-
-        [data-theme="aftab"] .bg-gray-800 {
-            background-color: #181b1f !important;
-        }
-
-        [data-theme="aftab"] .bg-gray-900 {
-            background-color: #111217 !important;
-        }
-
-        [data-theme="aftab"] .border-gray-700,
-        [data-theme="aftab"] .border-gray-600 {
-            border-color: rgba(204, 204, 220, 0.12) !important;
-        }
-
-        [data-theme="aftab"] .text-green-400 {
-            color: #6ccf8e !important;
-        }
-
-        [data-theme="aftab"] .text-blue-400 {
-            color: #6e9fff !important;
-        }
-
-        [data-theme="aftab"] .text-red-400 {
-            color: #ff5286 !important;
-        }
-
-        [data-theme="aftab"] .text-yellow-400 {
-            color: #fbad37 !important;
-        }
-
-        [data-theme="aftab"] .text-purple-400 {
-            color: #b877d9 !important;
-        }
-
-        [data-theme="aftab"] .bg-blue-500.bg-opacity-20 {
-            background-color: rgba(110, 159, 255, 0.15) !important;
-        }
-
-        [data-theme="aftab"] .bg-green-500.bg-opacity-20 {
-            background-color: rgba(108, 207, 142, 0.15) !important;
-        }
-
-        [data-theme="aftab"] .bg-red-500.bg-opacity-20 {
-            background-color: rgba(255, 82, 134, 0.15) !important;
-        }
-
-        [data-theme="aftab"] .bg-yellow-500.bg-opacity-20 {
-            background-color: rgba(251, 173, 55, 0.15) !important;
-        }
-
-        [data-theme="aftab"] .bg-purple-500.bg-opacity-20 {
-            background-color: rgba(184, 119, 217, 0.15) !important;
-        }
-
-        /* Grafana theme: Table styling */
-        [data-theme="aftab"] thead tr {
-            background-color: #22252b !important;
-        }
-
-        [data-theme="aftab"] tbody tr {
-            border-color: rgba(204, 204, 220, 0.12) !important;
-        }
-
-        [data-theme="aftab"] tbody tr:hover {
-            background-color: rgba(204, 204, 220, 0.07) !important;
-        }
-
-        /* Grafana theme: Button states */
-        [data-theme="aftab"] .bg-blue-600 {
-            background: linear-gradient(180deg, #4979db 0%, #3d71d9 100%) !important;
-        }
-
-        [data-theme="aftab"] .bg-blue-600:hover {
-            background: linear-gradient(180deg, #5a86de 0%, #4979db 100%) !important;
-        }
-
-        [data-theme="aftab"] .bg-green-600 {
-            background-color: #1a7f4b !important;
-        }
-
-        [data-theme="aftab"] .bg-red-600 {
-            background-color: #d10e5c !important;
-        }
-
-        /* Grafana theme: Code blocks */
-        [data-theme="aftab"] code {
-            background-color: #22252b !important;
-            color: #6ccf8e !important;
-        }
-
-        [data-theme="aftab"] pre {
-            background-color: #111217 !important;
-            border: 1px solid rgba(204, 204, 220, 0.12) !important;
-        }
-
-        /* Grafana theme: Scrollbar */
-        [data-theme="aftab"] ::-webkit-scrollbar-track {
-            background: #111217;
-        }
-
-        [data-theme="aftab"] ::-webkit-scrollbar-thumb {
-            background: rgba(204, 204, 220, 0.2);
-        }
-
-        [data-theme="aftab"] ::-webkit-scrollbar-thumb:hover {
-            background: rgba(204, 204, 220, 0.3);
-        }
-
-        /* Grafana theme: Input fields */
-        [data-theme="aftab"] input,
-        [data-theme="aftab"] textarea,
-        [data-theme="aftab"] select {
-            background-color: #111217 !important;
-            border: 1px solid rgba(204, 204, 220, 0.2) !important;
-            color: #ccccdc !important;
-        }
-
-        [data-theme="aftab"] input:focus,
-        [data-theme="aftab"] textarea:focus,
-        [data-theme="aftab"] select:focus {
-            border-color: #3d71d9 !important;
-            box-shadow: 0 0 0 1px #3d71d9 !important;
-        }
-
-        [data-theme="aftab"] input::placeholder,
-        [data-theme="aftab"] textarea::placeholder {
-            color: #8e8e8e !important;
-        }
-
-        /* Grafana theme: Modal backgrounds */
-        [data-theme="aftab"] .bg-black.bg-opacity-50 {
-            background-color: rgba(0, 0, 0, 0.6) !important;
-        }
-
-        /* ===== INFO TOOLTIP COMPONENT ===== */
-        .info-tooltip {
-            position: relative;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 16px;
-            height: 16px;
-            margin-left: 6px;
-            cursor: help;
-        }
-
-        .info-tooltip-icon {
-            width: 16px;
-            height: 16px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, var(--color-link, #6e9fff) 0%, var(--color-primary, #3d71d9) 100%);
-            color: white;
-            font-size: 10px;
-            font-weight: bold;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s ease;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-        }
-
-        .info-tooltip:hover .info-tooltip-icon {
-            transform: scale(1.1);
-            box-shadow: 0 2px 6px rgba(61, 113, 217, 0.4);
-        }
-
-        .info-tooltip-text {
-            visibility: hidden;
-            opacity: 0;
-            position: absolute;
-            z-index: 99999;
-            bottom: calc(100% + 8px);
-            left: 50%;
-            transform: translateX(-50%);
-            min-width: 200px;
-            max-width: 280px;
-            padding: 10px 12px;
-            background: var(--color-tertiary, #22252b);
-            color: var(--color-text, #ccccdc);
-            font-size: 12px;
-            font-weight: 400;
-            line-height: 1.5;
-            border-radius: 6px;
-            border: 1px solid var(--color-border, rgba(204, 204, 220, 0.12));
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-            transition: opacity 0.2s ease, visibility 0.2s ease;
-            white-space: normal;
-            text-align: left;
-        }
-
-        .info-tooltip-text::after {
-            content: '';
-            position: absolute;
-            top: 100%;
-            left: 50%;
-            transform: translateX(-50%);
-            border-width: 6px;
-            border-style: solid;
-            border-color: var(--color-tertiary, #22252b) transparent transparent transparent;
-        }
-
-        .info-tooltip:hover .info-tooltip-text {
-            visibility: visible;
-            opacity: 1;
-        }
-
-        /* Tooltip positioning variants */
-        .info-tooltip-right .info-tooltip-text {
-            left: calc(100% + 10px);
-            bottom: auto;
-            top: 50%;
-            transform: translateY(-50%);
-        }
-
-        .info-tooltip-right .info-tooltip-text::after {
-            top: 50%;
-            left: -6px;
-            transform: translateY(-50%);
-            border-color: transparent var(--color-tertiary, #22252b) transparent transparent;
-        }
-
-        .info-tooltip-left .info-tooltip-text {
-            right: calc(100% + 10px);
-            left: auto;
-            bottom: auto;
-            top: 50%;
-            transform: translateY(-50%);
-        }
-
-        .info-tooltip-left .info-tooltip-text::after {
-            top: 50%;
-            right: -6px;
-            left: auto;
-            transform: translateY(-50%);
-            border-color: transparent transparent transparent var(--color-tertiary, #22252b);
-        }
-
-        .info-tooltip-bottom .info-tooltip-text {
-            top: calc(100% + 8px);
-            bottom: auto;
-        }
-
-        .info-tooltip-bottom .info-tooltip-text::after {
-            top: -12px;
-            border-color: transparent transparent var(--color-tertiary, #22252b) transparent;
-        }
-
-        /* Alignment modifiers for top/bottom tooltips */
-        .info-tooltip-align-left .info-tooltip-text {
-            left: -8px;
-            /* Slight offset to align with icon center roughly */
-            transform: none;
-        }
-
-        .info-tooltip-align-left .info-tooltip-text::after {
-            left: 14px;
-            /* Center arrow over icon (8px + 6px) */
-            transform: none;
-        }
-
-        .info-tooltip-align-right .info-tooltip-text {
-            left: auto;
-            right: -8px;
-            transform: none;
-        }
-
-        .info-tooltip-align-right .info-tooltip-text::after {
-            left: auto;
-            right: 14px;
-            transform: none;
-        }
-
-        .info-tooltip-bottom .info-tooltip-text {
-            top: calc(100% + 8px);
-            bottom: auto;
-        }
-
-        .info-tooltip-bottom .info-tooltip-text::after {
-            top: -12px;
-            border-color: transparent transparent var(--color-tertiary, #22252b) transparent;
-        }
-
-        /* Form label with tooltip helper class */
-        .label-with-tooltip {
-            display: flex;
-            align-items: center;
-        }
-
-        /* Zoom Preferences */
-        :root {
-            --zoom-level: 100;
-        }
-
-        /* Apply zoom level - base is 16px (1rem) */
-        html {
-            font-size: calc(16px * var(--zoom-level) / 100);
-        }
-
-        /* Zoom slider styling */
-        .zoom-slider {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 100%;
-            height: 6px;
-            border-radius: 3px;
-            background: var(--bg-tertiary);
-            outline: none;
-        }
-
-        .zoom-slider::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 18px;
-            height: 18px;
-            border-radius: 50%;
-            background: var(--accent-primary);
-            cursor: pointer;
-            border: 2px solid var(--bg-primary);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-        }
-
-        .zoom-slider::-moz-range-thumb {
-            width: 18px;
-            height: 18px;
-            border-radius: 50%;
-            background: var(--accent-primary);
-            cursor: pointer;
-            border: 2px solid var(--bg-primary);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-        }
-
-        /* Extra CSS from child templates */
-        {% block extra_css %}{% endblock %}
-    </style>
-
-    <!-- Apache ECharts for advanced visualizations -->
+    <!-- ECharts -->
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
 
+    <!-- xterm.js CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
+
     {% block head %}{% endblock %}
-    <script>
-        // Apply theme and zoom immediately to prevent flash
-        (function () {
-            const savedTheme = localStorage.getItem('aiops-theme') || 'aftab';
-            const savedZoom = localStorage.getItem('aiops-zoom') || '100';
-            document.documentElement.setAttribute('data-theme', savedTheme);
-            document.documentElement.style.setProperty('--zoom-level', savedZoom);
-        })();
-    </script>
 </head>
 
-<body class="min-h-screen">
-    {% block body %}{% endblock %}
+<body>
+    {% block layout_container %}
+    <div class="app-container collapsed">
+        {% include 'partials/sidebar.html' %}
 
-    <!-- Toast container -->
-    <div id="toast-container"></div>
+        <!-- Header (Refactored for CSS Grid) -->
+        <header class="top-header">
+            <!-- Header Info (Title / Breadcrumbs) -->
+            <div class="header-info">
+                <div class="header-title-wrapper">
+                    {% block header_title %}
+                    <h1 class="header-title">AIOps Platform</h1>
+                    {% endblock %}
+                </div>
 
-    <script>
-        // Global Tooltip Implementation (Avoids clipping)
-        (function () {
-            const tooltip = document.createElement('div');
-            tooltip.id = 'global-tooltip';
-            tooltip.className = 'fixed hidden bg-gray-800 text-white text-xs px-2 py-1 rounded shadow-lg border border-gray-700 pointer-events-none z-[9999] whitespace-nowrap fade-in';
-            tooltip.style.transition = 'opacity 0.1s ease';
-            document.body.appendChild(tooltip);
+                <span class="header-divider hidden md:inline">|</span>
 
-            let activeTarget = null;
+                <div class="header-status">
+                    <nav class="header-breadcrumbs">
+                        {% block breadcrumbs %}
+                        <!-- Default Status/Breadcrumbs -->
+                        <span>System Operational</span>
+                        {% endblock %}
+                    </nav>
+                </div>
+            </div>
 
-            document.addEventListener('mouseover', (e) => {
-                const target = e.target.closest('[data-tooltip]');
-                if (target && !activeTarget) {
-                    // Check if we should show tooltip (sidebar collapsed logic specific)
-                    const sidebar = document.getElementById('sidebar');
-                    const isSidebarItem = target.closest('.sidebar');
+            <!-- Search Bar -->
+            <div class="search-bar hidden lg:flex">
+                <i data-feather="search" style="width: 14px; color: #9ca3af;"></i>
+                <input type="text" placeholder="Search..." class="bg-transparent border-none focus:ring-0">
+                <span class="kbd-shortcut">/</span>
+            </div>
 
-                    // Only show sidebar tooltips if sidebar is collapsed (w-20)
-                    if (isSidebarItem && sidebar && !sidebar.classList.contains('w-20')) {
-                        return;
-                    }
+            <!-- Header Actions -->
+            <div class="header-actions">
+                {% block header_actions %}
+                <!-- RE-VIVE Chat Button -->
+                <button class="revive-chat-btn" id="ai-helper-toggle" title="RE-VIVE AI Assistant">
+                    <i data-feather="message-circle" style="width: 18px;"></i>
+                </button>
+                <!-- Notifications -->
+                <button class="icon-btn" title="Notifications">
+                    <i data-feather="bell" style="width: 18px;"></i>
+                    <span class="notification-dot"></span>
+                </button>
+                <!-- User Profile Dropdown -->
+                <div class="relative ml-2 user-profile-container">
+                    <button type="button"
+                        class="flex items-center justify-center w-8 h-8 rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#0f0e47] focus:ring-blue-500 transition-all duration-200"
+                        id="user-menu-button" aria-expanded="false" aria-haspopup="true" onclick="toggleUserMenu()">
+                        <span class="sr-only">Open user menu</span>
+                        <div
+                            class="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-medium text-xs shadow-md hover:bg-blue-700 transition-colors border border-blue-400">
+                            {{ user.username[0].upper() if user and user.username else 'U' }}
+                        </div>
+                    </button>
 
-                    activeTarget = target;
-                    const text = target.getAttribute('data-tooltip');
-                    tooltip.textContent = text;
-                    tooltip.classList.remove('hidden');
-                    tooltip.style.opacity = '1';
+                    <!-- Dropdown menu -->
+                    <div id="user-menu-dropdown"
+                        class="origin-top-right absolute right-0 mt-2 w-56 rounded-xl shadow-2xl py-2 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none hidden z-50 transform transition-all duration-200 ease-out scale-95 opacity-0 border border-slate-100"
+                        role="menu" aria-orientation="vertical" aria-labelledby="user-menu-button" tabindex="-1">
+                        <div class="px-4 py-3 border-b border-slate-100 bg-slate-50 rounded-t-xl">
+                            <p class="text-xs text-slate-500 uppercase font-semibold tracking-wider">Signed in as</p>
+                            <p class="text-sm font-bold text-slate-800 truncate mt-1">{{ user.username if user and
+                                user.username else 'User' }}</p>
+                            <p class="text-xs text-slate-400 truncate">{{ user.role if user and user.role else 'Guest'
+                                }}</p>
+                        </div>
 
-                    updatePosition(target);
-                }
-            });
+                        <div class="py-1">
+                            <a href="/profile"
+                                class="group flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                                role="menuitem" tabindex="-1">
+                                <i data-feather="user"
+                                    class="mr-3 h-4 w-4 text-slate-400 group-hover:text-blue-500 transition-colors"></i>
+                                Profile
+                            </a>
+                            <a href="/settings"
+                                class="group flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                                role="menuitem" tabindex="-1">
+                                <i data-feather="settings"
+                                    class="mr-3 h-4 w-4 text-slate-400 group-hover:text-blue-500 transition-colors"></i>
+                                Settings
+                            </a>
+                        </div>
 
-            document.addEventListener('mouseout', (e) => {
-                const target = e.target.closest('[data-tooltip]');
-                if (target && target === activeTarget) {
-                    hideTooltip();
-                }
-            });
+                        <div class="border-t border-slate-100 my-1"></div>
 
-            function hideTooltip() {
-                tooltip.style.opacity = '0';
-                activeTarget = null;
-                setTimeout(() => {
-                    if (!activeTarget) tooltip.classList.add('hidden');
-                }, 100);
-            }
+                        <div class="py-1">
+                            <a href="#" onclick="logoutUser(event)"
+                                class="group flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                                role="menuitem" tabindex="-1">
+                                <i data-feather="log-out"
+                                    class="mr-3 h-4 w-4 text-red-400 group-hover:text-red-500 transition-colors"></i>
+                                Sign out
+                            </a>
+                        </div>
+                    </div>
+                </div>
 
-            function updatePosition(target) {
-                if (!target) return;
-                const rect = target.getBoundingClientRect();
-                const tooltipRect = tooltip.getBoundingClientRect();
+                {% endblock %}
+            </div>
+        </header>
 
-                // Default to right side for sidebar items
-                let top = rect.top + (rect.height / 2) - (tooltipRect.height / 2);
-                let left = rect.right + 10;
+        <!-- Content Area -->
+        {% block main_wrapper %}
+        <main class="main-content">
+            {% block content %}{% endblock %}
+        </main>
+        {% endblock %}
+    </div>
+    {% endblock %}
 
-                // Adjust if off-screen vertically
-                if (top < 0) top = 10;
-                if (top + tooltipRect.height > window.innerHeight) top = window.innerHeight - tooltipRect.height - 10;
+    <!-- Main Script -->
+    <script src="/static/js/script.js"></script>
 
-                tooltip.style.top = `${top}px`;
-                tooltip.style.left = `${left}px`;
-            }
-
-            // Hide on scroll/resize
-            window.addEventListener('scroll', hideTooltip, true);
-            window.addEventListener('resize', hideTooltip);
-        })();
-
-        // Toast notification helper
-        function showToast(message, type = 'success') {
-            const container = document.getElementById('toast-container');
-            const toast = document.createElement('div');
-            toast.className = `toast toast-${type}`;
-            toast.textContent = message;
-            container.appendChild(toast);
-
-            setTimeout(() => {
-                toast.style.animation = 'slideIn 0.3s ease reverse';
-                setTimeout(() => toast.remove(), 300);
-            }, 3000);
-        }
-
-        // API helper
-        async function apiCall(url, options = {}) {
-            const defaults = {
-                credentials: 'same-origin'
-            };
-
-            // Only set Content-Type if not FormData
-            if (!options.isFormData) {
-                defaults.headers = {
-                    'Content-Type': 'application/json'
-                };
-            }
-
-            // Merge options
-            const finalOptions = { ...defaults, ...options };
-
-            // Remove isFormData flag before fetch
-            delete finalOptions.isFormData;
-
-            const response = await fetch(url, finalOptions);
-
-            if (response.status === 401) {
-                window.location.href = '/login';
-                return null;
-            }
-
-            return response;
-        }
-    </script>
-    <!-- xterm.js and addons -->
+    <!-- xterm.js -->
     <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
-    <!-- marked.js for Markdown rendering -->
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
+    <script src="/static/js/revive_widget.js?v=20260211a"></script>
+
+    <script>
+        async function apiCall(url, method = 'GET', data = null) {
+            const options = {
+                method,
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            };
+
+            if (data) {
+                options.body = JSON.stringify(data);
+            }
+
+            try {
+                const response = await fetch(url, options);
+
+                if (response.status === 401) {
+                    window.location.href = '/login';
+                    return null;
+                }
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`API call failed: ${response.status} ${response.statusText}`);
+                }
+
+                return await response.json();
+            } catch (error) {
+                console.error('API Call Error:', error);
+                throw error;
+            }
+        }
+
+        function toggleUserMenu() {
+            console.log('Debugging: Toggle User Menu Clicked');
+            const menu = document.getElementById('user-menu-dropdown');
+            const button = document.getElementById('user-menu-button');
+
+            if (!menu) {
+                console.error('Debugging: Menu element not found');
+                return;
+            }
+
+            if (menu.classList.contains('hidden')) {
+                console.log('Debugging: Opening menu');
+                menu.classList.remove('hidden');
+                // Small delay to allow display:block to apply before transition
+                requestAnimationFrame(() => {
+                    menu.classList.remove('scale-95', 'opacity-0');
+                    menu.classList.add('scale-100', 'opacity-100');
+                });
+            } else {
+                console.log('Debugging: Closing menu');
+                menu.classList.remove('scale-100', 'opacity-100');
+                menu.classList.add('scale-95', 'opacity-0');
+                setTimeout(() => {
+                    menu.classList.add('hidden');
+                }, 200);
+            }
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function (event) {
+            const menu = document.getElementById('user-menu-dropdown');
+            const button = document.getElementById('user-menu-button');
+
+            if (menu && !menu.classList.contains('hidden')) {
+                // If button is null (e.g. on dashboard with wrong ID), we can't check containment
+                // But if we clicked outside menu, we should close it.
+                // However, if we clicked the button, toggleUserMenu handles it.
+                // So we need to know if we clicked the button.
+
+                const clickedButton = button && button.contains(event.target);
+                if (!menu.contains(event.target) && !clickedButton) {
+                    toggleUserMenu();
+                }
+            }
+        });
+
+        async function logoutUser(e) {
+            e.preventDefault();
+            console.log('Debugging: Logging out');
+            const btn = e.currentTarget;
+
+            try {
+                // Minimal loading state
+                btn.style.opacity = '0.7';
+                btn.style.pointerEvents = 'none';
+
+                const response = await fetch('/api/auth/logout', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    window.location.href = '/login';
+                } else {
+                    console.error('Logout failed');
+                    window.location.href = '/login';
+                }
+            } catch (error) {
+                console.error('Logout error:', error);
+                window.location.href = '/login';
+            }
+        }
+    </script>
+
     {% block scripts %}{% endblock %}
-    {% block ai_agent %}
-    <!-- AI Agent Widget -->
-    <link href="/static/style_agent_widget.css" rel="stylesheet">
 
-    <!-- Client-Side Tools -->
-    <script src="/static/js/revive_tools/revive_registry.js"></script>
-    <script src="/static/js/revive_tools/revive_generic_tools.js"></script>
-    <script src="/static/js/revive_tools/revive_runbook_tools.js"></script>
-    <script src="/static/js/revive_tools/revive_alert_tools.js"></script>
-    <script src="/static/js/revive_tools/revive_prometheus_tools.js"></script>
-
-    <!-- Main Widget -->
-    <script src="/static/js/revive_widget.js"></script>
-    {% endblock %}
+    <script>
+        // Initialize Feather Icons
+        if (typeof feather !== 'undefined') {
+            feather.replace();
+        }
+    </script>
 </body>
 
 </html>

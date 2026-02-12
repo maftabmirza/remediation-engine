@@ -102,56 +102,13 @@ async def register(
     db: Session = Depends(get_db)
 ):
     """
-    Register a new user account.
-
-    Rate limited to prevent abuse (3 registrations per hour per IP).
+    Self-registration is disabled for security.
+    Users must be created by an admin via the Settings > Users panel.
     """
-    # Check if username already exists
-    existing_user = db.query(User).filter(User.username == user_data.username).first()
-    if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Username already registered"
-        )
-
-    # Check if email already exists (if provided)
-    if user_data.email:
-        existing_email = db.query(User).filter(User.email == user_data.email).first()
-        if existing_email:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Email already registered"
-            )
-
-    # Create new user
-    new_user = User(
-        username=user_data.username,
-        email=user_data.email,
-        full_name=user_data.full_name,
-        password_hash=get_password_hash(user_data.password),
-        role=user_data.role or "operator",  # Default role
-        is_active=True
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Self-registration is disabled. Contact an administrator to create an account."
     )
-
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
-
-    # Log the registration
-    audit = AuditLog(
-        user_id=new_user.id,
-        action="register",
-        resource_type="user",
-        resource_id=new_user.id,
-        ip_address=request.client.host if request.client else None
-    )
-    db.add(audit)
-    db.commit()
-
-    user_payload = UserResponse.model_validate(new_user)
-    user_payload.permissions = list(get_permissions_for_role(db, new_user.role))
-
-    return user_payload
 
 
 @router.post("/logout")

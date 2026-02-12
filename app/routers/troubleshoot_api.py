@@ -616,6 +616,31 @@ async def list_troubleshoot_providers(
         for p in providers
     ]
 
+@router.post("/sessions")
+async def create_troubleshoot_session(
+    request: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Create a new troubleshooting session."""
+    session = AISession(
+        user_id=current_user.id,
+        pillar="troubleshooting",
+        context_type="standalone",
+        title="Troubleshooting Session"
+    )
+    db.add(session)
+    db.commit()
+    db.refresh(session)
+    logger.info(f"Created new session {session.id} for user {current_user.username}")
+    
+    return {
+        "id": str(session.id),
+        "title": session.title,
+        "llm_provider_id": None
+    }
+
+
 @router.get("/sessions/standalone")
 async def get_standalone_session(
     db: Session = Depends(get_db),

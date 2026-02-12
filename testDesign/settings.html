@@ -1,0 +1,419 @@
+{% extends "base.html" %}
+
+{% set active_page = "settings" %}
+{% set current_path = "/settings" %}
+
+{% block header_title %}Settings{% endblock %}
+{% block header_subtitle %}Home / Settings{% endblock %}
+
+{% block title %}Settings | Enterprise AIOps{% endblock %}
+
+{% block content %}
+<main class="runbooks-main settings-page">
+
+    <!-- Section Dropdown + Title + Admin Badge -->
+    <div class="settings-header-bar">
+        <div class="settings-title-group">
+            <div class="section-selector">
+                <button class="section-dropdown-btn" id="sectionDropdownBtn">
+                    <i data-feather="layout"></i>
+                    <span id="currentSection">System Overview</span>
+                    <i data-feather="chevron-down" class="dropdown-arrow"></i>
+                </button>
+                {% include "partials/settings_nav_menu.html" %}
+            </div>
+        </div>
+        <span class="admin-badge"><i data-feather="user-check"></i> Admin</span>
+    </div>
+
+    <!-- Stats Row -->
+    <div class="settings-stats-row">
+        <div class="settings-stat-card">
+            <div class="stat-icon purple"><i data-feather="cpu"></i></div>
+            <div class="stat-body">
+                <span class="stat-label">LLM Providers</span>
+                <span class="stat-value">2</span>
+            </div>
+        </div>
+        <div class="settings-stat-card">
+            <div class="stat-icon green"><i data-feather="server"></i></div>
+            <div class="stat-body">
+                <span class="stat-label">Servers</span>
+                <span class="stat-value">1</span>
+            </div>
+        </div>
+        <div class="settings-stat-card">
+            <div class="stat-icon blue"><i data-feather="users"></i></div>
+            <div class="stat-body">
+                <span class="stat-label">Users</span>
+                <span class="stat-value">1</span>
+            </div>
+        </div>
+        <div class="settings-stat-card">
+            <div class="stat-icon teal"><i data-feather="user-check"></i></div>
+            <div class="stat-body">
+                <span class="stat-label">Active Users</span>
+                <span class="stat-value">1</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Access Control Section -->
+    <div class="settings-card">
+        <div class="settings-card-header">
+            <h2>Access Control</h2>
+            <p>Page-level permissions and current enforcement mode</p>
+        </div>
+        <div class="access-control-grid">
+            <div class="access-item">
+                <div class="access-info">
+                    <h3><i data-feather="users" style="width: 16px; height: 16px; color: #3b82f6;"></i> User Operations
+                    </h3>
+                    <p>Create/deactivate users, update roles. Admin-only.</p>
+                </div>
+                <button class="manage-btn">Manage</button>
+            </div>
+            <div class="access-item">
+                <div class="access-info">
+                    <h3><i data-feather="server" style="width: 16px; height: 16px; color: #16a34a;"></i> Provider
+                        Controls</h3>
+                    <p>Add/edit providers, rotate secrets, run health checks.</p>
+                </div>
+                <button class="manage-btn">Manage</button>
+            </div>
+            <div class="access-item">
+                <div class="access-info">
+                    <h3><i data-feather="lock" style="width: 16px; height: 16px; color: #f59e0b;"></i> Auth Settings
+                    </h3>
+                    <p>Configure LDAP/SAML, review audit events, test login.</p>
+                </div>
+                <button class="manage-btn">Manage</button>
+            </div>
+        </div>
+    </div>
+
+</main>
+
+<style>
+    /* Settings Page */
+    .settings-page {
+        gap: 24px;
+    }
+
+    /* Header Bar */
+    .settings-header-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+    }
+
+    .settings-title-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .section-selector {
+        position: relative;
+    }
+
+    .section-dropdown-btn {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 18px;
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        font-size: 16px;
+        font-weight: 700;
+        color: #0f172a;
+        cursor: pointer;
+        transition: all 0.15s;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    }
+
+    .section-dropdown-btn svg {
+        width: 20px;
+        height: 20px;
+        color: #3b82f6;
+    }
+
+    .section-dropdown-btn .dropdown-arrow {
+        width: 14px;
+        height: 14px;
+        color: #94a3b8;
+    }
+
+    .section-dropdown-btn:hover {
+        border-color: #cbd5e1;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    }
+
+    .section-dropdown-menu {
+        display: none;
+        position: absolute;
+        top: calc(100% + 8px);
+        left: 0;
+        width: 260px;
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        box-shadow: 0 12px 48px rgba(0, 0, 0, 0.15);
+        z-index: 100;
+        padding: 8px;
+        max-height: 400px;
+        overflow-y: auto;
+    }
+
+    .section-dropdown-menu.open {
+        display: block;
+    }
+
+    .dropdown-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 14px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 500;
+        color: #475569;
+        cursor: pointer;
+        text-decoration: none;
+        transition: all 0.12s;
+    }
+
+    .dropdown-item svg {
+        width: 16px;
+        height: 16px;
+    }
+
+    .dropdown-item:hover {
+        background: #f1f5f9;
+        color: #1e293b;
+    }
+
+    .dropdown-item.active {
+        background: #eff6ff;
+        color: #2563eb;
+    }
+
+    .dropdown-item.active svg {
+        color: #3b82f6;
+    }
+
+    .section-desc {
+        font-size: 13px;
+        color: #64748b;
+        margin: 0 0 0 4px;
+    }
+
+    .admin-badge {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 14px;
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #16a34a;
+    }
+
+    .admin-badge svg {
+        width: 16px;
+        height: 16px;
+    }
+
+    /* Stats Row */
+    .settings-stats-row {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 16px;
+    }
+
+    .settings-stat-card {
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 20px 24px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        transition: all 0.15s;
+    }
+
+    .settings-stat-card:hover {
+        border-color: #cbd5e1;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+    }
+
+    .stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .stat-icon svg {
+        width: 22px;
+        height: 22px;
+    }
+
+    .stat-icon.purple {
+        background: #f5f3ff;
+        color: #7c3aed;
+    }
+
+    .stat-icon.green {
+        background: #f0fdf4;
+        color: #16a34a;
+    }
+
+    .stat-icon.blue {
+        background: #eff6ff;
+        color: #2563eb;
+    }
+
+    .stat-icon.teal {
+        background: #f0fdfa;
+        color: #0d9488;
+    }
+
+    .stat-body {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .stat-label {
+        font-size: 12px;
+        color: #64748b;
+        font-weight: 500;
+    }
+
+    .stat-value {
+        font-size: 28px;
+        font-weight: 700;
+        color: #0f172a;
+        line-height: 1;
+    }
+
+
+    /* Settings Card */
+    .settings-card {
+        background: transparent;
+        border: none;
+        border-radius: 0;
+        overflow: visible;
+        box-shadow: none;
+    }
+
+    .settings-card-header {
+        padding: 0 0 16px 0;
+        border-bottom: none;
+        background: transparent;
+    }
+
+    .settings-card-header h2 {
+        font-size: 18px;
+        font-weight: 700;
+        color: #0f172a;
+        margin: 0;
+    }
+
+    .settings-card-header p {
+        font-size: 14px;
+        color: #64748b;
+        margin: 6px 0 0;
+    }
+
+    /* Access Control Grid */
+    .access-control-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 20px;
+        background: transparent;
+    }
+
+    .access-item {
+        background: white;
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        gap: 20px;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+    }
+
+    .access-item:hover {
+        border-color: #cbd5e1;
+        transform: translateY(-2px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+
+    .access-info h3 {
+        font-size: 15px;
+        font-weight: 600;
+        color: #0f172a;
+        margin: 0 0 8px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .access-info p {
+        font-size: 13px;
+        color: #64748b;
+        margin: 0;
+        line-height: 1.6;
+    }
+
+    .manage-btn {
+        align-self: flex-start;
+        padding: 8px 16px;
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #475569;
+        cursor: pointer;
+        transition: all 0.15s;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    }
+
+    .manage-btn:hover {
+        border-color: #cbd5e1;
+        color: #1e293b;
+        background: #f8fafc;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+</style>
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+    feather.replace();
+
+    const dropdownBtn = document.getElementById('sectionDropdownBtn');
+    const dropdownMenu = document.getElementById('sectionDropdownMenu');
+
+    dropdownBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        dropdownMenu.classList.toggle('open');
+    });
+
+    document.addEventListener('click', function () {
+        dropdownMenu.classList.remove('open');
+    });
+</script>
+{% endblock %}

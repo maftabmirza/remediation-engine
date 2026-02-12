@@ -9,9 +9,18 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('RE-VIVE: DOMContentLoaded fired');
     console.log('RE-VIVE: window.self === window.top:', window.self === window.top);
 
-    // Inject Widget HTML if not present
-    if (!document.getElementById('agent-widget')) {
-        console.log('RE-VIVE: Widget HTML not found, injecting...');
+    // Remove any pre-existing widget injected by the base revive_widget.js
+    // (that script runs first from base.html and creates a grid-based widget
+    //  which conflicts with this fixed-position Grafana widget)
+    const existingWidget = document.getElementById('agent-widget');
+    if (existingWidget) {
+        console.log('RE-VIVE Grafana: Removing pre-existing base widget to avoid conflict');
+        existingWidget.remove();
+    }
+
+    // Inject Grafana-specific Widget HTML
+    {
+        console.log('RE-VIVE: Injecting Grafana widget HTML...');
         const widgetHTML = `
             <div id="agent-widget">
                 <div id="agent-window">
@@ -45,8 +54,6 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
         document.body.insertAdjacentHTML('beforeend', widgetHTML);
         console.log('RE-VIVE: Widget HTML injected');
-    } else {
-        console.log('RE-VIVE: Widget HTML already exists');
     }
 
     const agentWindow = document.getElementById('agent-window');

@@ -1,4 +1,4 @@
-{% extends "layout.html" %}
+{% extends "base.html" %}
 {% set active_page = 'analytics' %}
 
 {% block title %}Analytics - AIOps Platform{% endblock %}
@@ -48,6 +48,7 @@
         <i class="fas fa-sync-alt text-xs"></i>
     </button>
 </div>
+{{ super() }}
 {% endblock %}
 
 {% block content %}

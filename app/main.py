@@ -640,12 +640,10 @@ async def register_page(
     current_user: User = Depends(get_current_user_optional)
 ):
     """
-    Registration page
+    Registration page — disabled for security.
+    Users must be created by an admin via Settings > Users.
     """
-    if current_user:
-        return RedirectResponse(url="/", status_code=302)
-
-    return templates.TemplateResponse("register.html", {"request": request})
+    return RedirectResponse(url="/login", status_code=302)
 
 
 @app.get("/alerts", response_class=HTMLResponse)
@@ -885,7 +883,8 @@ async def pii_detection_page(
     return templates.TemplateResponse("pii_detection.html", {
         "request": request,
         "user": current_user,
-        "active_page": "pii_detection"
+        "active_page": "pii_detection",
+        "permissions": list(user_permissions)
     })
 
 
@@ -908,7 +907,8 @@ async def pii_logs_page(
     return templates.TemplateResponse("pii_logs.html", {
         "request": request,
         "user": current_user,
-        "active_page": "pii_logs"
+        "active_page": "pii_logs",
+        "permissions": list(user_permissions)
     })
 
 
@@ -1275,6 +1275,9 @@ async def grafana_advanced_page(
     response.headers["X-Frame-Options"] = "SAMEORIGIN"
     origin = str(request.base_url).rstrip("/")
     response.headers["Content-Security-Policy"] = f"frame-src 'self' {origin} http://grafana:3000"
+    # Prevent browser caching stale template HTML
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
     return response
 
 
@@ -1287,6 +1290,58 @@ async def grafana_diagnostic_page(request: Request):
     return templates.TemplateResponse("grafana_diagnostic.html", {
         "request": request
     })
+
+
+# ============== Grafana Debug Steps (temporary) ==============
+
+@app.get("/grafana-debug", response_class=HTMLResponse)
+async def grafana_debug_index(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """Landing page listing all grafana debug steps."""
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+    return templates.TemplateResponse("grafana_debug_index.html", {
+        "request": request,
+        "user": current_user,
+        "active_page": "grafana-advanced"
+    })
+
+
+@app.get("/grafana-debug/step{step}", response_class=HTMLResponse)
+async def grafana_debug_page(
+    step: int,
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    Step-by-step debug pages for /grafana-advanced blank page issue.
+    Step 1: Bare HTML (no CSS, no iframe, no JS)
+    Step 2: + Grafana CSS container
+    Step 3: + iframe (no widget JS)
+    Step 4: + widget JS (both revive_widget.js and revive_widget_grafana.js)
+    Step 5: Full page (identical to grafana_advanced.html)
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    if step < 1 or step > 5:
+        return RedirectResponse(url="/grafana-debug/step1", status_code=302)
+
+    template_name = f"grafana_debug_step{step}.html"
+    response = templates.TemplateResponse(template_name, {
+        "request": request,
+        "user": current_user,
+        "active_page": "grafana-advanced"
+    })
+    # Same headers as grafana-advanced to match conditions
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    origin = str(request.base_url).rstrip("/")
+    response.headers["Content-Security-Policy"] = f"frame-src 'self' {origin} http://grafana:3000"
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    return response
 
 
 # ============== Prometheus View Page ==============

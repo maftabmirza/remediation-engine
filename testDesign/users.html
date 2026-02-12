@@ -1,0 +1,583 @@
+{% extends "base.html" %}
+
+{% set active_page = "settings" %}
+{% set current_path = "/users" %}
+
+{% block header_title %}Settings{% endblock %}
+{% block header_subtitle %}Home / Settings / Users{% endblock %}
+
+{% block title %}Users | Enterprise AIOps{% endblock %}
+
+{% block content %}
+<main class="runbooks-main settings-page">
+
+    <!-- Section Dropdown + Title + Admin Badge -->
+    <div class="settings-header-bar">
+        <div class="settings-title-group">
+            <div class="section-selector">
+                <button class="section-dropdown-btn" id="sectionDropdownBtn">
+                    <i data-feather="users"></i>
+                    <span id="currentSection">User Management</span>
+                    <i data-feather="chevron-down" class="dropdown-arrow"></i>
+                </button>
+                {% include "partials/settings_nav_menu.html" %}
+            </div>
+        </div>
+        <button class="add-user-btn">
+            <i data-feather="plus"></i>
+            <span>Add User</span>
+        </button>
+    </div>
+
+    <!-- Users Content -->
+    <div class="users-card">
+
+        <!-- Filters Bar -->
+        <div class="table-filters-bar">
+            <div class="search-wrapper">
+                <i data-feather="search"></i>
+                <input type="text" placeholder="Search username, name, or email...">
+            </div>
+
+            <div class="filter-group">
+                <div class="filter-dropdown">
+                    <span>All roles</span>
+                    <i data-feather="chevron-down"></i>
+                </div>
+                <div class="filter-dropdown">
+                    <span>Any status</span>
+                    <i data-feather="chevron-down"></i>
+                </div>
+                <div class="filter-dropdown">
+                    <span>Newest first</span>
+                    <i data-feather="chevron-down"></i>
+                </div>
+            </div>
+
+            <div class="rows-selector">
+                <span>Rows</span>
+                <select>
+                    <option>10</option>
+                    <option>20</option>
+                    <option>50</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Meta Bar -->
+        <div class="table-meta-bar">
+            <span class="showing-text">Showing <strong>1-1</strong> of <strong>1</strong> users</span>
+            <span class="help-text">Search, filter, and paginate large directories without leaving this view.</span>
+        </div>
+
+        <!-- Data Table -->
+        <div class="users-table-wrapper">
+            <table class="users-table">
+                <thead>
+                    <tr>
+                        <th width="25%">USER</th>
+                        <th width="20%">CONTACT</th>
+                        <th width="15%">ROLE</th>
+                        <th width="10%">STATUS</th>
+                        <th width="12%">CREATED</th>
+                        <th width="10%">LAST LOGIN</th>
+                        <th width="8%" class="text-right">ACTIONS</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>
+                            <div class="user-info-cell">
+                                <div class="avatar-circle">
+                                    <i data-feather="user"></i>
+                                </div>
+                                <span class="username">admin</span>
+                            </div>
+                        </td>
+                        <td class="text-muted">No email</td>
+                        <td>
+                            <span class="role-badge admin">
+                                <i data-feather="crown"></i>
+                                ADMIN
+                            </span>
+                        </td>
+                        <td>
+                            <span class="status-badge active">
+                                <i data-feather="check-circle"></i>
+                                Active
+                            </span>
+                        </td>
+                        <td class="text-secondary">Jan 22, 2026</td>
+                        <td class="text-secondary">2h ago</td>
+                        <td class="text-right">
+                            <button class="action-icon-btn">
+                                <i data-feather="edit-2"></i>
+                            </button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+
+</main>
+
+<style>
+    /* Settings/Users Shared Layout */
+    .settings-page {
+        gap: 24px;
+        display: flex;
+        flex-direction: column;
+        padding-bottom: 40px;
+    }
+
+    /* Header Bar Reused but with tweaks */
+    .settings-header-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+    }
+
+    .settings-title-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .section-selector {
+        position: relative;
+    }
+
+    .section-dropdown-btn {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 18px;
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        font-size: 16px;
+        font-weight: 700;
+        color: #0f172a;
+        cursor: pointer;
+        transition: all 0.15s;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    }
+
+    .section-dropdown-btn:hover {
+        border-color: #cbd5e1;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    }
+
+    .section-dropdown-btn svg {
+        width: 20px;
+        height: 20px;
+        color: #3b82f6;
+    }
+
+    .section-dropdown-btn .dropdown-arrow {
+        width: 14px;
+        height: 14px;
+        color: #94a3b8;
+    }
+
+    .section-dropdown-menu {
+        display: none;
+        position: absolute;
+        top: calc(100% + 8px);
+        left: 0;
+        width: 260px;
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        box-shadow: 0 12px 48px rgba(0, 0, 0, 0.15);
+        z-index: 100;
+        padding: 8px;
+    }
+
+    .section-dropdown-menu.open {
+        display: block;
+    }
+
+    .dropdown-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 14px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 500;
+        color: #475569;
+        cursor: pointer;
+        text-decoration: none;
+        transition: all 0.12s;
+    }
+
+    .dropdown-item svg {
+        width: 16px;
+        height: 16px;
+    }
+
+    .dropdown-item:hover {
+        background: #f1f5f9;
+        color: #1e293b;
+    }
+
+    .dropdown-item.active {
+        background: #eff6ff;
+        color: #2563eb;
+    }
+
+    .dropdown-item.active svg {
+        color: #3b82f6;
+    }
+
+    .section-desc {
+        font-size: 13px;
+        color: #64748b;
+        margin: 0 0 0 4px;
+    }
+
+    .add-user-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 20px;
+        background: #3b82f6;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s;
+        box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
+    }
+
+    .add-user-btn:hover {
+        background: #2563eb;
+        transform: translateY(-1px);
+    }
+
+    .add-user-btn svg {
+        width: 16px;
+        height: 16px;
+    }
+
+    /* Users Card Container */
+    .users-card {
+        background: white;
+        /* Dark background as requested in screenshot? No, user said "reference", implied current theme. */
+        /* Wait, screenshot shows DARK MODE. But current theme is LIGHT (from settings.html). 
+           I should stick to the current theme (Light/White) to be consistent with settings.html.
+           If user wants dark, I'd need to change everything. I'll stick to established Light theme.
+           Wait, step 1707 screenshot is definitely dark mode.
+           User request "Create users page" usually implies "like the screenshot".
+           HOWEVER, `settings.html` I just made is LIGHT.
+           I will build LIGHT theme version of that layout. */
+        background: #1e1e1e;
+        /* Actually, let's look at colors. References are all light theme recently.
+        The screenshot shows a dark theme UI. But settings.html is white.
+        I will make it WHITE card on light grey background to match Settings. */
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+    }
+
+    /* Filters Bar */
+    .table-filters-bar {
+        padding: 16px 24px;
+        border-bottom: 1px solid #f1f5f9;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+
+    .search-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 8px 12px;
+        width: 320px;
+        transition: all 0.2s;
+    }
+
+    .search-wrapper:focus-within {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+        background: white;
+    }
+
+    .search-wrapper svg {
+        width: 16px;
+        height: 16px;
+        color: #94a3b8;
+    }
+
+    .search-wrapper input {
+        border: none;
+        background: transparent;
+        outline: none;
+        font-size: 13px;
+        color: #0f172a;
+        width: 100%;
+    }
+
+    .filter-group {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex: 1;
+    }
+
+    .filter-dropdown {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 500;
+        color: #475569;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+
+    .filter-dropdown:hover {
+        background: white;
+        border-color: #cbd5e1;
+        color: #1e293b;
+    }
+
+    .filter-dropdown svg {
+        width: 14px;
+        height: 14px;
+        color: #94a3b8;
+    }
+
+    .rows-selector {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        color: #64748b;
+    }
+
+    .rows-selector select {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 6px;
+        font-size: 13px;
+        color: #0f172a;
+        outline: none;
+        cursor: pointer;
+    }
+
+    /* Meta Bar */
+    .table-meta-bar {
+        padding: 12px 24px;
+        background: #f8fafc;
+        /* Slightly darker than card body */
+        border-bottom: 1px solid #f1f5f9;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 12px;
+    }
+
+    .showing-text {
+        color: #334155;
+    }
+
+    .showing-text strong {
+        color: #0f172a;
+        font-weight: 600;
+    }
+
+    .help-text {
+        color: #64748b;
+    }
+
+    /* Table */
+    .users-table-wrapper {
+        width: 100%;
+        overflow-x: auto;
+    }
+
+    .users-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .users-table th {
+        padding: 12px 24px;
+        background: #f1f5f9;
+        /* Header bg */
+        text-align: left;
+        font-size: 11px;
+        font-weight: 600;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .users-table td {
+        padding: 14px 24px;
+        border-bottom: 1px solid #f1f5f9;
+        font-size: 13px;
+        color: #0f172a;
+        vertical-align: middle;
+    }
+
+    .users-table tr:last-child td {
+        border-bottom: none;
+    }
+
+    .users-table tr:hover td {
+        background: #f8fafc;
+    }
+
+    .user-info-cell {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .avatar-circle {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: #e2e8f0;
+        /* Default avatar bg */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #64748b;
+    }
+
+    .avatar-circle.orange {
+        background: #ffedd5;
+        color: #c2410c;
+    }
+
+    .avatar-circle svg {
+        width: 16px;
+        height: 16px;
+    }
+
+    .username {
+        font-weight: 600;
+        color: #0f172a;
+    }
+
+    .text-muted {
+        color: #94a3b8;
+        font-style: italic;
+    }
+
+    .text-secondary {
+        color: #64748b;
+    }
+
+    .text-right {
+        text-align: right;
+    }
+
+    /* Badges */
+    .role-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+
+    .role-badge.admin {
+        background: #4f46e5;
+        color: white;
+    }
+
+    /* Dark blue/purple for admin */
+    .role-badge svg {
+        width: 12px;
+        height: 12px;
+    }
+
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 500;
+    }
+
+    .status-badge.active {
+        background: #dcfce7;
+        color: #16a34a;
+    }
+
+    .status-badge svg {
+        width: 12px;
+        height: 12px;
+    }
+
+    .action-icon-btn {
+        background: #f0f9ff;
+        border: 1px solid #bae6fd;
+        border-radius: 6px;
+        width: 32px;
+        height: 32px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #0284c7;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+
+    .action-icon-btn:hover {
+        border-color: #0ea5e9;
+        color: white;
+        background: #0ea5e9;
+        box-shadow: 0 2px 4px rgba(14, 165, 233, 0.2);
+    }
+
+    .action-icon-btn svg {
+        width: 14px;
+        height: 14px;
+    }
+</style>
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+    feather.replace();
+
+    const dropdownBtn = document.getElementById('sectionDropdownBtn');
+    const dropdownMenu = document.getElementById('sectionDropdownMenu');
+
+    dropdownBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        dropdownMenu.classList.toggle('open');
+    });
+
+    document.addEventListener('click', function () {
+        dropdownMenu.classList.remove('open');
+    });
+</script>
+{% endblock %}

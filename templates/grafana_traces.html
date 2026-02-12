@@ -1,4 +1,4 @@
-{% extends "layout.html" %}
+{% extends "base.html" %}
 
 {% block title %}Traces - Tempo{% endblock %}
 
@@ -6,14 +6,14 @@
 <style>
     .grafana-container {
         position: fixed !important;
-        top: 64px !important;
-        /* Leave room for top navbar */
-        left: 80px !important;
-        /* Sidebar width (w-20 is 5rem=80px) */
+        top: 48px !important;
+        /* Leave room for top navbar (matches grid-template-rows: 48px) */
+        left: 48px !important;
+        /* Sidebar collapsed width (matches grid-template-columns: 48px in .collapsed) */
         right: 0 !important;
         width: auto !important;
 
-        height: calc(100% - 64px) !important;
+        height: calc(100vh - 48px) !important;
         /* Subtract navbar height */
         bottom: 0 !important;
         overflow: hidden !important;
@@ -22,10 +22,9 @@
         z-index: 10;
     }
 
-    /* Adjust when sidebar is expanded (w-64 is 16rem=256px) */
-    body:has(.sidebar.w-64) .grafana-container {
-        left: 256px !important;
-        width: calc(100% - 256px) !important;
+    /* Adjust when sidebar is expanded (170px matches grid-template-columns: 170px) */
+    .app-container:not(.collapsed) .grafana-container {
+        left: 170px !important;
     }
 
     .grafana-container iframe {
@@ -68,18 +67,32 @@
         <div>Loading Tempo Traces...</div>
     </div>
     <iframe id="grafana-iframe"
-        src="/grafana/explore?orgId=1&left=%7B%22datasource%22:%22Tempo%22,%22queries%22:%5B%7B%22refId%22:%22A%22,%22queryType%22:%22search%22%7D%5D,%22range%22:%7B%22from%22:%22now-1h%22,%22to%22:%22now%22%7D%7D&kiosk"
-        sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox"
-        onload="document.getElementById('loading').style.display='none';">
+        src="/grafana/explore?orgId=1&left=%7B%22datasource%22:%22Tempo%22,%22queries%22:%5B%7B%22refId%22:%22A%22,%22queryType%22:%22search%22%7D%5D,%22range%22:%7B%22from%22:%22now-1h%22,%22to%22:%22now%22%7D%7D&kiosk">
     </iframe>
 </div>
 
 <script>
     // Handle iframe loading errors
     const iframe = document.getElementById('grafana-iframe');
+    const loading = document.getElementById('loading');
+    const timeoutId = setTimeout(function () {
+        if (loading) {
+            loading.innerHTML = '<div style="color: #f44;">Grafana did not load in time. Check if the proxy is reachable at <a href="/grafana/" target="_blank" style="color:#7aa2ff; text-decoration:underline;">/grafana/</a>.</div>';
+        }
+    }, 8000);
+
+    iframe.onload = function () {
+        clearTimeout(timeoutId);
+        if (loading) {
+            loading.style.display = 'none';
+        }
+    };
+
     iframe.onerror = function () {
-        const loading = document.getElementById('loading');
-        loading.innerHTML = '<div style="color: #f44;">Failed to load Grafana. Please check if the service is running.</div>';
+        clearTimeout(timeoutId);
+        if (loading) {
+            loading.innerHTML = '<div style="color: #f44;">Failed to load Grafana. Please check if the service is running.</div>';
+        }
     };
 
     // Refresh page on visibility change (helps with SSO session)

@@ -1,4 +1,4 @@
-{% extends "layout.html" %}
+{% extends "base.html" %}
 {% set active_page = 'changes' %}
 
 {% block title %}Change Correlation - AIOps Platform{% endblock %}
@@ -37,6 +37,7 @@
         <span>Configure ITSM</span>
     </button>
 </div>
+{{ super() }}
 {% endblock %}
 
 {% block content %}

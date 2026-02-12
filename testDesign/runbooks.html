@@ -1,0 +1,259 @@
+{% extends "base.html" %}
+
+{% set active_page = "runbooks" %}
+{% set current_path = "/runbooks" %}
+
+{% block header_title %}Runbook Library{% endblock %}
+{% block header_subtitle %}Home / Runbooks{% endblock %}
+
+{% block title %}Runbooks | Enterprise AIOps{% endblock %}
+
+{% block header_extra %}
+<div class="header-actions">
+    <button class="header-action-btn">
+        <i data-feather="grid" style="width: 14px; height: 14px;"></i>
+        <span>Templates</span>
+    </button>
+    <button class="header-action-btn">
+        <i data-feather="upload" style="width: 14px; height: 14px;"></i>
+        <span>Import</span>
+    </button>
+    <button class="header-action-btn primary">
+        <i data-feather="plus" style="width: 14px; height: 14px;"></i>
+        <span>Create</span>
+    </button>
+</div>
+{% endblock %}
+
+{% block content %}
+<main class="runbooks-main">
+    <!-- Filters Row -->
+    <div class="rb-filters">
+        <!-- Status Filter -->
+        <div class="custom-dropdown rb-filter" id="statusFilter">
+            <div class="dropdown-trigger">
+                <span class="dropdown-text">All Status</span>
+                <i data-feather="chevron-down" class="dropdown-icon"></i>
+            </div>
+            <div class="dropdown-menu">
+                <div class="dropdown-item selected" data-value="all">All Status</div>
+                <div class="dropdown-item" data-value="active">Active</div>
+                <div class="dropdown-item" data-value="draft">Draft</div>
+            </div>
+        </div>
+
+        <!-- Category Filter -->
+        <div class="custom-dropdown rb-filter" id="categoryFilter">
+            <div class="dropdown-trigger">
+                <span class="dropdown-text">All Categories</span>
+                <i data-feather="chevron-down" class="dropdown-icon"></i>
+            </div>
+            <div class="dropdown-menu">
+                <div class="dropdown-item selected" data-value="all">All Categories</div>
+                <div class="dropdown-item" data-value="infrastructure">Infrastructure</div>
+                <div class="dropdown-item" data-value="application">Application</div>
+                <div class="dropdown-item" data-value="diagnostics">Diagnostics</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- KPI Cards -->
+    <div class="rb-kpi-row">
+        <div class="rb-kpi-card">
+            <div class="rb-kpi-icon blue">
+                <i data-feather="book-open"></i>
+            </div>
+            <div class="rb-kpi-content">
+                <span class="rb-kpi-label">Total Runbooks</span>
+                <span class="rb-kpi-value">3</span>
+            </div>
+        </div>
+        <div class="rb-kpi-card">
+            <div class="rb-kpi-icon green">
+                <i data-feather="check-circle"></i>
+            </div>
+            <div class="rb-kpi-content">
+                <span class="rb-kpi-label">Active</span>
+                <span class="rb-kpi-value">1</span>
+            </div>
+        </div>
+        <div class="rb-kpi-card">
+            <div class="rb-kpi-icon amber">
+                <i data-feather="edit-3"></i>
+            </div>
+            <div class="rb-kpi-content">
+                <span class="rb-kpi-label">Drafts</span>
+                <span class="rb-kpi-value">2</span>
+            </div>
+        </div>
+        <div class="rb-kpi-card">
+            <div class="rb-kpi-icon purple">
+                <i data-feather="play"></i>
+            </div>
+            <div class="rb-kpi-content">
+                <span class="rb-kpi-label">Executions Today</span>
+                <span class="rb-kpi-value">25</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Data Table -->
+    <div class="rb-table-container">
+        <table class="rb-table">
+            <thead>
+                <tr>
+                    <th class="rb-th-check"><input type="checkbox" class="rb-checkbox"></th>
+                    <th>Name</th>
+                    <th>Status</th>
+                    <th>Category</th>
+                    <th>Steps</th>
+                    <th>Triggers</th>
+                    <th>Created</th>
+                    <th>Updated</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><input type="checkbox" class="rb-checkbox"></td>
+                    <td>
+                        <div class="rb-name-cell">
+                            <i data-feather="file-text" class="rb-icon blue"></i>
+                            <div class="rb-name-info">
+                                <span class="rb-name">[t-aiops-01] Disk Space Quick Check</span>
+                                <span class="rb-desc">Demo: checks disk usage and highlights largest di...</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td><span class="rb-badge draft">DRAFT</span></td>
+                    <td><span class="rb-category infrastructure">INFRASTRUCTURE</span></td>
+                    <td>2</td>
+                    <td>0</td>
+                    <td>Jan 25, 2026</td>
+                    <td>Jan 25, 2026</td>
+                    <td class="rb-actions">
+                        <button class="rb-action-btn edit" title="Edit"><i data-feather="edit-2"></i></button>
+                        <button class="rb-action-btn duplicate" title="Duplicate"><i data-feather="copy"></i></button>
+                        <button class="rb-action-btn run" title="Run"><i data-feather="play"></i></button>
+                        <button class="rb-action-btn delete" title="Delete"><i data-feather="trash-2"></i></button>
+                    </td>
+                </tr>
+                <tr>
+                    <td><input type="checkbox" class="rb-checkbox"></td>
+                    <td>
+                        <div class="rb-name-cell">
+                            <i data-feather="file-text" class="rb-icon purple"></i>
+                            <div class="rb-name-info">
+                                <span class="rb-name">[t-aiops-01] Host Diagnostics Bundle</span>
+                                <span class="rb-desc">Demo: collects basic host diagnostics (read-only).</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td><span class="rb-badge draft">DRAFT</span></td>
+                    <td><span class="rb-category diagnostics">DIAGNOSTICS</span></td>
+                    <td>3</td>
+                    <td>0</td>
+                    <td>Jan 25, 2026</td>
+                    <td>Jan 25, 2026</td>
+                    <td class="rb-actions">
+                        <button class="rb-action-btn edit" title="Edit"><i data-feather="edit-2"></i></button>
+                        <button class="rb-action-btn duplicate" title="Duplicate"><i data-feather="copy"></i></button>
+                        <button class="rb-action-btn run" title="Run"><i data-feather="play"></i></button>
+                        <button class="rb-action-btn delete" title="Delete"><i data-feather="trash-2"></i></button>
+                    </td>
+                </tr>
+                <tr>
+                    <td><input type="checkbox" class="rb-checkbox"></td>
+                    <td>
+                        <div class="rb-name-cell">
+                            <i data-feather="settings" class="rb-icon green"></i>
+                            <div class="rb-name-info">
+                                <span class="rb-name">[t-aiops-01] Web Service Restart (Apache/Nginx)</span>
+                                <span class="rb-desc">Demo: checks service status then restarts Apache...</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td><span class="rb-badge active">ACTIVE</span></td>
+                    <td><span class="rb-category application">APPLICATION</span></td>
+                    <td>3</td>
+                    <td>1</td>
+                    <td>Jan 25, 2026</td>
+                    <td>Jan 25, 2026</td>
+                    <td class="rb-actions">
+                        <button class="rb-action-btn edit" title="Edit"><i data-feather="edit-2"></i></button>
+                        <button class="rb-action-btn duplicate" title="Duplicate"><i data-feather="copy"></i></button>
+                        <button class="rb-action-btn run" title="Run"><i data-feather="play"></i></button>
+                        <button class="rb-action-btn delete" title="Delete"><i data-feather="trash-2"></i></button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="rb-pagination">
+        <span class="rb-page-info">Showing 1-3 of 3 runbooks</span>
+        <div class="rb-page-controls">
+            <button class="rb-page-btn" disabled><i data-feather="chevrons-left"></i></button>
+            <button class="rb-page-btn" disabled><i data-feather="chevron-left"></i></button>
+            <span class="rb-page-current">Page 1 of 1</span>
+            <button class="rb-page-btn" disabled><i data-feather="chevron-right"></i></button>
+            <button class="rb-page-btn" disabled><i data-feather="chevrons-right"></i></button>
+            <div class="custom-dropdown small" id="pageSize">
+                <div class="dropdown-trigger">
+                    <span class="dropdown-text">25 per page</span>
+                    <i data-feather="chevron-down" class="dropdown-icon"></i>
+                </div>
+                <div class="dropdown-menu up">
+                    <div class="dropdown-item selected" data-value="25">25 per page</div>
+                    <div class="dropdown-item" data-value="50">50 per page</div>
+                    <div class="dropdown-item" data-value="100">100 per page</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+    // Initialize Feather icons
+    feather.replace();
+
+    // Dropdown Logic
+    document.querySelectorAll('.custom-dropdown').forEach(dropdown => {
+        const trigger = dropdown.querySelector('.dropdown-trigger');
+        const menu = dropdown.querySelector('.dropdown-menu');
+        const items = dropdown.querySelectorAll('.dropdown-item');
+        const textDisplay = dropdown.querySelector('.dropdown-text');
+
+        // Toggle dropdown
+        trigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            // Close all other dropdowns
+            document.querySelectorAll('.custom-dropdown').forEach(d => {
+                if (d !== dropdown) d.classList.remove('open');
+            });
+            dropdown.classList.toggle('open');
+        });
+
+        // Select item
+        items.forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.stopPropagation();
+                items.forEach(i => i.classList.remove('selected'));
+                item.classList.add('selected');
+                textDisplay.textContent = item.textContent;
+                dropdown.classList.remove('open');
+            });
+        });
+    });
+
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', () => {
+        document.querySelectorAll('.custom-dropdown').forEach(d => {
+            d.classList.remove('open');
+        });
+    });
+</script>
+{% endblock %}

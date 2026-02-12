@@ -1,7 +1,17 @@
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Skip widget injection on pages that have their own dedicated RE-VIVE widget
+    // (grafana-advanced and prometheus-view load revive_widget_grafana.js instead)
+    const currentPath = window.location.pathname;
+    if (currentPath === '/grafana-advanced' || currentPath === '/prometheus-view'
+        || currentPath.startsWith('/grafana-debug/')) {
+        console.log('[RE-VIVE base] Skipping — dedicated widget JS handles this page:', currentPath);
+        return;
+    }
+
     // Inject Widget HTML if not present
-    if (!document.getElementById('agent-widget')) {
+    const appContainer = document.querySelector('.app-container');
+    if (appContainer && !document.getElementById('agent-widget')) {
         const widgetHTML = `
             <div id="agent-widget">
                 <div id="agent-window">
@@ -31,12 +41,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                     </div>
                 </div>
-                <button id="agent-fab">
-                    <i class="fas fa-robot text-white text-xl"></i>
-                </button>
             </div>
         `;
-        document.body.insertAdjacentHTML('beforeend', widgetHTML);
+        appContainer.insertAdjacentHTML('beforeend', widgetHTML);
     }
 
     const fab = document.getElementById('agent-fab');
@@ -53,17 +60,12 @@ document.addEventListener('DOMContentLoaded', () => {
     function setOpen(nextOpen) {
         isOpen = !!nextOpen;
         if (isOpen) {
-            agentWindow.classList.add('visible');
-            document.body.classList.add('ai-helper-open');
-            // Allow clicks through only when panel is open
-            const widget = document.getElementById('agent-widget');
-            if (widget) widget.style.pointerEvents = 'auto';
+            appContainer.classList.add('ai-open');
+            // agentWindow.classList.add('visible'); // Handled by CSS
             setTimeout(() => input?.focus(), 0);
         } else {
-            agentWindow.classList.remove('visible');
-            document.body.classList.remove('ai-helper-open');
-            const widget = document.getElementById('agent-widget');
-            if (widget) widget.style.pointerEvents = 'none';
+            appContainer.classList.remove('ai-open');
+            // agentWindow.classList.remove('visible'); // Handled by CSS
         }
     }
 
@@ -758,7 +760,11 @@ document.addEventListener('DOMContentLoaded', () => {
     function initResize(e) {
         isResizing = true;
         startX = e.clientX;
-        startWidth = parseInt(document.defaultView.getComputedStyle(agentWindow).width, 10);
+        // startWidth = parseInt(document.defaultView.getComputedStyle(agentWindow).width, 10);
+        // Instead of element width, we need the current variable or column width
+        const rootStyles = getComputedStyle(document.documentElement);
+        const currentVal = rootStyles.getPropertyValue('--ai-helper-width').trim();
+        startWidth = parseInt(currentVal, 10) || 380; // Default fallback
 
         document.documentElement.addEventListener('mousemove', doResize);
         document.documentElement.addEventListener('mouseup', stopResize);
@@ -766,6 +772,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Prevent selection during resize
         document.body.style.userSelect = 'none';
         agentWindow.style.transition = 'none'; // Disable transition during drag
+        appContainer.style.transition = 'none'; // Disable grid transition
     }
 
     function doResize(e) {
@@ -776,10 +783,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const newWidth = startWidth + (startX - e.clientX);
 
         // Min width 300px, Max width 800px or window width - 40px
-        const maxWidth = Math.min(800, window.innerWidth - 40);
+        const maxWidth = Math.min(800, window.innerWidth - 300);
 
         if (newWidth >= 300 && newWidth <= maxWidth) {
-            agentWindow.style.width = newWidth + 'px';
+            // agentWindow.style.width = newWidth + 'px';
             document.documentElement.style.setProperty('--ai-helper-width', `${newWidth}px`);
         }
     }
@@ -790,6 +797,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.documentElement.removeEventListener('mouseup', stopResize);
         document.body.style.userSelect = '';
         agentWindow.style.transition = ''; // Restore transition
+        appContainer.style.transition = ''; // Restore grid transition
     }
 
 });

@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% set active_page = 'grafana-advanced' %}
+
+{% block title %}Debug Step 2 — Grafana CSS Only{% endblock %}
+
+{% block content %}
+<style>
+    .grafana-container {
+        position: fixed !important;
+        top: 48px !important;
+        left: 48px !important;
+        right: 0 !important;
+        width: auto !important;
+        height: calc(100vh - 48px) !important;
+        bottom: 0 !important;
+        overflow: hidden !important;
+        background: #111 !important;
+        transition: left 0.3s ease, right 0.3s ease;
+        z-index: 10;
+    }
+
+    .app-container:not(.collapsed) .grafana-container {
+        left: 170px !important;
+    }
+</style>
+
+<div class="grafana-container">
+    <div style="padding: 40px; color: #fff;">
+        <h1 style="font-size: 28px; margin-bottom: 16px;">🟢 Step 2 — CSS Container Active</h1>
+        <p style="font-size: 16px; color: #ccc;">If you can see this text inside a <strong>dark fixed container</strong> — the Grafana CSS is fine.</p>
+        <hr style="border-color: #333; margin: 24px 0;">
+        <ul style="font-size: 14px; color: #aaa; line-height: 2;">
+            <li>✅ base.html OK</li>
+            <li>✅ .grafana-container CSS applied</li>
+            <li>✅ Position: fixed layout working</li>
+            <li>🚫 No iframe</li>
+            <li>🚫 No JS widgets</li>
+        </ul>
+        <p style="margin-top: 24px;">
+            <a href="/grafana-debug/step1" style="color: #60a5fa; text-decoration: underline;">← Back to Step 1</a> |
+            <a href="/grafana-debug/step3" style="color: #60a5fa; text-decoration: underline;">→ Proceed to Step 3 (Add iframe)</a>
+        </p>
+    </div>
+</div>
+{% endblock %}

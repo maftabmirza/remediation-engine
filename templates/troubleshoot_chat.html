@@ -1,473 +1,569 @@
-{% extends "layout.html" %}
-{% set active_page = 'troubleshoot' %}
+{% extends "base.html" %}
 
 {% block title %}Troubleshoot Console - AIOps Platform{% endblock %}
 
+{% block header_title %}AI Troubleshooter{% endblock %}
 {% block breadcrumbs %}
 <span class="mx-2">/</span>
-<span class="text-gray-200 truncate">Troubleshoot Console</span>
+<span class="text-gray-200 truncate" id="currentSessionTitle">New Session</span>
 {% endblock %}
 
-{% block header_title %}
-<i class="fas fa-terminal text-green-400"></i>
-<span class="text-sm font-semibold text-white tracking-tight">Troubleshoot Console</span>
-{% endblock %}
+{% block main_wrapper %}
+<main class="troubleshoot-main">
+    <!-- Left Panel - Chat -->
+    <div class="ts-chat-panel">
+        <!-- Session Header -->
+        <div class="ts-session-header">
+            <div class="ts-session-left">
+                <button class="ts-new-session-btn" onclick="createNewSession()">
+                    <i data-feather="zap" style="width: 14px; height: 14px;"></i>
+                    <span>New Session</span>
+                </button>
 
-{% block content %}
-<style>
-    .user-message-content pre,
-    .user-message-content code {
-        max-width: 100% !important;
-        overflow-x: auto !important;
-        white-space: pre-wrap !important;
-        word-break: break-word !important;
-    }
-
-    .user-message-content pre {
-        margin: 0.5rem 0;
-    }
-
-    /* Reasoning Panel Styles */
-    .reasoning-panel {
-        transition: all 0.3s ease;
-    }
-
-    .reasoning-panel.collapsed .reasoning-body {
-        display: none;
-    }
-</style>
-
-<div id="aiChatContent" class="flex flex-col h-full overflow-hidden">
-    <!-- 2-Pane Layout (Chat 40% | Terminal 60%) -->
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-1 min-h-0 overflow-hidden">
-
-        <!-- Pane 1: Chat (5 cols ~ 41%) -->
-        <div class="lg:col-span-5 flex flex-col card h-full min-h-0 overflow-hidden">
-            <div class="px-3 py-2 border-b border-gray-700 flex justify-between items-center flex-shrink-0">
-                <div class="flex items-center flex-grow">
-                    <span class="text-xs font-semibold text-gray-400 mr-3 uppercase tracking-wider">Session</span>
-
-                    <!-- Session Dropdown -->
-                    <div class="relative mr-2" id="sessionSelectorWrapper">
-                        <button onclick="toggleSessionDropdown()" id="sessionDropdownBtn"
-                            class="px-2 py-1 text-xs bg-gray-700 text-gray-300 rounded hover:bg-gray-600 flex items-center border border-gray-600"
-                            title="Session">
-                            <i class="fas fa-comments text-green-400 mr-1.5"></i>
-                            <span id="currentSessionTitle" class="max-w-[120px] truncate">New Session</span>
-                            <i class="fas fa-caret-down text-[10px] ml-1.5 text-gray-400"></i>
-                        </button>
-                        <div id="sessionDropdown"
-                            class="hidden absolute left-0 top-full mt-1 bg-gray-800 border border-gray-600 rounded-lg shadow-xl z-50 min-w-[220px]">
-                            <button onclick="createNewSession()"
-                                class="w-full text-left px-3 py-2 text-xs text-green-400 hover:bg-gray-700 transition-colors border-b border-gray-700 flex items-center">
-                                <i class="fas fa-plus mr-2"></i>New Session
-                            </button>
-                            <div id="sessionListContainer" class="max-h-48 overflow-y-auto">
-                                <div class="px-3 py-2 text-xs text-gray-500">No sessions yet</div>
-                            </div>
-                        </div>
+                <!-- Hybrid LLM Selector: Uses new styles but maps to old JS logic -->
+                <div class="ts-llm-selector" id="llmSelector">
+                    <div class="ts-llm-selected" onclick="toggleModelDropdown()">
+                        <span class="ts-model-dot"></span>
+                        <span class="ts-llm-text" id="currentModelName">Select Model</span>
+                        <i data-feather="chevron-down" class="ts-dropdown-icon"></i>
                     </div>
-
-                    <!-- LLM Model Selector -->
-                    <div class="relative" id="modelSelectorWrapper">
-                        <button onclick="toggleModelDropdown()" id="modelIconBtn"
-                            class="p-1.5 rounded transition-colors hover:bg-gray-700 flex items-center"
-                            title="LLM Model">
-                            <i class="fas fa-brain text-sm" id="modelStatusIcon"></i>
-                            <i class="fas fa-caret-down text-[10px] ml-1 text-gray-400"></i>
-                        </button>
-                        <div id="modelDropdown"
-                            class="hidden absolute left-0 top-full mt-1 bg-gray-800 border border-gray-600 rounded-lg shadow-xl z-50 min-w-[200px]">
-                            <div class="px-3 py-2 border-b border-gray-700 text-xs text-gray-400">
-                                <i class="fas fa-brain mr-1"></i> Select LLM Model
-                            </div>
-                            <div id="modelListContainer" class="max-h-48 overflow-y-auto">
-                                <div class="px-3 py-2 text-xs text-gray-500">Loading...</div>
-                            </div>
-                        </div>
+                    <!-- The list container ID matches troubleshoot_chat.js expectation -->
+                    <div class="ts-llm-options" id="modelListContainer" style="display: none;">
+                        <!-- Options injected by populateModelDropdown -->
                     </div>
-                </div>
-                <div class="flex items-center space-x-1">
-                    <button id="agentModeBtn" onclick="openAgentModal()"
-                        class="text-gray-400 hover:text-purple-400 p-1.5 rounded transition-colors"
-                        title="Agent Mode (Ctrl+Shift+A)">
-                        <i class="fas fa-magic text-sm"></i>
-                    </button>
-                    <button onclick="toggleCommandHistory()"
-                        class="text-gray-400 hover:text-blue-400 p-1.5 rounded transition-colors"
-                        title="Command History (Ctrl+H)">
-                        <i class="fas fa-history text-sm"></i>
-                    </button>
-
-                    <button onclick="adjustChatFont(-1)"
-                        class="text-gray-400 hover:text-white p-1.5 rounded transition-colors"
-                        title="Decrease Font Size"><i class="fas fa-minus text-sm"></i></button>
-                    <button onclick="adjustChatFont(1)"
-                        class="text-gray-400 hover:text-white p-1.5 rounded transition-colors"
-                        title="Increase Font Size"><i class="fas fa-plus text-sm"></i></button>
+                    <!-- Hidden dropdown for old logic compatibility if needed, 
+                         but we will override populateModelDropdown to target modelListContainer above -->
+                    <div id="modelDropdown" class="hidden"></div>
                 </div>
             </div>
-
-            <!-- Command History Panel -->
-            <div id="commandHistoryPanel" class="hidden border-b border-gray-700 bg-gray-900/80 flex-shrink-0">
-                <div class="p-2 border-b border-gray-700/50 flex justify-between items-center">
-                    <div class="flex items-center text-xs text-gray-400">
-                        <i class="fas fa-history text-blue-400 mr-2"></i>
-                        <span>Command History</span>
-                        <span id="historyCount"
-                            class="ml-2 bg-gray-700 text-gray-300 px-1.5 py-0.5 rounded text-[10px]">0</span>
-                    </div>
-                    <div class="flex space-x-1">
-                        <button onclick="clearCommandHistory()"
-                            class="text-gray-400 hover:text-red-400 text-xs px-2 py-1" title="Clear History"><i
-                                class="fas fa-trash"></i></button>
-                        <button onclick="toggleCommandHistory()"
-                            class="text-gray-400 hover:text-white text-xs px-2 py-1" title="Close"><i
-                                class="fas fa-times"></i></button>
-                    </div>
-                </div>
-                <div class="history-list p-2 max-h-40 overflow-y-auto">
-                    <p class="text-gray-500 text-sm text-center py-4">No commands executed yet</p>
-                </div>
-            </div>
-
-            <div id="chatMessages" class="flex-grow overflow-y-auto p-4 space-y-4 min-h-0 text-sm">
-                <div class="text-center text-gray-500 mt-10">
-                    <i class="fas fa-terminal text-4xl mb-3 text-green-400"></i>
-                    <p>Starting troubleshooting console...</p>
-                </div>
-            </div>
-
-            <div class="p-3 border-t border-gray-700 flex-shrink-0 bg-gray-800 z-10">
-                <form id="chatForm" onsubmit="sendMessage(event)" class="flex space-x-2">
-                    <textarea id="chatInput" class="input-field flex-grow px-3 py-2 rounded resize-none h-12"
-                        placeholder="Ask to run commands, check logs, or troubleshoot issues..." autocomplete="off"
-                        title="Type your message here"></textarea>
-                    <button type="submit" class="btn-primary px-4 py-2 rounded h-12" title="Send Message"><i
-                            class="fas fa-paper-plane"></i></button>
-                </form>
+            <div class="ts-session-actions">
+                <button class="ts-icon-btn" id="agentModeBtn" onclick="openAgentModal()" title="Agent Mode (Ctrl+Shift+A)">
+                    <i data-feather="cpu" style="width: 14px; height: 14px;"></i>
+                </button>
+                <button class="ts-icon-btn" onclick="toggleCommandHistory()" title="History (Ctrl+H)">
+                    <i data-feather="rotate-ccw" style="width: 14px; height: 14px;"></i>
+                </button>
+                <button class="ts-icon-btn" onclick="adjustChatFont(-1)" title="Decrease Font">
+                    <i data-feather="minus" style="width: 12px; height: 12px;"></i>
+                </button>
+                <button class="ts-icon-btn" onclick="adjustChatFont(1)" title="Increase Font">
+                    <i data-feather="plus" style="width: 12px; height: 12px;"></i>
+                </button>
             </div>
         </div>
 
-        <!-- Pane 2: Terminal / Tools (7 cols ~ 58%) -->
-        <div class="lg:col-span-7 flex flex-col card h-full overflow-hidden">
-            <div class="p-2 border-b border-gray-800 flex justify-between items-center bg-gray-900 flex-shrink-0">
-                <div class="flex items-center">
-                    <!-- Toggle Tabs -->
-                    <div class="flex border border-gray-700 rounded mr-3 overflow-hidden">
-                        <button id="terminalTabBtn" onclick="switchRightPane('terminal')"
-                            class="px-3 py-1 text-xs font-medium bg-green-600 text-white border-r border-gray-600 hover:text-white transition-colors">
-                            <i class="fas fa-terminal mr-1"></i>Terminal
-                        </button>
-                        <button id="fileEditorTabBtn" onclick="switchRightPane('file')"
-                            class="px-3 py-1 text-xs font-medium bg-transparent text-gray-400 border-r border-gray-600 hover:text-white hover:bg-gray-800 transition-colors">
-                            <i class="fas fa-file-code mr-1"></i>File
-                        </button>
-                        <button id="diffViewTabBtn" onclick="switchRightPane('diff')"
-                            class="px-3 py-1 text-xs font-medium bg-transparent text-gray-400 border-r border-gray-600 hover:text-white hover:bg-gray-800 transition-colors relative">
-                            <i class="fas fa-exchange-alt mr-1"></i>Diff
-                            <span id="diffBadge"
-                                class="hidden absolute top-0 right-0 -mt-1 -mr-1 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-                        </button>
-                        <button id="agentHQTabBtn" onclick="switchRightPane('agentHQ')"
-                            class="px-3 py-1 text-xs font-medium bg-transparent text-gray-400 hover:text-white hover:bg-gray-800 transition-colors">
-                            <i class="fas fa-robot mr-1"></i>HQ
-                        </button>
-                    </div>
+        <!-- Chat Messages -->
+        <div class="ts-chat-messages" id="chatMessages">
+            <!-- Messages injected here by troubleshoot_chat.js -->
+        </div>
 
-                    <!-- Terminal Controls -->
-                    <div id="terminalControls" class="flex items-center space-x-1">
-                        <button onclick="adjustTermFont(-1)" class="text-gray-400 hover:text-white px-1"
-                            title="Decrease Font Size"><i class="fas fa-minus text-xs"></i></button>
-                        <button onclick="adjustTermFont(1)" class="text-gray-400 hover:text-white px-1"
-                            title="Increase Font Size"><i class="fas fa-plus text-xs"></i></button>
+        <!-- Chat Input -->
+        <div class="ts-chat-input-container">
+            <form id="chatForm" onsubmit="sendMessage(event); return false;" class="ts-chat-input-wrapper">
+                <textarea id="chatInput" class="ts-chat-input"
+                    placeholder="Ask to run commands, check logs, or troubleshoot issues..." autocomplete="off"
+                    rows="1"></textarea>
+                <button type="submit" class="ts-send-btn">
+                    <i data-feather="send" style="width: 18px; height: 18px;"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Resize Handle -->
+    <div class="ts-resize-handle">
+        <div class="ts-resize-line"></div>
+    </div>
+
+    <!-- Right Panel - Terminal/Tools -->
+    <div class="ts-tools-panel">
+        <!-- Tools Header with Tabs -->
+        <div class="ts-tools-header">
+            <div class="ts-tabs">
+                <button class="ts-tab active" onclick="switchRightPane('terminal')">
+                    <i data-feather="terminal" style="width: 14px; height: 14px;"></i>
+                    <span>Terminal</span>
+                </button>
+                <button class="ts-tab" onclick="switchRightPane('file')">
+                    <i data-feather="file" style="width: 14px; height: 14px;"></i>
+                    <span>File</span>
+                </button>
+                <button class="ts-tab" onclick="switchRightPane('diff')" style="position: relative;">
+                    <i data-feather="git-merge" style="width: 14px; height: 14px;"></i>
+                    <span>Diff</span>
+                    <span id="diffBadge" class="hidden" style="position: absolute; top: 2px; right: 2px; width: 7px; height: 7px; background: #ef4444; border-radius: 50%;"></span>
+                </button>
+                <button class="ts-tab" onclick="switchRightPane('agentHQ')">
+                    <i data-feather="cpu" style="width: 14px; height: 14px;"></i>
+                    <span>HQ</span>
+                </button>
+                <!-- Terminal font controls -->
+                <div id="terminalControls" class="flex items-center ml-2" style="gap: 2px;">
+                    <button class="ts-icon-btn" onclick="adjustTermFont(-1)" title="Decrease Terminal Font" style="width: 24px; height: 24px;">
+                        <i data-feather="minus" style="width: 10px; height: 10px;"></i>
+                    </button>
+                    <button class="ts-icon-btn" onclick="adjustTermFont(1)" title="Increase Terminal Font" style="width: 24px; height: 24px;">
+                        <i data-feather="plus" style="width: 10px; height: 10px;"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="ts-connection-status-area">
+                <!-- File Editor Controls (shown when file tab active) -->
+                <div id="fileEditorControls" class="hidden flex items-center" style="gap: 8px; margin-right: 12px;">
+                    <span id="currentFileLabel" class="text-xs truncate" style="color: #94a3b8; max-width: 140px;">No file open</span>
+                    <button class="ts-icon-btn" onclick="refreshCurrentFile()" title="Refresh" style="width: 24px; height: 24px;">
+                        <i data-feather="refresh-cw" style="width: 12px; height: 12px;"></i>
+                    </button>
+                </div>
+                <!-- Agent HQ Controls (shown when HQ tab active) -->
+                <div id="agentHQControls" class="hidden flex items-center" style="gap: 8px; margin-right: 12px;">
+                    <span id="agentHQStatusLabel" class="text-xs" style="color: #94a3b8;">Loading...</span>
+                    <button class="ts-icon-btn" onclick="refreshAgentHQ()" title="Refresh HQ" style="width: 24px; height: 24px;">
+                        <i data-feather="refresh-cw" style="width: 12px; height: 12px;"></i>
+                    </button>
+                    <button class="ts-icon-btn" onclick="showSpawnAgentModal()" title="Spawn Agent" style="width: 24px; height: 24px; color: #4ade80;">
+                        <i data-feather="plus-circle" style="width: 12px; height: 12px;"></i>
+                    </button>
+                </div>
+                <span id="termStatus" class="ts-disconnected-badge">Disconnected</span>
+                <button class="ts-connect-btn" onclick="openServerModal()">
+                    <i data-feather="zap" style="width: 14px; height: 14px;"></i>
+                    <span>Connect</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Terminal Content -->
+        <div class="ts-terminal" style="position: relative;">
+            <div id="terminalContainer" class="absolute inset-0">
+                <div id="terminal" class="absolute inset-0"></div>
+
+                <!-- Inline Chat Overlay (Ctrl+I) -->
+                <div id="inlineChatOverlay" class="hidden absolute bottom-4 left-4 right-4 z-50">
+                    <div style="background: rgba(15,14,71,0.95); border: 1px solid rgba(139,92,246,0.4); border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.4); backdrop-filter: blur(8px);">
+                        <div class="flex items-center px-4 py-2" style="border-bottom: 1px solid rgba(255,255,255,0.06);">
+                            <i class="fas fa-robot" style="color: #a78bfa; margin-right: 8px; font-size: 12px;"></i>
+                            <span style="font-size: 12px; color: #cbd5e1;">Ask AI about terminal</span>
+                            <span style="margin-left: auto; font-size: 10px; color: #64748b;">Esc to close</span>
+                        </div>
+                        <div class="p-3">
+                            <div class="flex" style="gap: 8px;">
+                                <input type="text" id="inlineChatInput"
+                                    style="flex: 1; background: #1e293b; border: 1px solid #334155; color: white; font-size: 13px; padding: 8px 12px; border-radius: 8px; outline: none;"
+                                    placeholder="Ask about what you see in the terminal..."
+                                    onkeydown="handleInlineChatKey(event)">
+                                <button onclick="sendInlineChat()"
+                                    style="background: linear-gradient(135deg, #7c3aed, #6366f1); color: white; padding: 8px 14px; border: none; border-radius: 8px; cursor: pointer; font-size: 13px;">
+                                    <i class="fas fa-paper-plane"></i>
+                                </button>
+                            </div>
+                            <div class="mt-2 flex flex-wrap" style="gap: 6px;">
+                                <button onclick="sendQuickInlineChat('What does this error mean?')"
+                                    style="font-size: 10px; background: #1e293b; color: #94a3b8; padding: 4px 10px; border: 1px solid #334155; border-radius: 6px; cursor: pointer;">Error meaning?</button>
+                                <button onclick="sendQuickInlineChat('How do I fix this?')"
+                                    style="font-size: 10px; background: #1e293b; color: #94a3b8; padding: 4px 10px; border: 1px solid #334155; border-radius: 6px; cursor: pointer;">Fix?</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div class="flex items-center space-x-2">
-                    <!-- Terminal Status -->
-                    <div id="terminalStatus" class="flex items-center space-x-2">
-                        <span id="termStatus" class="text-[10px] text-gray-500"
-                            title="Connection Status">Disconnected</span>
-                        <button onclick="openServerModal()" class="btn-secondary px-2 py-1 text-[10px] rounded"
-                            title="Connect to Server">
-                            <i class="fas fa-plug mr-1"></i>Connect
-                        </button>
-                    </div>
 
-                    <!-- File Editor Controls -->
-                    <div id="fileEditorControls" class="hidden flex items-center space-x-2">
-                        <span id="currentFileLabel" class="text-xs text-gray-400 truncate max-w-[150px]"
-                            title="No file open">No file open</span>
-                        <button onclick="refreshCurrentFile()" class="text-gray-400 hover:text-white px-2 py-1 text-xs"
-                            title="Refresh">
-                            <i class="fas fa-sync-alt"></i>
-                        </button>
-                    </div>
+                <!-- Explain Selection Button -->
+                <div id="explainSelectionBtn" class="hidden absolute z-50">
+                    <button onclick="explainSelectedText()"
+                        style="background: linear-gradient(135deg, #7c3aed, #6366f1); color: white; font-size: 12px; padding: 6px 14px; border: none; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                        <i class="fas fa-magic"></i>
+                        <span>Explain</span>
+                    </button>
+                </div>
+            </div>
 
-                    <!-- Agent HQ Controls -->
-                    <div id="agentHQControls" class="hidden flex items-center space-x-2">
-                        <span id="agentHQStatusLabel" class="text-xs text-gray-400">Loading...</span>
-                        <button onclick="refreshAgentHQ()" class="text-gray-400 hover:text-white px-2 py-1 text-xs"
-                            title="Refresh HQ">
-                            <i class="fas fa-sync-alt"></i>
-                        </button>
-                        <button onclick="showSpawnAgentModal()"
-                            class="text-green-400 hover:text-green-300 px-2 py-1 text-xs" title="Spawn Agent">
-                            <i class="fas fa-plus-circle mr-1"></i>Spawn
-                        </button>
+            <!-- Agent HQ Container -->
+            <div id="agentHQContainer" class="hidden absolute inset-0 overflow-hidden flex flex-col" style="background: #0f172a; z-index: 40;">
+                <div class="p-4" style="border-bottom: 1px solid #1e293b; background: rgba(15,23,42,0.5);">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 style="font-size: 13px; font-weight: 600; color: #e2e8f0;">Active Agents</h3>
+                        <div style="font-size: 11px; color: #64748b;" id="hqPoolInfo">Default Pool</div>
+                    </div>
+                    <div id="activeAgentsList" class="space-y-3">
+                        <div class="text-center py-4" style="color: #64748b; font-size: 13px;">No active agents running</div>
+                    </div>
+                </div>
+                <div class="flex-grow overflow-y-auto p-4">
+                    <h3 style="font-size: 13px; font-weight: 600; color: #e2e8f0; margin-bottom: 12px;">Task Queue</h3>
+                    <div id="queuedTasksList" class="space-y-2">
+                        <span style="font-size: 12px; color: #475569;">Queue is empty</span>
+                    </div>
+                    <h3 style="font-size: 13px; font-weight: 600; color: #e2e8f0; margin-bottom: 12px; margin-top: 24px;">Completed Tasks</h3>
+                    <div id="completedTasksList" class="space-y-2"></div>
+                </div>
+            </div>
+
+            <!-- File Editor Container -->
+            <div id="fileEditorContainer" class="hidden absolute inset-0 flex flex-col" style="background: #1e1e1e; font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.6;">
+                <div class="flex-1 overflow-auto relative">
+                    <div id="fileEditorContent" class="absolute inset-0 p-4" style="white-space: pre; color: #d4d4d4;">
+                        <div class="flex flex-col items-center justify-center h-full" style="color: #64748b;">
+                            <i class="fas fa-file-code" style="font-size: 36px; margin-bottom: 16px;"></i>
+                            <p>Select a file to view content</p>
+                        </div>
                     </div>
                 </div>
             </div>
-            <div class="flex-grow relative overflow-hidden h-full w-full">
-                <!-- Terminal Container -->
-                <div id="terminalContainer" class="absolute inset-0">
-                    <div id="terminal" class="absolute inset-0"></div>
 
-                    <!-- Inline Chat Overlay (Ctrl+I) -->
-                    <div id="inlineChatOverlay" class="hidden absolute bottom-4 left-4 right-4 z-50">
-                        <div class="bg-gray-900/95 border border-purple-500/50 rounded-lg shadow-2xl backdrop-blur-sm">
-                            <div class="flex items-center px-3 py-2 border-b border-gray-700">
-                                <i class="fas fa-robot text-purple-400 mr-2"></i>
-                                <span class="text-xs text-gray-300">Ask AI about terminal</span>
-                                <span class="ml-auto text-[10px] text-gray-500">Esc to close</span>
-                            </div>
-                            <div class="p-2">
-                                <div class="flex space-x-2">
-                                    <input type="text" id="inlineChatInput"
-                                        class="flex-grow bg-gray-800 border border-gray-600 text-white text-sm px-3 py-2 rounded focus:border-purple-500 focus:outline-none"
-                                        placeholder="Ask about what you see in the terminal..."
-                                        onkeydown="handleInlineChatKey(event)">
-                                    <button onclick="sendInlineChat()"
-                                        class="bg-purple-600 hover:bg-purple-500 text-white px-3 py-2 rounded text-sm">
-                                        <i class="fas fa-paper-plane"></i>
-                                    </button>
-                                </div>
-                                <div class="mt-2 flex flex-wrap gap-1">
-                                    <button onclick="sendQuickInlineChat('What does this error mean?')"
-                                        class="text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-300 px-2 py-1 rounded">Error
-                                        meaning?</button>
-                                    <button onclick="sendQuickInlineChat('How do I fix this?')"
-                                        class="text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-300 px-2 py-1 rounded">Fix?</button>
-                                </div>
-                            </div>
-                        </div>
+            <!-- Diff View Container -->
+            <div id="diffViewContainer" class="hidden absolute inset-0 flex flex-col" style="background: #1e1e1e; font-family: 'JetBrains Mono', monospace; font-size: 13px;">
+                <div id="pendingChangesList" class="hidden h-full flex flex-col">
+                    <div class="p-4 flex justify-between items-center" style="border-bottom: 1px solid #334155; background: #1e293b;">
+                        <h3 style="font-size: 13px; font-weight: 600; color: white;">Pending Changes</h3>
+                        <div style="font-size: 12px; color: #94a3b8;" id="diffChangeSummary">Loading...</div>
                     </div>
-
-                    <!-- Explain Selection Button -->
-                    <div id="explainSelectionBtn" class="hidden absolute z-50">
-                        <button onclick="explainSelectedText()"
-                            class="bg-purple-600 hover:bg-purple-500 text-white text-xs px-3 py-1.5 rounded shadow-lg flex items-center space-x-1">
-                            <i class="fas fa-magic"></i>
-                            <span>Explain</span>
+                    <div class="flex-1 overflow-auto p-4 space-y-4" id="diffListContent"></div>
+                    <div class="p-4 flex justify-end" style="border-top: 1px solid #334155; background: #1e293b; gap: 12px;">
+                        <button id="btnDiscardAll" onclick="discardAllChanges()"
+                            style="background: transparent; border: 1px solid rgba(239,68,68,0.3); color: #f87171; padding: 8px 16px; border-radius: 8px; font-size: 13px; cursor: pointer;">
+                            <i class="fas fa-times" style="margin-right: 8px;"></i>Reject All
+                        </button>
+                        <button id="btnApplyAll" onclick="applyAllChanges()"
+                            style="background: #16a34a; color: white; padding: 8px 16px; border: none; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer;">
+                            <i class="fas fa-check" style="margin-right: 8px;"></i>Apply All Changes
                         </button>
                     </div>
-
-                    <!-- Agent HQ Container -->
-                    <div id="agentHQContainer"
-                        class="hidden absolute inset-0 bg-gray-900 overflow-hidden flex flex-col z-[40]">
-                        <div class="p-4 border-b border-gray-800 bg-gray-900/50">
-                            <div class="flex justify-between items-center mb-4">
-                                <h3 class="text-sm font-semibold text-gray-200">Active Agents</h3>
-                                <div class="text-xs text-gray-500" id="hqPoolInfo">Default Pool</div>
-                            </div>
-                            <div id="activeAgentsList" class="space-y-3">
-                                <div class="text-center text-gray-500 py-4">No active agents running</div>
-                            </div>
-                        </div>
-
-                        <div class="flex-grow overflow-y-auto p-4">
-                            <h3 class="text-sm font-semibold text-gray-200 mb-3">Task Queue</h3>
-                            <div id="queuedTasksList" class="space-y-2">
-                                <span class="text-xs text-gray-600">Queue is empty</span>
-                            </div>
-
-                            <h3 class="text-sm font-semibold text-gray-200 mb-3 mt-6">Completed Tasks</h3>
-                            <div id="completedTasksList" class="space-y-2">
-                            </div>
-                        </div>
-                    </div>
                 </div>
-
-                <!-- File Editor Container -->
-                <div id="fileEditorContainer"
-                    class="hidden absolute inset-0 bg-[#1e1e1e] flex flex-col font-mono text-sm leading-6">
-                    <div class="flex-1 overflow-auto relative">
-                        <div id="fileEditorContent" class="absolute inset-0 p-4 whitespace-pre text-gray-300">
-                            <div class="flex flex-col items-center justify-center h-full text-gray-500">
-                                <i class="fas fa-file-code text-4xl mb-4"></i>
-                                <p>Select a file to view content</p>
-                            </div>
-                        </div>
-                    </div>
+                <div id="diffEmptyState" class="flex flex-col items-center justify-center h-full" style="color: #64748b;">
+                    <i class="fas fa-exchange-alt" style="font-size: 36px; margin-bottom: 16px;"></i>
+                    <p>No pending changes</p>
                 </div>
-
-                <!-- Diff View Container -->
-                <div id="diffViewContainer"
-                    class="hidden absolute inset-0 bg-[#1e1e1e] flex flex-col font-mono text-sm">
-                    <div id="pendingChangesList" class="hidden h-full flex flex-col">
-                        <div class="p-4 border-b border-gray-700 flex justify-between items-center bg-gray-800">
-                            <h3 class="text-sm font-semibold text-white">Pending Changes</h3>
-                            <div class="text-xs text-gray-400" id="diffChangeSummary">Loading...</div>
-                        </div>
-                        <div class="flex-1 overflow-auto p-4 space-y-4" id="diffListContent">
-                        </div>
-                        <div class="p-4 border-t border-gray-700 bg-gray-800 flex justify-end space-x-3">
-                            <button id="btnDiscardAll" onclick="discardAllChanges()"
-                                class="btn-secondary px-4 py-2 rounded text-sm text-red-400 hover:text-red-300">
-                                <i class="fas fa-times mr-2"></i>Reject All
-                            </button>
-                            <button id="btnApplyAll" onclick="applyAllChanges()"
-                                class="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded text-sm font-medium">
-                                <i class="fas fa-check mr-2"></i>Apply All Changes
-                            </button>
-                        </div>
-                    </div>
-                    <div id="diffEmptyState" class="flex flex-col items-center justify-center h-full text-gray-500">
-                        <i class="fas fa-exchange-alt text-4xl mb-4"></i>
-                        <p>No pending changes</p>
-                    </div>
-                </div>
-
             </div>
         </div>
     </div>
-</div>
+</main>
 
 <!-- Server Selection Modal -->
-<div id="serverModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-    <div class="card p-6 w-[450px] max-w-full">
-        <h3 class="text-xl font-bold mb-4">Connect to Server</h3>
-
+<div id="serverModal" class="fixed inset-0 bg-black bg-opacity-60 hidden items-center justify-center z-50" style="backdrop-filter: blur(4px);">
+    <div class="bg-gray-800 rounded-xl p-6 w-[450px] max-w-full border border-gray-700/50 shadow-2xl">
+        <h3 class="text-lg font-bold mb-4 text-white flex items-center gap-2">
+            <i data-feather="server" style="width: 18px; height: 18px; color: #60a5fa;"></i>
+            Connect to Server
+        </h3>
         <!-- Tabs -->
-        <div class="flex border-b border-gray-700 mb-4">
+        <div class="flex mb-4" style="border-bottom: 1px solid #334155;">
             <button id="tabSavedServers" onclick="switchServerTab('saved')"
-                class="px-4 py-2 text-sm font-medium border-b-2 border-purple-500 text-purple-400">
-                <i class="fas fa-server mr-1"></i>Saved Servers
+                style="padding: 8px 16px; font-size: 13px; font-weight: 500; border-bottom: 2px solid #8b5cf6; color: #a78bfa; background: none; border-top: none; border-left: none; border-right: none; cursor: pointer;">
+                <i class="fas fa-server" style="margin-right: 6px;"></i>Saved Servers
             </button>
             <button id="tabQuickConnect" onclick="switchServerTab('quick')"
-                class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-400 hover:text-gray-300">
-                <i class="fas fa-bolt mr-1"></i>Quick Connect
+                style="padding: 8px 16px; font-size: 13px; font-weight: 500; border-bottom: 2px solid transparent; color: #94a3b8; background: none; border-top: none; border-left: none; border-right: none; cursor: pointer;">
+                <i class="fas fa-bolt" style="margin-right: 6px;"></i>Quick Connect
             </button>
         </div>
-
         <!-- Saved Servers Tab -->
         <div id="savedServersPane" class="space-y-2 mb-4 max-h-60 overflow-y-auto">
-            <div id="serverList">
-                <p class="text-gray-400 text-sm">Loading servers...</p>
-            </div>
+            <div id="serverList" class="text-gray-400 text-sm">Loading servers...</div>
         </div>
-
         <!-- Quick Connect Tab -->
         <div id="quickConnectPane" class="hidden space-y-3 mb-4">
-            <div class="bg-gray-800/50 border border-gray-700 rounded-lg p-3">
+            <div style="background: rgba(30,41,59,0.5); border: 1px solid #334155; border-radius: 10px; padding: 14px;">
                 <div class="space-y-3">
-                    <div class="flex space-x-2">
-                        <div class="flex-grow">
-                            <label class="block text-xs text-gray-400 mb-1">Host</label>
-                            <input type="text" id="adhocHost" class="w-full input-field px-3 py-2 rounded text-sm"
-                                placeholder="hostname or IP" />
+                    <div class="flex" style="gap: 8px;">
+                        <div style="flex: 1;">
+                            <label style="display: block; font-size: 11px; color: #94a3b8; margin-bottom: 4px;">Host</label>
+                            <input type="text" id="adhocHost" style="width: 100%; background: #1e293b; border: 1px solid #334155; color: white; padding: 8px 12px; border-radius: 8px; font-size: 13px; outline: none;" placeholder="hostname or IP" />
                         </div>
-                        <div class="w-20">
-                            <label class="block text-xs text-gray-400 mb-1">Port</label>
-                            <input type="number" id="adhocPort" class="w-full input-field px-3 py-2 rounded text-sm"
-                                value="22" />
+                        <div style="width: 80px;">
+                            <label style="display: block; font-size: 11px; color: #94a3b8; margin-bottom: 4px;">Port</label>
+                            <input type="number" id="adhocPort" value="22" style="width: 100%; background: #1e293b; border: 1px solid #334155; color: white; padding: 8px 12px; border-radius: 8px; font-size: 13px; outline: none;" />
                         </div>
                     </div>
                     <div>
-                        <label class="block text-xs text-gray-400 mb-1">Username</label>
-                        <input type="text" id="adhocUsername" class="w-full input-field px-3 py-2 rounded text-sm"
-                            placeholder="root" />
+                        <label style="display: block; font-size: 11px; color: #94a3b8; margin-bottom: 4px;">Username</label>
+                        <input type="text" id="adhocUsername" style="width: 100%; background: #1e293b; border: 1px solid #334155; color: white; padding: 8px 12px; border-radius: 8px; font-size: 13px; outline: none;" placeholder="root" />
                     </div>
                     <div>
-                        <label class="block text-xs text-gray-400 mb-1">Password</label>
-                        <input type="password" id="adhocPassword" class="w-full input-field px-3 py-2 rounded text-sm"
-                            placeholder="••••••••" />
+                        <label style="display: block; font-size: 11px; color: #94a3b8; margin-bottom: 4px;">Password</label>
+                        <input type="password" id="adhocPassword" style="width: 100%; background: #1e293b; border: 1px solid #334155; color: white; padding: 8px 12px; border-radius: 8px; font-size: 13px; outline: none;" placeholder="••••••••" />
                     </div>
                 </div>
             </div>
             <button onclick="connectAdhoc()"
-                class="w-full bg-green-600 hover:bg-green-500 text-white py-2 rounded font-medium">
-                <i class="fas fa-plug mr-2"></i>Connect
+                style="width: 100%; background: #16a34a; color: white; padding: 10px; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;">
+                <i class="fas fa-plug" style="margin-right: 8px;"></i>Connect
             </button>
         </div>
-
-        <div class="flex justify-end space-x-2">
-            <button onclick="closeServerModal()" class="btn-secondary px-4 py-2 rounded">Cancel</button>
+        <div class="flex justify-end space-x-2 pt-2" style="border-top: 1px solid rgba(51,65,85,0.5);">
+            <button onclick="closeServerModal()"
+                class="px-4 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-700 transition-colors text-sm">Cancel</button>
         </div>
     </div>
 </div>
 
 <!-- Agent Mode Modal -->
-<div id="agentModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-    <div class="card p-6 w-[480px] max-w-full">
-        <div class="flex items-center mb-4">
-            <div
-                class="w-10 h-10 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center mr-3">
-                <i class="fas fa-robot text-white"></i>
+<div id="agentModal" class="fixed inset-0 bg-black bg-opacity-60 hidden items-center justify-center z-50" style="backdrop-filter: blur(4px);">
+    <div class="bg-gray-800 rounded-xl p-6 w-[480px] max-w-full border border-gray-700/50 shadow-2xl">
+        <div class="flex items-center mb-5">
+            <div style="width: 44px; height: 44px; border-radius: 12px; background: linear-gradient(135deg, #7c3aed, #3b82f6); display: flex; align-items: center; justify-content: center; margin-right: 14px;">
+                <i class="fas fa-robot text-white" style="font-size: 18px;"></i>
             </div>
             <div>
-                <h3 class="text-xl font-bold">Agent Mode</h3>
-                <p class="text-xs text-gray-400">Autonomous troubleshooting assistant</p>
+                <h3 class="text-lg font-bold text-white">Agent Mode</h3>
+                <p style="font-size: 12px; color: #94a3b8;">Autonomous troubleshooting assistant</p>
             </div>
         </div>
         <div class="mb-4">
-            <label class="block text-sm font-medium text-gray-300 mb-2">What should the agent accomplish?</label>
-            <textarea id="agentGoal" class="w-full input-field p-3 rounded resize-none h-24"
+            <label style="display: block; font-size: 13px; font-weight: 500; color: #cbd5e1; margin-bottom: 8px;">What should the agent accomplish?</label>
+            <textarea id="agentGoal" style="width: 100%; background: #1e293b; border: 1px solid #334155; color: white; padding: 12px; border-radius: 10px; font-size: 13px; outline: none; resize: none; height: 96px;"
                 placeholder="e.g., Check disk space and clean up unnecessary files"></textarea>
         </div>
-        <div class="bg-gray-800 rounded-lg p-3 mb-4">
-            <label class="flex items-center cursor-pointer">
-                <input type="checkbox" id="autoApprove"
-                    class="form-checkbox h-4 w-4 text-purple-600 rounded border-gray-600 bg-gray-700 mr-3">
+        <div style="background: #1e293b; border-radius: 10px; padding: 14px; margin-bottom: 16px;">
+            <label style="display: flex; align-items: flex-start; cursor: pointer; gap: 12px;">
+                <input type="checkbox" id="autoApprove" style="margin-top: 2px; accent-color: #7c3aed;">
                 <div>
-                    <span class="text-sm text-white">Auto-approve commands</span>
-                    <p class="text-xs text-gray-400">Agent will execute commands without asking for approval</p>
+                    <span style="font-size: 13px; color: white;">Auto-approve commands</span>
+                    <p style="font-size: 11px; color: #64748b; margin-top: 2px;">Agent will execute commands without asking for approval</p>
                 </div>
             </label>
         </div>
-        <div class="flex justify-end space-x-2">
-            <button onclick="closeAgentModal()" class="btn-secondary px-4 py-2 rounded">Cancel</button>
+        <div class="flex justify-end" style="gap: 10px;">
+            <button onclick="closeAgentModal()"
+                class="px-4 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-700 transition-colors text-sm">Cancel</button>
             <button onclick="startAgent()"
-                class="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white px-4 py-2 rounded font-medium">
-                <i class="fas fa-play mr-2"></i>Start Agent
+                style="background: linear-gradient(135deg, #7c3aed, #3b82f6); color: white; padding: 8px 20px; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-play"></i>Start Agent
             </button>
         </div>
     </div>
 </div>
 
 <!-- Clear Chat Confirmation Modal -->
-<div id="clearChatModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
-    <div class="card p-6 w-full max-w-md">
+<div id="clearChatModal" class="fixed inset-0 bg-black bg-opacity-60 hidden z-50 flex items-center justify-center p-4" style="backdrop-filter: blur(4px);">
+    <div class="bg-gray-800 rounded-xl p-6 w-full max-w-md border border-gray-700/50 shadow-2xl">
         <div class="flex items-center justify-between mb-4">
-            <h2 class="text-xl font-bold text-primary flex items-center gap-2">
-                <i class="fas fa-eraser text-yellow-400"></i>
+            <h2 class="text-lg font-bold text-white flex items-center" style="gap: 8px;">
+                <i class="fas fa-eraser" style="color: #fbbf24;"></i>
                 Clear Chat History
             </h2>
-            <button onclick="closeClearChatModal()" class="text-secondary hover:text-primary">
-                <i class="fas fa-times text-xl"></i>
+            <button onclick="closeClearChatModal()" class="text-gray-400 hover:text-white" style="background: none; border: none; cursor: pointer;">
+                <i class="fas fa-times" style="font-size: 18px;"></i>
             </button>
         </div>
-        <p class="text-secondary mb-6">Clear chat display?</p>
-        <div class="flex justify-end gap-3">
-            <button onclick="closeClearChatModal()" class="btn-secondary px-4 py-2 rounded-lg">Cancel</button>
+        <p style="color: #94a3b8; margin-bottom: 20px; font-size: 14px;">Clear chat display?</p>
+        <div class="flex justify-end" style="gap: 10px;">
+            <button onclick="closeClearChatModal()" class="px-4 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-700 transition-colors text-sm">Cancel</button>
             <button onclick="confirmClearChat()"
-                class="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg">Clear Chat</button>
+                style="background: #d97706; color: white; padding: 8px 16px; border: none; border-radius: 8px; font-size: 13px; cursor: pointer;">Clear Chat</button>
         </div>
     </div>
 </div>
+
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
-<script src="/static/js/progress_indicator.js?v=1.0"></script>
-<script src="/static/js/pii_feedback_ui.js?v=1.2"></script>
-<script src="/static/js/troubleshoot_chat_base.js?v=2.3"></script>
-<script src="/static/js/troubleshoot_chat.js?v=4.8"></script>
-<script>
-    // Embedded initialization logic specifics
-    let currentRightPane = 'terminal';
-    let currentChatMode = 'troubleshoot'; // Fixed mode
-</script>
+<!-- Load dependencies -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/vs2015.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+
+<script src="/static/js/progress_indicator.js?v=1.0"></script>
+<script src="/static/js/pii_feedback_ui.js?v=1.2"></script>
+<script src="/static/js/troubleshoot_chat_base.js?v=2.6"></script>
+<script src="/static/js/troubleshoot_chat.js?v=4.9"></script>
+
+<script>
+    // --- Hybrid Bridge Logic ---
+
+    // 1. Override populateModelDropdown to use new UI structure
+    // original function expects #modelListContainer and injects bootstrap-like HTML
+    // We override it to inject .ts-llm-option divs
+    const originalPopulateModelDropdown = populateModelDropdown;
+
+    window.populateModelDropdown = function (providers) {
+        const list = document.getElementById('modelListContainer');
+        if (!list) return;
+
+        if (!providers || providers.length === 0) {
+            list.innerHTML = '<div class="px-3 py-2 text-xs text-gray-500">No providers available</div>';
+            return;
+        }
+
+        // Determine selection
+        const selectedId = (currentSession && currentSession.llm_provider_id)
+            ? currentSession.llm_provider_id
+            : (providers.find(p => p.is_default)?.id || '');
+
+        // Update Title Text
+        const selectedProvider = providers.find(p => p.id === selectedId);
+        if (selectedProvider) {
+            const nameEl = document.getElementById('currentModelName');
+            if (nameEl) nameEl.textContent = selectedProvider.name;
+        }
+
+        // Render Options
+        list.innerHTML = providers.map(p => {
+            const isSelected = p.id === selectedId;
+            return `
+            <div class="ts-llm-option ${isSelected ? 'selected' : ''}" 
+                 onclick="selectModel('${p.id}'); toggleModelDropdown();">
+                 <i data-feather="${p.is_enabled ? 'check-circle' : 'x-circle'}" style="width: 14px; height: 14px; color: ${p.is_enabled ? '#4ade80' : '#f87171'}"></i>
+                <span class="ml-2">${AIChatBase.escapeHtml(p.name)}</span>
+            </div>
+            `;
+        }).join('');
+
+        // re-init icons
+        if (typeof feather !== 'undefined') feather.replace();
+    };
+
+    // 2. Toggle Dropdown Logic
+    window.toggleModelDropdown = function () {
+        const list = document.getElementById('modelListContainer');
+        const selector = document.getElementById('llmSelector');
+        if (list) {
+            const isHidden = list.style.display === 'none';
+            list.style.display = isHidden ? 'block' : 'none';
+            if (selector) {
+                if (isHidden) selector.classList.add('open');
+                else selector.classList.remove('open');
+            }
+        }
+    };
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function (e) {
+        const selector = document.getElementById('llmSelector');
+        const list = document.getElementById('modelListContainer');
+        if (selector && !selector.contains(e.target)) {
+            if (list) list.style.display = 'none';
+            selector.classList.remove('open');
+        }
+    });
+
+    // 3. Tab Switching Logic (Bridge to switchRightPane)
+    const originalSwitchRightPane = switchRightPane;
+    window.switchRightPane = function (pane) {
+        // Call original logic if it exists (it handles hiding/showing containers)
+        if (typeof originalSwitchRightPane === 'function') {
+            originalSwitchRightPane(pane);
+        }
+
+        // Update Tab UI
+        document.querySelectorAll('.ts-tab').forEach(tab => tab.classList.remove('active'));
+        // Find button that triggers this pane
+        const btn = document.querySelector(`button[onclick="switchRightPane('${pane}')"]`);
+        if (btn) btn.classList.add('active');
+    };
+
+    // 4. Resize Handling
+    const mainContainer = document.querySelector('.troubleshoot-main');
+    const resizeHandle = document.querySelector('.ts-resize-handle');
+    let isResizing = false;
+
+    if (resizeHandle && mainContainer) {
+        resizeHandle.addEventListener('mousedown', function (e) {
+            isResizing = true;
+            mainContainer.classList.add('resizing');
+            document.body.style.cursor = 'col-resize';
+            e.preventDefault(); // Prevent text selection
+        });
+
+        document.addEventListener('mousemove', function (e) {
+            if (!isResizing) return;
+
+            const containerRect = mainContainer.getBoundingClientRect();
+            const mouseX = e.clientX - containerRect.left;
+            const containerWidth = containerRect.width;
+
+            const minWidth = 300;
+            const maxWidth = containerWidth - 300;
+
+            let newWidthInfo = mouseX;
+            if (newWidthInfo < minWidth) newWidthInfo = minWidth;
+            if (newWidthInfo > maxWidth) newWidthInfo = maxWidth;
+
+            const leftPercentage = (newWidthInfo / containerWidth) * 100;
+
+            // Apply grid template
+            mainContainer.style.gridTemplateColumns = `${leftPercentage}% auto 1fr`;
+        });
+
+        document.addEventListener('mouseup', function () {
+            if (isResizing) {
+                isResizing = false;
+                mainContainer.classList.remove('resizing');
+                document.body.style.cursor = 'default';
+            }
+        });
+    }
+
+    // 5. Utility Injections (Missing from troubleshoot_chat.js context)
+    function showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.className = `fixed bottom-4 right-4 px-4 py-2 rounded shadow-lg text-white text-sm z-50 ${type === 'error' ? 'bg-red-600' : type === 'success' ? 'bg-green-600' : 'bg-gray-800'
+            }`;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    }
+    window.showToast = showToast;
+
+    async function apiCall(endpoint, options = {}) {
+        /* Simple wrapper */
+        const defaults = { headers: { 'Content-Type': 'application/json' } };
+        options = { ...defaults, ...options, headers: { ...defaults.headers, ...options.headers } };
+        try {
+            const res = await fetch(endpoint, options);
+            if (res.status === 401) window.location.href = '/login';
+            return res;
+        } catch (e) {
+            console.error("API Call error", e);
+            throw e;
+        }
+    }
+    window.apiCall = apiCall;
+
+    // 6. Suggestion Handler (Required for Welcome Screen)
+    window.sendSuggestion = function (text) {
+        const input = document.getElementById('chatInput');
+        if (input) {
+            input.value = text;
+            const form = document.getElementById('chatForm');
+            if (form) {
+                // Create cancellable submit event to trigger sendMessage
+                const event = new Event('submit', {
+                    bubbles: true,
+                    cancelable: true
+                });
+                form.dispatchEvent(event);
+            }
+        }
+    };
+
+    // 7. Session Switch Override (Fixes TypeError)
+    window.switchSession = async function (sessionId) {
+        if (typeof currentSessionId !== 'undefined' && sessionId === currentSessionId) return;
+
+        currentSessionId = sessionId;
+
+        // Fix: Safely handle missing dropdown (it doesn't exist in new design)
+        const dropdown = document.getElementById('sessionDropdown');
+        if (dropdown) dropdown.classList.add('hidden');
+
+        // Update UI title
+        const titleEl = document.getElementById('currentSessionTitle');
+        if (titleEl) titleEl.textContent = 'Loading...';
+
+        // Load messages
+        if (typeof loadMessageHistory === 'function') {
+            await loadMessageHistory(sessionId);
+        }
+
+        if (titleEl) titleEl.textContent = 'Active Session';
+        if (typeof showToast === 'function') showToast('Session switched', 'info');
+    };
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function () {
+        if (typeof feather !== 'undefined') feather.replace();
+    });
+
+</script>
 {% endblock %}

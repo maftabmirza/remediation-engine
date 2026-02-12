@@ -1,0 +1,925 @@
+{% extends "base.html" %}
+
+{% set active_page = "settings" %}
+{% set current_path = "/pii-detection" %}
+
+{% block header_title %}Settings{% endblock %}
+{% block header_subtitle %}Settings / PII Detection{% endblock %}
+
+{% block title %}PII & Secret Detection | Enterprise AIOps{% endblock %}
+
+{% block content %}
+<main class="runbooks-main settings-page">
+
+    <!-- Section Dropdown + Title -->
+    <div class="settings-header-bar">
+        <div class="settings-title-group">
+            <div class="section-selector">
+                <button class="section-dropdown-btn" id="sectionDropdownBtn">
+                    <i data-feather="alert-triangle"></i>
+                    <span id="currentSection">PII Detection</span>
+                    <i data-feather="chevron-down" class="dropdown-arrow"></i>
+                </button>
+                {% include "partials/settings_nav_menu.html" %}
+            </div>
+            <p class="section-desc">Configure sensitive data redaction and secret scanning</p>
+        </div>
+        <div class="header-actions">
+            <button class="primary-btn">
+                <i data-feather="save"></i> Save Configuration
+            </button>
+        </div>
+    </div>
+
+    <!-- Info Banner -->
+    <div class="info-banner">
+        <div class="banner-icon-container">
+            <i data-feather="shield" class="banner-icon"></i>
+        </div>
+        <div class="banner-content">
+            <h3 class="banner-title">Detection Engines Active</h3>
+            <div class="banner-grid">
+                <div class="banner-item">
+                    <span class="engine-name"><i data-feather="grid"></i> Presidio (Microsoft)</span>
+                    <p class="engine-desc">Standard PII: Email, Phone, SSN, Credit Card, IBAN, Passport.</p>
+                </div>
+                <div class="banner-item">
+                    <span class="engine-name"><i data-feather="key"></i> detect-secrets (Yelp)</span>
+                    <p class="engine-desc">Secrets: Passwords, API Keys, JWT, Private Keys.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Global Settings Card -->
+    <div class="users-card pii-card">
+        <h3 class="card-title">Global Settings</h3>
+        <div class="global-settings-grid">
+            <label class="checkbox-wrapper">
+                <input type="checkbox" checked>
+                <span class="custom-checkbox"></span>
+                <span class="label-text">Enable PII Detection (Presidio)</span>
+            </label>
+            <label class="checkbox-wrapper">
+                <input type="checkbox" checked>
+                <span class="custom-checkbox"></span>
+                <span class="label-text">Enable Secret Detection (detect-secrets)</span>
+            </label>
+            <label class="checkbox-wrapper">
+                <input type="checkbox" checked>
+                <span class="custom-checkbox"></span>
+                <span class="label-text">Auto-redact in outputs</span>
+            </label>
+            <label class="checkbox-wrapper">
+                <input type="checkbox" checked>
+                <span class="custom-checkbox"></span>
+                <span class="label-text">Log all detections</span>
+            </label>
+        </div>
+        <div class="redaction-settings">
+            <div class="form-group">
+                <label>Default Redaction</label>
+                <div class="custom-select-wrapper">
+                    <select class="form-select">
+                        <option value="mask">Mask</option>
+                        <option value="hash">Hash</option>
+                        <option value="remove">Remove</option>
+                        <option value="tag">Tag</option>
+                    </select>
+                    <i data-feather="chevron-down" class="select-arrow"></i>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Mask Character</label>
+                <input type="text" class="form-input small-input" value="*">
+            </div>
+        </div>
+    </div>
+
+    <!-- PII Configuration Tabs -->
+    <div class="users-card pii-card no-padding">
+        <div class="card-tabs">
+            <button class="tab-btn active" onclick="switchTab('presidio', this)">
+                <i data-feather="grid"></i> Presidio
+            </button>
+            <button class="tab-btn" onclick="switchTab('secrets', this)">
+                <i data-feather="key"></i> Secrets
+            </button>
+            <button class="tab-btn" onclick="switchTab('exceptions', this)">
+                <i data-feather="list"></i> Exceptions
+            </button>
+            <button class="tab-btn" onclick="switchTab('test', this)">
+                <i data-feather="play-circle"></i> Test Sandbox
+            </button>
+        </div>
+
+        <div class="tab-content-container">
+            <!-- Presidio Tab -->
+            <div id="presidio-tab" class="tab-pane active">
+                <div class="tab-info">
+                    <strong>Microsoft Presidio</strong>
+                    <span>Built-in PII detection with NLP support.</span>
+                </div>
+                <table class="users-table">
+                    <thead>
+                        <tr>
+                            <th>Entity Type</th>
+                            <th>Enabled</th>
+                            <th>Threshold</th>
+                            <th>Redaction</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>EMAIL_ADDRESS</td>
+                            <td><span class="badge badge-success">Enabled</span></td>
+                            <td>0.6</td>
+                            <td>Mask (*)</td>
+                            <td><button class="icon-btn" title="Edit"><i data-feather="edit-2"></i></button></td>
+                        </tr>
+                        <tr>
+                            <td>PHONE_NUMBER</td>
+                            <td><span class="badge badge-success">Enabled</span></td>
+                            <td>0.7</td>
+                            <td>Mask (*)</td>
+                            <td><button class="icon-btn" title="Edit"><i data-feather="edit-2"></i></button></td>
+                        </tr>
+                        <tr>
+                            <td>US_SSN</td>
+                            <td><span class="badge badge-success">Enabled</span></td>
+                            <td>0.85</td>
+                            <td>Hash</td>
+                            <td><button class="icon-btn" title="Edit"><i data-feather="edit-2"></i></button></td>
+                        </tr>
+                        <tr>
+                            <td>CREDIT_CARD</td>
+                            <td><span class="badge badge-success">Enabled</span></td>
+                            <td>0.9</td>
+                            <td>Remove</td>
+                            <td><button class="icon-btn" title="Edit"><i data-feather="edit-2"></i></button></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Secrets Tab -->
+            <div id="secrets-tab" class="tab-pane">
+                <div class="tab-info">
+                    <strong>Yelp detect-secrets</strong>
+                    <span>20+ plugins for API keys, tokens, passwords, and credentials.</span>
+                </div>
+                <table class="users-table">
+                    <thead>
+                        <tr>
+                            <th>Plugin</th>
+                            <th>Enabled</th>
+                            <th>Description</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>AWSKeyDetector</td>
+                            <td><span class="badge badge-success">Active</span></td>
+                            <td>Detects AWS Access Key IDs</td>
+                            <td>Scanning</td>
+                        </tr>
+                        <tr>
+                            <td>KeywordDetector</td>
+                            <td><span class="badge badge-success">Active</span></td>
+                            <td>Detects passwords and secrets by keyword</td>
+                            <td>Scanning</td>
+                        </tr>
+                        <tr>
+                            <td>PrivateKeyDetector</td>
+                            <td><span class="badge badge-success">Active</span></td>
+                            <td>Detects private keys</td>
+                            <td>Scanning</td>
+                        </tr>
+                        <tr>
+                            <td>JwtTokenDetector</td>
+                            <td><span class="badge badge-warning">Disabled</span></td>
+                            <td>Detects JWT tokens</td>
+                            <td>Inactive</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Exceptions Tab -->
+            <div id="exceptions-tab" class="tab-pane">
+                <div class="exception-form-panel">
+                    <h4 class="form-title">Add Whitelist Entry</h4>
+                    <div class="exception-grid">
+                        <div class="form-group">
+                            <label>Detected Text</label>
+                            <input type="text" class="form-input" placeholder="e.g. test@example.com">
+                        </div>
+                        <div class="form-group">
+                            <label>Entity Type</label>
+                            <input type="text" class="form-input" placeholder="EMAIL_ADDRESS">
+                        </div>
+                        <div class="form-group">
+                            <label>Engine</label>
+                            <div class="custom-select-wrapper">
+                                <select class="form-select">
+                                    <option>presidio</option>
+                                    <option>detect-secrets</option>
+                                </select>
+                                <i data-feather="chevron-down" class="select-arrow"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button class="secondary-btn small">Add Exception</button>
+                    </div>
+                </div>
+
+                <table class="users-table">
+                    <thead>
+                        <tr>
+                            <th>Detected Text</th>
+                            <th>Entity Type</th>
+                            <th>Added</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="code-font">support@company.com</td>
+                            <td>EMAIL_ADDRESS</td>
+                            <td>2 days ago</td>
+                            <td><span class="badge badge-success">Active</span></td>
+                            <td><button class="icon-btn delete"><i data-feather="trash-2"></i></button></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Test Tab -->
+            <div id="test-tab" class="tab-pane">
+                <div class="tab-info">
+                    <strong>Sanbox Environment</strong>
+                    <span>Test redaction logic safely. Nothing typed here is logged.</span>
+                </div>
+                <div class="test-sandbox-grid">
+                    <div class="form-group">
+                        <label>Input Text</label>
+                        <textarea class="form-input code-area" placeholder="Enter text to test detection...
+Example:
+My email is test@example.com
+password = 'SecretPass123'"></textarea>
+                    </div>
+                    <div class="test-actions">
+                        <button class="primary-btn" onclick="runFakeTest()">
+                            <i data-feather="play"></i> Run Detection
+                        </button>
+                    </div>
+                    <div class="form-group" id="testResultGroup" style="display:none;">
+                        <label>Redaction Preview</label>
+                        <div class="redacted-preview" id="redactedPreview"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</main>
+
+<style>
+    /* Page Layout */
+    /* Page Layout */
+    .settings-page {
+        /* Reliance on implicit grid placement (Row 2, Col 2) */
+        height: 100%;
+        width: 100%;
+        overflow-y: auto;
+        gap: 24px;
+        display: flex;
+        flex-direction: column;
+        padding: 32px;
+        background-color: #f4f6f8;
+    }
+
+    /* Header Reused (from auth page) */
+    .settings-header-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+    }
+
+    .settings-title-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .section-selector {
+        position: relative;
+    }
+
+    .section-dropdown-btn {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 18px;
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        font-size: 16px;
+        font-weight: 700;
+        color: #0f172a;
+        cursor: pointer;
+        transition: all 0.15s;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    }
+
+    .section-dropdown-btn:hover {
+        border-color: #cbd5e1;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    }
+
+    .section-dropdown-btn svg {
+        width: 20px;
+        height: 20px;
+        color: #e11d48;
+        /* Red/Alert color for PII */
+    }
+
+    .section-dropdown-btn .dropdown-arrow {
+        width: 14px;
+        height: 14px;
+        color: #94a3b8;
+    }
+
+    /* Dropdown Menu - HIDDEN by default */
+    .section-dropdown-menu {
+        display: none;
+        position: absolute;
+        top: calc(100% + 8px);
+        left: 0;
+        width: 260px;
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        box-shadow: 0 12px 48px rgba(0, 0, 0, 0.15);
+        z-index: 100;
+        padding: 8px;
+        max-height: 400px;
+        overflow-y: auto;
+    }
+
+    .section-dropdown-menu.open {
+        display: block;
+    }
+
+    .dropdown-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 14px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 500;
+        color: #475569;
+        cursor: pointer;
+        text-decoration: none;
+        transition: all 0.12s;
+    }
+
+    .dropdown-item svg {
+        width: 16px;
+        height: 16px;
+    }
+
+    .dropdown-item:hover {
+        background: #f1f5f9;
+        color: #1e293b;
+    }
+
+    .dropdown-item.active {
+        background: #eff6ff;
+        color: #2563eb;
+    }
+
+    .dropdown-item.active svg {
+        color: #3b82f6;
+    }
+
+    .section-desc {
+        font-size: 13px;
+        color: #64748b;
+        margin: 0 0 0 4px;
+    }
+
+    .header-actions {
+        display: flex;
+        gap: 10px;
+    }
+
+    /* Info Banner */
+    .info-banner {
+        display: flex;
+        gap: 16px;
+        padding: 20px;
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+    }
+
+    .banner-icon-container {
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        background: #ecfdf5;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .banner-icon {
+        color: #10b981;
+        width: 20px;
+        height: 20px;
+    }
+
+    .banner-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .banner-title {
+        font-size: 15px;
+        font-weight: 600;
+        color: #0f172a;
+        margin: 0;
+    }
+
+    .banner-grid {
+        display: flex;
+        gap: 32px;
+        flex-wrap: wrap;
+    }
+
+    .banner-item {
+        flex: 1;
+        min-width: 250px;
+    }
+
+    .engine-name {
+        font-size: 14px;
+        font-weight: 600;
+        color: #334155;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 4px;
+    }
+
+    .engine-name svg {
+        width: 14px;
+        height: 14px;
+        color: #64748b;
+    }
+
+    .engine-desc {
+        font-size: 13px;
+        color: #64748b;
+        line-height: 1.4;
+        margin: 0;
+    }
+
+    /* Global Settings */
+    .pii-card {
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+        padding: 24px;
+    }
+
+    .pii-card.no-padding {
+        padding: 0;
+        overflow: hidden;
+    }
+
+    .card-title {
+        font-size: 15px;
+        font-weight: 600;
+        color: #0f172a;
+        margin: 0 0 16px 0;
+    }
+
+    .global-settings-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+
+    .custom-checkbox {
+        width: 18px;
+        height: 18px;
+        border: 2px solid #cbd5e1;
+        border-radius: 4px;
+        display: inline-block;
+        position: relative;
+        margin-right: 10px;
+        transition: all 0.2s;
+    }
+
+    .checkbox-wrapper input:checked+.custom-checkbox {
+        background: #3b82f6;
+        border-color: #3b82f6;
+    }
+
+    .checkbox-wrapper input:checked+.custom-checkbox::after {
+        content: '';
+        position: absolute;
+        top: 1px;
+        left: 5px;
+        width: 5px;
+        height: 10px;
+        border: solid white;
+        border-width: 0 2px 2px 0;
+        transform: rotate(45deg);
+    }
+
+    .checkbox-wrapper input {
+        display: none;
+    }
+
+    .checkbox-wrapper {
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .label-text {
+        font-size: 14px;
+        color: #334155;
+        font-weight: 500;
+    }
+
+    .redaction-settings {
+        display: flex;
+        gap: 24px;
+        padding-top: 20px;
+        border-top: 1px solid #f1f5f9;
+    }
+
+    /* Form Elements (Reused style) */
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .form-group label {
+        font-size: 13px;
+        font-weight: 600;
+        color: #64748b;
+    }
+
+    .form-select,
+    .form-input {
+        padding: 10px 14px;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        font-size: 14px;
+        color: #0f172a;
+        background: white;
+        font-weight: 500;
+        appearance: none;
+    }
+
+    .form-select {
+        padding-right: 36px;
+        min-width: 140px;
+    }
+
+    .small-input {
+        width: 60px;
+        text-align: center;
+    }
+
+    .custom-select-wrapper {
+        position: relative;
+    }
+
+    .select-arrow {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 14px;
+        height: 14px;
+        color: #64748b;
+        pointer-events: none;
+    }
+
+    .primary-btn {
+        background: #3b82f6;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+
+    .primary-btn:hover {
+        background: #2563eb;
+    }
+
+    .secondary-btn {
+        background: white;
+        border: 1px solid #e2e8f0;
+        color: #475569;
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 13px;
+        cursor: pointer;
+    }
+
+    .secondary-btn:hover {
+        background: #f8fafc;
+        border-color: #cbd5e1;
+    }
+
+    .icon-btn {
+        background: none;
+        border: none;
+        padding: 6px;
+        border-radius: 6px;
+        color: #64748b;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+
+    .icon-btn:hover {
+        background: #f1f5f9;
+        color: #3b82f6;
+    }
+
+    .icon-btn.delete:hover {
+        color: #ef4444;
+        background: #fef2f2;
+    }
+
+    .icon-btn svg {
+        width: 16px;
+        height: 16px;
+    }
+
+    /* Tabs */
+    .card-tabs {
+        display: flex;
+        border-bottom: 1px solid #e2e8f0;
+        background: #f8fafc;
+    }
+
+    .tab-btn {
+        border: none;
+        background: none;
+        padding: 16px 24px;
+        font-size: 14px;
+        font-weight: 600;
+        color: #64748b;
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.15s;
+    }
+
+    .tab-btn:hover {
+        color: #1e293b;
+        background: #f1f5f9;
+    }
+
+    .tab-btn.active {
+        color: #3b82f6;
+        border-bottom-color: #3b82f6;
+        background: white;
+    }
+
+    .tab-btn svg {
+        width: 16px;
+        height: 16px;
+    }
+
+    .tab-content-container {
+        padding: 0;
+        min-height: 300px;
+    }
+
+    .tab-pane {
+        display: none;
+        padding: 24px;
+        animation: fadeIn 0.2s;
+    }
+
+    .tab-pane.active {
+        display: block;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(5px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .tab-info {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 12px 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        margin-bottom: 20px;
+        font-size: 13px;
+    }
+
+    .tab-info strong {
+        color: #0f172a;
+    }
+
+    .tab-info span {
+        color: #64748b;
+    }
+
+    /* Table */
+    .users-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        font-size: 14px;
+    }
+
+    .users-table th {
+        text-align: left;
+        padding: 12px 16px;
+        border-bottom: 1px solid #e2e8f0;
+        color: #0f172a;
+        font-weight: 600;
+        background: #f8fafc;
+    }
+
+    .users-table td {
+        padding: 12px 16px;
+        border-bottom: 1px solid #f1f5f9;
+        color: #334155;
+        vertical-align: middle;
+    }
+
+    .users-table tr:hover td {
+        background: #f8fafc;
+    }
+
+    .users-table tr:last-child td {
+        border-bottom: none;
+    }
+
+    .badge {
+        display: inline-flex;
+        padding: 2px 8px;
+        border-radius: 99px;
+        font-size: 11px;
+        font-weight: 600;
+    }
+
+    .badge-success {
+        background: #dcfce7;
+        color: #15803d;
+    }
+
+    .badge-warning {
+        background: #fef9c3;
+        color: #a16207;
+    }
+
+    /* Exception Form */
+    .exception-form-panel {
+        background: #f8fafc;
+        border: 1px dashed #cbd5e1;
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 24px;
+    }
+
+    .form-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: #0f172a;
+        margin: 0 0 12px 0;
+    }
+
+    .exception-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr 1fr;
+        gap: 12px;
+        margin-bottom: 12px;
+    }
+
+    .code-font {
+        font-family: 'Space Mono', monospace;
+        color: #d97706;
+    }
+
+    /* Test Sandbox */
+    .test-sandbox-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .code-area {
+        font-family: 'Space Mono', monospace;
+        min-height: 120px;
+        line-height: 1.5;
+        resize: vertical;
+        width: 100%;
+    }
+
+    .redacted-preview {
+        background: #f1f5f9;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 12px;
+        font-family: 'Space Mono', monospace;
+        color: #334155;
+        white-space: pre-wrap;
+        line-height: 1.5;
+    }
+</style>
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+    feather.replace();
+
+    // Dropdown Logic
+    const dropdownBtn = document.getElementById('sectionDropdownBtn');
+    const dropdownMenu = document.getElementById('sectionDropdownMenu');
+
+    dropdownBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        dropdownMenu.classList.toggle('open');
+    });
+
+    document.addEventListener('click', function () {
+        dropdownMenu.classList.remove('open');
+    });
+
+    // Tab Logic
+    function switchTab(tabId, btnElement) {
+        // 1. Remove active class from all buttons and panes
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
+
+        // 2. Add active class to clicked button and target pane
+        btnElement.classList.add('active');
+        document.getElementById(tabId + '-tab').classList.add('active');
+    }
+
+    // Fake Test Logic (Frontend Demo)
+    function runFakeTest() {
+        const input = document.querySelector('.code-area').value;
+        const resultDiv = document.getElementById('redactedPreview');
+        const resultGroup = document.getElementById('testResultGroup');
+
+        if (!input.trim()) return;
+
+        // Simple mock redaction
+        let redacted = input
+            .replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, '****@****.***')
+            .replace(/\d{3}-\d{2}-\d{4}/g, '***-**-****')
+            .replace(/(password\s*=\s*)(['"])(.*?)(['"])/gi, '$1$2********$4');
+
+        resultDiv.textContent = redacted;
+        resultGroup.style.display = 'flex';
+    }
+</script>
+{% endblock %}

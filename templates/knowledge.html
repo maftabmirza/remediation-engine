@@ -1,4 +1,4 @@
-﻿{% extends "layout.html" %}
+{% extends "base.html" %}
 {% set active_page = 'knowledge' %}
 
 {% block title %}Knowledge Base - AIOps Platform{% endblock %}
@@ -14,35 +14,38 @@
 {% endblock %}
 
 {% block header_actions %}
-<div class="flex items-center gap-2">
-    <button onclick="showAppModal()"
-        class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 text-[11px] rounded flex items-center gap-2 transition-colors">
-        <i class="fas fa-layer-group"></i>
-        Manage Apps
-    </button>
-    <button onclick="showGitSyncModal()"
-        class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 text-[11px] rounded flex items-center gap-2 transition-colors">
-        <i class="fab fa-git-alt"></i>
-        Sync Git Repo
-    </button>
-    <button onclick="showUploadModal()"
-        class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 text-[11px] rounded flex items-center gap-2 transition-colors">
-        <i class="fas fa-plus"></i>
-        Add Document
-    </button>
-</div>
+{{ super() }}
 {% endblock %}
 
 {% block content %}
 <div class="space-y-4">
+
+    <!-- Page Action Buttons -->
+    <div class="flex justify-end items-center gap-2 px-1">
+        <button onclick="showAppModal()"
+            class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1.5 text-sm rounded flex items-center gap-2 transition-colors">
+            <i class="fas fa-layer-group"></i>
+            Manage Apps
+        </button>
+        <button onclick="showGitSyncModal()"
+            class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1.5 text-sm rounded flex items-center gap-2 transition-colors">
+            <i class="fab fa-git-alt"></i>
+            Sync Git Repo
+        </button>
+        <button onclick="showUploadModal()"
+            class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 text-sm rounded flex items-center gap-2 transition-colors">
+            <i class="fas fa-plus"></i>
+            Add Document
+        </button>
+    </div>
 
     <!-- Stats Cards -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div class="card p-4">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-xs text-gray-400">Total Documents</p>
-                    <p id="totalDocs" class="text-xl font-bold">-</p>
+                    <p class="text-xs text-slate-500 font-medium uppercase tracking-wider">Total Documents</p>
+                    <p id="totalDocs" class="text-xl font-bold text-slate-900">-</p>
                 </div>
                 <i class="fas fa-file-alt text-2xl text-blue-400"></i>
             </div>
@@ -50,8 +53,8 @@
         <div class="card p-4">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-xs text-gray-400">Generated Chunks</p>
-                    <p id="totalChunks" class="text-xl font-bold">-</p>
+                    <p class="text-xs text-slate-500 font-medium uppercase tracking-wider">Generated Chunks</p>
+                    <p id="totalChunks" class="text-xl font-bold text-slate-900">-</p>
                 </div>
                 <i class="fas fa-puzzle-piece text-2xl text-green-400"></i>
             </div>
@@ -59,8 +62,8 @@
         <div class="card p-4">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-xs text-gray-400">Embedding Model</p>
-                    <p id="embeddingModel" class="text-lg font-bold truncate max-w-[150px]">-</p>
+                    <p class="text-xs text-slate-500 font-medium uppercase tracking-wider">Embedding Model</p>
+                    <p id="embeddingModel" class="text-lg font-bold text-slate-900 truncate max-w-[150px]">-</p>
                 </div>
                 <i class="fas fa-brain text-2xl text-purple-400"></i>
             </div>
@@ -68,7 +71,7 @@
         <div class="card p-4">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-xs text-gray-400">Status</p>
+                    <p class="text-xs text-slate-500 font-medium uppercase tracking-wider">Status</p>
                     <p id="embeddingStatus" class="text-lg font-bold">-</p>
                 </div>
                 <i class="fas fa-check-circle text-2xl text-teal-400"></i>
@@ -79,25 +82,29 @@
     <!-- Toolbar & Search -->
     <div class="card p-4 flex gap-4 items-center flex-wrap">
         <div class="flex-1 relative">
-            <i class="fas fa-search absolute left-3 top-3 text-gray-500"></i>
-            <input type="text" id="searchQuery" class="input-field pl-10 pr-4 py-2 rounded w-full"
+            <i class="fas fa-search absolute left-3 top-3 text-slate-400"></i>
+            <input type="text" id="searchQuery"
+                class="input-field pl-10 pr-4 py-2 rounded w-full border border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 placeholder="Search documents, code, or runbooks..."
                 onkeypress="if(event.key === 'Enter') searchKnowledge()">
         </div>
 
-        <select id="filterApp" class="input-field px-3 py-2 rounded" onchange="loadDocuments()">
+        <select id="filterApp" class="input-field px-3 py-2 rounded border border-slate-200 bg-white"
+            onchange="loadDocuments()">
             <option value="">All Applications</option>
             <!-- Populated by JS -->
         </select>
 
-        <select id="filterDocType" class="input-field px-3 py-2 rounded" onchange="loadDocuments()">
+        <select id="filterDocType" class="input-field px-3 py-2 rounded border border-slate-200 bg-white"
+            onchange="loadDocuments()">
             <option value="">All Types</option>
             <option value="sop">SOP</option>
             <option value="architecture">Architecture</option>
             <option value="code">Code</option>
         </select>
 
-        <button onclick="loadDocuments()" class="btn-secondary px-3 py-2 rounded">
+        <button onclick="loadDocuments()"
+            class="btn-secondary px-3 py-2 rounded border border-slate-200 hover:bg-slate-50 text-slate-600">
             <i class="fas fa-sync-alt"></i>
         </button>
     </div>
@@ -112,7 +119,7 @@
         <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse">
                 <thead>
-                    <tr class="bg-gray-800/50 text-gray-400 text-xs uppercase border-b border-gray-700">
+                    <tr class="bg-slate-50 text-slate-500 text-xs uppercase border-b border-slate-200">
                         <th class="px-6 py-3 font-medium">Type</th>
                         <th class="px-6 py-3 font-medium">Title</th>
                         <th class="px-6 py-3 font-medium">Application</th>
@@ -121,9 +128,9 @@
                         <th class="px-6 py-3 font-medium text-right">Actions</th>
                     </tr>
                 </thead>
-                <tbody id="documentsTableBody" class="divide-y divide-gray-700/50">
+                <tbody id="documentsTableBody" class="divide-y divide-slate-200">
                     <tr>
-                        <td colspan="6" class="px-6 py-8 text-center text-gray-500">
+                        <td colspan="6" class="px-6 py-8 text-center text-slate-500">
                             <i class="fas fa-circle-notch fa-spin mr-2"></i> Loading documents...
                         </td>
                     </tr>
@@ -137,27 +144,27 @@
 <div id="uploadModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
     <div class="card p-6 w-full max-w-2xl max-h-screen overflow-y-auto m-4 shadow-2xl border border-gray-700">
         <div class="flex items-center justify-between mb-6">
-            <h3 class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400">
+            <h3 class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">
                 Add Knowledge
             </h3>
-            <button onclick="closeUploadModal()" class="text-gray-400 hover:text-white transition-colors">
+            <button onclick="closeUploadModal()" class="text-slate-400 hover:text-slate-600 transition-colors">
                 <i class="fas fa-times text-xl"></i>
             </button>
         </div>
 
         <form id="uploadForm" onsubmit="uploadDocument(event)" class="space-y-5">
             <div>
-                <label class="block text-sm font-medium text-gray-300 mb-1">Title *</label>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Title *</label>
                 <input type="text" name="title" required
-                    class="input-field w-full px-4 py-2 rounded border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    class="input-field w-full px-4 py-2 rounded border border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                     placeholder="e.g., Payment Service Architecture">
             </div>
 
             <div class="grid grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-1">Type *</label>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Type *</label>
                     <select name="doc_type" required
-                        class="input-field w-full px-4 py-2 rounded border border-gray-600">
+                        class="input-field w-full px-4 py-2 rounded border border-slate-200 focus:border-blue-500">
                         <option value="">Select type...</option>
                         <option value="sop">SOP</option>
                         <option value="architecture">Architecture</option>
@@ -165,9 +172,9 @@
                     </select>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-1">Application</label>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Application</label>
                     <select name="app_id" id="uploadAppSelect"
-                        class="input-field w-full px-4 py-2 rounded border border-gray-600">
+                        class="input-field w-full px-4 py-2 rounded border border-slate-200 focus:border-blue-500">
                         <option value="">(None)</option>
                         <!-- Populated by JS -->
                     </select>
@@ -176,28 +183,28 @@
 
             <!-- File Upload Option -->
             <div
-                class="border border-dashed border-gray-600 rounded-lg p-6 bg-gray-800/30 text-center hover:bg-gray-800/50 transition-colors cursor-pointer relative">
+                class="border border-dashed border-slate-300 rounded-lg p-6 bg-slate-50 text-center hover:bg-slate-100 transition-colors cursor-pointer relative">
                 <input type="file" id="fileUpload" accept=".md,.txt,.markdown,.pdf,.jpg,.jpeg,.png,.gif"
                     class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="handleFileUpload(event)">
                 <div class="pointer-events-none">
-                    <i class="fas fa-cloud-upload-alt text-3xl text-gray-400 mb-2"></i>
-                    <p class="text-sm font-medium text-blue-400">Click to upload file</p>
-                    <p class="text-xs text-gray-500 mt-1">Markdown, PDF, Images</p>
+                    <i class="fas fa-cloud-upload-alt text-3xl text-slate-400 mb-2"></i>
+                    <p class="text-sm font-medium text-blue-600">Click to upload file</p>
+                    <p class="text-xs text-slate-500 mt-1">Markdown, PDF, Images</p>
                 </div>
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-gray-300 mb-1">Content</label>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Content</label>
                 <textarea name="content" id="docContent" rows="8"
-                    class="input-field w-full px-4 py-2 rounded font-mono text-sm border border-gray-600"
+                    class="input-field w-full px-4 py-2 rounded font-mono text-sm border border-slate-200 focus:border-blue-500"
                     placeholder="# Markdown Content..."></textarea>
             </div>
 
             <input type="hidden" name="format" value="markdown">
 
-            <div class="flex justify-end space-x-3 pt-4 border-t border-gray-700">
+            <div class="flex justify-end space-x-3 pt-4 border-t border-slate-100">
                 <button type="button" onclick="closeUploadModal()"
-                    class="px-4 py-2 rounded hover:bg-gray-700 text-gray-300 transition-colors">
+                    class="px-4 py-2 rounded hover:bg-slate-100 text-slate-600 transition-colors">
                     Cancel
                 </button>
                 <button type="submit" class="btn-primary px-6 py-2 rounded shadow-lg shadow-blue-500/20">
@@ -210,59 +217,62 @@
 
 <!-- Git Sync Modal -->
 <div id="gitSyncModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-    <div class="card p-6 w-full max-w-lg m-4 shadow-2xl border border-gray-700">
+    <div class="card p-6 w-full max-w-lg m-4 shadow-2xl border border-slate-200 bg-white">
         <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-bold flex items-center gap-2">
+            <h3 class="text-lg font-bold flex items-center gap-2 text-slate-800">
                 <i class="fab fa-git-alt text-orange-500"></i> Sync Git Repository
             </h3>
-            <button onclick="closeGitSyncModal()" class="text-gray-400 hover:text-white">
+            <button onclick="closeGitSyncModal()" class="text-slate-400 hover:text-slate-600">
                 <i class="fas fa-times"></i>
             </button>
         </div>
 
         <form id="gitSyncForm" onsubmit="syncGitRepo(event)" class="space-y-4">
             <div>
-                <label class="block text-sm text-gray-400 mb-1">Repository URL *</label>
-                <input type="url" name="repo_url" required class="input-field w-full px-3 py-2 rounded"
+                <label class="block text-sm text-slate-500 mb-1">Repository URL *</label>
+                <input type="url" name="repo_url" required
+                    class="input-field w-full px-3 py-2 rounded border border-slate-200"
                     placeholder="https://github.com/username/repo">
             </div>
 
             <div class="grid grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm text-gray-400 mb-1">Application</label>
-                    <select name="app_id" id="syncAppSelect" class="input-field w-full px-3 py-2 rounded">
+                    <label class="block text-sm text-slate-500 mb-1">Application</label>
+                    <select name="app_id" id="syncAppSelect"
+                        class="input-field w-full px-3 py-2 rounded border border-slate-200">
                         <option value="">(Create New / None)</option>
                         <!-- Populated by JS -->
                     </select>
                 </div>
                 <div>
-                    <label class="block text-sm text-gray-400 mb-1">Branch</label>
-                    <input type="text" name="branch" value="main" class="input-field w-full px-3 py-2 rounded"
-                        placeholder="main">
+                    <label class="block text-sm text-slate-500 mb-1">Branch</label>
+                    <input type="text" name="branch" value="main"
+                        class="input-field w-full px-3 py-2 rounded border border-slate-200" placeholder="main">
                 </div>
             </div>
 
-            <div class="p-4 bg-gray-800/50 rounded border border-gray-700">
-                <p class="text-sm font-semibold mb-2 text-gray-300">Sync Options</p>
+            <div class="p-4 bg-slate-50 rounded border border-slate-200">
+                <p class="text-sm font-semibold mb-2 text-slate-700">Sync Options</p>
                 <div class="space-y-3">
                     <label
-                        class="flex items-center gap-3 text-sm text-gray-300 cursor-pointer hover:bg-gray-800 p-2 rounded transition-colors">
+                        class="flex items-center gap-3 text-sm text-slate-600 cursor-pointer hover:bg-slate-100 p-2 rounded transition-colors">
                         <input type="checkbox" name="sync_docs" checked
-                            class="w-4 h-4 rounded bg-gray-700 border-gray-600 text-blue-500 focus:ring-blue-500">
-                        <span>Sync Documentation <span class="text-xs text-gray-500">(.md, .txt)</span></span>
+                            class="w-4 h-4 rounded bg-white border-slate-300 text-blue-500 focus:ring-blue-500">
+                        <span>Sync Documentation <span class="text-xs text-slate-400">(.md, .txt)</span></span>
                     </label>
                     <label
-                        class="flex items-center gap-3 text-sm text-gray-300 cursor-pointer hover:bg-gray-800 p-2 rounded transition-colors">
+                        class="flex items-center gap-3 text-sm text-slate-600 cursor-pointer hover:bg-slate-100 p-2 rounded transition-colors">
                         <input type="checkbox" name="sync_code"
-                            class="w-4 h-4 rounded bg-gray-700 border-gray-600 text-blue-500 focus:ring-blue-500">
+                            class="w-4 h-4 rounded bg-white border-slate-300 text-blue-500 focus:ring-blue-500">
                         <span>Sync Code <span
-                                class="text-xs bg-orange-900/50 text-orange-400 px-1.5 py-0.5 rounded ml-2">Experimental</span></span>
+                                class="text-xs bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded ml-2">Experimental</span></span>
                     </label>
                 </div>
             </div>
 
             <div class="flex justify-end space-x-2 pt-4">
-                <button type="button" onclick="closeGitSyncModal()" class="btn-secondary px-4 py-2 rounded">
+                <button type="button" onclick="closeGitSyncModal()"
+                    class="btn-secondary px-4 py-2 rounded bg-white border border-slate-200 text-slate-600 hover:bg-slate-50">
                     Cancel
                 </button>
                 <button type="submit" class="btn-primary px-4 py-2 rounded">
@@ -275,15 +285,16 @@
 
 <!-- View Document Modal -->
 <div id="viewModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-    <div class="card p-6 w-full max-w-5xl h-[90vh] overflow-hidden flex flex-col m-4 shadow-2xl border border-gray-700">
+    <div
+        class="card bg-white p-6 w-full max-w-5xl h-[90vh] overflow-hidden flex flex-col m-4 shadow-2xl border border-slate-200 rounded-xl">
         <div class="flex items-center justify-between mb-4 flex-shrink-0">
             <div>
                 <h3 id="viewTitle"
-                    class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-green-400">
+                    class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-green-600">
                     Loading...</h3>
-                <div id="viewMeta" class="flex gap-2 mt-1 text-xs text-gray-400"></div>
+                <div id="viewMeta" class="flex gap-2 mt-1 text-xs text-slate-500"></div>
             </div>
-            <button onclick="closeViewModal()" class="text-gray-400 hover:text-white p-2">
+            <button onclick="closeViewModal()" class="text-slate-400 hover:text-slate-600 p-2">
                 <i class="fas fa-times text-xl"></i>
             </button>
         </div>
@@ -295,19 +306,19 @@
 
 <!-- Application Management Modal -->
 <div id="appModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-    <div class="card p-6 w-full max-w-3xl m-4 shadow-2xl border border-gray-700 h-[80vh] flex flex-col">
+    <div class="card p-6 w-full max-w-3xl m-4 shadow-2xl border border-slate-200 h-[80vh] flex flex-col bg-white">
         <div class="flex items-center justify-between mb-6 flex-shrink-0">
-            <h3 class="text-xl font-bold">Manage Applications</h3>
-            <button onclick="closeAppModal()" class="text-gray-400 hover:text-white">
+            <h3 class="text-xl font-bold text-slate-900">Manage Applications</h3>
+            <button onclick="closeAppModal()" class="text-slate-400 hover:text-slate-600">
                 <i class="fas fa-times"></i>
             </button>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 flex-1 overflow-hidden">
             <!-- App List -->
-            <div class="md:col-span-1 border-r border-gray-700 pr-4 overflow-y-auto custom-scrollbar">
+            <div class="md:col-span-1 border-r border-slate-200 pr-4 overflow-y-auto custom-scrollbar">
                 <button onclick="resetAppForm()"
-                    class="w-full text-left p-3 rounded mb-2 border border-dashed border-gray-600 text-blue-400 hover:bg-gray-800 transition-colors flex items-center justify-center gap-2">
+                    class="w-full text-left p-3 rounded mb-2 border border-dashed border-slate-300 text-blue-600 hover:bg-slate-50 transition-colors flex items-center justify-center gap-2">
                     <i class="fas fa-plus"></i> New Application
                 </button>
                 <div id="appList" class="space-y-2">
@@ -321,22 +332,25 @@
                     <input type="hidden" name="id" id="appId">
 
                     <div>
-                        <label class="block text-sm text-gray-400 mb-1">Application Name *</label>
+                        <label class="block text-sm text-slate-500 mb-1">Application Name *</label>
                         <input type="text" name="name" id="appName" required
-                            class="input-field w-full px-3 py-2 rounded" placeholder="service-name">
-                        <p class="text-xs text-gray-500 mt-1">Unique identifier (slug)</p>
+                            class="input-field w-full px-3 py-2 rounded border border-slate-200 focus:border-blue-500"
+                            placeholder="service-name">
+                        <p class="text-xs text-slate-400 mt-1">Unique identifier (slug)</p>
                     </div>
 
                     <div>
-                        <label class="block text-sm text-gray-400 mb-1">Display Name</label>
+                        <label class="block text-sm text-slate-500 mb-1">Display Name</label>
                         <input type="text" name="display_name" id="appDisplayName"
-                            class="input-field w-full px-3 py-2 rounded" placeholder="Friendly Name">
+                            class="input-field w-full px-3 py-2 rounded border border-slate-200 focus:border-blue-500"
+                            placeholder="Friendly Name">
                     </div>
 
                     <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-sm text-gray-400 mb-1">Criticality</label>
-                            <select name="criticality" id="appCriticality" class="input-field w-full px-3 py-2 rounded">
+                            <label class="block text-sm text-slate-500 mb-1">Criticality</label>
+                            <select name="criticality" id="appCriticality"
+                                class="input-field w-full px-3 py-2 rounded border border-slate-200 focus:border-blue-500">
                                 <option value="low">Low</option>
                                 <option value="medium">Medium</option>
                                 <option value="high">High</option>
@@ -344,21 +358,22 @@
                             </select>
                         </div>
                         <div>
-                            <label class="block text-sm text-gray-400 mb-1">Team Owner</label>
+                            <label class="block text-sm text-slate-500 mb-1">Team Owner</label>
                             <input type="text" name="team_owner" id="appTeam"
-                                class="input-field w-full px-3 py-2 rounded" placeholder="Platform Team">
+                                class="input-field w-full px-3 py-2 rounded border border-slate-200 focus:border-blue-500"
+                                placeholder="Platform Team">
                         </div>
                     </div>
 
                     <div>
-                        <label class="block text-sm text-gray-400 mb-1">Description</label>
+                        <label class="block text-sm text-slate-500 mb-1">Description</label>
                         <textarea name="description" id="appDescription" rows="3"
-                            class="input-field w-full px-3 py-2 rounded"></textarea>
+                            class="input-field w-full px-3 py-2 rounded border border-slate-200 focus:border-blue-500"></textarea>
                     </div>
 
-                    <div class="pt-4 flex justify-between items-center border-t border-gray-700">
+                    <div class="pt-4 flex justify-between items-center border-t border-slate-200">
                         <button type="button" id="deleteAppBtn" onclick="deleteApplication()"
-                            class="text-red-400 hover:text-red-300 text-sm hidden">
+                            class="text-red-500 hover:text-red-600 text-sm hidden">
                             <i class="fas fa-trash mr-1"></i> Delete Application
                         </button>
                         <button type="submit" class="btn-primary px-6 py-2 rounded">
@@ -519,8 +534,8 @@
             const groupDocs = appGroups[group];
             // Group Header
             html += `
-                <tr class="bg-gray-800/30">
-                    <td colspan="6" class="px-6 py-2 font-semibold text-xs uppercase text-gray-400 tracking-wider">
+                <tr class="bg-slate-50">
+                    <td colspan="6" class="px-6 py-2 font-semibold text-xs uppercase text-slate-500 tracking-wider border-b border-t border-slate-200">
                         <i class="fas fa-layer-group mr-2 opacity-50"></i> ${group}
                     </td>
                 </tr>
@@ -531,41 +546,41 @@
                 const chunkCount = doc.chunk_count || 0;
 
                 html += `
-                <tr class="hover:bg-gray-700/50 transition-colors group border-b border-gray-700/50 last:border-0">
+                <tr class="hover:bg-slate-50 transition-colors group border-b border-slate-100 last:border-0">
                     <td class="px-6 py-3 whitespace-nowrap">
                         <div class="flex items-center" title="${doc.doc_type}">
-                            <div class="w-8 h-8 rounded bg-gray-800 flex items-center justify-center mr-3">
+                            <div class="w-8 h-8 rounded bg-slate-100 flex items-center justify-center mr-3 border border-slate-200">
                                 <i class="fas ${iconClass}"></i>
                             </div>
                         </div>
                     </td>
                     <td class="px-6 py-3">
-                        <div class="font-medium text-white group-hover:text-blue-400 transition-colors cursor-pointer" onclick="viewDocument('${doc.id}')">
+                        <div class="font-medium text-slate-900 group-hover:text-blue-600 transition-colors cursor-pointer" onclick="viewDocument('${doc.id}')">
                             ${doc.title}
                         </div>
-                        <div class="text-xs text-gray-500 truncate max-w-[200px]" title="${doc.description || ''}">
+                        <div class="text-xs text-slate-500 truncate max-w-[200px]" title="${doc.description || ''}">
                             ${doc.description || doc.slug}
                         </div>
                     </td>
                     <td class="px-6 py-3 whitespace-nowrap">
                          ${doc.app_name ?
-                        `<span class="px-2 py-0.5 rounded text-xs bg-gray-800 text-gray-300 border border-gray-700">${doc.app_name}</span>` :
-                        `<span class="text-gray-600 text-xs">-</span>`}
+                        `<span class="px-2 py-0.5 rounded text-xs bg-slate-100 text-slate-600 border border-slate-200">${doc.app_name}</span>` :
+                        `<span class="text-slate-400 text-xs">-</span>`}
                     </td>
                     <td class="px-6 py-3 whitespace-nowrap">
-                        <span class="text-xs bg-gray-800 px-2 py-1 rounded text-gray-400" title="Chunks generated">
-                            <i class="fas fa-puzzle-piece text-green-500/50 mr-1"></i> ${chunkCount}
+                        <span class="text-xs bg-slate-100 px-2 py-1 rounded text-slate-500 border border-slate-200" title="Chunks generated">
+                            <i class="fas fa-puzzle-piece text-green-500 mr-1"></i> ${chunkCount}
                         </span>
                     </td>
-                    <td class="px-6 py-3 whitespace-nowrap text-xs text-gray-400">
+                    <td class="px-6 py-3 whitespace-nowrap text-xs text-slate-500">
                          ${doc.source_type === 'git' ? '<i class="fab fa-git-alt mr-1"></i> Git' : '<i class="fas fa-user-edit mr-1"></i> Manual'}
                     </td>
                     <td class="px-6 py-3 whitespace-nowrap text-right text-sm font-medium">
                         <div class="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button onclick="viewDocument('${doc.id}')" class="text-gray-400 hover:text-white" title="View">
+                            <button onclick="viewDocument('${doc.id}')" class="text-slate-400 hover:text-blue-600" title="View">
                                 <i class="fas fa-eye"></i>
                             </button>
-                            <button onclick="deleteDocument('${doc.id}')" class="text-gray-400 hover:text-red-400" title="Delete">
+                            <button onclick="deleteDocument('${doc.id}')" class="text-slate-400 hover:text-red-500" title="Delete">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>
@@ -619,18 +634,18 @@
                 </div>
                 <div class="grid gap-3">
                     ${data.results.map(r => `
-                        <div class="card p-4 hover:border-blue-500/50 transition-colors border border-transparent cursor-pointer group" onclick="viewDocument('${r.source_id}')">
+                        <div class="card p-4 hover:border-blue-400 transition-colors border border-slate-200 cursor-pointer group bg-white" onclick="viewDocument('${r.source_id}')">
                             <div class="flex justify-between items-start mb-2">
                                 <div>
-                                    <h4 class="font-bold text-blue-400 group-hover:text-blue-300">
+                                    <h4 class="font-bold text-blue-600 group-hover:text-blue-700">
                                         <i class="fas ${typeIcons[r.doc_type] || 'fa-file'} mr-2 text-sm"></i>
                                         ${r.source_title}
                                     </h4>
-                                    <p class="text-xs text-gray-500 mt-0.5">Matched from ${r.source_type} â€¢ Score: ${Math.round(r.similarity * 100)}%</p>
+                                    <p class="text-xs text-slate-500 mt-0.5">Matched from ${r.source_type} • Score: ${Math.round(r.similarity * 100)}%</p>
                                 </div>
                                 <span class="badge-primary px-2 py-0.5 rounded text-xs">${r.doc_type || 'doc'}</span>
                             </div>
-                            <div class="text-sm text-gray-300 bg-gray-900/50 p-2 rounded border border-gray-700/50 font-mono text-xs">
+                            <div class="text-sm text-slate-600 bg-slate-50 p-2 rounded border border-slate-200 font-mono text-xs">
                                 ...${r.content}...
                             </div>
                         </div>
@@ -663,9 +678,9 @@
             titleEl.textContent = doc.title;
             metaEl.innerHTML = `
                 <span class="bg-gray-700 px-2 rounded">${doc.doc_type}</span>
-                <span>â€¢ v${doc.version}</span>
-                <span>â€¢ ${new Date(doc.updated_at).toLocaleString()}</span>
-                ${doc.app_name ? `<span>â€¢ App: ${doc.app_name}</span>` : ''}
+                <span>• v${doc.version}</span>
+                <span>• ${new Date(doc.updated_at).toLocaleString()}</span>
+                ${doc.app_name ? `<span>• App: ${doc.app_name}</span>` : ''}
             `;
 
             // Render Markdown
@@ -702,14 +717,14 @@
         const list = document.getElementById('appList');
         list.innerHTML = applications.map(app => `
             <div onclick="selectApp('${app.id}')" 
-                 class="p-3 bg-gray-800 rounded cursor-pointer hover:bg-gray-700 border border-transparent hover:border-gray-600 transition-all">
+                 class="p-3 bg-white border border-slate-200 rounded cursor-pointer hover:bg-slate-50 hover:border-blue-300 transition-all">
                 <div class="flex justify-between items-center">
-                    <span class="font-medium text-sm">${app.display_name || app.name}</span>
-                    <span class="text-xs ${app.criticality === 'critical' ? 'text-red-400' : 'text-gray-500'}">
+                    <span class="font-medium text-sm text-slate-800">${app.display_name || app.name}</span>
+                    <span class="text-xs ${app.criticality === 'critical' ? 'text-red-500' : 'text-slate-500'}">
                         ${app.criticality || 'low'}
                     </span>
                 </div>
-                <div class="text-xs text-gray-500 truncate">${app.name}</div>
+                <div class="text-xs text-slate-500 truncate">${app.name}</div>
             </div>
         `).join('');
     }

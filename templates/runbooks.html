@@ -1,4 +1,4 @@
-{% extends "layout.html" %}
+{% extends "base.html" %}
 {% set active_page = 'runbooks' %}
 
 {% block title %}Runbooks - AIOps Platform{% endblock %}
@@ -14,27 +14,239 @@
 {% endblock %}
 
 {% block header_actions %}
-<div class="flex items-center gap-2">
-    <button onclick="openTemplatesModal()"
-        class="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 px-3 py-1 text-[11px] rounded flex items-center gap-1.5 transition-colors">
-        <i class="fas fa-layer-group text-teal-400"></i>
-        <span>Templates</span>
-    </button>
-    <button onclick="openImportModal()"
-        class="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 px-3 py-1 text-[11px] rounded flex items-center gap-1.5 transition-colors">
-        <i class="fas fa-file-import text-blue-400"></i>
-        <span>Import</span>
-    </button>
-    <a href="/runbooks/new"
-        class="bg-blue-600 hover:bg-blue-500 px-3 py-1 text-[11px] rounded text-white flex items-center gap-1.5 transition-colors">
-        <i class="fas fa-plus"></i>
-        <span>Create</span>
-    </a>
-</div>
+{{ super() }}
 {% endblock %}
 
 {% block head %}
 <style>
+    /* Action Buttons - Inspired by Troubleshoot Page */
+    .runbook-action-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 16px;
+        font-size: 13px;
+        font-weight: 600;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: none;
+        text-decoration: none;
+        white-space: nowrap;
+    }
+
+    .runbook-action-primary {
+        background: linear-gradient(135deg, #3b82f6, #2563eb);
+        color: white;
+        box-shadow: 0 2px 6px rgba(59, 130, 246, 0.25);
+    }
+
+    .runbook-action-primary:hover {
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        box-shadow: 0 4px 14px rgba(59, 130, 246, 0.35);
+        transform: translateY(-1px);
+    }
+
+    .runbook-action-primary:active {
+        transform: translateY(0);
+        box-shadow: 0 1px 3px rgba(59, 130, 246, 0.3);
+    }
+
+    .runbook-action-secondary {
+        background: #ffffff;
+        color: #475569;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    }
+
+    .runbook-action-secondary:hover {
+        border-color: #cbd5e1;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+        background: #f8fafc;
+        transform: translateY(-1px);
+    }
+
+    .runbook-action-secondary:active {
+        transform: translateY(0);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    }
+
+    .runbook-action-btn i {
+        font-size: 12px;
+    }
+
+    /* Search Input Styling */
+    .runbook-search-input {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 8px 14px 8px 36px;
+        font-size: 13px;
+        color: #1e293b;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+        outline: none;
+    }
+
+    .runbook-search-input::placeholder {
+        color: #94a3b8;
+    }
+
+    .runbook-search-input:hover {
+        border-color: #cbd5e1;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+    }
+
+    .runbook-search-input:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+    }
+
+    .runbook-search-wrapper {
+        position: relative;
+    }
+
+    .runbook-search-wrapper .search-icon {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #94a3b8;
+        font-size: 13px;
+        pointer-events: none;
+    }
+
+    /* Custom Dropdown Component */
+    .rb-dropdown {
+        position: relative;
+        min-width: 150px;
+    }
+
+    .rb-dropdown-trigger {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 8px 12px 8px 14px;
+        font-size: 13px;
+        font-weight: 500;
+        color: #475569;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+        outline: none;
+        user-select: none;
+        white-space: nowrap;
+    }
+
+    .rb-dropdown-trigger:hover {
+        border-color: #cbd5e1;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+    }
+
+    .rb-dropdown.open .rb-dropdown-trigger {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+    }
+
+    .rb-dropdown-trigger .rb-dd-chevron {
+        width: 14px;
+        height: 14px;
+        color: #94a3b8;
+        transition: transform 0.2s ease;
+        flex-shrink: 0;
+    }
+
+    .rb-dropdown.open .rb-dd-chevron {
+        transform: rotate(180deg);
+    }
+
+    .rb-dropdown-menu {
+        display: none;
+        position: absolute;
+        top: calc(100% + 6px);
+        left: 0;
+        min-width: 100%;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.06);
+        z-index: 9999;
+        padding: 5px;
+        overflow: hidden;
+    }
+
+    .rb-dropdown.open .rb-dropdown-menu {
+        display: block;
+        animation: rbDropIn 0.15s ease-out;
+    }
+
+    @keyframes rbDropIn {
+        from {
+            opacity: 0;
+            transform: translateY(-6px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .rb-dropdown-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        font-size: 13px;
+        font-weight: 500;
+        color: #475569;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.12s ease;
+        white-space: nowrap;
+    }
+
+    .rb-dropdown-item:hover {
+        background: #f1f5f9;
+        color: #1e293b;
+    }
+
+    .rb-dropdown-item.selected {
+        background: rgba(59, 130, 246, 0.08);
+        color: #2563eb;
+    }
+
+    .rb-dropdown-item .rb-dd-check {
+        width: 14px;
+        font-size: 11px;
+        color: #3b82f6;
+        opacity: 0;
+    }
+
+    .rb-dropdown-item.selected .rb-dd-check {
+        opacity: 1;
+    }
+
+    /* Hidden native select for form compat */
+    .rb-dropdown select {
+        display: none;
+    }
+
+    /* Mobile responsive adjustments */
+    @media (max-width: 640px) {
+        .runbook-action-btn {
+            padding: 8px 12px;
+        }
+
+        .rb-dropdown {
+            min-width: 120px;
+        }
+    }
+
     /* Grafana-aligned Panel/Table Style */
     .panel-card {
         background-color: #181b1f;
@@ -43,157 +255,350 @@
         transition: transform 0.2s, box-shadow 0.2s;
     }
 
-    /* Grafana-style Badges */
+    /* Modern Badge Styles */
     .badge {
-        padding: 2px 8px;
-        border-radius: 2px;
-        font-size: 0.75rem;
-        font-weight: 500;
-        display: inline-block;
+        padding: 3px 10px;
+        border-radius: 20px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        letter-spacing: 0.03em;
     }
 
     .badge-active {
-        background-color: #1a7f4b;
-        color: white;
+        background-color: #ecfdf5;
+        color: #059669;
+        border: 1px solid #a7f3d0;
     }
 
-    /* Green */
+    .badge-active::before {
+        content: '';
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #10b981;
+        display: inline-block;
+    }
+
     .badge-draft {
-        background-color: #eb7b18;
-        color: white;
+        background-color: #fffbeb;
+        color: #d97706;
+        border: 1px solid #fde68a;
     }
 
-    /* Orange */
+    .badge-draft::before {
+        content: '';
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #f59e0b;
+        display: inline-block;
+    }
+
     .badge-disabled {
-        background-color: #565656;
-        color: #d3d3d3;
+        background-color: #f1f5f9;
+        color: #64748b;
+        border: 1px solid #e2e8f0;
     }
 
-    /* Gray */
+    .badge-disabled::before {
+        content: '';
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #94a3b8;
+        display: inline-block;
+    }
 
     .badge-infrastructure {
-        background-color: #3d71d9;
-        color: white;
+        background-color: #eff6ff;
+        color: #2563eb;
+        border: 1px solid #bfdbfe;
     }
 
-    /* Blue */
     .badge-application {
-        background-color: #b877d9;
-        color: white;
+        background-color: #faf5ff;
+        color: #9333ea;
+        border: 1px solid #e9d5ff;
     }
 
-    /* Purple */
     .badge-database {
-        background-color: #d10e5c;
-        color: white;
+        background-color: #fdf2f8;
+        color: #db2777;
+        border: 1px solid #fbcfe8;
     }
 
-    /* Pink */
     .badge-network {
-        background-color: #6e9fff;
-        color: #111217;
+        background-color: #eff6ff;
+        color: #3b82f6;
+        border: 1px solid #bfdbfe;
     }
 
-    /* Light Blue */
     .badge-security {
-        background-color: #ff5286;
-        color: white;
+        background-color: #fef2f2;
+        color: #dc2626;
+        border: 1px solid #fecaca;
     }
 
-    /* Red */
+    .badge-diagnostics {
+        background-color: #ecfeff;
+        color: #0f766e;
+        border: 1px solid #a5f3fc;
+    }
+
+    /* Dropdown color indicators */
+    .rb-dd-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        display: inline-block;
+        flex-shrink: 0;
+    }
+
+    .rb-dd-icon {
+        width: 16px;
+        height: 16px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        flex-shrink: 0;
+    }
+
+    .rb-modal-overlay {
+        z-index: 2000;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="space-y-4">
-    <div id="runbooksGrid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
+    <!-- Toolbar with Filters and Actions -->
+    <div class="card p-4" style="overflow: visible; position: relative; z-index: 200;">
+        <div class="flex flex-wrap gap-4 items-center justify-between">
+            <!-- Left: Filters -->
+            <div class="flex flex-wrap gap-3 items-center flex-1">
+                <div class="runbook-search-wrapper flex-1 min-w-[200px]">
+                    <i class="fas fa-search search-icon"></i>
+                    <input type="text" id="searchInput" placeholder="Search runbooks..." onkeyup="filterRunbooks()"
+                        class="runbook-search-input w-full">
+                </div>
+                <!-- Status Dropdown -->
+                <div class="rb-dropdown" id="statusDropdown">
+                    <select id="statusFilter">
+                        <option value="">All Status</option>
+                        <option value="active">Active</option>
+                        <option value="draft">Draft</option>
+                        <option value="disabled">Disabled</option>
+                    </select>
+                    <div class="rb-dropdown-trigger" onclick="toggleRbDropdown('statusDropdown')">
+                        <div class="flex items-center gap-2">
+                            <i class="fas fa-circle-dot" style="font-size: 11px; color: #94a3b8;"></i>
+                            <span class="rb-dd-label">All Status</span>
+                        </div>
+                        <svg class="rb-dd-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </div>
+                    <div class="rb-dropdown-menu">
+                        <div class="rb-dropdown-item selected" data-value=""
+                            onclick="selectRbOption('statusDropdown','','All Status')">
+                            <i class="fas fa-check rb-dd-check"></i>
+                            <span class="rb-dd-dot"
+                                style="background: linear-gradient(135deg, #10b981, #f59e0b, #94a3b8);"></span>
+                            All Status
+                        </div>
+                        <div class="rb-dropdown-item" data-value="active"
+                            onclick="selectRbOption('statusDropdown','active','Active')">
+                            <i class="fas fa-check rb-dd-check"></i>
+                            <span class="rb-dd-dot" style="background: #10b981;"></span>
+                            Active
+                        </div>
+                        <div class="rb-dropdown-item" data-value="draft"
+                            onclick="selectRbOption('statusDropdown','draft','Draft')">
+                            <i class="fas fa-check rb-dd-check"></i>
+                            <span class="rb-dd-dot" style="background: #f59e0b;"></span>
+                            Draft
+                        </div>
+                        <div class="rb-dropdown-item" data-value="disabled"
+                            onclick="selectRbOption('statusDropdown','disabled','Disabled')">
+                            <i class="fas fa-check rb-dd-check"></i>
+                            <span class="rb-dd-dot" style="background: #94a3b8;"></span>
+                            Disabled
+                        </div>
+                    </div>
+                </div>
 
-        <!-- Filters & Bulk Actions -->
-        <div class="card p-4 flex flex-wrap gap-4 items-center">
-            <div class="flex-1">
-                <input type="text" id="searchInput" placeholder="Search runbooks..." onkeyup="filterRunbooks()"
-                    class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                <!-- Category Dropdown -->
+                <div class="rb-dropdown" id="categoryDropdown">
+                    <select id="categoryFilter">
+                        <option value="">All Categories</option>
+                        <option value="infrastructure">Infrastructure</option>
+                        <option value="application">Application</option>
+                        <option value="database">Database</option>
+                        <option value="network">Network</option>
+                        <option value="security">Security</option>
+                        <option value="diagnostics">Diagnostics</option>
+                    </select>
+                    <div class="rb-dropdown-trigger" onclick="toggleRbDropdown('categoryDropdown')">
+                        <div class="flex items-center gap-2">
+                            <i class="fas fa-th-large" style="font-size: 11px; color: #94a3b8;"></i>
+                            <span class="rb-dd-label">All Categories</span>
+                        </div>
+                        <svg class="rb-dd-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </div>
+                    <div class="rb-dropdown-menu">
+                        <div class="rb-dropdown-item selected" data-value=""
+                            onclick="selectRbOption('categoryDropdown','','All Categories')">
+                            <i class="fas fa-check rb-dd-check"></i>
+                            <span class="rb-dd-icon" style="color: #64748b;"><i class="fas fa-th-large"></i></span>
+                            All Categories
+                        </div>
+                        <div class="rb-dropdown-item" data-value="infrastructure"
+                            onclick="selectRbOption('categoryDropdown','infrastructure','Infrastructure')">
+                            <i class="fas fa-check rb-dd-check"></i>
+                            <span class="rb-dd-icon" style="color: #2563eb;"><i class="fas fa-server"></i></span>
+                            Infrastructure
+                        </div>
+                        <div class="rb-dropdown-item" data-value="application"
+                            onclick="selectRbOption('categoryDropdown','application','Application')">
+                            <i class="fas fa-check rb-dd-check"></i>
+                            <span class="rb-dd-icon" style="color: #9333ea;"><i class="fas fa-cubes"></i></span>
+                            Application
+                        </div>
+                        <div class="rb-dropdown-item" data-value="database"
+                            onclick="selectRbOption('categoryDropdown','database','Database')">
+                            <i class="fas fa-check rb-dd-check"></i>
+                            <span class="rb-dd-icon" style="color: #db2777;"><i class="fas fa-database"></i></span>
+                            Database
+                        </div>
+                        <div class="rb-dropdown-item" data-value="network"
+                            onclick="selectRbOption('categoryDropdown','network','Network')">
+                            <i class="fas fa-check rb-dd-check"></i>
+                            <span class="rb-dd-icon" style="color: #3b82f6;"><i class="fas fa-network-wired"></i></span>
+                            Network
+                        </div>
+                        <div class="rb-dropdown-item" data-value="security"
+                            onclick="selectRbOption('categoryDropdown','security','Security')">
+                            <i class="fas fa-check rb-dd-check"></i>
+                            <span class="rb-dd-icon" style="color: #dc2626;"><i class="fas fa-shield-alt"></i></span>
+                            Security
+                        </div>
+                        <div class="rb-dropdown-item" data-value="diagnostics"
+                            onclick="selectRbOption('categoryDropdown','diagnostics','Diagnostics')">
+                            <i class="fas fa-check rb-dd-check"></i>
+                            <span class="rb-dd-icon" style="color: #0f766e;"><i class="fas fa-stethoscope"></i></span>
+                            Diagnostics
+                        </div>
+                    </div>
+                </div>
             </div>
-            <select id="statusFilter" onchange="filterRunbooks()"
-                class="bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
-                <option value="">All Status</option>
-                <option value="active">Active</option>
-                <option value="draft">Draft</option>
-                <option value="disabled">Disabled</option>
-            </select>
-            <select id="categoryFilter" onchange="filterRunbooks()"
-                class="bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
-                <option value="">All Categories</option>
-                <option value="infrastructure">Infrastructure</option>
-                <option value="application">Application</option>
-                <option value="database">Database</option>
-                <option value="network">Network</option>
-                <option value="security">Security</option>
-            </select>
+
+            <!-- Right: Action Buttons -->
+            <div class="flex items-center gap-2 flex-wrap" style="position: relative; z-index: 210;">
+                <button onclick="openTemplatesModal()" class="runbook-action-btn runbook-action-secondary"
+                    title="Browse runbook templates">
+                    <i class="fas fa-layer-group"></i>
+                    <span class="hidden sm:inline">Templates</span>
+                </button>
+                <button onclick="openImportModal()" class="runbook-action-btn runbook-action-secondary"
+                    title="Import runbook from file">
+                    <i class="fas fa-file-import"></i>
+                    <span class="hidden sm:inline">Import</span>
+                </button>
+                <a href="/runbooks/new" class="runbook-action-btn runbook-action-primary" title="Create new runbook">
+                    <i class="fas fa-plus"></i>
+                    <span>Create Runbook</span>
+                </a>
+            </div>
         </div>
-        <!-- Bulk Actions -->
-        <div id="bulkActionsBar"
-            class="hidden flex items-center gap-3 p-3 bg-blue-900 bg-opacity-20 rounded-lg border border-blue-500">
-            <span id="selectedCount" class="text-sm text-primary font-medium">0 selected</span>
-            <button onclick="bulkEnable()" class="btn-secondary px-3 py-1 rounded text-sm">
-                <i class="fas fa-check-circle mr-1"></i>Enable
+    </div>
+
+    <!-- Bulk Actions Bar -->
+    <div id="bulkActionsBar" class="hidden card p-3 bg-blue-900 bg-opacity-10">
+        <div class="flex items-center gap-3 flex-wrap">
+            <span id="selectedCount" class="text-sm text-blue-400 font-medium">0 selected</span>
+            <button onclick="bulkEnable()" class="runbook-action-btn runbook-action-secondary px-3 py-1.5 text-xs">
+                <i class="fas fa-check-circle"></i>
+                <span>Enable</span>
             </button>
-            <button onclick="bulkDisable()" class="btn-secondary px-3 py-1 rounded text-sm">
-                <i class="fas fa-ban mr-1"></i>Disable
+            <button onclick="bulkDisable()" class="runbook-action-btn runbook-action-secondary px-3 py-1.5 text-xs">
+                <i class="fas fa-ban"></i>
+                <span>Disable</span>
             </button>
             <button onclick="bulkDelete()"
-                class="btn-secondary px-3 py-1 rounded text-sm text-red-400 hover:text-red-300">
-                <i class="fas fa-trash mr-1"></i>Delete
+                class="runbook-action-btn runbook-action-secondary px-3 py-1.5 text-xs text-red-400 hover:text-red-300 hover:border-red-400">
+                <i class="fas fa-trash"></i>
+                <span>Delete</span>
             </button>
-            <button onclick="clearSelection()" class="btn-secondary px-3 py-1 rounded text-sm ml-auto">
-                Clear Selection
+            <button onclick="clearSelection()"
+                class="runbook-action-btn runbook-action-secondary px-3 py-1.5 text-xs ml-auto">
+                <span>Clear Selection</span>
             </button>
         </div>
     </div>
 
+    <div id="runbooksGrid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
+    </div>
+
     <!-- Stats Cards -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div class="card p-4">
+        <div class="card p-4" style="border-left: 3px solid #3b82f6;">
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-lg bg-blue-500 bg-opacity-20 flex items-center justify-center">
-                    <i class="fas fa-book text-blue-400"></i>
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center"
+                    style="background: linear-gradient(135deg, #eff6ff, #dbeafe);">
+                    <i class="fas fa-book" style="color: #2563eb; font-size: 14px;"></i>
                 </div>
                 <div>
-                    <p class="text-secondary text-sm">Total Runbooks</p>
-                    <p class="text-xl font-bold text-primary" id="totalCount">0</p>
+                    <p class="text-secondary text-xs"
+                        style="font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase;">Total Runbooks</p>
+                    <p class="text-2xl font-bold text-primary" id="totalCount" style="line-height: 1.2;">0</p>
                 </div>
             </div>
         </div>
-        <div class="card p-4">
+        <div class="card p-4" style="border-left: 3px solid #10b981;">
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-lg bg-green-500 bg-opacity-20 flex items-center justify-center">
-                    <i class="fas fa-check-circle text-green-400"></i>
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center"
+                    style="background: linear-gradient(135deg, #ecfdf5, #d1fae5);">
+                    <i class="fas fa-check-circle" style="color: #059669; font-size: 14px;"></i>
                 </div>
                 <div>
-                    <p class="text-secondary text-sm">Active</p>
-                    <p class="text-xl font-bold text-primary" id="activeCount">0</p>
+                    <p class="text-secondary text-xs"
+                        style="font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase;">Active</p>
+                    <p class="text-2xl font-bold" id="activeCount" style="color: #059669; line-height: 1.2;">0</p>
                 </div>
             </div>
         </div>
-        <div class="card p-4">
+        <div class="card p-4" style="border-left: 3px solid #f59e0b;">
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-lg bg-yellow-500 bg-opacity-20 flex items-center justify-center">
-                    <i class="fas fa-edit text-yellow-400"></i>
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center"
+                    style="background: linear-gradient(135deg, #fffbeb, #fef3c7);">
+                    <i class="fas fa-edit" style="color: #d97706; font-size: 14px;"></i>
                 </div>
                 <div>
-                    <p class="text-secondary text-sm">Drafts</p>
-                    <p class="text-xl font-bold text-primary" id="draftCount">0</p>
+                    <p class="text-secondary text-xs"
+                        style="font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase;">Drafts</p>
+                    <p class="text-2xl font-bold" id="draftCount" style="color: #d97706; line-height: 1.2;">0</p>
                 </div>
             </div>
         </div>
-        <div class="card p-4">
+        <div class="card p-4" style="border-left: 3px solid #8b5cf6;">
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-lg bg-purple-500 bg-opacity-20 flex items-center justify-center">
-                    <i class="fas fa-play text-purple-400"></i>
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center"
+                    style="background: linear-gradient(135deg, #f5f3ff, #ede9fe);">
+                    <i class="fas fa-play" style="color: #7c3aed; font-size: 14px;"></i>
                 </div>
                 <div>
-                    <p class="text-secondary text-sm">Executions Today</p>
-                    <p class="text-xl font-bold text-primary" id="executionCount">0</p>
+                    <p class="text-secondary text-xs"
+                        style="font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase;">Executions Today
+                    </p>
+                    <p class="text-2xl font-bold" id="executionCount" style="color: #7c3aed; line-height: 1.2;">0</p>
                 </div>
             </div>
         </div>
@@ -203,8 +608,7 @@
     <div class="card overflow-hidden">
         <table class="w-full text-sm">
             <thead>
-                <tr class="bg-[#181b1f] text-left text-[#8e8e8e]"
-                    style="border-bottom: 1px solid rgba(204, 204, 220, 0.07);">
+                <tr class="bg-[#f8fafc] text-left text-[#64748b]" style="border-bottom: 1px solid #e2e8f0;">
                     <th class="px-4 py-3 font-medium w-10">
                         <input type="checkbox" id="selectAllCheckbox" onclick="toggleSelectAll()" class="h-4 w-4">
                     </th>
@@ -218,7 +622,7 @@
                     <th class="px-4 py-3 font-medium text-right">Actions</th>
                 </tr>
             </thead>
-            <tbody id="runbooks-tbody" class="text-[#ccccdc]">
+            <tbody id="runbooks-tbody" class="text-[#334155]">
                 <!-- Populated by JavaScript -->
             </tbody>
         </table>
@@ -226,31 +630,31 @@
 
     <!-- Pagination -->
     <div id="pagination-container" class="flex items-center justify-between mt-4 text-sm hidden">
-        <div class="text-[#8e8e8e]">
+        <div class="text-[#64748b]">
             Showing <span id="showing-start">0</span>-<span id="showing-end">0</span> of <span id="total-count">0</span>
             runbooks
         </div>
         <div class="flex items-center gap-2">
             <button onclick="goToPage(1)" id="first-page-btn" disabled
-                class="px-3 py-1.5 rounded border border-[rgba(204,204,220,0.12)] bg-[#181b1f] text-[#ccccdc] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#22252b] transition-colors">
+                class="px-3 py-1.5 rounded border border-[#e2e8f0] bg-white text-[#475569] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#f8fafc] transition-colors">
                 <i class="fas fa-angle-double-left"></i>
             </button>
             <button onclick="goToPage(currentPage - 1)" id="prev-page-btn" disabled
-                class="px-3 py-1.5 rounded border border-[rgba(204,204,220,0.12)] bg-[#181b1f] text-[#ccccdc] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#22252b] transition-colors">
+                class="px-3 py-1.5 rounded border border-[#e2e8f0] bg-white text-[#475569] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#f8fafc] transition-colors">
                 <i class="fas fa-angle-left"></i>
             </button>
-            <span class="px-3 py-1.5 text-[#ccccdc]">Page <span id="current-page">1</span> of <span
+            <span class="px-3 py-1.5 text-[#475569]">Page <span id="current-page">1</span> of <span
                     id="total-pages">1</span></span>
             <button onclick="goToPage(currentPage + 1)" id="next-page-btn" disabled
-                class="px-3 py-1.5 rounded border border-[rgba(204,204,220,0.12)] bg-[#181b1f] text-[#ccccdc] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#22252b] transition-colors">
+                class="px-3 py-1.5 rounded border border-[#e2e8f0] bg-white text-[#475569] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#f8fafc] transition-colors">
                 <i class="fas fa-angle-right"></i>
             </button>
             <button onclick="goToPage(totalPages)" id="last-page-btn" disabled
-                class="px-3 py-1.5 rounded border border-[rgba(204,204,220,0.12)] bg-[#181b1f] text-[#ccccdc] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#22252b] transition-colors">
+                class="px-3 py-1.5 rounded border border-[#e2e8f0] bg-white text-[#475569] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#f8fafc] transition-colors">
                 <i class="fas fa-angle-double-right"></i>
             </button>
             <select id="page-size" onchange="changePageSize(this.value)"
-                class="px-3 py-1.5 rounded border border-[rgba(204,204,220,0.12)] bg-[#181b1f] text-[#ccccdc] focus:outline-none focus:border-[#3d71d9]">
+                class="px-3 py-1.5 rounded border border-[#e2e8f0] bg-white text-[#475569] focus:outline-none focus:border-[#3b82f6]">
                 <option value="10">10 per page</option>
                 <option value="25" selected>25 per page</option>
                 <option value="50">50 per page</option>
@@ -271,7 +675,8 @@
 </div>
 
 <!-- Create/Edit Runbook Modal -->
-<div id="runbookModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
+<div id="runbookModal"
+    class="fixed inset-0 bg-black bg-opacity-50 hidden rb-modal-overlay flex items-center justify-center p-4">
     <div class="card p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <div class="flex items-center justify-between mb-6">
             <h2 class="text-xl font-bold text-primary" id="modalTitle">Create Runbook</h2>
@@ -311,6 +716,7 @@
                         <option value="database">Database</option>
                         <option value="network">Network</option>
                         <option value="security">Security</option>
+                        <option value="diagnostics">Diagnostics</option>
                     </select>
                 </div>
             </div>
@@ -433,7 +839,8 @@
 </div>
 
 <!-- View Runbook Modal -->
-<div id="viewModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
+<div id="viewModal"
+    class="fixed inset-0 bg-black bg-opacity-50 hidden rb-modal-overlay flex items-center justify-center p-4">
     <div class="card p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto">
         <div class="flex items-center justify-between mb-6">
             <h2 class="text-xl font-bold text-primary" id="viewTitle">Runbook Details</h2>
@@ -448,7 +855,8 @@
 </div>
 
 <!-- Execute Runbook Modal -->
-<div id="executeModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
+<div id="executeModal"
+    class="fixed inset-0 bg-black bg-opacity-50 hidden rb-modal-overlay flex items-center justify-center p-4">
     <div class="card p-6 w-full max-w-md">
         <div class="flex items-center justify-between mb-6">
             <h2 class="text-xl font-bold text-primary">Execute Runbook</h2>
@@ -507,7 +915,8 @@
 </div>
 
 <!-- Custom Confirmation Modal -->
-<div id="confirmModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
+<div id="confirmModal"
+    class="fixed inset-0 bg-black bg-opacity-50 hidden rb-modal-overlay flex items-center justify-center p-4">
     <div class="card p-6 w-full max-w-md">
         <div class="flex items-center justify-between mb-4">
             <h2 class="text-xl font-bold text-primary" id="confirmTitle">Confirm Action</h2>
@@ -524,7 +933,8 @@
 </div>
 
 <!-- Import YAML Modal -->
-<div id="importModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
+<div id="importModal"
+    class="fixed inset-0 bg-black bg-opacity-50 hidden rb-modal-overlay flex items-center justify-center p-4">
     <div class="card p-6 w-full max-w-2xl">
         <div class="flex items-center justify-between mb-6">
             <h2 class="text-xl font-bold text-primary">Import Runbook from YAML</h2>
@@ -563,7 +973,8 @@
 </div>
 
 <!-- Templates Modal -->
-<div id="templatesModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
+<div id="templatesModal"
+    class="fixed inset-0 bg-black bg-opacity-50 hidden rb-modal-overlay flex items-center justify-center p-4">
     <div class="card p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <div class="flex items-center justify-between mb-6">
             <h2 class="text-xl font-bold text-primary">Runbook Templates</h2>
@@ -580,6 +991,52 @@
 
 {% block scripts %}
 <script>
+    // ========================================================================
+    // Custom Dropdown Logic
+    // ========================================================================
+    function toggleRbDropdown(id) {
+        const dd = document.getElementById(id);
+        const wasOpen = dd.classList.contains('open');
+
+        // Close all open dropdowns first
+        document.querySelectorAll('.rb-dropdown.open').forEach(d => d.classList.remove('open'));
+
+        if (!wasOpen) dd.classList.add('open');
+    }
+
+    function selectRbOption(dropdownId, value, label) {
+        const dd = document.getElementById(dropdownId);
+        const select = dd.querySelector('select');
+        const trigger = dd.querySelector('.rb-dd-label');
+
+        // Update hidden select
+        select.value = value;
+
+        // Update label text
+        trigger.textContent = label;
+
+        // Update selected state on items
+        dd.querySelectorAll('.rb-dropdown-item').forEach(item => {
+            item.classList.toggle('selected', item.dataset.value === value);
+        });
+
+        // Close dropdown
+        dd.classList.remove('open');
+
+        // Trigger filter
+        filterRunbooks();
+    }
+
+    // Close dropdowns on outside click
+    document.addEventListener('click', function (e) {
+        if (!e.target.closest('.rb-dropdown')) {
+            document.querySelectorAll('.rb-dropdown.open').forEach(d => d.classList.remove('open'));
+        }
+    });
+
+    // ========================================================================
+    // Runbooks Data & Logic
+    // ========================================================================
     let runbooks = [];
     let servers = [];
     let filteredRunbooks = [];
@@ -687,7 +1144,7 @@
             const icon = getRunbookIcon(rb.category || 'infrastructure');
 
             return `
-            <tr class="border-b border-[rgba(204,204,220,0.07)] hover:bg-[rgba(204,204,220,0.04)] transition-colors">
+            <tr class="border-b border-[#f1f5f9] hover:bg-[#f8fafc] transition-colors">
                 <td class="px-4 py-3">
                     <input type="checkbox" class="runbook-checkbox h-4 w-4" data-runbook-id="${rb.id}"
                         onclick="event.stopPropagation(); toggleRunbookSelection('${rb.id}')" />
@@ -695,11 +1152,11 @@
                 <td class="px-4 py-3">
                     <div class="flex items-center gap-2">
                         <i class="fas ${icon.icon}" style="color: ${icon.color}"></i>
-                        <div class="font-medium text-white cursor-pointer hover:text-blue-400" onclick='viewRunbook(${JSON.stringify(rb.id)})'>
+                        <div class="font-medium text-[#1e40af] cursor-pointer hover:text-blue-500 hover:underline" onclick='viewRunbook(${JSON.stringify(rb.id)})'>
                             ${escapeHtml(runbookName)}
                         </div>
                     </div>
-                    ${rb.description ? `<div class="text-xs text-[#8e8e8e] mt-0.5 truncate max-w-xs pl-6">${escapeHtml(rb.description)}</div>` : ''}
+                    ${rb.description ? `<div class="text-xs text-[#94a3b8] mt-0.5 truncate max-w-xs pl-6">${escapeHtml(rb.description)}</div>` : ''}
                 </td>
                 <td class="px-4 py-3">
                     <span class="badge ${badgeClass}">${runbookStatus.toUpperCase()}</span>
@@ -707,42 +1164,42 @@
                 <td class="px-4 py-3">
                     <span class="badge ${categoryBadgeClass}">${(rb.category || 'Infrastructure').toUpperCase()}</span>
                 </td>
-                <td class="px-4 py-3 text-[#ccccdc] font-mono text-xs hidden md:table-cell">
+                <td class="px-4 py-3 text-[#475569] font-mono text-xs hidden md:table-cell">
                     ${rb.steps_count ?? 0}
                 </td>
-                <td class="px-4 py-3 text-[#ccccdc] font-mono text-xs hidden md:table-cell">
+                <td class="px-4 py-3 text-[#475569] font-mono text-xs hidden md:table-cell">
                     ${rb.triggers_count ?? 0}
                 </td>
-                <td class="px-4 py-3 text-[#8e8e8e] text-xs hidden lg:table-cell">
+                <td class="px-4 py-3 text-[#64748b] text-xs hidden lg:table-cell">
                     ${formatDate(rb.created_at)}
                 </td>
-                <td class="px-4 py-3 text-[#8e8e8e] text-xs hidden lg:table-cell">
+                <td class="px-4 py-3 text-[#64748b] text-xs hidden lg:table-cell">
                     ${formatDate(rb.updated_at || rb.created_at)}
                 </td>
                 <td class="px-4 py-3 text-right">
                     <div class="flex justify-end gap-1">
                         <a href='/runbooks/${rb.id}/edit' 
-                            class="p-1.5 hover:bg-[#22252b] rounded transition-colors" 
-                            style="color: #6e9fff;"
+                            class="p-1.5 hover:bg-[#f1f5f9] rounded transition-colors" 
+                            style="color: #3b82f6;"
                             title="Edit">
                             <i class="fas fa-edit"></i>
                         </a>
                         <button onclick='cloneRunbook(${JSON.stringify(rb.id)})'
-                            class="p-1.5 hover:bg-[#22252b] rounded transition-colors" 
-                            style="color: #6ccf8e;"
+                            class="p-1.5 hover:bg-[#f1f5f9] rounded transition-colors" 
+                            style="color: #16a34a;"
                             title="Clone">
                             <i class="fas fa-clone"></i>
                         </button>
                         <button onclick='openExecuteModal(${JSON.stringify(rb.id)}, ${JSON.stringify(runbookName)})'
-                            class="p-1.5 hover:bg-[#22252b] rounded transition-colors" 
-                            style="color: #3d71d9;"
+                            class="p-1.5 hover:bg-[#f1f5f9] rounded transition-colors" 
+                            style="color: #2563eb;"
                             title="Run"
                             ${rb.enabled ? '' : 'disabled style="opacity:0.5; cursor:not-allowed;"'}>
                             <i class="fas fa-play"></i>
                         </button>
                         <button onclick='deleteRunbook(${JSON.stringify(rb.id)})'
-                            class="p-1.5 hover:bg-[#22252b] rounded transition-colors" 
-                            style="color: #ff5286;"
+                            class="p-1.5 hover:bg-[#fef2f2] rounded transition-colors" 
+                            style="color: #dc2626;"
                             title="Delete">
                             <i class="fas fa-trash"></i>
                         </button>
@@ -773,7 +1230,8 @@
             'application': { icon: 'fa-cubes', color: '#b877d9' },      // Purple
             'database': { icon: 'fa-database', color: '#d10e5c' },      // Pink
             'network': { icon: 'fa-network-wired', color: '#6e9fff' },  // Light Blue
-            'security': { icon: 'fa-shield-alt', color: '#ff5286' }     // Red
+            'security': { icon: 'fa-shield-alt', color: '#ff5286' },    // Red
+            'diagnostics': { icon: 'fa-stethoscope', color: '#0f766e' } // Teal
         };
         return map[category] || { icon: 'fa-book', color: '#8e8e8e' };
     }
@@ -1519,7 +1977,7 @@
     if (typeof showToast === 'undefined') {
         window.showToast = function (message, type = 'info') {
             const toast = document.createElement('div');
-            toast.className = `fixed bottom-4 right-4 px-4 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2 ${type === 'success' ? 'bg-green-600' :
+            toast.className = `fixed bottom-4 right-4 px-4 py-3 rounded-lg shadow-lg z-[10000] flex items-center gap-2 ${type === 'success' ? 'bg-green-600' :
                 type === 'error' ? 'bg-red-600' : 'bg-blue-600'
                 }`;
             toast.innerHTML = `

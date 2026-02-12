@@ -156,7 +156,7 @@ const AIChatBase = {
         const msgDiv = document.createElement('div');
         msgDiv.className = 'flex justify-end mb-3';
         msgDiv.innerHTML = `
-            <div class="user-message-text ${this.config.userGradientClass} border border-blue-800 rounded-lg p-3 max-w-xs lg:max-w-md text-sm text-white shadow-md" style="word-break: break-word;">
+            <div class="user-message-text ${this.config.userGradientClass} border border-blue-800 rounded-lg p-3 max-w-xs lg:max-w-md text-sm text-gray-900 shadow-md" style="word-break: break-word;">
                 ${this.escapeHtml(text)}
             </div>
         `;
@@ -442,18 +442,21 @@ const AIChatBase = {
         if (!container) return;
 
         container.innerHTML = `
-            <div class="welcome-screen flex flex-col items-center justify-center p-8 text-center mt-10">
-                <div class="w-16 h-16 rounded-2xl bg-gradient-to-br ${this.config.aiGradientClass} flex items-center justify-center mb-6 shadow-xl transform rotate-3 hover:rotate-0 transition-transform duration-300">
-                    <i class="${this.config.aiIconClass} text-white text-3xl"></i>
+            <div class="welcome-screen" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 32px; text-align: center; margin: auto 0; height: 100%;">
+                <div style="width: 68px; height: 68px; border-radius: 18px; background: linear-gradient(135deg, #8b5cf6, #6366f1); display: flex; align-items: center; justify-content: center; margin-bottom: 28px; box-shadow: 0 10px 30px rgba(99, 102, 241, 0.25); transform: rotate(3deg); transition: transform 0.3s;"
+                     onmouseenter="this.style.transform='rotate(0deg) scale(1.05)'" onmouseleave="this.style.transform='rotate(3deg)'">
+                    <i class="${this.config.aiIconClass} text-white" style="font-size: 28px;"></i>
                 </div>
-                <h2 class="text-2xl font-bold text-white mb-2">${this.escapeHtml(title)}</h2>
-                <p class="text-gray-400 text-sm mb-8 max-w-sm">${this.escapeHtml(subtitle)}</p>
-                <div class="grid grid-cols-1 gap-3 w-full max-w-md">
+                <h2 style="font-size: 24px; font-weight: 700; color: #1e293b; margin-bottom: 10px; letter-spacing: -0.3px;">${this.escapeHtml(title)}</h2>
+                <p style="color: #64748b; font-size: 14px; margin-bottom: 40px; max-width: 380px; line-height: 1.6;">${this.escapeHtml(subtitle)}</p>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; width: 100%; max-width: 520px;">
                     ${suggestions.map(s => `
                         <button onclick="if(typeof sendSuggestion === 'function') sendSuggestion('${this.escapeHtml(s.text || s).replace(/'/g, "\\'")}')" 
-                                class="flex items-center gap-3 p-3 bg-gray-800/50 hover:bg-gray-800 border border-gray-700 rounded-xl text-left text-sm text-gray-300 hover:text-white hover:border-blue-500/50 transition-all group">
-                            <i class="${s.icon || 'fas fa-arrow-right'} text-gray-500 group-hover:text-blue-400 transition-colors"></i>
-                            <span>${this.escapeHtml(s.text || s)}</span>
+                                style="display: flex; align-items: flex-start; gap: 14px; padding: 18px 18px; background: #ffffff; border: 1px solid #dfe4ea; border-radius: 16px; text-align: left; font-size: 13px; color: #475569; cursor: pointer; transition: all 0.25s; line-height: 1.5; box-shadow: 0 2px 8px rgba(0,0,0,0.06);"
+                                onmouseenter="this.style.borderColor='#93c5fd'; this.style.boxShadow='0 6px 20px rgba(59,130,246,0.12)'; this.style.transform='translateY(-3px)';"
+                                onmouseleave="this.style.borderColor='#dfe4ea'; this.style.boxShadow='0 2px 8px rgba(0,0,0,0.06)'; this.style.transform='translateY(0)';">
+                            <i class="${s.icon || 'fas fa-arrow-right'}" style="font-size: 15px; color: #3b82f6; flex-shrink: 0; margin-top: 1px;"></i>
+                            <span style="font-weight: 500;">${this.escapeHtml(s.text || s)}</span>
                         </button>
                     `).join('')}
                 </div>
