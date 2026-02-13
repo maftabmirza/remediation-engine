@@ -1,0 +1,647 @@
+{% extends "base.html" %}
+{% set active_page = 'incidents' %}
+
+{% block title %}Incidents - AIOps Platform{% endblock %}
+
+{% block head %}
+{{ super() }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+    .incidents-itsm-btn:hover {
+        background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+        box-shadow: 0 4px 14px rgba(59, 130, 246, 0.35);
+        transform: translateY(-1px);
+    }
+
+    /* Incidents table - improved readability */
+    #incidentEventsTable {
+        font-size: 14px;
+    }
+
+    #incidentEventsTable thead th {
+        font-size: 13px;
+        font-weight: 600;
+        color: #475569;
+        padding: 12px 16px;
+    }
+
+    #incidentEventsTable tbody td {
+        padding: 12px 16px;
+        font-size: 14px;
+        color: #334155;
+        line-height: 1.5;
+    }
+
+    #incidentEventsTable tbody tr:hover td {
+        background-color: #f8fafc;
+    }
+
+    #incidentEventsTable .incident-id {
+        font-weight: 500;
+        color: #1d4ed8;
+    }
+
+    #incidentEventsTable .cell-muted {
+        color: #64748b;
+        font-size: 13px;
+    }
+</style>
+{% endblock %}
+
+{% block breadcrumbs %}
+<span class="mx-2">/</span>
+<span class="text-gray-200">Incidents</span>
+{% endblock %}
+
+{% block header_title %}
+<i class="fas fa-exclamation-circle text-red-400"></i>
+<span class="text-sm font-semibold text-white tracking-tight">Incidents</span>
+{% endblock %}
+
+{% block header_actions %}
+{{ super() }}
+{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+    <!-- Toolbar -->
+    <div class="card p-4" style="overflow: visible;">
+        <div class="flex flex-wrap gap-4 items-center justify-between">
+            <div class="flex flex-wrap gap-3 items-center">
+                <div class="flex items-center gap-2">
+                    <label for="timeRange" class="text-sm font-medium text-[#64748b]">Time range:</label>
+                    <select id="timeRange"
+                        class="bg-white border border-[#e2e8f0] rounded-lg px-3 py-2 text-sm text-[#475569] focus:outline-none focus:border-[#3b82f6] focus:ring-2 focus:ring-[#3b82f6]/20 min-w-[120px]"
+                        onchange="loadAllData()">
+                        <option value="24h">Last 24h</option>
+                        <option value="7d">Last 7d</option>
+                        <option value="30d" selected>Last 30d</option>
+                        <option value="90d">Last 90d</option>
+                    </select>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="showITSMModal()"
+                    class="incidents-itsm-btn inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all border-none cursor-pointer"
+                    style="background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; box-shadow: 0 2px 6px rgba(59, 130, 246, 0.25);">
+                    <i class="fas fa-plug"></i>
+                    <span>Configure ITSM</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <!-- Total Incidents -->
+        <div class="card p-5">
+            <p class="text-gray-400 text-sm">Total Incidents</p>
+            <p class="text-3xl font-bold mt-1" id="statTotalIncidents">--</p>
+            <p class="text-xs text-gray-500 mt-1">In selected period</p>
+        </div>
+
+        <!-- Open Incidents -->
+        <div class="card p-5">
+            <p class="text-gray-400 text-sm">Open Incidents</p>
+            <p class="text-3xl font-bold mt-1 text-red-400" id="statOpenIncidents">--</p>
+            <p class="text-xs text-gray-500 mt-1">Currently active</p>
+        </div>
+
+        <!-- Avg Resolution Time -->
+        <div class="card p-5">
+            <p class="text-gray-400 text-sm">Avg Resolution Time</p>
+            <p class="text-3xl font-bold mt-1" id="statAvgResolution">--</p>
+            <p class="text-xs text-gray-500 mt-1">Hours</p>
+        </div>
+
+        <!-- Resolved Incidents -->
+        <div class="card p-5">
+            <p class="text-gray-400 text-sm">Resolved Incidents</p>
+            <p class="text-3xl font-bold mt-1 text-green-400" id="statResolvedIncidents">--</p>
+            <p class="text-xs text-gray-500 mt-1">In selected period</p>
+        </div>
+    </div>
+
+    <!-- Incidents Table -->
+    <div class="card p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="font-bold text-lg">
+                <i class="fas fa-list-alt text-blue-400 mr-2"></i>Incidents
+            </h3>
+            <div class="flex items-center space-x-2 text-sm">
+                <span class="text-gray-400">Show:</span>
+                <select id="pageSize" class="input-field py-1 px-2 text-sm" onchange="loadIncidentsTable()">
+                    <option value="10">10</option>
+                    <option value="25" selected>25</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Table -->
+        <div class="overflow-x-auto">
+            <table id="incidentEventsTable" class="w-full">
+                <thead>
+                    <tr class="text-left border-b border-slate-200">
+                        <th class="pb-3 pr-4">Incident ID</th>
+                        <th class="pb-3 pr-4">Title</th>
+                        <th class="pb-3 pr-4">Severity</th>
+                        <th class="pb-3 pr-4">Priority</th>
+                        <th class="pb-3 pr-4">Status</th>
+                        <th class="pb-3 pr-4">Service</th>
+                        <th class="pb-3 pr-4">Assignee</th>
+                        <th class="pb-3 pr-4">Created</th>
+                        <th class="pb-3 pr-4">Resolved</th>
+                    </tr>
+                </thead>
+                <tbody id="incidentTableBody" class="divide-y divide-slate-100">
+                    <tr>
+                        <td colspan="9" class="text-center py-8 text-slate-500">
+                            <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                            <p>Loading incidents...</p>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="flex justify-between items-center mt-4 pt-4 border-t border-slate-200">
+            <div class="text-sm text-slate-600" id="paginationInfo">
+                Showing 0-0 of 0 incidents
+            </div>
+            <div class="flex items-center space-x-2">
+                <button onclick="prevPage()" id="prevBtn" disabled
+                    class="btn-secondary py-1 px-3 text-sm disabled:opacity-50">
+                    <i class="fas fa-chevron-left mr-1"></i>Prev
+                </button>
+                <span class="text-sm text-slate-600" id="pageIndicator">Page 1</span>
+                <button onclick="nextPage()" id="nextBtn" class="btn-secondary py-1 px-3 text-sm disabled:opacity-50">
+                    Next<i class="fas fa-chevron-right ml-1"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="card p-6">
+            <h3 class="font-bold text-lg mb-4">Severity Distribution</h3>
+            <div style="height: 200px; position: relative;">
+                <canvas id="severityChart"></canvas>
+            </div>
+        </div>
+        <div class="card p-6">
+            <h3 class="font-bold text-lg mb-4">Status Distribution</h3>
+            <div style="height: 200px; position: relative;">
+                <canvas id="statusChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ITSM Configuration Modal -->
+<div id="itsmModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+    <div class="bg-gray-900 rounded-xl p-6 w-full max-w-xl max-h-[80vh] overflow-y-auto">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-bold">Configure ITSM Integration</h3>
+            <button onclick="hideITSMModal()" class="text-gray-400 hover:text-white">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+
+        <form id="itsmForm" onsubmit="saveITSMIntegration(event)">
+            <p class="text-sm text-gray-400 mb-4 bg-gray-800 p-3 rounded">
+                <i class="fas fa-info-circle mr-2"></i>
+                Configure the integration to fetch incidents. This will reuse the existing connection settings but apply
+                incident-specific field mappings.
+            </p>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">Select Integration</label>
+                    <select id="itsmIntegrationSelect" class="input-field w-full" onchange="loadIntegrationConfig()">
+                        <option value="">-- Select Integration --</option>
+                        <!-- Populated dynamically -->
+                    </select>
+                </div>
+
+                <!-- JSONPath Field Mapping Section -->
+                <div class="pt-4 border-t border-gray-700">
+                    <div class="flex items-center justify-between mb-3">
+                        <h4 class="text-sm font-medium text-gray-300">
+                            <i class="fas fa-map-marker-alt text-purple-400 mr-2"></i>Incident Field Mapping (JSONPath)
+                        </h4>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">Incident ID*</label>
+                            <input type="text" id="mapIncidentId" class="input-field w-full text-sm"
+                                placeholder="$.result[*].number" value="$.result[*].number" required>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">Title/Summary</label>
+                            <input type="text" id="mapTitle" class="input-field w-full text-sm"
+                                placeholder="$.result[*].short_description" value="$.result[*].short_description">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">Description</label>
+                            <input type="text" id="mapDescription" class="input-field w-full text-sm"
+                                placeholder="$.result[*].description" value="$.result[*].description">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">Status</label>
+                            <input type="text" id="mapStatus" class="input-field w-full text-sm"
+                                placeholder="$.result[*].state" value="$.result[*].state">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">Severity</label>
+                            <input type="text" id="mapSeverity" class="input-field w-full text-sm"
+                                placeholder="$.result[*].severity" value="$.result[*].severity">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">Priority</label>
+                            <input type="text" id="mapPriority" class="input-field w-full text-sm"
+                                placeholder="$.result[*].priority" value="$.result[*].priority">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">Created At*</label>
+                            <input type="text" id="mapCreatedAt" class="input-field w-full text-sm"
+                                placeholder="$.result[*].sys_created_on" value="$.result[*].sys_created_on" required>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">Resolved At</label>
+                            <input type="text" id="mapResolvedAt" class="input-field w-full text-sm"
+                                placeholder="$.result[*].resolved_at" value="$.result[*].resolved_at">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">Assignee</label>
+                            <input type="text" id="mapAssignee" class="input-field w-full text-sm"
+                                placeholder="$.result[*].assigned_to.display_value"
+                                value="$.result[*].assigned_to.display_value">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">Service</label>
+                            <input type="text" id="mapService" class="input-field w-full text-sm"
+                                placeholder="$.result[*].cmdb_ci.display_value"
+                                value="$.result[*].cmdb_ci.display_value">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex space-x-3 pt-4">
+                    <button type="submit" class="btn-primary flex-1">
+                        <i class="fas fa-save mr-2"></i>Save Configuration
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    let charts = {};
+    let currentPage = 1;
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+        loadAllData();
+        loadIntegrationsList();
+    });
+
+    async function loadAllData() {
+        await Promise.all([
+            loadStatistics(),
+            loadIncidentsTable()
+        ]);
+    }
+
+    function escapeHtml(unsafe) {
+        if (!unsafe) return '';
+        return String(unsafe)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+    function formatDateTime(dateString) {
+        if (!dateString) return '-';
+        const date = new Date(dateString);
+        return date.toLocaleString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+
+    async function loadStatistics() {
+        try {
+            const timeRange = document.getElementById('timeRange').value;
+            const stats = await apiCall(`/api/incidents/statistics?time_range=${timeRange}`);
+            if (!stats) return;
+
+            document.getElementById('statTotalIncidents').textContent = stats.total_incidents ?? 0;
+            document.getElementById('statOpenIncidents').textContent = stats.open_incidents ?? 0;
+            document.getElementById('statAvgResolution').textContent = (stats.avg_resolution_time_hours ?? 0).toFixed(1);
+            document.getElementById('statResolvedIncidents').textContent = stats.resolved_incidents ?? 0;
+
+            updateCharts(stats.severity_breakdown, stats.status_breakdown);
+        } catch (e) {
+            console.error('Failed to load statistics:', e);
+        }
+    }
+
+    async function loadIncidentsTable() {
+        const tbody = document.getElementById('incidentTableBody');
+        const timeRange = document.getElementById('timeRange').value;
+        const pageSize = parseInt(document.getElementById('pageSize').value) || 25;
+
+        try {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="9" class="text-center py-8 text-slate-500">
+                        <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                        <p>Loading incidents...</p>
+                    </td>
+                </tr>
+            `;
+
+            const incidents = await apiCall(`/api/incidents?time_range=${timeRange}&page=${currentPage}&page_size=${pageSize}`);
+            if (!incidents) return;
+
+            // This is a simplified pagination because the API doesn't return total count in list response
+            // In a real app we'd wrap response in { items: [], total: 0 }
+            // For now assume if we got full page, there might be more
+            const hasMore = incidents.length === pageSize;
+
+            renderIncidentsTable(incidents);
+
+            // Update pagination UI roughly
+            document.getElementById('pageIndicator').textContent = `Page ${currentPage}`;
+            document.getElementById('prevBtn').disabled = currentPage <= 1;
+            document.getElementById('nextBtn').disabled = !hasMore;
+
+        } catch (e) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="9" class="text-center py-8 text-red-600">
+                        <i class="fas fa-exclamation-triangle text-2xl mb-2"></i>
+                        <p>Failed to load incidents</p>
+                    </td>
+                </tr>
+            `;
+        }
+    }
+
+    function renderIncidentsTable(incidents) {
+        const tbody = document.getElementById('incidentTableBody');
+
+        if (incidents.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="9" class="text-center py-8 text-slate-500">
+                        <i class="fas fa-check-circle text-3xl mb-2 text-green-500"></i>
+                        <p>No incidents found in this period</p>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        tbody.innerHTML = incidents.map(inc => `
+            <tr class="transition-colors hover:bg-slate-50 cursor-pointer" onclick="window.location.href='/incidents/${inc.id}'">
+                <td>
+                    <span class="incident-id font-mono">${escapeHtml(inc.incident_id)}</span>
+                </td>
+                <td class="max-w-xs truncate" title="${escapeHtml(inc.title || '')}">
+                    ${escapeHtml(inc.title || 'Untitled')}
+                </td>
+                <td>
+                    <span class="px-2 py-0.5 rounded text-xs ${getSeverityClass(inc.severity)}">
+                        ${escapeHtml(inc.severity || 'unknown')}
+                    </span>
+                </td>
+                <td class="cell-muted">
+                    ${escapeHtml(inc.priority || '-')}
+                </td>
+                <td>
+                    <span class="px-2 py-1 rounded text-xs bg-slate-100 text-slate-700">
+                        ${escapeHtml(inc.status || '-')}
+                    </span>
+                </td>
+                <td class="cell-muted">
+                    ${escapeHtml(inc.service_name || '-')}
+                </td>
+                <td class="cell-muted">
+                    ${escapeHtml(inc.assignee || '-')}
+                </td>
+                <td class="cell-muted whitespace-nowrap">
+                    ${formatDateTime(inc.created_at)}
+                </td>
+                <td class="cell-muted whitespace-nowrap">
+                    ${inc.resolved_at ? formatDateTime(inc.resolved_at) : '-'}
+                </td>
+            </tr>
+        `).join('');
+
+        document.getElementById('paginationInfo').textContent = `Showing incidents on page ${currentPage}`;
+    }
+
+    function prevPage() {
+        if (currentPage > 1) {
+            currentPage--;
+            loadIncidentsTable();
+        }
+    }
+
+    function nextPage() {
+        currentPage++;
+        loadIncidentsTable();
+    }
+
+    function updateCharts(severityData, statusData) {
+        // Severity Chart
+        const sevCtx = document.getElementById('severityChart');
+        if (charts.severity) charts.severity.destroy();
+
+        const sevLabels = Object.keys(severityData || {});
+        const sevValues = Object.values(severityData || {});
+
+        charts.severity = new Chart(sevCtx, {
+            type: 'doughnut',
+            data: {
+                labels: sevLabels,
+                datasets: [{
+                    data: sevValues,
+                    backgroundColor: [
+                        'rgba(239, 68, 68, 0.7)', // Red
+                        'rgba(251, 191, 36, 0.7)', // Yellow
+                        'rgba(59, 130, 246, 0.7)', // Blue
+                        'rgba(107, 114, 128, 0.7)' // Gray
+                    ],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'right' }
+                }
+            }
+        });
+
+        // Status Chart
+        const statCtx = document.getElementById('statusChart');
+        if (charts.status) charts.status.destroy();
+
+        const statLabels = Object.keys(statusData || {});
+        const statValues = Object.values(statusData || {});
+
+        charts.status = new Chart(statCtx, {
+            type: 'bar',
+            data: {
+                labels: statLabels,
+                datasets: [{
+                    label: 'Incidents',
+                    data: statValues,
+                    backgroundColor: 'rgba(99, 102, 241, 0.7)', // Indigo
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true }
+                }
+            }
+        });
+    }
+
+    function getSeverityClass(severity) {
+        if (!severity) return 'bg-gray-100 text-gray-600';
+        const s = severity.toLowerCase();
+        if (s.includes('1') || s.includes('high') || s.includes('critical')) return 'bg-red-100 text-red-700';
+        if (s.includes('2') || s.includes('medium') || s.includes('major')) return 'bg-orange-100 text-orange-700';
+        if (s.includes('3') || s.includes('low') || s.includes('minor')) return 'bg-yellow-100 text-yellow-700';
+        return 'bg-blue-100 text-blue-700';
+    }
+
+    // Modal Functions
+    function showITSMModal() {
+        document.getElementById('itsmModal').classList.remove('hidden');
+    }
+
+    function hideITSMModal() {
+        document.getElementById('itsmModal').classList.add('hidden');
+    }
+
+    async function loadIntegrationsList() {
+        try {
+            const integrations = await apiCall('/api/itsm/integrations');
+            if (!integrations) return;
+
+            const select = document.getElementById('itsmIntegrationSelect');
+            select.innerHTML = '<option value="">-- Select Integration --</option>' +
+                integrations.map(i => `<option value="${i.id}">${escapeHtml(i.name)} (${i.connector_type})</option>`).join('');
+
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    async function loadIntegrationConfig() {
+        const id = document.getElementById('itsmIntegrationSelect').value;
+        if (!id) return;
+
+        try {
+            const integration = await apiCall(`/api/itsm/integrations/${id}`);
+            if (!integration || !integration.config) return;
+
+            // Check for existing incident config in field mapping
+            const config = integration.config.incident_config || {};
+            const mapping = config.field_mapping || {};
+
+            if (mapping.incident_id) document.getElementById('mapIncidentId').value = mapping.incident_id;
+            if (mapping.title) document.getElementById('mapTitle').value = mapping.title;
+            if (mapping.description) document.getElementById('mapDescription').value = mapping.description;
+            if (mapping.status) document.getElementById('mapStatus').value = mapping.status;
+            if (mapping.severity) document.getElementById('mapSeverity').value = mapping.severity;
+            if (mapping.priority) document.getElementById('mapPriority').value = mapping.priority;
+            if (mapping.created_at) document.getElementById('mapCreatedAt').value = mapping.created_at;
+            if (mapping.resolved_at) document.getElementById('mapResolvedAt').value = mapping.resolved_at;
+            if (mapping.assignee) document.getElementById('mapAssignee').value = mapping.assignee;
+            if (mapping.service) document.getElementById('mapService').value = mapping.service;
+
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    async function saveITSMIntegration(event) {
+        event.preventDefault();
+        const id = document.getElementById('itsmIntegrationSelect').value;
+        if (!id) {
+            showToast("Please select an integration", "error");
+            return;
+        }
+
+        // Build incident config object
+        const incidentConfig = {
+            field_mapping: {
+                incident_id: document.getElementById('mapIncidentId').value,
+                title: document.getElementById('mapTitle').value,
+                description: document.getElementById('mapDescription').value,
+                status: document.getElementById('mapStatus').value,
+                severity: document.getElementById('mapSeverity').value,
+                priority: document.getElementById('mapPriority').value,
+                created_at: document.getElementById('mapCreatedAt').value,
+                resolved_at: document.getElementById('mapResolvedAt').value,
+                assignee: document.getElementById('mapAssignee').value,
+                service_name: document.getElementById('mapService').value
+            },
+            // Default transformations
+            transformations: {
+                created_at: { type: "datetime", format: "iso8601" },
+                resolved_at: { type: "datetime", format: "iso8601" }
+            }
+        };
+
+        try {
+            // First get existing config
+            const integration = await apiCall(`/api/itsm/integrations/${id}`);
+            const currentConfig = integration.config;
+
+            // Merge incident config
+            currentConfig.incident_config = {
+                ...currentConfig.incident_config,
+                ...incidentConfig,
+                // Ensure we copy auth/api config from main if not present (simplified for now)
+                api_config: currentConfig.incident_config?.api_config || currentConfig.api_config,
+                auth: currentConfig.incident_config?.auth || currentConfig.auth,
+                pagination: currentConfig.incident_config?.pagination || currentConfig.pagination
+            };
+
+            // Update
+            await apiCall(`/api/itsm/integrations/${id}`, 'PUT', {
+                config: currentConfig
+            });
+
+            showToast("Incident configuration saved", "success");
+            hideITSMModal();
+
+        } catch (e) {
+            showToast("Failed to save configuration", "error");
+            console.error(e);
+        }
+    }
+
+</script>
+{% endblock %}

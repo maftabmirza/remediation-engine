@@ -8,7 +8,9 @@ from typing import List, Optional
 from uuid import UUID
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import text
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from pydantic import BaseModel
 import yaml
 
@@ -858,6 +860,7 @@ async def delete_server(
     server = db.query(ServerCredential).filter(ServerCredential.id == server_id).first()
     if not server:
         raise HTTPException(status_code=404, detail="Server not found")
+    server_name = server.name
     
     # Cleanup dependencies
     # 1. Terminal Sessions
@@ -881,19 +884,39 @@ async def delete_server(
     except ImportError:
         pass
 
-    db.delete(server)
-    db.commit()
-    
+    # 4. Agent Sessions
+    try:
+        db.execute(
+            text("UPDATE agent_sessions SET server_id = NULL WHERE server_id = CAST(:server_id AS uuid)"),
+            {"server_id": str(server_id)}
+        )
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to clear agent session references for server delete: {exc}"
+        ) from exc
+
     # Audit
     audit = AuditLog(
         user_id=current_user.id,
         action="delete_server",
         resource_type="server",
         resource_id=server_id,
-        details_json={"name": server.name}
+        details_json={"name": server_name}
     )
+
+    db.delete(server)
     db.add(audit)
-    db.commit()
+    try:
+        db.flush()
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Server cannot be deleted because it is still referenced by related records."
+        ) from exc
 
     return {"message": "Server deleted successfully"}
 

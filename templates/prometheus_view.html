@@ -27,6 +27,11 @@
         left: 170px !important;
     }
 
+    /* Shrink prometheus iframe when RE-VIVE chat panel is open */
+    .app-container.ai-open .prometheus-container {
+        right: var(--ai-helper-width, 380px) !important;
+    }
+
     .prometheus-container iframe {
         border: none !important;
         display: block !important;
@@ -100,17 +105,4 @@
     }
 </script>
 
-<!-- RE-VIVE AI Assistant Widget -->
-<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-<link href="/static/css/revive_widget_grafana.css" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-<script src="/static/js/revive_widget_grafana.js"></script>
 {% endblock %}
-
-{% block scripts %}
-{{ super() }}
-<!-- No manual resize needed, CSS handles it -->
-{% endblock %}
-
-<!-- Disable Default AI Agent (Outer) -->
-{% block ai_agent %}{% endblock %}

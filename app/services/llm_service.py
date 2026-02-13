@@ -311,3 +311,51 @@ def get_default_provider(db: Session) -> Optional[LLMProvider]:
         LLMProvider.is_enabled == True
     ).first()
 
+
+def build_incident_prompt(incident) -> str:
+    """Build the analysis prompt for an incident."""
+    prompt = f"""You are Antigravity, an expert Site Reliability Engineer (SRE).
+Your goal is to perform a Root Cause Analysis (RCA) on this incident and provide actionable remediation steps.
+
+## Incident Context
+- **Title:** {incident.title}
+- **ID:** {incident.incident_id}
+- **Severity:** {incident.severity}
+- **Status:** {incident.status}
+- **Service:** {incident.service_name}
+- **Created:** {incident.created_at}
+
+### Description
+{incident.description}
+
+### Additional Metadata
+{incident.incident_metadata}
+
+## Analysis Request
+
+1.  **Likely Root Cause**: Based on the description and metadata, what is the most probable cause?
+2.  **Investigation Steps**: What specific commands or queries should the user run to verify this?
+    - Provide `bash` or `promql` commands where applicable.
+3.  **Remediation**: How can this be fixed?
+4.  **Prevention**: How can we prevent this from happening again?
+
+Format your response in Markdown. Use bold headers.
+"""
+    return prompt
+
+
+async def analyze_incident(
+    db: Session,
+    incident,
+    provider: Optional[LLMProvider] = None
+) -> Tuple[str, List[str], LLMProvider]:
+    """Analyze an incident using the specified or default LLM provider."""
+    
+    prompt = build_incident_prompt(incident)
+    
+    analysis, provider_used = await generate_completion(db, prompt, provider)
+    
+    recommendations = parse_recommendations(analysis)
+    
+    return analysis, recommendations, provider_used
+

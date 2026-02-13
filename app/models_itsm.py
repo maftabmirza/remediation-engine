@@ -72,3 +72,36 @@ class ChangeImpactAnalysis(Base):
 
     # Relationships
     change_event = relationship("ChangeEvent", back_populates="impact_analysis")
+
+
+class IncidentEvent(Base):
+    """Incident event from ITSM system"""
+    __tablename__ = "incident_events"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    incident_id = Column(String(255), unique=True, nullable=False, index=True)
+    title = Column(String(500), nullable=False)
+    description = Column(Text)
+    status = Column(String(50), index=True)
+    severity = Column(String(50), index=True)
+    priority = Column(String(50), index=True)
+    service_name = Column(String(255), index=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, index=True)
+    resolved_at = Column(DateTime(timezone=True))
+    assignee = Column(String(255))
+    source = Column(String(100), index=True)  # integration ID or 'webhook'
+    incident_metadata = Column(JSONB, default={})
+    is_open = Column(Boolean, default=True, index=True)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+    
+    # Analysis Fields
+    analyzed = Column(Boolean, default=False, index=True)
+    analyzed_at = Column(DateTime(timezone=True))
+    analyzed_by = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    ai_analysis = Column(Text)
+    recommendations_json = Column(JSONB, default=[])
+    llm_provider_id = Column(UUID(as_uuid=True), ForeignKey("llm_providers.id"))
+    analysis_count = Column(Integer, default=0)
+    
+    # Relationships
+    llm_provider = relationship("LLMProvider")

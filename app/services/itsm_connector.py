@@ -16,7 +16,7 @@ import requests
 from jsonpath_ng import parse
 from dateutil import parser as date_parser
 
-from app.models_itsm import ChangeEvent, ITSMIntegration
+from app.models_itsm import ChangeEvent, ITSMIntegration, IncidentEvent
 
 
 def utc_now():
@@ -648,6 +648,117 @@ class GenericAPIConnector:
         return created, updated, errors
 
 
+    def fetch_incidents(self, since: Optional[datetime] = None) -> List[Dict[str, Any]]:
+        """
+        Fetch incidents from ITSM API using incident-specific configuration
+        """
+        # specific config for incidents (optional), otherwise use main config
+        incident_config = self.config.get('incident_config', self.config)
+        
+        # Use a temporary connector with incident config to fetch
+        # This allows reusing all the pagination/auth logic
+        temp_connector = GenericAPIConnector(incident_config)
+        
+        # We need to map 'incident_id' -> 'change_id' for field mapper compatibility 
+        # or update FieldMapper to be more generic. 
+        # For now, let's assume the config provides the correct mapping keys.
+        
+        return temp_connector.fetch_changes(since)
+
+
+    def sync_incidents(self, db, integration_id: UUID, since: Optional[datetime] = None) -> Tuple[int, int, List[str]]:
+        """
+        Sync incidents from ITSM to database
+        """
+        from sqlalchemy.exc import IntegrityError
+
+        # Use incident_config if available, otherwise assume main config is for incidents?
+        # Typically integrations might have separate endpoints for changes vs incidents.
+        # We will assume 'incident_config' dict exists in the main config if incidents are supported.
+        
+        if 'incident_config' not in self.config:
+            return 0, 0, ["No incident configuration found"]
+
+        try:
+            # We reuse fetch_changes but with incident config
+            # We instantiate a new connector for the incident part
+            incident_connector = GenericAPIConnector(self.config['incident_config'])
+            records = incident_connector.fetch_changes(since)
+        except Exception as e:
+            return 0, 0, [f"Failed to fetch incidents: {str(e)}"]
+
+        created = 0
+        updated = 0
+        errors = []
+
+        for record in records:
+            try:
+                # Map generic fields to IncidentEvent fields if needed
+                # The FieldMapper in incident_connector should have already mapped to 
+                # standard keys: incident_id, title, description, etc.
+                
+                # Check if incident already exists
+                existing = db.query(IncidentEvent).filter(
+                    IncidentEvent.incident_id == record.get('incident_id')
+                ).first()
+
+                if existing:
+                    # Update existing
+                    if record.get('title'): existing.title = record.get('title')
+                    if record.get('description'): existing.description = record.get('description')
+                    if record.get('status'): existing.status = record.get('status')
+                    if record.get('severity'): existing.severity = record.get('severity')
+                    if record.get('priority'): existing.priority = record.get('priority')
+                    if record.get('resolved_at'): existing.resolved_at = record.get('resolved_at')
+                    if record.get('assignee'): existing.assignee = record.get('assignee')
+                    
+                    # Update active status
+                    if record.get('status'):
+                        status_lower = record['status'].lower()
+                        existing.is_open = status_lower not in ['resolved', 'closed', 'canceled', 'completed']
+                        
+                    updated += 1
+                else:
+                    # Create new
+                    incident = IncidentEvent(
+                        incident_id=record['incident_id'],
+                        title=record.get('title', 'Untitled Incident'),
+                        description=record.get('description'),
+                        status=record.get('status'),
+                        severity=record.get('severity'),
+                        priority=record.get('priority'),
+                        service_name=record.get('service_name'),
+                        created_at=record.get('created_at') or utc_now(),
+                        resolved_at=record.get('resolved_at'),
+                        assignee=record.get('assignee'),
+                        source=str(integration_id),
+                        metadata=record.get('metadata', {}),
+                        is_open=True 
+                    )
+                    
+                    if incident.status:
+                        status_lower = incident.status.lower()
+                        incident.is_open = status_lower not in ['resolved', 'closed', 'canceled', 'completed']
+                        
+                    db.add(incident)
+                    created += 1
+
+            except IntegrityError as e:
+                db.rollback()
+                errors.append(f"Duplicate incident_id: {record.get('incident_id')}")
+            except Exception as e:
+                errors.append(f"Error processing incident {record.get('incident_id')}: {str(e)}")
+
+        try:
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            errors.append(f"Commit error: {str(e)}")
+
+        logger.info(f"Incident sync complete: {created} created, {updated} updated, {len(errors)} errors")
+        return created, updated, errors
+
+
 # ========== CONFIGURATION TEMPLATES ==========
 
 ITSM_TEMPLATES = {
@@ -683,7 +794,42 @@ ITSM_TEMPLATES = {
                 "timestamp": {"type": "datetime", "format": "iso8601"}
             },
             "time_filter_param": "sysparm_query",
-            "time_filter_format": "servicenow"
+            "time_filter_format": "servicenow",
+            "incident_config": {
+                "api_config": {
+                    "base_url": "https://YOUR_INSTANCE.service-now.com/api/now/table/incident",
+                    "method": "GET",
+                    "headers": {"Accept": "application/json"},
+                    "query_params": {"sysparm_display_value": "true"}
+                },
+                "auth": {
+                    "type": "basic",
+                    "username": "YOUR_USERNAME",
+                    "password": "YOUR_PASSWORD"
+                },
+                "pagination": {
+                    "type": "offset",
+                    "offset_param": "sysparm_offset",
+                    "limit_param": "sysparm_limit",
+                    "page_size": 100
+                },
+                "field_mapping": {
+                    "incident_id": "$.result[*].number",
+                    "title": "$.result[*].short_description",
+                    "description": "$.result[*].description",
+                    "status": "$.result[*].state",
+                    "severity": "$.result[*].severity",
+                    "priority": "$.result[*].priority",
+                    "service_name": "$.result[*].cmdb_ci.display_value",
+                    "created_at": "$.result[*].sys_created_on",
+                    "resolved_at": "$.result[*].resolved_at",
+                    "assignee": "$.result[*].assigned_to.display_value"
+                },
+                "transformations": {
+                    "created_at": {"type": "datetime", "format": "iso8601"},
+                    "resolved_at": {"type": "datetime", "format": "iso8601"}
+                }
+            }
         }
     },
     "jira": {

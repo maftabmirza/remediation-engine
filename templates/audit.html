@@ -3,120 +3,112 @@
 
 {% block title %}Audit Logs - AIOps Platform{% endblock %}
 
+{% block breadcrumbs %}
+<span class="mx-2">/</span>
+<span class="text-gray-200">Audit Logs</span>
+{% endblock %}
+
+{% block header_title %}
+<i class="fas fa-clipboard-list text-amber-400"></i>
+<span class="text-sm font-semibold text-white tracking-tight">Audit Logs</span>
+{% endblock %}
+
+{% block header_actions %}
+{{ super() }}
+{% endblock %}
+
 {% block content %}
 <div class="space-y-4">
-    <!-- Enterprise Standard Toolbar -->
-    <div class="dashboard-header"
-        style="padding: 12px; background: #16171b; border-bottom: 1px solid rgba(255,255,255,0.05); border-radius: 8px;">
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <!-- Left: Breadcrumbs & Title -->
-            <div class="flex flex-col min-w-0">
-                <nav class="flex items-center text-xs text-gray-400 mb-1">
-                    <a href="/" class="hover:text-blue-400 transition-colors">Home</a>
-                    <span class="mx-2">/</span>
-                    <span class="text-gray-200">Audit Logs</span>
-                </nav>
-                <div class="flex items-center gap-3">
-                    <h1 class="text-xl font-bold text-white tracking-tight truncate">Audit Logs</h1>
-                </div>
-                <p class="text-xs text-gray-500 mt-1">System activity and terminal session recordings</p>
-            </div>
-
-            <!-- Right: Actions (Empty for now, tabs are below) -->
-            <div class="flex items-center gap-3">
-                <!-- No specific actions for audit header yet, keeping alignment -->
-            </div>
-        </div>
+    <!-- Toolbar -->
+    <div class="card p-4">
+        <p class="text-sm text-[#64748b]">System activity, terminal session recordings, and chat transcripts.</p>
     </div>
 
     <!-- Tabs -->
-    <div class="card">
-        <div class="flex space-x-4 border-b border-gray-700 px-4">
+    <div class="card overflow-hidden">
+        <div class="flex border-b border-[#e2e8f0] bg-[#f8fafc]">
             <button onclick="switchTab('logs')" id="tab-logs"
-                class="px-4 py-3 border-b-2 border-blue-500 text-blue-400 font-medium text-sm">
+                class="audit-tab px-4 py-3 text-sm font-medium border-b-2 border-[#3b82f6] text-[#2563eb]">
                 System Logs
             </button>
             <button onclick="switchTab('sessions')" id="tab-sessions"
-                class="px-4 py-3 border-b-2 border-transparent text-gray-400 hover:text-gray-300 text-sm">
+                class="audit-tab px-4 py-3 text-sm font-medium border-b-2 border-transparent text-[#64748b] hover:text-[#1e293b]">
                 Terminal Sessions
             </button>
             <button onclick="switchTab('chats')" id="tab-chats"
-                class="px-4 py-3 border-b-2 border-transparent text-gray-400 hover:text-gray-300 text-sm">
+                class="audit-tab px-4 py-3 text-sm font-medium border-b-2 border-transparent text-[#64748b] hover:text-[#1e293b]">
                 Chat Sessions
             </button>
         </div>
-    </div>
 
     <!-- System Logs Tab -->
     <div id="view-logs" class="space-y-4">
-        <div class="card overflow-hidden">
-            <div class="overflow-x-auto">
-                <table class="w-full text-left text-sm">
-                    <thead class="bg-gray-800 text-gray-400 uppercase font-medium">
-                        <tr>
-                            <th class="px-6 py-3">Time</th>
-                            <th class="px-6 py-3">User</th>
-                            <th class="px-6 py-3">Action</th>
-                            <th class="px-6 py-3">Resource</th>
-                            <th class="px-6 py-3">Details</th>
-                        </tr>
-                    </thead>
-                    <tbody id="logsTableBody" class="divide-y divide-gray-700">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm">
+                <thead>
+                    <tr class="bg-[#f8fafc] text-[#64748b] border-b border-[#e2e8f0]">
+                        <th class="px-6 py-3 font-medium">Time</th>
+                        <th class="px-6 py-3 font-medium">User</th>
+                        <th class="px-6 py-3 font-medium">Action</th>
+                        <th class="px-6 py-3 font-medium">Resource</th>
+                        <th class="px-6 py-3 font-medium">Details</th>
+                    </tr>
+                </thead>
+                <tbody id="logsTableBody" class="text-[#334155] divide-y divide-[#e2e8f0]">
                         <tr>
                             <td colspan="5" class="px-6 py-8 text-center">
-                                <div class="loading-spinner mx-auto"></div>
+                                <div class="loading-spinner mx-auto mb-2"></div>
+                                <p class="text-[#64748b]">Loading...</p>
                             </td>
                         </tr>
                     </tbody>
                 </table>
             </div>
-        </div>
     </div>
 
     <!-- Terminal Sessions Tab -->
     <div id="view-sessions" class="hidden space-y-4">
-        <div class="card overflow-hidden">
-            <div class="overflow-x-auto">
-                <table class="w-full text-left text-sm">
-                    <thead class="bg-gray-800 text-gray-400 uppercase font-medium">
-                        <tr>
-                            <th class="px-6 py-3">Started</th>
-                            <th class="px-6 py-3">User</th>
-                            <th class="px-6 py-3">Server</th>
-                            <th class="px-6 py-3">Duration</th>
-                            <th class="px-6 py-3">Recording</th>
-                        </tr>
-                    </thead>
-                    <tbody id="sessionsTableBody" class="divide-y divide-gray-700">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm">
+                <thead>
+                    <tr class="bg-[#f8fafc] text-[#64748b] border-b border-[#e2e8f0]">
+                        <th class="px-6 py-3 font-medium">Started</th>
+                        <th class="px-6 py-3 font-medium">User</th>
+                        <th class="px-6 py-3 font-medium">Server</th>
+                        <th class="px-6 py-3 font-medium">Duration</th>
+                        <th class="px-6 py-3 font-medium">Recording</th>
+                    </tr>
+                </thead>
+                <tbody id="sessionsTableBody" class="text-[#334155] divide-y divide-[#e2e8f0]">
                         <tr>
                             <td colspan="5" class="px-6 py-8 text-center">
-                                <div class="loading-spinner mx-auto"></div>
+                                <div class="loading-spinner mx-auto mb-2"></div>
+                                <p class="text-[#64748b]">Loading...</p>
                             </td>
                         </tr>
                     </tbody>
                 </table>
             </div>
-        </div>
     </div>
 
     <!-- Chat Sessions Tab -->
     <div id="view-chats" class="hidden space-y-4">
-        <div class="card overflow-hidden">
-            <div class="overflow-x-auto">
-                <table class="w-full text-left text-sm">
-                    <thead class="bg-gray-800 text-gray-400 uppercase font-medium">
-                        <tr>
-                            <th class="px-6 py-3">Created</th>
-                            <th class="px-6 py-3">User</th>
-                            <th class="px-6 py-3">Title</th>
-                            <th class="px-6 py-3">Messages</th>
-                            <th class="px-6 py-3">Transcript</th>
-                        </tr>
-                    </thead>
-                    <tbody id="chatsTableBody" class="divide-y divide-gray-700">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm">
+                <thead>
+                    <tr class="bg-[#f8fafc] text-[#64748b] border-b border-[#e2e8f0]">
+                        <th class="px-6 py-3 font-medium">Created</th>
+                        <th class="px-6 py-3 font-medium">User</th>
+                        <th class="px-6 py-3 font-medium">Title</th>
+                        <th class="px-6 py-3 font-medium">Messages</th>
+                        <th class="px-6 py-3 font-medium">Transcript</th>
+                    </tr>
+                </thead>
+                <tbody id="chatsTableBody" class="text-[#334155] divide-y divide-[#e2e8f0]">
                         <tr>
                             <td colspan="5" class="px-6 py-8 text-center">
-                                <div class="loading-spinner mx-auto"></div>
+                                <div class="loading-spinner mx-auto mb-2"></div>
+                                <p class="text-[#64748b]">Loading...</p>
                             </td>
                         </tr>
                     </tbody>
@@ -124,22 +116,23 @@
             </div>
             <!-- Pagination Controls -->
             <div id="chatPagination"
-                class="px-6 py-4 border-t border-gray-700 flex items-center justify-between hidden">
-                <span class="text-sm text-gray-400" id="chatPaginationInfo">
+                class="px-6 py-4 border-t border-[#e2e8f0] flex items-center justify-between hidden bg-[#f8fafc]">
+                <span class="text-sm text-[#64748b]" id="chatPaginationInfo">
                     Showing 1 to 10 of 20 results
                 </span>
-                <div class="flex space-x-2">
+                <div class="flex gap-2">
                     <button onclick="changeChatPage(-1)" id="btnPrevChat"
-                        class="px-3 py-1 rounded border border-gray-600 text-gray-300 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                        class="px-3 py-1.5 rounded border border-[#e2e8f0] bg-white text-[#475569] hover:bg-[#f8fafc] disabled:opacity-50 disabled:cursor-not-allowed">
                         Previous
                     </button>
                     <button onclick="changeChatPage(1)" id="btnNextChat"
-                        class="px-3 py-1 rounded border border-gray-600 text-gray-300 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                        class="px-3 py-1.5 rounded border border-[#e2e8f0] bg-white text-[#475569] hover:bg-[#f8fafc] disabled:opacity-50 disabled:cursor-not-allowed">
                         Next
                     </button>
                 </div>
             </div>
         </div>
+    </div>
     </div>
 </div>
 
@@ -233,6 +226,9 @@
 <script>
     let currentTab = 'logs';
     let term = null;
+    if (typeof showToast === 'undefined') {
+        window.showToast = function (message, type) { alert(message); };
+    }
 
     // Chat Pagination State
     let chatPage = 1;
@@ -242,18 +238,12 @@
     function switchTab(tab) {
         currentTab = tab;
 
-        // Update UI
-        document.getElementById('tab-logs').className = tab === 'logs'
-            ? 'px-4 py-2 border-b-2 border-blue-500 text-blue-400 font-medium'
-            : 'px-4 py-2 border-b-2 border-transparent text-gray-400 hover:text-gray-300';
+        const activeClass = 'audit-tab px-4 py-3 text-sm font-medium border-b-2 border-[#3b82f6] text-[#2563eb]';
+        const inactiveClass = 'audit-tab px-4 py-3 text-sm font-medium border-b-2 border-transparent text-[#64748b] hover:text-[#1e293b]';
 
-        document.getElementById('tab-sessions').className = tab === 'sessions'
-            ? 'px-4 py-2 border-b-2 border-blue-500 text-blue-400 font-medium'
-            : 'px-4 py-2 border-b-2 border-transparent text-gray-400 hover:text-gray-300';
-
-        document.getElementById('tab-chats').className = tab === 'chats'
-            ? 'px-4 py-2 border-b-2 border-blue-500 text-blue-400 font-medium'
-            : 'px-4 py-2 border-b-2 border-transparent text-gray-400 hover:text-gray-300';
+        document.getElementById('tab-logs').className = tab === 'logs' ? activeClass : inactiveClass;
+        document.getElementById('tab-sessions').className = tab === 'sessions' ? activeClass : inactiveClass;
+        document.getElementById('tab-chats').className = tab === 'chats' ? activeClass : inactiveClass;
 
         document.getElementById('view-logs').classList.toggle('hidden', tab !== 'logs');
         document.getElementById('view-sessions').classList.toggle('hidden', tab !== 'sessions');
@@ -267,21 +257,7 @@
 
     async function loadLogs() {
         try {
-            const response = await apiCall('/api/audit/logs');
-            if (!response) return;
-
-            if (!response.ok) {
-                let detail = `HTTP ${response.status}`;
-                try {
-                    const err = await response.json();
-                    detail = err.detail || JSON.stringify(err);
-                } catch (_) {}
-                showToast(`Failed to load audit logs: ${detail}`, 'error');
-                renderLogs([]);
-                return;
-            }
-
-            const logs = await response.json();
+            const logs = await apiCall('/api/audit/logs');
             renderLogs(Array.isArray(logs) ? logs : []);
         } catch (error) {
             console.error('Failed to load logs:', error);
@@ -296,8 +272,9 @@
         if (logs.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="5" class="px-6 py-8 text-center text-gray-400">
-                        No audit logs found
+                    <td colspan="5" class="px-6 py-8 text-center text-[#64748b]">
+                        <i class="fas fa-inbox text-4xl mb-3 text-[#94a3b8]"></i>
+                        <p>No audit logs found</p>
                     </td>
                 </tr>
             `;
@@ -305,23 +282,23 @@
         }
 
         tbody.innerHTML = logs.map(log => `
-            <tr class="hover:bg-gray-800 transition">
-                <td class="px-6 py-4 whitespace-nowrap text-gray-400">
+            <tr class="hover:bg-[#f8fafc] transition-colors">
+                <td class="px-6 py-4 whitespace-nowrap text-[#64748b]">
                     ${new Date(log.created_at).toLocaleString()}
                 </td>
-                <td class="px-6 py-4 font-medium text-white">
-                    ${log.username || 'System'}
+                <td class="px-6 py-4 font-medium text-[#1e293b]">
+                    ${(log.username || 'System').replace(/</g,'&lt;')}
                 </td>
                 <td class="px-6 py-4">
-                    <span class="px-2 py-1 rounded text-xs bg-gray-700 font-mono text-blue-300">
-                        ${log.action}
+                    <span class="px-2 py-1 rounded text-xs font-mono bg-[#eff6ff] text-[#2563eb] border border-[#bfdbfe]">
+                        ${(log.action||'').replace(/</g,'&lt;')}
                     </span>
                 </td>
-                <td class="px-6 py-4 text-gray-300">
-                    ${log.resource_type ? `${log.resource_type}` : '-'}
+                <td class="px-6 py-4 text-[#475569]">
+                    ${(log.resource_type||'-').replace(/</g,'&lt;')}
                 </td>
-                <td class="px-6 py-4 text-gray-400 text-xs font-mono max-w-xs truncate">
-                    ${log.details_json ? JSON.stringify(log.details_json) : '-'}
+                <td class="px-6 py-4 text-[#64748b] text-xs font-mono max-w-xs truncate">
+                    ${log.details_json ? JSON.stringify(log.details_json).replace(/</g,'&lt;') : '-'}
                 </td>
             </tr>
         `).join('');
@@ -329,16 +306,7 @@
 
     async function loadSessions() {
         try {
-            const response = await apiCall('/api/audit/terminal-sessions');
-            if (!response) return;
-
-            if (!response.ok) {
-                showToast(`Failed to load terminal sessions (HTTP ${response.status})`, 'error');
-                renderSessions([]);
-                return;
-            }
-
-            const sessions = await response.json();
+            const sessions = await apiCall('/api/audit/terminal-sessions');
             renderSessions(Array.isArray(sessions) ? sessions : []);
         } catch (error) {
             console.error('Failed to load sessions:', error);
@@ -353,8 +321,9 @@
         if (sessions.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="5" class="px-6 py-8 text-center text-gray-400">
-                        No terminal sessions found
+                    <td colspan="5" class="px-6 py-8 text-center text-[#64748b]">
+                        <i class="fas fa-inbox text-4xl mb-3 text-[#94a3b8]"></i>
+                        <p>No terminal sessions found</p>
                     </td>
                 </tr>
             `;
@@ -367,25 +336,25 @@
             const duration = end ? Math.round((end - start) / 1000) + 's' : 'Active';
 
             return `
-            <tr class="hover:bg-gray-800 transition">
-                <td class="px-6 py-4 whitespace-nowrap text-gray-400">
+            <tr class="hover:bg-[#f8fafc] transition-colors">
+                <td class="px-6 py-4 whitespace-nowrap text-[#64748b]">
                     ${start.toLocaleString()}
                 </td>
-                <td class="px-6 py-4 font-medium text-white">
-                    ${session.username}
+                <td class="px-6 py-4 font-medium text-[#1e293b]">
+                    ${(session.username||'').replace(/</g,'&lt;')}
                 </td>
-                <td class="px-6 py-4 text-green-400">
-                    <i class="fas fa-server mr-2"></i>${session.server_name}
+                <td class="px-6 py-4 text-green-600">
+                    <i class="fas fa-server mr-2"></i>${(session.server_name||'').replace(/</g,'&lt;')}
                 </td>
-                <td class="px-6 py-4 text-gray-300">
+                <td class="px-6 py-4 text-[#475569]">
                     ${duration}
                 </td>
                 <td class="px-6 py-4">
                     ${session.has_recording ? `
-                        <button onclick="playRecording('${session.id}')" class="btn-secondary px-3 py-1 rounded text-xs flex items-center">
+                        <button onclick="playRecording('${session.id}')" class="px-3 py-1.5 rounded text-xs border border-[#e2e8f0] bg-white text-[#475569] hover:bg-[#f8fafc]">
                             <i class="fas fa-play mr-2"></i> Play
                         </button>
-                    ` : '<span class="text-gray-500 text-xs">No recording</span>'}
+                    ` : '<span class="text-[#94a3b8] text-xs">No recording</span>'}
                 </td>
             </tr>
             `;
@@ -394,16 +363,8 @@
 
     async function playRecording(sessionId) {
         try {
-            const response = await apiCall(`/api/audit/terminal-sessions/${sessionId}/recording`);
-            if (!response) return;
-
-            if (!response.ok) {
-                const err = await response.json();
-                showToast(err.detail || 'Failed to load recording', 'error');
-                return;
-            }
-
-            const data = await response.json();
+            const data = await apiCall(`/api/audit/terminal-sessions/${sessionId}/recording`);
+            if (!data) return;
 
             const modal = document.getElementById('recordingModal');
             modal.classList.remove('hidden');
@@ -472,23 +433,26 @@
 
     async function viewTranscript(sessionId) {
         try {
-            const response = await apiCall(`/api/audit/chat-sessions/${sessionId}/transcript`);
-            if (!response) return;
-
-            const messages = await response.json();
+            const messages = await apiCall(`/api/audit/chat-sessions/${sessionId}/transcript`);
+            const list = Array.isArray(messages) ? messages : (messages?.items || messages?.messages || []);
 
             document.getElementById('transcriptModal').classList.remove('hidden');
 
             const container = document.getElementById('transcript-container');
-            container.innerHTML = messages.map(msg => `
-                <div class="flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}">
-                    <div class="max-w-[80%] rounded-lg p-3 ${msg.role === 'user' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-200'}">
-                        <div class="text-xs opacity-50 mb-1 uppercase">${msg.role}</div>
-                        <div class="whitespace-pre-wrap font-mono text-sm">${msg.content}</div>
+            container.innerHTML = list.map(msg => {
+                const role = (msg.role || '').replace(/</g,'&lt;');
+                const content = (msg.content || '').replace(/</g,'&lt;').replace(/\n/g,'<br>');
+                const isUser = role === 'user';
+                return `
+                <div class="flex flex-col ${isUser ? 'items-end' : 'items-start'}">
+                    <div class="max-w-[80%] rounded-lg p-3 ${isUser ? 'bg-blue-600 text-white' : 'bg-[#f1f5f9] text-[#334155] border border-[#e2e8f0]'}">
+                        <div class="text-xs opacity-75 mb-1 uppercase">${role}</div>
+                        <div class="whitespace-pre-wrap font-mono text-sm">${content}</div>
                     </div>
-                    <div class="text-xs text-gray-500 mt-1">${new Date(msg.created_at).toLocaleString()}</div>
+                    <div class="text-xs text-[#64748b] mt-1">${new Date(msg.created_at).toLocaleString()}</div>
                 </div>
-            `).join('');
+            `;
+            }).join('');
 
         } catch (error) {
             showToast('Failed to load transcript', 'error');
@@ -501,18 +465,7 @@
 
     async function loadChats() {
         try {
-            const response = await apiCall(`/api/audit/chat-sessions?page=${chatPage}&limit=${chatLimit}`);
-            if (!response) return;
-
-            if (!response.ok) {
-                showToast(`Failed to load chat sessions (HTTP ${response.status})`, 'error');
-                chatTotal = 0;
-                renderChats([]);
-                updateChatPagination();
-                return;
-            }
-
-            const data = await response.json();
+            const data = await apiCall(`/api/audit/chat-sessions?page=${chatPage}&limit=${chatLimit}`);
             chatTotal = (data && typeof data.total === 'number') ? data.total : 0;
             renderChats(Array.isArray(data?.items) ? data.items : []);
             updateChatPagination();
@@ -531,8 +484,9 @@
         if (chats.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="5" class="px-6 py-8 text-center text-gray-400">
-                        No chat sessions found
+                    <td colspan="5" class="px-6 py-8 text-center text-[#64748b]">
+                        <i class="fas fa-inbox text-4xl mb-3 text-[#94a3b8]"></i>
+                        <p>No chat sessions found</p>
                     </td>
                 </tr>
             `;
@@ -540,21 +494,21 @@
         }
 
         tbody.innerHTML = chats.map(chat => `
-            <tr class="hover:bg-gray-800 transition">
-                <td class="px-6 py-4 whitespace-nowrap text-gray-400">
+            <tr class="hover:bg-[#f8fafc] transition-colors">
+                <td class="px-6 py-4 whitespace-nowrap text-[#64748b]">
                     ${new Date(chat.created_at).toLocaleString()}
                 </td>
-                <td class="px-6 py-4 font-medium text-white">
-                    ${chat.username}
+                <td class="px-6 py-4 font-medium text-[#1e293b]">
+                    ${(chat.username||'').replace(/</g,'&lt;')}
                 </td>
-                <td class="px-6 py-4 text-blue-400">
-                    ${chat.title || 'Untitled Session'}
+                <td class="px-6 py-4 text-blue-600">
+                    ${(chat.title || 'Untitled Session').replace(/</g,'&lt;')}
                 </td>
-                <td class="px-6 py-4 text-gray-300">
-                    ${chat.message_count} msgs
+                <td class="px-6 py-4 text-[#475569]">
+                    ${chat.message_count || 0} msgs
                 </td>
                 <td class="px-6 py-4">
-                    <button onclick="viewTranscript('${chat.id}')" class="btn-secondary px-3 py-1 rounded text-xs flex items-center">
+                    <button onclick="viewTranscript('${chat.id}')" class="px-3 py-1.5 rounded text-xs border border-[#e2e8f0] bg-white text-[#475569] hover:bg-[#f8fafc]">
                         <i class="fas fa-eye mr-2"></i> View
                     </button>
                 </td>

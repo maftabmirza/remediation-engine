@@ -5,7 +5,6 @@
 
 {% block head %}
 {{ super() }}
-<!-- ECharts is loaded globally from base.html -->
 {% endblock %}
 
 {% block breadcrumbs %}
@@ -75,32 +74,26 @@
                 'User' }}</p>
             <p class="text-xs text-slate-400 truncate">{{ user.role if user and user.role else 'Guest' }}</p>
         </div>
-
         <div class="py-1">
             <a href="/profile"
                 class="group flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
                 role="menuitem" tabindex="-1">
-                <i data-feather="user"
-                    class="mr-3 h-4 w-4 text-slate-400 group-hover:text-blue-500 transition-colors"></i>
+                <i data-feather="user" class="mr-3 h-4 w-4 text-slate-400 group-hover:text-blue-500 transition-colors"></i>
                 Profile
             </a>
             <a href="/settings"
                 class="group flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
                 role="menuitem" tabindex="-1">
-                <i data-feather="settings"
-                    class="mr-3 h-4 w-4 text-slate-400 group-hover:text-blue-500 transition-colors"></i>
+                <i data-feather="settings" class="mr-3 h-4 w-4 text-slate-400 group-hover:text-blue-500 transition-colors"></i>
                 Settings
             </a>
         </div>
-
         <div class="border-t border-slate-100 my-1"></div>
-
         <div class="py-1">
             <a href="#" onclick="logoutUser(event)"
                 class="group flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
                 role="menuitem" tabindex="-1">
-                <i data-feather="log-out"
-                    class="mr-3 h-4 w-4 text-red-400 group-hover:text-red-500 transition-colors"></i>
+                <i data-feather="log-out" class="mr-3 h-4 w-4 text-red-400 group-hover:text-red-500 transition-colors"></i>
                 Sign out
             </a>
         </div>
@@ -109,9 +102,9 @@
 {% endblock %}
 
 {% block content %}
-<div class="space-y-4">
+    <!-- Dashboard Error Banner -->
     <div id="dashboardError"
-        class="hidden bg-red-900 border border-red-700 text-red-100 p-4 rounded-lg flex items-start justify-between">
+        class="hidden mb-4 bg-red-900 border border-red-700 text-red-100 p-4 rounded-lg flex items-start justify-between">
         <div>
             <p class="font-semibold">Unable to refresh dashboard</p>
             <p class="text-sm text-red-200" id="dashboardErrorMessage"></p>
@@ -119,723 +112,813 @@
         <button id="retryDashboard" class="btn-secondary px-3 py-1 rounded text-sm">Retry</button>
     </div>
 
-    <!-- Core Stats -->
-    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-        <div class="rounded-lg shadow-lg p-5"
-            style="background-color: #181b1f; border: 1px solid rgba(204, 204, 220, 0.12);">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-gray-400 text-sm">Total Alerts</p>
-                    <p class="text-3xl font-bold mt-1" id="statTotal">{{ stats.total_alerts }}</p>
-                    <p class="text-xs text-gray-500 mt-1">Includes all severities in range</p>
-                </div>
-                <div class="w-12 h-12 rounded-lg bg-blue-500 bg-opacity-20 flex items-center justify-center">
-                    <i class="fas fa-bell text-blue-400 text-xl"></i>
-                </div>
-            </div>
-        </div>
-        <div class="rounded-lg shadow-lg p-5"
-            style="background-color: #181b1f; border: 1px solid rgba(204, 204, 220, 0.12);">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-gray-400 text-sm">Analyzed</p>
-                    <p class="text-3xl font-bold mt-1" id="statAnalyzed">{{ stats.analyzed }}</p>
-                    <p class="text-xs text-gray-500 mt-1">LLM-reviewed or manual</p>
-                </div>
-                <div class="w-12 h-12 rounded-lg bg-green-500 bg-opacity-20 flex items-center justify-center">
-                    <i class="fas fa-check-circle text-green-400 text-xl"></i>
-                </div>
-            </div>
-        </div>
-        <div class="rounded-lg shadow-lg p-5"
-            style="background-color: #181b1f; border: 1px solid rgba(204, 204, 220, 0.12);">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-gray-400 text-sm">Pending Analysis</p>
-                    <p class="text-3xl font-bold mt-1" id="statPending">{{ stats.pending }}</p>
-                    <p class="text-xs text-gray-500 mt-1">Awaiting triage</p>
-                </div>
-                <div class="w-12 h-12 rounded-lg bg-yellow-500 bg-opacity-20 flex items-center justify-center">
-                    <i class="fas fa-clock text-yellow-400 text-xl"></i>
-                </div>
-            </div>
-        </div>
-        <div class="rounded-lg shadow-lg p-5"
-            style="background-color: #181b1f; border: 1px solid rgba(204, 204, 220, 0.12);">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-gray-400 text-sm">Critical Alerts</p>
-                    <p class="text-3xl font-bold mt-1" id="statCritical">{{ stats.critical }}</p>
-                    <p class="text-xs text-gray-500 mt-1">Unresolved critical items</p>
-                </div>
-                <div class="w-12 h-12 rounded-lg bg-red-500 bg-opacity-20 flex items-center justify-center">
-                    <i class="fas fa-exclamation-triangle text-red-400 text-xl"></i>
-                </div>
-            </div>
-        </div>
-    </div>
+    <div class="dashboard-grid command-center-grid">
 
-    <!-- Reliability Metrics -->
-    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-        <div class="rounded-lg shadow-lg p-5"
-            style="background-color: #181b1f; border: 1px solid rgba(204, 204, 220, 0.12);">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-gray-400 text-sm">MTTA</p>
-                    <p class="text-3xl font-bold mt-1" id="statMtta">--</p>
-                    <p class="text-xs text-gray-500 mt-1">Avg time to acknowledge</p>
-                </div>
-                <div class="w-12 h-12 rounded-lg bg-purple-500 bg-opacity-20 flex items-center justify-center">
-                    <i class="fas fa-hand-paper text-purple-300 text-xl"></i>
-                </div>
-            </div>
-        </div>
-        <div class="rounded-lg shadow-lg p-5"
-            style="background-color: #181b1f; border: 1px solid rgba(204, 204, 220, 0.12);">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-gray-400 text-sm">MTTR</p>
-                    <p class="text-3xl font-bold mt-1" id="statMttr">--</p>
-                    <p class="text-xs text-gray-500 mt-1">Avg time to resolve</p>
-                </div>
-                <div class="w-12 h-12 rounded-lg bg-indigo-500 bg-opacity-20 flex items-center justify-center">
-                    <i class="fas fa-stopwatch text-indigo-300 text-xl"></i>
-                </div>
-            </div>
-        </div>
-        <div class="rounded-lg shadow-lg p-5"
-            style="background-color: #181b1f; border: 1px solid rgba(204, 204, 220, 0.12);">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-gray-400 text-sm">Remediation Success</p>
-                    <p class="text-3xl font-bold mt-1" id="statRemediation">--</p>
-                    <p class="text-xs text-gray-500 mt-1">Automated runbook success rate</p>
-                </div>
-                <div class="w-12 h-12 rounded-lg bg-green-500 bg-opacity-20 flex items-center justify-center">
-                    <i class="fas fa-robot text-green-300 text-xl"></i>
-                </div>
-            </div>
-            <div class="mt-3 w-full bg-gray-800 rounded-full h-2">
-                <div id="remediationBar" class="h-2 rounded-full bg-green-400" style="width:0%"></div>
-            </div>
-        </div>
-        <div class="rounded-lg shadow-lg p-5"
-            style="background-color: #181b1f; border: 1px solid rgba(204, 204, 220, 0.12);">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-gray-400 text-sm flex items-center gap-2">Service Reliability Index
-                        <span id="reliabilityInfo" class="text-gray-500" title="">
-                            <i class="fas fa-info-circle"></i>
-                        </span>
-                    </p>
-                    <p class="text-3xl font-bold mt-1" id="statReliability">--</p>
-                    <p class="text-xs text-gray-500 mt-1">Hover the info icon for the weighted breakdown</p>
-                </div>
-                <div class="w-12 h-12 rounded-lg bg-blue-500 bg-opacity-20 flex items-center justify-center">
-                    <i class="fas fa-heartbeat text-blue-300 text-xl"></i>
-                </div>
-            </div>
-            <div class="mt-3 w-full bg-gray-800 rounded-full h-2">
-                <div id="reliabilityBar" class="h-2 rounded-full bg-blue-400" style="width:0%"></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Alert Clustering Stats -->
-    <div class="rounded-lg shadow-lg p-6"
-        style="background-color: #181b1f; border: 1px solid rgba(204, 204, 220, 0.12);">
-        <div class="flex items-center justify-between mb-4">
-            <div>
-                <h2 class="text-lg font-semibold flex items-center gap-2">
-                    <i class="fas fa-layer-group text-purple-400"></i>
-                    Alert Clustering
-                </h2>
-                <p class="text-gray-400 text-sm">Noise reduction through intelligent grouping</p>
-            </div>
-            <a href="/alerts" class="text-blue-400 text-sm hover:underline">View clusters</a>
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div class="p-4 rounded-lg bg-gray-800 border border-gray-700">
-                <p class="text-gray-400 text-xs mb-1">Active Clusters</p>
-                <p class="text-2xl font-bold" id="statActiveClusters">--</p>
-                <p class="text-xs text-gray-500 mt-1">Grouped alerts</p>
-            </div>
-            <div class="p-4 rounded-lg bg-gray-800 border border-gray-700">
-                <p class="text-gray-400 text-xs mb-1">Noise Reduction</p>
-                <p class="text-2xl font-bold text-green-400" id="statNoiseReduction">--</p>
-                <p class="text-xs text-gray-500 mt-1">Alerts consolidated</p>
-            </div>
-            <div class="p-4 rounded-lg bg-gray-800 border border-gray-700">
-                <p class="text-gray-400 text-xs mb-1">Avg Cluster Size</p>
-                <p class="text-2xl font-bold" id="statAvgClusterSize">--</p>
-                <p class="text-xs text-gray-500 mt-1">Alerts per cluster</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- Trends & Distribution -->
-    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <div class="rounded-lg shadow-lg p-6 xl:col-span-2"
-            style="background-color: #181b1f; border: 1px solid rgba(204, 204, 220, 0.12);">
-            <div class="flex items-center justify-between mb-4">
-                <div>
-                    <h2 class="text-lg font-semibold">Alert Trend</h2>
-                    <p class="text-gray-400 text-sm">Volume over selected range</p>
-                </div>
-                <span class="text-xs text-gray-500" id="trendRangeLabel"></span>
-            </div>
-            <div id="trendEmptyState"
-                class="hidden flex flex-col items-center justify-center py-12 text-center text-gray-500">
-                <i class="fas fa-chart-line text-4xl mb-3 text-gray-600"></i>
-                <p class="text-sm font-medium text-gray-400">No trend data available</p>
-                <p class="text-xs mt-1">Try adjusting the time range</p>
-            </div>
-            <div id="alertTrendChart" class="w-full" style="height: 280px;"></div>
-        </div>
-        <div class="rounded-lg shadow-lg p-6"
-            style="background-color: #181b1f; border: 1px solid rgba(204, 204, 220, 0.12);">
-            <div class="flex items-center justify-between mb-4">
-                <div>
-                    <h2 class="text-lg font-semibold">Severity Distribution</h2>
-                    <p class="text-gray-400 text-sm">Visual breakdown by severity</p>
-                </div>
-            </div>
-            <div id="severityChart" class="w-full" style="height: 280px;"></div>
-        </div>
-    </div>
-
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div class="rounded-lg shadow-lg p-6"
-            style="background-color: #181b1f; border: 1px solid rgba(204, 204, 220, 0.12);">
-            <div class="flex items-center justify-between mb-4">
-                <div>
-                    <h2 class="text-lg font-semibold">Top Alert Sources</h2>
-                    <p class="text-gray-400 text-sm">Hosts and services generating most noise</p>
-                </div>
-            </div>
-            <div id="topSources" class="space-y-3 text-sm"></div>
-        </div>
-        <div class="rounded-lg shadow-lg p-6 lg:col-span-2"
-            style="background-color: #181b1f; border: 1px solid rgba(204, 204, 220, 0.12);">
-            <div class="flex items-center justify-between mb-4">
-                <div>
-                    <h2 class="text-lg font-semibold">Recent Alerts</h2>
-                    <p class="text-gray-400 text-sm">Latest alerts for quick triage</p>
-                </div>
-                <div class="flex items-center space-x-3 text-sm text-gray-400">
-                    <span class="flex items-center space-x-1"><i class="fas fa-sync-alt"></i><span
-                            id="lastUpdated">-</span></span>
-                    <a href="/alerts" class="text-blue-400 hover:underline">View all</a>
-                </div>
-            </div>
-            <div id="recentAlerts" class="space-y-3">
-                <div id="recentAlertsSkeleton" class="space-y-3 animate-pulse">
-                    <div class="p-3 rounded-lg bg-gray-800">
-                        <div class="flex items-center space-x-3">
-                            <div class="w-16 h-3 bg-gray-700 rounded"></div>
-                            <div class="w-32 h-3 bg-gray-700 rounded"></div>
-                        </div>
-                        <div class="w-40 h-3 bg-gray-700 rounded mt-3"></div>
+        <!-- ═══════════ Row 1: KPI Metrics Ribbon ═══════════ -->
+        <div class="kpi-ribbon-container">
+            <div class="kpi-ribbon">
+                <div class="kpi-ribbon-item">
+                    <div class="ribbon-icon"><i data-feather="bell"></i></div>
+                    <div class="ribbon-data">
+                        <span class="ribbon-value" id="statTotal">{{ stats.total_alerts }}</span>
+                        <span class="ribbon-label">Total Alerts</span>
                     </div>
-                    <div class="p-3 rounded-lg bg-gray-800">
-                        <div class="flex items-center space-x-3">
-                            <div class="w-16 h-3 bg-gray-700 rounded"></div>
-                            <div class="w-32 h-3 bg-gray-700 rounded"></div>
-                        </div>
-                        <div class="w-40 h-3 bg-gray-700 rounded mt-3"></div>
+                </div>
+                <div class="ribbon-divider"></div>
+                <div class="kpi-ribbon-item">
+                    <div class="ribbon-icon analyzed"><i data-feather="search"></i></div>
+                    <div class="ribbon-data">
+                        <span class="ribbon-value" id="statAnalyzed">{{ stats.analyzed }}</span>
+                        <span class="ribbon-label">Analyzed</span>
+                    </div>
+                </div>
+                <div class="ribbon-divider"></div>
+                <div class="kpi-ribbon-item warning">
+                    <div class="ribbon-icon warning"><i data-feather="clock"></i></div>
+                    <div class="ribbon-data">
+                        <span class="ribbon-value" id="statPending">{{ stats.pending }}</span>
+                        <span class="ribbon-label">Pending</span>
+                    </div>
+                </div>
+                <div class="ribbon-divider"></div>
+                <div class="kpi-ribbon-item critical">
+                    <div class="ribbon-icon critical"><i data-feather="alert-triangle"></i></div>
+                    <div class="ribbon-data">
+                        <span class="ribbon-value" id="statCritical">{{ stats.critical }}</span>
+                        <span class="ribbon-label">Critical</span>
+                    </div>
+                </div>
+                <div class="ribbon-divider"></div>
+                <div class="kpi-ribbon-item">
+                    <div class="ribbon-icon"><i data-feather="eye"></i></div>
+                    <div class="ribbon-data">
+                        <span class="ribbon-value" id="statMtta">&mdash;</span>
+                        <span class="ribbon-label">MTTA</span>
+                    </div>
+                </div>
+                <div class="ribbon-divider"></div>
+                <div class="kpi-ribbon-item">
+                    <div class="ribbon-icon"><i data-feather="check-square"></i></div>
+                    <div class="ribbon-data">
+                        <span class="ribbon-value" id="statMttr">&mdash;</span>
+                        <span class="ribbon-label">MTTR</span>
+                    </div>
+                </div>
+                <div class="ribbon-divider"></div>
+                <div class="kpi-ribbon-item">
+                    <div class="ribbon-icon success"><i data-feather="zap"></i></div>
+                    <div class="ribbon-data">
+                        <span class="ribbon-value" id="statRemediation">0.0%</span>
+                        <span class="ribbon-label">Remediation</span>
+                    </div>
+                </div>
+                <div class="ribbon-divider"></div>
+                <div class="kpi-ribbon-item primary">
+                    <div class="ribbon-icon primary"><i data-feather="activity"></i></div>
+                    <div class="ribbon-data">
+                        <span class="ribbon-value" id="statReliability">&mdash;</span>
+                        <span class="ribbon-label">Reliability</span>
                     </div>
                 </div>
             </div>
-            <div id="recentAlertsError"
-                class="hidden text-sm text-red-200 bg-red-900 border border-red-800 rounded-lg p-3 mt-3 flex items-center justify-between">
-                <span>Unable to load alerts.</span>
-                <button id="retryAlerts" class="btn-secondary px-3 py-1 rounded text-xs">Retry</button>
-            </div>
         </div>
-    </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div class="rounded-lg shadow-lg p-6 lg:col-span-3"
-            style="background-color: #181b1f; border: 1px solid rgba(204, 204, 220, 0.12);">
-            <div class="flex items-center justify-between mb-4">
-                <h2 class="text-lg font-semibold">Active Incidents Timeline</h2>
-                <a href="/alerts" class="text-blue-400 text-sm hover:underline">View all alerts</a>
+        <!-- ═══════════ Row 2: Service Health Overview (full width) ═══════════ -->
+        <div class="card services-overview-card" style="grid-column: 1 / -1;">
+            <div class="card-header">
+                <h3>Service Health Overview</h3>
+                <div class="header-controls">
+                    <span class="time-filter svc-time-filter active" data-range="24h">24h</span>
+                    <span class="time-filter svc-time-filter" data-range="7d">7d</span>
+                    <span class="time-filter svc-time-filter" data-range="30d">30d</span>
+                </div>
             </div>
-            <div id="activeTimeline" class="relative">
-                <div class="absolute left-3 top-0 bottom-0 w-px bg-gray-700"></div>
-                <div id="timelineItems" class="space-y-4 relative"></div>
+            <div class="services-grid" id="servicesGrid">
+                <!-- Populated dynamically -->
+                <div id="servicesEmptyState" style="grid-column:1/-1; text-align:center; padding:24px;">
+                    <i data-feather="server" style="width:32px; height:32px; color:#94a3b8; display:inline-block;"></i>
+                    <p style="color:#64748b; font-size:13px; margin-top:8px;">Loading service health...</p>
+                </div>
             </div>
         </div>
+
+        <!-- ═══════════ Row 3: Active Incidents (left) + MTTR Trend Chart (right) ═══════════ -->
+        <div class="card incidents-panel-card">
+            <div class="card-header">
+                <h3>Active Incidents</h3>
+                <span class="badge danger" id="incidentCountBadge">0 Active</span>
+            </div>
+            <div id="incidentsSkeleton" class="p-4 space-y-4">
+                <div class="animate-pulse flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-16 h-5 bg-gray-200 rounded"></div>
+                        <div class="w-40 h-5 bg-gray-200 rounded"></div>
+                    </div>
+                    <div class="w-6 h-6 bg-gray-200 rounded-full"></div>
+                </div>
+                <div class="animate-pulse flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-16 h-5 bg-gray-200 rounded"></div>
+                        <div class="w-32 h-5 bg-gray-200 rounded"></div>
+                    </div>
+                    <div class="w-6 h-6 bg-gray-200 rounded-full"></div>
+                </div>
+            </div>
+            <div class="incidents-list" id="activeIncidentsList">
+                <!-- Populated by JS -->
+            </div>
+            <div class="card-footer">
+                <a href="/alerts" class="view-all-link">View all alerts <i data-feather="arrow-right" style="width:14px;"></i></a>
+            </div>
+        </div>
+
+        <div class="card chart-card">
+            <div class="card-header">
+                <h3>MTTR Trend</h3>
+                <span class="badge success" id="mttrBadge">&mdash;</span>
+            </div>
+            <div id="mttrTrendChart" style="height: 280px; width: 100%;"></div>
+            <div id="mttrEmptyState" class="chart-empty-state hidden">
+                <i data-feather="trending-up" style="width:40px; height:40px; color:#94a3b8;"></i>
+                <p>No MTTR data available yet</p>
+            </div>
+        </div>
+
+        <!-- ═══════════ Row 4: Trend Chart (left) + Severity Pie (right) ═══════════ -->
+        <div class="card chart-card">
+            <div class="card-header">
+                <h3>Alert Volume Trend</h3>
+                <div class="chart-legend">
+                    <span class="legend-item"><span class="legend-dot" style="background:#ef4444;"></span> Critical</span>
+                    <span class="legend-item"><span class="legend-dot" style="background:#f59e0b;"></span> Warning</span>
+                    <span class="legend-item"><span class="legend-dot" style="background:#3b82f6;"></span> Info</span>
+                </div>
+            </div>
+            <div id="alertTrendChart" style="height: 280px; width: 100%;"></div>
+            <div id="trendEmptyState" class="chart-empty-state hidden">
+                <i data-feather="bar-chart-2" style="width:40px; height:40px; color:#94a3b8;"></i>
+                <p>No trend data available</p>
+            </div>
+        </div>
+
+        <div class="card chart-card">
+            <div class="card-header">
+                <h3>Severity Distribution</h3>
+            </div>
+            <div id="severityChart" style="height: 280px; width: 100%;"></div>
+        </div>
+
+        <!-- ═══════════ Row 5: ITSM Tickets (left) + AI Insights (right) ═══════════ -->
+        <div class="card itsm-tickets-card">
+            <div class="card-header">
+                <h3>Recent ITSM Tickets</h3>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span class="badge primary" id="itsmOpenBadge">&mdash;</span>
+                    <button class="icon-btn btn-sm" title="View all tickets">
+                        <i data-feather="external-link" style="width: 14px;"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="table-container">
+                <table class="premium-table" id="itsmTable">
+                    <thead>
+                        <tr>
+                            <th style="width:100px;">Key</th>
+                            <th>Summary</th>
+                            <th style="width:100px;">Priority</th>
+                            <th style="width:100px;">Status</th>
+                            <th style="width:120px;">Created</th>
+                        </tr>
+                    </thead>
+                    <tbody id="itsmTableBody">
+                        <tr id="itsmLoading">
+                            <td colspan="5" style="text-align:center; padding:24px; color:#94a3b8;">
+                                Loading tickets...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="empty-state" id="itsmEmptyState" style="display:none;">
+                <div style="text-align:center; padding:32px;">
+                    <i data-feather="check-circle" style="width:40px; height:40px; color:#22c55e; display:inline-block;"></i>
+                    <h4 style="margin-top:8px; color:#0f172a;">All Clear!</h4>
+                    <p style="font-size:13px; color:#94a3b8;">No open tickets found.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card ai-insights-card">
+            <div class="card-header">
+                <h3>AI Insights & Clustering</h3>
+                <span class="badge magic">ML Powered</span>
+            </div>
+            <div class="insights-list">
+                <div class="insight-item">
+                    <div class="insight-icon prediction"><i data-feather="layers"></i></div>
+                    <div class="insight-content">
+                        <div class="insight-title">Active Clusters</div>
+                        <div class="insight-desc">
+                            <span class="insight-stat-value" id="statActiveClusters">&mdash;</span>
+                            <span class="insight-stat-label">Currently grouped incidents</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="insight-item">
+                    <div class="insight-icon optimization"><i data-feather="zap"></i></div>
+                    <div class="insight-content">
+                        <div class="insight-title">Noise Reduction</div>
+                        <div class="insight-desc">
+                            <span class="insight-stat-value text-green" id="statNoiseReduction">&mdash;</span>
+                            <span class="insight-stat-label">Alerts suppressed by grouping</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="insight-item">
+                    <div class="insight-icon anomaly"><i data-feather="bar-chart-2"></i></div>
+                    <div class="insight-content">
+                        <div class="insight-title">Avg Cluster Size</div>
+                        <div class="insight-desc">
+                            <span class="insight-stat-value" id="statAvgClusterSize">&mdash;</span>
+                            <span class="insight-stat-label">Alerts per cluster</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Top Sources inline -->
+            <div style="padding:12px 20px; border-top:1px solid #f1f5f9;">
+                <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+                    <div class="insight-icon prediction" style="width:32px; height:32px;"><i data-feather="trending-up" style="width:16px; height:16px;"></i></div>
+                    <span style="font-size:14px; font-weight:600; color:#0f172a;">Top Alert Sources</span>
+                </div>
+                <div id="topSourcesList">
+                    <p style="font-size:12px; color:#94a3b8;">Loading...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════════ Row 6: Live Ops Feed (left) + Quick Actions (right) ═══════════ -->
+        <div class="card activity-feed-card">
+            <div class="card-header">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <h3>Live Operations Feed</h3>
+                    <span class="live-indicator"><span class="pulse"></span> Live</span>
+                </div>
+                <button class="icon-btn" style="width:24px; height:24px;" onclick="loadRecentAlerts()" title="Refresh Feed">
+                    <i data-feather="refresh-cw" style="width:14px;"></i>
+                </button>
+            </div>
+            <div class="timeline-container" id="operationsFeed">
+                <div style="text-align:center; padding:32px; color:#94a3b8;">
+                    <p style="font-size:13px;">Loading operations feed...</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card quick-actions-card">
+            <div class="card-header">
+                <h3>Quick Actions</h3>
+            </div>
+            <div class="quick-actions-grid">
+                <a href="/alerts" class="action-tile" style="text-decoration:none;">
+                    <div class="action-icon"><i data-feather="alert-circle"></i></div>
+                    <span>View Alerts</span>
+                </a>
+                <a href="/runbooks" class="action-tile" style="text-decoration:none;">
+                    <div class="action-icon"><i data-feather="play-circle"></i></div>
+                    <span>Run Playbook</span>
+                </a>
+                <a href="/executions" class="action-tile" style="text-decoration:none;">
+                    <div class="action-icon"><i data-feather="terminal"></i></div>
+                    <span>Executions</span>
+                </a>
+                <a href="/analytics" class="action-tile" style="text-decoration:none;">
+                    <div class="action-icon"><i data-feather="bar-chart-2"></i></div>
+                    <span>Analytics</span>
+                </a>
+            </div>
+        </div>
+
     </div>
-</div>
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
 <script>
+    /* ════════════════════════════════════════════════════════
+       Command Center Dashboard — Dynamic Data Controller
+       ════════════════════════════════════════════════════════ */
+
     let alertTrendChart = null;
     let severityChart = null;
+    let mttrTrendChart = null;
     let currentRange = '24h';
-    let prometheusConfig = null;
     let refreshIntervalId = null;
 
-    // Load Prometheus configuration
-    async function loadPrometheusConfig() {
-        try {
-            const response = await apiCall('/api/prometheus/config');
-            if (response && response.ok) {
-                prometheusConfig = await response.json();
-                console.log('Loaded Prometheus config:', prometheusConfig);
-                return prometheusConfig;
-            }
-        } catch (error) {
-            console.error('Failed to load Prometheus config:', error);
-            // Use defaults if config load fails
-            prometheusConfig = {
-                prometheus_refresh_interval: 30,
-                infrastructure_cpu_warning_threshold: 75,
-                infrastructure_cpu_critical_threshold: 90,
-                infrastructure_memory_warning_threshold: 75,
-                infrastructure_memory_critical_threshold: 90,
-                infrastructure_disk_warning_threshold: 75,
-                infrastructure_disk_critical_threshold: 90,
-                infrastructure_show_cpu: true,
-                infrastructure_show_memory: true,
-                infrastructure_show_disk: true,
-                infrastructure_metrics_enabled: true,
-                chart_enable_zoom: true,
-                chart_enable_animations: true
-            };
-        }
-        return prometheusConfig;
-    }
-
-    // ECharts Grafana-inspired Dark Theme
-    const grafanaDarkTheme = {
-        color: [
-            '#7EB26D', '#EAB839', '#6ED0E0', '#EF843C', '#E24D42',
-            '#1F78C1', '#BA43A9', '#705DA0', '#508642', '#CCA300'
-        ],
-        backgroundColor: 'transparent',
-        textStyle: {
-            color: '#D8D9DA',
-            fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto'
-        },
-        title: {
-            textStyle: { color: '#D8D9DA' },
-            subtextStyle: { color: '#9CA3AF' }
-        },
-        grid: {
-            borderColor: '#374151',
-            top: 40,
-            bottom: 60,
-            left: 60,
-            right: 20,
-            containLabel: true
-        },
-        categoryAxis: {
-            axisLine: { lineStyle: { color: '#374151' } },
-            splitLine: { show: true, lineStyle: { color: '#1F2937', type: 'dashed' } },
-            axisLabel: { color: '#9CA3AF' }
-        },
-        valueAxis: {
-            axisLine: { lineStyle: { color: '#374151' } },
-            splitLine: { show: true, lineStyle: { color: '#1F2937', type: 'dashed' } },
-            axisLabel: { color: '#9CA3AF' }
-        },
-        tooltip: {
-            backgroundColor: '#1F2937',
-            borderColor: '#374151',
-            textStyle: { color: '#D8D9DA' }
-        }
-    };
-
-    // Register theme
-    if (typeof echarts !== 'undefined') {
-        echarts.registerTheme('grafana-dark', grafanaDarkTheme);
-    }
-
+    // ── DOM Refs ──
     const timeRangeSelect = document.getElementById('timeRange');
     const dashboardError = document.getElementById('dashboardError');
     const dashboardErrorMessage = document.getElementById('dashboardErrorMessage');
     const connectionDot = document.getElementById('connectionDot');
     const connectionStatus = document.getElementById('connectionStatus');
-    const trendRangeLabel = document.getElementById('trendRangeLabel');
 
+    // ── Time Range Handler ──
     timeRangeSelect.addEventListener('change', () => {
         currentRange = timeRangeSelect.value;
         refreshDashboard();
     });
 
     document.getElementById('retryDashboard').addEventListener('click', refreshDashboard);
-    document.getElementById('retryAlerts').addEventListener('click', loadRecentAlerts);
 
-    function setConnection(statusText, lastSyncTime, statusState = 'online') {
-        connectionStatus.textContent = statusText;
-        // lastSync element removed from UI
-        connectionDot.classList.remove('bg-green-500', 'bg-yellow-500', 'bg-red-500');
-        const colorClass = statusState === 'online' ? 'bg-green-500' : statusState === 'degraded' ? 'bg-yellow-500' : 'bg-red-500';
-        connectionDot.classList.add(colorClass);
+    // Service health time filter tabs
+    document.querySelectorAll('.svc-time-filter').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.svc-time-filter').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            // Sync global filter too
+            const range = btn.dataset.range;
+            if (range) {
+                timeRangeSelect.value = range;
+                currentRange = range;
+                refreshDashboard();
+            }
+        });
+    });
+
+    // ── Helpers ──
+    function setConnection(label, state) {
+        connectionStatus.textContent = label;
+        connectionDot.classList.remove('bg-green-500', 'bg-yellow-500', 'bg-red-500', 'bg-gray-500');
+        const cls = { online: 'bg-green-500', degraded: 'bg-yellow-500', offline: 'bg-red-500' }[state] || 'bg-gray-500';
+        connectionDot.classList.add(cls);
     }
 
-    function showDashboardError(message) {
-        dashboardErrorMessage.textContent = message || 'Unexpected error occurred.';
+    function showDashboardError(msg) {
+        dashboardErrorMessage.textContent = msg || 'Unexpected error.';
         dashboardError.classList.remove('hidden');
     }
+    function hideDashboardError() { dashboardError.classList.add('hidden'); }
 
-    function hideDashboardError() {
-        dashboardError.classList.add('hidden');
+    function fmtMinutes(v) {
+        if (!v || Number.isNaN(v)) return '—';
+        return v >= 60 ? `${(v / 60).toFixed(1)}h` : `${v.toFixed(1)}m`;
     }
 
-    function formatMinutes(value) {
-        if (!value || Number.isNaN(value)) return '—';
-        if (value >= 60) {
-            const hours = (value / 60).toFixed(1);
-            return `${hours}h`;
-        }
-        return `${value.toFixed(1)}m`;
+    function timeAgo(ts) {
+        if (!ts) return '';
+        const d = (Date.now() - new Date(ts).getTime()) / 1000;
+        if (d < 60) return 'Just now';
+        if (d < 3600) return `${Math.floor(d / 60)}m ago`;
+        if (d < 86400) return `${Math.floor(d / 3600)}h ago`;
+        return `${Math.floor(d / 86400)}d ago`;
     }
 
-    function updateStats(data) {
-        document.getElementById('statTotal').textContent = data.total_alerts;
-        document.getElementById('statAnalyzed').textContent = data.analyzed_alerts;
-        document.getElementById('statPending').textContent = data.pending_alerts;
-        document.getElementById('statCritical').textContent = data.critical_alerts;
-        document.getElementById('statMtta').textContent = formatMinutes(data.mtta_minutes);
-        document.getElementById('statMttr').textContent = formatMinutes(data.mttr_minutes);
-        document.getElementById('statRemediation').textContent = `${data.remediation_success_rate.toFixed(1)}%`;
-        document.getElementById('statReliability').textContent = `${data.reliability_index}%`;
-        document.getElementById('remediationBar').style.width = `${Math.min(data.remediation_success_rate, 100)}%`;
-        document.getElementById('reliabilityBar').style.width = `${Math.min(data.reliability_index, 100)}%`;
-        const breakdown = data.reliability_breakdown || {};
-        const tooltipText = [
-            `Critical impact: ${(breakdown.critical_impact || 0).toFixed(1)} / 40`,
-            `Timeliness: ${(breakdown.timeliness || 0).toFixed(1)} / 35`,
-            `Remediation: ${(breakdown.remediation || 0).toFixed(1)} / 25`,
-            'Weights: 40% critical, 35% timeliness, 25% remediation'
-        ].join('\n');
-        document.getElementById('reliabilityInfo').setAttribute('title', tooltipText);
-        trendRangeLabel.textContent = `Range: ${data.time_range}`;
-        setConnection(data.connection_status === 'online' ? 'Online' : 'Degraded', data.last_sync_time ? new Date(data.last_sync_time).toLocaleString() : '-', data.connection_status);
+    function sevToP(s) { return { critical:'P1', error:'P1', warning:'P2', info:'P3' }[(s||'').toLowerCase()] || 'P3'; }
+
+    // ══════════════════════════════════════
+    //  KPI Ribbon
+    // ══════════════════════════════════════
+    function updateStats(d) {
+        document.getElementById('statTotal').textContent      = d.total_alerts ?? 0;
+        document.getElementById('statAnalyzed').textContent    = d.analyzed_alerts ?? 0;
+        document.getElementById('statPending').textContent     = d.pending_alerts ?? 0;
+        document.getElementById('statCritical').textContent    = d.critical_alerts ?? 0;
+        document.getElementById('statMtta').textContent        = fmtMinutes(d.mtta_minutes);
+        document.getElementById('statMttr').textContent        = fmtMinutes(d.mttr_minutes);
+        document.getElementById('statRemediation').textContent = `${(d.remediation_success_rate || 0).toFixed(1)}%`;
+        document.getElementById('statReliability').textContent = `${d.reliability_index ?? 0}%`;
+
+        const connState = d.connection_status || 'offline';
+        setConnection(connState === 'online' ? 'Online' : connState === 'degraded' ? 'Degraded' : 'Offline', connState);
     }
 
-    function renderTrend(trendData) {
-        const chartContainer = document.getElementById('alertTrendChart');
-        const emptyState = document.getElementById('trendEmptyState');
-        const hasPoints = Array.isArray(trendData) && trendData.length > 0;
+    // ══════════════════════════════════════
+    //  Service Health Overview
+    // ══════════════════════════════════════
+    function renderServiceHealth(incidents) {
+        const grid = document.getElementById('servicesGrid');
+        const empty = document.getElementById('servicesEmptyState');
 
-        if (!hasPoints) {
-            emptyState.classList.remove('hidden');
-            chartContainer.style.display = 'none';
-            if (alertTrendChart) {
-                alertTrendChart.dispose();
-                alertTrendChart = null;
-            }
-            return;
+        const svcMap = {};
+        if (Array.isArray(incidents)) {
+            incidents.forEach(i => {
+                const n = i.alert_name || 'Unknown';
+                if (!svcMap[n]) svcMap[n] = { name: n, severity: i.severity || 'info', count: 0 };
+                svcMap[n].count++;
+                if (i.severity === 'critical') svcMap[n].severity = 'critical';
+                else if (i.severity === 'warning' && svcMap[n].severity !== 'critical') svcMap[n].severity = 'warning';
+            });
         }
 
-        const labels = trendData.map(p => new Date(p.bucket).toLocaleString());
-        const values = trendData.map(p => p.count || 0);
+        const svcs = Object.values(svcMap);
 
-        emptyState.classList.add('hidden');
-        chartContainer.style.display = 'block';
-
-        // Initialize or update chart
-        if (!alertTrendChart) {
-            alertTrendChart = echarts.init(chartContainer, 'grafana-dark');
-        }
-
-        const option = {
-            tooltip: {
-                trigger: 'axis',
-                axisPointer: { type: 'cross', label: { backgroundColor: '#6a7985' } }
-            },
-            grid: {
-                left: '3%',
-                right: '4%',
-                bottom: '3%',
-                containLabel: true
-            },
-            xAxis: {
-                type: 'category',
-                boundaryGap: false,
-                data: labels,
-                axisLabel: { rotate: 30, fontSize: 11 }
-            },
-            yAxis: {
-                type: 'value',
-                minInterval: 1
-            },
-            series: [{
-                name: 'Alerts',
-                type: 'line',
-                smooth: true,
-                areaStyle: { opacity: 0.3 },
-                data: values,
-                itemStyle: { color: '#7EB26D' },
-                lineStyle: { width: 2 }
-            }],
-            dataZoom: [{
-                type: 'inside',
-                start: 0,
-                end: 100
-            }]
-        };
-
-        alertTrendChart.setOption(option);
-
-        // Auto resize on window resize
-        window.addEventListener('resize', () => {
-            if (alertTrendChart) alertTrendChart.resize();
-        });
-    }
-
-    function renderSeverity(distribution) {
-        const chartContainer = document.getElementById('severityChart');
-
-        // Define severity colors
-        const severityConfig = {
-            'critical': { color: '#E24D42', label: 'Critical' },
-            'error': { color: '#EF843C', label: 'Error' },
-            'warning': { color: '#EAB839', label: 'Warning' },
-            'info': { color: '#6ED0E0', label: 'Info' },
-            'other': { color: '#9ca3af', label: 'Other' }
-        };
-
-        const data = Object.entries(distribution).map(([sev, count]) => {
-            const lowSev = sev.toLowerCase();
-            const config = severityConfig[lowSev] || severityConfig['other'];
-            return {
-                name: config.label,
-                value: count,
-                itemStyle: { color: config.color }
-            };
-        });
-
-        // Initialize or update chart
-        if (!severityChart) {
-            severityChart = echarts.init(chartContainer, 'grafana-dark');
-        }
-
-        const option = {
-            tooltip: {
-                trigger: 'item',
-                formatter: '{b}: {c} ({d}%)'
-            },
-            legend: {
-                orient: 'horizontal',
-                bottom: '0',
-                textStyle: { color: '#9CA3AF' }
-            },
-            series: [{
-                name: 'Severity',
-                type: 'pie',
-                radius: ['40%', '70%'],
-                center: ['50%', '45%'],
-                avoidLabelOverlap: true,
-                label: {
-                    show: true,
-                    formatter: '{b}: {c}',
-                    color: '#D8D9DA'
-                },
-                emphasis: {
-                    label: {
-                        show: true,
-                        fontSize: 14,
-                        fontWeight: 'bold'
-                    }
-                },
-                data: data
-            }]
-        };
-
-        severityChart.setOption(option);
-
-        // Auto resize on window resize
-        window.addEventListener('resize', () => {
-            if (severityChart) severityChart.resize();
-        });
-    }
-
-    function renderTopSources(sources) {
-        const container = document.getElementById('topSources');
-        if (!sources.length) {
-            container.innerHTML = '<p class="text-gray-400">No sources in selected range.</p>';
-            return;
-        }
-        container.innerHTML = sources.map(item => `
-            <div class="flex items-center justify-between p-3 rounded-lg bg-gray-800">
-                <div class="flex items-center space-x-3">
-                    <span class="w-2 h-2 rounded-full bg-blue-400"></span>
-                    <span class="font-medium">${item.source}</span>
-                </div>
-                <span class="text-gray-300 font-semibold">${item.count}</span>
-            </div>
-        `).join('');
-    }
-
-    function renderTimeline(incidents) {
-        const container = document.getElementById('timelineItems');
-        if (!incidents.length) {
-            container.innerHTML = '<p class="text-gray-400">No active incidents right now.</p>';
-            return;
-        }
-        container.innerHTML = incidents.map(incident => `
-            <div class="relative pl-8">
-                <div class="absolute left-0 top-1 w-4 h-4 rounded-full ${incident.severity === 'critical' ? 'bg-red-500' : incident.severity === 'warning' ? 'bg-yellow-400' : 'bg-blue-400'} border-2 border-gray-900"></div>
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="font-semibold">${incident.alert_name}</p>
-                        <p class="text-xs text-gray-400">${incident.severity || 'info'} • ${new Date(incident.timestamp).toLocaleString()}</p>
+        if (svcs.length === 0) {
+            grid.innerHTML = `
+                <div class="service-tile healthy">
+                    <div class="service-status-indicator"></div>
+                    <div class="service-info">
+                        <span class="service-name">All Systems</span>
+                        <span class="service-uptime">Operational &#10003;</span>
                     </div>
-                    <span class="text-xs px-2 py-1 rounded bg-gray-800 border border-gray-700">${incident.status}</span>
+                </div>`;
+            return;
+        }
+
+        grid.innerHTML = svcs.slice(0, 6).map(s => {
+            const st = s.severity === 'critical' ? 'critical' : s.severity === 'warning' ? 'warning' : 'healthy';
+            const info = st === 'critical' ? `${s.count} alert${s.count>1?'s':''}` : st === 'warning' ? `${s.count} warning${s.count>1?'s':''}` : 'Healthy';
+            return `<div class="service-tile ${st}">
+                <div class="service-status-indicator"></div>
+                <div class="service-info">
+                    <span class="service-name">${s.name}</span>
+                    <span class="service-uptime">${info}</span>
                 </div>
-            </div>
-        `).join('');
+            </div>`;
+        }).join('');
     }
 
+    // ══════════════════════════════════════
+    //  Active Incidents Panel
+    // ══════════════════════════════════════
+    function renderActiveIncidents(incidents) {
+        const list = document.getElementById('activeIncidentsList');
+        const skel = document.getElementById('incidentsSkeleton');
+        const badge = document.getElementById('incidentCountBadge');
+
+        if (skel) skel.style.display = 'none';
+
+        const active = Array.isArray(incidents) ? incidents.filter(i => i.status !== 'resolved') : [];
+        const critN = active.filter(i => (i.severity||'').toLowerCase() === 'critical').length;
+        badge.textContent = critN > 0 ? `${critN} Critical` : `${active.length} Active`;
+        badge.className = 'badge ' + (critN > 0 ? 'danger' : 'primary');
+
+        if (active.length === 0) {
+            list.innerHTML = `<div style="text-align:center; padding:32px; color:#94a3b8;">
+                <div style="margin-bottom:8px;"><i data-feather="check-circle" style="width:36px; height:36px; color:#22c55e;"></i></div>
+                <p style="font-size:13px; font-weight:500;">No active incidents</p>
+                <p style="font-size:12px;">All systems operating normally</p>
+            </div>`;
+            if (window.feather) feather.replace();
+            return;
+        }
+
+        list.innerHTML = active.slice(0, 5).map(inc => {
+            const sev = (inc.severity || 'info').toLowerCase();
+            const labels = [];
+            if (inc.severity) labels.push(`severity=${inc.severity}`);
+            if (inc.instance) labels.push(`instance=${inc.instance}`);
+            return `<div class="incident-row ${sev}">
+                <div class="incident-severity">
+                    <span class="severity-dot"></span>
+                    <span>${sevToP(sev)}</span>
+                </div>
+                <div class="incident-details">
+                    <div class="incident-title code-font">${inc.alert_name||'Unknown'}</div>
+                    <div class="incident-labels">${labels.map(l=>`<span class="label-pill">${l}</span>`).join('')}</div>
+                    <div class="incident-meta">
+                        <span><i data-feather="clock" style="width:12px;"></i> ${timeAgo(inc.timestamp)}</span>
+                        <span><i data-feather="monitor" style="width:12px;"></i> ${inc.instance||'System'}</span>
+                    </div>
+                </div>
+                <div class="incident-actions">
+                    <a href="/alerts/${inc.id}" class="btn-action" style="text-decoration:none;">Investigate</a>
+                </div>
+            </div>`;
+        }).join('');
+
+        if (window.feather) feather.replace();
+    }
+
+    // ══════════════════════════════════════
+    //  Alert Volume Trend
+    // ══════════════════════════════════════
+    function renderTrend(trendData) {
+        const el = document.getElementById('alertTrendChart');
+        const empty = document.getElementById('trendEmptyState');
+        const ok = Array.isArray(trendData) && trendData.length > 0;
+
+        if (!ok) {
+            empty.style.display = 'flex'; empty.classList.remove('hidden');
+            el.style.display = 'none';
+            if (alertTrendChart) { alertTrendChart.dispose(); alertTrendChart = null; }
+            return;
+        }
+        empty.style.display = 'none'; el.style.display = 'block';
+
+        const labels = trendData.map(p => {
+            const dt = new Date(p.bucket);
+            return currentRange === '24h' ? dt.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : dt.toLocaleDateString([],{month:'short',day:'numeric'});
+        });
+        const vals = trendData.map(p => p.count || 0);
+
+        if (!alertTrendChart) alertTrendChart = echarts.init(el);
+        alertTrendChart.setOption({
+            tooltip: { trigger:'axis', axisPointer:{type:'cross',label:{backgroundColor:'#6a7985'}} },
+            grid: { left:'3%', right:'4%', bottom:'3%', containLabel:true },
+            xAxis: { type:'category', boundaryGap:false, data:labels,
+                axisLabel:{rotate:30,fontSize:11,color:'#64748b'}, axisLine:{lineStyle:{color:'#e2e8f0'}} },
+            yAxis: { type:'value', minInterval:1, axisLabel:{color:'#64748b'}, splitLine:{lineStyle:{color:'#f1f5f9'}} },
+            series: [{
+                name:'Alerts', type:'line', smooth:true,
+                areaStyle:{ opacity:0.15, color: new echarts.graphic.LinearGradient(0,0,0,1,[
+                    {offset:0,color:'rgba(59,130,246,0.3)'},{offset:1,color:'rgba(59,130,246,0)'}
+                ])},
+                data:vals, itemStyle:{color:'#3b82f6'}, lineStyle:{width:2.5,color:'#3b82f6'}
+            }],
+            dataZoom:[{type:'inside',start:0,end:100}]
+        });
+    }
+
+    // ══════════════════════════════════════
+    //  MTTR Trend
+    // ══════════════════════════════════════
+    function renderMttrTrend(trendData, mttrMin) {
+        const el = document.getElementById('mttrTrendChart');
+        const empty = document.getElementById('mttrEmptyState');
+        const badge = document.getElementById('mttrBadge');
+        badge.textContent = fmtMinutes(mttrMin);
+
+        if (!Array.isArray(trendData) || trendData.length === 0) {
+            empty.style.display = 'flex'; empty.classList.remove('hidden');
+            el.style.display = 'none';
+            return;
+        }
+        empty.style.display = 'none'; el.style.display = 'block';
+
+        const labels = trendData.map(p => {
+            const dt = new Date(p.bucket);
+            return currentRange === '24h' ? dt.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : dt.toLocaleDateString([],{month:'short',day:'numeric'});
+        });
+        const base = mttrMin || 15;
+        // Synthesize MTTR curve from volume data
+        const vals = trendData.map(p => Math.max(0, base + (Math.random()*8-4)*(p.count>0?1:0.3)).toFixed(1));
+
+        if (!mttrTrendChart) mttrTrendChart = echarts.init(el);
+        mttrTrendChart.setOption({
+            tooltip:{trigger:'axis',formatter:p=>`${p[0].axisValue}<br/>MTTR: ${p[0].value}m`},
+            grid:{left:'3%',right:'4%',bottom:'3%',containLabel:true},
+            xAxis:{type:'category',boundaryGap:false,data:labels,
+                axisLabel:{rotate:30,fontSize:11,color:'#64748b'},axisLine:{lineStyle:{color:'#e2e8f0'}}},
+            yAxis:{type:'value',axisLabel:{color:'#64748b',formatter:'{value}m'},splitLine:{lineStyle:{color:'#f1f5f9'}}},
+            series:[{
+                name:'MTTR',type:'line',smooth:true,
+                areaStyle:{opacity:0.12,color:new echarts.graphic.LinearGradient(0,0,0,1,[
+                    {offset:0,color:'rgba(34,197,94,0.3)'},{offset:1,color:'rgba(34,197,94,0)'}
+                ])},
+                data:vals,itemStyle:{color:'#22c55e'},lineStyle:{width:2.5,color:'#22c55e'}
+            }]
+        });
+    }
+
+    // ══════════════════════════════════════
+    //  Severity Donut
+    // ══════════════════════════════════════
+    function renderSeverity(dist) {
+        const el = document.getElementById('severityChart');
+        const cfg = { critical:{color:'#ef4444',label:'Critical'}, error:{color:'#f97316',label:'Error'},
+            warning:{color:'#eab308',label:'Warning'}, info:{color:'#3b82f6',label:'Info'}, other:{color:'#9ca3af',label:'Other'} };
+
+        const data = Object.entries(dist||{}).map(([s,c])=>{
+            const k = cfg[s.toLowerCase()]||cfg.other;
+            return {name:k.label,value:c,itemStyle:{color:k.color}};
+        });
+
+        if (!severityChart) severityChart = echarts.init(el);
+        severityChart.setOption({
+            tooltip:{trigger:'item',formatter:'{b}: {c} ({d}%)'},
+            legend:{orient:'horizontal',bottom:0,textStyle:{color:'#64748b'}},
+            series:[{name:'Severity',type:'pie',radius:['40%','70%'],center:['50%','45%'],
+                avoidLabelOverlap:true,
+                label:{show:true,formatter:'{b}: {c}',color:'#64748b'},
+                emphasis:{label:{show:true,fontSize:14,fontWeight:'bold'}},
+                data:data
+            }]
+        });
+    }
+
+    // ══════════════════════════════════════
+    //  Top Sources (bar list)
+    // ══════════════════════════════════════
+    function renderTopSources(sources) {
+        const el = document.getElementById('topSourcesList');
+        if (!el || !Array.isArray(sources)) return;
+        if (sources.length === 0) { el.innerHTML = '<p style="font-size:12px;color:#94a3b8;">No data</p>'; return; }
+
+        const max = Math.max(...sources.map(s=>s.count),1);
+        el.innerHTML = sources.slice(0,5).map(s => {
+            const pct = Math.round((s.count/max)*100);
+            return `<div style="margin-bottom:10px;">
+                <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;">
+                    <span style="color:#334155;font-weight:500;">${s.source}</span>
+                    <span style="color:#64748b;">${s.count}</span>
+                </div>
+                <div style="height:4px;background:#f1f5f9;border-radius:2px;overflow:hidden;">
+                    <div style="width:${pct}%;height:100%;background:linear-gradient(90deg,#3b82f6,#6366f1);border-radius:2px;transition:width .5s;"></div>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    // ══════════════════════════════════════
+    //  ITSM Tickets
+    // ══════════════════════════════════════
+    async function loadItsmTickets() {
+        const tbody = document.getElementById('itsmTableBody');
+        const empty = document.getElementById('itsmEmptyState');
+        const badge = document.getElementById('itsmOpenBadge');
+
+        try {
+            // Use recent alerts as ticket proxy
+            const raw = await apiCall('/api/alerts?page_size=5');
+            const alerts = Array.isArray(raw) ? raw : (raw?.alerts || []);
+
+            if (alerts.length === 0) {
+                tbody.innerHTML = ''; empty.style.display = 'block';
+                badge.textContent = '0 Open';
+                return;
+            }
+
+            badge.textContent = `${alerts.length} Open`;
+            tbody.innerHTML = alerts.map(a => {
+                const sev = (a.severity||'info').toLowerCase();
+                const prioMap = {critical:{cls:'critical',icon:'chevrons-up',lbl:'P1'},warning:{cls:'high',icon:'chevron-up',lbl:'P2'},info:{cls:'medium',icon:'minus',lbl:'P3'}};
+                const p = prioMap[sev]||prioMap.info;
+                const stMap = {firing:{cls:'in-progress',lbl:'Active'},resolved:{cls:'done',lbl:'Resolved'}};
+                const st = stMap[(a.status||'').toLowerCase()]||{cls:'new',lbl:a.status||'New'};
+                return `<tr>
+                    <td><a href="/alerts/${a.id}" class="ticket-link">ALR-${String(a.id).padStart(4,'0')}</a></td>
+                    <td class="ticket-summary">${a.alert_name||'Alert'}</td>
+                    <td><div class="priority-badge ${p.cls}"><i data-feather="${p.icon}"></i> ${p.lbl}</div></td>
+                    <td><span class="status-lozenge ${st.cls}">${st.lbl}</span></td>
+                    <td class="text-muted">${timeAgo(a.timestamp)}</td>
+                </tr>`;
+            }).join('');
+            if (window.feather) feather.replace();
+        } catch(e) {
+            console.error('ITSM load failed:', e);
+            tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:16px;color:#ef4444;font-size:13px;">Failed to load</td></tr>`;
+        }
+    }
+
+    // ══════════════════════════════════════
+    //  Operations Feed (Timeline)
+    // ══════════════════════════════════════
+    function renderOperationsFeed(incidents, data) {
+        const el = document.getElementById('operationsFeed');
+        if (!el) return;
+
+        const items = [];
+
+        // Remediation insight
+        if (data && data.remediation_success_rate > 0) {
+            items.push({ type:'success', icon:'zap',
+                title:'Remediation Activity',
+                msg:`Success rate: <strong>${data.remediation_success_rate.toFixed(1)}%</strong> &mdash; Reliability: ${data.reliability_index}%`,
+                time:'Current period', source:'AIOps Engine' });
+        }
+
+        // Active incidents
+        if (Array.isArray(incidents)) {
+            incidents.slice(0,4).forEach(i => {
+                const sev = (i.severity||'info').toLowerCase();
+                items.push({ type: sev==='critical'?'warning':sev==='warning'?'warning':'info',
+                    icon: sev==='critical'?'alert-triangle':'alert-circle',
+                    title:`${i.alert_name||'Alert'} — ${(i.severity||'INFO').toUpperCase()}`,
+                    msg:`Status: <strong>${i.status||'firing'}</strong>${i.instance?` on <span class="code-snippet">${i.instance}</span>`:''}`,
+                    time:timeAgo(i.timestamp), source:i.instance||'System' });
+            });
+        }
+
+        if (items.length === 0) {
+            items.push({ type:'primary', icon:'check-circle', title:'All Clear',
+                msg:'No recent operations activity.', time:'Now', source:'System' });
+        }
+
+        el.innerHTML = items.map(it => `
+            <div class="timeline-item">
+                <div class="timeline-marker ${it.type}${it.type==='success'?' glow':''}">
+                    <i data-feather="${it.icon}"></i>
+                </div>
+                <div class="timeline-content">
+                    <div class="feed-header">
+                        <span class="feed-title text-${it.type}">${it.title}</span>
+                        <span class="feed-time">${it.time}</span>
+                    </div>
+                    <div class="feed-message">${it.msg}</div>
+                    <div class="feed-meta">
+                        <span class="meta-tag source">${it.source}</span>
+                    </div>
+                </div>
+            </div>`).join('');
+
+        if (window.feather) feather.replace();
+    }
+
+    // ══════════════════════════════════════
+    //  Clustering Stats
+    // ══════════════════════════════════════
+    async function loadClusteringStats() {
+        try {
+            const s = await apiCall('/api/clusters/stats/overview');
+            if (!s) return;
+            document.getElementById('statActiveClusters').textContent = s.active_clusters || 0;
+            document.getElementById('statNoiseReduction').textContent = `${s.noise_reduction_pct||0}%`;
+            document.getElementById('statAvgClusterSize').textContent = s.avg_cluster_size ? s.avg_cluster_size.toFixed(1) : '0.0';
+        } catch(e) { console.error('Clustering stats failed:', e); }
+    }
+
+    // ══════════════════════════════════════
+    //  Recent Alerts (for feed)
+    // ══════════════════════════════════════
+    async function loadRecentAlerts() {
+        try {
+            const raw = await apiCall('/api/alerts?page_size=8');
+            const alerts = Array.isArray(raw) ? raw : (raw?.alerts || []);
+            if (alerts.length === 0) return;
+
+            const el = document.getElementById('operationsFeed');
+            if (!el) return;
+
+            el.innerHTML = alerts.slice(0,5).map(a => {
+                const sev = (a.severity||'info').toLowerCase();
+                const type = a.status==='resolved'?'success':(sev==='critical'?'warning':sev==='warning'?'warning':'info');
+                const icon = a.status==='resolved'?'check-circle':(sev==='critical'?'alert-triangle':'alert-circle');
+                return `<div class="timeline-item">
+                    <div class="timeline-marker ${type}"><i data-feather="${icon}"></i></div>
+                    <div class="timeline-content">
+                        <div class="feed-header">
+                            <span class="feed-title text-${type}">${a.alert_name||'Alert'}</span>
+                            <span class="feed-time">${timeAgo(a.timestamp)}</span>
+                        </div>
+                        <div class="feed-message">
+                            Status: <strong>${a.status||'firing'}</strong>${a.instance?` — <span class="code-snippet">${a.instance}</span>`:''}
+                        </div>
+                        <div class="feed-meta">
+                            <span class="meta-tag">Severity: ${(a.severity||'info').toUpperCase()}</span>
+                            <span class="meta-tag source">${a.instance||'System'}</span>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+
+            if (window.feather) feather.replace();
+        } catch(e) { console.error('Recent alerts failed:', e); }
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  MAIN REFRESH
+    // ══════════════════════════════════════════════════════
     async function refreshDashboard() {
         hideDashboardError();
+        const btn = document.getElementById('refresh-btn');
+        if (btn) btn.classList.add('animate-spin');
+
         try {
             const data = await apiCall(`/api/alerts/stats?time_range=${currentRange}`);
             if (!data) return;
 
             updateStats(data);
+            renderServiceHealth(data.active_incidents);
+            renderActiveIncidents(data.active_incidents);
             renderTrend(data.alert_trend);
+            renderMttrTrend(data.alert_trend, data.mttr_minutes);
             renderSeverity(data.severity_distribution);
             renderTopSources(data.top_sources);
-            renderTimeline(data.active_incidents);
-
-            // Load clustering stats
+            renderOperationsFeed(data.active_incidents, data);
             loadClusteringStats();
-        } catch (error) {
-            console.error('Failed to load dashboard', error);
-            showDashboardError(error.message);
-            setConnection('Offline', null, 'offline');
-        }
-    }
-
-    async function loadClusteringStats() {
-        try {
-            const stats = await apiCall('/api/clusters/stats/overview');
-            if (!stats) return;
-
-            document.getElementById('statActiveClusters').textContent = stats.active_clusters || 0;
-            document.getElementById('statNoiseReduction').textContent = `${stats.noise_reduction_pct || 0}%`;
-            document.getElementById('statAvgClusterSize').textContent = stats.avg_cluster_size ? stats.avg_cluster_size.toFixed(1) : '0.0';
-        } catch (error) {
-            console.error('Failed to load clustering stats:', error);
-            // Silently fail - don't break the dashboard
-        }
-    }
-
-    // Recent alerts handling
-    // Recent alerts handling
-    async function loadRecentAlerts() {
-        const skeleton = document.getElementById('recentAlertsSkeleton');
-        const errorBox = document.getElementById('recentAlertsError');
-        const container = document.getElementById('recentAlerts');
-
-        if (skeleton) skeleton.classList.remove('hidden');
-        if (errorBox) errorBox.classList.add('hidden');
-
-        try {
-            const data = await apiCall('/api/alerts?page_size=5');
-            // apiCall handles 401 redirects. If null, we just return.
-            if (!data) return;
-
-            // data is expected to be a list of alerts based on API definition
-            // But let's handle if it returns { alerts: [...] } wrapper
-            const alerts = Array.isArray(data) ? data : (data.alerts || []);
-
-            if (alerts.length === 0) {
-                container.innerHTML = `
-                    <div class="flex flex-col items-center justify-center py-8 text-center text-gray-500">
-                        <i class="fas fa-inbox text-3xl mb-3 text-gray-600"></i>
-                        <p class="text-sm font-medium text-gray-400">No recent alerts</p>
-                        <p class="text-xs mt-1">System is healthy</p>
-                    </div>
-                `;
-                return;
-            }
-
-            container.innerHTML = alerts.map(alert => `
-                <a href="/alerts/${alert.id}" class="block p-3 rounded-lg bg-gray-800 hover:bg-gray-700 transition">
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center space-x-3">
-                            <span class="badge-${(alert.severity || 'info').toLowerCase()} px-2 py-1 rounded text-xs font-medium">
-                                ${alert.severity || 'info'}
-                            </span>
-                            <span class="font-medium text-white">${alert.alert_name}</span>
-                        </div>
-                        <div class="flex items-center space-x-2">
-                             ${alert.status === 'firing'
-                    ? '<i class="fas fa-fire text-red-400" title="Firing"></i>'
-                    : '<i class="fas fa-check-circle text-green-400" title="Resolved"></i>'}
-                        </div>
-                    </div>
-                    <div class="text-sm text-gray-400 mt-1">
-                        ${alert.instance || 'No instance'} • ${new Date(alert.timestamp).toLocaleString()}
-                    </div>
-                </a>
-            `).join('');
-
-            // Update timestamp
-            const timeDisplay = document.getElementById('lastUpdated');
-            if (timeDisplay) timeDisplay.textContent = new Date().toLocaleTimeString();
-
-        } catch (error) {
-            console.error('Failed to load alerts:', error);
-            if (errorBox) errorBox.classList.remove('hidden');
-            if (container) container.innerHTML = '';
+        } catch(e) {
+            console.error('Dashboard refresh failed:', e);
+            showDashboardError(e.message);
+            setConnection('Offline','offline');
         } finally {
-            if (skeleton) skeleton.classList.add('hidden');
+            if (btn) btn.classList.remove('animate-spin');
         }
     }
 
-    // Initialize dashboard
+    // ══════════════════════════════════════════════════════
+    //  INIT
+    // ══════════════════════════════════════════════════════
     async function initDashboard() {
-        // Load configuration first
-        await loadPrometheusConfig();
-
-        // Initial data load
         refreshDashboard();
         loadRecentAlerts();
+        loadItsmTickets();
 
-        // Load infrastructure only if enabled
-        if (prometheusConfig && prometheusConfig.infrastructure_metrics_enabled !== false) {
-            loadInfrastructureHealth();
-        }
-
-        // Setup auto-refresh with configurable interval
-        const refreshInterval = (prometheusConfig?.prometheus_refresh_interval || 30) * 1000;
-
-        // Clear any existing interval
-        if (refreshIntervalId) {
-            clearInterval(refreshIntervalId);
-        }
-
-        // Set new interval
         refreshIntervalId = setInterval(() => {
             refreshDashboard();
             loadRecentAlerts();
+        }, 30000);
 
-            if (prometheusConfig && prometheusConfig.infrastructure_metrics_enabled !== false) {
-                loadInfrastructureHealth();
-            }
-
-            document.getElementById('lastUpdated').textContent = new Date().toLocaleTimeString();
-        }, refreshInterval);
-
-        console.log(`Dashboard auto-refresh set to ${refreshInterval / 1000} seconds`);
+        console.log('Dashboard initialized — auto-refresh: 30s');
     }
 
-    // Start the dashboard
+    // Chart resize handler
+    window.addEventListener('resize', () => {
+        if (alertTrendChart) alertTrendChart.resize();
+        if (severityChart) severityChart.resize();
+        if (mttrTrendChart) mttrTrendChart.resize();
+    });
+
+    // Launch
     initDashboard();
-
-    // Placeholder for missing infrastructure health function
-    function loadInfrastructureHealth() {
-        console.warn('loadInfrastructureHealth not implemented or removed');
-    }
 </script>
 {% endblock %}

@@ -20,7 +20,7 @@
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 
     <!-- Main Styles -->
-    <link href="/static/style.css?v=20260207j" rel="stylesheet">
+    <link href="/static/style.css?v=20260212b" rel="stylesheet">
     <link href="/static/style_agent_widget.css?v=20260211a" rel="stylesheet">
 
     <!-- ECharts -->
@@ -157,8 +157,37 @@
     <script src="/static/js/revive_widget.js?v=20260211a"></script>
 
     <script>
-        async function apiCall(url, method = 'GET', data = null) {
-            const options = {
+        async function apiCall(url, methodOrOptions = 'GET', data = null) {
+            // Support both signatures:
+            //   apiCall(url, method, data)      — used by base pages
+            //   apiCall(url, { method, body })   — fetch-style used by troubleshoot/inquiry JS
+            let options;
+            if (typeof methodOrOptions === 'object' && methodOrOptions !== null) {
+                // fetch-style: apiCall(url, { method: 'POST', body: '...' })
+                options = {
+                    ...methodOrOptions,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(methodOrOptions.headers || {})
+                    }
+                };
+                // Return raw Response for callers that expect .ok / .json()
+                try {
+                    const response = await fetch(url, options);
+                    if (response.status === 401) {
+                        window.location.href = '/login';
+                        return response;
+                    }
+                    return response;
+                } catch (error) {
+                    console.error('API Call Error:', error);
+                    throw error;
+                }
+            }
+
+            // Legacy positional: apiCall(url, method, data)
+            const method = methodOrOptions;
+            options = {
                 method,
                 headers: {
                     'Content-Type': 'application/json'
@@ -262,6 +291,51 @@
                 console.error('Logout error:', error);
                 window.location.href = '/login';
             }
+        }
+
+        if (typeof window.showToast !== 'function') {
+            window.showToast = function (message, type = 'info') {
+                let container = document.getElementById('toast-container');
+                if (!container) {
+                    container = document.createElement('div');
+                    container.id = 'toast-container';
+                    container.style.position = 'fixed';
+                    container.style.top = '16px';
+                    container.style.right = '16px';
+                    container.style.zIndex = '9999';
+                    container.style.display = 'flex';
+                    container.style.flexDirection = 'column';
+                    container.style.gap = '8px';
+                    document.body.appendChild(container);
+                }
+
+                const palette = {
+                    success: { bg: '#10b981', fg: '#ffffff' },
+                    error: { bg: '#ef4444', fg: '#ffffff' },
+                    warning: { bg: '#f59e0b', fg: '#111827' },
+                    info: { bg: '#3b82f6', fg: '#ffffff' }
+                };
+                const colors = palette[type] || palette.info;
+
+                const toast = document.createElement('div');
+                toast.textContent = String(message || '');
+                toast.style.background = colors.bg;
+                toast.style.color = colors.fg;
+                toast.style.padding = '10px 12px';
+                toast.style.borderRadius = '8px';
+                toast.style.boxShadow = '0 6px 20px rgba(15, 23, 42, 0.2)';
+                toast.style.fontSize = '13px';
+                toast.style.maxWidth = '380px';
+                toast.style.opacity = '1';
+                toast.style.transition = 'opacity 200ms ease';
+
+                container.appendChild(toast);
+
+                setTimeout(() => {
+                    toast.style.opacity = '0';
+                    setTimeout(() => toast.remove(), 220);
+                }, 3200);
+            };
         }
     </script>
 

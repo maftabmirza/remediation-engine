@@ -152,5 +152,64 @@ class ITSMConfigTemplate(BaseModel):
     field_mapping_example: Dict[str, str]
 
 
+# ========== Incident Schemas ==========
+
+class IncidentEventBase(BaseModel):
+    """Base incident event"""
+    incident_id: str
+    title: str
+    description: Optional[str] = None
+    status: Optional[str] = None
+    severity: Optional[str] = None
+    priority: Optional[str] = None
+    service_name: Optional[str] = None
+    created_at: datetime
+    resolved_at: Optional[datetime] = None
+    assignee: Optional[str] = None
+    is_open: bool = True
+
+
+class IncidentEventCreate(IncidentEventBase):
+    """Create incident event (via webhook)"""
+    source: str = 'webhook'
+    incident_metadata: Dict[str, Any] = {}
+
+
+class IncidentEventResponse(IncidentEventBase):
+    """Incident event response"""
+    id: UUID
+    source: str
+    incident_metadata: Dict[str, Any]
+    updated_at: datetime
+    
+    # Analysis Fields
+    analyzed: bool = False
+    analyzed_at: Optional[datetime] = None
+    analyzed_by: Optional[UUID] = None
+    ai_analysis: Optional[str] = None
+    recommendations_json: Optional[List[str]] = None
+    llm_provider_id: Optional[UUID] = None
+    analysis_count: Optional[int] = 0
+    llm_provider_name: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class IncidentAnalysisRequest(BaseModel):
+    """Request to analyze an incident"""
+    force: bool = False
+    llm_provider_id: Optional[UUID] = None
+
+
+class IncidentStatistics(BaseModel):
+    """Incident statistics"""
+    total_incidents: int
+    open_incidents: int
+    resolved_incidents: int
+    avg_resolution_time_hours: Optional[float] = None
+    severity_breakdown: Dict[str, int]
+    status_breakdown: Dict[str, int]
+
+
 # Rebuild models for forward references
 ChangeEventDetail.model_rebuild()

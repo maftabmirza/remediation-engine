@@ -2,6 +2,106 @@
 
 {% block title %}Troubleshoot Console - AIOps Platform{% endblock %}
 
+{% block head %}
+{{ super() }}
+<style>
+/* Agent Mode Modal - better visibility & buttons */
+.agent-modal-subtitle {
+    font-size: 13px;
+    color: #a5b4fc !important;
+    font-weight: 500;
+}
+.agent-modal-label {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    color: #e2e8f0 !important;
+    margin-bottom: 10px;
+}
+.agent-modal-textarea {
+    width: 100%;
+    background: #0f172a !important;
+    border: 1px solid #475569 !important;
+    color: #f1f5f9 !important;
+    padding: 14px 16px;
+    border-radius: 12px;
+    font-size: 14px;
+    outline: none;
+    resize: none;
+    height: 100px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+.agent-modal-textarea:focus {
+    border-color: #7c3aed !important;
+    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.25);
+}
+.agent-modal-textarea::placeholder {
+    color: #94a3b8 !important;
+}
+.agent-modal-checkbox-wrap {
+    background: #1e293b;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 20px;
+    border: 1px solid #334155;
+}
+.agent-modal-checkbox-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #f1f5f9 !important;
+}
+.agent-modal-checkbox-desc {
+    font-size: 12px;
+    color: #94a3b8 !important;
+    margin-top: 4px;
+}
+.agent-modal-cancel-btn {
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #e2e8f0;
+    background: rgba(71, 85, 105, 0.5);
+    border: 1px solid #475569;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.agent-modal-cancel-btn:hover {
+    background: rgba(71, 85, 105, 0.8);
+    color: white;
+    border-color: #64748b;
+}
+.agent-modal-start-btn {
+    padding: 10px 24px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    color: white;
+    background: linear-gradient(135deg, #7c3aed, #3b82f6);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 4px 14px rgba(124, 58, 237, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    transition: all 0.2s;
+}
+.agent-modal-start-btn:hover {
+    background: linear-gradient(135deg, #6d28d9, #2563eb);
+    box-shadow: 0 6px 20px rgba(124, 58, 237, 0.45);
+    transform: translateY(-1px);
+}
+/* Agent Mode trigger button - more visible */
+#agentModeBtn {
+    color: #7c3aed;
+}
+#agentModeBtn:hover {
+    background: rgba(124, 58, 237, 0.12) !important;
+    color: #6d28d9;
+}
+</style>
+{% endblock %}
+
 {% block header_title %}AI Troubleshooter{% endblock %}
 {% block breadcrumbs %}
 <span class="mx-2">/</span>
@@ -19,28 +119,48 @@
                     <i data-feather="zap" style="width: 14px; height: 14px;"></i>
                     <span>New Session</span>
                 </button>
-
-                <!-- Hybrid LLM Selector: Uses new styles but maps to old JS logic -->
-                <div class="ts-llm-selector" id="llmSelector">
-                    <div class="ts-llm-selected" onclick="toggleModelDropdown()">
-                        <span class="ts-model-dot"></span>
-                        <span class="ts-llm-text" id="currentModelName">Select Model</span>
-                        <i data-feather="chevron-down" class="ts-dropdown-icon"></i>
-                    </div>
-                    <!-- The list container ID matches troubleshoot_chat.js expectation -->
-                    <div class="ts-llm-options" id="modelListContainer" style="display: none;">
-                        <!-- Options injected by populateModelDropdown -->
-                    </div>
-                    <!-- Hidden dropdown for old logic compatibility if needed, 
-                         but we will override populateModelDropdown to target modelListContainer above -->
-                    <div id="modelDropdown" class="hidden"></div>
-                </div>
             </div>
             <div class="ts-session-actions">
+                <!-- LLM Model Selector Icon (right side, matches inquiry) -->
+                <div class="ts-llm-icon-wrapper" id="llmSelector" style="position: relative;">
+                    <button class="ts-icon-btn ts-llm-icon-btn" onclick="toggleModelDropdown()" id="llmIconBtn" title="LLM Provider">
+                        <span class="ts-llm-icon-status ts-llm-icon-connecting" id="llmIconStatus">
+                            <i data-feather="zap" style="width: 14px; height: 14px;"></i>
+                        </span>
+                        <span class="ts-llm-status-dot" id="llmStatusDot" title="Connecting"></span>
+                    </button>
+                    <div class="hidden ts-llm-dropdown-panel" id="modelListContainer">
+                        <div class="ts-llm-dropdown-header">
+                            <i data-feather="zap" style="width: 13px; height: 13px; color: #3b82f6;"></i>
+                            <span>LLM Provider</span>
+                            <span class="ts-llm-status-badge" id="llmStatusBadge">Connecting</span>
+                        </div>
+                        <div class="ts-llm-provider-list" id="llmProviderList">
+                            <!-- Options injected by populateModelDropdown -->
+                        </div>
+                    </div>
+                    <div id="modelDropdown" class="hidden"></div>
+                </div>
+                <div class="ts-session-dropdown-wrapper" style="position: relative;">
+                    <button onclick="toggleSessionDropdown()" id="sessionDropdownBtn"
+                        class="ts-icon-btn" title="Chat History">
+                        <i data-feather="clock" style="width: 14px; height: 14px;"></i>
+                    </button>
+                    <div id="sessionDropdown"
+                        class="hidden ts-session-dropdown-panel">
+                        <div class="ts-session-dropdown-header">
+                            <i data-feather="message-square" style="width: 13px; height: 13px; color: #3b82f6;"></i>
+                            <span>Chat History</span>
+                        </div>
+                        <div id="sessionListContainer" class="ts-session-list">
+                            <div class="ts-session-empty">No sessions yet</div>
+                        </div>
+                    </div>
+                </div>
                 <button class="ts-icon-btn" id="agentModeBtn" onclick="openAgentModal()" title="Agent Mode (Ctrl+Shift+A)">
                     <i data-feather="cpu" style="width: 14px; height: 14px;"></i>
                 </button>
-                <button class="ts-icon-btn" onclick="toggleCommandHistory()" title="History (Ctrl+H)">
+                <button class="ts-icon-btn" onclick="toggleCommandHistory()" title="Command History (Ctrl+H)">
                     <i data-feather="rotate-ccw" style="width: 14px; height: 14px;"></i>
                 </button>
                 <button class="ts-icon-btn" onclick="adjustChatFont(-1)" title="Decrease Font">
@@ -49,6 +169,28 @@
                 <button class="ts-icon-btn" onclick="adjustChatFont(1)" title="Increase Font">
                     <i data-feather="plus" style="width: 12px; height: 12px;"></i>
                 </button>
+            </div>
+        </div>
+
+        <!-- Command History Panel -->
+        <div id="commandHistoryPanel" class="hidden ts-cmd-history-panel">
+            <div class="ts-cmd-history-header">
+                <div class="ts-cmd-history-title">
+                    <i data-feather="terminal" style="width: 13px; height: 13px; color: #3b82f6;"></i>
+                    <span>Command History</span>
+                    <span id="historyCount" class="ts-cmd-history-badge">0</span>
+                </div>
+                <div style="display: flex; gap: 2px;">
+                    <button onclick="clearCommandHistory()" class="ts-icon-btn" style="width: 26px; height: 26px;" title="Clear History">
+                        <i data-feather="trash-2" style="width: 12px; height: 12px;"></i>
+                    </button>
+                    <button onclick="toggleCommandHistory()" class="ts-icon-btn" style="width: 26px; height: 26px;" title="Close">
+                        <i data-feather="x" style="width: 12px; height: 12px;"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="history-list ts-cmd-history-list">
+                <p class="ts-cmd-history-empty">No commands executed yet</p>
             </div>
         </div>
 
@@ -297,36 +439,34 @@
 </div>
 
 <!-- Agent Mode Modal -->
-<div id="agentModal" class="fixed inset-0 bg-black bg-opacity-60 hidden items-center justify-center z-50" style="backdrop-filter: blur(4px);">
-    <div class="bg-gray-800 rounded-xl p-6 w-[480px] max-w-full border border-gray-700/50 shadow-2xl">
-        <div class="flex items-center mb-5">
-            <div style="width: 44px; height: 44px; border-radius: 12px; background: linear-gradient(135deg, #7c3aed, #3b82f6); display: flex; align-items: center; justify-content: center; margin-right: 14px;">
-                <i class="fas fa-robot text-white" style="font-size: 18px;"></i>
+<div id="agentModal" class="fixed inset-0 bg-black bg-opacity-60 hidden items-center justify-center z-50 p-4" style="backdrop-filter: blur(4px);">
+    <div class="agent-modal-content bg-gray-800 rounded-xl p-6 w-[480px] max-w-full border border-gray-700/50 shadow-2xl">
+        <div class="flex items-center mb-6">
+            <div style="width: 48px; height: 48px; border-radius: 14px; background: linear-gradient(135deg, #7c3aed, #3b82f6); display: flex; align-items: center; justify-content: center; margin-right: 16px; box-shadow: 0 4px 16px rgba(124, 58, 237, 0.35);">
+                <i class="fas fa-robot text-white" style="font-size: 20px;"></i>
             </div>
             <div>
                 <h3 class="text-lg font-bold text-white">Agent Mode</h3>
-                <p style="font-size: 12px; color: #94a3b8;">Autonomous troubleshooting assistant</p>
+                <p class="agent-modal-subtitle">Autonomous troubleshooting assistant</p>
             </div>
         </div>
-        <div class="mb-4">
-            <label style="display: block; font-size: 13px; font-weight: 500; color: #cbd5e1; margin-bottom: 8px;">What should the agent accomplish?</label>
-            <textarea id="agentGoal" style="width: 100%; background: #1e293b; border: 1px solid #334155; color: white; padding: 12px; border-radius: 10px; font-size: 13px; outline: none; resize: none; height: 96px;"
+        <div class="mb-5">
+            <label class="agent-modal-label">What should the agent accomplish?</label>
+            <textarea id="agentGoal" class="agent-modal-textarea"
                 placeholder="e.g., Check disk space and clean up unnecessary files"></textarea>
         </div>
-        <div style="background: #1e293b; border-radius: 10px; padding: 14px; margin-bottom: 16px;">
+        <div class="agent-modal-checkbox-wrap">
             <label style="display: flex; align-items: flex-start; cursor: pointer; gap: 12px;">
-                <input type="checkbox" id="autoApprove" style="margin-top: 2px; accent-color: #7c3aed;">
+                <input type="checkbox" id="autoApprove" style="margin-top: 3px; accent-color: #7c3aed;">
                 <div>
-                    <span style="font-size: 13px; color: white;">Auto-approve commands</span>
-                    <p style="font-size: 11px; color: #64748b; margin-top: 2px;">Agent will execute commands without asking for approval</p>
+                    <span class="agent-modal-checkbox-title">Auto-approve commands</span>
+                    <p class="agent-modal-checkbox-desc">Agent will execute commands without asking for approval</p>
                 </div>
             </label>
         </div>
-        <div class="flex justify-end" style="gap: 10px;">
-            <button onclick="closeAgentModal()"
-                class="px-4 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-700 transition-colors text-sm">Cancel</button>
-            <button onclick="startAgent()"
-                style="background: linear-gradient(135deg, #7c3aed, #3b82f6); color: white; padding: 8px 20px; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+        <div class="flex justify-end gap-3 pt-2">
+            <button onclick="closeAgentModal()" class="agent-modal-cancel-btn">Cancel</button>
+            <button onclick="startAgent()" class="agent-modal-start-btn">
                 <i class="fas fa-play"></i>Start Agent
             </button>
         </div>
@@ -366,51 +506,41 @@
 <script src="/static/js/progress_indicator.js?v=1.0"></script>
 <script src="/static/js/pii_feedback_ui.js?v=1.2"></script>
 <script src="/static/js/troubleshoot_chat_base.js?v=2.6"></script>
-<script src="/static/js/troubleshoot_chat.js?v=4.9"></script>
+<script src="/static/js/troubleshoot_chat.js?v=5.0"></script>
 
 <script>
     // --- Hybrid Bridge Logic ---
 
-    // 1. Override populateModelDropdown to use new UI structure
-    // original function expects #modelListContainer and injects bootstrap-like HTML
-    // We override it to inject .ts-llm-option divs
+    // 1. Override populateModelDropdown - inject into llmProviderList, update status icon
     const originalPopulateModelDropdown = populateModelDropdown;
-
     window.populateModelDropdown = function (providers) {
-        const list = document.getElementById('modelListContainer');
+        const list = document.getElementById('llmProviderList');
         if (!list) return;
 
         if (!providers || providers.length === 0) {
             list.innerHTML = '<div class="px-3 py-2 text-xs text-gray-500">No providers available</div>';
+            updateModelStatusIcon('disconnected');
             return;
         }
 
-        // Determine selection
         const selectedId = (currentSession && currentSession.llm_provider_id)
             ? currentSession.llm_provider_id
             : (providers.find(p => p.is_default)?.id || '');
 
-        // Update Title Text
-        const selectedProvider = providers.find(p => p.id === selectedId);
-        if (selectedProvider) {
-            const nameEl = document.getElementById('currentModelName');
-            if (nameEl) nameEl.textContent = selectedProvider.name;
-        }
-
-        // Render Options
         list.innerHTML = providers.map(p => {
             const isSelected = p.id === selectedId;
+            const name = p.provider_name || p.name || 'Unknown';
             return `
             <div class="ts-llm-option ${isSelected ? 'selected' : ''}" 
                  onclick="selectModel('${p.id}'); toggleModelDropdown();">
-                 <i data-feather="${p.is_enabled ? 'check-circle' : 'x-circle'}" style="width: 14px; height: 14px; color: ${p.is_enabled ? '#4ade80' : '#f87171'}"></i>
-                <span class="ml-2">${AIChatBase.escapeHtml(p.name)}</span>
+                <i data-feather="${p.is_enabled !== false ? 'check-circle' : 'x-circle'}" style="width: 14px; height: 14px; color: ${p.is_enabled !== false ? '#4ade80' : '#f87171'}"></i>
+                <span class="ml-2">${AIChatBase.escapeHtml(name)}${p.is_default ? ' ⭐' : ''}</span>
             </div>
             `;
         }).join('');
 
-        // re-init icons
         if (typeof feather !== 'undefined') feather.replace();
+        updateModelStatusIcon('connected');
     };
 
     // 2. Toggle Dropdown Logic
@@ -418,8 +548,8 @@
         const list = document.getElementById('modelListContainer');
         const selector = document.getElementById('llmSelector');
         if (list) {
-            const isHidden = list.style.display === 'none';
-            list.style.display = isHidden ? 'block' : 'none';
+            const isHidden = list.classList.contains('hidden');
+            list.classList.toggle('hidden', !isHidden);
             if (selector) {
                 if (isHidden) selector.classList.add('open');
                 else selector.classList.remove('open');
@@ -432,7 +562,7 @@
         const selector = document.getElementById('llmSelector');
         const list = document.getElementById('modelListContainer');
         if (selector && !selector.contains(e.target)) {
-            if (list) list.style.display = 'none';
+            if (list) list.classList.add('hidden');
             selector.classList.remove('open');
         }
     });
@@ -556,9 +686,25 @@
             await loadMessageHistory(sessionId);
         }
 
+        // Reconnect WebSocket to new session
+        if (typeof connectChatWebSocket === 'function') {
+            connectChatWebSocket(sessionId);
+        }
+
         if (titleEl) titleEl.textContent = 'Active Session';
         if (typeof showToast === 'function') showToast('Session switched', 'info');
     };
+
+    // 8. Close session dropdown when clicking outside
+    document.addEventListener('click', function (e) {
+        const dropdown = document.getElementById('sessionDropdown');
+        const btn = document.getElementById('sessionDropdownBtn');
+        if (dropdown && !dropdown.classList.contains('hidden')) {
+            if (!dropdown.contains(e.target) && (!btn || !btn.contains(e.target))) {
+                dropdown.classList.add('hidden');
+            }
+        }
+    });
 
     // Initialize
     document.addEventListener('DOMContentLoaded', function () {

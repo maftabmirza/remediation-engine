@@ -1,0 +1,258 @@
+{% extends "base.html" %}
+{% set active_page = 'incidents' %}
+
+{% block title %}Incident Details - AIOps Platform{% endblock %}
+
+{% block breadcrumbs %}
+<span class="mx-2">/</span>
+<a href="/incidents" class="hover:text-blue-400 transition-colors">Incidents</a>
+<span class="mx-2">/</span>
+<span class="text-gray-200">Details</span>
+{% endblock %}
+
+{% block header_title %}
+<div class="flex items-center gap-3">
+    <i class="fas fa-ticket-alt text-orange-400"></i>
+    <span id="header_incident_title" class="text-sm font-semibold text-white tracking-tight truncate">{{ incident.title
+        }}</span>
+</div>
+{% endblock %}
+
+{% block head %}
+<style>
+    .badge-critical {
+        background-color: #ff5286;
+        color: white;
+        padding: 2px 8px;
+        border-radius: 2px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+
+    .badge-high {
+        background-color: #eb7b18;
+        color: white;
+        padding: 2px 8px;
+        border-radius: 2px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+
+    .badge-medium {
+        background-color: #f59e0b;
+        color: white;
+        padding: 2px 8px;
+        border-radius: 2px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+
+    .badge-low {
+        background-color: #3b82f6;
+        color: white;
+        padding: 2px 8px;
+        border-radius: 2px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+
+    .status-new {
+        color: #3b82f6;
+    }
+
+    .status-in_progress {
+        color: #f59e0b;
+    }
+
+    .status-resolved {
+        color: #10b981;
+    }
+
+    .status-closed {
+        color: #6b7280;
+    }
+
+    .incident-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Markdown Support -->
+<script src="https://unpkg.com/marked@4.3.0/marked.min.js"></script>
+
+<div class="space-y-4 h-full flex flex-col">
+    <!-- Incident Header Card -->
+    <div class="incident-card px-4 py-3 flex-shrink-0">
+        <div class="flex items-start justify-between">
+            <div>
+                <div class="flex items-center gap-3 mb-2">
+                    <span class="text-lg font-bold text-slate-800">{{ incident.title }}</span>
+                    <span class="text-xs font-mono text-slate-500 bg-slate-100 px-2 py-1 rounded">{{
+                        incident.incident_id }}</span>
+                </div>
+                <div class="flex items-center gap-4 text-sm">
+                    <span class="badge-{{ incident.severity|lower }} uppercase">{{ incident.severity }}</span>
+                    <span class="status-{{ incident.status|lower }} font-medium flex items-center">
+                        <i class="fas fa-circle text-[6px] mr-1.5"></i>{{ incident.status|replace('_', ' ')|title }}
+                    </span>
+                    <span class="text-slate-500"><i class="fas fa-server mr-1.5"></i>{{ incident.service_name or
+                        'Unknown Service' }}</span>
+                    <span class="text-slate-500"><i class="fas fa-clock mr-1.5"></i>{{
+                        incident.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                    {% if incident.assignee %}
+                    <span class="text-slate-500"><i class="fas fa-user mr-1.5"></i>{{ incident.assignee }}</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="flex gap-2">
+                <button onclick="troubleshootIncident()"
+                    class="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 rounded text-sm font-medium transition-colors flex items-center">
+                    <i class="fas fa-magic mr-2"></i>Troubleshoot
+                </button>
+                <a href="{{ incident.incident_metadata.get('url', '#') }}" target="_blank"
+                    class="border border-slate-300 hover:bg-slate-50 text-slate-700 px-3 py-1.5 rounded text-sm font-medium transition-colors flex items-center">
+                    <i class="fas fa-external-link-alt mr-2"></i>Open in ITSM
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-grow min-h-0">
+        <!-- Left Column: Description & Metadata -->
+        <div class="lg:col-span-4 flex flex-col gap-4 overflow-y-auto">
+            <div class="incident-card p-4">
+                <h3 class="font-semibold text-slate-800 mb-2 border-b border-slate-100 pb-2">Description</h3>
+                <div class="text-sm text-slate-600 whitespace-pre-wrap max-h-60 overflow-y-auto">{{ incident.description
+                    }}</div>
+            </div>
+
+            <div class="incident-card p-4 flex-grow">
+                <h3 class="font-semibold text-slate-800 mb-2 border-b border-slate-100 pb-2">Metadata</h3>
+                <div class="space-y-2">
+                    {% for key, value in incident.incident_metadata.items() %}
+                    {% if key != 'url' %}
+                    <div class="text-xs">
+                        <span class="font-medium text-slate-500 block">{{ key|title }}</span>
+                        <span
+                            class="text-slate-700 break-all bg-slate-50 px-2 py-1 rounded block border border-slate-200">{{
+                            value }}</span>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: AI Analysis & Action -->
+        <div class="lg:col-span-8 flex flex-col gap-4 overflow-y-auto">
+            <div class="incident-card p-4 flex-grow flex flex-col min-h-0">
+                <div class="flex justify-between items-center mb-4 border-b border-slate-100 pb-2 flex-shrink-0">
+                    <h3 class="font-semibold text-slate-800 flex items-center">
+                        <i class="fas fa-robot text-purple-500 mr-2"></i>AI Root Cause Analysis
+                    </h3>
+                    <div class="flex items-center gap-2">
+                        {% if incident.analyzed %}
+                        <span class="text-xs text-slate-500 mr-2">Analyzed {{ incident.analyzed_at.strftime('%H:%M') }}
+                            by {{ incident.llm_provider_name }}</span>
+                        {% endif %}
+                        <button onclick="analyzeIncident(true)"
+                            class="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                            <i class="fas fa-redo mr-1"></i>Re-analyze
+                        </button>
+                    </div>
+                </div>
+
+                <div id="analysisContent" class="flex-grow overflow-y-auto pr-2">
+                    {% if incident.analyzed %}
+                    <div class="prose prose-sm prose-slate max-w-none">
+                        {{ incident.ai_analysis | safe }}
+                    </div>
+                    {% if incident.recommendations_json %}
+                    <div class="mt-6 bg-green-50 border border-green-200 rounded-lg p-4">
+                        <h4 class="text-green-800 font-semibold mb-2 text-sm">Recommended Actions</h4>
+                        <ul class="list-disc list-inside text-sm text-green-700 space-y-1">
+                            {% for rec in incident.recommendations_json %}
+                            <li>{{ rec }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                    {% else %}
+                    <div class="flex flex-col items-center justify-center h-full py-12">
+                        <i class="fas fa-brain text-slate-300 text-5xl mb-4"></i>
+                        <p class="text-slate-500 mb-4">No analysis generated yet.</p>
+                        <button onclick="analyzeIncident()"
+                            class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-medium shadow-sm transition-colors">
+                            <i class="fas fa-play mr-2"></i>Generate Analysis
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    const incidentId = "{{ incident.id }}";
+
+    async function analyzeIncident(force = false) {
+        const contentDiv = document.getElementById('analysisContent');
+        contentDiv.innerHTML = `
+            <div class="flex flex-col items-center justify-center h-64">
+                <div class="loading-spinner mb-4"></div>
+                <p class="text-slate-500">Analyzing incident with AI...</p>
+                <p class="text-xs text-slate-400 mt-2">This may take a few seconds</p>
+            </div>
+        `;
+
+        try {
+            const response = await apiCall(`/api/incidents/${incidentId}/analyze`, 'POST', { force });
+            if (response) {
+                location.reload();
+            }
+        } catch (error) {
+            contentDiv.innerHTML = `
+                <div class="flex flex-col items-center justify-center h-64 text-red-500">
+                    <i class="fas fa-exclamation-circle text-4xl mb-3"></i>
+                    <p>Analysis failed</p>
+                    <p class="text-xs mt-1">${error.message}</p>
+                    <button onclick="analyzeIncident(true)" class="mt-4 text-blue-600 underline">Try again</button>
+                </div>
+            `;
+        }
+    }
+
+    function troubleshootIncident() {
+        const context = {
+            type: 'incident',
+            id: incidentId,
+            title: {{ incident.title | tojson | safe }},
+            description: {{ incident.description | tojson | safe }},
+            service: {{ incident.service_name | tojson | safe }}
+        };
+    const encoded = encodeURIComponent(JSON.stringify(context));
+    window.location.href = `/troubleshoot?context=${encoded}`;
+    }
+
+    // Render markdown if analyzed
+    {% if incident.analyzed %}
+    document.addEventListener('DOMContentLoaded', () => {
+        const contentDiv = document.getElementById('analysisContent').querySelector('.prose');
+        if (contentDiv) {
+            contentDiv.innerHTML = marked.parse(contentDiv.textContent.trim());
+        }
+    });
+    {% endif %}
+</script>
+{% endblock %}

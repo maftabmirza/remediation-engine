@@ -191,8 +191,15 @@ def list_chat_sessions(
     offset = (page - 1) * limit
 
     sessions = (
-        db.query(AISession)
-        .order_by(desc(AISession.updated_at))
+        db.query(
+            AISession.id,
+            AISession.created_at,
+            AISession.user_id,
+            AISession.title,
+            User.username,
+        )
+        .outerjoin(User, User.id == AISession.user_id)
+        .order_by(desc(AISession.created_at))
         .offset(offset)
         .limit(limit)
         .all()
@@ -211,12 +218,7 @@ def list_chat_sessions(
 
     items: List[ChatSessionListItem] = []
     for s in sessions:
-        username = "System"
-        try:
-            if s.user and getattr(s.user, "username", None):
-                username = s.user.username
-        except Exception:
-            pass
+        username = s.username or "System"
 
         items.append(
             ChatSessionListItem(
@@ -238,7 +240,7 @@ def get_chat_transcript(
     db: Session = Depends(get_db),
 ):
     """Return transcript messages for a chat session (admin only)."""
-    session = db.query(AISession).filter(AISession.id == session_id).first()
+    session = db.query(AISession.id).filter(AISession.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Chat session not found")
 

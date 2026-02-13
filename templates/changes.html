@@ -6,6 +6,165 @@
 {% block head %}
 {{ super() }}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+    .changes-itsm-btn:hover {
+        background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+        box-shadow: 0 4px 14px rgba(59, 130, 246, 0.35);
+        transform: translateY(-1px);
+    }
+
+    /* Add Integration / ITSM Modal - refined dialog */
+    #itsmModal {
+        backdrop-filter: blur(4px);
+    }
+    .itsm-modal-content {
+        background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+        border: 1px solid rgba(71, 85, 105, 0.6);
+        border-radius: 20px;
+        padding: 24px;
+        box-shadow: 0 32px 64px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.2),
+            inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    }
+    #itsmModal h3 {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #f1f5f9;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    #itsmModal h3::before {
+        content: '';
+        width: 4px;
+        height: 24px;
+        background: linear-gradient(180deg, #3b82f6, #06b6d4);
+        border-radius: 2px;
+    }
+    #itsmModal .text-gray-400 {
+        color: #94a3b8 !important;
+    }
+    #itsmModal .input-field {
+        background: rgba(15, 23, 42, 0.6);
+        border: 1px solid rgba(71, 85, 105, 0.6);
+        border-radius: 10px;
+        color: #f1f5f9;
+        transition: all 0.2s;
+    }
+    #itsmModal .input-field:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        outline: none;
+    }
+    #itsmModal .input-field::placeholder {
+        color: #64748b;
+    }
+    #itsmModal select.input-field {
+        cursor: pointer;
+    }
+    #itsmModal .border-t.border-gray-700 {
+        border-color: rgba(71, 85, 105, 0.5) !important;
+    }
+    #itsmModal .text-gray-300 {
+        color: #e2e8f0 !important;
+    }
+    #itsmModal .text-purple-400 {
+        color: #a78bfa !important;
+    }
+    #itsmModal .btn-primary {
+        background: linear-gradient(135deg, #3b82f6, #2563eb);
+        box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    }
+    #itsmModal .btn-primary:hover {
+        box-shadow: 0 4px 16px rgba(59, 130, 246, 0.4);
+        transform: translateY(-1px);
+    }
+    #itsmModal .btn-secondary {
+        background: rgba(51, 65, 85, 0.5);
+        border: 1px solid rgba(71, 85, 105, 0.6);
+        color: #e2e8f0;
+    }
+    #itsmModal .btn-secondary:hover {
+        background: rgba(71, 85, 105, 0.6);
+        border-color: rgba(59, 130, 246, 0.4);
+    }
+    .itsm-modal-close {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+        border: none;
+        background: transparent;
+        cursor: pointer;
+    }
+    .itsm-modal-close:hover {
+        background: rgba(239, 68, 68, 0.15);
+        color: #f87171 !important;
+    }
+    #itsmModal #fieldMappingHelp {
+        background: rgba(15, 23, 42, 0.6);
+        border: 1px solid rgba(71, 85, 105, 0.5);
+    }
+    #itsmModal .space-y-4 > div > label {
+        font-weight: 500;
+    }
+    #itsmModal .itsm-modal-content::-webkit-scrollbar {
+        width: 8px;
+    }
+    #itsmModal .itsm-modal-content::-webkit-scrollbar-track {
+        background: rgba(15, 23, 42, 0.5);
+        border-radius: 4px;
+    }
+    #itsmModal .itsm-modal-content::-webkit-scrollbar-thumb {
+        background: rgba(71, 85, 105, 0.8);
+        border-radius: 4px;
+    }
+    #itsmModal .itsm-modal-content::-webkit-scrollbar-thumb:hover {
+        background: rgba(100, 116, 139, 0.9);
+    }
+    .add-integration-btn {
+        background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
+        box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    }
+    .add-integration-btn:hover {
+        box-shadow: 0 4px 16px rgba(59, 130, 246, 0.4) !important;
+        transform: translateY(-1px);
+    }
+
+    /* Change Events table - improved readability */
+    #changeEventsTable {
+        font-size: 14px;
+    }
+    #changeEventsTable thead th {
+        font-size: 13px;
+        font-weight: 600;
+        color: #475569;
+        padding: 12px 16px;
+    }
+    #changeEventsTable tbody td {
+        padding: 12px 16px;
+        font-size: 14px;
+        color: #334155;
+        line-height: 1.5;
+    }
+    #changeEventsTable tbody tr:hover td {
+        background-color: #f8fafc;
+    }
+    #changeEventsTable .change-id {
+        font-weight: 500;
+        color: #1d4ed8;
+    }
+    #changeEventsTable .change-type {
+        font-size: 13px;
+        font-weight: 500;
+    }
+    #changeEventsTable .cell-muted {
+        color: #64748b;
+        font-size: 13px;
+    }
+</style>
 {% endblock %}
 
 {% block breadcrumbs %}
@@ -19,29 +178,36 @@
 {% endblock %}
 
 {% block header_actions %}
-<div class="flex items-center gap-2">
-    <div class="flex items-center space-x-2 bg-gray-800 rounded px-2 py-1 border border-gray-700 h-8">
-        <label for="timeRange" class="text-[10px] text-gray-400">Range:</label>
-        <select id="timeRange"
-            class="bg-transparent text-xs text-white focus:outline-none border-none p-0 cursor-pointer"
-            onchange="loadAllData()">
-            <option value="24h">24h</option>
-            <option value="7d" selected>7d</option>
-            <option value="30d">30d</option>
-        </select>
-    </div>
-
-    <button onclick="showITSMModal()"
-        class="flex items-center gap-2 px-3 py-1 bg-gray-800 hover:bg-gray-700 text-white rounded transition-colors text-[11px] border border-gray-700 h-8">
-        <i class="fas fa-plug text-purple-400"></i>
-        <span>Configure ITSM</span>
-    </button>
-</div>
 {{ super() }}
 {% endblock %}
 
 {% block content %}
 <div class="space-y-4">
+    <!-- Toolbar -->
+    <div class="card p-4" style="overflow: visible;">
+        <div class="flex flex-wrap gap-4 items-center justify-between">
+            <div class="flex flex-wrap gap-3 items-center">
+                <div class="flex items-center gap-2">
+                    <label for="timeRange" class="text-sm font-medium text-[#64748b]">Time range:</label>
+                    <select id="timeRange"
+                        class="bg-white border border-[#e2e8f0] rounded-lg px-3 py-2 text-sm text-[#475569] focus:outline-none focus:border-[#3b82f6] focus:ring-2 focus:ring-[#3b82f6]/20 min-w-[120px]"
+                        onchange="loadAllData()">
+                        <option value="24h">Last 24h</option>
+                        <option value="7d" selected>Last 7d</option>
+                        <option value="30d">Last 30d</option>
+                    </select>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="showITSMModal()"
+                    class="changes-itsm-btn inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all border-none cursor-pointer"
+                    style="background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; box-shadow: 0 2px 6px rgba(59, 130, 246, 0.25);">
+                    <i class="fas fa-plug"></i>
+                    <span>Configure ITSM</span>
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- Stats Cards -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -106,9 +272,9 @@
 
         <!-- Table -->
         <div class="overflow-x-auto">
-            <table class="w-full text-sm">
+            <table id="changeEventsTable" class="w-full">
                 <thead>
-                    <tr class="text-left text-gray-400 border-b border-gray-700">
+                    <tr class="text-left border-b border-slate-200">
                         <th class="pb-3 pr-4">Change ID</th>
                         <th class="pb-3 pr-4">Type</th>
                         <th class="pb-3 pr-4">Application</th>
@@ -120,9 +286,9 @@
                         <th class="pb-3 text-center">Incidents</th>
                     </tr>
                 </thead>
-                <tbody id="changeTableBody" class="divide-y divide-gray-800">
+                <tbody id="changeTableBody" class="divide-y divide-slate-100">
                     <tr>
-                        <td colspan="9" class="text-center py-8 text-gray-400">
+                        <td colspan="9" class="text-center py-8 text-slate-500">
                             <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
                             <p>Loading changes...</p>
                         </td>
@@ -132,8 +298,8 @@
         </div>
 
         <!-- Pagination -->
-        <div class="flex justify-between items-center mt-4 pt-4 border-t border-gray-700">
-            <div class="text-sm text-gray-400" id="paginationInfo">
+        <div class="flex justify-between items-center mt-4 pt-4 border-t border-slate-200">
+            <div class="text-sm text-slate-600" id="paginationInfo">
                 Showing 0-0 of 0 changes
             </div>
             <div class="flex items-center space-x-2">
@@ -141,7 +307,7 @@
                     class="btn-secondary py-1 px-3 text-sm disabled:opacity-50">
                     <i class="fas fa-chevron-left mr-1"></i>Prev
                 </button>
-                <span class="text-sm text-gray-400" id="pageIndicator">Page 1</span>
+                <span class="text-sm text-slate-600" id="pageIndicator">Page 1</span>
                 <button onclick="nextPage()" id="nextBtn" class="btn-secondary py-1 px-3 text-sm disabled:opacity-50">
                     Next<i class="fas fa-chevron-right ml-1"></i>
                 </button>
@@ -162,20 +328,20 @@
             <div id="itsmList" class="space-y-3">
                 <div class="text-center py-4 text-gray-400">Loading...</div>
             </div>
-            <button onclick="showITSMModal()" class="btn-primary w-full mt-4">
+            <button onclick="showITSMModal()" class="btn-primary w-full mt-4 add-integration-btn">
                 <i class="fas fa-plus mr-2"></i>Add Integration
             </button>
         </div>
     </div>
 </div>
 
-<!-- ITSM Configuration Modal -->
-<div id="itsmModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
-    <div class="bg-gray-900 rounded-xl p-6 w-full max-w-xl max-h-[80vh] overflow-y-auto">
-        <div class="flex justify-between items-center mb-4">
+<!-- ITSM Configuration Modal (Add Integration) -->
+<div id="itsmModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
+    <div class="itsm-modal-content w-full max-w-xl max-h-[85vh] overflow-y-auto">
+        <div class="flex justify-between items-center mb-6">
             <h3 class="text-xl font-bold">Configure ITSM Integration</h3>
-            <button onclick="hideITSMModal()" class="text-gray-400 hover:text-white">
-                <i class="fas fa-times text-xl"></i>
+            <button onclick="hideITSMModal()" class="itsm-modal-close text-gray-400 hover:text-white">
+                <i class="fas fa-times text-lg"></i>
             </button>
         </div>
 
@@ -219,14 +385,14 @@
                 </div>
 
                 <!-- JSONPath Field Mapping Section -->
-                <div class="pt-4 border-t border-gray-700">
-                    <div class="flex items-center justify-between mb-3">
-                        <h4 class="text-sm font-medium text-gray-300">
-                            <i class="fas fa-map-marker-alt text-purple-400 mr-2"></i>Field Mapping (JSONPath)
+                <div class="pt-5 mt-2 border-t border-gray-700 itsm-field-mapping-section">
+                    <div class="flex items-center justify-between mb-4">
+                        <h4 class="text-sm font-semibold text-gray-300 flex items-center gap-2">
+                            <i class="fas fa-map-marker-alt text-purple-400"></i>Field Mapping (JSONPath)
                         </h4>
                         <button type="button" onclick="toggleFieldHelp()"
-                            class="text-xs text-gray-500 hover:text-gray-300">
-                            <i class="fas fa-question-circle"></i> Help
+                            class="text-xs px-3 py-1.5 rounded-lg bg-gray-700/50 text-gray-400 hover:bg-gray-600/50 hover:text-gray-200 transition-colors">
+                            <i class="fas fa-question-circle mr-1"></i>Help
                         </button>
                     </div>
 
@@ -283,11 +449,11 @@
                     </div>
                 </div>
 
-                <div class="flex space-x-3 pt-4">
-                    <button type="button" onclick="testITSMConnection()" class="btn-secondary flex-1">
+                <div class="flex gap-3 pt-6">
+                    <button type="button" onclick="testITSMConnection()" class="btn-secondary flex-1 py-3 rounded-lg">
                         <i class="fas fa-plug mr-2"></i>Test Connection
                     </button>
-                    <button type="submit" class="btn-primary flex-1">
+                    <button type="submit" class="btn-primary flex-1 py-3 rounded-lg">
                         <i class="fas fa-save mr-2"></i>Save
                     </button>
                 </div>
@@ -317,17 +483,24 @@
         ]);
     }
 
+    function getDaysFromTimeRange() {
+        const tr = document.getElementById('timeRange').value;
+        if (tr === '24h') return 1;
+        if (tr === '7d') return 7;
+        if (tr === '30d') return 30;
+        return 7;
+    }
+
     async function loadStatistics() {
         try {
-            const res = await apiCall('/api/changes/statistics?days=30');
-            if (!res.ok) return;
+            const days = getDaysFromTimeRange();
+            const stats = await apiCall(`/api/changes/statistics?days=${days}`);
+            if (!stats) return;
 
-            const stats = await res.json();
-
-            document.getElementById('statTotalChanges').textContent = stats.total_changes;
-            document.getElementById('statHighImpact').textContent = stats.high_impact_count;
-            document.getElementById('statAvgScore').textContent = stats.average_correlation_score.toFixed(1);
-            document.getElementById('statCritical').textContent = stats.total_critical_incidents;
+            document.getElementById('statTotalChanges').textContent = stats.total_changes ?? 0;
+            document.getElementById('statHighImpact').textContent = stats.high_impact_count ?? 0;
+            document.getElementById('statAvgScore').textContent = (stats.average_correlation_score ?? 0).toFixed(1);
+            document.getElementById('statCritical').textContent = stats.total_critical_incidents ?? 0;
 
             // Update chart
             updateImpactChart(stats.impact_breakdown);
@@ -340,10 +513,9 @@
         const container = document.getElementById('highImpactList');
 
         try {
-            const res = await apiCall('/api/changes/high-impact?days=7&limit=5');
-            if (!res.ok) throw new Error('Failed to load');
-
-            const changes = await res.json();
+            const days = getDaysFromTimeRange();
+            const changes = await apiCall(`/api/changes/high-impact?days=${days}&limit=5`);
+            if (!changes) return;
 
             if (changes.length === 0) {
                 container.innerHTML = `
@@ -398,10 +570,9 @@
         const pageSize = parseInt(document.getElementById('pageSize').value) || 25;
 
         try {
-            const res = await apiCall(`/api/changes/timeline?time_range=${timeRange}`);
-            if (!res.ok) throw new Error('Failed to load');
+            const data = await apiCall(`/api/changes/timeline?time_range=${timeRange}`);
+            if (!data) return;
 
-            const data = await res.json();
             allChanges = data.entries || [];
             totalChanges = allChanges.length;
             currentPage = 1;
@@ -410,7 +581,7 @@
         } catch (e) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="7" class="text-center py-8 text-red-400">
+                    <td colspan="9" class="text-center py-8 text-red-600">
                         <i class="fas fa-exclamation-triangle text-2xl mb-2"></i>
                         <p>Failed to load changes</p>
                     </td>
@@ -429,7 +600,7 @@
         if (totalChanges === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="7" class="text-center py-8 text-gray-400">
+                    <td colspan="9" class="text-center py-8 text-slate-500">
                         <i class="fas fa-inbox text-3xl mb-2"></i>
                         <p>No changes in this period</p>
                     </td>
@@ -440,35 +611,35 @@
         }
 
         tbody.innerHTML = pageData.map(entry => `
-            <tr class="hover:bg-gray-800/50 transition-colors">
-                <td class="py-3 pr-4">
-                    <span class="font-mono text-blue-400">${escapeHtml(entry.change_id)}</span>
+            <tr class="transition-colors">
+                <td>
+                    <span class="change-id font-mono">${escapeHtml(entry.change_id)}</span>
                 </td>
-                <td class="py-3 pr-4">
-                    <span class="text-xs bg-gray-700 px-2 py-1 rounded">${escapeHtml(entry.change_type || 'unknown')}</span>
+                <td>
+                    <span class="change-type bg-slate-100 text-slate-700 px-2 py-1 rounded">${escapeHtml(entry.change_type || 'unknown')}</span>
                 </td>
-                <td class="py-3 pr-4 text-gray-300">
+                <td>
                     ${escapeHtml(entry.application || entry.service_name || '-')}
                 </td>
-                <td class="py-3 pr-4 text-gray-400 text-xs">
+                <td class="cell-muted">
                     ${(entry.associated_cis && entry.associated_cis.length > 0)
-                ? entry.associated_cis.slice(0, 2).map(ci => `<span class="bg-gray-700 px-1 py-0.5 rounded mr-1">${escapeHtml(ci)}</span>`).join('') + (entry.associated_cis.length > 2 ? `<span class="text-gray-500">+${entry.associated_cis.length - 2}</span>` : '')
+                ? entry.associated_cis.slice(0, 2).map(ci => `<span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded mr-1">${escapeHtml(ci)}</span>`).join('') + (entry.associated_cis.length > 2 ? `<span class="text-slate-500">+${entry.associated_cis.length - 2}</span>` : '')
                 : '-'}
                 </td>
-                <td class="py-3 pr-4 text-gray-400 max-w-xs truncate" title="${escapeHtml(entry.description || '')}">
+                <td class="cell-muted max-w-xs truncate" title="${escapeHtml(entry.description || '')}">
                     ${escapeHtml((entry.description || 'No description').substring(0, 50))}${(entry.description || '').length > 50 ? '...' : ''}
                 </td>
-                <td class="py-3 pr-4 text-gray-500 text-xs whitespace-nowrap">
+                <td class="cell-muted whitespace-nowrap">
                     ${entry.start_time ? formatDateTime(entry.start_time) : formatDateTime(entry.timestamp)}
                 </td>
-                <td class="py-3 pr-4 text-gray-500 text-xs whitespace-nowrap">
+                <td class="cell-muted whitespace-nowrap">
                     ${entry.end_time ? formatDateTime(entry.end_time) : '-'}
                 </td>
-                <td class="py-3 pr-4 text-center">
+                <td class="text-center">
                     <span class="inline-block w-3 h-3 rounded-full ${getImpactDot(entry.impact_level)}" title="${entry.impact_level || 'none'}"></span>
                 </td>
-                <td class="py-3 text-center">
-                    <span class="${(entry.incidents_after || 0) > 0 ? 'text-yellow-400' : 'text-gray-500'}">${entry.incidents_after || 0}</span>
+                <td class="text-center">
+                    <span class="font-medium ${(entry.incidents_after || 0) > 0 ? 'text-amber-600' : 'text-slate-500'}">${entry.incidents_after || 0}</span>
                 </td>
             </tr>
         `).join('');
@@ -507,10 +678,8 @@
         const container = document.getElementById('itsmList');
 
         try {
-            const res = await apiCall('/api/itsm/integrations');
-            if (!res.ok) throw new Error('Failed to load');
-
-            const integrations = await res.json();
+            const integrations = await apiCall('/api/itsm/integrations');
+            if (!integrations) return;
 
             if (integrations.length === 0) {
                 container.innerHTML = `
@@ -614,10 +783,8 @@
         showToast('Loading integration...', 'info');
 
         try {
-            const res = await apiCall(`/api/itsm/integrations/${id}`);
-            if (!res.ok) throw new Error('Failed to load');
-
-            const integration = await res.json();
+            const integration = await apiCall(`/api/itsm/integrations/${id}`);
+            if (!integration) return;
 
             // Populate form fields
             document.getElementById('itsmName').value = integration.name;
@@ -824,16 +991,11 @@
         };
 
         try {
-            const res = await apiCall('/api/itsm/test-config', {
-                method: 'POST',
-                body: JSON.stringify({
-                    name: document.getElementById('itsmName').value || 'Test',
-                    connector_type: 'generic_api',
-                    config: config
-                })
+            const result = await apiCall('/api/itsm/test-config', 'POST', {
+                name: document.getElementById('itsmName').value || 'Test',
+                connector_type: 'generic_api',
+                config: config
             });
-
-            const result = await res.json();
             const data = result.sample_data || {};
 
             if (result.success) {
@@ -1009,16 +1171,11 @@
                 : '/api/itsm/integrations';
             const method = editingIntegrationId ? 'PUT' : 'POST';
 
-            const res = await apiCall(url, {
-                method: method,
-                body: JSON.stringify({
-                    name: document.getElementById('itsmName').value,
-                    connector_type: 'generic_api',
-                    config: config
-                })
+            await apiCall(url, method, {
+                name: document.getElementById('itsmName').value,
+                connector_type: 'generic_api',
+                config: config
             });
-
-            if (!res.ok) throw new Error('Failed to save');
 
             showToast(editingIntegrationId ? 'Integration updated!' : 'Integration saved!', 'success');
             hideITSMModal();
@@ -1032,10 +1189,7 @@
         showToast('Starting sync...', 'info');
 
         try {
-            const res = await apiCall(`/api/itsm/integrations/${id}/sync`, { method: 'POST' });
-            if (!res.ok) throw new Error('Sync failed');
-
-            const result = await res.json();
+            const result = await apiCall(`/api/itsm/integrations/${id}/sync`, 'POST');
             showToast(`Synced: ${result.created} new, ${result.updated} updated`, 'success');
             loadAllData();
         } catch (e) {
@@ -1047,8 +1201,7 @@
         if (!confirm('Delete this integration?')) return;
 
         try {
-            const res = await apiCall(`/api/itsm/integrations/${id}`, { method: 'DELETE' });
-            if (!res.ok) throw new Error('Delete failed');
+            await apiCall(`/api/itsm/integrations/${id}`, 'DELETE');
 
             showToast('Integration deleted', 'success');
             loadITSMIntegrations();

@@ -1,10 +1,138 @@
 {% extends "base.html" %}
 {% set active_page = 'datasources' %}
 
-{% block title %}Prometheus Datasources{% endblock %}
+{% block title %}Prometheus Datasources - AIOps Platform{% endblock %}
+
+{% block breadcrumbs %}
+<span class="mx-2">/</span>
+<span class="text-gray-200">Datasources</span>
+{% endblock %}
+
+{% block header_title %}
+<i class="fas fa-database text-blue-400"></i>
+<span class="text-sm font-semibold text-white tracking-tight">Prometheus Datasources</span>
+{% endblock %}
+
+{% block header_actions %}
+{{ super() }}
+{% endblock %}
 
 {% block head %}
 <style>
+    .ds-action-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 16px;
+        font-size: 13px;
+        font-weight: 600;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: none;
+        text-decoration: none;
+        white-space: nowrap;
+    }
+    .ds-action-primary {
+        background: linear-gradient(135deg, #3b82f6, #2563eb);
+        color: white;
+        box-shadow: 0 2px 6px rgba(59, 130, 246, 0.25);
+    }
+    .ds-action-primary:hover {
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        box-shadow: 0 4px 14px rgba(59, 130, 246, 0.35);
+        transform: translateY(-1px);
+    }
+    .ds-search-input {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 8px 14px 8px 36px;
+        font-size: 13px;
+        color: #1e293b;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+        outline: none;
+    }
+    .ds-search-input:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+    }
+    .ds-search-wrapper .search-icon {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #94a3b8;
+        font-size: 13px;
+    }
+    .ds-dropdown {
+        position: relative;
+        min-width: 140px;
+    }
+    .ds-dropdown-trigger {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 8px 12px 8px 14px;
+        font-size: 13px;
+        font-weight: 500;
+        color: #475569;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+        user-select: none;
+        white-space: nowrap;
+    }
+    .ds-dropdown.open .ds-dropdown-trigger {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+    }
+    .ds-dropdown-trigger .ds-dd-chevron {
+        width: 14px;
+        height: 14px;
+        color: #94a3b8;
+        transition: transform 0.2s ease;
+    }
+    .ds-dropdown.open .ds-dd-chevron { transform: rotate(180deg); }
+    .ds-dropdown-menu {
+        display: none;
+        position: absolute;
+        top: calc(100% + 6px);
+        left: 0;
+        min-width: 100%;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.06);
+        z-index: 9999;
+        padding: 5px;
+        overflow: hidden;
+    }
+    .ds-dropdown.open .ds-dropdown-menu { display: block; }
+    .ds-dropdown-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        font-size: 13px;
+        font-weight: 500;
+        color: #475569;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.12s ease;
+        white-space: nowrap;
+    }
+    .ds-dropdown-item:hover { background: #f1f5f9; color: #1e293b; }
+    .ds-dropdown-item.selected { background: rgba(59, 130, 246, 0.08); color: #2563eb; }
+    .ds-dropdown-item .ds-dd-check { opacity: 0; font-size: 11px; color: #3b82f6; }
+    .ds-dropdown-item.selected .ds-dd-check { opacity: 1; }
+    .ds-dropdown select { display: none; }
+    .ds-modal-overlay { z-index: 2000; }
     .status-indicator {
         width: 8px;
         height: 8px;
@@ -12,86 +140,151 @@
         display: inline-block;
         margin-right: 4px;
     }
-
-    .status-enabled {
-        background-color: #10b981;
-    }
-
-    .status-disabled {
-        background-color: #ef4444;
-    }
-
-    .badge-default {
-        background-color: #3b82f6;
-        color: white;
-        padding: 2px 8px;
-        border-radius: 4px;
-        font-size: 0.75rem;
-    }
+    .status-enabled { background-color: #10b981; }
+    .status-disabled { background-color: #94a3b8; }
+    .badge { padding: 3px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: 600; }
+    .badge-default { background-color: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; }
+    .badge-enabled { background-color: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; }
+    .badge-disabled { background-color: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="space-y-4">
-    <!-- Enterprise Standard Toolbar -->
-    <div class="dashboard-header"
-        style="padding: 12px; background: #16171b; border-bottom: 1px solid rgba(255,255,255,0.05); border-radius: 8px;">
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <!-- Left: Breadcrumbs & Title -->
-            <div class="flex flex-col min-w-0">
-                <nav class="flex items-center text-xs text-gray-400 mb-1">
-                    <a href="/" class="hover:text-blue-400 transition-colors">Home</a>
-                    <span class="mx-2">/</span>
-                    <a href="/settings" class="hover:text-blue-400 transition-colors">Settings</a>
-                    <span class="mx-2">/</span>
-                    <span class="text-gray-200">Datasources</span>
-                </nav>
-                <div class="flex items-center gap-3">
-                    <h1 class="text-xl font-bold text-white tracking-tight truncate">Prometheus Datasources</h1>
+    <!-- Toolbar -->
+    <div class="card p-4" style="overflow: visible; position: relative; z-index: 200;">
+        <div class="flex flex-wrap gap-4 items-center justify-between">
+            <div class="flex flex-wrap gap-3 items-center flex-1">
+                <div class="ds-search-wrapper flex-1 min-w-[200px]">
+                    <i class="fas fa-search search-icon"></i>
+                    <input type="text" id="search-datasources" placeholder="Search datasources..."
+                        onkeyup="filterDatasources()" class="ds-search-input w-full">
                 </div>
-                <p class="text-xs text-gray-500 mt-1">Manage Prometheus server connections</p>
+                <div class="ds-dropdown" id="statusDropdown">
+                    <select id="status-filter">
+                        <option value="">All Status</option>
+                        <option value="enabled">Enabled</option>
+                        <option value="disabled">Disabled</option>
+                    </select>
+                    <div class="ds-dropdown-trigger" onclick="toggleDsDropdown('statusDropdown')">
+                        <div class="flex items-center gap-2">
+                            <i class="fas fa-circle-dot" style="font-size: 11px; color: #94a3b8;"></i>
+                            <span class="ds-dd-label">All Status</span>
+                        </div>
+                        <svg class="ds-dd-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </div>
+                    <div class="ds-dropdown-menu">
+                        <div class="ds-dropdown-item selected" data-value="" onclick="selectDsOption('statusDropdown','','All Status')">
+                            <i class="fas fa-check ds-dd-check"></i> All Status
+                        </div>
+                        <div class="ds-dropdown-item" data-value="enabled" onclick="selectDsOption('statusDropdown','enabled','Enabled')">
+                            <i class="fas fa-check ds-dd-check"></i> Enabled
+                        </div>
+                        <div class="ds-dropdown-item" data-value="disabled" onclick="selectDsOption('statusDropdown','disabled','Disabled')">
+                            <i class="fas fa-check ds-dd-check"></i> Disabled
+                        </div>
+                    </div>
+                </div>
             </div>
-            <!-- Right: Actions -->
-            <div class="flex items-center gap-2">
-                <button onclick="showCreateModal()"
-                    class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded text-sm flex items-center gap-2 transition-colors">
+            <div class="flex items-center gap-2" style="position: relative; z-index: 210;">
+                <button onclick="showCreateModal()" class="ds-action-btn ds-action-primary">
                     <i class="fas fa-plus"></i>
-                    Add Datasource
+                    <span>Add Datasource</span>
                 </button>
             </div>
         </div>
     </div>
 
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="card p-4" style="border-left: 3px solid #3b82f6;">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center"
+                    style="background: linear-gradient(135deg, #eff6ff, #dbeafe);">
+                    <i class="fas fa-database" style="color: #2563eb; font-size: 14px;"></i>
+                </div>
+                <div>
+                    <p class="text-secondary text-xs" style="font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase;">Total</p>
+                    <p class="text-2xl font-bold text-primary" id="statTotal" style="line-height: 1.2;">0</p>
+                </div>
+            </div>
+        </div>
+        <div class="card p-4" style="border-left: 3px solid #10b981;">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center"
+                    style="background: linear-gradient(135deg, #ecfdf5, #d1fae5);">
+                    <i class="fas fa-check-circle" style="color: #059669; font-size: 14px;"></i>
+                </div>
+                <div>
+                    <p class="text-secondary text-xs" style="font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase;">Enabled</p>
+                    <p class="text-2xl font-bold" id="statEnabled" style="color: #059669; line-height: 1.2;">0</p>
+                </div>
+            </div>
+        </div>
+        <div class="card p-4" style="border-left: 3px solid #8b5cf6;">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center"
+                    style="background: linear-gradient(135deg, #f5f3ff, #ede9fe);">
+                    <i class="fas fa-star" style="color: #7c3aed; font-size: 14px;"></i>
+                </div>
+                <div>
+                    <p class="text-secondary text-xs" style="font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase;">Default</p>
+                    <p class="text-2xl font-bold" id="statDefault" style="color: #7c3aed; line-height: 1.2;">0</p>
+                </div>
+            </div>
+        </div>
+        <div class="card p-4" style="border-left: 3px solid #f59e0b;">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center"
+                    style="background: linear-gradient(135deg, #fffbeb, #fef3c7);">
+                    <i class="fas fa-lock" style="color: #d97706; font-size: 14px;"></i>
+                </div>
+                <div>
+                    <p class="text-secondary text-xs" style="font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase;">With Auth</p>
+                    <p class="text-2xl font-bold" id="statAuth" style="color: #d97706; line-height: 1.2;">0</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Datasources Table -->
-    <div class="bg-gray-800 rounded-lg shadow-lg overflow-hidden">
-        <table class="w-full">
-            <thead class="bg-gray-900">
-                <tr>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Name</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">URL</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Auth</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Status
-                    </th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Actions
-                    </th>
+    <div class="card overflow-hidden" id="tableContainer">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="bg-[#f8fafc] text-left text-[#64748b]" style="border-bottom: 1px solid #e2e8f0;">
+                    <th class="px-4 py-3 font-medium">Name</th>
+                    <th class="px-4 py-3 font-medium hidden md:table-cell">URL</th>
+                    <th class="px-4 py-3 font-medium">Auth</th>
+                    <th class="px-4 py-3 font-medium">Status</th>
+                    <th class="px-4 py-3 font-medium text-right">Actions</th>
                 </tr>
             </thead>
-            <tbody id="datasources-table" class="divide-y divide-gray-700">
+            <tbody id="datasources-table" class="text-[#334155]">
                 <!-- Populated by JavaScript -->
             </tbody>
         </table>
     </div>
+
+    <!-- Empty State -->
+    <div id="empty-state" class="hidden card p-12 text-center">
+        <i class="fas fa-database text-4xl text-secondary mb-4"></i>
+        <h3 class="text-lg font-medium text-primary mb-2">No Datasources Found</h3>
+        <p class="text-secondary mb-4">Add a Prometheus datasource to connect and query metrics.</p>
+        <button onclick="showCreateModal()" class="btn-primary px-4 py-2 rounded-lg">
+            <i class="fas fa-plus mr-2"></i>Add Datasource
+        </button>
+    </div>
 </div>
 
 <!-- Create/Edit Modal -->
-<div id="datasource-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
-    <div class="bg-gray-800 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div class="flex justify-between items-center mb-4">
-            <h2 id="modal-title" class="text-xl font-bold text-white">Add Datasource</h2>
-            <button onclick="closeModal()" class="text-gray-400 hover:text-white">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
+<div id="datasource-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden ds-modal-overlay flex items-center justify-center p-4">
+    <div class="card p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div class="flex justify-between items-center mb-6">
+            <h2 id="modal-title" class="text-xl font-bold text-primary">Add Datasource</h2>
+            <button onclick="closeModal()" class="text-secondary hover:text-primary">
+                <i class="fas fa-times text-xl"></i>
             </button>
         </div>
 
@@ -99,87 +292,77 @@
             <input type="hidden" id="datasource-id">
 
             <div class="space-y-4">
-                <!-- Name -->
                 <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-1">Name *</label>
+                    <label class="block text-secondary text-sm mb-1">Name *</label>
                     <input type="text" id="datasource-name" required
-                        class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                        class="input-field w-full px-3 py-2 rounded text-sm">
                 </div>
 
-                <!-- URL -->
                 <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-1">URL *</label>
+                    <label class="block text-secondary text-sm mb-1">URL *</label>
                     <input type="url" id="datasource-url" required placeholder="http://prometheus:9090"
-                        class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
-                    <p class="text-xs text-gray-400 mt-1">Full URL including protocol (http:// or https://)</p>
+                        class="input-field w-full px-3 py-2 rounded text-sm">
+                    <p class="text-xs text-secondary mt-1">Full URL including protocol (http:// or https://)</p>
                 </div>
 
-                <!-- Description -->
                 <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-1">Description</label>
+                    <label class="block text-secondary text-sm mb-1">Description</label>
                     <textarea id="datasource-description" rows="2"
-                        class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"></textarea>
+                        class="input-field w-full px-3 py-2 rounded text-sm resize-none"></textarea>
                 </div>
 
-                <!-- Authentication Type -->
                 <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-1">Authentication</label>
+                    <label class="block text-secondary text-sm mb-1">Authentication</label>
                     <select id="datasource-auth-type" onchange="toggleAuthFields()"
-                        class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                        class="input-field w-full px-3 py-2 rounded text-sm">
                         <option value="none">None</option>
                         <option value="basic">Basic Auth</option>
                         <option value="bearer">Bearer Token</option>
                     </select>
                 </div>
 
-                <!-- Basic Auth Fields -->
                 <div id="basic-auth-fields" class="hidden space-y-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-1">Username</label>
-                        <input type="text" id="datasource-username"
-                            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                        <label class="block text-secondary text-sm mb-1">Username</label>
+                        <input type="text" id="datasource-username" class="input-field w-full px-3 py-2 rounded text-sm">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-1">Password</label>
+                        <label class="block text-secondary text-sm mb-1">Password</label>
                         <input type="password" id="datasource-password" autocomplete="new-password"
-                            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                            class="input-field w-full px-3 py-2 rounded text-sm">
                     </div>
                 </div>
 
-                <!-- Bearer Token Field -->
                 <div id="bearer-token-field" class="hidden">
-                    <label class="block text-sm font-medium text-gray-300 mb-1">Bearer Token</label>
+                    <label class="block text-secondary text-sm mb-1">Bearer Token</label>
                     <input type="password" id="datasource-bearer-token"
-                        class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                        class="input-field w-full px-3 py-2 rounded text-sm">
                 </div>
 
-                <!-- Timeout -->
                 <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-1">Timeout (seconds)</label>
+                    <label class="block text-secondary text-sm mb-1">Timeout (seconds)</label>
                     <input type="number" id="datasource-timeout" value="30" min="5" max="300"
-                        class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                        class="input-field w-full px-3 py-2 rounded text-sm">
                 </div>
 
-                <!-- Flags -->
-                <div class="flex gap-4">
-                    <label class="flex items-center text-gray-300">
-                        <input type="checkbox" id="datasource-is-default" class="mr-2">
+                <div class="flex gap-4 flex-wrap">
+                    <label class="flex items-center text-secondary text-sm cursor-pointer">
+                        <input type="checkbox" id="datasource-is-default" class="mr-2 h-4 w-4">
                         Set as Default
                     </label>
-                    <label class="flex items-center text-gray-300">
-                        <input type="checkbox" id="datasource-is-enabled" checked class="mr-2">
+                    <label class="flex items-center text-secondary text-sm cursor-pointer">
+                        <input type="checkbox" id="datasource-is-enabled" checked class="mr-2 h-4 w-4">
                         Enabled
                     </label>
                 </div>
             </div>
 
-            <div class="flex justify-end gap-2 mt-6">
-                <button type="button" onclick="closeModal()"
-                    class="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded text-white">
+            <div class="flex justify-end gap-3 mt-6">
+                <button type="button" onclick="closeModal()" class="btn-secondary px-4 py-2 rounded-lg">
                     Cancel
                 </button>
-                <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white">
-                    Save
+                <button type="submit" class="btn-primary px-4 py-2 rounded-lg">
+                    <i class="fas fa-save mr-2"></i>Save
                 </button>
             </div>
         </form>
@@ -188,76 +371,121 @@
 
 <script>
     let datasources = [];
+    let filteredDatasources = [];
+
+    function toggleDsDropdown(id) {
+        const dd = document.getElementById(id);
+        const wasOpen = dd && dd.classList.contains('open');
+        document.querySelectorAll('.ds-dropdown.open').forEach(d => d.classList.remove('open'));
+        if (dd && !wasOpen) dd.classList.add('open');
+    }
+    function selectDsOption(dropdownId, value, label) {
+        const dd = document.getElementById(dropdownId);
+        if (!dd) return;
+        const select = dd.querySelector('select');
+        const trigger = dd.querySelector('.ds-dd-label');
+        if (select) select.value = value;
+        if (trigger) trigger.textContent = label;
+        dd.querySelectorAll('.ds-dropdown-item').forEach(item => {
+            item.classList.toggle('selected', item.dataset.value === value);
+        });
+        dd.classList.remove('open');
+        filterDatasources();
+    }
+    document.addEventListener('click', function (e) {
+        if (!e.target.closest('.ds-dropdown')) {
+            document.querySelectorAll('.ds-dropdown.open').forEach(d => d.classList.remove('open'));
+        }
+    });
 
     async function loadDatasources() {
         try {
-            const response = await apiCall('/api/datasources/');
+            const response = await fetch('/api/datasources/');
+            if (!response.ok) throw new Error('Failed to load datasources');
             datasources = await response.json();
-            renderDatasources();
+            updateStats();
+            filterDatasources();
         } catch (error) {
             console.error('Failed to load datasources:', error);
             showToast('Failed to load datasources', 'error');
         }
     }
 
+    function updateStats() {
+        document.getElementById('statTotal').textContent = datasources.length;
+        document.getElementById('statEnabled').textContent = datasources.filter(d => d.is_enabled).length;
+        document.getElementById('statDefault').textContent = datasources.filter(d => d.is_default).length;
+        document.getElementById('statAuth').textContent = datasources.filter(d => d.auth_type && d.auth_type !== 'none').length;
+    }
+
+    function filterDatasources() {
+        const search = document.getElementById('search-datasources').value.toLowerCase();
+        const statusFilter = document.getElementById('status-filter').value;
+
+        filteredDatasources = datasources.filter(ds => {
+            const matchesSearch = !search ||
+                ds.name.toLowerCase().includes(search) ||
+                (ds.url && ds.url.toLowerCase().includes(search)) ||
+                (ds.description && ds.description.toLowerCase().includes(search));
+            const matchesStatus = !statusFilter ||
+                (statusFilter === 'enabled' && ds.is_enabled) ||
+                (statusFilter === 'disabled' && !ds.is_enabled);
+            return matchesSearch && matchesStatus;
+        });
+        renderDatasources();
+    }
+
     function renderDatasources() {
         const tbody = document.getElementById('datasources-table');
+        const tableContainer = document.getElementById('tableContainer');
+        const emptyState = document.getElementById('empty-state');
 
-        if (datasources.length === 0) {
-            tbody.innerHTML = `
-            <tr>
-                <td colspan="5" class="px-6 py-8 text-center text-gray-400">
-                    No datasources configured. Click "Add Datasource" to get started.
-                </td>
-            </tr>
-        `;
+        if (filteredDatasources.length === 0) {
+            tableContainer.classList.add('hidden');
+            emptyState.classList.remove('hidden');
             return;
         }
 
-        tbody.innerHTML = datasources.map(ds => `
-        <tr class="hover:bg-gray-700">
-            <td class="px-6 py-4">
+        tableContainer.classList.remove('hidden');
+        emptyState.classList.add('hidden');
+
+        tbody.innerHTML = filteredDatasources.map(ds => `
+        <tr class="border-b border-[#f1f5f9] hover:bg-[#f8fafc] transition-colors">
+            <td class="px-4 py-3">
                 <div class="flex items-center gap-2">
-                    <span class="text-white font-medium">${escapeHtml(ds.name)}</span>
-                    ${ds.is_default ? '<span class="badge-default">DEFAULT</span>' : ''}
+                    <span class="font-medium text-[#1e40af]">${escapeHtml(ds.name)}</span>
+                    ${ds.is_default ? '<span class="badge badge-default">DEFAULT</span>' : ''}
                 </div>
-                ${ds.description ? `<div class="text-xs text-gray-400 mt-1">${escapeHtml(ds.description)}</div>` : ''}
+                ${ds.description ? `<div class="text-xs text-[#94a3b8] mt-0.5 truncate max-w-xs">${escapeHtml(ds.description)}</div>` : ''}
             </td>
-            <td class="px-6 py-4 text-gray-300">
-                <code class="text-sm">${escapeHtml(ds.url)}</code>
+            <td class="px-4 py-3 text-[#475569] hidden md:table-cell">
+                <code class="text-xs bg-[#f1f5f9] px-1.5 py-0.5 rounded">${escapeHtml(ds.url)}</code>
             </td>
-            <td class="px-6 py-4">
-                <span class="text-sm ${ds.auth_type === 'none' ? 'text-gray-400' : 'text-blue-400'}">
+            <td class="px-4 py-3">
+                <span class="text-sm ${ds.auth_type === 'none' ? 'text-[#94a3b8]' : 'text-[#2563eb]'}">
                     ${ds.auth_type === 'none' ? 'None' : ds.auth_type === 'basic' ? 'Basic Auth' : 'Bearer Token'}
                 </span>
             </td>
-            <td class="px-6 py-4">
-                <div class="flex items-center">
-                    <span class="status-indicator ${ds.is_enabled ? 'status-enabled' : 'status-disabled'}"></span>
-                    <span class="text-sm ${ds.is_enabled ? 'text-green-400' : 'text-red-400'}">
-                        ${ds.is_enabled ? 'Enabled' : 'Disabled'}
-                    </span>
-                </div>
+            <td class="px-4 py-3">
+                <span class="status-indicator ${ds.is_enabled ? 'status-enabled' : 'status-disabled'}"></span>
+                <span class="badge ${ds.is_enabled ? 'badge-enabled' : 'badge-disabled'}">
+                    ${ds.is_enabled ? 'Enabled' : 'Disabled'}
+                </span>
             </td>
-            <td class="px-6 py-4">
-                <div class="flex gap-2">
-                    <button onclick="testConnection('${ds.id}')" class="text-blue-400 hover:text-blue-300" title="Test Connection">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-                        </svg>
+            <td class="px-4 py-3 text-right">
+                <div class="flex justify-end gap-1">
+                    <button onclick="testConnection('${ds.id}')" class="p-1.5 hover:bg-[#f1f5f9] rounded transition-colors" style="color: #3b82f6;" title="Test Connection">
+                        <i class="fas fa-bolt"></i>
                     </button>
-                    <button onclick="editDatasource('${ds.id}')" class="text-gray-400 hover:text-white" title="Edit">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                        </svg>
+                    <button onclick="editDatasource('${ds.id}')" class="p-1.5 hover:bg-[#f1f5f9] rounded transition-colors" style="color: #059669;" title="Edit">
+                        <i class="fas fa-edit"></i>
                     </button>
-                    <button onclick="deleteDatasource('${ds.id}', '${escapeHtml(ds.name)}')"
-                            class="text-red-400 hover:text-red-300"
+                    <button onclick="deleteDatasource('${ds.id}', ${JSON.stringify(ds.name)})"
+                            class="p-1.5 hover:bg-[#fef2f2] rounded transition-colors ${ds.is_default ? 'opacity-50 cursor-not-allowed' : ''}"
+                            style="color: #dc2626;"
                             title="Delete"
-                            ${ds.is_default ? 'disabled opacity-50' : ''}>
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                        </svg>
+                            ${ds.is_default ? 'disabled' : ''}>
+                        <i class="fas fa-trash"></i>
                     </button>
                 </div>
             </td>
@@ -344,7 +572,7 @@
             const url = id ? `/api/datasources/${id}` : '/api/datasources/';
             const method = id ? 'PUT' : 'POST';
 
-            const response = await apiCall(url, {
+            const response = await fetch(url, {
                 method: method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
@@ -370,7 +598,7 @@
         }
 
         try {
-            const response = await apiCall(`/api/datasources/${id}`, {
+            const response = await fetch(`/api/datasources/${id}`, {
                 method: 'DELETE'
             });
 
@@ -391,7 +619,7 @@
         try {
             showToast('Testing connection...', 'info');
 
-            const response = await apiCall(`/api/datasources/${id}/test`, {
+            const response = await fetch(`/api/datasources/${id}/test`, {
                 method: 'POST'
             });
 
@@ -414,7 +642,16 @@
         return div.innerHTML;
     }
 
-    // Load datasources on page load
     document.addEventListener('DOMContentLoaded', loadDatasources);
+
+    if (typeof showToast === 'undefined') {
+        window.showToast = function (message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `fixed bottom-4 right-4 px-4 py-3 rounded-lg shadow-lg z-[10000] flex items-center gap-2 ${type === 'success' ? 'bg-green-600' : type === 'error' ? 'bg-red-600' : 'bg-blue-600'}`;
+            div.innerHTML = `<i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i><span>${escapeHtml(message)}</span>`;
+            document.body.appendChild(div);
+            setTimeout(() => div.remove(), 3000);
+        };
+    }
 </script>
 {% endblock %}

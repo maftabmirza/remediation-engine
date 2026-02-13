@@ -18,3 +18,7 @@ fix_jira_config.py
 get_create_meta.ps1
 get_issue_types.ps1
 test_jira.ps1
+
+.vs/
+*.bak
+*.bak2

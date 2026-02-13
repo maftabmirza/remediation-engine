@@ -26,6 +26,11 @@
                     <i data-feather="git-merge"></i>
                     <span class="nav-text">Change Correlation</span>
                 </li>
+                <li class="nav-item submenu-item {{ 'active' if active_page == 'incidents' else '' }}"
+                    onclick="window.location.href='/incidents'">
+                    <i data-feather="alert-triangle"></i>
+                    <span class="nav-text">Incidents</span>
+                </li>
                 <li class="nav-item submenu-item" onclick="window.location.href='/dashboards'">
                     <i data-feather="layout"></i>
                     <span class="nav-text">Dashboards</span>

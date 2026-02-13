@@ -26,21 +26,43 @@
                     <span>New Session</span>
                 </button>
 
-                <!-- LLM Model Selector -->
-                <div class="inq-llm-selector" id="llmSelector">
-                    <div class="inq-llm-selected" onclick="toggleModelDropdown()">
-                        <span class="inq-model-dot"></span>
-                        <span class="inq-llm-text" id="currentModelName">Select Model</span>
-                        <i data-feather="chevron-down" class="inq-dropdown-icon"></i>
-                    </div>
-                    <div class="inq-llm-options" id="modelListContainer" style="display: none;">
-                        <!-- Options injected by populateModelDropdown -->
-                    </div>
-                    <!-- Hidden dropdown for old logic compatibility -->
-                    <div id="modelDropdown" class="hidden"></div>
-                </div>
             </div>
             <div class="inq-chat-header-right">
+                <!-- LLM Model Selector Icon -->
+                <div class="inq-llm-icon-wrapper" id="llmSelector" style="position: relative;">
+                    <button class="inq-icon-btn inq-llm-icon-btn" onclick="toggleModelDropdown()" id="llmIconBtn" title="LLM Provider">
+                        <span class="inq-llm-icon-status inq-llm-icon-connecting" id="llmIconStatus">
+                            <i data-feather="zap" style="width: 14px; height: 14px;"></i>
+                        </span>
+                        <span class="inq-llm-status-dot" id="llmStatusDot" title="Connecting"></span>
+                    </button>
+                    <div class="hidden inq-llm-dropdown-panel" id="modelListContainer">
+                        <div class="inq-llm-dropdown-header">
+                            <i data-feather="zap" style="width: 13px; height: 13px; color: #3b82f6;"></i>
+                            <span>LLM Provider</span>
+                            <span class="inq-llm-status-badge" id="llmStatusBadge">Connecting</span>
+                        </div>
+                        <div class="inq-llm-provider-list" id="llmProviderList">
+                            <!-- Options injected by populateModelDropdown -->
+                        </div>
+                    </div>
+                    <div id="modelDropdown" class="hidden"></div>
+                </div>
+                <div class="inq-session-dropdown-wrapper" style="position: relative;">
+                    <button onclick="toggleSessionDropdown()" id="sessionDropdownBtn"
+                        class="inq-icon-btn" title="Chat History">
+                        <i data-feather="clock" style="width: 14px; height: 14px;"></i>
+                    </button>
+                    <div id="sessionDropdown" class="hidden inq-session-dropdown-panel">
+                        <div class="inq-session-dropdown-header">
+                            <i data-feather="message-square" style="width: 13px; height: 13px; color: #3b82f6;"></i>
+                            <span>Chat History</span>
+                        </div>
+                        <div id="sessionListContainer" class="inq-session-list">
+                            <div class="inq-session-empty">No sessions yet</div>
+                        </div>
+                    </div>
+                </div>
                 <button onclick="adjustChatFont(-1)" class="inq-icon-btn" title="Decrease Font">
                     <i data-feather="minus" style="width: 14px; height: 14px;"></i>
                 </button>
@@ -163,19 +185,6 @@
         </div>
     </div>
 </main>
-
-<!-- Session Dropdown -->
-<div id="sessionDropdown"
-    class="hidden absolute top-0 left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 min-w-[220px]">
-    <button onclick="createNewSession()"
-        style="width: 100%; text-align: left; padding: 10px 12px; font-size: 12px; color: #3b82f6; border: none; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; cursor: pointer; background: transparent; transition: background 0.2s;"
-        onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
-        <i class="fas fa-plus" style="margin-right: 8px;"></i>New Session
-    </button>
-    <div id="sessionListContainer" class="max-h-48 overflow-y-auto">
-        <div class="px-3 py-2 text-xs" style="color: #94a3b8;">No sessions yet</div>
-    </div>
-</div>
 
 {% endblock %}
 

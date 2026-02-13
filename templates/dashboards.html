@@ -1,160 +1,299 @@
 {% extends "base.html" %}
 {% set active_page = 'dashboards' %}
 
-{% block title %}Dashboards{% endblock %}
+{% block title %}Dashboard Library - AIOps Platform{% endblock %}
+
+{% block breadcrumbs %}
+<span class="mx-2">/</span>
+<span class="text-gray-200">Dashboards</span>
+{% endblock %}
+
+{% block header_title %}
+<i class="fas fa-th-large text-blue-400"></i>
+<span class="text-sm font-semibold text-white tracking-tight">Dashboard Library</span>
+{% endblock %}
+
+{% block header_actions %}
+{{ super() }}
+{% endblock %}
 
 {% block head %}
 <style>
-    /* Grafana-aligned Dashboard Card */
-    .dashboard-card {
-        background-color: #181b1f;
-        /* Grafana secondary bg */
-        border: 1px solid rgba(204, 204, 220, 0.12);
-        /* Grafana border */
-        border-radius: 4px;
-        /* Grafana uses 4px */
-        transition: transform 0.2s, box-shadow 0.2s;
+    /* Action Buttons - Same as Runbooks/Applications */
+    .dash-action-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 16px;
+        font-size: 13px;
+        font-weight: 600;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: none;
+        text-decoration: none;
+        white-space: nowrap;
+    }
+    .dash-action-primary {
+        background: linear-gradient(135deg, #3b82f6, #2563eb);
+        color: white;
+        box-shadow: 0 2px 6px rgba(59, 130, 246, 0.25);
+    }
+    .dash-action-primary:hover {
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        box-shadow: 0 4px 14px rgba(59, 130, 246, 0.35);
+        transform: translateY(-1px);
+    }
+    .dash-action-secondary {
+        background: #ffffff;
+        color: #475569;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    }
+    .dash-action-secondary:hover {
+        border-color: #cbd5e1;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+        background: #f8fafc;
+        transform: translateY(-1px);
     }
 
-    .dashboard-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-        border-color: rgba(204, 204, 220, 0.2);
+    /* Search Input - Same as Applications */
+    .dash-search-input {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 8px 14px 8px 36px;
+        font-size: 13px;
+        color: #1e293b;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+        outline: none;
+    }
+    .dash-search-input:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+    }
+    .dash-search-wrapper .search-icon {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #94a3b8;
+        font-size: 13px;
     }
 
-    /* Grafana-style Badges */
-    .badge {
-        padding: 2px 8px;
-        border-radius: 2px;
-        /* Grafana uses smaller radius */
-        font-size: 0.75rem;
+    /* Custom Dropdown */
+    .dash-dropdown {
+        position: relative;
+        min-width: 150px;
+    }
+    .dash-dropdown-trigger {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 8px 12px 8px 14px;
+        font-size: 13px;
         font-weight: 500;
+        color: #475569;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+        user-select: none;
+        white-space: nowrap;
     }
+    .dash-dropdown.open .dash-dropdown-trigger {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+    }
+    .dash-dropdown-trigger .dash-dd-chevron {
+        width: 14px;
+        height: 14px;
+        color: #94a3b8;
+        transition: transform 0.2s ease;
+    }
+    .dash-dropdown.open .dash-dd-chevron { transform: rotate(180deg); }
+    .dash-dropdown-menu {
+        display: none;
+        position: absolute;
+        top: calc(100% + 6px);
+        left: 0;
+        min-width: 100%;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.06);
+        z-index: 9999;
+        padding: 5px;
+        overflow: hidden;
+    }
+    .dash-dropdown.open .dash-dropdown-menu { display: block; }
+    .dash-dropdown-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        font-size: 13px;
+        font-weight: 500;
+        color: #475569;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.12s ease;
+        white-space: nowrap;
+    }
+    .dash-dropdown-item:hover { background: #f1f5f9; color: #1e293b; }
+    .dash-dropdown-item.selected { background: rgba(59, 130, 246, 0.08); color: #2563eb; }
+    .dash-dropdown-item .dash-dd-check { opacity: 0; font-size: 11px; color: #3b82f6; }
+    .dash-dropdown-item.selected .dash-dd-check { opacity: 1; }
+    .dash-dropdown select { display: none; }
 
-    .badge-home {
-        background-color: #3d71d9;
-        /* Grafana blue */
-        color: white;
+    /* Badges */
+    .badge {
+        padding: 3px 10px;
+        border-radius: 20px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
     }
-
-    .badge-favorite {
-        background-color: #eb7b18;
-        /* Grafana orange */
-        color: white;
-    }
-
-    .badge-public {
-        background-color: #1a7f4b;
-        /* Grafana green */
-        color: white;
-    }
+    .badge-home { background-color: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; }
+    .badge-favorite { background-color: #fffbeb; color: #d97706; border: 1px solid #fde68a; }
+    .badge-public { background-color: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; }
 
     .panel-item {
         cursor: pointer;
-        background-color: #181b1f;
-        border: 1px solid rgba(204, 204, 220, 0.12);
-        border-radius: 4px;
-        transition: background-color 0.2s, border-color 0.2s;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        transition: all 0.2s ease;
     }
-
-    .panel-item:hover {
-        background-color: #22252b;
-        border-color: rgba(110, 159, 255, 0.3);
-    }
-
+    .panel-item:hover { border-color: #cbd5e1; background: #f8fafc; }
     .panel-item.selected {
-        background-color: rgba(110, 159, 255, 0.15);
-        border-color: #6e9fff;
+        background: rgba(59, 130, 246, 0.08);
+        border-color: #3b82f6;
     }
-
-    /* Grafana-style Tags */
     .tag {
         display: inline-flex;
         align-items: center;
         gap: 4px;
         padding: 2px 8px;
-        background-color: #22252b;
-        /* Grafana tertiary bg */
-        border: 1px solid rgba(204, 204, 220, 0.12);
-        border-radius: 2px;
+        background: #f1f5f9;
+        border: 1px solid #e2e8f0;
+        border-radius: 20px;
         font-size: 0.75rem;
-        color: #ccccdc;
-        /* Grafana text */
+        color: #475569;
     }
-
-    .tag button {
-        background: none;
-        border: none;
-        color: #8e8e8e;
-        cursor: pointer;
-        padding: 0;
-        margin-left: 4px;
-    }
-
-    .tag button:hover {
-        color: #ff5286;
-        /* Grafana red */
-    }
+    .dash-modal-overlay { z-index: 2000; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="space-y-4">
-    <!-- Enterprise Standard Toolbar -->
-    <div class="dashboard-header"
-        style="padding: 12px; background: #16171b; border-bottom: 1px solid rgba(255,255,255,0.05);">
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <!-- Left: Breadcrumbs & Title -->
-            <div class="flex flex-col min-w-0">
-                <!-- Breadcrumbs -->
-                <nav class="flex items-center text-xs text-gray-400 mb-1">
-                    <a href="/" class="hover:text-blue-400 transition-colors">Home</a>
-                    <span class="mx-2">/</span>
-                    <span class="text-gray-200">Dashboards</span>
-                </nav>
-                <div class="flex items-center gap-3">
-                    <h1 class="text-xl font-bold text-white tracking-tight truncate">Dashboard Library</h1>
+    <!-- Toolbar with Filters and Actions -->
+    <div class="card p-4" style="overflow: visible; position: relative; z-index: 200;">
+        <div class="flex flex-wrap gap-4 items-center justify-between">
+            <div class="flex flex-wrap gap-3 items-center flex-1">
+                <div class="dash-search-wrapper flex-1 min-w-[200px]">
+                    <i class="fas fa-search search-icon"></i>
+                    <input type="text" id="search-dashboards" placeholder="Search dashboards..."
+                        onkeyup="filterDashboards()" class="dash-search-input w-full">
                 </div>
-                <p class="text-xs text-gray-500 mt-1">Manage and organize your data visualizations</p>
+                <div class="dash-dropdown" id="tagDropdown">
+                    <select id="tag-filter" onchange="filterDashboards()">
+                        <option value="">All Tags</option>
+                    </select>
+                    <div class="dash-dropdown-trigger" onclick="toggleDashDropdown('tagDropdown')">
+                        <div class="flex items-center gap-2">
+                            <i class="fas fa-tags" style="font-size: 11px; color: #94a3b8;"></i>
+                            <span class="dash-dd-label">All Tags</span>
+                        </div>
+                        <svg class="dash-dd-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </div>
+                    <div class="dash-dropdown-menu" id="tagDropdownMenu">
+                        <div class="dash-dropdown-item selected" data-value="" onclick="selectDashOption('tagDropdown','','All Tags')">
+                            <i class="fas fa-check dash-dd-check" style="opacity:0"></i>
+                            All Tags
+                        </div>
+                    </div>
+                </div>
+                <label class="flex items-center text-[#475569] text-sm cursor-pointer">
+                    <input type="checkbox" id="favorites-only" onchange="filterDashboards()" class="mr-2 h-4 w-4">
+                    Favorites Only
+                </label>
             </div>
-
-            <!-- Right: Actions -->
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2" style="position: relative; z-index: 210;">
                 <button onclick="showCreateDashboardModal()"
-                    class="bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded text-white text-sm flex items-center gap-2 transition-colors">
+                    class="dash-action-btn dash-action-primary">
                     <i class="fas fa-plus"></i>
-                    New Dashboard
+                    <span>New Dashboard</span>
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- Filters -->
-    <div class="card p-4">
-        <div class="flex gap-4 mb-3">
-            <input type="text" id="search-dashboards" placeholder="Search dashboards..." onkeyup="filterDashboards()"
-                class="flex-1 bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500 text-sm">
-            <select id="tag-filter" onchange="filterDashboards()"
-                class="bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500 text-sm">
-                <option value="">All Tags</option>
-                <!-- Populated dynamically -->
-            </select>
-            <label class="flex items-center text-gray-300 text-sm">
-                <input type="checkbox" id="favorites-only" onchange="filterDashboards()" class="mr-2">
-                Favorites Only
-            </label>
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="card p-4" style="border-left: 3px solid #3b82f6;">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center"
+                    style="background: linear-gradient(135deg, #eff6ff, #dbeafe);">
+                    <i class="fas fa-th-large" style="color: #2563eb; font-size: 14px;"></i>
+                </div>
+                <div>
+                    <p class="text-secondary text-xs" style="font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase;">Total Dashboards</p>
+                    <p class="text-2xl font-bold text-primary" id="statTotal" style="line-height: 1.2;">0</p>
+                </div>
+            </div>
         </div>
-        <div id="active-tag-filters" class="flex flex-wrap gap-2 hidden">
-            <!-- Active tag filters shown here -->
+        <div class="card p-4" style="border-left: 3px solid #f59e0b;">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center"
+                    style="background: linear-gradient(135deg, #fffbeb, #fef3c7);">
+                    <i class="fas fa-star" style="color: #d97706; font-size: 14px;"></i>
+                </div>
+                <div>
+                    <p class="text-secondary text-xs" style="font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase;">Favorites</p>
+                    <p class="text-2xl font-bold" id="statFavorites" style="color: #d97706; line-height: 1.2;">0</p>
+                </div>
+            </div>
+        </div>
+        <div class="card p-4" style="border-left: 3px solid #10b981;">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center"
+                    style="background: linear-gradient(135deg, #ecfdf5, #d1fae5);">
+                    <i class="fas fa-chart-bar" style="color: #059669; font-size: 14px;"></i>
+                </div>
+                <div>
+                    <p class="text-secondary text-xs" style="font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase;">Total Panels</p>
+                    <p class="text-2xl font-bold" id="statPanels" style="color: #059669; line-height: 1.2;">0</p>
+                </div>
+            </div>
+        </div>
+        <div class="card p-4" style="border-left: 3px solid #8b5cf6;">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center"
+                    style="background: linear-gradient(135deg, #f5f3ff, #ede9fe);">
+                    <i class="fas fa-globe" style="color: #7c3aed; font-size: 14px;"></i>
+                </div>
+                <div>
+                    <p class="text-secondary text-xs" style="font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase;">Public</p>
+                    <p class="text-2xl font-bold" id="statPublic" style="color: #7c3aed; line-height: 1.2;">0</p>
+                </div>
+            </div>
         </div>
     </div>
 
     <!-- Dashboards Table -->
-    <div class="card overflow-hidden">
+    <div class="card overflow-hidden" id="tableContainer">
         <table class="w-full text-sm">
             <thead>
-                <tr class="bg-[#181b1f] text-left text-[#8e8e8e]"
-                    style="border-bottom: 1px solid rgba(204, 204, 220, 0.07);">
+                <tr class="bg-[#f8fafc] text-left text-[#64748b]" style="border-bottom: 1px solid #e2e8f0;">
                     <th class="px-4 py-3 font-medium w-10"></th>
                     <th class="px-4 py-3 font-medium">Name</th>
                     <th class="px-4 py-3 font-medium">Tags</th>
@@ -165,39 +304,38 @@
                     <th class="px-4 py-3 font-medium text-right">Actions</th>
                 </tr>
             </thead>
-            <tbody id="dashboards-tbody" class="text-[#ccccdc]">
+            <tbody id="dashboards-tbody" class="text-[#334155]">
                 <!-- Populated by JavaScript -->
             </tbody>
         </table>
     </div>
 
     <!-- Pagination -->
-    <div id="pagination-container" class="flex items-center justify-between mt-4 text-sm">
-        <div class="text-[#8e8e8e]">
+    <div id="pagination-container" class="flex items-center justify-between mt-4 text-sm hidden">
+        <div class="text-[#64748b]">
             Showing <span id="showing-start">0</span>-<span id="showing-end">0</span> of <span id="total-count">0</span>
             dashboards
         </div>
         <div class="flex items-center gap-2">
-            <button onclick="goToPage(1)" id="first-page-btn" disabled class="px-3 py-1.5 rounded"
-                style="border: 1px solid rgba(204, 204, 220, 0.07); background: #181b1f; color: #ccccdc;">
+            <button onclick="goToPage(1)" id="first-page-btn" disabled
+                class="px-3 py-1.5 rounded border border-[#e2e8f0] bg-white text-[#475569] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#f8fafc] transition-colors">
                 <i class="fas fa-angle-double-left"></i>
             </button>
-            <button onclick="goToPage(currentPage - 1)" id="prev-page-btn" disabled class="px-3 py-1.5 rounded"
-                style="border: 1px solid rgba(204, 204, 220, 0.07); background: #181b1f; color: #ccccdc;">
+            <button onclick="goToPage(currentPage - 1)" id="prev-page-btn" disabled
+                class="px-3 py-1.5 rounded border border-[#e2e8f0] bg-white text-[#475569] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#f8fafc] transition-colors">
                 <i class="fas fa-angle-left"></i>
             </button>
-            <span class="px-3 py-1.5 text-[#ccccdc]">Page <span id="current-page">1</span> of <span
-                    id="total-pages">1</span></span>
-            <button onclick="goToPage(currentPage + 1)" id="next-page-btn" disabled class="px-3 py-1.5 rounded"
-                style="border: 1px solid rgba(204, 204, 220, 0.07); background: #181b1f; color: #ccccdc;">
+            <span class="px-3 py-1.5 text-[#475569]">Page <span id="current-page">1</span> of <span id="total-pages">1</span></span>
+            <button onclick="goToPage(currentPage + 1)" id="next-page-btn" disabled
+                class="px-3 py-1.5 rounded border border-[#e2e8f0] bg-white text-[#475569] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#f8fafc] transition-colors">
                 <i class="fas fa-angle-right"></i>
             </button>
-            <button onclick="goToPage(totalPages)" id="last-page-btn" disabled class="px-3 py-1.5 rounded"
-                style="border: 1px solid rgba(204, 204, 220, 0.07); background: #181b1f; color: #ccccdc;">
+            <button onclick="goToPage(totalPages)" id="last-page-btn" disabled
+                class="px-3 py-1.5 rounded border border-[#e2e8f0] bg-white text-[#475569] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#f8fafc] transition-colors">
                 <i class="fas fa-angle-double-right"></i>
             </button>
-            <select id="page-size" onchange="changePageSize(this.value)" class="px-3 py-1.5 rounded"
-                style="border: 1px solid rgba(204, 204, 220, 0.07); background: #181b1f; color: #ccccdc;">
+            <select id="page-size" onchange="changePageSize(this.value)"
+                class="px-3 py-1.5 rounded border border-[#e2e8f0] bg-white text-[#475569] focus:outline-none focus:border-[#3b82f6]">
                 <option value="10">10 per page</option>
                 <option value="25" selected>25 per page</option>
                 <option value="50">50 per page</option>
@@ -206,22 +344,24 @@
         </div>
     </div>
 
-    <div id="no-dashboards" class="hidden bg-[#181b1f] rounded p-8 text-center"
-        style="border: 1px solid rgba(204, 204, 220, 0.07);">
-        <i class="fas fa-th-large text-4xl text-[#8e8e8e] mb-3"></i>
-        <p class="text-[#8e8e8e]">No dashboards found. Create your first dashboard to get started.</p>
+    <!-- Empty State -->
+    <div id="no-dashboards" class="hidden card p-12 text-center">
+        <i class="fas fa-th-large text-4xl text-secondary mb-4"></i>
+        <h3 class="text-lg font-medium text-primary mb-2">No Dashboards Found</h3>
+        <p class="text-secondary mb-4">Create your first dashboard to manage and organize your data visualizations.</p>
+        <button onclick="showCreateDashboardModal()" class="btn-primary px-4 py-2 rounded-lg">
+            <i class="fas fa-plus mr-2"></i>New Dashboard
+        </button>
     </div>
 </div>
 
 <!-- Create/Edit Dashboard Modal -->
-<div id="dashboard-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
-    <div class="bg-gray-800 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div class="flex justify-between items-center mb-4">
-            <h2 id="dashboard-modal-title" class="text-xl font-bold text-white">New Dashboard</h2>
-            <button onclick="closeDashboardModal()" class="text-gray-400 hover:text-white">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
+<div id="dashboard-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden dash-modal-overlay flex items-center justify-center p-4">
+    <div class="card p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div class="flex justify-between items-center mb-6">
+            <h2 id="dashboard-modal-title" class="text-xl font-bold text-primary">New Dashboard</h2>
+            <button onclick="closeDashboardModal()" class="text-secondary hover:text-primary">
+                <i class="fas fa-times text-xl"></i>
             </button>
         </div>
 
@@ -230,22 +370,22 @@
 
             <div class="space-y-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-1">Dashboard Name *</label>
+                    <label class="block text-secondary text-sm mb-1">Dashboard Name *</label>
                     <input type="text" id="dashboard-name" required
-                        class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                        class="input-field w-full px-3 py-2 rounded text-sm">
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-1">Description</label>
+                    <label class="block text-secondary text-sm mb-1">Description</label>
                     <textarea id="dashboard-description" rows="2"
-                        class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"></textarea>
+                        class="input-field w-full px-3 py-2 rounded text-sm resize-none"
+                        placeholder="Brief description of the dashboard..."></textarea>
                 </div>
 
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-1">Time Range</label>
-                        <select id="dashboard-time-range"
-                            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                        <label class="block text-secondary text-sm mb-1">Time Range</label>
+                        <select id="dashboard-time-range" class="input-field w-full px-3 py-2 rounded text-sm">
                             <option value="5m">5 minutes</option>
                             <option value="15m">15 minutes</option>
                             <option value="1h">1 hour</option>
@@ -256,26 +396,25 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-1">Refresh Interval (s)</label>
+                        <label class="block text-secondary text-sm mb-1">Refresh Interval (s)</label>
                         <input type="number" id="dashboard-refresh" value="60" min="5" max="3600"
-                            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                            class="input-field w-full px-3 py-2 rounded text-sm">
                     </div>
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-1">Folder</label>
+                    <label class="block text-secondary text-sm mb-1">Folder</label>
                     <input type="text" id="dashboard-folder" placeholder="Optional folder name"
-                        class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                        class="input-field w-full px-3 py-2 rounded text-sm">
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-1">Tags</label>
+                    <label class="block text-secondary text-sm mb-1">Tags</label>
                     <div class="flex gap-2 mb-2">
                         <input type="text" id="tag-input" placeholder="Add tag and press Enter"
-                            class="flex-1 bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                            class="flex-1 input-field px-3 py-2 rounded text-sm"
                             onkeypress="handleTagInput(event)">
-                        <button type="button" onclick="addTag()"
-                            class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white">
+                        <button type="button" onclick="addTag()" class="btn-secondary px-4 py-2 rounded">
                             <i class="fas fa-plus"></i>
                         </button>
                     </div>
@@ -284,33 +423,32 @@
                     </div>
                 </div>
 
-                <div class="flex gap-4">
-                    <label class="flex items-center text-gray-300">
-                        <input type="checkbox" id="dashboard-auto-refresh" checked class="mr-2">
+                <div class="flex gap-4 flex-wrap">
+                    <label class="flex items-center text-secondary text-sm cursor-pointer">
+                        <input type="checkbox" id="dashboard-auto-refresh" checked class="mr-2 h-4 w-4">
                         Auto Refresh
                     </label>
-                    <label class="flex items-center text-gray-300">
-                        <input type="checkbox" id="dashboard-is-public" class="mr-2">
+                    <label class="flex items-center text-secondary text-sm cursor-pointer">
+                        <input type="checkbox" id="dashboard-is-public" class="mr-2 h-4 w-4">
                         Public
                     </label>
-                    <label class="flex items-center text-gray-300">
-                        <input type="checkbox" id="dashboard-is-favorite" class="mr-2">
+                    <label class="flex items-center text-secondary text-sm cursor-pointer">
+                        <input type="checkbox" id="dashboard-is-favorite" class="mr-2 h-4 w-4">
                         Favorite
                     </label>
-                    <label class="flex items-center text-gray-300">
-                        <input type="checkbox" id="dashboard-is-home" class="mr-2">
+                    <label class="flex items-center text-secondary text-sm cursor-pointer">
+                        <input type="checkbox" id="dashboard-is-home" class="mr-2 h-4 w-4">
                         Set as Home
                     </label>
                 </div>
             </div>
 
-            <div class="flex justify-end gap-2 mt-6">
-                <button type="button" onclick="closeDashboardModal()"
-                    class="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded text-white">
+            <div class="flex justify-end gap-3 mt-6">
+                <button type="button" onclick="closeDashboardModal()" class="btn-secondary px-4 py-2 rounded-lg">
                     Cancel
                 </button>
-                <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white">
-                    Save Dashboard
+                <button type="submit" class="btn-primary px-4 py-2 rounded-lg">
+                    <i class="fas fa-save mr-2"></i>Save Dashboard
                 </button>
             </div>
         </form>
@@ -318,30 +456,28 @@
 </div>
 
 <!-- Add Panels Modal -->
-<div id="panels-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
-    <div class="bg-gray-800 rounded-lg p-6 w-full max-w-4xl max-h-[80vh] flex flex-col">
+<div id="panels-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden dash-modal-overlay flex items-center justify-center p-4">
+    <div class="card p-6 w-full max-w-4xl max-h-[80vh] flex flex-col">
         <div class="flex justify-between items-center mb-4 flex-shrink-0">
-            <h2 class="text-xl font-bold text-white">Add Panels to Dashboard</h2>
-            <button onclick="closePanelsModal()" class="text-gray-400 hover:text-white">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
+            <h2 class="text-xl font-bold text-primary">Add Panels to Dashboard</h2>
+            <button onclick="closePanelsModal()" class="text-secondary hover:text-primary">
+                <i class="fas fa-times text-xl"></i>
             </button>
         </div>
 
         <input type="text" id="panel-search" placeholder="Search panels..." onkeyup="filterAvailablePanels()"
-            class="mb-4 bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500 flex-shrink-0">
+            class="mb-4 input-field px-3 py-2 rounded text-sm flex-shrink-0">
 
         <div id="available-panels" class="overflow-y-auto space-y-2 mb-4" style="max-height: 50vh; min-height: 100px;">
             <!-- Populated by JavaScript -->
         </div>
 
-        <div class="flex justify-end gap-2 flex-shrink-0 pt-4 border-t border-gray-700">
-            <button onclick="closePanelsModal()" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded text-white">
+        <div class="flex justify-end gap-3 flex-shrink-0 pt-4 border-t border-[#e2e8f0]">
+            <button onclick="closePanelsModal()" class="btn-secondary px-4 py-2 rounded-lg">
                 Cancel
             </button>
-            <button onclick="addSelectedPanels()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white">
-                Add Selected
+            <button onclick="addSelectedPanels()" class="btn-primary px-4 py-2 rounded-lg">
+                <i class="fas fa-plus mr-2"></i>Add Selected
             </button>
         </div>
     </div>
@@ -354,10 +490,38 @@
     let currentDashboard = null;
     let selectedPanels = new Set();
 
+    // Custom dropdown logic
+    function toggleDashDropdown(id) {
+        const dd = document.getElementById(id);
+        const wasOpen = dd && dd.classList.contains('open');
+        document.querySelectorAll('.dash-dropdown.open').forEach(d => d.classList.remove('open'));
+        if (dd && !wasOpen) dd.classList.add('open');
+    }
+    function selectDashOption(dropdownId, value, label) {
+        const dd = document.getElementById(dropdownId);
+        if (!dd) return;
+        const select = dd.querySelector('select');
+        const trigger = dd.querySelector('.dash-dd-label');
+        if (select) select.value = value;
+        if (trigger) trigger.textContent = label;
+        dd.querySelectorAll('.dash-dropdown-item').forEach(item => {
+            item.classList.toggle('selected', item.dataset.value === value);
+        });
+        dd.classList.remove('open');
+        filterDashboards();
+    }
+    document.addEventListener('click', function (e) {
+        if (!e.target.closest('.dash-dropdown')) {
+            document.querySelectorAll('.dash-dropdown.open').forEach(d => d.classList.remove('open'));
+        }
+    });
+
     async function loadDashboards() {
         try {
-            const response = await apiCall('/api/dashboards/?limit=500');
+            const response = await fetch('/api/dashboards/?limit=500');
+            if (!response.ok) throw new Error('Failed to load dashboards');
             dashboards = await response.json();
+            updateStats();
             filterDashboards();
         } catch (error) {
             console.error('Failed to load dashboards:', error);
@@ -367,11 +531,22 @@
 
     async function loadPanels() {
         try {
-            const response = await apiCall('/api/panels/?limit=500');
-            allPanels = await response.json();
+            const response = await fetch('/api/panels/?limit=500');
+            if (response.ok) allPanels = await response.json();
         } catch (error) {
             console.error('Failed to load panels:', error);
         }
+    }
+
+    function updateStats() {
+        const total = dashboards.length;
+        const favorites = dashboards.filter(d => d.is_favorite).length;
+        const panels = dashboards.reduce((sum, d) => sum + (d.panel_count || 0), 0);
+        const publicCount = dashboards.filter(d => d.is_public).length;
+        document.getElementById('statTotal').textContent = total;
+        document.getElementById('statFavorites').textContent = favorites;
+        document.getElementById('statPanels').textContent = panels;
+        document.getElementById('statPublic').textContent = publicCount;
     }
 
     function filterDashboards() {
@@ -394,7 +569,6 @@
     }
 
     function updateTagFilter() {
-        // Collect all unique tags
         const allTags = new Set();
         dashboards.forEach(dash => {
             if (dash.tags && Array.isArray(dash.tags)) {
@@ -403,17 +577,37 @@
         });
 
         const tagFilter = document.getElementById('tag-filter');
-        const currentValue = tagFilter.value;
+        const menu = document.getElementById('tagDropdownMenu');
+        const currentValue = tagFilter ? tagFilter.value : '';
 
-        // Rebuild options
-        tagFilter.innerHTML = '<option value="">All Tags</option>';
-        Array.from(allTags).sort().forEach(tag => {
-            const option = document.createElement('option');
-            option.value = tag;
-            option.textContent = tag;
-            if (tag === currentValue) option.selected = true;
-            tagFilter.appendChild(option);
-        });
+        if (tagFilter) {
+            tagFilter.innerHTML = '<option value="">All Tags</option>';
+            Array.from(allTags).sort().forEach(tag => {
+                const option = document.createElement('option');
+                option.value = tag;
+                option.textContent = tag;
+                if (tag === currentValue) option.selected = true;
+                tagFilter.appendChild(option);
+            });
+        }
+
+        if (menu) {
+            menu.innerHTML = '<div class="dash-dropdown-item selected" data-value="" onclick="selectDashOption(\'tagDropdown\',\'\',\'All Tags\')"><i class="fas fa-check dash-dd-check"></i> All Tags</div>';
+            Array.from(allTags).sort().forEach(tag => {
+                const item = document.createElement('div');
+                item.className = 'dash-dropdown-item' + (tag === currentValue ? ' selected' : '');
+                item.dataset.value = tag;
+                item.onclick = () => selectDashOption('tagDropdown', tag, tag);
+                item.innerHTML = '<i class="fas fa-check dash-dd-check"></i> ' + escapeHtml(tag);
+                menu.appendChild(item);
+            });
+        }
+
+        const label = document.querySelector('#tagDropdown .dash-dd-label');
+        if (label) {
+            const opt = tagFilter && tagFilter.options[tagFilter.selectedIndex];
+            label.textContent = opt ? opt.textContent : 'All Tags';
+        }
     }
 
     // Pagination state
@@ -476,57 +670,57 @@
 
             const tagHtml = dash.tags && dash.tags.length > 0
                 ? dash.tags.slice(0, 3).map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')
-                + (dash.tags.length > 3 ? `<span class="text-[#8e8e8e] text-xs">+${dash.tags.length - 3}</span>` : '')
-                : '<span class="text-[#8e8e8e]">-</span>';
+                + (dash.tags.length > 3 ? `<span class="text-[#94a3b8] text-xs">+${dash.tags.length - 3}</span>` : '')
+                : '<span class="text-[#94a3b8]">-</span>';
 
             return `
-            <tr class="hover:bg-[rgba(204,204,220,0.04)] transition-colors" style="border-bottom: 1px solid rgba(204, 204, 220, 0.07);">
+            <tr class="border-b border-[#f1f5f9] hover:bg-[#f8fafc] transition-colors">
                 <td class="px-4 py-3">
-                    <i class="fas fa-th-large" style="color: #6e9fff;"></i>
+                    <i class="fas fa-th-large" style="color: #3b82f6;"></i>
                 </td>
                 <td class="px-4 py-3">
-                    <div class="font-medium text-white">${escapeHtml(dash.name)}</div>
-                    ${dash.description ? `<div class="text-xs text-[#8e8e8e] mt-0.5 truncate max-w-xs">${escapeHtml(dash.description)}</div>` : ''}
+                    <div class="font-medium text-[#1e40af] cursor-pointer hover:text-blue-500 hover:underline" onclick="viewDashboard('${dash.id}')">${escapeHtml(dash.name)}</div>
+                    ${dash.description ? `<div class="text-xs text-[#94a3b8] mt-0.5 truncate max-w-xs">${escapeHtml(dash.description)}</div>` : ''}
                     <div class="flex gap-1 mt-1">${badges.join('')}</div>
                 </td>
                 <td class="px-4 py-3">
                     <div class="flex flex-wrap gap-1">${tagHtml}</div>
                 </td>
-                <td class="px-4 py-3 text-[#8e8e8e] hidden md:table-cell">
+                <td class="px-4 py-3 text-[#475569] hidden md:table-cell">
                     ${dash.panel_count || 0}
                 </td>
-                <td class="px-4 py-3 text-[#8e8e8e] text-xs hidden lg:table-cell">
+                <td class="px-4 py-3 text-[#64748b] text-xs hidden lg:table-cell">
                     ${dash.time_range} / ${dash.refresh_interval}s
                 </td>
-                <td class="px-4 py-3 text-[#8e8e8e] text-xs hidden md:table-cell">
+                <td class="px-4 py-3 text-[#64748b] text-xs hidden md:table-cell">
                     ${formatDate(dash.created_at)}
                 </td>
-                <td class="px-4 py-3 text-[#8e8e8e] text-xs hidden md:table-cell">
+                <td class="px-4 py-3 text-[#64748b] text-xs hidden md:table-cell">
                     ${formatDate(dash.updated_at)}
                 </td>
                 <td class="px-4 py-3 text-right">
                     <div class="flex justify-end gap-1">
                         <button onclick="viewDashboard('${dash.id}')" 
-                            class="p-1.5 hover:bg-[#22252b] rounded transition-colors" 
-                            style="color: #6e9fff;"
+                            class="p-1.5 hover:bg-[#f1f5f9] rounded transition-colors" 
+                            style="color: #3b82f6;"
                             title="View">
                             <i class="fas fa-eye"></i>
                         </button>
                         <button onclick="showAddPanelsModal('${dash.id}')" 
-                            class="p-1.5 hover:bg-[#22252b] rounded transition-colors" 
-                            style="color: #b877d9;"
+                            class="p-1.5 hover:bg-[#f1f5f9] rounded transition-colors" 
+                            style="color: #8b5cf6;"
                             title="Add Panels">
                             <i class="fas fa-plus-square"></i>
                         </button>
                         <button onclick="editDashboard('${dash.id}')" 
-                            class="p-1.5 hover:bg-[#22252b] rounded transition-colors" 
-                            style="color: #6ccf8e;"
+                            class="p-1.5 hover:bg-[#f1f5f9] rounded transition-colors" 
+                            style="color: #059669;"
                             title="Edit">
                             <i class="fas fa-edit"></i>
                         </button>
-                        <button onclick="deleteDashboard('${dash.id}', '${escapeHtml(dash.name)}')" 
-                            class="p-1.5 hover:bg-[#22252b] rounded transition-colors" 
-                            style="color: #ff5286;"
+                        <button onclick="deleteDashboard('${dash.id}', ${JSON.stringify(dash.name)})" 
+                            class="p-1.5 hover:bg-[#fef2f2] rounded transition-colors" 
+                            style="color: #dc2626;"
                             title="Delete">
                             <i class="fas fa-trash"></i>
                         </button>
@@ -617,7 +811,7 @@
             <span class="tag">
                 <i class="fas fa-tag text-xs"></i>
                 ${escapeHtml(tag)}
-                <button type="button" onclick="removeTag('${escapeHtml(tag)}')" title="Remove tag">
+                <button type="button" onclick="removeTag(${JSON.stringify(tag)})" title="Remove tag">
                     <i class="fas fa-times"></i>
                 </button>
             </span>
@@ -645,7 +839,7 @@
             const url = id ? `/api/dashboards/${id}` : '/api/dashboards/';
             const method = id ? 'PUT' : 'POST';
 
-            const response = await apiCall(url, {
+            const response = await fetch(url, {
                 method: method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
@@ -671,7 +865,7 @@
         }
 
         try {
-            const response = await apiCall(`/api/dashboards/${id}`, {
+            const response = await fetch(`/api/dashboards/${id}`, {
                 method: 'DELETE'
             });
 
@@ -713,12 +907,12 @@
         );
 
         container.innerHTML = filtered.map(panel => `
-        <div class="panel-item p-3 border border-gray-700 rounded ${selectedPanels.has(panel.id) ? 'selected' : ''}"
+        <div class="panel-item p-3 border ${selectedPanels.has(panel.id) ? 'selected' : ''}"
              onclick="togglePanelSelection('${panel.id}')">
             <div class="flex justify-between items-start">
                 <div class="flex-1">
-                    <div class="font-medium text-white">${escapeHtml(panel.name)}</div>
-                    <div class="text-xs text-gray-400 mt-1">${panel.panel_type.toUpperCase()}</div>
+                    <div class="font-medium text-primary">${escapeHtml(panel.name)}</div>
+                    <div class="text-xs text-secondary mt-1">${panel.panel_type.toUpperCase()}</div>
                 </div>
                 ${selectedPanels.has(panel.id) ? `
                     <svg class="w-5 h-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
@@ -748,7 +942,7 @@
         try {
             let y = 0;
             for (const panelId of selectedPanels) {
-                await apiCall(`/api/dashboards/${currentDashboard}/panels`, {
+                await fetch(`/api/dashboards/${currentDashboard}/panels`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -781,10 +975,19 @@
         return div.innerHTML;
     }
 
-    // Load data on page load
     document.addEventListener('DOMContentLoaded', async () => {
         await loadPanels();
         await loadDashboards();
     });
+
+    if (typeof showToast === 'undefined') {
+        window.showToast = function (message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `fixed bottom-4 right-4 px-4 py-3 rounded-lg shadow-lg z-[10000] flex items-center gap-2 ${type === 'success' ? 'bg-green-600' : type === 'error' ? 'bg-red-600' : 'bg-blue-600'}`;
+            div.innerHTML = `<i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i><span>${escapeHtml(message)}</span>`;
+            document.body.appendChild(div);
+            setTimeout(() => div.remove(), 3000);
+        };
+    }
 </script>
 {% endblock %}

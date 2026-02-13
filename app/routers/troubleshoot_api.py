@@ -570,31 +570,6 @@ async def list_troubleshoot_sessions(
     }
 
 
-@router.post("/sessions")
-async def create_troubleshoot_session(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """
-    Create a new troubleshooting session.
-    """
-
-    session = AISession(
-        user_id=current_user.id,
-        pillar="troubleshooting",
-        context_type="standalone",
-        title="Troubleshooting Session",
-    )
-    db.add(session)
-    db.commit()
-    db.refresh(session)
-
-    return {
-        "id": str(session.id),
-        "user_id": str(current_user.id),
-        "created_at": session.created_at.isoformat(),
-        "mode": "troubleshoot",
-    }
 @router.get("/providers")
 async def list_troubleshoot_providers(
     db: Session = Depends(get_db),
@@ -618,7 +593,7 @@ async def list_troubleshoot_providers(
 
 @router.post("/sessions")
 async def create_troubleshoot_session(
-    request: dict,
+    request: dict = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):

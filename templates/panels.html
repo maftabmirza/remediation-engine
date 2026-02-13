@@ -1,7 +1,21 @@
 {% extends "base.html" %}
 {% set active_page = 'panels' %}
 
-{% block title %}Prometheus Panels{% endblock %}
+{% block title %}Metric Panels - AIOps Platform{% endblock %}
+
+{% block breadcrumbs %}
+<span class="mx-2">/</span>
+<span class="text-gray-200">Panels</span>
+{% endblock %}
+
+{% block header_title %}
+<i class="fas fa-chart-bar text-blue-400"></i>
+<span class="text-sm font-semibold text-white tracking-tight">Metric Panels</span>
+{% endblock %}
+
+{% block header_actions %}
+{{ super() }}
+{% endblock %}
 
 {% block head %}
 <!-- CodeMirror CSS -->
@@ -9,170 +23,266 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/theme/dracula.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/addon/hint/show-hint.min.css">
 <style>
-    /* Grafana-aligned Panel Card */
-    .panel-card {
-        background-color: #181b1f;
-        /* Grafana secondary bg */
-        border: 1px solid rgba(204, 204, 220, 0.12);
-        /* Grafana border */
-        border-radius: 4px;
-        /* Grafana uses 4px */
-        transition: transform 0.2s, box-shadow 0.2s;
+    .pnl-action-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 16px;
+        font-size: 13px;
+        font-weight: 600;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: none;
+        text-decoration: none;
+        white-space: nowrap;
     }
-
-    .panel-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-        border-color: rgba(204, 204, 220, 0.2);
+    .pnl-action-primary {
+        background: linear-gradient(135deg, #3b82f6, #2563eb);
+        color: white;
+        box-shadow: 0 2px 6px rgba(59, 130, 246, 0.25);
     }
-
-    /* Grafana-style Badges */
-    .badge {
-        padding: 2px 8px;
-        border-radius: 2px;
-        /* Grafana uses smaller radius */
-        font-size: 0.75rem;
+    .pnl-action-primary:hover {
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        box-shadow: 0 4px 14px rgba(59, 130, 246, 0.35);
+        transform: translateY(-1px);
+    }
+    .pnl-search-input {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 8px 14px 8px 36px;
+        font-size: 13px;
+        color: #1e293b;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+        outline: none;
+    }
+    .pnl-search-input:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+    }
+    .pnl-search-wrapper .search-icon {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #94a3b8;
+        font-size: 13px;
+    }
+    .pnl-dropdown {
+        position: relative;
+        min-width: 140px;
+    }
+    .pnl-dropdown-trigger {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 8px 12px 8px 14px;
+        font-size: 13px;
         font-weight: 500;
+        color: #475569;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+        user-select: none;
+        white-space: nowrap;
     }
-
-    .badge-graph,
-    .badge-area {
-        background-color: #3d71d9;
-        /* Grafana blue */
-        color: white;
+    .pnl-dropdown.open .pnl-dropdown-trigger {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
     }
-
-    .badge-stacked_area,
-    .badge-stacked_bar {
-        background-color: #b877d9;
-        /* Grafana purple */
-        color: white;
+    .pnl-dropdown-trigger .pnl-dd-chevron {
+        width: 14px;
+        height: 14px;
+        color: #94a3b8;
+        transition: transform 0.2s ease;
     }
-
-    .badge-bar {
-        background-color: #6e9fff;
-        /* Grafana light blue */
-        color: #111217;
+    .pnl-dropdown.open .pnl-dd-chevron { transform: rotate(180deg); }
+    .pnl-dropdown-menu {
+        display: none;
+        position: absolute;
+        top: calc(100% + 6px);
+        left: 0;
+        min-width: 100%;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.06);
+        z-index: 9999;
+        padding: 5px;
+        overflow: hidden;
+        max-height: 280px;
+        overflow-y: auto;
     }
-
-    .badge-gauge {
-        background-color: #1a7f4b;
-        /* Grafana green */
-        color: white;
+    .pnl-dropdown.open .pnl-dropdown-menu { display: block; }
+    .pnl-dropdown-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        font-size: 13px;
+        font-weight: 500;
+        color: #475569;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.12s ease;
+        white-space: nowrap;
     }
-
-    .badge-stat,
-    .badge-sparkline {
-        background-color: #eb7b18;
-        /* Grafana orange */
-        color: white;
+    .pnl-dropdown-item:hover { background: #f1f5f9; color: #1e293b; }
+    .pnl-dropdown-item.selected { background: rgba(59, 130, 246, 0.08); color: #2563eb; }
+    .pnl-dropdown-item .pnl-dd-check { opacity: 0; font-size: 11px; color: #3b82f6; }
+    .pnl-dropdown-item.selected .pnl-dd-check { opacity: 1; }
+    .pnl-dropdown select { display: none; }
+    .pnl-modal-overlay { z-index: 2000; }
+    .pnl-modal-dialog {
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05);
+        border-left: 4px solid #3b82f6;
     }
-
-    .badge-pie,
-    .badge-doughnut {
-        background-color: #d10e5c;
-        /* Grafana pink/magenta */
-        color: white;
-    }
-
-    .badge-heatmap {
-        background-color: #ff5286;
-        /* Grafana red */
-        color: white;
-    }
-
-    .badge-table {
-        background-color: #b877d9;
-        /* Grafana purple */
-        color: white;
-    }
-
-    .badge-template {
-        background-color: #6ccf8e;
-        /* Grafana light green */
-        color: #111217;
-    }
-
-
-    /* CodeMirror customization - Grafana style */
+    .badge { padding: 3px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: 600; }
+    .badge-graph, .badge-area { background-color: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; }
+    .badge-stacked_area, .badge-stacked_bar { background-color: #f5f3ff; color: #7c3aed; border: 1px solid #e9d5ff; }
+    .badge-bar { background-color: #eff6ff; color: #3b82f6; border: 1px solid #bfdbfe; }
+    .badge-gauge { background-color: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; }
+    .badge-stat, .badge-sparkline { background-color: #fffbeb; color: #d97706; border: 1px solid #fde68a; }
+    .badge-pie, .badge-doughnut { background-color: #fdf2f8; color: #db2777; border: 1px solid #fbcfe8; }
+    .badge-heatmap { background-color: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+    .badge-table { background-color: #f5f3ff; color: #7c3aed; border: 1px solid #e9d5ff; }
+    .badge-template { background-color: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; }
     .CodeMirror {
         height: 200px;
-        border: 1px solid rgba(204, 204, 220, 0.2);
-        border-radius: 4px;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
         font-size: 14px;
         font-family: 'Courier New', monospace;
-        background-color: #111217;
-        /* Grafana primary bg */
+        background-color: #1e293b;
     }
-
-    .CodeMirror-gutters {
-        background-color: #181b1f;
-        border-right: 1px solid rgba(204, 204, 220, 0.12);
-    }
+    .CodeMirror-gutters { background-color: #334155; border-right: 1px solid #475569; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="space-y-4">
-    <!-- Enterprise Standard Toolbar -->
-    <div class="dashboard-header"
-        style="padding: 12px; background: #16171b; border-bottom: 1px solid rgba(255,255,255,0.05); border-radius: 8px;">
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <!-- Left: Breadcrumbs & Title -->
-            <div class="flex flex-col min-w-0">
-                <!-- Breadcrumbs -->
-                <nav class="flex items-center text-xs text-gray-400 mb-1">
-                    <a href="/" class="hover:text-blue-400 transition-colors">Home</a>
-                    <span class="mx-2">/</span>
-                    <span class="text-gray-200">Panels</span>
-                </nav>
-                <div class="flex items-center gap-3">
-                    <h1 class="text-xl font-bold text-white tracking-tight truncate">Metric Panels</h1>
+    <!-- Toolbar -->
+    <div class="card p-4" style="overflow: visible; position: relative; z-index: 200;">
+        <div class="flex flex-wrap gap-4 items-center justify-between">
+            <div class="flex flex-wrap gap-3 items-center flex-1">
+                <div class="pnl-search-wrapper flex-1 min-w-[200px]">
+                    <i class="fas fa-search search-icon"></i>
+                    <input type="text" id="search-input" placeholder="Search panels..."
+                        onkeyup="filterPanels()" class="pnl-search-input w-full">
                 </div>
-                <p class="text-xs text-gray-500 mt-1">Create and manage custom PromQL panels</p>
+                <div class="pnl-dropdown" id="datasourceDropdown">
+                    <select id="datasource-filter" onchange="filterPanels()">
+                        <option value="">All Datasources</option>
+                    </select>
+                    <div class="pnl-dropdown-trigger" onclick="togglePnlDropdown('datasourceDropdown')">
+                        <span class="pnl-dd-label">All Datasources</span>
+                        <svg class="pnl-dd-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </div>
+                    <div class="pnl-dropdown-menu" id="datasourceDropdownMenu"></div>
+                </div>
+                <div class="pnl-dropdown" id="typeDropdown">
+                    <select id="type-filter" onchange="filterPanels()">
+                        <option value="">All Types</option>
+                        <option value="graph">Graph</option>
+                        <option value="gauge">Gauge</option>
+                        <option value="stat">Stat</option>
+                        <option value="table">Table</option>
+                    </select>
+                    <div class="pnl-dropdown-trigger" onclick="togglePnlDropdown('typeDropdown')">
+                        <span class="pnl-dd-label">All Types</span>
+                        <svg class="pnl-dd-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </div>
+                    <div class="pnl-dropdown-menu">
+                        <div class="pnl-dropdown-item selected" data-value="" onclick="selectPnlOption('typeDropdown','','All Types')"><i class="fas fa-check pnl-dd-check"></i> All Types</div>
+                        <div class="pnl-dropdown-item" data-value="graph" onclick="selectPnlOption('typeDropdown','graph','Graph')"><i class="fas fa-check pnl-dd-check"></i> Graph</div>
+                        <div class="pnl-dropdown-item" data-value="gauge" onclick="selectPnlOption('typeDropdown','gauge','Gauge')"><i class="fas fa-check pnl-dd-check"></i> Gauge</div>
+                        <div class="pnl-dropdown-item" data-value="stat" onclick="selectPnlOption('typeDropdown','stat','Stat')"><i class="fas fa-check pnl-dd-check"></i> Stat</div>
+                        <div class="pnl-dropdown-item" data-value="table" onclick="selectPnlOption('typeDropdown','table','Table')"><i class="fas fa-check pnl-dd-check"></i> Table</div>
+                    </div>
+                </div>
+                <label class="flex items-center text-[#475569] text-sm cursor-pointer">
+                    <input type="checkbox" id="templates-only" onchange="filterPanels()" class="mr-2 h-4 w-4">
+                    Templates Only
+                </label>
             </div>
-
-            <!-- Right: Actions -->
-            <div class="flex items-center gap-2">
-                <button onclick="showCreateModal()"
-                    class="bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded text-white text-sm flex items-center gap-2 transition-colors">
+            <div class="flex items-center gap-2" style="position: relative; z-index: 210;">
+                <button onclick="showCreateModal()" class="pnl-action-btn pnl-action-primary">
                     <i class="fas fa-plus"></i>
-                    Create Panel
+                    <span>Create Panel</span>
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- Filters -->
-    <div class="card p-4 flex flex-wrap gap-4 items-center">
-        <div class="flex-1">
-            <input type="text" id="search-input" placeholder="Search panels..." onkeyup="filterPanels()"
-                class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="card p-4" style="border-left: 3px solid #3b82f6;">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center"
+                    style="background: linear-gradient(135deg, #eff6ff, #dbeafe);">
+                    <i class="fas fa-chart-bar" style="color: #2563eb; font-size: 14px;"></i>
+                </div>
+                <div>
+                    <p class="text-secondary text-xs" style="font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase;">Total Panels</p>
+                    <p class="text-2xl font-bold text-primary" id="statTotal" style="line-height: 1.2;">0</p>
+                </div>
+            </div>
         </div>
-        <select id="datasource-filter" onchange="filterPanels()"
-            class="bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
-            <option value="">All Datasources</option>
-        </select>
-        <select id="type-filter" onchange="filterPanels()"
-            class="bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
-            <option value="">All Types</option>
-            <option value="graph">Graph</option>
-            <option value="gauge">Gauge</option>
-            <option value="stat">Stat</option>
-            <option value="table">Table</option>
-        </select>
-        <label class="flex items-center text-gray-300">
-            <input type="checkbox" id="templates-only" onchange="filterPanels()" class="mr-2">
-            Templates Only
-        </label>
+        <div class="card p-4" style="border-left: 3px solid #8b5cf6;">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center"
+                    style="background: linear-gradient(135deg, #f5f3ff, #ede9fe);">
+                    <i class="fas fa-layer-group" style="color: #7c3aed; font-size: 14px;"></i>
+                </div>
+                <div>
+                    <p class="text-secondary text-xs" style="font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase;">Templates</p>
+                    <p class="text-2xl font-bold" id="statTemplates" style="color: #7c3aed; line-height: 1.2;">0</p>
+                </div>
+            </div>
+        </div>
+        <div class="card p-4" style="border-left: 3px solid #10b981;">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center"
+                    style="background: linear-gradient(135deg, #ecfdf5, #d1fae5);">
+                    <i class="fas fa-chart-line" style="color: #059669; font-size: 14px;"></i>
+                </div>
+                <div>
+                    <p class="text-secondary text-xs" style="font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase;">Time Series</p>
+                    <p class="text-2xl font-bold" id="statTimeSeries" style="color: #059669; line-height: 1.2;">0</p>
+                </div>
+            </div>
+        </div>
+        <div class="card p-4" style="border-left: 3px solid #f59e0b;">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center"
+                    style="background: linear-gradient(135deg, #fffbeb, #fef3c7);">
+                    <i class="fas fa-hashtag" style="color: #d97706; font-size: 14px;"></i>
+                </div>
+                <div>
+                    <p class="text-secondary text-xs" style="font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase;">Stats & Gauges</p>
+                    <p class="text-2xl font-bold" id="statStats" style="color: #d97706; line-height: 1.2;">0</p>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Panels Table -->
-    <div class="card overflow-hidden">
+    <div class="card overflow-hidden" id="tableContainer">
         <table class="w-full text-sm">
             <thead>
-                <tr class="bg-[#181b1f] text-left text-[#8e8e8e]"
-                    style="border-bottom: 1px solid rgba(204, 204, 220, 0.07);">
+                <tr class="bg-[#f8fafc] text-left text-[#64748b]" style="border-bottom: 1px solid #e2e8f0;">
                     <th class="px-4 py-3 font-medium w-10"></th>
                     <th class="px-4 py-3 font-medium">Name</th>
                     <th class="px-4 py-3 font-medium">Type</th>
@@ -183,39 +293,38 @@
                     <th class="px-4 py-3 font-medium text-right">Actions</th>
                 </tr>
             </thead>
-            <tbody id="panels-tbody" class="text-[#ccccdc]">
+            <tbody id="panels-tbody" class="text-[#334155]">
                 <!-- Populated by JavaScript -->
             </tbody>
         </table>
     </div>
 
     <!-- Pagination -->
-    <div id="pagination-container" class="flex items-center justify-between mt-4 text-sm">
-        <div class="text-[#8e8e8e]">
+    <div id="pagination-container" class="flex items-center justify-between mt-4 text-sm hidden">
+        <div class="text-[#64748b]">
             Showing <span id="showing-start">0</span>-<span id="showing-end">0</span> of <span id="total-count">0</span>
             panels
         </div>
         <div class="flex items-center gap-2">
             <button onclick="goToPage(1)" id="first-page-btn" disabled
-                class="px-3 py-1.5 rounded border border-[rgba(204,204,220,0.12)] bg-[#181b1f] text-[#ccccdc] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#22252b] transition-colors">
+                class="px-3 py-1.5 rounded border border-[#e2e8f0] bg-white text-[#475569] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#f8fafc] transition-colors">
                 <i class="fas fa-angle-double-left"></i>
             </button>
             <button onclick="goToPage(currentPage - 1)" id="prev-page-btn" disabled
-                class="px-3 py-1.5 rounded border border-[rgba(204,204,220,0.12)] bg-[#181b1f] text-[#ccccdc] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#22252b] transition-colors">
+                class="px-3 py-1.5 rounded border border-[#e2e8f0] bg-white text-[#475569] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#f8fafc] transition-colors">
                 <i class="fas fa-angle-left"></i>
             </button>
-            <span class="px-3 py-1.5 text-[#ccccdc]">Page <span id="current-page">1</span> of <span
-                    id="total-pages">1</span></span>
+            <span class="px-3 py-1.5 text-[#475569]">Page <span id="current-page">1</span> of <span id="total-pages">1</span></span>
             <button onclick="goToPage(currentPage + 1)" id="next-page-btn" disabled
-                class="px-3 py-1.5 rounded border border-[rgba(204,204,220,0.12)] bg-[#181b1f] text-[#ccccdc] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#22252b] transition-colors">
+                class="px-3 py-1.5 rounded border border-[#e2e8f0] bg-white text-[#475569] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#f8fafc] transition-colors">
                 <i class="fas fa-angle-right"></i>
             </button>
             <button onclick="goToPage(totalPages)" id="last-page-btn" disabled
-                class="px-3 py-1.5 rounded border border-[rgba(204,204,220,0.12)] bg-[#181b1f] text-[#ccccdc] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#22252b] transition-colors">
+                class="px-3 py-1.5 rounded border border-[#e2e8f0] bg-white text-[#475569] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#f8fafc] transition-colors">
                 <i class="fas fa-angle-double-right"></i>
             </button>
             <select id="page-size" onchange="changePageSize(this.value)"
-                class="px-3 py-1.5 rounded border border-[rgba(204,204,220,0.12)] bg-[#181b1f] text-[#ccccdc] focus:outline-none focus:border-[#3d71d9]">
+                class="px-3 py-1.5 rounded border border-[#e2e8f0] bg-white text-[#475569] focus:outline-none focus:border-[#3b82f6]">
                 <option value="10">10 per page</option>
                 <option value="25" selected>25 per page</option>
                 <option value="50">50 per page</option>
@@ -224,55 +333,70 @@
         </div>
     </div>
 
-    <div id="no-panels" class="hidden bg-[#181b1f] rounded border border-[rgba(204,204,220,0.12)] p-8 text-center">
-        <i class="fas fa-chart-bar text-4xl text-[#8e8e8e] mb-3"></i>
-        <p class="text-[#8e8e8e]">No panels found. Create your first panel to get started.</p>
+    <!-- Empty State -->
+    <div id="no-panels" class="hidden card p-12 text-center">
+        <i class="fas fa-chart-bar text-4xl text-secondary mb-4"></i>
+        <h3 class="text-lg font-medium text-primary mb-2">No Panels Found</h3>
+        <p class="text-secondary mb-4">Create your first PromQL panel to visualize metrics.</p>
+        <button onclick="showCreateModal()" class="btn-primary px-4 py-2 rounded-lg">
+            <i class="fas fa-plus mr-2"></i>Create Panel
+        </button>
     </div>
 </div>
 
 <!-- Create/Edit Panel Modal -->
 <div id="panel-modal"
-    class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-start justify-center z-50 overflow-y-auto py-8">
-    <div class="bg-gray-800 rounded-lg p-6 my-auto" style="width: 80vw; max-height: 85vh; overflow-y: auto;">
-        <div class="flex justify-between items-center mb-4">
-            <h2 id="modal-title" class="text-xl font-bold text-white">Create Panel</h2>
-            <button onclick="closeModal()" class="text-gray-400 hover:text-white">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
+    class="fixed inset-0 bg-black bg-opacity-50 hidden pnl-modal-overlay flex items-start justify-center overflow-y-auto py-8">
+    <div class="card p-6 my-auto pnl-modal-dialog" style="width: 80vw; max-width: 1200px; max-height: 85vh; overflow-y: auto;">
+        <div class="flex justify-between items-center mb-6 pb-4 border-b border-[#e2e8f0]">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: linear-gradient(135deg, #eff6ff, #dbeafe);">
+                    <i class="fas fa-chart-bar text-[#2563eb]"></i>
+                </div>
+                <div>
+                    <h2 id="modal-title" class="text-xl font-bold text-primary">Create Panel</h2>
+                    <p class="text-xs text-secondary mt-0.5">Configure your PromQL visualization</p>
+                </div>
+            </div>
+            <button onclick="closeModal()" class="p-2 rounded-lg text-secondary hover:text-primary hover:bg-[#f1f5f9] transition-colors">
+                <i class="fas fa-times text-xl"></i>
             </button>
         </div>
 
         <form id="panel-form" onsubmit="savePanel(event)">
             <input type="hidden" id="panel-id">
 
-            <div class="grid grid-cols-2 gap-4">
-                <!-- Left Column -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Left Column: Basic Settings -->
                 <div class="space-y-4">
+                    <div class="flex items-center gap-2 mb-2">
+                        <i class="fas fa-cog text-[#64748b]"></i>
+                        <h4 class="text-sm font-semibold text-primary">Basic Settings</h4>
+                    </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-1">Panel Name *</label>
+                        <label class="block text-secondary text-sm mb-1">Panel Name *</label>
                         <input type="text" id="panel-name" required
-                            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                            class="input-field w-full px-3 py-2 rounded text-sm">
                     </div>
 
                     <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-1">Description</label>
+                        <label class="block text-secondary text-sm mb-1">Description</label>
                         <textarea id="panel-description" rows="2"
-                            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"></textarea>
+                            class="input-field w-full px-3 py-2 rounded text-sm resize-none"></textarea>
                     </div>
 
                     <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-1">Datasource *</label>
+                        <label class="block text-secondary text-sm mb-1">Datasource *</label>
                         <select id="panel-datasource" required
-                            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                            class="input-field w-full px-3 py-2 rounded text-sm">
                             <option value="">Select datasource...</option>
                         </select>
                     </div>
 
                     <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-1">Panel Type</label>
+                        <label class="block text-secondary text-sm mb-1">Panel Type</label>
                         <select id="panel-type"
-                            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                            class="input-field w-full px-3 py-2 rounded text-sm">
                             <optgroup label="Time Series">
                                 <option value="graph">Line Chart</option>
                                 <option value="area">Area Chart</option>
@@ -299,9 +423,9 @@
 
                     <div class="grid grid-cols-2 gap-2">
                         <div>
-                            <label class="block text-sm font-medium text-gray-300 mb-1">Time Range</label>
+                            <label class="block text-secondary text-sm mb-1">Time Range</label>
                             <select id="panel-time-range"
-                                class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                                class="input-field w-full px-3 py-2 rounded text-sm">
                                 <option value="5m">5 minutes</option>
                                 <option value="15m">15 minutes</option>
                                 <option value="30m">30 minutes</option>
@@ -315,31 +439,35 @@
                             </select>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-300 mb-1">Refresh (s)</label>
+                            <label class="block text-secondary text-sm mb-1">Refresh (s)</label>
                             <input type="number" id="panel-refresh" value="30" min="5" max="3600"
-                                class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                                class="input-field w-full px-3 py-2 rounded text-sm">
                         </div>
                     </div>
 
-                    <div class="flex gap-4">
-                        <label class="flex items-center text-gray-300">
-                            <input type="checkbox" id="panel-is-template" class="mr-2">
+                    <div class="flex gap-4 flex-wrap">
+                        <label class="flex items-center text-secondary text-sm cursor-pointer">
+                            <input type="checkbox" id="panel-is-template" class="mr-2 h-4 w-4">
                             Save as Template
                         </label>
-                        <label class="flex items-center text-gray-300">
-                            <input type="checkbox" id="panel-is-public" class="mr-2">
+                        <label class="flex items-center text-secondary text-sm cursor-pointer">
+                            <input type="checkbox" id="panel-is-public" class="mr-2 h-4 w-4">
                             Public
                         </label>
                     </div>
                 </div>
 
-                <!-- Right Column - Query Editor -->
+                <!-- Right Column: Query -->
                 <div class="space-y-4">
+                    <div class="flex items-center gap-2 mb-2">
+                        <i class="fas fa-code text-[#64748b]"></i>
+                        <h4 class="text-sm font-semibold text-primary">Query & Visualization</h4>
+                    </div>
                     <!-- Query Examples -->
                     <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-1">Query Examples</label>
+                        <label class="block text-secondary text-sm mb-1">Query Examples</label>
                         <select id="query-examples" onchange="loadQueryExample()"
-                            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                            class="input-field w-full px-3 py-2 rounded text-sm">
                             <option value="">Select an example...</option>
                             <option value="cpu">CPU Usage (%)</option>
                             <option value="memory">Memory Usage (GB)</option>
@@ -356,50 +484,56 @@
 
                     <div>
                         <div class="flex justify-between items-center mb-1">
-                            <label class="block text-sm font-medium text-gray-300">PromQL Query *</label>
+                            <label class="block text-secondary text-sm">PromQL Query *</label>
                             <button type="button" onclick="testQuery()"
-                                class="text-blue-400 hover:text-blue-300 text-sm">
-                                Test Query
+                                class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-[#eff6ff] text-[#2563eb] hover:bg-[#dbeafe] transition-colors">
+                                <i class="fas fa-bolt"></i>Test Query
                             </button>
                         </div>
                         <textarea id="query-editor" rows="8" placeholder="Example: rate(http_requests_total[5m])"
-                            class="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"></textarea>
-                        <p class="text-xs text-gray-400 mt-1">Enter your PromQL query or select an example above</p>
+                            class="w-full border border-[#e2e8f0] rounded px-3 py-2 text-sm"></textarea>
+                        <p class="text-xs text-secondary mt-1">Enter your PromQL query or select an example above</p>
                     </div>
 
                     <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-1">Legend Format</label>
+                        <label class="block text-secondary text-sm mb-1">Legend Format</label>
                         <input type="text" id="panel-legend" placeholder="{{instance}}"
-                            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
-                        <p class="text-xs text-gray-400 mt-1">Use {{label_name}} for label values</p>
+                            class="input-field w-full px-3 py-2 rounded text-sm">
+                        <p class="text-xs text-secondary mt-1">Use {{label_name}} for label values</p>
                     </div>
 
                     <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-1">Tags (comma-separated)</label>
+                        <label class="block text-secondary text-sm mb-1">Tags (comma-separated)</label>
                         <input type="text" id="panel-tags" placeholder="infrastructure, cpu, monitoring"
-                            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                            class="input-field w-full px-3 py-2 rounded text-sm">
                     </div>
                 </div>
             </div>
 
-            <!-- Query Preview Section - Full Width (outside the 2-column grid) -->
-            <div id="query-result" class="hidden mt-6 border-t border-gray-700 pt-6">
-                <h3 class="text-lg font-semibold text-white mb-4">Query Preview</h3>
-                <div id="query-status" class="p-3 rounded text-sm mb-4"></div>
-                <div id="query-preview-chart" class="hidden bg-gray-900 rounded-lg p-4 mb-4"
+            <!-- Query Preview Section -->
+            <div id="query-result" class="hidden mt-6 border-t border-[#e2e8f0] pt-6">
+                <div class="flex items-center gap-2 mb-4">
+                    <i class="fas fa-eye text-[#3b82f6]"></i>
+                    <h3 class="text-lg font-semibold text-primary">Query Preview</h3>
+                </div>
+                <div id="query-status" class="p-4 rounded-lg text-sm mb-4 bg-[#f8fafc] border border-[#e2e8f0]"></div>
+                <div id="query-preview-chart" class="hidden rounded-lg p-4 mb-4 border border-[#e2e8f0] bg-[#f8fafc]"
                     style="height: 280px; width: 100%;"></div>
-                <div id="query-data-preview" class="hidden bg-gray-900 rounded-lg p-4 max-h-48 overflow-auto">
-                    <div class="text-xs text-gray-400 mb-2 font-medium">Raw Data (first 3 series):</div>
-                    <pre id="query-data-json" class="text-xs text-green-400 font-mono whitespace-pre-wrap"></pre>
+                <div id="query-data-preview" class="hidden rounded-lg p-4 max-h-48 overflow-auto bg-[#f8fafc] border border-[#e2e8f0]">
+                    <div class="text-xs text-secondary mb-2 font-medium">Raw Data (first 3 series):</div>
+                    <pre id="query-data-json" class="text-xs text-[#059669] font-mono whitespace-pre-wrap"></pre>
                 </div>
             </div>
 
             <!-- Advanced Chart Configuration -->
-            <div class="mt-6 border-t border-gray-700 pt-6">
+            <div class="mt-6 border-t border-[#e2e8f0] pt-6">
                 <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-lg font-semibold text-white">Chart Configuration</h3>
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-sliders-h text-[#64748b]"></i>
+                        <h3 class="text-lg font-semibold text-primary">Chart Configuration</h3>
+                    </div>
                     <button type="button" onclick="toggleChartConfig()"
-                        class="text-sm text-blue-400 hover:text-blue-300">
+                        class="text-sm font-medium text-[#3b82f6] hover:text-[#2563eb] flex items-center gap-1">
                         <i id="chart-config-icon" class="fas fa-chevron-down"></i>
                         <span id="chart-config-text">Show</span>
                     </button>
@@ -407,35 +541,38 @@
 
                 <div id="chart-config-section" class="hidden space-y-4">
                     <!-- Y-Axis Configuration -->
-                    <div class="bg-gray-800/50 rounded-lg p-4 space-y-3">
-                        <h4 class="text-sm font-medium text-gray-300 mb-3">Y-Axis</h4>
+                    <div class="rounded-lg p-4 space-y-3 bg-[#f8fafc] border border-[#e2e8f0]">
+                        <h4 class="text-sm font-medium text-primary flex items-center gap-2">
+                            <i class="fas fa-chart-line text-[#94a3b8]"></i>Y-Axis
+                        </h4>
                         <div class="grid grid-cols-3 gap-3">
                             <div>
-                                <label class="block text-xs text-gray-400 mb-1">Min Value</label>
+                                <label class="block text-xs text-secondary mb-1">Min Value</label>
                                 <input type="number" id="y-axis-min" step="any" placeholder="Auto"
-                                    class="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500">
+                                    class="input-field w-full px-2 py-1.5 rounded text-sm">
                             </div>
                             <div>
-                                <label class="block text-xs text-gray-400 mb-1">Max Value</label>
+                                <label class="block text-xs text-secondary mb-1">Max Value</label>
                                 <input type="number" id="y-axis-max" step="any" placeholder="Auto"
-                                    class="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500">
+                                    class="input-field w-full px-2 py-1.5 rounded text-sm">
                             </div>
                             <div>
-                                <label class="block text-xs text-gray-400 mb-1">Label</label>
+                                <label class="block text-xs text-secondary mb-1">Label</label>
                                 <input type="text" id="y-axis-label" placeholder="Value"
-                                    class="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500">
+                                    class="input-field w-full px-2 py-1.5 rounded text-sm">
                             </div>
                         </div>
                     </div>
 
                     <!-- Units & Formatting -->
-                    <div class="bg-gray-800/50 rounded-lg p-4 space-y-3">
-                        <h4 class="text-sm font-medium text-gray-300 mb-3">Units & Formatting</h4>
+                    <div class="rounded-lg p-4 space-y-3 bg-[#f8fafc] border border-[#e2e8f0]">
+                        <h4 class="text-sm font-medium text-primary flex items-center gap-2">
+                            <i class="fas fa-calculator text-[#94a3b8]"></i>Units & Formatting
+                        </h4>
                         <div class="grid grid-cols-2 gap-3">
                             <div>
-                                <label class="block text-xs text-gray-400 mb-1">Unit Format</label>
-                                <select id="unit-format"
-                                    class="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500">
+                                <label class="block text-xs text-secondary mb-1">Unit Format</label>
+                                <select id="unit-format" class="input-field w-full px-2 py-1.5 rounded text-sm">
                                     <option value="">None (Number)</option>
                                     <option value="percent">Percent (%)</option>
                                     <option value="bytes">Bytes (B, KB, MB, GB)</option>
@@ -446,21 +583,22 @@
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-xs text-gray-400 mb-1">Decimals</label>
+                                <label class="block text-xs text-secondary mb-1">Decimals</label>
                                 <input type="number" id="decimals" min="0" max="5" value="2"
-                                    class="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500">
+                                    class="input-field w-full px-2 py-1.5 rounded text-sm">
                             </div>
                         </div>
                     </div>
 
                     <!-- Color Scheme -->
-                    <div class="bg-gray-800/50 rounded-lg p-4 space-y-3">
-                        <h4 class="text-sm font-medium text-gray-300 mb-3">Colors</h4>
+                    <div class="rounded-lg p-4 space-y-3 bg-[#f8fafc] border border-[#e2e8f0]">
+                        <h4 class="text-sm font-medium text-primary flex items-center gap-2">
+                            <i class="fas fa-palette text-[#94a3b8]"></i>Colors
+                        </h4>
                         <div class="grid grid-cols-2 gap-3">
                             <div>
-                                <label class="block text-xs text-gray-400 mb-1">Color Scheme</label>
-                                <select id="color-scheme"
-                                    class="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500">
+                                <label class="block text-xs text-secondary mb-1">Color Scheme</label>
+                                <select id="color-scheme" class="input-field w-full px-2 py-1.5 rounded text-sm">
                                     <option value="default">Default (Blue)</option>
                                     <option value="green">Green</option>
                                     <option value="red">Red</option>
@@ -471,8 +609,8 @@
                                 </select>
                             </div>
                             <div class="flex items-end">
-                                <label class="flex items-center text-gray-300 text-sm">
-                                    <input type="checkbox" id="use-gradient" class="mr-2">
+                                <label class="flex items-center text-secondary text-sm cursor-pointer">
+                                    <input type="checkbox" id="use-gradient" class="mr-2 h-4 w-4">
                                     Use Gradient Fill
                                 </label>
                             </div>
@@ -480,12 +618,14 @@
                     </div>
 
                     <!-- Thresholds -->
-                    <div class="bg-gray-800/50 rounded-lg p-4 space-y-3">
+                    <div class="rounded-lg p-4 space-y-3 bg-[#f8fafc] border border-[#e2e8f0]">
                         <div class="flex items-center justify-between mb-3">
-                            <h4 class="text-sm font-medium text-gray-300">Thresholds</h4>
+                            <h4 class="text-sm font-medium text-primary flex items-center gap-2">
+                                <i class="fas fa-tachometer-alt text-[#94a3b8]"></i>Thresholds
+                            </h4>
                             <button type="button" onclick="addThreshold()"
-                                class="text-xs text-green-400 hover:text-green-300">
-                                <i class="fas fa-plus mr-1"></i>Add Threshold
+                                class="text-xs font-medium text-[#059669] hover:text-[#047857] flex items-center gap-1">
+                                <i class="fas fa-plus"></i>Add Threshold
                             </button>
                         </div>
                         <div id="thresholds-container" class="space-y-2">
@@ -494,13 +634,14 @@
                     </div>
 
                     <!-- Legend -->
-                    <div class="bg-gray-800/50 rounded-lg p-4 space-y-3">
-                        <h4 class="text-sm font-medium text-gray-300 mb-3">Legend</h4>
+                    <div class="rounded-lg p-4 space-y-3 bg-[#f8fafc] border border-[#e2e8f0]">
+                        <h4 class="text-sm font-medium text-primary flex items-center gap-2">
+                            <i class="fas fa-list text-[#94a3b8]"></i>Legend
+                        </h4>
                         <div class="grid grid-cols-2 gap-3">
                             <div>
-                                <label class="block text-xs text-gray-400 mb-1">Position</label>
-                                <select id="legend-position"
-                                    class="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500">
+                                <label class="block text-xs text-secondary mb-1">Position</label>
+                                <select id="legend-position" class="input-field w-full px-2 py-1.5 rounded text-sm">
                                     <option value="bottom">Bottom</option>
                                     <option value="top">Top</option>
                                     <option value="left">Left</option>
@@ -508,8 +649,8 @@
                                 </select>
                             </div>
                             <div class="flex items-end">
-                                <label class="flex items-center text-gray-300 text-sm">
-                                    <input type="checkbox" id="show-legend" checked class="mr-2">
+                                <label class="flex items-center text-secondary text-sm cursor-pointer">
+                                    <input type="checkbox" id="show-legend" checked class="mr-2 h-4 w-4">
                                     Show Legend
                                 </label>
                             </div>
@@ -518,13 +659,12 @@
                 </div>
             </div>
 
-            <div class="flex justify-end gap-2 mt-6">
-                <button type="button" onclick="closeModal()"
-                    class="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded text-white">
+            <div class="flex justify-end gap-3 mt-6 pt-6 border-t border-[#e2e8f0]">
+                <button type="button" onclick="closeModal()" class="btn-secondary px-4 py-2 rounded-lg">
                     Cancel
                 </button>
-                <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white">
-                    Save Panel
+                <button type="submit" class="btn-primary px-4 py-2 rounded-lg">
+                    <i class="fas fa-save mr-2"></i>Save Panel
                 </button>
             </div>
         </form>
@@ -543,23 +683,63 @@
     let panels = [];
     let datasources = [];
     let filteredPanels = [];
-    let queryEditor = null;  // CodeMirror instance
-    let thresholdCounter = 0;  // Counter for threshold IDs
+    let queryEditor = null;
+    let thresholdCounter = 0;
+
+    function togglePnlDropdown(id) {
+        const dd = document.getElementById(id);
+        const wasOpen = dd && dd.classList.contains('open');
+        document.querySelectorAll('.pnl-dropdown.open').forEach(d => d.classList.remove('open'));
+        if (dd && !wasOpen) dd.classList.add('open');
+    }
+    function selectPnlOption(dropdownId, value, label) {
+        const dd = document.getElementById(dropdownId);
+        if (!dd) return;
+        const select = dd.querySelector('select');
+        const trigger = dd.querySelector('.pnl-dd-label');
+        if (select) select.value = value;
+        if (trigger) trigger.textContent = label;
+        dd.querySelectorAll('.pnl-dropdown-item').forEach(item => {
+            item.classList.toggle('selected', item.dataset.value === value);
+        });
+        dd.classList.remove('open');
+        filterPanels();
+    }
+    function selectPnlFromData(el) {
+        const value = el.dataset.value || '';
+        const label = el.dataset.label || '';
+        const dd = el.closest('.pnl-dropdown');
+        if (dd) {
+            const id = dd.id;
+            selectPnlOption(id, value, label);
+        }
+    }
+    document.addEventListener('click', function (e) {
+        if (!e.target.closest('.pnl-dropdown')) {
+            document.querySelectorAll('.pnl-dropdown.open').forEach(d => d.classList.remove('open'));
+        }
+    });
 
     async function loadDatasources() {
         try {
-            const response = await apiCall('/api/datasources/?enabled_only=true');
-            datasources = await response.json();
+            const response = await fetch('/api/datasources/?enabled_only=true');
+            if (response.ok) {
+                datasources = await response.json();
+                const panelDatasource = document.getElementById('panel-datasource');
+                const select = document.getElementById('datasource-filter');
+                const menu = document.getElementById('datasourceDropdownMenu');
 
-            // Populate datasource selectors
-            const panelDatasource = document.getElementById('panel-datasource');
-            const datasourceFilter = document.getElementById('datasource-filter');
+                panelDatasource.innerHTML = '<option value="">Select datasource...</option>' +
+                    datasources.map(ds => `<option value="${ds.id}">${escapeHtml(ds.name)}</option>`).join('');
 
-            panelDatasource.innerHTML = '<option value="">Select datasource...</option>' +
-                datasources.map(ds => `<option value="${ds.id}">${escapeHtml(ds.name)}</option>`).join('');
+                select.innerHTML = '<option value="">All Datasources</option>' +
+                    datasources.map(ds => `<option value="${ds.id}">${escapeHtml(ds.name)}</option>`).join('');
 
-            datasourceFilter.innerHTML = '<option value="">All Datasources</option>' +
-                datasources.map(ds => `<option value="${ds.id}">${escapeHtml(ds.name)}</option>`).join('');
+                if (menu) {
+                    menu.innerHTML = '<div class="pnl-dropdown-item selected" data-value="" data-label="All Datasources" onclick="selectPnlFromData(this)"><i class="fas fa-check pnl-dd-check"></i> All Datasources</div>' +
+                        datasources.map(ds => `<div class="pnl-dropdown-item" data-value="${ds.id}" data-label="${escapeHtml(ds.name)}" onclick="selectPnlFromData(this)"><i class="fas fa-check pnl-dd-check"></i> ${escapeHtml(ds.name)}</div>`).join('');
+                }
+            }
         } catch (error) {
             console.error('Failed to load datasources:', error);
         }
@@ -567,13 +747,26 @@
 
     async function loadPanels() {
         try {
-            const response = await apiCall('/api/panels/?limit=500');
+            const response = await fetch('/api/panels/?limit=500');
+            if (!response.ok) throw new Error('Failed to load panels');
             panels = await response.json();
+            updateStats();
             filterPanels();
         } catch (error) {
             console.error('Failed to load panels:', error);
             showToast('Failed to load panels', 'error');
         }
+    }
+
+    function updateStats() {
+        const total = panels.length;
+        const templates = panels.filter(p => p.is_template).length;
+        const timeSeries = panels.filter(p => ['graph','area','stacked_area','bar','stacked_bar'].includes(p.panel_type)).length;
+        const stats = panels.filter(p => ['stat','gauge','sparkline'].includes(p.panel_type)).length;
+        document.getElementById('statTotal').textContent = total;
+        document.getElementById('statTemplates').textContent = templates;
+        document.getElementById('statTimeSeries').textContent = timeSeries;
+        document.getElementById('statStats').textContent = stats;
     }
 
     // Pagination state
@@ -680,47 +873,47 @@
             const icon = getPanelTypeIcon(panel.panel_type);
 
             return `
-            <tr class="border-b border-[rgba(204,204,220,0.07)] hover:bg-[rgba(204,204,220,0.04)] transition-colors">
+            <tr class="border-b border-[#f1f5f9] hover:bg-[#f8fafc] transition-colors">
                 <td class="px-4 py-3">
                     <i class="fas ${icon.icon}" style="color: ${icon.color}"></i>
                 </td>
                 <td class="px-4 py-3">
-                    <div class="font-medium text-white">${escapeHtml(panel.name)}</div>
-                    ${panel.description ? `<div class="text-xs text-[#8e8e8e] mt-0.5 truncate max-w-xs">${escapeHtml(panel.description)}</div>` : ''}
+                    <div class="font-medium text-[#1e40af]">${escapeHtml(panel.name)}</div>
+                    ${panel.description ? `<div class="text-xs text-[#94a3b8] mt-0.5 truncate max-w-xs">${escapeHtml(panel.description)}</div>` : ''}
                 </td>
                 <td class="px-4 py-3">
                     <span class="badge ${badgeClass}">${panel.panel_type.toUpperCase()}</span>
                     ${panel.is_template ? '<span class="badge badge-template ml-1">TEMPLATE</span>' : ''}
                 </td>
-                <td class="px-4 py-3 text-[#8e8e8e]">
-                    ${datasource ? escapeHtml(datasource.name) : '<span class="text-[#ff5286]">Unknown</span>'}
+                <td class="px-4 py-3 text-[#475569]">
+                    ${datasource ? escapeHtml(datasource.name) : '<span class="text-[#dc2626]">Unknown</span>'}
                 </td>
                 <td class="px-4 py-3 hidden lg:table-cell">
-                    <code class="text-xs text-[#6ccf8e] bg-[#111217] px-2 py-1 rounded">${escapeHtml(truncateQuery(panel.promql_query))}</code>
+                    <code class="text-xs bg-[#f1f5f9] text-[#059669] px-2 py-1 rounded">${escapeHtml(truncateQuery(panel.promql_query))}</code>
                 </td>
-                <td class="px-4 py-3 text-[#8e8e8e] text-xs hidden md:table-cell">
+                <td class="px-4 py-3 text-[#64748b] text-xs hidden md:table-cell">
                     ${formatDate(panel.created_at)}
                 </td>
-                <td class="px-4 py-3 text-[#8e8e8e] text-xs hidden md:table-cell">
+                <td class="px-4 py-3 text-[#64748b] text-xs hidden md:table-cell">
                     ${formatDate(panel.updated_at)}
                 </td>
                 <td class="px-4 py-3 text-right">
                     <div class="flex justify-end gap-1">
                         <button onclick="editPanel('${panel.id}')" 
-                            class="p-1.5 hover:bg-[#22252b] rounded transition-colors" 
-                            style="color: #6e9fff;"
+                            class="p-1.5 hover:bg-[#f1f5f9] rounded transition-colors" 
+                            style="color: #3b82f6;"
                             title="Edit">
                             <i class="fas fa-edit"></i>
                         </button>
                         <button onclick="duplicatePanel('${panel.id}')" 
-                            class="p-1.5 hover:bg-[#22252b] rounded transition-colors" 
-                            style="color: #6ccf8e;"
+                            class="p-1.5 hover:bg-[#f1f5f9] rounded transition-colors" 
+                            style="color: #059669;"
                             title="Duplicate">
                             <i class="fas fa-copy"></i>
                         </button>
-                        <button onclick="deletePanel('${panel.id}', '${escapeHtml(panel.name)}')" 
-                            class="p-1.5 hover:bg-[#22252b] rounded transition-colors" 
-                            style="color: #ff5286;"
+                        <button onclick="deletePanel('${panel.id}', ${JSON.stringify(panel.name)})" 
+                            class="p-1.5 hover:bg-[#fef2f2] rounded transition-colors" 
+                            style="color: #dc2626;"
                             title="Delete">
                             <i class="fas fa-trash"></i>
                         </button>
@@ -757,7 +950,7 @@
             delete newPanel.created_at;
             delete newPanel.updated_at;
 
-            const response = await apiCall('/api/panels/', {
+            const response = await fetch('/api/panels/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(newPanel)
@@ -886,18 +1079,18 @@
             config.thresholds.forEach(threshold => {
                 const thresholdId = `threshold-${thresholdCounter++}`;
                 const thresholdHtml = `
-                    <div id="${thresholdId}" class="flex items-center gap-2 bg-gray-700/50 p-2 rounded">
+                    <div id="${thresholdId}" class="flex items-center gap-2 bg-white p-3 rounded-lg border border-[#e2e8f0]">
                         <input type="number" step="any" placeholder="Value" value="${threshold.value}"
-                            class="flex-1 bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm text-white threshold-value"
+                            class="flex-1 input-field px-2 py-1 rounded text-sm threshold-value"
                             data-threshold-id="${thresholdId}">
                         <input type="text" placeholder="Label" value="${threshold.label || ''}"
-                            class="flex-1 bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm text-white threshold-label"
+                            class="flex-1 input-field px-2 py-1 rounded text-sm threshold-label"
                             data-threshold-id="${thresholdId}">
                         <input type="color" value="${threshold.color || '#fac858'}"
-                            class="w-12 h-8 bg-gray-700 border border-gray-600 rounded cursor-pointer threshold-color"
+                            class="w-12 h-8 border border-[#e2e8f0] rounded cursor-pointer threshold-color"
                             data-threshold-id="${thresholdId}">
                         <button type="button" onclick="removeThreshold('${thresholdId}')"
-                            class="text-red-400 hover:text-red-300 px-2">
+                            class="text-[#dc2626] hover:text-[#b91c1c] p-2 rounded hover:bg-[#fef2f2] transition-colors">
                             <i class="fas fa-trash text-sm"></i>
                         </button>
                     </div>
@@ -932,14 +1125,14 @@
 
         // Show loading state
         resultDiv.classList.remove('hidden');
-        statusDiv.innerHTML = '<div class="text-gray-400"><i class="fas fa-spinner fa-spin mr-2"></i>Testing query and fetching data...</div>';
-        statusDiv.className = 'p-3 rounded text-sm bg-gray-900 mb-3';
+        statusDiv.innerHTML = '<div class="text-secondary"><i class="fas fa-spinner fa-spin mr-2"></i>Testing query and fetching data...</div>';
+        statusDiv.className = 'p-4 rounded-lg text-sm bg-[#f8fafc] border border-[#e2e8f0] mb-4';
         chartDiv.classList.add('hidden');
         dataDiv.classList.add('hidden');
 
         try {
             // First test the query validity
-            const testResponse = await apiCall('/api/panels/test-query', {
+            const testResponse = await fetch('/api/panels/test-query', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -951,16 +1144,16 @@
             const testResult = await testResponse.json();
 
             if (!testResult.valid) {
-                statusDiv.className = 'p-3 rounded text-sm bg-red-900 border border-red-600 mb-3';
-                statusDiv.innerHTML = `<div class="text-red-300">✗ ${escapeHtml(testResult.message)}</div>`;
+                statusDiv.className = 'p-4 rounded-lg text-sm bg-[#fef2f2] border border-[#fecaca] mb-4';
+                statusDiv.innerHTML = `<div class="text-[#dc2626] font-medium">✗ ${escapeHtml(testResult.message)}</div>`;
                 return;
             }
 
             // Query is valid, now fetch actual data for preview
-            statusDiv.className = 'p-3 rounded text-sm bg-green-900 border border-green-600 mb-3';
+            statusDiv.className = 'p-4 rounded-lg text-sm bg-[#ecfdf5] border border-[#a7f3d0] mb-4';
             statusDiv.innerHTML = `
-                <div class="text-green-300 font-medium">✓ ${escapeHtml(testResult.message)}</div>
-                <div class="text-xs text-green-200 mt-1">Result Type: ${testResult.result_type} | Fetching preview data...</div>
+                <div class="text-[#059669] font-medium">✓ ${escapeHtml(testResult.message)}</div>
+                <div class="text-xs text-[#047857] mt-1">Result Type: ${testResult.result_type} | Fetching preview data...</div>
             `;
 
             // Fetch actual data using the snapshots query endpoint (public)
@@ -982,20 +1175,20 @@
                 renderPreviewChart(result, panelType);
                 chartDiv.classList.remove('hidden');
                 statusDiv.innerHTML = `
-                    <div class="text-green-300 font-medium">✓ Query successful - ${result.length} series returned</div>
-                    <div class="text-xs text-green-200 mt-1">Result Type: ${testResult.result_type} | Time Range: ${timeRange}</div>
+                    <div class="text-[#059669] font-medium">✓ Query successful - ${result.length} series returned</div>
+                    <div class="text-xs text-[#047857] mt-1">Result Type: ${testResult.result_type} | Time Range: ${timeRange}</div>
                 `;
             } else if (queryData.error) {
-                statusDiv.innerHTML += `<div class="text-yellow-300 text-xs mt-1">⚠ ${queryData.error}</div>`;
+                statusDiv.innerHTML += `<div class="text-[#d97706] text-xs mt-1">⚠ ${queryData.error}</div>`;
             } else {
-                statusDiv.innerHTML += `<div class="text-yellow-300 text-xs mt-1">⚠ No data returned for the selected time range</div>`;
+                statusDiv.innerHTML += `<div class="text-[#d97706] text-xs mt-1">⚠ No data returned for the selected time range</div>`;
             }
 
 
         } catch (error) {
             console.error('Query test error:', error);
-            statusDiv.className = 'p-3 rounded text-sm bg-red-900 border border-red-600 mb-3';
-            statusDiv.innerHTML = `<div class="text-red-300">Error testing query: ${error.message}</div>`;
+            statusDiv.className = 'p-4 rounded-lg text-sm bg-[#fef2f2] border border-[#fecaca] mb-4';
+            statusDiv.innerHTML = `<div class="text-[#dc2626] font-medium">Error testing query: ${error.message}</div>`;
         }
     }
 
@@ -1023,7 +1216,7 @@
                         const value = series.values ? series.values[series.values.length - 1][1] : (series.value ? series.value[1] : 'N/A');
                         return { metric: JSON.stringify(metric), value: parseFloat(value).toFixed(2) };
                     });
-                    chartDiv.innerHTML = `<div class="text-xs text-gray-400 p-4"><pre>${JSON.stringify(tableData, null, 2)}</pre></div>`;
+                    chartDiv.innerHTML = `<div class="text-xs text-secondary p-4"><pre class="text-primary">${JSON.stringify(tableData, null, 2)}</pre></div>`;
                     return;
                 }
 
@@ -1249,7 +1442,7 @@
                 previewChart.resize();
             } catch (err) {
                 console.error('Error rendering preview chart:', err);
-                chartDiv.innerHTML = '<div class="text-red-400 text-sm p-4">Error rendering chart</div>';
+                chartDiv.innerHTML = '<div class="text-[#dc2626] text-sm p-4 font-medium">Error rendering chart</div>';
             }
         }, 100);
     }
@@ -1321,7 +1514,7 @@
             const url = id ? `/api/panels/${id}` : '/api/panels/';
             const method = id ? 'PUT' : 'POST';
 
-            const response = await apiCall(url, {
+            const response = await fetch(url, {
                 method: method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
@@ -1347,7 +1540,7 @@
         }
 
         try {
-            const response = await apiCall(`/api/panels/${id}`, {
+            const response = await fetch(`/api/panels/${id}`, {
                 method: 'DELETE'
             });
 
@@ -1388,18 +1581,18 @@
         const thresholdId = `threshold-${thresholdCounter++}`;
 
         const thresholdHtml = `
-            <div id="${thresholdId}" class="flex items-center gap-2 bg-gray-700/50 p-2 rounded">
+            <div id="${thresholdId}" class="flex items-center gap-2 bg-white p-3 rounded-lg border border-[#e2e8f0]">
                 <input type="number" step="any" placeholder="Value"
-                    class="flex-1 bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm text-white threshold-value"
+                    class="flex-1 input-field px-2 py-1 rounded text-sm threshold-value"
                     data-threshold-id="${thresholdId}">
                 <input type="text" placeholder="Label (e.g., Warning)"
-                    class="flex-1 bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm text-white threshold-label"
+                    class="flex-1 input-field px-2 py-1 rounded text-sm threshold-label"
                     data-threshold-id="${thresholdId}">
                 <input type="color" value="#fac858"
-                    class="w-12 h-8 bg-gray-700 border border-gray-600 rounded cursor-pointer threshold-color"
+                    class="w-12 h-8 border border-[#e2e8f0] rounded cursor-pointer threshold-color"
                     data-threshold-id="${thresholdId}">
                 <button type="button" onclick="removeThreshold('${thresholdId}')"
-                    class="text-red-400 hover:text-red-300 px-2">
+                    class="text-[#dc2626] hover:text-[#b91c1c] p-2 rounded hover:bg-[#fef2f2] transition-colors">
                     <i class="fas fa-trash text-sm"></i>
                 </button>
             </div>
@@ -1473,10 +1666,19 @@
         return div.innerHTML;
     }
 
-    // Load data on page load
     document.addEventListener('DOMContentLoaded', async () => {
         await loadDatasources();
         await loadPanels();
     });
+
+    if (typeof showToast === 'undefined') {
+        window.showToast = function (message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `fixed bottom-4 right-4 px-4 py-3 rounded-lg shadow-lg z-[10000] flex items-center gap-2 ${type === 'success' ? 'bg-green-600' : type === 'error' ? 'bg-red-600' : 'bg-blue-600'}`;
+            div.innerHTML = `<i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i><span>${escapeHtml(message)}</span>`;
+            document.body.appendChild(div);
+            setTimeout(() => div.remove(), 3000);
+        };
+    }
 </script>
 {% endblock %}

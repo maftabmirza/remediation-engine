@@ -40,6 +40,7 @@ class AISession(Base):
     message_count = Column(Integer, default=0)
     
     created_at = Column(DateTime(timezone=True), default=utc_now)
+    updated_at = Column(DateTime(timezone=True), nullable=True, default=utc_now, onupdate=utc_now)
     
     # PII/Secret mapping for consistent redaction across conversation
     # Structure: {

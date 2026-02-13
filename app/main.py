@@ -2,6 +2,7 @@
 AIOps Platform - Main Application
 """
 import logging
+from datetime import datetime, timezone
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Depends
 from fastapi.exceptions import RequestValidationError
@@ -88,6 +89,7 @@ from app.routers import (
     pii,  # PII & Secret Detection
     pii_logs,  # PII Detection Logs
     pii_feedback,  # PII False Positive Feedback
+    incidents,  # Incidents Management
 )
 from app import api_credential_profiles
 from app.services.execution_worker import start_execution_worker, stop_execution_worker
@@ -363,6 +365,10 @@ async def redoc_html():
         redoc_js_url="/static/redoc.standalone.js",
     )
 
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    return RedirectResponse(url="/static/favicon.ico")
+
 
 # Rate Limiter
 app.state.limiter = limiter
@@ -451,6 +457,7 @@ app.include_router(agent_hq_api.router)      # Agent HQ API
 app.include_router(pii.router)               # PII & Secret Detection
 app.include_router(pii_logs.router)          # PII Detection Logs
 app.include_router(pii_feedback.router)      # PII False Positive Feedback
+app.include_router(incidents.router)         # Incidents Management
 
 
 # Mock OFREP endpoint for Grafana OpenFeature - returns valid empty response to prevent 404 errors
@@ -491,19 +498,60 @@ async def index(
     db: Session = Depends(get_db)
 ):
     """
-    Dashboard / Home page
+    Dashboard / Home page — Command Center Overview
     """
     if not current_user:
         return RedirectResponse(url="/login", status_code=302)
-    
-    # Get stats
+
     from app.models import Alert, AutoAnalyzeRule
-    
-    total_alerts = db.query(Alert).count()
-    analyzed = db.query(Alert).filter(Alert.analyzed == True).count()
-    pending = db.query(Alert).filter(Alert.analyzed == False).count()
-    critical = db.query(Alert).filter(Alert.severity == "critical").count()
-    
+    from datetime import timedelta
+
+    now = datetime.now(timezone.utc)
+    start_24h = now - timedelta(hours=24)
+
+    # Core KPI stats
+    total_alerts = db.query(Alert).filter(Alert.timestamp >= start_24h).count()
+    analyzed = db.query(Alert).filter(Alert.analyzed == True, Alert.timestamp >= start_24h).count()
+    pending = total_alerts - analyzed
+    critical = db.query(Alert).filter(Alert.severity == "critical", Alert.timestamp >= start_24h).count()
+    warning_count = db.query(Alert).filter(Alert.severity == "warning", Alert.timestamp >= start_24h).count()
+
+    # Recent alerts for the incident panel (top 8 most recent firing/unresolved)
+    recent_alerts = (
+        db.query(Alert)
+        .filter(Alert.timestamp >= start_24h)
+        .order_by(Alert.timestamp.desc())
+        .limit(8)
+        .all()
+    )
+
+    recent_alerts_data = []
+    for a in recent_alerts:
+        labels = {}
+        raw_labels = getattr(a, "labels_json", None)
+        if raw_labels is None:
+            raw_labels = getattr(a, "labels", None)
+
+        if raw_labels and isinstance(raw_labels, dict):
+            labels = raw_labels
+        elif raw_labels and isinstance(raw_labels, str):
+            import json as _json
+            try:
+                labels = _json.loads(raw_labels)
+            except Exception:
+                labels = {}
+
+        recent_alerts_data.append({
+            "id": a.id,
+            "alert_name": a.alert_name or "Unknown",
+            "severity": a.severity or "info",
+            "status": a.status or "firing",
+            "instance": a.instance or labels.get("instance", ""),
+            "job": labels.get("job", ""),
+            "timestamp": a.timestamp.isoformat() if a.timestamp else "",
+            "labels": labels,
+        })
+
     return templates.TemplateResponse("dashboard.html", {
         "request": request,
         "user": current_user,
@@ -511,8 +559,10 @@ async def index(
             "total_alerts": total_alerts,
             "analyzed": analyzed,
             "pending": pending,
-            "critical": critical
-        }
+            "critical": critical,
+            "warning": warning_count,
+        },
+        "recent_alerts": recent_alerts_data,
     })
 
 
@@ -547,6 +597,55 @@ async def changes_page(
     return templates.TemplateResponse("changes.html", {
         "request": request,
         "user": current_user
+    })
+
+
+@app.get("/incidents", response_class=HTMLResponse)
+async def incidents_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    Incidents dashboard page
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    return templates.TemplateResponse("incidents.html", {
+        "request": request,
+        "user": current_user
+    })
+
+
+@app.get("/incidents/{incident_id}", response_class=HTMLResponse)
+async def incident_detail_page(
+    request: Request,
+    incident_id: str,
+    current_user: User = Depends(get_current_user_optional),
+    db: Session = Depends(get_db)
+):
+    """
+    Single incident detail page
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    from app.models_itsm import IncidentEvent
+    incident = db.query(IncidentEvent).filter(IncidentEvent.id == incident_id).first()
+    
+    if not incident:
+        return templates.TemplateResponse("404.html", {"request": request})
+
+    # Enrich with provider name if analyzed (to match what template expects)
+    # The template uses incident.llm_provider_name if available
+    # We can attach it to the object dynamically or pass a wrapper
+    if incident.llm_provider:
+        incident.llm_provider_name = incident.llm_provider.name
+
+    return templates.TemplateResponse("incident_detail.html", {
+        "request": request,
+        "user": current_user,
+        "incident": incident
     })
 
 

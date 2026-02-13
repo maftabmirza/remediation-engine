@@ -198,24 +198,31 @@ function updateModelSelector() {
 }
 
 function updateModelStatusIcon(status) {
-    const icon = document.getElementById('modelStatusIcon');
-    if (!icon) return;
-    
-    // Remove all status classes
-    icon.classList.remove('text-green-400', 'text-red-400', 'text-yellow-400', 'text-gray-400');
-    
-    switch(status) {
-        case 'connected':
-            icon.classList.add('text-green-400');
-            break;
-        case 'disconnected':
-            icon.classList.add('text-red-400');
-            break;
-        case 'connecting':
-            icon.classList.add('text-yellow-400');
-            break;
-        default:
-            icon.classList.add('text-gray-400');
+    const iconWrap = document.getElementById('llmIconStatus');
+    const dot = document.getElementById('llmStatusDot');
+    const badge = document.getElementById('llmStatusBadge');
+    const statusClasses = ['inq-llm-icon-connected', 'inq-llm-icon-disconnected', 'inq-llm-icon-connecting'];
+
+    // Icon color: green when connected, red/warning when not
+    if (iconWrap) {
+        iconWrap.classList.remove(...statusClasses);
+        iconWrap.classList.add(status === 'connected' ? 'inq-llm-icon-connected' :
+            status === 'disconnected' ? 'inq-llm-icon-disconnected' : 'inq-llm-icon-connecting');
+    }
+
+    // Status dot
+    if (dot) {
+        dot.classList.remove('inq-llm-status-connected', 'inq-llm-status-disconnected', 'inq-llm-status-connecting');
+        dot.title = status === 'connected' ? 'Connected' : status === 'disconnected' ? 'Disconnected' : 'Connecting';
+        dot.classList.add(status === 'connected' ? 'inq-llm-status-connected' :
+            status === 'disconnected' ? 'inq-llm-status-disconnected' : 'inq-llm-status-connecting');
+    }
+
+    // Status badge in dropdown header
+    if (badge) {
+        const labels = { connected: 'Connected', disconnected: 'Disconnected', connecting: 'Connecting' };
+        badge.textContent = labels[status] || 'Connecting';
+        badge.className = 'inq-llm-status-badge inq-llm-status-badge-' + status;
     }
 }
 
@@ -614,19 +621,19 @@ function finalizeStreamingMessage(fullText, toolCalls = []) {
 function toggleSessionDropdown() {
     const dropdown = document.getElementById('sessionDropdown');
     const btn = document.getElementById('sessionDropdownBtn');
+    const wrapper = btn ? btn.closest('.inq-session-dropdown-wrapper') : null;
     if (!dropdown) return;
 
     dropdown.classList.toggle('hidden');
 
-    if (!dropdown.classList.contains('hidden')) {
-        // Refresh session list
-        loadSessions();
+    // Toggle open class on wrapper for icon highlight
+    if (wrapper) {
+        wrapper.classList.toggle('open', !dropdown.classList.contains('hidden'));
     }
 
-    // Explicitly positioning if it's absolute global
-    const rect = btn.getBoundingClientRect();
-    dropdown.style.top = (rect.bottom + 5) + 'px';
-    dropdown.style.left = rect.left + 'px';
+    if (!dropdown.classList.contains('hidden')) {
+        loadSessions();
+    }
 }
 
 async function loadSessions() {
@@ -647,18 +654,19 @@ function populateSessionDropdown(sessions) {
     if (!container) return;
 
     if (sessions.length === 0) {
-        container.innerHTML = '<div class="px-3 py-2 text-xs text-gray-500">No previous sessions</div>';
+        container.innerHTML = '<div class="inq-session-empty">No previous sessions</div>';
     } else {
-        container.innerHTML = sessions.map(session => `
-            <div class="px-3 py-2 hover:bg-gray-700 cursor-pointer flex justify-between items-center group" onclick="switchSession('${session.id}')">
-                <div class="truncate max-w-[180px] text-xs ${session.id === currentSessionId ? 'text-blue-400 font-bold' : 'text-gray-300'}">
-                    ${AIChatBase.escapeHtml(session.title || 'Untitled Session')}
-                </div>
-                <div class="text-[10px] text-gray-500">
-                    ${new Date(session.created_at).toLocaleDateString()}
-                </div>
-            </div>
-        `).join('');
+        container.innerHTML = sessions.map(session => {
+            const isActive = session.id === currentSessionId;
+            const title = AIChatBase.escapeHtml(session.title || 'Untitled Session');
+            const date = new Date(session.created_at).toLocaleDateString();
+            const time = new Date(session.created_at).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+            return `
+            <div class="inq-session-item ${isActive ? 'active' : ''}" onclick="switchSession('${session.id}')">
+                <div class="inq-session-item-title">${title}</div>
+                <div class="inq-session-item-date">${date} ${time}</div>
+            </div>`;
+        }).join('');
     }
 }
 
@@ -686,7 +694,12 @@ async function switchSession(sessionId) {
     if (sessionId === currentSessionId) return;
 
     currentSessionId = sessionId;
-    document.getElementById('sessionDropdown').classList.add('hidden');
+    const dropdown = document.getElementById('sessionDropdown');
+    if (dropdown) {
+        dropdown.classList.add('hidden');
+        const wrapper = dropdown.closest('.inq-session-dropdown-wrapper');
+        if (wrapper) wrapper.classList.remove('open');
+    }
 
     // Update UI title
     const titleEl = document.getElementById('currentSessionTitle');
@@ -695,19 +708,23 @@ async function switchSession(sessionId) {
     // Load messages
     await loadMessageHistory(sessionId);
 
-    // Fetch session details to update title properly if we want title to persist
-    // For now:
+    // Reconnect WebSocket to new session
+    if (typeof connectChatWebSocket === 'function') {
+        connectChatWebSocket(sessionId);
+    }
+
     if (titleEl) titleEl.textContent = 'Active Session';
     showToast('Session switched', 'info');
 }
 
 // Populate Model Dropdown helper (needed if loadAvailableProviders calls it)
 function populateModelDropdown(providers) {
-    const list = document.getElementById('modelListContainer');
+    const list = document.getElementById('llmProviderList');
     if (!list) return;
 
     if (!providers || providers.length === 0) {
         list.innerHTML = '<div style="padding: 9px 12px; font-size: 13px; color: #94a3b8;">No providers available</div>';
+        updateModelStatusIcon('disconnected');
         return;
     }
 
@@ -715,15 +732,6 @@ function populateModelDropdown(providers) {
     const selectedId = (currentSession && currentSession.llm_provider_id) 
         ? currentSession.llm_provider_id 
         : (providers.find(p => p.is_default)?.id || '');
-
-    // Update the currently displayed model name
-    const currentModelNameEl = document.getElementById('currentModelName');
-    if (currentModelNameEl && selectedId) {
-        const selectedProvider = providers.find(p => p.id === selectedId);
-        if (selectedProvider) {
-            currentModelNameEl.textContent = selectedProvider.name || 'Select Model';
-        }
-    }
 
     list.innerHTML = providers.map(p => {
         const isSelected = p.id === selectedId;
@@ -742,6 +750,9 @@ function populateModelDropdown(providers) {
     
     // Re-initialize feather icons
     if (typeof feather !== 'undefined') feather.replace();
+    
+    // Ensure icon shows green when providers loaded successfully
+    updateModelStatusIcon('connected');
 }
 
 async function selectModel(providerId) {
@@ -817,6 +828,8 @@ window.addEventListener('click', function (e) {
     if (sessionDropdown && !sessionDropdown.classList.contains('hidden') &&
         !sessionDropdown.contains(e.target) && (!sessionBtn || !sessionBtn.contains(e.target))) {
         sessionDropdown.classList.add('hidden');
+        const wrapper = sessionBtn ? sessionBtn.closest('.inq-session-dropdown-wrapper') : null;
+        if (wrapper) wrapper.classList.remove('open');
     }
 
     const llmSelector = document.getElementById('llmSelector');

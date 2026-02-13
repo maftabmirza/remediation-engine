@@ -1,11 +1,9 @@
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Skip widget injection on pages that have their own dedicated RE-VIVE widget
-    // (grafana-advanced and prometheus-view load revive_widget_grafana.js instead)
+    // Skip widget injection on debug pages that intentionally test dual-widget conflicts
     const currentPath = window.location.pathname;
-    if (currentPath === '/grafana-advanced' || currentPath === '/prometheus-view'
-        || currentPath.startsWith('/grafana-debug/')) {
-        console.log('[RE-VIVE base] Skipping — dedicated widget JS handles this page:', currentPath);
+    if (currentPath.startsWith('/grafana-debug/')) {
+        console.log('[RE-VIVE base] Skipping — debug page:', currentPath);
         return;
     }
 

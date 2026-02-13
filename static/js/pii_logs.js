@@ -1,46 +1,75 @@
 /**
  * PII Detection Logs Viewer
+ * Loads one page at a time for better UI/UX performance
  */
 
 let currentPage = 1;
-let pageSize = 50;
+let pageSize = 25;  // Smaller default for faster initial load
 let totalPages = 1;
 let totalLogs = 0;
 let currentFilters = {};
+let searchMode = false;  // When true, pagination uses search endpoint
+let currentSearchQuery = '';  // Stored search query for pagination
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
-    loadLogs();
-    loadStatistics();
-    
-    // Set default date range (last 7 days)
+    // Set default date range (last 7 days) BEFORE first load to scope the query
     const endDate = new Date();
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - 7);
     
     document.getElementById('endDate').valueAsDate = endDate;
     document.getElementById('startDate').valueAsDate = startDate;
+    
+    // Apply default date filter so we don't load all records
+    currentFilters.start_date = startDate.toISOString().split('T')[0];
+    currentFilters.end_date = endDate.toISOString().split('T')[0];
+    
+    loadLogs();
+    loadStatistics();
+    
+    // Initialize page size selector if present
+    const pageSizeSelect = document.getElementById('pageSizeSelect');
+    if (pageSizeSelect) {
+        pageSizeSelect.value = pageSize;
+        pageSizeSelect.addEventListener('change', (e) => {
+            pageSize = parseInt(e.target.value, 10);
+            currentPage = 1;
+            loadLogs();
+        });
+    }
 });
 
 /**
- * Load logs with current filters and pagination
+ * Load logs with current filters and pagination.
+ * Uses search endpoint when in search mode, otherwise regular logs endpoint.
  */
 async function loadLogs() {
     const tbody = document.getElementById('logsTableBody');
-    tbody.innerHTML = '<tr><td colspan="6" class="loading-spinner">Loading logs...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-8 text-center"><div class="loading-spinner mx-auto mb-2"></div><p class="text-slate-500">Loading logs...</p></td></tr>';
     
     try {
-        const params = new URLSearchParams({
-            page: currentPage,
-            limit: pageSize,
-            ...currentFilters
+        const params = new URLSearchParams();
+        params.set('page', String(currentPage));
+        params.set('limit', String(pageSize));
+        if (searchMode && currentSearchQuery) params.set('q', currentSearchQuery);
+        Object.entries(currentFilters).forEach(([k, v]) => {
+            if (v != null && v !== '') params.set(k, String(v));
         });
         
-        const response = await fetch(`/api/v1/pii/logs?${params}`);
+        const url = searchMode
+            ? `/api/v1/pii/logs/search?${params}`
+            : `/api/v1/pii/logs?${params}`;
+        const response = await fetch(url);
         if (!response.ok) throw new Error('Failed to load logs');
         
         const data = await response.json();
-        displayLogs(data);
+        if (searchMode) {
+            displaySearchResults(data);
+        } else {
+            displayLogs(data);
+        }
     } catch (error) {
         tbody.innerHTML = `<tr><td colspan="6" class="no-results">Error loading logs: ${error.message}</td></tr>`;
     }
@@ -163,6 +192,8 @@ function nextPage() {
 function applyFilters() {
     currentFilters = {};
     currentPage = 1;
+    searchMode = false;
+    currentSearchQuery = '';
     
     const startDate = document.getElementById('startDate').value;
     const endDate = document.getElementById('endDate').value;
@@ -192,11 +223,21 @@ function clearFilters() {
     
     currentFilters = {};
     currentPage = 1;
+    searchMode = false;
+    currentSearchQuery = '';
+    // Restore default date range
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 7);
+    document.getElementById('endDate').valueAsDate = endDate;
+    document.getElementById('startDate').valueAsDate = startDate;
+    currentFilters.start_date = startDate.toISOString().split('T')[0];
+    currentFilters.end_date = endDate.toISOString().split('T')[0];
     loadLogs();
 }
 
 /**
- * Search logs
+ * Search logs (paginated - one page at a time)
  */
 async function searchLogs() {
     const query = document.getElementById('searchQuery').value;
@@ -205,10 +246,17 @@ async function searchLogs() {
         return;
     }
     
+    searchMode = true;
+    currentSearchQuery = query;
+    currentPage = 1;
+    
     try {
-        const params = new URLSearchParams({
-            q: query,
-            ...currentFilters
+        const params = new URLSearchParams();
+        params.set('q', query);
+        params.set('page', String(currentPage));
+        params.set('limit', String(pageSize));
+        Object.entries(currentFilters).forEach(([k, v]) => {
+            if (v != null && v !== '') params.set(k, String(v));
         });
         
         const response = await fetch(`/api/v1/pii/logs/search?${params}`);
@@ -222,7 +270,7 @@ async function searchLogs() {
 }
 
 /**
- * Display search results
+ * Display search results (paginated)
  */
 function displaySearchResults(data) {
     const tbody = document.getElementById('logsTableBody');
@@ -238,8 +286,9 @@ function displaySearchResults(data) {
         return;
     }
     
-    // Display results similar to regular logs
-    displayLogs({ logs: data.results, total: data.total, pages: 1 });
+    // Search API returns paginated results - calculate pages from total
+    const pages = Math.ceil(data.total / pageSize) || 1;
+    displayLogs({ logs: data.results, total: data.total, pages });
 }
 
 /**

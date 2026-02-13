@@ -18,6 +18,29 @@
 </div>
 {% endblock %}
 
+{% block head %}
+<style>
+    /* Alert-specific badge and status styles (aligned with runbooks/alerts) */
+    .badge-critical { background-color: #ff5286; color: white; padding: 2px 8px; border-radius: 2px; font-size: 0.75rem; font-weight: 500; }
+    .badge-warning { background-color: #eb7b18; color: white; padding: 2px 8px; border-radius: 2px; font-size: 0.75rem; font-weight: 500; }
+    .badge-info { background-color: #3d71d9; color: white; padding: 2px 8px; border-radius: 2px; font-size: 0.75rem; font-weight: 500; }
+    .badge-other { background-color: #6e9fff; color: #111217; padding: 2px 8px; border-radius: 2px; font-size: 0.75rem; font-weight: 500; }
+    .status-firing { color: #ff5286; }
+    .status-resolved { color: #1a7f4b; }
+    .status-acknowledged { color: #6e9fff; }
+    /* Alert detail cards - compact, aligned with runbooks/applications */
+    .alert-detail-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+    .alert-detail-tabs { display: flex; gap: 16px; border-bottom: 1px solid #e2e8f0; margin-bottom: 0; padding-bottom: 0; }
+    .alert-detail-tab { background: none; border: none; padding: 8px 2px; font-size: 13px; font-weight: 500; color: #64748b; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; }
+    .alert-detail-tab:hover { color: #1e293b; }
+    .alert-detail-tab.active { color: #3b82f6; border-bottom-color: #3b82f6; font-weight: 600; }
+    /* Compact analysis section */
+    .alert-analysis-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+    .alert-detail-card .ts-chat-messages { padding: 20px 16px; gap: 14px; }
+    .alert-detail-card .ts-chat-input-container { padding: 10px 14px 14px; }
+</style>
+{% endblock %}
+
 {% block header_actions %}
 <div id="header_actions_container" class="flex items-center gap-2 hidden">
     <button onclick="deleteAlert()"
@@ -29,6 +52,32 @@
 {% endblock %}
 
 {% block content %}
+<!-- Markdown Support -->
+<script src="https://unpkg.com/marked@4.3.0/marked.min.js"></script>
+<script>
+    // Ensure showToast is defined globally
+    window.showToast = window.showToast || function (message, type = 'info') {
+        console.log(`[Toast ${type}] ${message}`);
+        // Create simple toast if not exists
+        let toastContainer = document.getElementById('toast-container');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.id = 'toast-container';
+            toastContainer.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999;';
+            document.body.appendChild(toastContainer);
+        }
+
+        const toast = document.createElement('div');
+        const colors = type === 'error' ? 'bg-red-500' : type === 'success' ? 'bg-green-500' : 'bg-blue-500';
+        toast.className = `${colors} text-white px-4 py-2 rounded shadow-lg mb-2 flex items-center`;
+        toast.innerHTML = `<span>${message}</span>`;
+        toastContainer.appendChild(toast);
+
+        setTimeout(() => {
+            toast.remove();
+        }, 3000);
+    };
+</script>
 <style>
     /* Fix user message code blocks to respect parent width */
     .user-message-content pre,
@@ -43,7 +92,7 @@
         margin: 0.5rem 0;
     }
 </style>
-<div id="alertContent" class="space-y-2 h-full flex flex-col">
+<div id="alertContent" class="space-y-0 h-full flex flex-col">
     <div class="text-center py-8">
         <div class="loading-spinner mx-auto"></div>
         <p class="text-gray-400 mt-2">Loading alert...</p>
@@ -296,22 +345,22 @@
 
     async function loadAlert() {
         try {
-            const response = await apiCall(`/api/alerts/${alertId}`);
-            if (!response) return;
+            const alert = await apiCall(`/api/alerts/${alertId}`);
+            if (!alert) return;
 
-            if (!response.ok) throw new Error('Alert not found');
-
-            const alert = await response.json();
             renderAlert(alert);
+            if (typeof feather !== 'undefined') feather.replace();
 
             // Initialize Chat Session automatically
             initChatSession(alert.id);
 
         } catch (error) {
+            console.error('Error loading alert:', error);
             document.getElementById('alertContent').innerHTML = `
                 <div class="text-center py-8">
                     <i class="fas fa-exclamation-circle text-red-400 text-4xl mb-3"></i>
-                    <p class="text-gray-400">Alert not found</p>
+                    <p class="text-gray-400 font-bold">Alert not found</p>
+                    <p class="text-sm text-gray-500 mb-4">ID: ${alertId}<br>Error: ${error.message}</p>
                     <a href="/alerts" class="btn-primary mt-4 px-4 py-2 rounded inline-block">Back to Alerts</a>
                 </div>
             `;
@@ -321,9 +370,9 @@
     function renderAlert(alert) {
         const container = document.getElementById('alertContent');
 
-        // Format labels/annotations (same as before)
+        // Format labels/annotations (light theme for Details popover)
         const labelsHtml = Object.entries(alert.labels_json || {})
-            .map(([k, v]) => `<span class="inline-block bg-gray-700 px-2 py-1 rounded text-sm mr-2 mb-2">${k}: ${v}</span>`)
+            .map(([k, v]) => `<span class="inline-block bg-slate-100 text-slate-700 px-2 py-1 rounded text-xs mr-2 mb-2 border border-slate-200">${escapeHtml(String(k))}: ${escapeHtml(String(v))}</span>`)
             .join('');
 
         // Update header title
@@ -331,93 +380,75 @@
         if (headerTitle) headerTitle.textContent = alert.alert_name;
 
         const annotationsHtml = Object.entries(alert.annotations_json || {})
-            .map(([k, v]) => `<div class="mb-1"><span class="text-gray-400">${k}:</span> <span class="ml-2">${v}</span></div>`)
+            .map(([k, v]) => `<div class="mb-1.5"><span class="text-slate-500 font-medium">${escapeHtml(String(k))}:</span> <span class="ml-2 text-slate-700">${escapeHtml(String(v))}</span></div>`)
             .join('');
 
+        const summary = (alert.annotations_json || {}).summary || (alert.annotations_json || {}).description || 'No description';
         container.innerHTML = `
-            <!-- Alert Info Bar (Compact) -->
-            <div class="card p-2 mb-2">
-                <div class="flex flex-col md:flex-row md:items-center justify-between gap-2">
-                    <!-- Left: Alert Title & Status -->
-                    <div class="flex items-center gap-2 min-w-0">
-                        <div class="w-8 h-8 rounded bg-${alert.severity === 'critical' ? 'red' : alert.severity === 'warning' ? 'yellow' : 'blue'}-900/30 border border-${alert.severity === 'critical' ? 'red' : alert.severity === 'warning' ? 'yellow' : 'blue'}-500/30 flex items-center justify-center flex-shrink-0">
-                            <i class="fas fa-exclamation-triangle text-${alert.severity === 'critical' ? 'red' : alert.severity === 'warning' ? 'yellow' : 'blue'}-400 text-sm"></i>
-                        </div>
-                        <div class="min-w-0">
-                            <div class="flex items-center gap-2 flex-wrap">
-                                <h1 class="text-sm font-semibold text-white truncate">${alert.alert_name}</h1>
-                                <span class="badge-${alert.severity || 'info'} px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase">${alert.severity || 'info'}</span>
-                                <span class="status-${alert.status} text-[10px] flex items-center"><i class="fas fa-circle text-[5px] mr-1"></i>${alert.status}</span>
-                            </div>
-                            <div class="text-[10px] text-gray-400 truncate">${alert.annotations_json.summary || alert.annotations_json.description || 'No description'}</div>
-                        </div>
+            <!-- Alert Info Bar (single line, compact) -->
+            <div class="alert-detail-card px-3 py-2 mb-2">
+                <div class="flex items-center gap-3 flex-shrink-0 flex-wrap md:flex-nowrap">
+                    <div class="w-7 h-7 rounded flex items-center justify-center flex-shrink-0 ${alert.severity === 'critical' ? 'bg-red-50' : alert.severity === 'warning' ? 'bg-amber-50' : 'bg-blue-50'}">
+                        <i class="fas fa-exclamation-triangle text-[10px] ${alert.severity === 'critical' ? 'text-red-500' : alert.severity === 'warning' ? 'text-amber-500' : 'text-blue-500'}"></i>
                     </div>
-
-                    <!-- Right: Meta & Actions -->
-                    <div class="flex items-center gap-2 flex-shrink-0">
-                        <div class="hidden md:flex items-center gap-3 text-[10px] text-gray-400 border-r border-gray-700/50 pr-3">
-                            <span title="Instance"><i class="fas fa-server mr-1 text-gray-500"></i>${alert.instance || 'N/A'}</span>
-                            <span title="Job"><i class="fas fa-cube mr-1 text-gray-500"></i>${alert.job || 'N/A'}</span>
-                            <span title="Time"><i class="fas fa-clock mr-1 text-gray-500"></i>${new Date(alert.timestamp).toLocaleTimeString()}</span>
-                        </div>
-                        
-                        <!-- Details Popover -->
-                        <div class="relative group">
-                            <button class="text-gray-400 hover:text-white text-[10px] px-1.5 py-0.5 rounded hover:bg-gray-700/50 transition-colors">
-                                <i class="fas fa-info-circle mr-1"></i>Details
-                            </button>
-                            <div class="absolute right-0 top-full mt-2 w-72 card p-3 hidden group-hover:block z-50">
-                                <h3 class="font-bold mb-2 text-gray-300 text-xs">Labels</h3>
-                                <div class="mb-2 text-[10px]">${labelsHtml || '<span class="text-gray-500">No labels</span>'}</div>
-                                <h3 class="font-bold mb-2 text-gray-300 text-xs">Annotations</h3>
-                                <div class="text-[10px]">${annotationsHtml || '<span class="text-gray-500">No annotations</span>'}</div>
-                            </div>
+                    <span class="text-sm font-semibold text-slate-800 truncate">${alert.alert_name}</span>
+                    <span class="badge-${alert.severity || 'info'} flex-shrink-0">${(alert.severity || 'info').toUpperCase()}</span>
+                    <span class="status-${alert.status || 'firing'} text-[10px] font-medium flex items-center flex-shrink-0"><i class="fas fa-circle text-[3px] mr-1"></i>${(alert.status || 'firing').toUpperCase()}</span>
+                    <span class="text-xs text-slate-500 truncate flex-1 min-w-0">${summary}</span>
+                    <div class="hidden md:flex items-center gap-4 text-[10px] text-slate-500 flex-shrink-0">
+                        <span title="Instance"><i class="fas fa-server mr-1 text-slate-400"></i>${alert.instance || 'N/A'}</span>
+                        <span title="Job"><i class="fas fa-cube mr-1 text-slate-400"></i>${alert.job || 'N/A'}</span>
+                        <span title="Time"><i class="fas fa-clock mr-1 text-slate-400"></i>${new Date(alert.timestamp).toLocaleTimeString()}</span>
+                    </div>
+                    <div class="relative group flex-shrink-0">
+                        <button class="text-slate-500 hover:text-slate-700 text-[10px] px-2 py-1 rounded border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors">
+                            <i class="fas fa-info-circle mr-1"></i>Details
+                        </button>
+                        <div class="absolute right-0 top-full mt-1.5 w-64 alert-detail-card p-3 hidden group-hover:block z-50 shadow-lg">
+                            <h3 class="font-semibold mb-1.5 text-slate-700 text-[11px] uppercase tracking-wide">Labels</h3>
+                            <div class="mb-2 text-xs text-slate-600">${labelsHtml || '<span class="text-slate-400">No labels</span>'}</div>
+                            <h3 class="font-semibold mb-1.5 text-slate-700 text-[11px] uppercase tracking-wide">Annotations</h3>
+                            <div class="text-xs text-slate-600">${annotationsHtml || '<span class="text-slate-400">No annotations</span>'}</div>
                         </div>
                     </div>
                 </div>
             </div>
             
-            <!-- Tab Navigation (Compact) -->
-            <div class="flex border-b border-gray-700 mb-2">
-                <button id="btn-tab-live" onclick="switchMainTab('live')" class="px-3 py-1.5 text-xs font-medium border-b-2 border-purple-500 text-purple-400">
-                    <i class="fas fa-terminal mr-1"></i>Live Investigation
+            <!-- Tab Navigation -->
+            <div class="alert-detail-tabs mb-2">
+                <button id="btn-tab-live" onclick="switchMainTab('live')" class="alert-detail-tab active">
+                    <i class="fas fa-terminal mr-2" style="font-size:12px;"></i>Live Investigation
                 </button>
-                <button id="btn-tab-analysis" onclick="switchMainTab('analysis')" class="px-3 py-1.5 text-xs font-medium border-b-2 border-transparent text-gray-400 hover:text-gray-300">
-                    <i class="fas fa-project-diagram mr-1"></i>Analysis
+                <button id="btn-tab-analysis" onclick="switchMainTab('analysis')" class="alert-detail-tab">
+                    <i class="fas fa-project-diagram mr-2" style="font-size:12px;"></i>Analysis
                 </button>
             </div>
 
             <!-- Tab Content: Live Investigation -->
             <div id="tab-live" class="flex-grow flex flex-col min-h-0">
-                <!-- 2-Pane Layout (Chat 40% | Terminal 60%) -->
-                <div class="grid grid-cols-1 lg:grid-cols-12 gap-2 flex-grow overflow-hidden" style="height: calc(100vh - 130px);">
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-1.5 flex-grow overflow-hidden" style="height: calc(100vh - 105px);">
                 
-                <!-- Pane 1: Chat (5 cols ~ 41%) -->
-                <div class="lg:col-span-5 flex flex-col card h-full min-h-0 overflow-hidden">
-                    <div class="px-2 py-1.5 border-b border-gray-700 flex justify-between items-center flex-shrink-0">
-                        <div class="flex items-center flex-grow">
-                            <h2 class="font-semibold text-xs mr-2"><i class="fas fa-robot text-purple-400 mr-1"></i>AI</h2>
-
-                            <!-- MODEL SELECTOR -->
-                            <select id="modelSelector"
-                                    class="bg-gray-700 text-white text-[10px] px-1.5 py-0.5 rounded border border-gray-600 hover:border-blue-400 cursor-pointer mr-2"
-                                    onchange="switchModel(this.value)"
-                                    title="Select LLM Model">
-                                <option value="">Loading...</option>
-                            </select>
-
-                            <span id="chatStatus" class="text-[9px] text-gray-500" title="Connection Status">Disconnected</span>
+                <!-- Pane 1: Chat (troubleshoot style) -->
+                <div class="lg:col-span-5 flex flex-col alert-detail-card h-full min-h-0 overflow-hidden">
+                    <div class="ts-session-header px-3 py-2 border-b border-slate-200 flex-shrink-0 bg-slate-50">
+                        <div class="ts-session-left flex items-center gap-2 flex-grow min-w-0">
+                            <div class="ts-llm-selector" id="llmSelector">
+                                <div class="ts-llm-selected" onclick="toggleAlertModelDropdown()">
+                                    <span id="chatStatusDot" class="ts-model-dot w-2 h-2" style="background:#ef4444;" title="Disconnected"></span>
+                                    <span class="ts-llm-text" id="currentModelName">Select Model</span>
+                                    <i data-feather="chevron-down" class="ts-dropdown-icon"></i>
+                                </div>
+                                <div class="ts-llm-options" id="modelListContainer" style="display: none;">
+                                    <!-- Options injected by populateAlertModelDropdown -->
+                                </div>
+                            </div>
                         </div>
-                        <div class="flex space-x-0.5">
-                            <button id="agentModeBtn" onclick="openAgentModal()" class="text-gray-400 hover:text-purple-400 px-1 transition-colors" title="Agent Mode">
-                                <i class="fas fa-magic text-[10px]"></i>
-                            </button>
-                            <button onclick="toggleCommandHistory()" class="text-gray-400 hover:text-blue-400 px-1 transition-colors" title="Command History">
-                                <i class="fas fa-history text-[10px]"></i>
-                            </button>
-                            <button onclick="clearChat()" class="text-gray-400 hover:text-white px-1" title="Clear Chat"><i class="fas fa-eraser text-[10px]"></i></button>
-                            <button onclick="adjustChatFont(-1)" class="text-gray-400 hover:text-white px-1" title="Font -"><i class="fas fa-minus text-[10px]"></i></button>
-                            <button onclick="adjustChatFont(1)" class="text-gray-400 hover:text-white px-1" title="Font +"><i class="fas fa-plus text-[10px]"></i></button>
+                        <div class="ts-session-actions flex gap-1">
+                            <button id="agentModeBtn" onclick="openAgentModal()" class="ts-icon-btn text-slate-500 hover:text-purple-600" title="Agent Mode" style="width:28px;height:28px;"><i class="fas fa-magic text-xs"></i></button>
+                            <button onclick="toggleCommandHistory()" class="ts-icon-btn text-slate-500 hover:text-blue-600" title="Command History" style="width:28px;height:28px;"><i class="fas fa-history text-xs"></i></button>
+                            <button onclick="clearChat()" class="ts-icon-btn text-slate-500 hover:text-red-600" title="Clear Chat" style="width:28px;height:28px;"><i class="fas fa-eraser text-xs"></i></button>
+                            <button onclick="adjustChatFont(-1)" class="ts-icon-btn text-slate-500 hover:text-slate-700" title="Font -" style="width:28px;height:28px;"><i class="fas fa-minus text-xs"></i></button>
+                            <button onclick="adjustChatFont(1)" class="ts-icon-btn text-slate-500 hover:text-slate-700" title="Font +" style="width:28px;height:28px;"><i class="fas fa-plus text-xs"></i></button>
                         </div>
                     </div>
                     
@@ -449,24 +480,24 @@
                         <!-- Badges populated by JS -->
                     </div>
                     
-                    <div id="chatMessages" class="flex-grow overflow-y-auto p-4 space-y-4 min-h-0 text-sm">
-                        <!-- Messages go here -->
-                        <div class="text-center text-gray-500 mt-10">
-                            <p>Starting conversation...</p>
-                        </div>
+                    <div id="chatMessages" class="ts-chat-messages flex-grow overflow-y-auto min-h-0">
+                        <!-- Messages go here - welcome shown by showWelcomeScreen -->
+                        <div class="text-center text-slate-500 py-8 text-sm">Starting conversation...</div>
                     </div>
                     
-                    <div class="p-2 border-t border-gray-700 flex-shrink-0 bg-gray-800 z-10">
-                        <form id="chatForm" onsubmit="sendMessage(event)" class="flex space-x-2">
-                            <textarea id="chatInput" class="input-field flex-grow px-2 py-1.5 rounded resize-none h-10 text-sm" placeholder="Ask AI..." autocomplete="off" title="Type your message here"></textarea>
-                            <button type="submit" class="btn-primary px-3 py-1.5 rounded h-10" title="Send Message"><i class="fas fa-paper-plane"></i></button>
+                    <div class="ts-chat-input-container flex-shrink-0 z-10">
+                        <form id="chatForm" onsubmit="sendMessage(event)" class="ts-chat-input-wrapper">
+                            <textarea id="chatInput" class="ts-chat-input" placeholder="Ask AI about this alert, run commands, or troubleshoot..." autocomplete="off" rows="1"></textarea>
+                            <button type="submit" class="ts-send-btn">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
                         </form>
                     </div>
                 </div>
                 
-                <!-- Pane 2: Terminal (7 cols ~ 58%) -->
-                <div class="lg:col-span-7 flex flex-col card h-full bg-black overflow-hidden">
-                    <div class="px-2 py-1.5 border-b border-gray-800 flex justify-between items-center bg-gray-900 flex-shrink-0">
+                <!-- Pane 2: Terminal -->
+                <div class="lg:col-span-7 flex flex-col alert-detail-card h-full overflow-hidden">
+                    <div class="px-3 py-2 border-b border-slate-200 flex justify-between items-center bg-slate-800 flex-shrink-0">
                         <div class="flex items-center">
                             <h2 class="font-semibold text-xs mr-2"><i class="fas fa-terminal text-green-400 mr-1"></i>Terminal</h2>
                             <div class="flex space-x-0.5 mr-2">
@@ -481,7 +512,7 @@
                             </button>
                         </div>
                     </div>
-                    <div class="flex-grow relative overflow-hidden h-full w-full">
+                    <div class="flex-grow relative overflow-hidden h-full w-full bg-black">
                         <div id="terminal" class="absolute inset-0"></div>
                         
                         <!-- Inline Chat Overlay (Ctrl+I) -->
@@ -524,70 +555,66 @@
                 </div>
             </div>
 
-            <!-- Tab Content: Troubleshooting Analysis -->
+            <!-- Tab Content: Troubleshooting Analysis (compact, refined) -->
             <div id="tab-analysis" class="hidden flex-grow flex flex-col min-h-0">
-                <div class="grid grid-cols-1 lg:grid-cols-12 gap-2 flex-grow overflow-hidden" style="height: calc(100vh - 130px);">
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-1.5 flex-grow overflow-hidden" style="height: calc(100vh - 105px);">
                     
-                    <!-- Left: Correlation & Graph -->
-                    <div class="lg:col-span-4 flex flex-col space-y-2 overflow-y-auto min-h-0">
-                        <!-- Correlation Info -->
-                        <div class="card p-3 flex-shrink-0">
-                            <h3 class="font-bold text-sm mb-2 text-purple-400">Correlation Group</h3>
-                            <div class="flex justify-between text-xs mb-2">
-                                <span class="text-gray-400">Total Alerts:</span>
-                                <span id="corr-count" class="font-mono text-white">1</span>
+                    <!-- Left: Correlation & RCA -->
+                    <div class="lg:col-span-4 flex flex-col gap-2 overflow-y-auto min-h-0">
+                        <div class="alert-analysis-card px-3 py-2.5 flex-shrink-0">
+                            <h3 class="font-semibold text-xs text-purple-600 mb-2 flex items-center"><i class="fas fa-link mr-1.5"></i>Correlation Group</h3>
+                            <div class="flex justify-between text-[11px] mb-1.5">
+                                <span class="text-slate-500">Total Alerts</span>
+                                <span id="corr-count" class="font-mono text-slate-800 font-medium">1</span>
                             </div>
-                            <div class="flex justify-between text-xs mb-2">
-                                <span class="text-gray-400">Duration:</span>
-                                <span id="corr-duration" class="font-mono text-white">0h</span>
+                            <div class="flex justify-between text-[11px] mb-1.5">
+                                <span class="text-slate-500">Duration</span>
+                                <span id="corr-duration" class="font-mono text-slate-800 font-medium">0h</span>
                             </div>
-                            <div class="border-t border-gray-700 my-2"></div>
-                            <div id="correlated-alerts-list" class="space-y-1 mt-2 max-h-48 overflow-y-auto">
-                                <!-- List populated by JS -->
-                                <p class="text-gray-500 text-xs text-center">Loading...</p>
+                            <div class="border-t border-slate-200 my-2"></div>
+                            <div id="correlated-alerts-list" class="space-y-1 max-h-36 overflow-y-auto text-xs">
+                                <p class="text-slate-500 text-center py-2">Loading...</p>
                             </div>
                         </div>
 
-                        <!-- Root Cause Analysis -->
-                        <div class="card p-4 flex-grow overflow-y-auto min-h-0">
-                            <h3 class="font-bold text-lg mb-2 text-red-400">Root Cause Analysis</h3>
-                            <div id="rca-loading" class="text-center py-4">
-                                <i class="fas fa-spinner fa-spin text-purple-400"></i> Analyzing...
+                        <div class="alert-analysis-card px-3 py-2.5 flex-grow overflow-y-auto min-h-0">
+                            <h3 class="font-semibold text-xs text-red-600 mb-2 flex items-center"><i class="fas fa-search mr-1.5"></i>Root Cause Analysis</h3>
+                            <div id="rca-loading" class="text-center py-4 text-slate-500 text-xs">
+                                <i class="fas fa-spinner fa-spin text-purple-500 mr-1.5"></i>Analyzing...
                             </div>
                             <div id="rca-content" class="hidden">
-                                <div class="mb-3">
-                                    <div class="text-xs text-gray-400 uppercase tracking-wide">Primary Cause</div>
-                                    <div id="rca-title" class="font-bold text-white text-md"></div>
+                                <div class="mb-2">
+                                    <div class="text-[10px] text-slate-500 uppercase tracking-wide mb-0.5">Primary Cause</div>
+                                    <div id="rca-title" class="font-semibold text-slate-800 text-sm"></div>
                                 </div>
-                                <div class="mb-3">
-                                    <div class="text-xs text-gray-400 uppercase tracking-wide">Confidence</div>
-                                    <div class="flex items-center">
-                                        <div class="flex-grow bg-gray-700 h-2 rounded-full mr-2">
-                                            <div id="rca-confidence-bar" class="bg-red-500 h-2 rounded-full" style="width: 0%"></div>
+                                <div class="mb-2">
+                                    <div class="text-[10px] text-slate-500 uppercase tracking-wide mb-0.5">Confidence</div>
+                                    <div class="flex items-center gap-2">
+                                        <div class="flex-grow bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                                            <div id="rca-confidence-bar" class="bg-red-500 h-1.5 rounded-full transition-all" style="width: 0%"></div>
                                         </div>
-                                        <span id="rca-confidence" class="text-xs font-mono">0%</span>
+                                        <span id="rca-confidence" class="text-[11px] font-mono text-slate-600">0%</span>
                                     </div>
-                                    <p id="rca-desc" class="text-xs text-gray-400 mt-1"></p>
+                                    <p id="rca-desc" class="text-[11px] text-slate-500 mt-0.5"></p>
                                 </div>
                                 <div>
-                                    <div class="text-xs text-gray-400 uppercase tracking-wide mb-1">Reasoning</div>
-                                    <ul id="rca-reasoning" class="list-disc list-inside text-xs text-gray-300 space-y-1"></ul>
+                                    <div class="text-[10px] text-slate-500 uppercase tracking-wide mb-0.5">Reasoning</div>
+                                    <ul id="rca-reasoning" class="list-disc list-inside text-[11px] text-slate-600 space-y-0.5 pl-0"></ul>
                                 </div>
                             </div>
                         </div>
                     </div>
 
                     <!-- Right: Investigation Path -->
-                    <div class="lg:col-span-8 flex flex-col card h-full overflow-hidden">
-                        <div class="p-4 border-b border-gray-700 bg-gray-800/50 flex-shrink-0">
-                            <h3 class="font-bold text-md text-blue-400"><i class="fas fa-shoe-prints mr-2"></i>Investigation Path</h3>
+                    <div class="lg:col-span-8 flex flex-col alert-detail-card h-full overflow-hidden">
+                        <div class="px-3 py-2 border-b border-slate-200 bg-slate-50 flex-shrink-0">
+                            <h3 class="font-semibold text-xs text-blue-600"><i class="fas fa-shoe-prints mr-1.5"></i>Investigation Path</h3>
                         </div>
-                        <div class="flex-grow overflow-y-auto p-6 relative">
-                            <div class="absolute left-6 top-6 bottom-6 w-0.5 bg-gray-700"></div>
-                            <div id="path-steps" class="ml-6">
-                                <!-- Steps populated by JS -->
-                                <div class="text-center py-10 text-gray-500">
-                                    <i class="fas fa-circle-notch fa-spin mr-2"></i>Generating investigation steps...
+                        <div class="flex-grow overflow-y-auto p-4 relative bg-white">
+                            <div class="absolute left-4 top-4 bottom-4 w-px bg-slate-200"></div>
+                            <div id="path-steps" class="ml-4">
+                                <div class="text-center py-6 text-slate-500 text-xs">
+                                    <i class="fas fa-circle-notch fa-spin mr-1.5"></i>Generating investigation steps...
                                 </div>
                             </div>
                         </div>
@@ -606,25 +633,18 @@
             await loadAvailableProviders();
 
             // Try to find existing session for this alert
-            let existingResponse = await apiCall(`/api/alerts/chat/sessions/by-alert/${alertId}`);
-
-            if (existingResponse.ok) {
-                // Reuse existing session
-                currentSession = await existingResponse.json();
+            try {
+                currentSession = await apiCall(`/api/alerts/chat/sessions/by-alert/${alertId}`);
                 currentSessionId = currentSession.id;
                 console.log('Reusing existing chat session:', currentSessionId);
-            } else {
+            } catch (error) {
+                // Ignore 404s, proceed to create new session
+                if (!error.message.includes('404')) console.warn('Error checking existing session:', error);
+
                 // Create new session only if none exists
-                const createResponse = await apiCall('/api/alerts/chat/sessions', {
-                    method: 'POST',
-                    body: JSON.stringify({ alert_id: alertId })
-                });
-
-                if (!createResponse.ok) throw new Error('Failed to create chat session');
-
-                currentSession = await createResponse.json();
+                currentSession = await apiCall('/api/alerts/chat/sessions', 'POST', { alert_id: alertId });
+                console.log('Created new chat session:', currentSession.id);
                 currentSessionId = currentSession.id;
-                console.log('Created new chat session:', currentSessionId);
             }
 
             // Update model selector to show current model
@@ -642,14 +662,14 @@
         } catch (error) {
             console.error('Chat init failed:', error);
             showToast('Failed to initialize chat', 'error');
+            updateChatStatusDot(false);
         }
     }
 
     async function checkContextStatus(alertId) {
         try {
-            const res = await apiCall(`/api/alerts/chat/context-status/${alertId}`);
-            if (res.ok) {
-                const status = await res.json();
+            const status = await apiCall(`/api/alerts/chat/context-status/${alertId}`);
+            if (status) {
                 renderContextBadges(status);
             }
         } catch (e) {
@@ -698,59 +718,105 @@
 
     async function loadAvailableProviders() {
         try {
-            const response = await apiCall('/api/alerts/chat/providers');
-            if (!response.ok) throw new Error('Failed to load providers');
+            availableProviders = await apiCall('/api/alerts/chat/providers');
 
-            availableProviders = await response.json();
-
-            const selector = document.getElementById('modelSelector');
-            if (availableProviders.length === 0) {
-                selector.innerHTML = '<option value="">No providers configured</option>';
+            const list = document.getElementById('modelListContainer');
+            const nameEl = document.getElementById('currentModelName');
+            if (!availableProviders || availableProviders.length === 0) {
+                if (list) list.innerHTML = '<div class="px-3 py-2 text-xs text-slate-500">No providers configured</div>';
+                if (nameEl) nameEl.textContent = 'No providers';
                 return;
             }
 
-            selector.innerHTML = availableProviders.map(p =>
-                `<option value="${p.id}">${p.provider_name}${p.is_default ? ' ⭐' : ''}</option>`
-            ).join('');
+            populateAlertModelDropdown(availableProviders);
+            updateModelSelectorDisplay();
 
         } catch (error) {
             console.error('Failed to load providers:', error);
-            const selector = document.getElementById('modelSelector');
-            selector.innerHTML = '<option value="">Error loading models</option>';
+            const nameEl = document.getElementById('currentModelName');
+            if (nameEl) nameEl.textContent = 'Error loading';
         }
     }
 
+    function populateAlertModelDropdown(providers) {
+        const list = document.getElementById('modelListContainer');
+        if (!list || !providers?.length) return;
+
+        const selectedId = (currentSession && currentSession.llm_provider_id) || providers.find(p => p.is_default)?.id || '';
+
+        const selectedProvider = providers.find(p => p.id === selectedId);
+        if (selectedProvider) {
+            const nameEl = document.getElementById('currentModelName');
+            if (nameEl) nameEl.textContent = selectedProvider.name || selectedProvider.provider_name || 'Select Model';
+        }
+
+        list.innerHTML = providers.map(p => {
+            const isSelected = p.id === selectedId;
+            const name = p.name || p.provider_name || p.model_id || 'Unknown';
+            return `<div class="ts-llm-option ${isSelected ? 'selected' : ''}" onclick="selectAlertModel('${p.id}'); toggleAlertModelDropdown();">
+                <i data-feather="${p.is_enabled !== false ? 'check-circle' : 'x-circle'}" style="width: 14px; height: 14px; color: ${p.is_enabled !== false ? '#4ade80' : '#f87171'}"></i>
+                <span class="ml-2">${escapeHtml(name)}${p.is_default ? ' ★' : ''}</span>
+            </div>`;
+        }).join('');
+
+        if (typeof feather !== 'undefined') feather.replace();
+    }
+
+    function toggleAlertModelDropdown() {
+        const list = document.getElementById('modelListContainer');
+        const selector = document.getElementById('llmSelector');
+        if (list && selector) {
+            const isOpen = list.style.display === 'block';
+            list.style.display = isOpen ? 'none' : 'block';
+            selector.classList.toggle('open', !isOpen);
+        }
+    }
+
+    function selectAlertModel(providerId) {
+        switchModel(providerId);
+    }
+
+    document.addEventListener('click', function(e) {
+        const llm = document.getElementById('llmSelector');
+        const list = document.getElementById('modelListContainer');
+        if (llm && list && !llm.contains(e.target)) {
+            list.style.display = 'none';
+            llm.classList.remove('open');
+        }
+    });
+
+    function updateModelSelectorDisplay() {
+        const nameEl = document.getElementById('currentModelName');
+        if (!nameEl || !availableProviders?.length) return;
+        const id = (currentSession && currentSession.llm_provider_id) || availableProviders.find(p => p.is_default)?.id;
+        const p = availableProviders.find(x => x.id === id);
+        nameEl.textContent = p ? (p.name || p.provider_name || p.model_id || 'Select Model') : 'Select Model';
+    }
+
     function updateModelSelector() {
-        const selector = document.getElementById('modelSelector');
         if (currentSession && currentSession.llm_provider_id) {
-            selector.value = currentSession.llm_provider_id;
+            // Already set
         } else {
-            // Select default provider
-            const defaultProvider = availableProviders.find(p => p.is_default);
+            const defaultProvider = availableProviders?.find(p => p.is_default);
             if (defaultProvider) {
-                selector.value = defaultProvider.id;
+                currentSession = currentSession || {};
+                currentSession.llm_provider_id = defaultProvider.id;
             }
         }
+        updateModelSelectorDisplay();
+        populateAlertModelDropdown(availableProviders || []);
     }
 
     async function switchModel(providerId) {
         if (!currentSessionId || !providerId) return;
 
-        const selector = document.getElementById('modelSelector');
         const previousValue = currentSession?.llm_provider_id || '';
 
         try {
-            const response = await apiCall(`/api/alerts/chat/sessions/${currentSessionId}/provider`, {
-                method: 'PATCH',
-                body: JSON.stringify({ provider_id: providerId })
-            });
+            const result = await apiCall(`/api/alerts/chat/sessions/${currentSessionId}/provider`, 'PATCH', { provider_id: providerId });
 
-            if (!response.ok) throw new Error('Failed to switch model');
-
-            const result = await response.json();
             showToast(`Switched to ${result.provider_name} - ${result.model_name}`, 'success');
 
-            // Add system message to chat
             const container = document.getElementById('chatMessages');
             const msg = document.createElement('div');
             msg.className = 'text-center text-xs text-gray-500 my-2 italic';
@@ -758,25 +824,25 @@
             container.appendChild(msg);
             container.scrollTop = container.scrollHeight;
 
-            // Update current session
             currentSession.llm_provider_id = providerId;
+            updateModelSelectorDisplay();
+            populateAlertModelDropdown(availableProviders || []);
 
         } catch (error) {
             console.error('Failed to switch model:', error);
             showToast('Failed to switch model', 'error');
-            // Revert the selector on error
-            if (selector && previousValue) {
-                selector.value = previousValue;
+            if (previousValue) {
+                currentSession.llm_provider_id = previousValue;
+                updateModelSelectorDisplay();
+                populateAlertModelDropdown(availableProviders || []);
             }
         }
     }
 
     async function loadMessageHistory(sessionId) {
         try {
-            const response = await apiCall(`/api/alerts/chat/sessions/${sessionId}/messages`);
-            if (!response.ok) throw new Error('Failed to load history');
+            const messages = await apiCall(`/api/alerts/chat/sessions/${sessionId}/messages`);
 
-            const messages = await response.json();
             const container = document.getElementById('chatMessages');
             container.innerHTML = ''; // Clear loading message
 
@@ -835,28 +901,29 @@
 
     function showWelcomeScreen() {
         const container = document.getElementById('chatMessages');
+        const suggestions = [
+            { text: "Analyze this alert and tell me what might be wrong", icon: "fas fa-chart-line" },
+            { text: "What commands should I run to troubleshoot this issue?", icon: "fas fa-terminal" },
+            { text: "Show me where to find relevant logs for this alert", icon: "fas fa-file-alt" },
+            { text: "Explain this error in simple terms", icon: "fas fa-question-circle" }
+        ];
         container.innerHTML = `
-            <div class="text-center text-gray-400 mt-10">
-                <i class="fas fa-robot text-4xl mb-3 text-purple-400"></i>
-                <p class="mb-2 text-lg">👋 Hi! I'm your AI assistant.</p>
-                <p class="text-sm text-gray-500 mb-4">Ask me to help troubleshoot this alert:</p>
-                <div class="mt-3 space-y-2 text-left max-w-sm mx-auto">
-                    <button onclick="sendSuggestion('Analyze this alert and tell me what might be wrong')"
-                            class="w-full text-left bg-gray-800 hover:bg-gray-700 px-3 py-2 rounded text-sm border border-gray-700 transition-colors">
-                        <i class="fas fa-chart-line text-blue-400 mr-2"></i>Analyze this alert
-                    </button>
-                    <button onclick="sendSuggestion('What commands should I run to troubleshoot this issue?')"
-                            class="w-full text-left bg-gray-800 hover:bg-gray-700 px-3 py-2 rounded text-sm border border-gray-700 transition-colors">
-                        <i class="fas fa-terminal text-green-400 mr-2"></i>Suggest troubleshooting commands
-                    </button>
-                    <button onclick="sendSuggestion('Show me where to find relevant logs for this alert')"
-                            class="w-full text-left bg-gray-800 hover:bg-gray-700 px-3 py-2 rounded text-sm border border-gray-700 transition-colors">
-                        <i class="fas fa-file-alt text-yellow-400 mr-2"></i>Help me check logs
-                    </button>
-                    <button onclick="sendSuggestion('Explain this error in simple terms')"
-                            class="w-full text-left bg-gray-800 hover:bg-gray-700 px-3 py-2 rounded text-sm border border-gray-700 transition-colors">
-                        <i class="fas fa-question-circle text-purple-400 mr-2"></i>Explain this error
-                    </button>
+            <div class="welcome-screen" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px 24px; text-align: center; margin: auto 0;">
+                <div style="width: 56px; height: 56px; border-radius: 14px; background: linear-gradient(135deg, #8b5cf6, #6366f1); display: flex; align-items: center; justify-content: center; margin-bottom: 20px; box-shadow: 0 8px 24px rgba(99, 102, 241, 0.25);">
+                    <i class="fas fa-robot text-white" style="font-size: 22px;"></i>
+                </div>
+                <h2 style="font-size: 20px; font-weight: 700; color: #1e293b; margin-bottom: 8px;">Alert Assistant</h2>
+                <p style="color: #64748b; font-size: 13px; margin-bottom: 28px; max-width: 340px; line-height: 1.5;">Connect to a server and ask me to help troubleshoot this alert.</p>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; max-width: 460px;">
+                    ${suggestions.map(s => `
+                        <button onclick="sendSuggestion(this.dataset.txt)" data-txt="${escapeHtml(s.text).replace(/"/g, '&quot;')}"
+                                style="display: flex; align-items: flex-start; gap: 10px; padding: 14px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; text-align: left; font-size: 12px; color: #475569; cursor: pointer; transition: all 0.2s; line-height: 1.4; box-shadow: 0 1px 3px rgba(0,0,0,0.05);"
+                                onmouseenter="this.style.borderColor='#93c5fd'; this.style.boxShadow='0 4px 14px rgba(59,130,246,0.12)'; this.style.transform='translateY(-2px)';"
+                                onmouseleave="this.style.borderColor='#e2e8f0'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.05)'; this.style.transform='translateY(0)';">
+                            <i class="${s.icon}" style="font-size: 14px; color: #3b82f6; flex-shrink: 0;"></i>
+                            <span style="font-weight: 500;">${escapeHtml(s.text)}</span>
+                        </button>
+                    `).join('')}
                 </div>
             </div>
         `;
@@ -878,11 +945,16 @@
     let currentStreamController = null;
     let isStreaming = false;
 
+    function updateChatStatusDot(connected) {
+        const dot = document.getElementById('chatStatusDot');
+        if (!dot) return;
+        dot.style.background = connected ? '#22c55e' : '#ef4444';
+        dot.title = connected ? 'Connected' : 'Disconnected';
+    }
+
     function connectChatWebSocket(sessionId) {
         // Chat now uses REST/SSE streaming instead of WebSocket
-        // Just update status to show we're ready
-        document.getElementById('chatStatus').textContent = 'Connected';
-        document.getElementById('chatStatus').className = 'text-xs text-green-400';
+        updateChatStatusDot(true);
         console.log('Chat ready using REST/SSE streaming for session:', sessionId);
     }
 
@@ -1029,57 +1101,29 @@
         lastMessageRole = 'user';
     }
 
-    function switchMainTab(tab) {
-        // Toggle Buttons
-        document.getElementById('btn-tab-live').className = tab === 'live'
-            ? 'px-4 py-2 text-sm font-medium border-b-2 border-purple-500 text-purple-400'
-            : 'px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-400 hover:text-gray-300';
-
-        document.getElementById('btn-tab-analysis').className = tab === 'analysis'
-            ? 'px-4 py-2 text-sm font-medium border-b-2 border-purple-500 text-purple-400'
-            : 'px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-400 hover:text-gray-300';
-
-        // Toggle Content
-        if (tab === 'live') {
-            document.getElementById('tab-live').classList.remove('hidden');
-            document.getElementById('tab-analysis').classList.add('hidden');
-            // Refresh terminal fit
-            if (fitAddon) setTimeout(() => fitAddon.fit(), 100);
-        } else {
-            document.getElementById('tab-live').classList.add('hidden');
-            document.getElementById('tab-analysis').classList.remove('hidden');
-            // Load analysis data
-            loadTroubleshootingData();
-        }
-    }
-
     async function loadTroubleshootingData() {
         try {
             // 1. Get Correlation Data
-            const corrRes = await apiCall(`/api/v1/alerts/${alertId}/correlation`);
-            if (corrRes.ok) {
-                const correlation = await corrRes.json();
-                renderCorrelation(correlation);
+            try {
+                const correlation = await apiCall(`/api/v1/alerts/${alertId}/correlation`);
+                if (correlation) {
+                    renderCorrelation(correlation);
 
-                // 2. Trigger RCA if active
-                if (correlation.status === 'active' && !correlation.root_cause_analysis) {
-                    const rcaRes = await apiCall(`/api/v1/alerts/${alertId}/analyze-root-cause`, { method: 'POST' });
-                    if (rcaRes.ok) {
-                        const rca = await rcaRes.json();
-                        renderRCA(rca);
+                    // 2. Trigger RCA if active
+                    if (correlation.status === 'active' && !correlation.root_cause_analysis) {
+                        const rca = await apiCall(`/api/v1/alerts/${alertId}/analyze-root-cause`, 'POST');
+                        if (rca) renderRCA(rca);
+                    } else if (correlation.root_cause_analysis) {
+                        // Parse stored string or object
                     }
-                } else if (correlation.root_cause_analysis) {
-                    // Parse stored string or object
-                    // For now handled by renderRCA logic if struct available
                 }
-            }
+            } catch (e) { console.warn("Correlation data not available", e); }
 
             // 3. Get Investigation Path
-            const pathRes = await apiCall(`/api/v1/alerts/${alertId}/investigation-path`);
-            if (pathRes.ok) {
-                const path = await pathRes.json();
-                renderInvestigationPath(path);
-            }
+            try {
+                const path = await apiCall(`/api/v1/alerts/${alertId}/investigation-path`);
+                if (path) renderInvestigationPath(path);
+            } catch (e) { console.warn("Investigation path not available", e); }
 
         } catch (e) {
             console.error("Error loading troubleshooting data", e);
@@ -1094,15 +1138,15 @@
         const diffHrs = Math.round((now - start) / 1000 / 60 / 60);
         document.getElementById('corr-duration').innerText = diffHrs + "h";
 
-        // Render List
+        // Render List (light theme aligned with analysis section)
         const list = document.getElementById('correlated-alerts-list');
         list.innerHTML = (data.alerts || []).map(a => `
-            <div class="bg-gray-800 p-3 rounded border border-gray-700 flex justify-between items-center hover:bg-gray-700 cursor-pointer" onclick="window.location.href='/alerts/${a.id}'">
-                <div>
-                    <div class="font-bold text-sm text-gray-200">${a.alert_name}</div>
-                    <div class="text-xs text-gray-500">${new Date(a.timestamp).toLocaleString()}</div>
+            <div class="bg-slate-50 px-2 py-1.5 rounded border border-slate-200 flex justify-between items-center hover:bg-slate-100 cursor-pointer transition-colors" onclick="window.location.href='/alerts/${a.id}'">
+                <div class="min-w-0 flex-1">
+                    <div class="font-medium text-slate-800 text-xs truncate">${a.alert_name}</div>
+                    <div class="text-[10px] text-slate-500">${new Date(a.timestamp).toLocaleString()}</div>
                 </div>
-                <span class="badge-${a.severity} px-2 py-1 rounded text-xs">${a.severity}</span>
+                <span class="badge-${a.severity} px-1.5 py-0.5 rounded text-[10px] flex-shrink-0 ml-2">${a.severity}</span>
             </div>
         `).join('');
     }
@@ -1122,18 +1166,18 @@
     function renderInvestigationPath(path) {
         const container = document.getElementById('path-steps');
         container.innerHTML = path.steps.map(step => `
-            <div class="relative mb-6">
-                <span class="absolute -left-[29px] w-6 h-6 rounded-full bg-purple-600 flex items-center justify-center text-xs font-bold border-2 border-gray-800">
+            <div class="relative mb-4 pl-8">
+                <span class="absolute -left-[10px] top-0 w-5 h-5 rounded-full bg-purple-600 flex items-center justify-center text-[10px] font-bold text-white border-2 border-white shadow-sm">
                     ${step.step_number}
                 </span>
-                <div class="ml-2">
-                    <h4 class="font-bold text-purple-400 text-sm">${step.action}</h4>
-                    <p class="text-gray-400 text-sm mb-2">${step.description}</p>
+                <div>
+                    <h4 class="font-semibold text-purple-600 text-xs">${step.action}</h4>
+                    <p class="text-slate-500 text-[11px] mb-1.5">${step.description}</p>
                     ${step.command_to_run ? `
-                        <div class="bg-black rounded p-2 text-xs font-mono text-green-400 flex justify-between group">
-                            <code>${step.command_to_run}</code>
-                            <button class="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-white" onclick="copyToClipboard('${step.command_to_run}')">
-                                <i class="fas fa-copy"></i>
+                        <div class="bg-slate-100 rounded px-2 py-1.5 text-[11px] font-mono text-slate-700 flex justify-between items-center group border border-slate-200">
+                            <code class="truncate">${escapeHtml(step.command_to_run)}</code>
+                            <button class="flex-shrink-0 ml-2 text-slate-400 hover:text-slate-600" onclick="copyToClipboard(this.dataset.cmd)" data-cmd="${String(step.command_to_run).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}">
+                                <i class="fas fa-copy text-[10px]"></i>
                             </button>
                         </div>
                     ` : ''}
@@ -3064,29 +3108,29 @@
             }
 
         } else if (step.step_type === 'complete') {
-            stepEl.className = 'bg-green-900/30 rounded-lg p-4 border border-green-500/30';
+            stepEl.className = 'agent-step-complete rounded-lg p-4';
             stepEl.innerHTML = `
                 <div class="flex items-start">
-                    <div class="w-6 h-6 rounded-full bg-green-600/30 flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
-                        <i class="fas fa-check text-green-400 text-xs"></i>
+                    <div class="w-6 h-6 rounded-full agent-step-complete-icon flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
+                        <i class="fas fa-check text-xs"></i>
                     </div>
                     <div class="flex-grow">
-                        <div class="text-xs text-green-400 mb-1 font-semibold">Goal Achieved!</div>
-                        <div class="text-sm text-gray-300">${marked.parse(step.content)}</div>
+                        <div class="text-xs mb-1 font-semibold agent-step-complete-title">Goal Achieved!</div>
+                        <div class="text-sm agent-step-complete-body">${marked.parse(step.content)}</div>
                     </div>
                 </div>
             `;
 
         } else if (step.step_type === 'failed') {
-            stepEl.className = 'bg-red-900/30 rounded-lg p-4 border border-red-500/30';
+            stepEl.className = 'agent-step-failed rounded-lg p-4';
             stepEl.innerHTML = `
                 <div class="flex items-start">
-                    <div class="w-6 h-6 rounded-full bg-red-600/30 flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
-                        <i class="fas fa-times text-red-400 text-xs"></i>
+                    <div class="w-6 h-6 rounded-full agent-step-failed-icon flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
+                        <i class="fas fa-times text-xs"></i>
                     </div>
                     <div class="flex-grow">
-                        <div class="text-xs text-red-400 mb-1 font-semibold">Agent Failed</div>
-                        <div class="text-sm text-gray-300">${escapeHtml(step.content)}</div>
+                        <div class="text-xs agent-step-failed-title mb-1 font-semibold">Agent Failed</div>
+                        <div class="text-sm agent-step-failed-body">${escapeHtml(step.content)}</div>
                     </div>
                 </div>
             `;
@@ -3216,7 +3260,7 @@
                 agentSocket.send(JSON.stringify({ type: 'approve' }));
             } else {
                 // Fallback to REST API
-                await apiCall(`/api/agent/${currentAgentSession.id}/approve`, { method: 'POST' });
+                await apiCall(`/api/agent/${currentAgentSession.id}/approve`, 'POST');
             }
 
             hideApprovalPanel();
@@ -3235,7 +3279,7 @@
             if (agentSocket && agentSocket.readyState === WebSocket.OPEN) {
                 agentSocket.send(JSON.stringify({ type: 'reject' }));
             } else {
-                await apiCall(`/api/agent/${currentAgentSession.id}/reject`, { method: 'POST' });
+                await apiCall(`/api/agent/${currentAgentSession.id}/reject`, 'POST');
             }
 
             hideApprovalPanel();
@@ -3255,10 +3299,7 @@
             if (agentSocket && agentSocket.readyState === WebSocket.OPEN) {
                 agentSocket.send(JSON.stringify({ type: 'answer', answer: input.value.trim() }));
             } else {
-                await apiCall(`/api/agent/${currentAgentSession.id}/answer`, {
-                    method: 'POST',
-                    body: JSON.stringify({ answer: input.value.trim() })
-                });
+                await apiCall(`/api/agent/${currentAgentSession.id}/answer`, 'POST', { answer: input.value.trim() });
             }
 
             input.disabled = true;
@@ -3281,7 +3322,7 @@
                 agentSocket.send(JSON.stringify({ type: 'stop' }));
             }
 
-            await apiCall(`/api/agent/${currentAgentSession.id}/stop`, { method: 'POST' });
+            await apiCall(`/api/agent/${currentAgentSession.id}/stop`, 'POST');
 
             updateAgentStatus('stopped');
             showToast('Agent stopped', 'info');
@@ -3360,18 +3401,12 @@
     // --- Troubleshooting Logic ---
 
     function switchMainTab(tab) {
-        // Toggle Buttons
+        // Toggle Buttons (alert-detail-tab styling)
         const btnLive = document.getElementById('btn-tab-live');
         const btnAnalysis = document.getElementById('btn-tab-analysis');
-
         if (btnLive && btnAnalysis) {
-            btnLive.className = tab === 'live'
-                ? 'px-4 py-2 text-sm font-medium border-b-2 border-purple-500 text-purple-400'
-                : 'px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-400 hover:text-gray-300';
-
-            btnAnalysis.className = tab === 'analysis'
-                ? 'px-4 py-2 text-sm font-medium border-b-2 border-purple-500 text-purple-400'
-                : 'px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-400 hover:text-gray-300';
+            btnLive.className = tab === 'live' ? 'alert-detail-tab active' : 'alert-detail-tab';
+            btnAnalysis.className = tab === 'analysis' ? 'alert-detail-tab active' : 'alert-detail-tab';
         }
 
         // Toggle Content
@@ -3394,21 +3429,16 @@
     }
 
     async function loadTroubleshootingData() {
+        // 1. Get Correlation Data
         try {
-            // 1. Get Correlation Data
-            const corrRes = await apiCall(`/api/v1/alerts/${alertId}/correlation`);
-
-            if (corrRes.ok) {
-                const correlation = await corrRes.json();
+            const correlation = await apiCall(`/api/v1/alerts/${alertId}/correlation`);
+            if (correlation) {
                 renderCorrelation(correlation);
 
                 // 2. Trigger RCA if active
                 if (correlation.status === 'active' && !correlation.root_cause_analysis) {
-                    const rcaRes = await apiCall(`/api/v1/alerts/${alertId}/analyze-root-cause`, { method: 'POST' });
-                    if (rcaRes.ok) {
-                        const rca = await rcaRes.json();
-                        renderRCA(rca);
-                    }
+                    const rca = await apiCall(`/api/v1/alerts/${alertId}/analyze-root-cause`, 'POST');
+                    if (rca) renderRCA(rca);
                 } else if (correlation.root_cause_analysis) {
                     // Parse stored string into RCA object format
                     try {
@@ -3427,10 +3457,11 @@
             }
 
             // 3. Get Investigation Path
-            const pathRes = await apiCall(`/api/v1/alerts/${alertId}/investigation-path`);
-            if (pathRes.ok) {
-                const path = await pathRes.json();
-                renderInvestigationPath(path);
+            try {
+                const path = await apiCall(`/api/v1/alerts/${alertId}/investigation-path`);
+                if (path) renderInvestigationPath(path);
+            } catch (e) {
+                console.warn("Investigation path not available", e);
             }
 
         } catch (e) {
@@ -3488,18 +3519,18 @@
         const container = document.getElementById('path-steps');
         if (container) {
             container.innerHTML = path.steps.map(step => `
-                <div class="relative mb-6">
-                    <span class="absolute -left-[29px] w-6 h-6 rounded-full bg-purple-600 flex items-center justify-center text-xs font-bold border-2 border-gray-800">
+                <div class="relative mb-4 pl-8">
+                    <span class="absolute -left-[10px] top-0 w-5 h-5 rounded-full bg-purple-600 flex items-center justify-center text-[10px] font-bold text-white border-2 border-white shadow-sm">
                         ${step.step_number}
                     </span>
-                    <div class="ml-2">
-                        <h4 class="font-bold text-purple-400 text-sm">${step.action}</h4>
-                        <p class="text-gray-400 text-sm mb-2">${step.description}</p>
+                    <div>
+                        <h4 class="font-semibold text-purple-600 text-xs">${step.action}</h4>
+                        <p class="text-slate-500 text-[11px] mb-1.5">${step.description}</p>
                         ${step.command_to_run ? `
-                            <div class="bg-black rounded p-2 text-xs font-mono text-green-400 flex justify-between group">
-                                <code>${step.command_to_run}</code>
-                                <button class="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-white" onclick="copyToClipboard('${step.command_to_run}')">
-                                    <i class="fas fa-copy"></i>
+                            <div class="bg-slate-100 rounded px-2 py-1.5 text-[11px] font-mono text-slate-700 flex justify-between items-center group border border-slate-200">
+                                <code class="truncate">${escapeHtml(step.command_to_run)}</code>
+                                <button class="flex-shrink-0 ml-2 text-slate-400 hover:text-slate-600" onclick="copyToClipboard(this.dataset.cmd)" data-cmd="${String(step.command_to_run).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}">
+                                    <i class="fas fa-copy text-[10px]"></i>
                                 </button>
                             </div>
                         ` : ''}

@@ -13,6 +13,33 @@
         display: block;
         margin-top: 12px;
     }
+
+    /* Add Server Modal - Light Theme */
+    #serverModal .server-modal-dialog {
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05);
+        border-left: 4px solid #3b82f6;
+        background: #ffffff;
+    }
+    #serverModal .server-modal-dialog .input-field,
+    #serverModal .server-modal-dialog input,
+    #serverModal .server-modal-dialog select,
+    #serverModal .server-modal-dialog textarea {
+        background: #ffffff !important;
+        border: 1px solid #e2e8f0 !important;
+        color: #1e293b !important;
+    }
+    #serverModal .server-modal-dialog .input-field:focus,
+    #serverModal .server-modal-dialog input:focus,
+    #serverModal .server-modal-dialog select:focus,
+    #serverModal .server-modal-dialog textarea:focus {
+        border-color: #3b82f6 !important;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+    }
+    #serverModal .server-modal-dialog label {
+        color: #475569;
+    }
 </style>
 
 <div class="settings-full-width">
@@ -848,12 +875,15 @@
 
 <!-- Server Modal -->
 <div id="serverModal"
-    class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 overflow-y-auto">
-    <div class="card w-3/4 max-w-5xl m-4 my-8 max-h-[90vh] flex flex-col">
+    class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 overflow-y-auto p-4">
+    <div class="server-modal-dialog card w-full max-w-5xl m-4 my-8 max-h-[90vh] flex flex-col">
         <div class="flex items-center justify-between p-6 pb-0 flex-shrink-0">
-            <h3 class="text-lg font-semibold">Add Server Credential</h3>
-            <button onclick="closeServerModal()" class="text-gray-400 hover:text-white">
-                <i class="fas fa-times"></i>
+            <div>
+                <h3 id="serverModalTitle" class="text-lg font-semibold text-[#1e293b]">Add Server Credential</h3>
+                <p class="text-sm text-[#64748b] mt-1">Configure secure connectivity for remediation actions.</p>
+            </div>
+            <button onclick="closeServerModal()" class="p-2 rounded-lg text-[#64748b] hover:text-[#1e293b] hover:bg-[#f1f5f9] transition-colors">
+                <i class="fas fa-times text-lg"></i>
             </button>
         </div>
 
@@ -919,8 +949,8 @@
                 </div>
 
                 <!-- Auth Config -->
-                <div class="p-4 rounded border border-gray-700 bg-gray-800 bg-opacity-30">
-                    <h4 class="text-sm font-semibold mb-3 text-blue-400">Authentication</h4>
+                <div class="p-4 rounded-lg border border-[#e2e8f0] bg-[#f8fafc]">
+                    <h4 class="text-sm font-semibold mb-3 text-[#2563eb]">Authentication</h4>
                     <div class="grid md:grid-cols-2 gap-4 mb-3">
                         <div>
                             <label class="block text-sm font-medium mb-1">Username *</label>
@@ -954,7 +984,7 @@
                                     class="input-field w-full px-3 py-2 rounded font-mono text-xs h-32"
                                     placeholder="-----BEGIN OPENSSH PRIVATE KEY-----..."></textarea>
                                 <button type="button"
-                                    class="absolute right-2 top-2 text-xs bg-gray-700 px-2 py-1 rounded hover:bg-gray-600"
+                                    class="absolute right-2 top-2 text-xs bg-[#e2e8f0] text-[#475569] px-2 py-1 rounded hover:bg-[#cbd5e1]"
                                     onclick="toggleSecretVisibility('serverKey', this, true)">Show</button>
                             </div>
                         </div>
@@ -963,7 +993,7 @@
                             <div class="relative">
                                 <input type="password" id="serverPassword"
                                     class="input-field w-full px-3 py-2 rounded pr-14">
-                                <button type="button" class="absolute right-2 top-2 text-xs text-gray-400 uppercase"
+                                <button type="button" class="absolute right-2 top-2 text-xs text-[#64748b] uppercase hover:text-[#1e293b]"
                                     onclick="toggleSecretVisibility('serverPassword', this)">Show</button>
                             </div>
                         </div>
@@ -975,13 +1005,13 @@
                         <select id="credentialProfileId" class="input-field w-full px-3 py-2 rounded">
                             <option value="">Loading profiles...</option>
                         </select>
-                        <p class="text-xs text-gray-400 mt-1">Uses a stored secret rotated by Vault/CyberArk.</p>
+                        <p class="text-xs text-[#64748b] mt-1">Uses a stored secret rotated by Vault/CyberArk.</p>
                     </div>
 
                     <!-- WinRM-specific Settings -->
                     <div id="winrmSettings"
-                        class="hidden mt-4 p-3 border border-gray-600 rounded bg-gray-800 bg-opacity-50">
-                        <h5 class="text-sm font-semibold mb-3 text-yellow-400"><i class="fab fa-windows mr-1"></i> WinRM
+                        class="hidden mt-4 p-4 border border-[#e2e8f0] rounded-lg bg-[#fffbeb]">
+                        <h5 class="text-sm font-semibold mb-3 text-[#d97706]"><i class="fab fa-windows mr-1"></i> WinRM
                             Configuration</h5>
                         <div class="grid md:grid-cols-2 gap-3">
                             <div>
@@ -1010,7 +1040,7 @@
                                 <span>Validate Certificate</span>
                             </label>
                         </div>
-                        <p class="text-xs text-gray-400 mt-2">
+                        <p class="text-xs text-[#64748b] mt-2">
                             <i class="fas fa-info-circle mr-1"></i>
                             HTTP uses port 5985, HTTPS uses port 5986. Ensure WinRM is enabled on the target server.
                         </p>
@@ -1042,12 +1072,12 @@
             </div>
 
             <div
-                class="flex justify-end space-x-2 p-6 border-t border-gray-700 flex-shrink-0 bg-gray-900 bg-opacity-95">
-                <button type="button" class="btn-secondary px-4 py-2 rounded" onclick="testServerFromForm()">Test
+                class="flex justify-end gap-3 p-6 border-t border-[#e2e8f0] flex-shrink-0 bg-[#f8fafc]">
+                <button type="button" id="serverModalTestBtn" class="px-4 py-2 rounded-lg border border-[#e2e8f0] bg-white text-[#475569] hover:bg-[#f1f5f9] transition-colors" onclick="testServerFromForm()"><i class="fas fa-heartbeat mr-1"></i>Test
                     Connection</button>
                 <button type="button" onclick="closeServerModal()"
-                    class="btn-secondary px-4 py-2 rounded">Cancel</button>
-                <button type="submit" class="btn-primary px-4 py-2 rounded">Save Server</button>
+                    class="px-4 py-2 rounded-lg border border-[#e2e8f0] bg-white text-[#475569] hover:bg-[#f1f5f9] transition-colors">Cancel</button>
+                <button type="submit" class="px-4 py-2 rounded-lg font-medium text-white transition-all" style="background: linear-gradient(135deg, #3b82f6, #2563eb); box-shadow: 0 2px 6px rgba(59, 130, 246, 0.25);">Save Server</button>
             </div>
         </form>
     </div>
@@ -3505,7 +3535,7 @@
             }
         }
 
-        const button = document.querySelector('#serverModal .btn-secondary'); // Ideally add id to test button
+        const button = document.getElementById('serverModalTestBtn');
         const originalText = button ? button.innerHTML : '';
         if (button) {
             button.disabled = true;
@@ -3750,10 +3780,24 @@
             const response = await apiCall(`/api/servers/${serverId}`, { method: 'DELETE' });
             if (!response) return;
 
+            if (!response.ok) {
+                let detail = 'Failed to delete server';
+                try {
+                    const errorPayload = await response.json();
+                    detail = errorPayload.detail || errorPayload.message || detail;
+                } catch {
+                    const errorText = await response.text();
+                    if (errorText) detail = errorText;
+                }
+                throw new Error(detail);
+            }
+
+            selectedServers.delete(serverId);
+            await loadServers();
+
             showToast('Server deleted', 'success');
-            loadServers();
         } catch (error) {
-            showToast('Failed to delete server', 'error');
+            showToast(error.message || 'Failed to delete server', 'error');
         }
     }
 
@@ -3774,6 +3818,10 @@
 
     document.getElementById('confirmModal')?.addEventListener('click', (e) => {
         if (e.target === e.currentTarget) closeConfirmModal();
+    });
+
+    document.getElementById('serverModal')?.addEventListener('click', (e) => {
+        if (e.target === e.currentTarget) closeServerModal();
     });
 
     document.getElementById('credentialModal')?.addEventListener('click', (e) => {

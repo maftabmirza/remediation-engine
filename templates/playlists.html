@@ -1,88 +1,167 @@
 {% extends "base.html" %}
 {% set active_page = 'playlists' %}
 
-{% block title %}Playlists{% endblock %}
+{% block title %}Playlists - AIOps Platform{% endblock %}
+
+{% block breadcrumbs %}
+<span class="mx-2">/</span>
+<span class="text-gray-200">Playlists</span>
+{% endblock %}
+
+{% block header_title %}
+<i class="fas fa-play-circle text-blue-400"></i>
+<span class="text-sm font-semibold text-white tracking-tight">Dashboard Playlists</span>
+{% endblock %}
+
+{% block header_actions %}
+{{ super() }}
+{% endblock %}
 
 {% block head %}
 <style>
-    .playlist-card {
-        transition: transform 0.2s, box-shadow 0.2s;
+    .pl-action-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 16px;
+        font-size: 13px;
+        font-weight: 600;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: none;
+        text-decoration: none;
+        white-space: nowrap;
     }
-
-    .playlist-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    .pl-action-primary {
+        background: linear-gradient(135deg, #3b82f6, #2563eb);
+        color: white;
+        box-shadow: 0 2px 6px rgba(59, 130, 246, 0.25);
     }
-
+    .pl-action-primary:hover {
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        box-shadow: 0 4px 14px rgba(59, 130, 246, 0.35);
+        transform: translateY(-1px);
+    }
+    .pl-search-input {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 8px 14px 8px 36px;
+        font-size: 13px;
+        color: #1e293b;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+        outline: none;
+    }
+    .pl-search-input:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+    }
+    .pl-search-wrapper .search-icon {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #94a3b8;
+        font-size: 13px;
+    }
     .dashboard-item {
         cursor: grab;
-        transition: background-color 0.2s;
+        transition: background-color 0.2s, border-color 0.2s;
     }
-
     .dashboard-item:hover {
-        background-color: rgba(59, 130, 246, 0.1);
+        background-color: rgba(59, 130, 246, 0.08);
+        border-color: #cbd5e1;
     }
-
     .dashboard-item.dragging {
         opacity: 0.5;
     }
-
-    .badge {
-        padding: 2px 8px;
-        border-radius: 4px;
-        font-size: 0.75rem;
-        font-weight: 500;
-    }
-
-    .badge-loop {
-        background-color: #10b981;
-        color: white;
-    }
-
-    .badge-once {
-        background-color: #6b7280;
-        color: white;
-    }
+    .badge { padding: 3px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: 600; }
+    .badge-loop { background-color: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; }
+    .badge-once { background-color: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }
+    .pl-modal-overlay { z-index: 2000; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="space-y-4">
-    <!-- Enterprise Standard Toolbar -->
-    <div class="dashboard-header"
-        style="padding: 12px; background: #16171b; border-bottom: 1px solid rgba(255,255,255,0.05); border-radius: 8px;">
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <!-- Left: Breadcrumbs & Title -->
-            <div class="flex flex-col min-w-0">
-                <!-- Breadcrumbs -->
-                <nav class="flex items-center text-xs text-gray-400 mb-1">
-                    <a href="/" class="hover:text-blue-400 transition-colors">Home</a>
-                    <span class="mx-2">/</span>
-                    <span class="text-gray-200">Playlists</span>
-                </nav>
-                <div class="flex items-center gap-3">
-                    <h1 class="text-xl font-bold text-white tracking-tight truncate">Playlists</h1>
+    <!-- Toolbar -->
+    <div class="card p-4" style="overflow: visible; position: relative; z-index: 200;">
+        <div class="flex flex-wrap gap-4 items-center justify-between">
+            <div class="flex flex-wrap gap-3 items-center flex-1">
+                <div class="pl-search-wrapper flex-1 min-w-[200px]">
+                    <i class="fas fa-search search-icon"></i>
+                    <input type="text" id="search-playlists" placeholder="Search playlists..."
+                        onkeyup="filterPlaylists()" class="pl-search-input w-full">
                 </div>
-                <p class="text-xs text-gray-500 mt-1">Auto-rotate dashboards for TV mode</p>
             </div>
-
-            <!-- Right: Actions -->
-            <div class="flex items-center gap-2">
-                <button onclick="showCreatePlaylistModal()"
-                    class="bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded text-white text-sm flex items-center gap-2 transition-colors">
+            <div class="flex items-center gap-2" style="position: relative; z-index: 210;">
+                <button onclick="showCreatePlaylistModal()" class="pl-action-btn pl-action-primary">
                     <i class="fas fa-plus"></i>
-                    New Playlist
+                    <span>New Playlist</span>
                 </button>
             </div>
         </div>
     </div>
 
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="card p-4" style="border-left: 3px solid #3b82f6;">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center"
+                    style="background: linear-gradient(135deg, #eff6ff, #dbeafe);">
+                    <i class="fas fa-play-circle" style="color: #2563eb; font-size: 14px;"></i>
+                </div>
+                <div>
+                    <p class="text-secondary text-xs" style="font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase;">Total Playlists</p>
+                    <p class="text-2xl font-bold text-primary" id="statTotal" style="line-height: 1.2;">0</p>
+                </div>
+            </div>
+        </div>
+        <div class="card p-4" style="border-left: 3px solid #10b981;">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center"
+                    style="background: linear-gradient(135deg, #ecfdf5, #d1fae5);">
+                    <i class="fas fa-sync-alt" style="color: #059669; font-size: 14px;"></i>
+                </div>
+                <div>
+                    <p class="text-secondary text-xs" style="font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase;">Looping</p>
+                    <p class="text-2xl font-bold" id="statLooping" style="color: #059669; line-height: 1.2;">0</p>
+                </div>
+            </div>
+        </div>
+        <div class="card p-4" style="border-left: 3px solid #8b5cf6;">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center"
+                    style="background: linear-gradient(135deg, #f5f3ff, #ede9fe);">
+                    <i class="fas fa-th-large" style="color: #7c3aed; font-size: 14px;"></i>
+                </div>
+                <div>
+                    <p class="text-secondary text-xs" style="font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase;">Total Dashboards</p>
+                    <p class="text-2xl font-bold" id="statDashboards" style="color: #7c3aed; line-height: 1.2;">0</p>
+                </div>
+            </div>
+        </div>
+        <div class="card p-4" style="border-left: 3px solid #f59e0b;">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center"
+                    style="background: linear-gradient(135deg, #fffbeb, #fef3c7);">
+                    <i class="fas fa-clock" style="color: #d97706; font-size: 14px;"></i>
+                </div>
+                <div>
+                    <p class="text-secondary text-xs" style="font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase;">Avg Interval</p>
+                    <p class="text-2xl font-bold" id="statInterval" style="color: #d97706; line-height: 1.2;">0s</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Playlists Table -->
-    <div class="card overflow-hidden">
+    <div class="card overflow-hidden" id="tableContainer">
         <table class="w-full text-sm">
             <thead>
-                <tr class="bg-[#181b1f] text-left text-[#8e8e8e]"
-                    style="border-bottom: 1px solid rgba(204, 204, 220, 0.07);">
+                <tr class="bg-[#f8fafc] text-left text-[#64748b]" style="border-bottom: 1px solid #e2e8f0;">
                     <th class="px-4 py-3 font-medium w-10"></th>
                     <th class="px-4 py-3 font-medium">Name</th>
                     <th class="px-4 py-3 font-medium">Mode</th>
@@ -92,39 +171,38 @@
                     <th class="px-4 py-3 font-medium text-right">Actions</th>
                 </tr>
             </thead>
-            <tbody id="playlists-tbody" class="text-[#ccccdc]">
+            <tbody id="playlists-tbody" class="text-[#334155]">
                 <!-- Populated by JavaScript -->
             </tbody>
         </table>
     </div>
 
     <!-- Pagination -->
-    <div id="pagination-container" class="flex items-center justify-between mt-4 text-sm">
-        <div class="text-[#8e8e8e]">
+    <div id="pagination-container" class="flex items-center justify-between mt-4 text-sm hidden">
+        <div class="text-[#64748b]">
             Showing <span id="showing-start">0</span>-<span id="showing-end">0</span> of <span id="total-count">0</span>
             playlists
         </div>
         <div class="flex items-center gap-2">
-            <button onclick="goToPage(1)" id="first-page-btn" disabled class="px-3 py-1.5 rounded"
-                style="border: 1px solid rgba(204, 204, 220, 0.07); background: #181b1f; color: #ccccdc;">
+            <button onclick="goToPage(1)" id="first-page-btn" disabled
+                class="px-3 py-1.5 rounded border border-[#e2e8f0] bg-white text-[#475569] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#f8fafc] transition-colors">
                 <i class="fas fa-angle-double-left"></i>
             </button>
-            <button onclick="goToPage(currentPage - 1)" id="prev-page-btn" disabled class="px-3 py-1.5 rounded"
-                style="border: 1px solid rgba(204, 204, 220, 0.07); background: #181b1f; color: #ccccdc;">
+            <button onclick="goToPage(currentPage - 1)" id="prev-page-btn" disabled
+                class="px-3 py-1.5 rounded border border-[#e2e8f0] bg-white text-[#475569] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#f8fafc] transition-colors">
                 <i class="fas fa-angle-left"></i>
             </button>
-            <span class="px-3 py-1.5 text-[#ccccdc]">Page <span id="current-page">1</span> of <span
-                    id="total-pages">1</span></span>
-            <button onclick="goToPage(currentPage + 1)" id="next-page-btn" disabled class="px-3 py-1.5 rounded"
-                style="border: 1px solid rgba(204, 204, 220, 0.07); background: #181b1f; color: #ccccdc;">
+            <span class="px-3 py-1.5 text-[#475569]">Page <span id="current-page">1</span> of <span id="total-pages">1</span></span>
+            <button onclick="goToPage(currentPage + 1)" id="next-page-btn" disabled
+                class="px-3 py-1.5 rounded border border-[#e2e8f0] bg-white text-[#475569] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#f8fafc] transition-colors">
                 <i class="fas fa-angle-right"></i>
             </button>
-            <button onclick="goToPage(totalPages)" id="last-page-btn" disabled class="px-3 py-1.5 rounded"
-                style="border: 1px solid rgba(204, 204, 220, 0.07); background: #181b1f; color: #ccccdc;">
+            <button onclick="goToPage(totalPages)" id="last-page-btn" disabled
+                class="px-3 py-1.5 rounded border border-[#e2e8f0] bg-white text-[#475569] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#f8fafc] transition-colors">
                 <i class="fas fa-angle-double-right"></i>
             </button>
-            <select id="page-size" onchange="changePageSize(this.value)" class="px-3 py-1.5 rounded"
-                style="border: 1px solid rgba(204, 204, 220, 0.07); background: #181b1f; color: #ccccdc;">
+            <select id="page-size" onchange="changePageSize(this.value)"
+                class="px-3 py-1.5 rounded border border-[#e2e8f0] bg-white text-[#475569] focus:outline-none focus:border-[#3b82f6]">
                 <option value="10">10 per page</option>
                 <option value="25" selected>25 per page</option>
                 <option value="50">50 per page</option>
@@ -132,19 +210,23 @@
         </div>
     </div>
 
-    <div id="no-playlists" class="hidden bg-[#181b1f] rounded p-8 text-center"
-        style="border: 1px solid rgba(204, 204, 220, 0.07);">
-        <i class="fas fa-play-circle text-4xl text-[#8e8e8e] mb-3"></i>
-        <p class="text-[#8e8e8e]">No playlists found. Create your first playlist to get started.</p>
+    <!-- Empty State -->
+    <div id="no-playlists" class="hidden card p-12 text-center">
+        <i class="fas fa-play-circle text-4xl text-secondary mb-4"></i>
+        <h3 class="text-lg font-medium text-primary mb-2">No Playlists Found</h3>
+        <p class="text-secondary mb-4">Create your first playlist to auto-rotate dashboards for TV mode.</p>
+        <button onclick="showCreatePlaylistModal()" class="btn-primary px-4 py-2 rounded-lg">
+            <i class="fas fa-plus mr-2"></i>New Playlist
+        </button>
     </div>
 </div>
 
 <!-- Create/Edit Playlist Modal -->
-<div id="playlist-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
-    <div class="bg-gray-800 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div class="flex justify-between items-center mb-4">
-            <h2 id="playlist-modal-title" class="text-xl font-bold text-white">New Playlist</h2>
-            <button onclick="closePlaylistModal()" class="text-gray-400 hover:text-white">
+<div id="playlist-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden pl-modal-overlay flex items-center justify-center p-4">
+    <div class="card p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div class="flex justify-between items-center mb-6">
+            <h2 id="playlist-modal-title" class="text-xl font-bold text-primary">New Playlist</h2>
+            <button onclick="closePlaylistModal()" class="text-secondary hover:text-primary">
                 <i class="fas fa-times text-xl"></i>
             </button>
         </div>
@@ -153,39 +235,38 @@
             <input type="hidden" id="playlist-id" value="">
 
             <div class="mb-4">
-                <label class="block text-gray-300 mb-2">Name *</label>
+                <label class="block text-secondary text-sm mb-1">Name *</label>
                 <input type="text" id="playlist-name" required
-                    class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                    class="input-field w-full px-3 py-2 rounded text-sm">
             </div>
 
             <div class="mb-4">
-                <label class="block text-gray-300 mb-2">Description</label>
+                <label class="block text-secondary text-sm mb-1">Description</label>
                 <textarea id="playlist-description" rows="3"
-                    class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"></textarea>
+                    class="input-field w-full px-3 py-2 rounded text-sm resize-none"></textarea>
             </div>
 
             <div class="mb-4">
-                <label class="block text-gray-300 mb-2">Interval (seconds)</label>
+                <label class="block text-secondary text-sm mb-1">Interval (seconds)</label>
                 <input type="number" id="playlist-interval" value="30" min="5" max="3600"
-                    class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
-                <p class="text-gray-500 text-xs mt-1">Time each dashboard is displayed</p>
+                    class="input-field w-full px-3 py-2 rounded text-sm">
+                <p class="text-secondary text-xs mt-1">Time each dashboard is displayed</p>
             </div>
 
             <div class="mb-4">
-                <label class="flex items-center text-gray-300">
-                    <input type="checkbox" id="playlist-loop" checked class="mr-2">
+                <label class="flex items-center text-secondary text-sm cursor-pointer">
+                    <input type="checkbox" id="playlist-loop" checked class="mr-2 h-4 w-4">
                     Loop continuously
                 </label>
-                <p class="text-gray-500 text-xs mt-1">If unchecked, playlist stops after one cycle</p>
+                <p class="text-secondary text-xs mt-1">If unchecked, playlist stops after one cycle</p>
             </div>
 
-            <div class="flex gap-2 justify-end">
-                <button type="button" onclick="closePlaylistModal()"
-                    class="px-4 py-2 bg-gray-700 text-white rounded hover:bg-gray-600">
+            <div class="flex gap-3 justify-end">
+                <button type="button" onclick="closePlaylistModal()" class="btn-secondary px-4 py-2 rounded-lg">
                     Cancel
                 </button>
-                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-                    Save
+                <button type="submit" class="btn-primary px-4 py-2 rounded-lg">
+                    <i class="fas fa-save mr-2"></i>Save
                 </button>
             </div>
         </form>
@@ -193,40 +274,38 @@
 </div>
 
 <!-- Manage Playlist Items Modal -->
-<div id="items-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
-    <div class="bg-gray-800 rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-        <div class="flex justify-between items-center mb-4">
-            <h2 class="text-xl font-bold text-white">Manage Dashboards</h2>
-            <button onclick="closeItemsModal()" class="text-gray-400 hover:text-white">
+<div id="items-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden pl-modal-overlay flex items-center justify-center p-4">
+    <div class="card p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-xl font-bold text-primary">Manage Dashboards</h2>
+            <button onclick="closeItemsModal()" class="text-secondary hover:text-primary">
                 <i class="fas fa-times text-xl"></i>
             </button>
         </div>
 
-        <div class="grid grid-cols-2 gap-4">
-            <!-- Available Dashboards -->
+        <div class="grid grid-cols-2 gap-6">
             <div>
-                <h3 class="text-lg font-semibold text-white mb-3">Available Dashboards</h3>
-                <input type="text" id="search-available" placeholder="Search..." onkeyup="filterAvailableDashboards()"
-                    class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500 mb-3">
+                <h3 class="text-sm font-semibold text-primary mb-3">Available Dashboards</h3>
+                <input type="text" id="search-available" placeholder="Search dashboards..." onkeyup="filterAvailableDashboards()"
+                    class="input-field w-full px-3 py-2 rounded text-sm mb-3">
                 <div id="available-dashboards" class="space-y-2 max-h-96 overflow-y-auto">
                     <!-- Populated by JavaScript -->
                 </div>
             </div>
 
-            <!-- Playlist Items -->
             <div>
-                <h3 class="text-lg font-semibold text-white mb-3">Playlist Dashboards (Drag to reorder)</h3>
+                <h3 class="text-sm font-semibold text-primary mb-3">Playlist Dashboards (Drag to reorder)</h3>
                 <div id="playlist-items" class="space-y-2 max-h-96 overflow-y-auto">
                     <!-- Populated by JavaScript -->
                 </div>
-                <div id="no-items" class="hidden text-gray-500 text-center py-8">
+                <div id="no-items" class="hidden text-secondary text-center py-8">
                     No dashboards added. Add dashboards from the left panel.
                 </div>
             </div>
         </div>
 
-        <div class="flex justify-end mt-4">
-            <button onclick="closeItemsModal()" class="px-4 py-2 bg-gray-700 text-white rounded hover:bg-gray-600">
+        <div class="flex justify-end mt-6">
+            <button onclick="closeItemsModal()" class="btn-secondary px-4 py-2 rounded-lg">
                 Close
             </button>
         </div>
@@ -235,11 +314,11 @@
 
 <script>
     let playlists = [];
+    let filteredPlaylists = [];
     let allDashboards = [];
     let currentPlaylistId = null;
     let playlistItems = [];
 
-    // Load playlists on page load
     document.addEventListener('DOMContentLoaded', () => {
         loadPlaylists();
         loadDashboards();
@@ -248,24 +327,45 @@
     async function loadPlaylists() {
         try {
             const response = await fetch('/api/playlists');
+            if (!response.ok) throw new Error('Failed to load playlists');
             playlists = await response.json();
-            renderPlaylists();
+            updateStats();
+            filterPlaylists();
         } catch (error) {
             console.error('Error loading playlists:', error);
-            alert('Failed to load playlists');
+            showToast('Failed to load playlists', 'error');
         }
     }
 
     async function loadDashboards() {
         try {
             const response = await fetch('/api/dashboards');
-            allDashboards = await response.json();
+            if (response.ok) allDashboards = await response.json();
         } catch (error) {
             console.error('Error loading dashboards:', error);
         }
     }
 
-    // Pagination state
+    function updateStats() {
+        document.getElementById('statTotal').textContent = playlists.length;
+        document.getElementById('statLooping').textContent = playlists.filter(p => p.loop).length;
+        document.getElementById('statDashboards').textContent = playlists.reduce((sum, p) => sum + (p.item_count || 0), 0);
+        const avg = playlists.length > 0
+            ? Math.round(playlists.reduce((sum, p) => sum + (p.interval || 0), 0) / playlists.length)
+            : 0;
+        document.getElementById('statInterval').textContent = avg + 's';
+    }
+
+    function filterPlaylists() {
+        const search = document.getElementById('search-playlists').value.toLowerCase();
+        filteredPlaylists = playlists.filter(p =>
+            !search ||
+            (p.name && p.name.toLowerCase().includes(search)) ||
+            (p.description && p.description.toLowerCase().includes(search))
+        );
+        renderPlaylists();
+    }
+
     let currentPage = 1;
     let pageSize = 25;
     let totalPages = 1;
@@ -280,13 +380,20 @@
         });
     }
 
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
     function renderPlaylists() {
         const tbody = document.getElementById('playlists-tbody');
         const noPlaylists = document.getElementById('no-playlists');
         const paginationContainer = document.getElementById('pagination-container');
-        const tableContainer = tbody.closest('.card');
+        const tableContainer = document.getElementById('tableContainer');
 
-        if (playlists.length === 0) {
+        if (filteredPlaylists.length === 0) {
             tableContainer.classList.add('hidden');
             paginationContainer.classList.add('hidden');
             noPlaylists.classList.remove('hidden');
@@ -297,74 +404,69 @@
         paginationContainer.classList.remove('hidden');
         noPlaylists.classList.add('hidden');
 
-        // Calculate pagination
-        totalPages = Math.ceil(playlists.length / pageSize);
+        totalPages = Math.ceil(filteredPlaylists.length / pageSize);
         const start = (currentPage - 1) * pageSize;
-        const end = Math.min(start + pageSize, playlists.length);
-        const paginatedPlaylists = playlists.slice(start, end);
+        const end = Math.min(start + pageSize, filteredPlaylists.length);
+        const paginatedPlaylists = filteredPlaylists.slice(start, end);
 
-        // Update pagination info
-        document.getElementById('showing-start').textContent = playlists.length > 0 ? start + 1 : 0;
+        document.getElementById('showing-start').textContent = filteredPlaylists.length > 0 ? start + 1 : 0;
         document.getElementById('showing-end').textContent = end;
-        document.getElementById('total-count').textContent = playlists.length;
+        document.getElementById('total-count').textContent = filteredPlaylists.length;
         document.getElementById('current-page').textContent = currentPage;
         document.getElementById('total-pages').textContent = totalPages;
 
-        // Update pagination buttons
         document.getElementById('first-page-btn').disabled = currentPage <= 1;
         document.getElementById('prev-page-btn').disabled = currentPage <= 1;
         document.getElementById('next-page-btn').disabled = currentPage >= totalPages;
         document.getElementById('last-page-btn').disabled = currentPage >= totalPages;
 
-        // Render table rows
         tbody.innerHTML = paginatedPlaylists.map(playlist => {
+            const badgeClass = playlist.loop ? 'badge-loop' : 'badge-once';
             return `
-            <tr class="hover:bg-[rgba(204,204,220,0.04)] transition-colors" style="border-bottom: 1px solid rgba(204, 204, 220, 0.07);">
+            <tr class="border-b border-[#f1f5f9] hover:bg-[#f8fafc] transition-colors">
                 <td class="px-4 py-3">
-                    <i class="fas fa-play-circle" style="color: #6e9fff;"></i>
+                    <i class="fas fa-play-circle" style="color: #3b82f6;"></i>
                 </td>
                 <td class="px-4 py-3">
-                    <div class="font-medium text-white">${playlist.name}</div>
-                    ${playlist.description ? `<div class="text-xs text-[#8e8e8e] mt-0.5 truncate max-w-xs">${playlist.description}</div>` : ''}
+                    <div class="font-medium text-[#1e40af]">${escapeHtml(playlist.name)}</div>
+                    ${playlist.description ? `<div class="text-xs text-[#94a3b8] mt-0.5 truncate max-w-xs">${escapeHtml(playlist.description)}</div>` : ''}
                 </td>
                 <td class="px-4 py-3">
-                    <span class="badge" style="background-color: ${playlist.loop ? '#1a7f4b' : '#6b7280'}; color: white; padding: 2px 8px; border-radius: 2px; font-size: 0.75rem;">
-                        ${playlist.loop ? 'LOOP' : 'ONCE'}
-                    </span>
+                    <span class="badge ${badgeClass}">${playlist.loop ? 'LOOP' : 'ONCE'}</span>
                 </td>
-                <td class="px-4 py-3 text-[#8e8e8e] hidden md:table-cell">
+                <td class="px-4 py-3 text-[#475569] hidden md:table-cell">
                     ${playlist.interval}s
                 </td>
-                <td class="px-4 py-3 text-[#8e8e8e] hidden md:table-cell">
+                <td class="px-4 py-3 text-[#475569] hidden md:table-cell">
                     ${playlist.item_count || 0}
                 </td>
-                <td class="px-4 py-3 text-[#8e8e8e] text-xs hidden lg:table-cell">
+                <td class="px-4 py-3 text-[#64748b] text-xs hidden lg:table-cell">
                     ${formatDate(playlist.created_at)}
                 </td>
                 <td class="px-4 py-3 text-right">
                     <div class="flex justify-end gap-1">
                         <button onclick="playPlaylist('${playlist.id}')" 
-                            class="p-1.5 hover:bg-[#22252b] rounded transition-colors ${playlist.item_count === 0 ? 'opacity-50 cursor-not-allowed' : ''}" 
-                            style="color: #1a7f4b;"
+                            class="p-1.5 hover:bg-[#f1f5f9] rounded transition-colors ${playlist.item_count === 0 ? 'opacity-50 cursor-not-allowed' : ''}" 
+                            style="color: #059669;"
                             title="Play"
                             ${playlist.item_count === 0 ? 'disabled' : ''}>
                             <i class="fas fa-play"></i>
                         </button>
                         <button onclick="manageItems('${playlist.id}')" 
-                            class="p-1.5 hover:bg-[#22252b] rounded transition-colors" 
-                            style="color: #b877d9;"
+                            class="p-1.5 hover:bg-[#f1f5f9] rounded transition-colors" 
+                            style="color: #8b5cf6;"
                             title="Manage Dashboards">
                             <i class="fas fa-list"></i>
                         </button>
                         <button onclick="editPlaylist('${playlist.id}')" 
-                            class="p-1.5 hover:bg-[#22252b] rounded transition-colors" 
-                            style="color: #6e9fff;"
+                            class="p-1.5 hover:bg-[#f1f5f9] rounded transition-colors" 
+                            style="color: #3b82f6;"
                             title="Edit">
                             <i class="fas fa-edit"></i>
                         </button>
                         <button onclick="deletePlaylist('${playlist.id}')" 
-                            class="p-1.5 hover:bg-[#22252b] rounded transition-colors" 
-                            style="color: #ff5286;"
+                            class="p-1.5 hover:bg-[#fef2f2] rounded transition-colors" 
+                            style="color: #dc2626;"
                             title="Delete">
                             <i class="fas fa-trash"></i>
                         </button>
@@ -385,6 +487,18 @@
         pageSize = parseInt(size);
         currentPage = 1;
         renderPlaylists();
+    }
+
+    function showToast(message, type) {
+        if (typeof window.showToast === 'function') {
+            window.showToast(message, type);
+            return;
+        }
+        const div = document.createElement('div');
+        div.className = `fixed bottom-4 right-4 px-4 py-3 rounded-lg shadow-lg z-[10000] flex items-center gap-2 ${type === 'success' ? 'bg-green-600' : type === 'error' ? 'bg-red-600' : 'bg-blue-600'}`;
+        div.innerHTML = `<i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i><span>${escapeHtml(message)}</span>`;
+        document.body.appendChild(div);
+        setTimeout(() => div.remove(), 3000);
     }
 
     function showCreatePlaylistModal() {
@@ -430,15 +544,16 @@
             }
 
             if (response.ok) {
+                showToast(playlistId ? 'Playlist updated' : 'Playlist created', 'success');
                 closePlaylistModal();
                 await loadPlaylists();
             } else {
                 const error = await response.json();
-                alert(`Error: ${error.detail || 'Failed to save playlist'}`);
+                showToast(error.detail || 'Failed to save playlist', 'error');
             }
         } catch (error) {
             console.error('Error saving playlist:', error);
-            alert('Failed to save playlist');
+            showToast('Failed to save playlist', 'error');
         }
     }
 
@@ -456,7 +571,7 @@
             document.getElementById('playlist-modal').classList.remove('hidden');
         } catch (error) {
             console.error('Error loading playlist:', error);
-            alert('Failed to load playlist');
+            showToast('Failed to load playlist', 'error');
         }
     }
 
@@ -469,13 +584,14 @@
             });
 
             if (response.ok) {
+                showToast('Playlist deleted', 'success');
                 await loadPlaylists();
             } else {
-                alert('Failed to delete playlist');
+                showToast('Failed to delete playlist', 'error');
             }
         } catch (error) {
             console.error('Error deleting playlist:', error);
-            alert('Failed to delete playlist');
+            showToast('Failed to delete playlist', 'error');
         }
     }
 
@@ -493,7 +609,7 @@
             document.getElementById('items-modal').classList.remove('hidden');
         } catch (error) {
             console.error('Error loading playlist items:', error);
-            alert('Failed to load playlist items');
+            showToast('Failed to load playlist items', 'error');
         }
     }
 
@@ -510,20 +626,20 @@
         const available = allDashboards.filter(d => !playlistDashboardIds.includes(d.id));
 
         container.innerHTML = available.map(dashboard => `
-        <div class="dashboard-item bg-gray-700 p-3 rounded border border-gray-600 flex justify-between items-center">
+        <div class="dashboard-item card p-3 flex justify-between items-center border border-[#e2e8f0] hover:border-[#cbd5e1]">
             <div>
-                <div class="text-white font-medium">${dashboard.name}</div>
-                ${dashboard.description ? `<div class="text-gray-400 text-xs">${dashboard.description}</div>` : ''}
+                <div class="font-medium text-primary">${escapeHtml(dashboard.name)}</div>
+                ${dashboard.description ? `<div class="text-secondary text-xs">${escapeHtml(dashboard.description)}</div>` : ''}
             </div>
             <button onclick="addDashboardToPlaylist('${dashboard.id}')"
-                class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm">
+                class="px-3 py-1.5 btn-primary rounded text-sm">
                 <i class="fas fa-plus"></i>
             </button>
         </div>
     `).join('');
 
         if (available.length === 0) {
-            container.innerHTML = '<div class="text-gray-500 text-center py-4">All dashboards added or no dashboards available</div>';
+            container.innerHTML = '<div class="text-secondary text-center py-4">All dashboards added or no dashboards available</div>';
         }
     }
 
@@ -544,17 +660,17 @@
         playlistItems.sort((a, b) => a.order - b.order);
 
         container.innerHTML = playlistItems.map((item, index) => `
-        <div class="dashboard-item bg-gray-700 p-3 rounded border border-gray-600 flex items-center gap-2"
+        <div class="dashboard-item card p-3 flex items-center gap-2 border border-[#e2e8f0] hover:border-[#cbd5e1]"
              draggable="true" data-item-id="${item.id}" data-order="${item.order}">
-            <div class="cursor-grab text-gray-500">
+            <div class="cursor-grab text-secondary">
                 <i class="fas fa-grip-vertical"></i>
             </div>
             <div class="flex-1">
-                <div class="text-white font-medium">${item.dashboard_name}</div>
-                <div class="text-gray-400 text-xs">Order: ${index + 1}</div>
+                <div class="font-medium text-primary">${escapeHtml(item.dashboard_name)}</div>
+                <div class="text-secondary text-xs">Order: ${index + 1}</div>
             </div>
             <button onclick="removeDashboardFromPlaylist('${item.id}')"
-                class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm">
+                class="px-3 py-1.5 rounded text-sm bg-red-600 hover:bg-red-700 text-white">
                 <i class="fas fa-times"></i>
             </button>
         </div>
@@ -592,15 +708,16 @@
             if (response.ok) {
                 const newItem = await response.json();
                 playlistItems.push(newItem);
+                showToast('Dashboard added to playlist', 'success');
                 renderAvailableDashboards();
                 renderPlaylistItems();
-                await loadPlaylists(); // Refresh playlist counts
+                await loadPlaylists();
             } else {
-                alert('Failed to add dashboard');
+                showToast('Failed to add dashboard', 'error');
             }
         } catch (error) {
             console.error('Error adding dashboard:', error);
-            alert('Failed to add dashboard');
+            showToast('Failed to add dashboard', 'error');
         }
     }
 
@@ -612,15 +729,16 @@
 
             if (response.ok) {
                 playlistItems = playlistItems.filter(i => i.id !== itemId);
+                showToast('Dashboard removed from playlist', 'success');
                 renderAvailableDashboards();
                 renderPlaylistItems();
-                await loadPlaylists(); // Refresh playlist counts
+                await loadPlaylists();
             } else {
-                alert('Failed to remove dashboard');
+                showToast('Failed to remove dashboard', 'error');
             }
         } catch (error) {
             console.error('Error removing dashboard:', error);
-            alert('Failed to remove dashboard');
+            showToast('Failed to remove dashboard', 'error');
         }
     }
 
@@ -697,7 +815,6 @@
     }
 
     function playPlaylist(playlistId) {
-        // Open playlist player in new window/tab
         window.open(`/playlists/${playlistId}/play`, '_blank');
     }
 </script>

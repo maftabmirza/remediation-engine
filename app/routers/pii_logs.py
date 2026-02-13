@@ -76,7 +76,7 @@ async def get_pii_service(db: AsyncSession = Depends(get_async_db)) -> PIIServic
 @router.get("", response_model=DetectionLogListResponse)
 async def get_logs(
     page: int = Query(1, ge=1, description="Page number"),
-    limit: int = Query(50, ge=1, le=1000, description="Items per page"),
+    limit: int = Query(25, ge=1, le=100, description="Items per page"),
     entity_type: Optional[str] = Query(None, description="Filter by entity type"),
     engine: Optional[str] = Query(None, description="Filter by detection engine"),
     source_type: Optional[str] = Query(None, description="Filter by source type"),
@@ -129,7 +129,7 @@ async def get_logs(
 async def search_logs(
     q: str = Query(..., description="Search query"),
     page: int = Query(1, ge=1, description="Page number"),
-    limit: int = Query(50, ge=1, le=1000, description="Items per page"),
+    limit: int = Query(25, ge=1, le=100, description="Items per page"),
     entity_type: Optional[str] = Query(None, description="Filter by entity type"),
     engine: Optional[str] = Query(None, description="Filter by engine"),
     source_type: Optional[str] = Query(None, description="Filter by source type"),

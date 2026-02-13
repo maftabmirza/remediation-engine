@@ -27,6 +27,11 @@
         left: 170px !important;
     }
 
+    /* Shrink grafana iframe when RE-VIVE chat panel is open */
+    .app-container.ai-open .grafana-container {
+        right: var(--ai-helper-width, 380px) !important;
+    }
+
     .grafana-container iframe {
         border: none !important;
         display: block !important;
@@ -130,11 +135,4 @@
     })();
 </script>
 
-<!-- RE-VIVE AI Assistant Widget (exactly as in grafana_advanced.html) -->
-<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-<link href="/static/css/revive_widget_grafana.css?v=20260211a" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-<script src="/static/js/revive_widget_grafana.js?v=20260211a"></script>
 {% endblock %}
-
-{% block ai_agent %}{% endblock %}

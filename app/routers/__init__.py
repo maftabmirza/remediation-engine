@@ -18,3 +18,4 @@ from app.routers.audit import router as audit_router
 from app.routers import pii
 from app.routers import pii_logs
 from app.routers import pii_feedback
+from app.routers import incidents

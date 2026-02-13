@@ -257,26 +257,133 @@ function adjustTermFont(delta) {
 }
 
 // Chat Session Management
+function getTroubleshootContextFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    const rawContext = params.get('context');
+    if (!rawContext) return null;
+
+    try {
+        const parsed = JSON.parse(rawContext);
+        return parsed && typeof parsed === 'object' ? parsed : null;
+    } catch (error) {
+        try {
+            const parsed = JSON.parse(decodeURIComponent(rawContext));
+            return parsed && typeof parsed === 'object' ? parsed : null;
+        } catch (decodeError) {
+            console.warn('Failed to parse troubleshoot context from URL', decodeError);
+            return null;
+        }
+    }
+}
+
+function clearTroubleshootContextFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has('context')) return;
+    params.delete('context');
+    const query = params.toString();
+    const nextUrl = `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash || ''}`;
+    window.history.replaceState({}, document.title, nextUrl);
+}
+
+function buildIncidentPrefillPrompt(context) {
+    const lines = ['Please troubleshoot this incident:'];
+
+    if (context.title) {
+        lines.push(`Title: ${context.title}`);
+    }
+    if (context.description) {
+        lines.push(`Description: ${context.description}`);
+    }
+    if (context.service) {
+        lines.push(`Service: ${context.service}`);
+    }
+    if (context.id) {
+        lines.push(`Incident ID: ${context.id}`);
+    }
+
+    lines.push('Suggest investigation steps and the first safe command to run.');
+    return lines.join('\n');
+}
+
+function prefillIncidentContext(context) {
+    const input = document.getElementById('chatInput');
+    if (!input) return;
+
+    const prompt = buildIncidentPrefillPrompt(context);
+    input.value = prompt;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.focus();
+
+    const titleEl = document.getElementById('currentSessionTitle');
+    if (titleEl && context.title) {
+        titleEl.textContent = `Incident: ${context.title}`;
+    }
+
+    // Auto-send the prefilled message after a short delay so the UI settles
+    setTimeout(() => {
+        const form = document.getElementById('chatForm');
+        if (form) {
+            form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+        }
+    }, 600);
+}
+
 async function initChatSession() {
     try {
         await loadAvailableProviders();
 
-        // Get or create standalone session
-        let response = await apiCall('/api/troubleshoot/sessions/standalone');
+        const troubleshootContext = getTroubleshootContextFromUrl();
+        const shouldForceNewSession = !!troubleshootContext;
 
-        if (response.ok) {
-            currentSession = await response.json();
+        if (shouldForceNewSession) {
+            // Force a brand-new session when arriving from incident page
+            let newSession;
+            try {
+                const createResponse = await apiCall('/api/troubleshoot/sessions', {
+                    method: 'POST',
+                    body: JSON.stringify({})
+                });
+                // apiCall may return raw Response (troubleshoot template) or parsed JSON (base.html)
+                if (createResponse && typeof createResponse.ok !== 'undefined') {
+                    // Raw Response object
+                    if (!createResponse.ok) throw new Error('Failed to create session (HTTP ' + createResponse.status + ')');
+                    newSession = await createResponse.json();
+                } else {
+                    // Already-parsed JSON
+                    newSession = createResponse;
+                }
+            } catch (fetchErr) {
+                console.error('Session creation failed, retrying with fetch:', fetchErr);
+                const fallback = await fetch('/api/troubleshoot/sessions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+                if (!fallback.ok) throw new Error('Failed to create incident troubleshoot session');
+                newSession = await fallback.json();
+            }
+            currentSession = newSession;
             currentSessionId = currentSession.id;
-            console.log('Using chat session:', currentSessionId);
+            clearTroubleshootContextFromUrl();
+            console.log('Created new incident troubleshoot session:', currentSessionId);
         } else {
-            // Fallback: create new session
-            const createResponse = await apiCall('/api/troubleshoot/sessions', {
-                method: 'POST',
-                body: JSON.stringify({})
-            });
-            if (!createResponse.ok) throw new Error('Failed to create chat session');
-            currentSession = await createResponse.json();
-            currentSessionId = currentSession.id;
+            // Get or create standalone session
+            const response = await apiCall('/api/troubleshoot/sessions/standalone');
+
+            if (response.ok) {
+                currentSession = await response.json();
+                currentSessionId = currentSession.id;
+                console.log('Using chat session:', currentSessionId);
+            } else {
+                // Fallback: create new session
+                const createResponse = await apiCall('/api/troubleshoot/sessions', {
+                    method: 'POST',
+                    body: JSON.stringify({})
+                });
+                if (!createResponse.ok) throw new Error('Failed to create chat session');
+                currentSession = await createResponse.json();
+                currentSessionId = currentSession.id;
+            }
         }
 
         updateModelSelector();
@@ -290,6 +397,13 @@ async function initChatSession() {
         }
 
         connectChatWebSocket(currentSession.id);
+
+        if (shouldForceNewSession && troubleshootContext) {
+            // Show welcome then immediately prefill and auto-send incident context
+            showWelcomeScreen();
+            prefillIncidentContext(troubleshootContext);
+            showToast('New incident troubleshooting session started', 'info');
+        }
     } catch (error) {
         console.error('Chat init failed:', error);
         showToast('Failed to initialize chat', 'error');
@@ -337,8 +451,8 @@ function updateModelSelector() {
         // Update tooltip with model name
         const provider = availableProviders.find(p => p.id === currentSession.llm_provider_id);
         if (provider) {
-            const btn = document.getElementById('modelIconBtn');
-            if (btn) btn.title = `LLM: ${provider.provider_name}`;
+            const btn = document.getElementById('llmIconBtn');
+            if (btn) btn.title = `LLM: ${provider.provider_name || provider.name}`;
         }
     } else {
         const defaultProvider = availableProviders.find(p => p.is_default);
@@ -346,31 +460,34 @@ function updateModelSelector() {
             if (typeof selectedModelId !== 'undefined') {
                 selectedModelId = defaultProvider.id;
             }
-            const btn = document.getElementById('modelIconBtn');
-            if (btn) btn.title = `LLM: ${defaultProvider.provider_name}`;
+            const btn = document.getElementById('llmIconBtn');
+            if (btn) btn.title = `LLM: ${defaultProvider.provider_name || defaultProvider.name}`;
         }
     }
 }
 
 function updateModelStatusIcon(status) {
-    const icon = document.getElementById('modelStatusIcon');
-    if (!icon) return;
-    
-    // Remove all status classes
-    icon.classList.remove('text-green-400', 'text-red-400', 'text-yellow-400', 'text-gray-400');
-    
-    switch(status) {
-        case 'connected':
-            icon.classList.add('text-green-400');
-            break;
-        case 'disconnected':
-            icon.classList.add('text-red-400');
-            break;
-        case 'connecting':
-            icon.classList.add('text-yellow-400');
-            break;
-        default:
-            icon.classList.add('text-gray-400');
+    const iconWrap = document.getElementById('llmIconStatus');
+    const dot = document.getElementById('llmStatusDot');
+    const badge = document.getElementById('llmStatusBadge');
+    const statusClasses = ['ts-llm-icon-connected', 'ts-llm-icon-disconnected', 'ts-llm-icon-connecting'];
+
+    // Icon color: green when connected, red/warning when not
+    if (iconWrap) {
+        iconWrap.classList.remove(...statusClasses);
+        iconWrap.classList.add(status === 'connected' ? 'ts-llm-icon-connected' :
+            status === 'disconnected' ? 'ts-llm-icon-disconnected' : 'ts-llm-icon-connecting');
+    }
+    if (dot) {
+        dot.classList.remove('ts-llm-status-connected', 'ts-llm-status-disconnected', 'ts-llm-status-connecting');
+        dot.title = status === 'connected' ? 'Connected' : status === 'disconnected' ? 'Disconnected' : 'Connecting';
+        dot.classList.add(status === 'connected' ? 'ts-llm-status-connected' :
+            status === 'disconnected' ? 'ts-llm-status-disconnected' : 'ts-llm-status-connecting');
+    }
+    if (badge) {
+        const labels = { connected: 'Connected', disconnected: 'Disconnected', connecting: 'Connecting' };
+        badge.textContent = labels[status] || 'Connecting';
+        badge.className = 'ts-llm-status-badge ts-llm-status-badge-' + status;
     }
 }
 
@@ -3407,7 +3524,7 @@ async function startAgent() {
 function enterAgentMode(goal) {
     isAgentMode = true;
     const container = document.getElementById('chatMessages');
-    container.innerHTML = `<div id="agentHeader" class="bg-gradient-to-r from-purple-900/50 to-blue-900/50 rounded-lg p-4 mb-4 border border-purple-500/30"><div class="flex items-center justify-between"><div class="flex items-center"><div class="w-8 h-8 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center mr-3 animate-pulse"><i class="fas fa-robot text-white text-sm"></i></div><div><div class="text-sm font-semibold text-white">Agent Mode Active</div><div class="text-xs text-gray-400 truncate max-w-xs" title="${escapeHtml(goal)}">${escapeHtml(goal)}</div></div></div><button id="agentStopBtn" onclick="stopAgent()" class="text-red-400 hover:text-red-300 text-xs px-3 py-1 border border-red-500/30 rounded hover:bg-red-500/10 transition-colors"><i class="fas fa-stop mr-1"></i>Stop</button></div><div class="mt-3 flex items-center text-xs"><span id="agentStatusBadge" class="px-2 py-1 rounded bg-purple-600/50 text-purple-200 mr-2"><i class="fas fa-spinner fa-spin mr-1"></i>Starting...</span><span class="text-gray-400">Step <span id="agentStepNum">0</span> of <span id="agentMaxSteps">20</span></span></div></div><div id="agentSteps" class="space-y-4"></div><div id="agentApprovalPanel" class="hidden"></div>`;
+    container.innerHTML = `<div id="agentHeader" class="agent-header-banner rounded-lg p-4 mb-4"><div class="flex items-center justify-between"><div class="flex items-center"><div class="w-8 h-8 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center mr-3 animate-pulse"><i class="fas fa-robot text-white text-sm"></i></div><div><div class="agent-header-title">Agent Mode Active</div><div class="agent-header-goal truncate max-w-xs" title="${escapeHtml(goal)}">${escapeHtml(goal)}</div></div></div><button id="agentStopBtn" onclick="stopAgent()" class="text-red-400 hover:text-red-300 text-xs px-3 py-1 border border-red-500/30 rounded hover:bg-red-500/10 transition-colors"><i class="fas fa-stop mr-1"></i>Stop</button></div><div class="mt-3 flex items-center text-xs"><span id="agentStatusBadge" class="px-2 py-1 rounded bg-purple-600/50 text-purple-200 mr-2"><i class="fas fa-spinner fa-spin mr-1"></i>Starting...</span><span class="text-gray-400">Step <span id="agentStepNum">0</span> of <span id="agentMaxSteps">20</span></span></div></div><div id="agentSteps" class="space-y-4"></div><div id="agentApprovalPanel" class="hidden"></div>`;
     document.getElementById('chatForm').style.display = 'none';
     const agentBtn = document.getElementById('agentModeBtn');
     if (agentBtn) {
@@ -3485,11 +3602,11 @@ function addAgentStep(step, autoApproveEnabled = false) {
             executeAgentStepInTerminal(step);
         }
     } else if (step.step_type === 'complete') {
-        stepEl.className = 'bg-green-900/30 rounded-lg p-4 border border-green-500/30';
-        stepEl.innerHTML = `<div class="flex items-start"><div class="w-6 h-6 rounded-full bg-green-600/30 flex items-center justify-center mr-3 mt-0.5 flex-shrink-0"><i class="fas fa-check text-green-400 text-xs"></i></div><div class="flex-grow"><div class="text-xs text-green-400 mb-1 font-semibold">Goal Achieved!</div><div class="text-sm text-gray-300">${marked.parse(step.content)}</div></div></div>`;
+        stepEl.className = 'agent-step-complete rounded-lg p-4';
+        stepEl.innerHTML = `<div class="flex items-start"><div class="w-6 h-6 rounded-full agent-step-complete-icon flex items-center justify-center mr-3 mt-0.5 flex-shrink-0"><i class="fas fa-check text-xs"></i></div><div class="flex-grow"><div class="text-xs mb-1 font-semibold agent-step-complete-title">Goal Achieved!</div><div class="text-sm agent-step-complete-body">${marked.parse(step.content)}</div></div></div>`;
     } else if (step.step_type === 'failed') {
-        stepEl.className = 'bg-red-900/30 rounded-lg p-4 border border-red-500/30';
-        stepEl.innerHTML = `<div class="flex items-start"><div class="w-6 h-6 rounded-full bg-red-600/30 flex items-center justify-center mr-3 mt-0.5 flex-shrink-0"><i class="fas fa-times text-red-400 text-xs"></i></div><div class="flex-grow"><div class="text-xs text-red-400 mb-1 font-semibold">Agent Failed</div><div class="text-sm text-gray-300">${escapeHtml(step.content)}</div></div></div>`;
+        stepEl.className = 'agent-step-failed rounded-lg p-4';
+        stepEl.innerHTML = `<div class="flex items-start"><div class="w-6 h-6 rounded-full agent-step-failed-icon flex items-center justify-center mr-3 mt-0.5 flex-shrink-0"><i class="fas fa-times text-xs"></i></div><div class="flex-grow"><div class="text-xs agent-step-failed-title mb-1 font-semibold">Agent Failed</div><div class="text-sm agent-step-failed-body">${escapeHtml(step.content)}</div></div></div>`;
     }
     container.appendChild(stepEl);
     container.scrollTop = container.scrollHeight;
@@ -4077,9 +4194,15 @@ setInterval(() => {
 function toggleSessionDropdown() {
     const dropdown = document.getElementById('sessionDropdown');
     const btn = document.getElementById('sessionDropdownBtn');
+    const wrapper = btn ? btn.closest('.ts-session-dropdown-wrapper') : null;
     if (!dropdown) return;
 
     dropdown.classList.toggle('hidden');
+
+    // Toggle open class on wrapper for chevron animation
+    if (wrapper) {
+        wrapper.classList.toggle('open', !dropdown.classList.contains('hidden'));
+    }
 
     // Refresh session list when opening
     if (!dropdown.classList.contains('hidden')) {
@@ -4088,11 +4211,16 @@ function toggleSessionDropdown() {
 }
 
 function toggleModelDropdown() {
-    const dropdown = document.getElementById('modelDropdown');
-    const btn = document.getElementById('modelIconBtn');
-    if (!dropdown) return;
-
-    dropdown.classList.toggle('hidden');
+    const list = document.getElementById('modelListContainer');
+    const selector = document.getElementById('llmSelector');
+    if (list) {
+        const isHidden = list.classList.contains('hidden');
+        list.classList.toggle('hidden', !isHidden);
+        if (selector) {
+            if (isHidden) selector.classList.add('open');
+            else selector.classList.remove('open');
+        }
+    }
 }
 
 // Close dropdowns when clicking outside
@@ -4102,15 +4230,16 @@ window.addEventListener('click', function (e) {
     if (sessionDropdown && !sessionDropdown.classList.contains('hidden')) {
         if (!sessionDropdown.contains(e.target) && (!sessionBtn || !sessionBtn.contains(e.target))) {
             sessionDropdown.classList.add('hidden');
+            const wrapper = sessionBtn ? sessionBtn.closest('.ts-session-dropdown-wrapper') : null;
+            if (wrapper) wrapper.classList.remove('open');
         }
     }
 
-    const modelDropdown = document.getElementById('modelDropdown');
-    const modelBtn = document.getElementById('modelIconBtn');
-    if (modelDropdown && !modelDropdown.classList.contains('hidden')) {
-        if (!modelDropdown.contains(e.target) && (!modelBtn || !modelBtn.contains(e.target))) {
-            modelDropdown.classList.add('hidden');
-        }
+    const llmSelector = document.getElementById('llmSelector');
+    const modelListContainer = document.getElementById('modelListContainer');
+    if (llmSelector && !llmSelector.contains(e.target)) {
+        if (modelListContainer) modelListContainer.classList.add('hidden');
+        llmSelector.classList.remove('open');
     }
 });
 
@@ -4132,18 +4261,19 @@ function populateSessionDropdown(sessions) {
     if (!container) return;
 
     if (sessions.length === 0) {
-        container.innerHTML = '<div class="px-3 py-2 text-xs text-gray-500">No previous sessions</div>';
+        container.innerHTML = '<div class="ts-session-empty">No previous sessions</div>';
     } else {
-        container.innerHTML = sessions.map(session => `
-            <div class="px-3 py-2 hover:bg-gray-700 cursor-pointer flex justify-between items-center group" onclick="switchSession('${session.id}')">
-                <div class="truncate max-w-[180px] text-xs ${session.id === currentSessionId ? 'text-blue-400 font-bold' : 'text-gray-300'}">
-                    ${AIChatBase.escapeHtml(session.title || 'Untitled Session')}
-                </div>
-                <div class="text-[10px] text-gray-500">
-                    ${new Date(session.created_at).toLocaleDateString()}
-                </div>
-            </div>
-        `).join('');
+        container.innerHTML = sessions.map(session => {
+            const isActive = session.id === currentSessionId;
+            const title = AIChatBase.escapeHtml(session.title || 'Untitled Session');
+            const date = new Date(session.created_at).toLocaleDateString();
+            const time = new Date(session.created_at).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+            return `
+            <div class="ts-session-item ${isActive ? 'active' : ''}" onclick="switchSession('${session.id}')">
+                <div class="ts-session-item-title">${title}</div>
+                <div class="ts-session-item-date">${date} ${time}</div>
+            </div>`;
+        }).join('');
     }
 }
 
@@ -4171,7 +4301,12 @@ async function switchSession(sessionId) {
     if (sessionId === currentSessionId) return;
 
     currentSessionId = sessionId;
-    document.getElementById('sessionDropdown').classList.add('hidden');
+    const dropdown = document.getElementById('sessionDropdown');
+    if (dropdown) {
+        dropdown.classList.add('hidden');
+        const wrapper = dropdown.closest('.ts-session-dropdown-wrapper');
+        if (wrapper) wrapper.classList.remove('open');
+    }
 
     // Update UI title
     const titleEl = document.getElementById('currentSessionTitle');
@@ -4180,17 +4315,23 @@ async function switchSession(sessionId) {
     // Load messages
     await loadMessageHistory(sessionId);
 
+    // Reconnect WebSocket to the new session
+    if (typeof connectChatWebSocket === 'function') {
+        connectChatWebSocket(sessionId);
+    }
+
     if (titleEl) titleEl.textContent = 'Active Session';
     showToast('Session switched', 'info');
 }
 
 // Populate Model Dropdown
 function populateModelDropdown(providers) {
-    const list = document.getElementById('modelListContainer');
+    const list = document.getElementById('llmProviderList');
     if (!list) return;
 
     if (!providers || providers.length === 0) {
         list.innerHTML = '<div class="px-3 py-2 text-xs text-gray-500">No providers available</div>';
+        updateModelStatusIcon('disconnected');
         return;
     }
 
@@ -4201,17 +4342,17 @@ function populateModelDropdown(providers) {
 
     list.innerHTML = providers.map(p => {
         const isSelected = p.id === selectedId;
+        const name = p.provider_name || p.name || 'Unknown';
         return `
-        <div class="model-item px-3 py-2 hover:bg-gray-700 cursor-pointer flex items-center ${isSelected ? 'bg-blue-900/40 border-l-2 border-blue-400' : 'border-l-2 border-transparent'}" 
-             data-provider-id="${p.id}" onclick="selectModel('${p.id}')">
-            <div class="w-2 h-2 rounded-full ${p.is_enabled ? 'bg-green-400' : 'bg-red-400'} mr-2" title="${p.is_enabled ? 'Enabled' : 'Disabled'}"></div>
-            <div class="text-xs text-gray-300 flex-grow">
-                <div class="font-bold ${isSelected ? 'text-blue-300' : ''}">${AIChatBase.escapeHtml(p.name)}${p.is_default ? ' <span class="text-yellow-400">⭐</span>' : ''}</div>
-                <div class="text-[10px] text-gray-500">${AIChatBase.escapeHtml(p.model_id)}</div>
-            </div>
-            ${isSelected ? '<i class="fas fa-check ml-2 text-blue-400 text-sm"></i>' : ''}
+        <div class="ts-llm-option ${isSelected ? 'selected' : ''}" 
+             data-provider-id="${p.id}" onclick="selectModel('${p.id}'); toggleModelDropdown();">
+            <i data-feather="${p.is_enabled !== false ? 'check-circle' : 'x-circle'}" style="width: 14px; height: 14px; color: ${p.is_enabled !== false ? '#4ade80' : '#f87171'}"></i>
+            <span class="ml-2">${AIChatBase.escapeHtml(name)}${p.is_default ? ' ⭐' : ''}</span>
         </div>
     `}).join('');
+
+    if (typeof feather !== 'undefined') feather.replace();
+    updateModelStatusIcon('connected');
 }
 
 async function selectModel(providerId) {
@@ -4239,7 +4380,7 @@ async function selectModel(providerId) {
             // Update the model icon tooltip
             const provider = availableProviders.find(p => p.id === providerId);
             if (provider) {
-                const btn = document.getElementById('modelIconBtn');
+                const btn = document.getElementById('llmIconBtn');
                 if (btn) btn.title = `LLM: ${provider.provider_name || provider.name}`;
             }
             
@@ -4251,7 +4392,10 @@ async function selectModel(providerId) {
             container.appendChild(msg);
             container.scrollTop = container.scrollHeight;
             
-            document.getElementById('modelDropdown').classList.add('hidden');
+            const list = document.getElementById('modelListContainer');
+            if (list) list.classList.add('hidden');
+            const sel = document.getElementById('llmSelector');
+            if (sel) sel.classList.remove('open');
             showToast(`Switched to ${result.provider_name}`, 'success');
         }
     } catch (error) {
