@@ -22,12 +22,16 @@
     <!-- Main Styles -->
     <link href="/static/style.css?v=20260212b" rel="stylesheet">
     <link href="/static/style_agent_widget.css?v=20260211a" rel="stylesheet">
+    <link href="/static/css/theme-controls.css?v=20260213a" rel="stylesheet">
 
     <!-- ECharts -->
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
 
     <!-- xterm.js CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
+
+    <!-- Theme & Zoom Manager -->
+    <script src="/static/js/theme-manager.js?v=20260213a"></script>
 
     {% block head %}{% endblock %}
 </head>
@@ -69,72 +73,103 @@
             <!-- Header Actions -->
             <div class="header-actions">
                 {% block header_actions %}
-                <!-- RE-VIVE Chat Button -->
-                <button class="revive-chat-btn" id="ai-helper-toggle" title="RE-VIVE AI Assistant">
-                    <i data-feather="message-circle" style="width: 18px;"></i>
-                </button>
-                <!-- Notifications -->
-                <button class="icon-btn" title="Notifications">
-                    <i data-feather="bell" style="width: 18px;"></i>
-                    <span class="notification-dot"></span>
-                </button>
-                <!-- User Profile Dropdown -->
-                <div class="relative ml-2 user-profile-container">
-                    <button type="button"
-                        class="flex items-center justify-center w-8 h-8 rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#0f0e47] focus:ring-blue-500 transition-all duration-200"
-                        id="user-menu-button" aria-expanded="false" aria-haspopup="true" onclick="toggleUserMenu()">
-                        <span class="sr-only">Open user menu</span>
-                        <div
-                            class="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-medium text-xs shadow-md hover:bg-blue-700 transition-colors border border-blue-400">
-                            {{ user.username[0].upper() if user and user.username else 'U' }}
-                        </div>
-                    </button>
 
-                    <!-- Dropdown menu -->
-                    <div id="user-menu-dropdown"
-                        class="origin-top-right absolute right-0 mt-2 w-56 rounded-xl shadow-2xl py-2 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none hidden z-50 transform transition-all duration-200 ease-out scale-95 opacity-0 border border-slate-100"
-                        role="menu" aria-orientation="vertical" aria-labelledby="user-menu-button" tabindex="-1">
-                        <div class="px-4 py-3 border-b border-slate-100 bg-slate-50 rounded-t-xl">
-                            <p class="text-xs text-slate-500 uppercase font-semibold tracking-wider">Signed in as</p>
-                            <p class="text-sm font-bold text-slate-800 truncate mt-1">{{ user.username if user and
-                                user.username else 'User' }}</p>
-                            <p class="text-xs text-slate-400 truncate">{{ user.role if user and user.role else 'Guest'
-                                }}</p>
-                        </div>
+                <!-- Theme & Zoom Controls -->
+                <div class="theme-zoom-controls">
+                    <!-- Theme & Zoom Controls -->
+                    <div class="theme-zoom-controls">
+                        <!-- Theme Selector Removed per user request -->
 
-                        <div class="py-1">
-                            <a href="/profile"
-                                class="group flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
-                                role="menuitem" tabindex="-1">
-                                <i data-feather="user"
-                                    class="mr-3 h-4 w-4 text-slate-400 group-hover:text-blue-500 transition-colors"></i>
-                                Profile
-                            </a>
-                            <a href="/settings"
-                                class="group flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
-                                role="menuitem" tabindex="-1">
-                                <i data-feather="settings"
-                                    class="mr-3 h-4 w-4 text-slate-400 group-hover:text-blue-500 transition-colors"></i>
-                                Settings
-                            </a>
-                        </div>
+                        <!-- Zoom Controls -->
 
-                        <div class="border-t border-slate-100 my-1"></div>
-
-                        <div class="py-1">
-                            <a href="#" onclick="logoutUser(event)"
-                                class="group flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                                role="menuitem" tabindex="-1">
-                                <i data-feather="log-out"
-                                    class="mr-3 h-4 w-4 text-red-400 group-hover:text-red-500 transition-colors"></i>
-                                Sign out
-                            </a>
+                        <!-- Zoom Controls -->
+                        <div class="zoom-controls">
+                            <button class="zoom-btn" id="zoom-out-btn" onclick="window.themeZoomManager.zoomOut()"
+                                title="Zoom Out (Ctrl -)">
+                                <i data-feather="minus" style="width:14px;"></i>
+                            </button>
+                            <div class="zoom-level-display" id="zoom-level-display">100%</div>
+                            <button class="zoom-btn" id="zoom-in-btn" onclick="window.themeZoomManager.zoomIn()"
+                                title="Zoom In (Ctrl +)">
+                                <i data-feather="plus" style="width:14px;"></i>
+                            </button>
+                            <button class="zoom-btn" onclick="window.themeZoomManager.resetZoom()"
+                                title="Reset Zoom (Ctrl 0)">
+                                <i data-feather="maximize-2" style="width:14px;"></i>
+                            </button>
                         </div>
                     </div>
-                </div>
 
-                {% endblock %}
-            </div>
+                    <div class="theme-zoom-divider"></div>
+
+                    <!-- RE-VIVE Chat Button -->
+                    <button class="revive-chat-btn" id="ai-helper-toggle" title="RE-VIVE AI Assistant">
+                        <i data-feather="message-circle" style="width: 18px;"></i>
+                    </button>
+                    <!-- Notifications -->
+                    <button class="icon-btn" title="Notifications">
+                        <i data-feather="bell" style="width: 18px;"></i>
+                        <span class="notification-dot"></span>
+                    </button>
+                    <!-- User Profile Dropdown -->
+                    <div class="relative ml-2 user-profile-container">
+                        <button type="button"
+                            class="flex items-center justify-center w-8 h-8 rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#0f0e47] focus:ring-blue-500 transition-all duration-200"
+                            id="user-menu-button" aria-expanded="false" aria-haspopup="true" onclick="toggleUserMenu()">
+                            <span class="sr-only">Open user menu</span>
+                            <div
+                                class="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-medium text-xs shadow-md hover:bg-blue-700 transition-colors border border-blue-400">
+                                {{ user.username[0].upper() if user and user.username else 'U' }}
+                            </div>
+                        </button>
+
+                        <!-- Dropdown menu -->
+                        <div id="user-menu-dropdown"
+                            class="origin-top-right absolute right-0 mt-2 w-56 rounded-xl shadow-2xl py-2 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none hidden z-50 transform transition-all duration-200 ease-out scale-95 opacity-0 border border-slate-100"
+                            role="menu" aria-orientation="vertical" aria-labelledby="user-menu-button" tabindex="-1">
+                            <div class="px-4 py-3 border-b border-slate-100 bg-slate-50 rounded-t-xl">
+                                <p class="text-xs text-slate-500 uppercase font-semibold tracking-wider">Signed in as
+                                </p>
+                                <p class="text-sm font-bold text-slate-800 truncate mt-1">{{ user.username if user and
+                                    user.username else 'User' }}</p>
+                                <p class="text-xs text-slate-400 truncate">{{ user.role if user and user.role else
+                                    'Guest'
+                                    }}</p>
+                            </div>
+
+                            <div class="py-1">
+                                <a href="/profile"
+                                    class="group flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                                    role="menuitem" tabindex="-1">
+                                    <i data-feather="user"
+                                        class="mr-3 h-4 w-4 text-slate-400 group-hover:text-blue-500 transition-colors"></i>
+                                    Profile
+                                </a>
+                                <a href="/settings"
+                                    class="group flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                                    role="menuitem" tabindex="-1">
+                                    <i data-feather="settings"
+                                        class="mr-3 h-4 w-4 text-slate-400 group-hover:text-blue-500 transition-colors"></i>
+                                    Settings
+                                </a>
+                            </div>
+
+                            <div class="border-t border-slate-100 my-1"></div>
+
+                            <div class="py-1">
+                                <a href="#" onclick="logoutUser(event)"
+                                    class="group flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                                    role="menuitem" tabindex="-1">
+                                    <i data-feather="log-out"
+                                        class="mr-3 h-4 w-4 text-red-400 group-hover:text-red-500 transition-colors"></i>
+                                    Sign out
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% endblock %}
+                </div>
         </header>
 
         <!-- Content Area -->
@@ -345,6 +380,95 @@
         // Initialize Feather Icons
         if (typeof feather !== 'undefined') {
             feather.replace();
+        }
+
+        // Select theme from dropdown or profile select
+        function selectTheme(themeName) {
+            if (window.themeZoomManager) {
+                window.themeZoomManager.applyTheme(themeName);
+            }
+            // Close dropdown
+            var dd = document.getElementById('theme-dropdown');
+            if (dd) dd.classList.remove('open');
+        }
+
+        // Initialize Theme & Zoom Controls on page load
+        document.addEventListener('DOMContentLoaded', function () {
+            var checkManager = setInterval(function () {
+                if (window.themeZoomManager) {
+                    clearInterval(checkManager);
+                    initThemeZoom();
+                }
+            }, 50);
+        });
+
+        function initThemeZoom() {
+            var toggleBtn = document.getElementById('theme-toggle-btn');
+            var dropdown = document.getElementById('theme-dropdown');
+
+            // Toggle dropdown on button click
+            if (toggleBtn && dropdown) {
+                toggleBtn.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    dropdown.classList.toggle('open');
+                });
+            }
+
+            // Close dropdown on outside click
+            document.addEventListener('click', function (e) {
+                if (dropdown && !dropdown.contains(e.target) && toggleBtn && !toggleBtn.contains(e.target)) {
+                    dropdown.classList.remove('open');
+                }
+            });
+
+            // Update UI on theme change
+            window.addEventListener('themeChanged', function (e) {
+                var theme = e.detail.theme;
+                var cfg = window.themeZoomManager.themes[theme];
+                if (!cfg) return;
+
+                // Update button label
+                var nameEl = document.getElementById('theme-name');
+                if (nameEl) nameEl.textContent = cfg.name;
+
+                // Update button icon
+                var btnIcon = toggleBtn ? toggleBtn.querySelector('i') : null;
+                if (btnIcon) {
+                    btnIcon.setAttribute('data-feather', cfg.icon);
+                }
+
+                // Update dropdown active state
+                var options = document.querySelectorAll('.theme-option');
+                options.forEach(function (opt) {
+                    opt.classList.toggle('active', opt.getAttribute('data-theme') === theme);
+                });
+
+                // Update profile select if present
+                var profileSelect = document.getElementById('profile-theme-select');
+                if (profileSelect) profileSelect.value = theme;
+
+                if (typeof feather !== 'undefined') feather.replace();
+            });
+
+            // Update zoom controls on zoom change
+            window.addEventListener('zoomChanged', function (e) {
+                var zoomOutBtn = document.getElementById('zoom-out-btn');
+                var zoomInBtn = document.getElementById('zoom-in-btn');
+                if (zoomOutBtn) zoomOutBtn.disabled = e.detail.isMin;
+                if (zoomInBtn) zoomInBtn.disabled = e.detail.isMax;
+            });
+
+            // Fire initial state
+            var cur = window.themeZoomManager.getCurrentTheme();
+            window.dispatchEvent(new CustomEvent('themeChanged', { detail: { theme: cur } }));
+            window.dispatchEvent(new CustomEvent('zoomChanged', {
+                detail: {
+                    zoom: window.themeZoomManager.getCurrentZoom(),
+                    percent: Math.round(window.themeZoomManager.getCurrentZoom() * 100),
+                    isMin: window.themeZoomManager.currentZoomIndex === 0,
+                    isMax: window.themeZoomManager.currentZoomIndex === window.themeZoomManager.zoomLevels.length - 1
+                }
+            }));
         }
     </script>
 </body>

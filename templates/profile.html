@@ -78,20 +78,39 @@
                 </form>
             </div>
 
-            <!-- Preferences (Placeholder for future) -->
+            <!-- Preferences -->
             <div class="card p-6 mt-6">
                 <h3 class="text-lg font-semibold mb-4 border-b border-gray-700 pb-2">
                     <i class="fas fa-sliders-h text-purple-400 mr-2"></i>Preferences
                 </h3>
-                <div class="flex items-center justify-between">
-                    <div>
-                        <div class="font-medium">Appearance</div>
-                        <div class="text-sm text-gray-400">Customize your interface theme</div>
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="font-medium">Theme</div>
+                            <div class="text-sm text-gray-400">Switch between Light and Aftab themes</div>
+                        </div>
+                        <select id="profile-theme-select" onchange="selectTheme(this.value)"
+                            class="bg-white border border-gray-300 rounded px-3 py-1.5 text-gray-800 text-sm focus:outline-none focus:border-blue-500 cursor-pointer">
+                            <option value="light">Light</option>
+                            <option value="aftab">Aftab</option>
+                            <option value="jackson">Jackson</option>
+                        </select>
                     </div>
-                    <button onclick="showThemeModal()"
-                        class="px-3 py-1.5 border border-gray-600 rounded hover:border-gray-400 transition-colors text-sm">
-                        Customize
-                    </button>
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="font-medium">Zoom Level</div>
+                            <div class="text-sm text-gray-400">Adjust interface size (Current: <span
+                                    id="profile-zoom-level">100%</span>)</div>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="window.themeZoomManager.zoomOut()"
+                                class="px-3 py-1.5 border border-gray-600 rounded hover:border-gray-400 transition-colors text-sm">−</button>
+                            <button onclick="window.themeZoomManager.resetZoom()"
+                                class="px-3 py-1.5 border border-gray-600 rounded hover:border-gray-400 transition-colors text-sm">Reset</button>
+                            <button onclick="window.themeZoomManager.zoomIn()"
+                                class="px-3 py-1.5 border border-gray-600 rounded hover:border-gray-400 transition-colors text-sm">+</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -144,5 +163,36 @@
             submitBtn.innerHTML = '<span>Update Password</span>';
         }
     }
+
+    // Update zoom display and theme select on profile page
+    document.addEventListener('DOMContentLoaded', function () {
+        function updateProfileZoomDisplay() {
+            var zoomDisplay = document.getElementById('profile-zoom-level');
+            if (zoomDisplay && window.themeZoomManager) {
+                var percent = Math.round(window.themeZoomManager.getCurrentZoom() * 100);
+                zoomDisplay.textContent = percent + '%';
+            }
+        }
+
+        function updateProfileThemeSelect() {
+            var sel = document.getElementById('profile-theme-select');
+            if (sel && window.themeZoomManager) {
+                sel.value = window.themeZoomManager.getCurrentTheme();
+            }
+        }
+
+        // Initial update after manager is ready
+        var check = setInterval(function () {
+            if (window.themeZoomManager) {
+                clearInterval(check);
+                updateProfileZoomDisplay();
+                updateProfileThemeSelect();
+            }
+        }, 50);
+
+        // Update on changes
+        window.addEventListener('zoomChanged', updateProfileZoomDisplay);
+        window.addEventListener('themeChanged', function () { updateProfileThemeSelect(); });
+    });
 </script>
 {% endblock %}

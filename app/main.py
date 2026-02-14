@@ -482,10 +482,20 @@ async def profile_page(
     """
     if not current_user:
         return RedirectResponse(url="/login", status_code=302)
-    
+
     return templates.TemplateResponse("profile.html", {
         "request": request,
         "user": current_user
+    })
+
+
+@app.get("/reset-theme", response_class=HTMLResponse)
+async def reset_theme_page(request: Request):
+    """
+    Reset theme to Light - Utility page
+    """
+    return templates.TemplateResponse("reset_theme.html", {
+        "request": request
     })
 
 
