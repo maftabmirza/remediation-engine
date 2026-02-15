@@ -268,15 +268,15 @@
             <div id="severityChart" style="height: 280px; width: 100%;"></div>
         </div>
 
-        <!-- ═══════════ Row 5: ITSM Tickets (left) + AI Insights (right) ═══════════ -->
+        <!-- ═══════════ Row 5: ITSM Tickets (left) + Live Ops Feed (right) ═══════════ -->
         <div class="card itsm-tickets-card">
             <div class="card-header">
                 <h3>Recent ITSM Tickets</h3>
                 <div style="display:flex; align-items:center; gap:8px;">
                     <span class="badge primary" id="itsmOpenBadge">&mdash;</span>
-                    <button class="icon-btn btn-sm" title="View all tickets">
+                    <a href="/incidents" class="icon-btn btn-sm" title="View all tickets" style="text-decoration:none; display:inline-flex; align-items:center; justify-content:center;">
                         <i data-feather="external-link" style="width: 14px;"></i>
-                    </button>
+                    </a>
                 </div>
             </div>
             <div class="table-container">
@@ -308,7 +308,25 @@
             </div>
         </div>
 
-        <div class="card ai-insights-card">
+        <div class="card activity-feed-card">
+            <div class="card-header">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <h3>Live Operations Feed</h3>
+                    <span class="live-indicator"><span class="pulse"></span> Live</span>
+                </div>
+                <button class="icon-btn" style="width:24px; height:24px;" onclick="loadRecentAlerts()" title="Refresh Feed">
+                    <i data-feather="refresh-cw" style="width:14px;"></i>
+                </button>
+            </div>
+            <div class="timeline-container" id="operationsFeed">
+                <div style="text-align:center; padding:32px; color:#94a3b8;">
+                    <p style="font-size:13px;">Loading operations feed...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════════ Row 6: AI Insights & Clustering (full width) ═══════════ -->
+        <div class="card ai-insights-card" style="grid-column: 1 / -1;">
             <div class="card-header">
                 <h3>AI Insights & Clustering</h3>
                 <span class="badge magic">ML Powered</span>
@@ -344,58 +362,6 @@
                         </div>
                     </div>
                 </div>
-            </div>
-            <!-- Top Sources inline -->
-            <div style="padding:12px 20px; border-top:1px solid #f1f5f9;">
-                <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
-                    <div class="insight-icon prediction" style="width:32px; height:32px;"><i data-feather="trending-up" style="width:16px; height:16px;"></i></div>
-                    <span style="font-size:14px; font-weight:600; color:#0f172a;">Top Alert Sources</span>
-                </div>
-                <div id="topSourcesList">
-                    <p style="font-size:12px; color:#94a3b8;">Loading...</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- ═══════════ Row 6: Live Ops Feed (left) + Quick Actions (right) ═══════════ -->
-        <div class="card activity-feed-card">
-            <div class="card-header">
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <h3>Live Operations Feed</h3>
-                    <span class="live-indicator"><span class="pulse"></span> Live</span>
-                </div>
-                <button class="icon-btn" style="width:24px; height:24px;" onclick="loadRecentAlerts()" title="Refresh Feed">
-                    <i data-feather="refresh-cw" style="width:14px;"></i>
-                </button>
-            </div>
-            <div class="timeline-container" id="operationsFeed">
-                <div style="text-align:center; padding:32px; color:#94a3b8;">
-                    <p style="font-size:13px;">Loading operations feed...</p>
-                </div>
-            </div>
-        </div>
-
-        <div class="card quick-actions-card">
-            <div class="card-header">
-                <h3>Quick Actions</h3>
-            </div>
-            <div class="quick-actions-grid">
-                <a href="/alerts" class="action-tile" style="text-decoration:none;">
-                    <div class="action-icon"><i data-feather="alert-circle"></i></div>
-                    <span>View Alerts</span>
-                </a>
-                <a href="/runbooks" class="action-tile" style="text-decoration:none;">
-                    <div class="action-icon"><i data-feather="play-circle"></i></div>
-                    <span>Run Playbook</span>
-                </a>
-                <a href="/executions" class="action-tile" style="text-decoration:none;">
-                    <div class="action-icon"><i data-feather="terminal"></i></div>
-                    <span>Executions</span>
-                </a>
-                <a href="/analytics" class="action-tile" style="text-decoration:none;">
-                    <div class="action-icon"><i data-feather="bar-chart-2"></i></div>
-                    <span>Analytics</span>
-                </a>
             </div>
         </div>
 
@@ -722,35 +688,59 @@
     // ══════════════════════════════════════
     //  ITSM Tickets
     // ══════════════════════════════════════
+    function normalizeItsmPriority(priority, severity) {
+        const p = (priority || '').toString().toLowerCase().trim();
+        const s = (severity || '').toString().toLowerCase().trim();
+
+        if (['p1', 'critical', 'sev1', 'high'].includes(p) || s === 'critical') {
+            return { cls: 'critical', icon: 'chevrons-up', lbl: 'P1' };
+        }
+        if (['p2', 'major', 'sev2', 'medium'].includes(p) || s === 'warning') {
+            return { cls: 'high', icon: 'chevron-up', lbl: 'P2' };
+        }
+        return { cls: 'medium', icon: 'minus', lbl: 'P3' };
+    }
+
+    function normalizeItsmStatus(incident) {
+        const status = (incident?.status || '').toString().toLowerCase().trim();
+        if (incident?.is_open === false || ['resolved', 'closed', 'done'].includes(status)) {
+            return { cls: 'done', lbl: 'Resolved' };
+        }
+        if (['in progress', 'in_progress', 'investigating', 'triage'].includes(status)) {
+            return { cls: 'in-progress', lbl: 'In Progress' };
+        }
+        if (status) {
+            return { cls: 'new', lbl: incident.status };
+        }
+        return { cls: 'new', lbl: incident?.is_open === false ? 'Resolved' : 'Open' };
+    }
+
     async function loadItsmTickets() {
         const tbody = document.getElementById('itsmTableBody');
         const empty = document.getElementById('itsmEmptyState');
         const badge = document.getElementById('itsmOpenBadge');
 
         try {
-            // Use recent alerts as ticket proxy
-            const raw = await apiCall('/api/alerts?page_size=5');
-            const alerts = Array.isArray(raw) ? raw : (raw?.alerts || []);
+            const incidents = await apiCall('/api/incidents?time_range=30d&status=open&page=1&page_size=5');
 
-            if (alerts.length === 0) {
+            if (!Array.isArray(incidents) || incidents.length === 0) {
                 tbody.innerHTML = ''; empty.style.display = 'block';
                 badge.textContent = '0 Open';
                 return;
             }
 
-            badge.textContent = `${alerts.length} Open`;
-            tbody.innerHTML = alerts.map(a => {
-                const sev = (a.severity||'info').toLowerCase();
-                const prioMap = {critical:{cls:'critical',icon:'chevrons-up',lbl:'P1'},warning:{cls:'high',icon:'chevron-up',lbl:'P2'},info:{cls:'medium',icon:'minus',lbl:'P3'}};
-                const p = prioMap[sev]||prioMap.info;
-                const stMap = {firing:{cls:'in-progress',lbl:'Active'},resolved:{cls:'done',lbl:'Resolved'}};
-                const st = stMap[(a.status||'').toLowerCase()]||{cls:'new',lbl:a.status||'New'};
+            badge.textContent = `${incidents.length} Open`;
+            empty.style.display = 'none';
+            tbody.innerHTML = incidents.map(inc => {
+                const p = normalizeItsmPriority(inc.priority, inc.severity);
+                const st = normalizeItsmStatus(inc);
+                const key = inc.incident_id || `INC-${String(inc.id).slice(0, 8).toUpperCase()}`;
                 return `<tr>
-                    <td><a href="/alerts/${a.id}" class="ticket-link">ALR-${String(a.id).padStart(4,'0')}</a></td>
-                    <td class="ticket-summary">${a.alert_name||'Alert'}</td>
+                    <td><a href="/incidents/${inc.id}" class="ticket-link">${key}</a></td>
+                    <td class="ticket-summary">${inc.title||'Incident'}</td>
                     <td><div class="priority-badge ${p.cls}"><i data-feather="${p.icon}"></i> ${p.lbl}</div></td>
                     <td><span class="status-lozenge ${st.cls}">${st.lbl}</span></td>
-                    <td class="text-muted">${timeAgo(a.timestamp)}</td>
+                    <td class="text-muted">${timeAgo(inc.created_at)}</td>
                 </tr>`;
             }).join('');
             if (window.feather) feather.replace();
@@ -906,6 +896,7 @@
         refreshIntervalId = setInterval(() => {
             refreshDashboard();
             loadRecentAlerts();
+            loadItsmTickets();
         }, 30000);
 
         console.log('Dashboard initialized — auto-refresh: 30s');

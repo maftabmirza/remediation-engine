@@ -9,14 +9,14 @@
 <style>
     .grafana-container {
         position: fixed !important;
-        top: 48px !important;
-        /* Leave room for top navbar (matches grid-template-rows: 48px) */
-        left: 48px !important;
-        /* Sidebar collapsed width (matches grid-template-columns: 48px in .collapsed) */
+        top: var(--layout-header-h, 48px) !important;
+        /* Leave room for top navbar */
+        left: var(--layout-sidebar-collapsed-w, 48px) !important;
+        /* Sidebar collapsed width */
         right: 0 !important;
         width: auto !important;
 
-        height: calc(100vh - 48px) !important;
+        height: calc(100vh - var(--layout-header-h, 48px)) !important;
         /* Subtract navbar height */
         bottom: 0 !important;
         overflow: hidden !important;
@@ -26,9 +26,9 @@
         border-radius: var(--radius-lg) 0 0 0;
     }
 
-    /* Adjust when sidebar is expanded (170px matches grid-template-columns: 170px) */
+    /* Adjust when sidebar is expanded */
     .app-container:not(.collapsed) .grafana-container {
-        left: 170px !important;
+        left: var(--layout-sidebar-w, 170px) !important;
     }
 
     /* Shrink grafana iframe when RE-VIVE chat panel is open */

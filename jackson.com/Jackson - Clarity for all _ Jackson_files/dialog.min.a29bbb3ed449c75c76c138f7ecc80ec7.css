@@ -1,0 +1,9 @@
+.ui-dialog.no-titlebar .ui-dialog-titlebar{display:none}
+.ui-dialog{z-index:101;background:#fff;position:fixed}
+.ui-dialog .dialog-content-container{height:calc(100% - 45px);overflow-y:auto;min-width:100%;padding-top:5px}
+.ui-dialog .controls{max-width:100%;display:-webkit-flex;display:flex;-webkit-justify-conteont:flex-end;justify-content:flex-end}
+.ui-dialog .controls a.close{text-decoration:none;font-size:22px;font-weight:bold;color:#000;padding:10px}
+.ui-dialog .dialog-content{padding:0 20px}
+.content-wrapper>.dialog-content,.content-wrapper>.dialog-container{display:none;margin:0}
+.cq-Editable-dom .content-wrapper>.dialog-content,.cq-Editable-dom .content-wrapper>.dialog-container{display:block}
+.jxn-color-picker .coral3-ColorInput-onlySwatchesView{left:38px !important;top:0 !important}

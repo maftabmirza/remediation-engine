@@ -11,11 +11,11 @@
 <style>
     .grafana-container {
         position: fixed !important;
-        top: 48px !important;
-        left: 48px !important;
+        top: var(--layout-header-h, 48px) !important;
+        left: var(--layout-sidebar-collapsed-w, 48px) !important;
         right: 0 !important;
         width: auto !important;
-        height: calc(100vh - 48px) !important;
+        height: calc(100vh - var(--layout-header-h, 48px)) !important;
         bottom: 0 !important;
         overflow: hidden !important;
         background: #111 !important;
@@ -24,7 +24,7 @@
     }
 
     .app-container:not(.collapsed) .grafana-container {
-        left: 170px !important;
+        left: var(--layout-sidebar-w, 170px) !important;
     }
 
     /* Shrink grafana iframe when RE-VIVE chat panel is open */

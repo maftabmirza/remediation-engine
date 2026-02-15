@@ -1,0 +1,595 @@
+/* Jackson Theme Isolation */
+
+[data-theme="jackson"] {
+    /* Jackson Theme Variables */
+    --bg-app: #FFFFFF;
+    --bg-sidebar: #E8E3D9;
+    --bg-header: #1A1A1A;
+
+    /* Brand Colors */
+    --brand-red: #EB0028;
+    --brand-secondary: #E8E3D9;
+
+    /* Surface colors */
+    --bg-surface: #FFFFFF;
+    --bg-surface-raised: #FFFFFF;
+
+    /* Glass Panel */
+    --bg-panel: rgba(255, 255, 255, 0.95);
+    --glass-border: 1px solid #E8E3D9;
+    --glass-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+
+    /* Borders */
+    --border-subtle: 1px solid #E5E5E5;
+    --border-dark: 1px solid #333333;
+
+    /* Text */
+    --text-primary: #000000;
+    --text-secondary: #333333;
+    --text-muted: #767676;
+    --text-on-dark: #FFFFFF;
+    --text-muted-dark: #9CA3AF;
+
+    /* Accents */
+    --accent-blue: #EB0028;
+    --accent-selected-bg: rgba(235, 0, 40, 0.08);
+
+    /* Functional Colors */
+    --status-error: #EB0028;
+
+    /* Radii */
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 16px;
+
+    /* Layout Dimensions */
+    /* Only override these when Jackson theme is active */
+    --layout-header-h: 90px;
+    --layout-sidebar-w: 240px;
+    --layout-sidebar-collapsed-w: 64px;
+}
+
+/* Specific Jackson Theme Overrides */
+
+[data-theme="jackson"] body {
+    font-family: 'Montserrat', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.5;
+    font-size: 16px;
+    color: var(--text-primary);
+    background-color: var(--bg-app);
+}
+
+/* Header Overrides */
+[data-theme="jackson"] .top-header {
+    border-bottom: 2px solid var(--border-subtle);
+    box-shadow: none;
+    color: var(--text-primary);
+}
+
+/* Header Action Buttons */
+[data-theme="jackson"] .header-action-btn {
+    background: rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    color: var(--text-secondary);
+}
+
+[data-theme="jackson"] .header-action-btn:hover {
+    background: rgba(0, 0, 0, 0.08);
+    border-color: rgba(0, 0, 0, 0.2);
+}
+
+/* Sidebar Overrides */
+[data-theme="jackson"] .sidebar {
+    border-right: 1px solid rgba(0, 0, 0, 0.1);
+    box-shadow: none;
+}
+
+[data-theme="jackson"] .sidebar-logo-text {
+    font-size: 16px;
+    font-weight: 700;
+    color: #FFFFFF;
+    text-transform: uppercase;
+    letter-spacing: -0.02em;
+}
+
+[data-theme="jackson"] .sidebar-header {
+    color: var(--brand-red);
+    font-weight: 700;
+    opacity: 1;
+}
+
+[data-theme="jackson"] .nav-item {
+    color: var(--text-secondary);
+    border: 1px solid transparent;
+}
+
+[data-theme="jackson"] .nav-item:hover {
+    background: rgba(235, 0, 40, 0.05);
+    color: var(--brand-red);
+    border-color: rgba(235, 0, 40, 0.1);
+}
+
+[data-theme="jackson"] .nav-item.active {
+    background: var(--brand-red);
+    color: white;
+    border: 1px solid var(--brand-red);
+    box-shadow: 0 4px 12px rgba(235, 0, 40, 0.25);
+}
+
+/* Icon Overrides - Force explicit standard colors */
+[data-theme="jackson"] .nav-item svg,
+[data-theme="jackson"] .nav-item i {
+    color: var(--text-muted);
+}
+
+[data-theme="jackson"] .nav-item:hover svg,
+[data-theme="jackson"] .nav-item:hover i {
+    color: var(--brand-red) !important;
+}
+
+[data-theme="jackson"] .nav-item.active svg,
+[data-theme="jackson"] .nav-item.active i {
+    color: white !important;
+}
+
+/* Time Filter Overrides */
+[data-theme="jackson"] .time-filter {
+    border-radius: 6px;
+    font-weight: 600;
+}
+
+[data-theme="jackson"] .time-filter:hover {
+    background: #f8fafc;
+    color: var(--text-primary);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="jackson"] .time-filter.active {
+    background: var(--brand-red);
+    border-color: var(--brand-red);
+    color: white;
+    box-shadow: 0 4px 10px rgba(235, 0, 40, 0.2);
+}
+
+/* Button Action Override (Investigate) */
+[data-theme="jackson"] .btn-action {
+    background: var(--brand-red) !important;
+    border-color: var(--brand-red) !important;
+    color: white !important;
+    box-shadow: 0 2px 8px rgba(235, 0, 40, 0.3);
+}
+
+[data-theme="jackson"] .btn-action:hover {
+    background: #C50022 !important;
+    /* Darker red */
+    box-shadow: 0 4px 12px rgba(235, 0, 40, 0.4);
+    transform: translateY(-1px);
+}
+
+/* Other Blue Buttons Override */
+[data-theme="jackson"] .btn-primary,
+[data-theme="jackson"] .settings-btn-primary {
+    background: var(--brand-red) !important;
+    border-color: var(--brand-red) !important;
+    color: white !important;
+    box-shadow: 0 2px 8px rgba(235, 0, 40, 0.3);
+}
+
+[data-theme="jackson"] .btn-primary:hover,
+[data-theme="jackson"] .settings-btn-primary:hover {
+    background: #C50022 !important;
+    box-shadow: 0 4px 12px rgba(235, 0, 40, 0.4);
+}
+
+/* Runbook Action Button Override */
+[data-theme="jackson"] .runbook-action-primary {
+    background: var(--brand-red) !important;
+    border-color: var(--brand-red) !important;
+    color: white !important;
+    box-shadow: 0 2px 8px rgba(235, 0, 40, 0.3);
+}
+
+[data-theme="jackson"] .runbook-action-primary:hover {
+    background: #C50022 !important;
+    box-shadow: 0 4px 12px rgba(235, 0, 40, 0.4);
+    transform: translateY(-1px);
+}
+
+/* App Action Button Override */
+[data-theme="jackson"] .app-action-primary {
+    background: var(--brand-red) !important;
+    border-color: var(--brand-red) !important;
+    color: white !important;
+    box-shadow: 0 2px 8px rgba(235, 0, 40, 0.3);
+}
+
+[data-theme="jackson"] .app-action-primary:hover {
+    background: #C50022 !important;
+    box-shadow: 0 4px 12px rgba(235, 0, 40, 0.4);
+    transform: translateY(-1px);
+}
+
+/* Login Page Overrides (Scoped to prevent global leakage) */
+/* Assuming login page body will have data-theme="jackson" if selected,
+   or we can target specific login classes if they exist */
+
+/* Target login specific elements under jackson theme */
+[data-theme="jackson"] .login-brand-panel {
+    background: #EB0028 !important;
+    /* Force Red override */
+    background-image: none !important;
+}
+
+/* Tailwind Utility Overrides (Systematic Audit Fix) */
+/* Backgrounds */
+[data-theme="jackson"] .bg-blue-50,
+[data-theme="jackson"] .bg-blue-100 {
+    background-color: rgba(235, 0, 40, 0.05) !important;
+}
+
+[data-theme="jackson"] .bg-blue-500 {
+    background-color: #EB0028 !important;
+}
+
+[data-theme="jackson"] .bg-blue-600 {
+    background-color: #EB0028 !important;
+}
+
+[data-theme="jackson"] .bg-blue-700 {
+    background-color: #C50022 !important;
+}
+
+[data-theme="jackson"] .hover\:bg-blue-50:hover {
+    background-color: rgba(235, 0, 40, 0.08) !important;
+}
+
+[data-theme="jackson"] .hover\:bg-blue-500:hover {
+    background-color: #C50022 !important;
+}
+
+[data-theme="jackson"] .hover\:bg-blue-600:hover {
+    background-color: #C50022 !important;
+}
+
+[data-theme="jackson"] .hover\:bg-blue-700:hover {
+    background-color: #A0001C !important;
+}
+
+/* Text */
+[data-theme="jackson"] .text-blue-500 {
+    color: #EB0028 !important;
+}
+
+[data-theme="jackson"] .text-blue-600 {
+    color: #EB0028 !important;
+}
+
+[data-theme="jackson"] .text-blue-700 {
+    color: #C50022 !important;
+}
+
+[data-theme="jackson"] .hover\:text-blue-600:hover {
+    color: #C50022 !important;
+}
+
+[data-theme="jackson"] .hover\:text-blue-700:hover {
+    color: #A0001C !important;
+}
+
+/* Borders */
+[data-theme="jackson"] .border-blue-200 {
+    border-color: rgba(235, 0, 40, 0.2) !important;
+}
+
+[data-theme="jackson"] .border-blue-500 {
+    border-color: #EB0028 !important;
+}
+
+[data-theme="jackson"] .border-blue-600 {
+    border-color: #EB0028 !important;
+}
+
+/* Specific Component Logic for "Refresh" and similar utility-based buttons */
+[data-theme="jackson"] button[class*="bg-blue-"] {
+    background-color: var(--brand-red) !important;
+}
+
+[data-theme="jackson"] button[class*="bg-blue-"]:hover {
+    background-color: #C50022 !important;
+}
+
+[data-theme="jackson"] .login-submit {
+    background: #EB0028 !important;
+    border-radius: 4px !important;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    box-shadow: 0 4px 14px rgba(235, 0, 40, 0.25) !important;
+}
+
+/* Revive AI Button */
+[data-theme="jackson"] .revive-btn {
+    background: var(--brand-red);
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(235, 0, 40, 0.3);
+}
+
+[data-theme="jackson"] .revive-btn:hover {
+    box-shadow: 0 4px 12px rgba(235, 0, 40, 0.4);
+}
+
+/* Troubleshoot Chat - User Message Override */
+/* Specificity boost: target both class and color utility to win over generic blue override */
+[data-theme="jackson"] .user-message-text,
+[data-theme="jackson"] .user-message-text.bg-blue-600 {
+    background-color: #dbcfc736 !important;
+    /* Match card header */
+    border-color: #dbcfc7 !important;
+    color: var(--text-primary) !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Inquiry / Chat Overrides */
+
+/* New Session Button */
+[data-theme="jackson"] .inq-new-session-btn {
+    background: var(--brand-red) !important;
+    border: 1px solid var(--brand-red) !important;
+    color: white !important;
+    box-shadow: 0 2px 8px rgba(235, 0, 40, 0.2);
+}
+
+[data-theme="jackson"] .inq-new-session-btn:hover {
+    background: #C50022 !important;
+    transform: translateY(-1px);
+}
+
+
+
+/* Troubleshoot Page Button Overrides */
+[data-theme="jackson"] .ts-new-session-btn {
+    background: var(--brand-red) !important;
+    border-color: var(--brand-red) !important;
+    color: white !important;
+    box-shadow: 0 2px 8px rgba(235, 0, 40, 0.3);
+}
+
+[data-theme="jackson"] .ts-new-session-btn:hover {
+    background: #C50022 !important;
+    box-shadow: 0 4px 12px rgba(235, 0, 40, 0.4);
+    transform: translateY(-1px);
+}
+
+[data-theme="jackson"] .ts-send-btn {
+    background: var(--brand-red) !important;
+    color: white !important;
+}
+
+[data-theme="jackson"] .ts-send-btn:hover {
+    background: #C50022 !important;
+}
+
+/* Chat Send Button */
+[data-theme="jackson"] .inq-chat-input-container button[type="submit"] {
+    background: var(--brand-red) !important;
+    color: white !important;
+    border-radius: 4px;
+}
+
+[data-theme="jackson"] .inq-chat-input-container button[type="submit"]:hover {
+    background: #C50022 !important;
+}
+
+/* Inquiry Chat Input Focus Override */
+[data-theme="jackson"] .inq-chat-input:focus {
+    border-color: #000000 !important;
+    /* Match left nav bar (Black) */
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1) !important;
+    outline: none !important;
+}
+
+
+
+/* Artifact Tabs (Active State) */
+[data-theme="jackson"] .inq-artifact-tab.active {
+    background: rgba(235, 0, 40, 0.1) !important;
+    color: var(--brand-red) !important;
+    border-color: var(--brand-red) !important;
+}
+
+[data-theme="jackson"] .inq-artifact-tab.active i {
+    color: var(--brand-red) !important;
+}
+
+/* Runbook Page Overrides */
+
+/* Table Row Actions - Fix "Edit" and "Run" being Red */
+/* User requested "left side menu bar color" -> Dark Neutral */
+[data-theme="jackson"] #runbooks-tbody a[title="Edit"],
+[data-theme="jackson"] #runbooks-tbody button[title="Run"] {
+    color: var(--text-secondary) !important;
+    /* Dark Grey */
+}
+
+[data-theme="jackson"] #runbooks-tbody a[title="Edit"]:hover,
+[data-theme="jackson"] #runbooks-tbody button[title="Run"]:hover {
+    color: var(--text-primary) !important;
+    /* Black */
+    background-color: rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Runbook Name Link */
+[data-theme="jackson"] #runbooks-tbody .text-\[\#1e40af\],
+[data-theme="jackson"] #runbooks-tbody div[onclick^="viewRunbook"] {
+    color: var(--text-primary) !important;
+    font-weight: 600;
+}
+
+[data-theme="jackson"] #runbooks-tbody div[onclick^="viewRunbook"]:hover {
+    color: var(--brand-red) !important;
+    text-decoration: none !important;
+}
+
+/* Stats Cards (Blue Card -> Neutral/Red) */
+[data-theme="jackson"] .card[style*="#3b82f6"] {
+    border-left-color: var(--brand-red) !important;
+}
+
+[data-theme="jackson"] .card[style*="#3b82f6"] .w-10 {
+    background: rgba(235, 0, 40, 0.08) !important;
+}
+
+[data-theme="jackson"] .card[style*="#3b82f6"] i {
+    color: var(--brand-red) !important;
+}
+
+/* Infrastructure Icon (Blue) Match */
+[data-theme="jackson"] .fa-server[style*="#3d71d9"] {
+    color: var(--text-secondary) !important;
+    /* Make icons neutral */
+}
+
+/* Search Input Focus */
+[data-theme="jackson"] .runbook-search-input:focus {
+    border-color: var(--brand-red) !important;
+    box-shadow: 0 0 0 3px rgba(235, 0, 40, 0.12) !important;
+}
+
+/* Checkbox (Accent) */
+[data-theme="jackson"] input[type="checkbox"]:checked {
+    background-color: var(--brand-red) !important;
+    border-color: var(--brand-red) !important;
+}
+
+/* Header Title Overrides - Global Fix for Blue Icon */
+/* Header background is Dark (#1A1A1A) so text-white is correct and should NOT be changed to black. */
+
+[data-theme="jackson"] .header-title-wrapper .text-blue-400,
+[data-theme="jackson"] .header-title-wrapper .text-blue-500,
+[data-theme="jackson"] .header-title-wrapper .text-blue-600 {
+    color: var(--brand-red) !important;
+}
+
+/* Ensure icons in header title area are always brand red if they aren't covered above */
+[data-theme="jackson"] .header-title-wrapper i {
+    color: var(--brand-red) !important;
+}
+
+/* Card Header Override - Beige Background */
+[data-theme="jackson"] .card-header {
+    background-color: #dbcfc736;
+    padding: 12px 20px;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    margin: -1px -1px 0 -1px;
+    /* Ensure coverage if card has border */
+}
+
+[data-theme="jackson"] .card-header h3 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+/* Adjust time filters inside beige header */
+[data-theme="jackson"] .card-header .time-filter {
+    background: rgba(255, 255, 255, 0.5);
+    border: none;
+    color: var(--text-secondary);
+}
+
+[data-theme="jackson"] .card-header .time-filter:hover {
+    background: white;
+    color: var(--brand-red);
+}
+
+[data-theme="jackson"] .card-header .time-filter.active {
+    background: white;
+    color: var(--brand-red);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+/* Card Border Override to match Header Color */
+[data-theme="jackson"] .card {
+    border: 1px solid #dbcfc7 !important;
+}
+
+/* Service Tiles Override - Match Theme (Light Header Color) */
+[data-theme="jackson"] .service-tile {
+    background: #fdfbf7 !important;
+    /* Very light beige */
+    border: 1px solid #dbcfc7 !important;
+}
+
+[data-theme="jackson"] .service-tile:hover {
+    border-color: #b0a096 !important;
+    /* Darker shade of #dbcfc7 */
+    background: white !important;
+    box-shadow: 0 4px 12px rgba(176, 160, 150, 0.25) !important;
+}
+
+[data-theme="jackson"] .service-tile .service-name {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+/* RE-VIVE Widget Overrides */
+[data-theme="jackson"] .app-container #agent-widget {
+    background: var(--bg-surface);
+    border-left: 1px solid var(--border-subtle);
+}
+
+[data-theme="jackson"] .agent-messages {
+    background: #fdfbf7;
+    /* Very light beige/warm white to match service tiles */
+}
+
+/* User Message - Red Gradient */
+[data-theme="jackson"] .agent-message.user {
+    background: linear-gradient(135deg, #EB0028, #C50022) !important;
+    box-shadow: 0 4px 12px rgba(235, 0, 40, 0.3) !important;
+    border: none !important;
+    color: white !important;
+}
+
+/* AI Message - Warmth */
+[data-theme="jackson"] .agent-message.ai {
+    background: #FFFFFF !important;
+    border: 1px solid #dbcfc7 !important;
+    /* Beige border */
+    color: var(--text-primary) !important;
+}
+
+/* Input Area */
+[data-theme="jackson"] .agent-input-area {
+    background: rgba(255, 255, 255, 0.95);
+    border-top: 1px solid #dbcfc7;
+}
+
+[data-theme="jackson"] #agent-input {
+    border-color: #e5e7eb;
+}
+
+[data-theme="jackson"] #agent-input:focus {
+    border-color: #000000 !important;
+    /* Black focus to match sidebar */
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Send Button */
+[data-theme="jackson"] #agent-send {
+    color: var(--brand-red) !important;
+}
+
+[data-theme="jackson"] #agent-send:hover {
+    color: #C50022 !important;
+}
+
+/* Resize Handle Hover */
+[data-theme="jackson"] .resize-handle:hover {
+    background: linear-gradient(180deg, transparent, rgba(235, 0, 40, 0.3), transparent) !important;
+}

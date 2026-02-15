@@ -1,0 +1,152 @@
+window.Commons = window.Commons || {};
+window.Commons.Dialog = function() {
+
+	let getDialogDimensions = function(sizing, fixedWidth) {
+		let dialogWidth, dialogHeight;
+		switch(sizing) {
+    		case 'fixed-width':
+        		if(fixedWidth !== '') {
+        			dialogWidth = Math.min(fixedWidth, vw(85));
+        		} else {
+        			dialogWidth = 'auto';
+        		}
+        		dialogHeight = 'auto';
+        		break;
+        	case 'max-size':
+        	default:
+        		dialogWidth = vw(85);
+        		dialogHeight = vh(85);
+        		break;
+    	}
+
+		return {
+			dialogWidth : dialogWidth,
+			dialogHeight : dialogHeight
+		}
+	}
+
+    let populateDialog = function(newDialogId){
+
+        let dialogContainer = $('#' + newDialogId + ' .dialog-content');
+        let dialogContents = $('[data-dialog-id]');
+
+        /* Loop through any Dialog Content components to search for matching Dialog Ids */
+        for(let i = 0; i < dialogContents.length; i++) {
+
+            let dialogContent = $(dialogContents[i]);
+
+            /* If Ids match, add contents from Dialog Content component into Dialog Container component */
+            if(dialogContent.attr('data-dialog-id')==newDialogId){
+                dialogContainer.html(dialogContent.html());
+            }
+        }
+    };
+
+	// self executing
+	(function () {
+		$(document).ready(function() {
+			if(typeof dialogEditMode !== 'undefined') {
+				return;
+			}
+
+			let dialogs = $('.dialog-container > .dialog');
+
+			if (dialogs.length == 0) {
+				return;
+			}
+
+			for(let i = 0; i < dialogs.length; i++) {
+				let newDialog = $(dialogs[i]);
+				let newDialogId = newDialog.attr("id");
+				populateDialog(newDialogId);
+
+				$('.controls a.close', newDialog).click(function(event) {
+					event.preventDefault();
+		    		$('#' + $(event.target).parents('.ui-dialog-content').attr('id')).dialog("close");
+		    	});
+
+				let desktopNavBreakpoint = window.matchMedia("(min-width: 1025px)");
+
+		    	desktopNavBreakpoint.addListener(function (event) {
+		    		let openDialog = $('.ui-dialog:visible');
+		    		if(openDialog.length > 0) {
+		    			$('#' + $('.dialog', openDialog).attr('id')).dialog('close');
+		    		}
+		    	});
+
+		    	let dialogDimensions = Commons.Dialog.getDialogDimensions(dialogComponentData[newDialogId].sizing, dialogComponentData[newDialogId].fixedWidth);
+
+		    	let positionDialog = function (event, id) {
+		    		let dialogId;
+
+		    		if(event) {
+		    			dialogId = event.data.dialogId;
+		    		} else {
+		    			dialogId = id;
+		    		}
+
+		    		let newDialog = $('#' + dialogId);
+
+	    			let dialogDimensions = Commons.Dialog.getDialogDimensions(dialogComponentData[dialogId].sizing, dialogComponentData[dialogId].fixedWidth);
+
+	    			if(dialogComponentData[dialogId].sizing == 'fixed-width') {
+	    				let dialogContentHeight = $('.dialog-content', newDialog).height();
+
+	    				if(dialogContentHeight > vh(85)) {
+	    					dialogDimensions.dialogHeight = vh(85);
+	    				}
+	    			}
+
+	    			newDialog.dialog('option', 'width', dialogDimensions.dialogWidth);
+		    		newDialog.dialog('option', 'height', dialogDimensions.dialogHeight);
+
+		    		$(newDialog).parent().position({
+			    		my: 'center',
+			    		at: 'center',
+			    		of: window
+			    	});
+		    	};
+
+		    	newDialog.dialog({
+	    			autoOpen: false,
+	    			resizable: false,
+	    			movable: false,
+	    			width: dialogDimensions.dialogWidth,
+	    			height: dialogDimensions.dialogHeight,
+	    			open: function() {
+	    				positionDialog(null, $(this).attr('id'));
+	    			},
+	    			close: function() {
+	    				hideBackgroundMask();
+	    			},
+	    			classes: { "ui-dialog" : newDialogId + " no-titlebar" }
+				});
+
+		    	$(window).on('resize.' + newDialogId, {dialogId: newDialogId}, positionDialog);
+
+		    	$('a[href$="#' + newDialogId + '-trigger"]').data('dialog-id', newDialogId);
+
+		    	$('a[href$="#' + newDialogId + '-trigger"]').click(function(event) {
+		    		event.preventDefault();
+		    		showBackgroundMask(true);
+
+		    		let selectedDialogId = $(event.target).data('dialog-id');
+
+		    		$('#background-mask').on('click.' + selectedDialogId, function (e) {
+		        		e.preventDefault();
+		        		$('#' + selectedDialogId).dialog("close");
+		            	$('#background-mask').off('click.' + selectedDialogId);
+		        	});
+
+		    		$('#' + selectedDialogId).dialog('open');
+
+		    	});
+			}
+		});
+	})();
+
+	return {
+		getDialogDimensions : getDialogDimensions
+	}
+
+}();

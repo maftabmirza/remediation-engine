@@ -422,9 +422,8 @@
 
     async function loadStats() {
         try {
-            const response = await apiCall('/api/knowledge/stats');
-            if (!response) return;
-            const stats = await response.json();
+            const stats = await apiCall('/api/knowledge/stats');
+            if (!stats) return;
 
             document.getElementById('totalDocs').textContent = stats.total_documents;
             document.getElementById('totalChunks').textContent = stats.total_chunks;
@@ -446,9 +445,8 @@
 
     async function loadApplications() {
         try {
-            const response = await apiCall('/api/applications?page_size=100');
-            if (!response) return;
-            const data = await response.json();
+            const data = await apiCall('/api/applications?page_size=100');
+            if (!data) return;
             applications = data.items;
             renderAppList();
         } catch (e) {
@@ -489,9 +487,8 @@
         tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-8 text-center"><div class="loading-spinner mx-auto mb-2"></div>Looking for knowledge...</td></tr>';
 
         try {
-            const response = await apiCall(url);
-            if (!response) return;
-            const data = await response.json();
+            const data = await apiCall(url);
+            if (!data) return;
             allDocuments = data.items;
             renderDocumentsTable(allDocuments);
         } catch (e) {
@@ -672,8 +669,7 @@
         contentEl.innerHTML = '<div class="loading-spinner mx-auto my-12"></div>';
 
         try {
-            const response = await apiCall(`/api/knowledge/documents/${id}`);
-            const doc = await response.json();
+            const doc = await apiCall(`/api/knowledge/documents/${id}`);
 
             titleEl.textContent = doc.title;
             metaEl.innerHTML = `
@@ -771,8 +767,7 @@
             if (response.ok) {
                 showToast(`Application ${id ? 'updated' : 'created'}`, 'success');
                 // Reload apps
-                const appsRes = await apiCall('/api/applications?page_size=100');
-                const appsData = await appsRes.json();
+                const appsData = await apiCall('/api/applications?page_size=100');
                 applications = appsData.items;
                 renderAppList();
                 if (!id) resetAppForm();
