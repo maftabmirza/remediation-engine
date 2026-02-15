@@ -10,44 +10,50 @@
     <ul class="nav-menu">
 
         <!-- Dashboard Group -->
-        <li class="nav-group {{ 'open' if active_page == 'dashboard' else '' }}">
-            <div class="nav-item has-submenu {{ 'active' if active_page == 'dashboard' else '' }}">
+        <li class="nav-group {{ 'open' if active_page in ['dashboard', 'changes', 'incidents', 'dashboards', 'datasources', 'panels', 'playlists', 'alerts'] else '' }}" data-nav-group="dashboard">
+            <div class="nav-item has-submenu">
                 <i data-feather="home"></i>
                 <span class="nav-text">Dashboard</span>
                 <i data-feather="chevron-right" class="submenu-toggle-icon" style="width: 14px; margin-left: auto;"></i>
             </div>
             <ul class="submenu">
-                <li class="nav-item submenu-item {{ 'active' if current_path == '/' else '' }}"
+                <li class="nav-item submenu-item {{ 'active' if (current_path or '/') == '/' else '' }}"
                     onclick="window.location.href='/'">
                     <i data-feather="monitor"></i>
                     <span class="nav-text">Overview</span>
                 </li>
-                <li class="nav-item submenu-item" onclick="window.location.href='/changes'">
+                <li class="nav-item submenu-item {{ 'active' if current_path == '/changes' else '' }}"
+                    onclick="window.location.href='/changes'">
                     <i data-feather="git-merge"></i>
-                    <span class="nav-text">Change Correlation</span>
+                    <span class="nav-text">Changes</span>
                 </li>
-                <li class="nav-item submenu-item {{ 'active' if active_page == 'incidents' else '' }}"
+                <li class="nav-item submenu-item {{ 'active' if (current_path or '').startswith('/incidents') else '' }}"
                     onclick="window.location.href='/incidents'">
                     <i data-feather="alert-triangle"></i>
                     <span class="nav-text">Incidents</span>
                 </li>
-                <li class="nav-item submenu-item" onclick="window.location.href='/dashboards'">
+                <li class="nav-item submenu-item {{ 'active' if (current_path or '').startswith('/dashboards') else '' }}"
+                    onclick="window.location.href='/dashboards'">
                     <i data-feather="layout"></i>
                     <span class="nav-text">Dashboards</span>
                 </li>
-                <li class="nav-item submenu-item" onclick="window.location.href='/datasources'">
+                <li class="nav-item submenu-item {{ 'active' if (current_path or '') == '/datasources' else '' }}"
+                    onclick="window.location.href='/datasources'">
                     <i data-feather="database"></i>
                     <span class="nav-text">Datasources</span>
                 </li>
-                <li class="nav-item submenu-item" onclick="window.location.href='/panels'">
+                <li class="nav-item submenu-item {{ 'active' if (current_path or '') == '/panels' else '' }}"
+                    onclick="window.location.href='/panels'">
                     <i data-feather="grid"></i>
                     <span class="nav-text">Panels</span>
                 </li>
-                <li class="nav-item submenu-item" onclick="window.location.href='/playlists'">
+                <li class="nav-item submenu-item {{ 'active' if (current_path or '').startswith('/playlists') else '' }}"
+                    onclick="window.location.href='/playlists'">
                     <i data-feather="play-circle"></i>
                     <span class="nav-text">Playlists</span>
                 </li>
-                <li class="nav-item submenu-item" onclick="window.location.href='/alerts'">
+                <li class="nav-item submenu-item {{ 'active' if (current_path or '').startswith('/alerts') else '' }}"
+                    onclick="window.location.href='/alerts'">
                     <i data-feather="bell"></i>
                     <span class="nav-text">Alerts</span>
                 </li>
@@ -55,30 +61,35 @@
         </li>
 
         <!-- Observability Group -->
-        <li class="nav-group">
+        <li class="nav-group {{ 'open' if (current_path or '').startswith('/logs') or (current_path or '').startswith('/traces') or (current_path or '').startswith('/grafana') or (current_path or '').startswith('/prometheus') else '' }}" data-nav-group="observability">
             <div class="nav-item has-submenu">
                 <i data-feather="activity"></i>
                 <span class="nav-text">Observability</span>
                 <i data-feather="chevron-right" class="submenu-toggle-icon" style="width: 14px; margin-left: auto;"></i>
             </div>
             <ul class="submenu">
-                <li class="nav-item submenu-item" onclick="window.location.href='/logs'">
+                <li class="nav-item submenu-item {{ 'active' if (current_path or '').startswith('/logs') else '' }}"
+                    onclick="window.location.href='/logs'">
                     <i data-feather="file-text"></i>
                     <span class="nav-text">Logs</span>
                 </li>
-                <li class="nav-item submenu-item" onclick="window.location.href='/traces'">
+                <li class="nav-item submenu-item {{ 'active' if (current_path or '').startswith('/traces') else '' }}"
+                    onclick="window.location.href='/traces'">
                     <i data-feather="git-pull-request"></i>
                     <span class="nav-text">Traces</span>
                 </li>
-                <li class="nav-item submenu-item" onclick="window.location.href='/grafana-alerts'">
+                <li class="nav-item submenu-item {{ 'active' if (current_path or '').startswith('/grafana-alerts') else '' }}"
+                    onclick="window.location.href='/grafana-alerts'">
                     <i data-feather="bell-off"></i>
                     <span class="nav-text">Alert Manager</span>
                 </li>
-                <li class="nav-item submenu-item" onclick="window.location.href='/prometheus-view'">
+                <li class="nav-item submenu-item {{ 'active' if (current_path or '').startswith('/prometheus-view') else '' }}"
+                    onclick="window.location.href='/prometheus-view'">
                     <i data-feather="eye"></i>
                     <span class="nav-text">Prometheus View</span>
                 </li>
-                <li class="nav-item submenu-item" onclick="window.location.href='/grafana-advanced'">
+                <li class="nav-item submenu-item {{ 'active' if (current_path or '').startswith('/grafana-advanced') or (current_path or '').startswith('/grafana-debug') else '' }}"
+                    onclick="window.location.href='/grafana-advanced'">
                     <i data-feather="settings"></i>
                     <span class="nav-text">Advanced</span>
                 </li>
@@ -86,14 +97,15 @@
         </li>
 
         <!-- AI Analyst Group -->
-        <li class="nav-group {{ 'open' if active_page == 'ai_analyst' else '' }}">
-            <div class="nav-item has-submenu {{ 'active' if active_page == 'ai_analyst' else '' }}">
+        <li class="nav-group {{ 'open' if (current_path or '').startswith('/inquiry') or (current_path or '').startswith('/troubleshoot') else '' }}" data-nav-group="ai_analyst">
+            <div class="nav-item has-submenu">
                 <i data-feather="cpu"></i>
                 <span class="nav-text">AI Analyst</span>
                 <i data-feather="chevron-right" class="submenu-toggle-icon" style="width: 14px; margin-left: auto;"></i>
             </div>
             <ul class="submenu">
-                <li class="nav-item submenu-item" onclick="window.location.href='/inquiry'">
+                <li class="nav-item submenu-item {{ 'active' if (current_path or '').startswith('/inquiry') else '' }}"
+                    onclick="window.location.href='/inquiry'">
                     <i data-feather="message-circle"></i>
                     <span class="nav-text">Inquiry</span>
                 </li>
@@ -106,8 +118,8 @@
         </li>
 
         <!-- Remediation Group -->
-        <li class="nav-group {{ 'open' if active_page == 'runbooks' else '' }}">
-            <div class="nav-item has-submenu {{ 'active' if active_page == 'runbooks' else '' }}">
+        <li class="nav-group {{ 'open' if (current_path or '').startswith('/runbooks') or (current_path or '').startswith('/executions') or (current_path or '').startswith('/schedules') else '' }}" data-nav-group="remediation">
+            <div class="nav-item has-submenu">
                 <i data-feather="tool"></i>
                 <span class="nav-text">Remediation</span>
                 <i data-feather="chevron-right" class="submenu-toggle-icon" style="width: 14px; margin-left: auto;"></i>
@@ -133,8 +145,8 @@
         </li>
 
         <!-- Knowledge Group -->
-        <li class="nav-group {{ 'open' if active_page == 'knowledge' else '' }}">
-            <div class="nav-item has-submenu {{ 'active' if active_page == 'knowledge' else '' }}">
+        <li class="nav-group {{ 'open' if (current_path or '').startswith('/knowledge') or (current_path or '').startswith('/applications') else '' }}" data-nav-group="knowledge">
+            <div class="nav-item has-submenu">
                 <i data-feather="book-open"></i>
                 <span class="nav-text">Knowledge</span>
                 <i data-feather="chevron-right" class="submenu-toggle-icon" style="width: 14px; margin-left: auto;"></i>
@@ -145,7 +157,7 @@
                     <i data-feather="database"></i>
                     <span class="nav-text">Knowledge Base</span>
                 </li>
-                <li class="nav-item submenu-item {{ 'active' if current_path == '/applications' else '' }}"
+                <li class="nav-item submenu-item {{ 'active' if (current_path or '').startswith('/applications') else '' }}"
                     onclick="window.location.href='/applications'">
                     <i data-feather="package"></i>
                     <span class="nav-text">Applications</span>
@@ -155,31 +167,35 @@
 
 
         <!-- Settings Group -->
-        <li class="nav-group {{ 'open' if active_page == 'settings' else '' }}">
-            <div class="nav-item has-submenu {{ 'active' if active_page == 'settings' else '' }}">
+        <li class="nav-group {{ 'open' if (current_path or '').startswith('/settings') or (current_path or '').startswith('/rules') or (current_path or '').startswith('/audit') or (current_path or '').startswith('/pii-detection') or (current_path or '').startswith('/pii-logs') or (current_path or '').startswith('/credential-profiles') else '' }}" data-nav-group="settings">
+            <div class="nav-item has-submenu">
                 <i data-feather="settings"></i>
                 <span class="nav-text">Settings</span>
                 <i data-feather="chevron-right" class="submenu-toggle-icon" style="width: 14px; margin-left: auto;"></i>
             </div>
             <ul class="submenu">
-                <li class="nav-item submenu-item {{ 'active' if current_path == '/settings' else '' }}"
+                <li class="nav-item submenu-item {{ 'active' if (current_path or '') == '/settings' else '' }}"
                     onclick="window.location.href='/settings'">
                     <i data-feather="sliders"></i>
                     <span class="nav-text">System Settings</span>
                 </li>
-                <li class="nav-item submenu-item" onclick="window.location.href='/rules'">
+                <li class="nav-item submenu-item {{ 'active' if (current_path or '') == '/rules' else '' }}"
+                    onclick="window.location.href='/rules'">
                     <i data-feather="shield"></i>
                     <span class="nav-text">Rules</span>
                 </li>
-                <li class="nav-item submenu-item" onclick="window.location.href='/audit'">
+                <li class="nav-item submenu-item {{ 'active' if (current_path or '') == '/audit' else '' }}"
+                    onclick="window.location.href='/audit'">
                     <i data-feather="file-text"></i>
                     <span class="nav-text">Audit Logs</span>
                 </li>
-                <li class="nav-item submenu-item" onclick="window.location.href='/pii-detection'">
+                <li class="nav-item submenu-item {{ 'active' if (current_path or '').startswith('/pii-detection') else '' }}"
+                    onclick="window.location.href='/pii-detection'">
                     <i data-feather="lock"></i>
                     <span class="nav-text">PII Configuration</span>
                 </li>
-                <li class="nav-item submenu-item" onclick="window.location.href='/pii-logs'">
+                <li class="nav-item submenu-item {{ 'active' if (current_path or '').startswith('/pii-logs') else '' }}"
+                    onclick="window.location.href='/pii-logs'">
                     <i data-feather="list"></i>
                     <span class="nav-text">PII Detection Logs</span>
                 </li>
@@ -189,8 +205,11 @@
 
     <div class="sidebar-footer">
         <div class="sidebar-toggle-wrapper">
-            <button id="sidebarToggleBtn" class="sidebar-toggle-btn">
+            <button id="sidebarToggleBtn" class="sidebar-toggle-btn" title="Expand/Collapse sidebar">
                 <i data-feather="skip-forward"></i>
+            </button>
+            <button id="sidebarLockBtn" class="sidebar-toggle-btn sidebar-lock-btn" title="Lock sidebar open">
+                <i data-feather="unlock"></i>
             </button>
         </div>
     </div>

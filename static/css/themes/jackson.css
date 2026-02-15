@@ -3,11 +3,15 @@
 [data-theme="jackson"] {
     /* Jackson Theme Variables */
     --bg-app: #FFFFFF;
-    --bg-sidebar: #E8E3D9;
-    --bg-header: #1A1A1A;
+    --bg-sidebar: #dbcfc7;
+    --bg-header: #FFFFFF;
+    --jackson-sidebar-active: #722f37;
+    --jackson-gold: #c4a052;
+    --jackson-sidebar-border: rgba(0, 0, 0, 0.12);
+    /* Light gray vertical separator */
 
     /* Brand Colors */
-    --brand-red: #EB0028;
+    --brand-red: #722f37;
     --brand-secondary: #E8E3D9;
 
     /* Surface colors */
@@ -31,39 +35,36 @@
     --text-muted-dark: #9CA3AF;
 
     /* Accents */
-    --accent-blue: #EB0028;
-    --accent-selected-bg: rgba(235, 0, 40, 0.08);
+    --accent-blue: #722f37;
+    --accent-selected-bg: rgba(114, 47, 55, 0.08);
 
     /* Functional Colors */
-    --status-error: #EB0028;
+    --status-error: #722f37;
 
     /* Radii */
     --radius-sm: 4px;
     --radius-md: 8px;
     --radius-lg: 16px;
 
-    /* Layout Dimensions */
-    /* Only override these when Jackson theme is active */
+    /* Layout Dimensions - 25% wider than default to match source design */
     --layout-header-h: 90px;
-    --layout-sidebar-w: 240px;
+    --layout-sidebar-w: 218px;
     --layout-sidebar-collapsed-w: 64px;
 }
 
 /* Specific Jackson Theme Overrides */
 
 [data-theme="jackson"] body {
-    font-family: 'Montserrat', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    font-family: 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     line-height: 1.5;
     font-size: 16px;
     color: var(--text-primary);
     background-color: var(--bg-app);
 }
 
-/* Header Overrides */
+/* Header Overrides - White bar per reference */
 [data-theme="jackson"] .top-header {
-    border-bottom: 2px solid var(--border-subtle);
-    box-shadow: none;
-    color: var(--text-primary);
+    color: #444444;
 }
 
 /* Header Action Buttons */
@@ -78,58 +79,255 @@
     border-color: rgba(0, 0, 0, 0.2);
 }
 
-/* Sidebar Overrides */
+/* ============================================================
+   SIDEBAR - Jackson Theme
+   Active: #722f37 bg, #FFFFFF text, #c4a052 gold accent, 10px pill
+   ============================================================ */
+
+[data-theme="jackson"] .app-container {
+    grid-template-columns: var(--layout-sidebar-w) 1fr 0px;
+}
+
+[data-theme="jackson"] .app-container.ai-open {
+    grid-template-columns: var(--layout-sidebar-w) 1fr var(--ai-helper-width);
+}
+
+[data-theme="jackson"] .app-container.collapsed {
+    grid-template-columns: 64px 1fr 0px;
+}
+
+[data-theme="jackson"] .app-container.collapsed.ai-open {
+    grid-template-columns: 64px 1fr var(--ai-helper-width);
+}
+
 [data-theme="jackson"] .sidebar {
-    border-right: 1px solid rgba(0, 0, 0, 0.1);
+    background: var(--bg-sidebar) !important;
+    border-right: 1px solid var(--jackson-sidebar-border);
     box-shadow: none;
+    font-family: 'Inter', Roboto, Helvetica, Arial, sans-serif;
+}
+
+[data-theme="jackson"] .app-container:not(.collapsed) .sidebar {
+    padding: 0 10px;
+}
+
+[data-theme="jackson"] .sidebar-logo {
+    background: var(--bg-sidebar) !important;
+    padding: 12px 10px;
+}
+
+[data-theme="jackson"] .app-container.collapsed .sidebar-logo {
+    padding: 0;
+}
+
+[data-theme="jackson"] .sidebar-logo-icon {
+    background: #722f37 !important;
+    color: white !important;
 }
 
 [data-theme="jackson"] .sidebar-logo-text {
-    font-size: 16px;
-    font-weight: 700;
-    color: #FFFFFF;
+    font-size: 14px;
+    font-weight: 500;
+    font-family: 'Inter', Roboto, Helvetica, Arial, sans-serif;
+    color: #333333;
     text-transform: uppercase;
     letter-spacing: -0.02em;
 }
 
 [data-theme="jackson"] .sidebar-header {
-    color: var(--brand-red);
+    color: #888888;
     font-weight: 700;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
     opacity: 1;
+    padding: 16px 10px 8px 10px;
 }
 
+/* Nav menu - when sidebar OPEN */
+[data-theme="jackson"] .nav-menu {
+    padding: 4px 4px 12px 4px;
+    gap: 4px;
+}
+
+[data-theme="jackson"] .app-container.collapsed .nav-menu {
+    padding: 0 8px;
+}
+
+[data-theme="jackson"] .nav-text {
+    font-size: 14px;
+    font-weight: 500;
+    font-family: 'Inter', Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* Nav item - when sidebar OPEN: padding, margin for pill-like floating look */
 [data-theme="jackson"] .nav-item {
-    color: var(--text-secondary);
-    border: 1px solid transparent;
+    color: #333333;
+    border: none;
+    border-radius: 10px;
+    margin: 0 8px;
+    padding: 10px 14px;
+    min-height: 40px;
+    gap: 12px;
+    transition: background 0.2s ease, color 0.2s ease;
 }
 
+[data-theme="jackson"] .app-container.collapsed .nav-item:not(.submenu-item) {
+    margin: 0;
+    padding: 8px 7px;
+}
+
+/* Hover: subtle shade for feedback on gold */
 [data-theme="jackson"] .nav-item:hover {
-    background: rgba(235, 0, 40, 0.05);
-    color: var(--brand-red);
-    border-color: rgba(235, 0, 40, 0.1);
+    background: rgba(0, 0, 0, 0.1);
+    color: #333333;
 }
 
+[data-theme="jackson"] .nav-item:hover .nav-text {
+    color: #333333 !important;
+}
+
+/* Active: Deep Maroon (#722f37), white text, gold accent bar, pill-like rounded */
 [data-theme="jackson"] .nav-item.active {
-    background: var(--brand-red);
-    color: white;
-    border: 1px solid var(--brand-red);
-    box-shadow: 0 4px 12px rgba(235, 0, 40, 0.25);
+    background: #722f37 !important;
+    color: #FFFFFF !important;
+    border: none;
+    border-left: 3px solid var(--jackson-gold);
+    border-radius: 10px;
+    border-top-left-radius: 10px;
+    border-bottom-left-radius: 10px;
+    box-shadow: none;
+    font-weight: 600;
 }
 
-/* Icon Overrides - Force explicit standard colors */
+[data-theme="jackson"] .nav-item.active .nav-text {
+    color: #FFFFFF !important;
+    font-weight: 600;
+}
+
+/* Iconography: dark gray when inactive, white when active (thin-line outline) */
 [data-theme="jackson"] .nav-item svg,
 [data-theme="jackson"] .nav-item i {
-    color: var(--text-muted);
+    color: #333333;
 }
 
 [data-theme="jackson"] .nav-item:hover svg,
 [data-theme="jackson"] .nav-item:hover i {
-    color: var(--brand-red) !important;
+    color: #333333 !important;
 }
 
 [data-theme="jackson"] .nav-item.active svg,
 [data-theme="jackson"] .nav-item.active i {
-    color: white !important;
+    color: #FFFFFF !important;
+}
+
+/* Submenu - when sidebar OPEN */
+[data-theme="jackson"] .submenu {
+    background: var(--bg-sidebar) !important;
+    border-left-color: var(--jackson-sidebar-border) !important;
+    margin-left: 8px;
+    padding-left: 8px;
+    margin-top: 4px;
+}
+
+[data-theme="jackson"] .nav-group.open .submenu {
+    overflow: visible;
+}
+
+[data-theme="jackson"] .submenu-item {
+    color: #333333;
+    border-left-color: var(--jackson-sidebar-border) !important;
+    padding: 8px 12px 8px 14px;
+    margin: 0 8px 0 0;
+    border-radius: 10px;
+    min-height: 36px;
+}
+
+[data-theme="jackson"] .submenu-item:hover {
+    background: rgba(0, 0, 0, 0.1) !important;
+    border-left-color: #722f37 !important;
+    border-radius: 0 5px 5px 0;
+    color: #333333;
+}
+
+[data-theme="jackson"] .submenu-item:hover svg,
+[data-theme="jackson"] .submenu-item:hover i {
+    color: #333333 !important;
+}
+
+[data-theme="jackson"] .submenu-item.active {
+    background: #722f37 !important;
+    border-left: 5px solid var(--jackson-gold) !important;
+    border-radius: 0 5px 5px 0;
+    color: #FFFFFF !important;
+}
+
+[data-theme="jackson"] .submenu-item.active svg,
+[data-theme="jackson"] .submenu-item.active i {
+    color: #FFFFFF !important;
+}
+
+/* Sidebar footer - divider, toggle button for light theme */
+[data-theme="jackson"] .sidebar-footer {
+    border-top: 1px solid var(--jackson-sidebar-border);
+    background: var(--bg-sidebar) !important;
+}
+
+[data-theme="jackson"] .sidebar-toggle-btn {
+    background: rgba(0, 0, 0, 0.06);
+    border: 1px solid var(--jackson-sidebar-border);
+    color: #333333;
+}
+
+[data-theme="jackson"] .sidebar-toggle-btn:hover {
+    background: rgba(114, 47, 55, 0.12);
+    border-color: rgba(114, 47, 55, 0.3);
+    color: #722f37;
+}
+
+/* Notification badges - maroon bg, white text */
+[data-theme="jackson"] .sidebar .badge,
+[data-theme="jackson"] .sidebar .nav-badge {
+    background: #722f37 !important;
+    color: #FFFFFF !important;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 10px;
+}
+
+[data-theme="jackson"] .sidebar-lock-btn.sidebar-lock-hidden {
+    display: none !important;
+}
+
+[data-theme="jackson"] .sidebar-lock-btn.locked {
+    background: rgba(114, 47, 55, 0.15);
+    border-color: #722f37;
+    color: #722f37;
+}
+
+[data-theme="jackson"] .sidebar-toggle-btn svg {
+    color: inherit;
+}
+
+/* Collapsed submenu flyout - light background */
+[data-theme="jackson"] .app-container.collapsed .nav-group .submenu {
+    background: var(--bg-sidebar) !important;
+    border: 1px solid var(--jackson-sidebar-border);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="jackson"] .app-container.collapsed .nav-group:hover .submenu .submenu-item {
+    color: var(--text-secondary);
+}
+
+[data-theme="jackson"] .app-container.collapsed .nav-group:hover .submenu .submenu-item:hover {
+    background: rgba(0, 0, 0, 0.06) !important;
+    color: var(--text-primary);
+}
+
+[data-theme="jackson"] .app-container.collapsed .nav-group:hover .submenu .nav-text {
+    color: inherit;
 }
 
 /* Time Filter Overrides */
@@ -149,7 +347,7 @@
     background: var(--brand-red);
     border-color: var(--brand-red);
     color: white;
-    box-shadow: 0 4px 10px rgba(235, 0, 40, 0.2);
+    box-shadow: 0 4px 10px rgba(114, 47, 55, 0.2);
 }
 
 /* Button Action Override (Investigate) */
@@ -157,13 +355,13 @@
     background: var(--brand-red) !important;
     border-color: var(--brand-red) !important;
     color: white !important;
-    box-shadow: 0 2px 8px rgba(235, 0, 40, 0.3);
+    box-shadow: 0 2px 8px rgba(114, 47, 55, 0.3);
 }
 
 [data-theme="jackson"] .btn-action:hover {
-    background: #C50022 !important;
+    background: #5a252c !important;
     /* Darker red */
-    box-shadow: 0 4px 12px rgba(235, 0, 40, 0.4);
+    box-shadow: 0 4px 12px rgba(114, 47, 55, 0.4);
     transform: translateY(-1px);
 }
 
@@ -173,13 +371,13 @@
     background: var(--brand-red) !important;
     border-color: var(--brand-red) !important;
     color: white !important;
-    box-shadow: 0 2px 8px rgba(235, 0, 40, 0.3);
+    box-shadow: 0 2px 8px rgba(114, 47, 55, 0.3);
 }
 
 [data-theme="jackson"] .btn-primary:hover,
 [data-theme="jackson"] .settings-btn-primary:hover {
-    background: #C50022 !important;
-    box-shadow: 0 4px 12px rgba(235, 0, 40, 0.4);
+    background: #5a252c !important;
+    box-shadow: 0 4px 12px rgba(114, 47, 55, 0.4);
 }
 
 /* Runbook Action Button Override */
@@ -187,12 +385,12 @@
     background: var(--brand-red) !important;
     border-color: var(--brand-red) !important;
     color: white !important;
-    box-shadow: 0 2px 8px rgba(235, 0, 40, 0.3);
+    box-shadow: 0 2px 8px rgba(114, 47, 55, 0.3);
 }
 
 [data-theme="jackson"] .runbook-action-primary:hover {
-    background: #C50022 !important;
-    box-shadow: 0 4px 12px rgba(235, 0, 40, 0.4);
+    background: #5a252c !important;
+    box-shadow: 0 4px 12px rgba(114, 47, 55, 0.4);
     transform: translateY(-1px);
 }
 
@@ -201,13 +399,99 @@
     background: var(--brand-red) !important;
     border-color: var(--brand-red) !important;
     color: white !important;
-    box-shadow: 0 2px 8px rgba(235, 0, 40, 0.3);
+    box-shadow: 0 2px 8px rgba(114, 47, 55, 0.3);
 }
 
 [data-theme="jackson"] .app-action-primary:hover {
-    background: #C50022 !important;
-    box-shadow: 0 4px 12px rgba(235, 0, 40, 0.4);
+    background: #5a252c !important;
+    box-shadow: 0 4px 12px rgba(114, 47, 55, 0.4);
     transform: translateY(-1px);
+}
+
+/* Panel Action Button Override (Create Panel, etc.) */
+[data-theme="jackson"] .pnl-action-btn.pnl-action-primary,
+[data-theme="jackson"] .pnl-action-primary {
+    background: #722f37 !important;
+    background-image: none !important;
+    color: white !important;
+    box-shadow: 0 2px 6px rgba(114, 47, 55, 0.25) !important;
+    border-radius: 5px !important;
+}
+
+[data-theme="jackson"] .pnl-action-btn.pnl-action-primary:hover,
+[data-theme="jackson"] .pnl-action-primary:hover {
+    background: #5a252c !important;
+    background-image: none !important;
+    box-shadow: 0 4px 14px rgba(114, 47, 55, 0.35) !important;
+    transform: translateY(-1px);
+}
+
+/* Dashboard Action Button Override (New Dashboard) */
+[data-theme="jackson"] .dash-action-btn.dash-action-primary,
+[data-theme="jackson"] .dash-action-primary {
+    background: #722f37 !important;
+    background-image: none !important;
+    color: white !important;
+    box-shadow: 0 2px 6px rgba(114, 47, 55, 0.25) !important;
+    border-radius: 5px !important;
+}
+
+[data-theme="jackson"] .dash-action-btn.dash-action-primary:hover,
+[data-theme="jackson"] .dash-action-primary:hover {
+    background: #5a252c !important;
+    background-image: none !important;
+    box-shadow: 0 4px 14px rgba(114, 47, 55, 0.35) !important;
+    transform: translateY(-1px);
+}
+
+/* Datasource Action Button Override (Add Datasource) */
+[data-theme="jackson"] .ds-action-btn.ds-action-primary,
+[data-theme="jackson"] .ds-action-primary {
+    background: #722f37 !important;
+    background-image: none !important;
+    color: white !important;
+    box-shadow: 0 2px 6px rgba(114, 47, 55, 0.25) !important;
+    border-radius: 5px !important;
+}
+
+[data-theme="jackson"] .ds-action-btn.ds-action-primary:hover,
+[data-theme="jackson"] .ds-action-primary:hover {
+    background: #5a252c !important;
+    background-image: none !important;
+    box-shadow: 0 4px 14px rgba(114, 47, 55, 0.35) !important;
+    transform: translateY(-1px);
+}
+
+/* Playlist Action Button Override (New Playlist) */
+[data-theme="jackson"] .pl-action-btn.pl-action-primary,
+[data-theme="jackson"] .pl-action-primary {
+    background: #722f37 !important;
+    background-image: none !important;
+    color: white !important;
+    box-shadow: 0 2px 6px rgba(114, 47, 55, 0.25) !important;
+    border-radius: 5px !important;
+}
+
+[data-theme="jackson"] .pl-action-btn.pl-action-primary:hover,
+[data-theme="jackson"] .pl-action-primary:hover {
+    background: #5a252c !important;
+    background-image: none !important;
+    box-shadow: 0 4px 14px rgba(114, 47, 55, 0.35) !important;
+    transform: translateY(-1px);
+}
+
+[data-theme="jackson"] .pnl-search-input:focus {
+    border-color: #722f37 !important;
+    box-shadow: 0 0 0 3px rgba(114, 47, 55, 0.12) !important;
+}
+
+[data-theme="jackson"] .pnl-dropdown-item.selected {
+    background: rgba(114, 47, 55, 0.08) !important;
+    color: #722f37 !important;
+}
+
+[data-theme="jackson"] .pnl-dropdown-item .pnl-dd-check {
+    color: #722f37 !important;
 }
 
 /* Login Page Overrides (Scoped to prevent global leakage) */
@@ -216,7 +500,7 @@
 
 /* Target login specific elements under jackson theme */
 [data-theme="jackson"] .login-brand-panel {
-    background: #EB0028 !important;
+    background: #722f37 !important;
     /* Force Red override */
     background-image: none !important;
 }
@@ -225,31 +509,31 @@
 /* Backgrounds */
 [data-theme="jackson"] .bg-blue-50,
 [data-theme="jackson"] .bg-blue-100 {
-    background-color: rgba(235, 0, 40, 0.05) !important;
+    background-color: rgba(114, 47, 55, 0.05) !important;
 }
 
 [data-theme="jackson"] .bg-blue-500 {
-    background-color: #EB0028 !important;
+    background-color: #722f37 !important;
 }
 
 [data-theme="jackson"] .bg-blue-600 {
-    background-color: #EB0028 !important;
+    background-color: #722f37 !important;
 }
 
 [data-theme="jackson"] .bg-blue-700 {
-    background-color: #C50022 !important;
+    background-color: #5a252c !important;
 }
 
 [data-theme="jackson"] .hover\:bg-blue-50:hover {
-    background-color: rgba(235, 0, 40, 0.08) !important;
+    background-color: rgba(114, 47, 55, 0.08) !important;
 }
 
 [data-theme="jackson"] .hover\:bg-blue-500:hover {
-    background-color: #C50022 !important;
+    background-color: #5a252c !important;
 }
 
 [data-theme="jackson"] .hover\:bg-blue-600:hover {
-    background-color: #C50022 !important;
+    background-color: #5a252c !important;
 }
 
 [data-theme="jackson"] .hover\:bg-blue-700:hover {
@@ -258,19 +542,19 @@
 
 /* Text */
 [data-theme="jackson"] .text-blue-500 {
-    color: #EB0028 !important;
+    color: #722f37 !important;
 }
 
 [data-theme="jackson"] .text-blue-600 {
-    color: #EB0028 !important;
+    color: #722f37 !important;
 }
 
 [data-theme="jackson"] .text-blue-700 {
-    color: #C50022 !important;
+    color: #5a252c !important;
 }
 
 [data-theme="jackson"] .hover\:text-blue-600:hover {
-    color: #C50022 !important;
+    color: #5a252c !important;
 }
 
 [data-theme="jackson"] .hover\:text-blue-700:hover {
@@ -279,15 +563,15 @@
 
 /* Borders */
 [data-theme="jackson"] .border-blue-200 {
-    border-color: rgba(235, 0, 40, 0.2) !important;
+    border-color: rgba(114, 47, 55, 0.2) !important;
 }
 
 [data-theme="jackson"] .border-blue-500 {
-    border-color: #EB0028 !important;
+    border-color: #722f37 !important;
 }
 
 [data-theme="jackson"] .border-blue-600 {
-    border-color: #EB0028 !important;
+    border-color: #722f37 !important;
 }
 
 /* Specific Component Logic for "Refresh" and similar utility-based buttons */
@@ -296,26 +580,26 @@
 }
 
 [data-theme="jackson"] button[class*="bg-blue-"]:hover {
-    background-color: #C50022 !important;
+    background-color: #5a252c !important;
 }
 
 [data-theme="jackson"] .login-submit {
-    background: #EB0028 !important;
-    border-radius: 4px !important;
+    background: #722f37 !important;
+    border-radius: 5px !important;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    box-shadow: 0 4px 14px rgba(235, 0, 40, 0.25) !important;
+    box-shadow: 0 4px 14px rgba(114, 47, 55, 0.25) !important;
 }
 
 /* Revive AI Button */
 [data-theme="jackson"] .revive-btn {
     background: var(--brand-red);
-    border-radius: 4px;
-    box-shadow: 0 2px 8px rgba(235, 0, 40, 0.3);
+    border-radius: 5px;
+    box-shadow: 0 2px 8px rgba(114, 47, 55, 0.3);
 }
 
 [data-theme="jackson"] .revive-btn:hover {
-    box-shadow: 0 4px 12px rgba(235, 0, 40, 0.4);
+    box-shadow: 0 4px 12px rgba(114, 47, 55, 0.4);
 }
 
 /* Troubleshoot Chat - User Message Override */
@@ -336,11 +620,11 @@
     background: var(--brand-red) !important;
     border: 1px solid var(--brand-red) !important;
     color: white !important;
-    box-shadow: 0 2px 8px rgba(235, 0, 40, 0.2);
+    box-shadow: 0 2px 8px rgba(114, 47, 55, 0.2);
 }
 
 [data-theme="jackson"] .inq-new-session-btn:hover {
-    background: #C50022 !important;
+    background: #5a252c !important;
     transform: translateY(-1px);
 }
 
@@ -351,12 +635,12 @@
     background: var(--brand-red) !important;
     border-color: var(--brand-red) !important;
     color: white !important;
-    box-shadow: 0 2px 8px rgba(235, 0, 40, 0.3);
+    box-shadow: 0 2px 8px rgba(114, 47, 55, 0.3);
 }
 
 [data-theme="jackson"] .ts-new-session-btn:hover {
-    background: #C50022 !important;
-    box-shadow: 0 4px 12px rgba(235, 0, 40, 0.4);
+    background: #5a252c !important;
+    box-shadow: 0 4px 12px rgba(114, 47, 55, 0.4);
     transform: translateY(-1px);
 }
 
@@ -366,18 +650,18 @@
 }
 
 [data-theme="jackson"] .ts-send-btn:hover {
-    background: #C50022 !important;
+    background: #5a252c !important;
 }
 
 /* Chat Send Button */
 [data-theme="jackson"] .inq-chat-input-container button[type="submit"] {
     background: var(--brand-red) !important;
     color: white !important;
-    border-radius: 4px;
+    border-radius: 5px;
 }
 
 [data-theme="jackson"] .inq-chat-input-container button[type="submit"]:hover {
-    background: #C50022 !important;
+    background: #5a252c !important;
 }
 
 /* Inquiry Chat Input Focus Override */
@@ -392,7 +676,7 @@
 
 /* Artifact Tabs (Active State) */
 [data-theme="jackson"] .inq-artifact-tab.active {
-    background: rgba(235, 0, 40, 0.1) !important;
+    background: rgba(114, 47, 55, 0.1) !important;
     color: var(--brand-red) !important;
     border-color: var(--brand-red) !important;
 }
@@ -436,7 +720,7 @@
 }
 
 [data-theme="jackson"] .card[style*="#3b82f6"] .w-10 {
-    background: rgba(235, 0, 40, 0.08) !important;
+    background: rgba(114, 47, 55, 0.08) !important;
 }
 
 [data-theme="jackson"] .card[style*="#3b82f6"] i {
@@ -452,7 +736,7 @@
 /* Search Input Focus */
 [data-theme="jackson"] .runbook-search-input:focus {
     border-color: var(--brand-red) !important;
-    box-shadow: 0 0 0 3px rgba(235, 0, 40, 0.12) !important;
+    box-shadow: 0 0 0 3px rgba(114, 47, 55, 0.12) !important;
 }
 
 /* Checkbox (Accent) */
@@ -461,18 +745,39 @@
     border-color: var(--brand-red) !important;
 }
 
-/* Header Title Overrides - Global Fix for Blue Icon */
-/* Header background is Dark (#1A1A1A) so text-white is correct and should NOT be changed to black. */
+/* Header - White background, dark text per reference */
+[data-theme="jackson"] .header-info,
+[data-theme="jackson"] .header-title,
+[data-theme="jackson"] .header-title-wrapper,
+[data-theme="jackson"] .header-title-wrapper h1,
+[data-theme="jackson"] .header-title-wrapper span,
+[data-theme="jackson"] .header-status,
+[data-theme="jackson"] .header-breadcrumbs,
+[data-theme="jackson"] .header-breadcrumbs *,
+[data-theme="jackson"] .header-breadcrumbs span,
+[data-theme="jackson"] .header-breadcrumbs a {
+    color: #444444 !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+}
 
 [data-theme="jackson"] .header-title-wrapper .text-blue-400,
 [data-theme="jackson"] .header-title-wrapper .text-blue-500,
 [data-theme="jackson"] .header-title-wrapper .text-blue-600 {
-    color: var(--brand-red) !important;
+    color: #722f37 !important;
 }
 
-/* Ensure icons in header title area are always brand red if they aren't covered above */
+[data-theme="jackson"] .header-title-wrapper .text-gray-200,
+[data-theme="jackson"] .header-title-wrapper .text-white {
+    color: #444444 !important;
+}
+
 [data-theme="jackson"] .header-title-wrapper i {
-    color: var(--brand-red) !important;
+    color: #722f37 !important;
+}
+
+[data-theme="jackson"] .header-divider {
+    color: #CCCCCC !important;
 }
 
 /* Card Header Override - Beige Background */
@@ -498,6 +803,313 @@
 /* Adjust time filters inside beige header */
 [data-theme="jackson"] .card-header .time-filter {
     background: rgba(255, 255, 255, 0.5);
+}
+
+/* ============================================================
+   TOP BAR DESIGN - White background per reference
+   Search, Zoom, Icons: dark gray on white
+   ============================================================ */
+
+/* Vertical hairline dividers between header sections */
+[data-theme="jackson"] .top-header .search-bar {
+    border-left: 1px solid #E5E5E5;
+    padding-left: 16px;
+    margin-left: 8px;
+}
+
+[data-theme="jackson"] .top-header .header-actions {
+    border-left: 1px solid #E5E5E5;
+    padding-left: 16px;
+    margin-left: 8px;
+}
+
+/* Search Bar - Ghost style on white */
+[data-theme="jackson"] .search-bar {
+    background: #F5F5F5 !important;
+    border: 1px solid #E5E5E5 !important;
+    border-radius: 6px !important;
+}
+
+[data-theme="jackson"] .search-bar:hover {
+    background: #EEEEEE !important;
+    border-color: #DDDDDD !important;
+}
+
+[data-theme="jackson"] .search-bar:focus-within {
+    background: #FFFFFF !important;
+    border-color: #722f37 !important;
+    box-shadow: 0 0 0 2px rgba(114, 47, 55, 0.15) !important;
+}
+
+[data-theme="jackson"] .search-bar svg,
+[data-theme="jackson"] .search-bar i {
+    color: #666666 !important;
+}
+
+[data-theme="jackson"] .search-bar input,
+[data-theme="jackson"] .search-bar input.bg-transparent {
+    color: #333333 !important;
+    background: transparent !important;
+    border: none !important;
+    outline: none !important;
+}
+
+[data-theme="jackson"] .search-bar input::placeholder {
+    color: #999999 !important;
+}
+
+[data-theme="jackson"] .kbd-shortcut {
+    background: #E0E0E0 !important;
+    color: #666666 !important;
+    border-radius: 3px !important;
+}
+
+/* Zoom Controls */
+[data-theme="jackson"] .zoom-controls {
+    background: #F5F5F5 !important;
+    border: 1px solid #E5E5E5 !important;
+    border-radius: 5px !important;
+}
+
+[data-theme="jackson"] .zoom-btn {
+    color: #444444 !important;
+    background: transparent !important;
+}
+
+[data-theme="jackson"] .zoom-btn:hover:not(:disabled) {
+    background: rgba(114, 47, 55, 0.1) !important;
+    color: #722f37 !important;
+}
+
+[data-theme="jackson"] .zoom-level-display {
+    color: #333333 !important;
+    font-weight: 600 !important;
+}
+
+/* Theme Zoom Divider */
+[data-theme="jackson"] .theme-zoom-divider {
+    background: #E5E5E5 !important;
+}
+
+/* Icon Buttons (Notifications) - Dark gray on white */
+[data-theme="jackson"] .top-header .icon-btn {
+    background: #F5F5F5 !important;
+    border: 1px solid #E5E5E5 !important;
+    color: #444444 !important;
+}
+
+[data-theme="jackson"] .top-header .icon-btn:hover {
+    background: rgba(114, 47, 55, 0.08) !important;
+    border-color: rgba(114, 47, 55, 0.2) !important;
+    color: #722f37 !important;
+}
+
+[data-theme="jackson"] .top-header .icon-btn svg,
+[data-theme="jackson"] .top-header .icon-btn i {
+    color: inherit !important;
+    stroke: currentColor !important;
+}
+
+/* RE-VIVE Chat Button */
+[data-theme="jackson"] .revive-chat-btn {
+    background: linear-gradient(135deg, #722f37 0%, #5a252c 100%) !important;
+    border: none !important;
+    box-shadow: 0 2px 8px rgba(114, 47, 55, 0.3) !important;
+}
+
+[data-theme="jackson"] .revive-chat-btn:hover {
+    box-shadow: 0 4px 12px rgba(114, 47, 55, 0.5) !important;
+    transform: scale(1.08) !important;
+}
+
+/* User Menu Button */
+[data-theme="jackson"] #user-menu-button {
+    border-radius: 50% !important;
+}
+
+[data-theme="jackson"] #user-menu-button:focus,
+[data-theme="jackson"] #user-menu-button:focus-visible {
+    outline: none !important;
+    box-shadow: 0 0 0 3px rgba(114, 47, 55, 0.4) !important;
+}
+
+[data-theme="jackson"] #user-menu-button > div,
+[data-theme="jackson"] #user-menu-button .bg-blue-600 {
+    background: #722f37 !important;
+    border-color: rgba(114, 47, 55, 0.6) !important;
+}
+
+[data-theme="jackson"] #user-menu-button > div:hover,
+[data-theme="jackson"] #user-menu-button .hover\:bg-blue-700:hover {
+    background: #5a252c !important;
+}
+
+/* User Menu Dropdown - Override Tailwind bg-white */
+[data-theme="jackson"] #user-menu-dropdown,
+[data-theme="jackson"] #user-menu-dropdown.bg-white {
+    background: #1F1F1F !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5) !important;
+}
+
+[data-theme="jackson"] #user-menu-dropdown .bg-slate-50,
+[data-theme="jackson"] #user-menu-dropdown .bg-slate-100,
+[data-theme="jackson"] #user-menu-dropdown [class*="bg-slate"],
+[data-theme="jackson"] div.bg-slate-50,
+[data-theme="jackson"] div[class*="bg-slate"] {
+    background: #2A2A2A !important;
+}
+
+[data-theme="jackson"] #user-menu-dropdown .border-slate-100,
+[data-theme="jackson"] #user-menu-dropdown [class*="border-slate"],
+[data-theme="jackson"] div.border-slate-100,
+[data-theme="jackson"] div[class*="border-slate"] {
+    border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+[data-theme="jackson"] #user-menu-dropdown p,
+[data-theme="jackson"] #user-menu-dropdown span,
+[data-theme="jackson"] #user-menu-dropdown .text-slate-500,
+[data-theme="jackson"] #user-menu-dropdown .text-slate-800,
+[data-theme="jackson"] #user-menu-dropdown .text-slate-400,
+[data-theme="jackson"] p.text-slate-500,
+[data-theme="jackson"] p.text-slate-800,
+[data-theme="jackson"] p.text-slate-400,
+[data-theme="jackson"] span[class*="text-slate"] {
+    color: rgba(255, 255, 255, 0.9) !important;
+}
+
+[data-theme="jackson"] #user-menu-dropdown .text-slate-700,
+[data-theme="jackson"] a.text-slate-700,
+[data-theme="jackson"] .text-slate-700 {
+    color: rgba(255, 255, 255, 0.8) !important;
+}
+
+[data-theme="jackson"] #user-menu-dropdown a,
+[data-theme="jackson"] #user-menu-dropdown a[class*="text-slate"] {
+    color: rgba(255, 255, 255, 0.9) !important;
+}
+
+[data-theme="jackson"] #user-menu-dropdown a:hover,
+[data-theme="jackson"] #user-menu-dropdown .hover\:bg-blue-50:hover,
+[data-theme="jackson"] a.hover\:bg-blue-50:hover,
+[data-theme="jackson"] a[class*="hover:bg-blue"]:hover {
+    background: rgba(114, 47, 55, 0.15) !important;
+    color: #FFFFFF !important;
+}
+
+[data-theme="jackson"] #user-menu-dropdown .hover\:text-blue-600:hover,
+[data-theme="jackson"] a.hover\:text-blue-600:hover {
+    color: #FFFFFF !important;
+}
+
+[data-theme="jackson"] #user-menu-dropdown .text-red-600,
+[data-theme="jackson"] a.text-red-600 {
+    color: #FF6B6B !important;
+}
+
+[data-theme="jackson"] #user-menu-dropdown .hover\:bg-red-50:hover,
+[data-theme="jackson"] a.hover\:bg-red-50:hover,
+[data-theme="jackson"] a[class*="hover:bg-red"]:hover {
+    background: rgba(255, 107, 107, 0.1) !important;
+}
+
+[data-theme="jackson"] #user-menu-dropdown i,
+[data-theme="jackson"] #user-menu-dropdown svg {
+    color: rgba(255, 255, 255, 0.7) !important;
+}
+
+[data-theme="jackson"] #user-menu-dropdown a:hover i,
+[data-theme="jackson"] #user-menu-dropdown a:hover svg,
+[data-theme="jackson"] #user-menu-dropdown .group:hover i {
+    color: #FFFFFF !important;
+}
+
+/* Time Range Dropdown - Override white background */
+[data-theme="jackson"] .time-range-menu {
+    background: #1F1F1F !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5) !important;
+}
+
+[data-theme="jackson"] .time-range-menu[style*="background"],
+[data-theme="jackson"] .time-range-menu[style*="white"] {
+    background: #1F1F1F !important;
+}
+
+[data-theme="jackson"] .time-range-option {
+    color: rgba(255, 255, 255, 0.85) !important;
+}
+
+[data-theme="jackson"] .time-range-option:hover {
+    background: rgba(114, 47, 55, 0.15) !important;
+    color: #FFFFFF !important;
+}
+
+[data-theme="jackson"] .time-range-option.active {
+    background: rgba(114, 47, 55, 0.25) !important;
+    color: #FFFFFF !important;
+    font-weight: 600 !important;
+}
+
+/* Theme Dropdown - Override default white background */
+[data-theme="jackson"] .theme-dropdown {
+    background: #1F1F1F !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5) !important;
+}
+
+[data-theme="jackson"] .theme-dropdown[style*="background"],
+[data-theme="jackson"] .theme-dropdown[style*="#fff"] {
+    background: #1F1F1F !important;
+}
+
+[data-theme="jackson"] .theme-dropdown-header {
+    color: rgba(255, 255, 255, 0.6) !important;
+}
+
+[data-theme="jackson"] .theme-option {
+    color: rgba(255, 255, 255, 0.85) !important;
+    border: 2px solid transparent !important;
+}
+
+[data-theme="jackson"] .theme-option:hover {
+    background: rgba(114, 47, 55, 0.12) !important;
+    color: #FFFFFF !important;
+}
+
+[data-theme="jackson"] .theme-option.active {
+    background: rgba(114, 47, 55, 0.2) !important;
+    border-color: rgba(114, 47, 55, 0.6) !important;
+    color: #FFFFFF !important;
+}
+
+[data-theme="jackson"] .theme-option-icon {
+    color: rgba(255, 255, 255, 0.6) !important;
+}
+
+[data-theme="jackson"] .theme-option.active .theme-option-icon {
+    color: #722f37 !important;
+}
+
+[data-theme="jackson"] .theme-option-check {
+    color: #722f37 !important;
+}
+
+/* Time Range Button */
+[data-theme="jackson"] .time-range-btn {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    color: rgba(255, 255, 255, 0.9) !important;
+}
+
+[data-theme="jackson"] .time-range-btn:hover {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border-color: rgba(255, 255, 255, 0.25) !important;
+}
+
+/* Card Header Time Filter Styling */
+[data-theme="jackson"] .card-header .time-filter {
     border: none;
     color: var(--text-secondary);
 }
@@ -550,8 +1162,8 @@
 
 /* User Message - Red Gradient */
 [data-theme="jackson"] .agent-message.user {
-    background: linear-gradient(135deg, #EB0028, #C50022) !important;
-    box-shadow: 0 4px 12px rgba(235, 0, 40, 0.3) !important;
+    background: linear-gradient(135deg, #722f37, #5a252c) !important;
+    box-shadow: 0 4px 12px rgba(114, 47, 55, 0.3) !important;
     border: none !important;
     color: white !important;
 }
@@ -586,10 +1198,129 @@
 }
 
 [data-theme="jackson"] #agent-send:hover {
-    color: #C50022 !important;
+    color: #5a252c !important;
 }
 
 /* Resize Handle Hover */
 [data-theme="jackson"] .resize-handle:hover {
-    background: linear-gradient(180deg, transparent, rgba(235, 0, 40, 0.3), transparent) !important;
+    background: linear-gradient(180deg, transparent, rgba(114, 47, 55, 0.3), transparent) !important;
+}
+
+/* ============================================================
+   COMPREHENSIVE TAILWIND UTILITY OVERRIDES FOR TOP BAR
+   Catch-all rules to ensure no white backgrounds slip through
+   ============================================================ */
+
+/* Override any bg-white in top-header area */
+[data-theme="jackson"] .top-header .bg-white,
+[data-theme="jackson"] .top-header [class*="bg-white"],
+[data-theme="jackson"] .header-actions .bg-white,
+[data-theme="jackson"] .header-actions [class*="bg-white"] {
+    background: #1F1F1F !important;
+}
+
+/* Override slate backgrounds in dropdowns */
+[data-theme="jackson"] .top-header .bg-slate-50,
+[data-theme="jackson"] .top-header .bg-slate-100,
+[data-theme="jackson"] .header-actions .bg-slate-50,
+[data-theme="jackson"] .header-actions .bg-slate-100 {
+    background: #2A2A2A !important;
+}
+
+/* Override slate text colors in dropdowns */
+[data-theme="jackson"] .top-header .text-slate-500,
+[data-theme="jackson"] .top-header .text-slate-700,
+[data-theme="jackson"] .top-header .text-slate-800,
+[data-theme="jackson"] .header-actions .text-slate-500,
+[data-theme="jackson"] .header-actions .text-slate-700,
+[data-theme="jackson"] .header-actions .text-slate-800 {
+    color: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* Ensure rounded dropdown menus have dark backgrounds */
+[data-theme="jackson"] .top-header .rounded-xl,
+[data-theme="jackson"] .header-actions .rounded-xl,
+[data-theme="jackson"] .top-header [class*="rounded-"],
+[data-theme="jackson"] .header-actions [class*="rounded-"] {
+    background: #1F1F1F !important;
+}
+
+/* Override shadow and ring utilities */
+[data-theme="jackson"] .top-header .shadow-2xl,
+[data-theme="jackson"] .header-actions .shadow-2xl {
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5) !important;
+}
+
+[data-theme="jackson"] .top-header .ring-black,
+[data-theme="jackson"] .header-actions .ring-black {
+    --tw-ring-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+/* ============================================================
+   SELECT DROPDOWN & OPTIONS STYLING
+   Override browser default white backgrounds
+   ============================================================ */
+
+/* Time Range Select & All Select Dropdowns in Top Header */
+[data-theme="jackson"] .top-header select,
+[data-theme="jackson"] .header-actions select,
+[data-theme="jackson"] select#timeRange,
+[data-theme="jackson"] select.bg-transparent {
+    background: rgba(255, 255, 255, 0.05) !important;
+    color: rgba(255, 255, 255, 0.9) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    border-radius: 6px !important;
+    padding: 6px 28px 6px 12px !important;
+}
+
+[data-theme="jackson"] .top-header select:hover,
+[data-theme="jackson"] .header-actions select:hover,
+[data-theme="jackson"] select#timeRange:hover {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border-color: rgba(255, 255, 255, 0.25) !important;
+    color: #FFFFFF !important;
+}
+
+[data-theme="jackson"] .top-header select:focus,
+[data-theme="jackson"] .header-actions select:focus,
+[data-theme="jackson"] select#timeRange:focus {
+    background: rgba(255, 255, 255, 0.12) !important;
+    border-color: rgba(114, 47, 55, 0.6) !important;
+    outline: none !important;
+    box-shadow: 0 0 0 3px rgba(114, 47, 55, 0.15) !important;
+}
+
+/* Option elements - dark background */
+[data-theme="jackson"] .top-header select option,
+[data-theme="jackson"] .header-actions select option,
+[data-theme="jackson"] select#timeRange option,
+[data-theme="jackson"] select option,
+[data-theme="jackson"] option.text-gray-900 {
+    background: #1F1F1F !important;
+    color: rgba(255, 255, 255, 0.9) !important;
+    padding: 8px 12px !important;
+}
+
+[data-theme="jackson"] .top-header select option:hover,
+[data-theme="jackson"] .header-actions select option:hover,
+[data-theme="jackson"] select option:hover,
+[data-theme="jackson"] select option:checked {
+    background: rgba(114, 47, 55, 0.2) !important;
+    color: #FFFFFF !important;
+}
+
+/* Override text-gray classes in options */
+[data-theme="jackson"] select option.text-gray-900,
+[data-theme="jackson"] select option[class*="text-gray"] {
+    color: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* Text color overrides for select elements */
+[data-theme="jackson"] .text-gray-200,
+[data-theme="jackson"] select.text-gray-200 {
+    color: rgba(255, 255, 255, 0.9) !important;
+}
+
+[data-theme="jackson"] .hover\:text-white:hover {
+    color: #FFFFFF !important;
 }

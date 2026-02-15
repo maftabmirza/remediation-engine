@@ -101,12 +101,12 @@ class ThemeZoomManager {
                 name: 'Jackson',
                 icon: 'disc',
                 colors: {
-                    // Jackson Theme — matches jackson.com brand design
-                    // Primary Brand Red (Torch Red): #EB0028
-                    // Secondary Background (warm beige): #E8E3D9
+                    // Jackson Theme — matches reference image (light sidebar)
+                    // Primary Brand: #722f37 (maroon)
+                    // Sidebar: #dbcfc7 | Active item: Deep Maroon #722f37
                     '--bg-app': '#FFFFFF',          // Clean white main background
-                    '--bg-sidebar': '#1A1A1A',      // Near-black sidebar (softer than pure black)
-                    '--bg-header': '#1A1A1A',       // Near-black header to match sidebar
+                    '--bg-sidebar': '#dbcfc7',
+                    '--bg-header': '#FFFFFF',       // White header per reference
 
                     '--bg-panel': '#FFFFFF',        // Pure white panels/cards
                     '--bg-surface': '#F7F6F3',      // Warm light surface (jackson warm gray)
@@ -129,10 +129,10 @@ class ThemeZoomManager {
                     '--header-btn-hover': 'rgba(255, 255, 255, 0.15)',
                     '--header-btn-color': '#FFFFFF',
 
-                    '--accent-blue': '#EB0028',     // Jackson Torch Red — primary CTA
-                    '--accent-purple': '#B80020',   // Darker red for hover/active states
-                    '--accent-cyan': '#EB0028',     // Same brand red for consistency
-                    '--accent-selected-bg': 'rgba(235, 0, 40, 0.06)',
+                    '--accent-blue': '#722f37',     // Jackson maroon — primary CTA
+                    '--accent-purple': '#5a252c',  // Darker maroon for hover/active states
+                    '--accent-cyan': '#722f37',     // Same maroon for consistency
+                    '--accent-selected-bg': 'rgba(114, 47, 55, 0.06)',
 
                     '--status-success': '#059669',
                     '--status-warning': '#D97706',
@@ -143,7 +143,7 @@ class ThemeZoomManager {
                     '--shadow-levitate': '0 16px 32px -6px rgba(0, 0, 0, 0.12), 0 8px 16px -4px rgba(0, 0, 0, 0.06)',
 
                     // Jackson-specific extra variables
-                    '--jackson-brand-red': '#EB0028',
+                    '--jackson-brand-red': '#722f37',
                     '--jackson-warm-beige': '#E8E3D9',
                     '--jackson-dark-text': '#333333',
                     '--jackson-light-gray': '#767676',
@@ -254,9 +254,6 @@ class ThemeZoomManager {
             this._stopJacksonObserver();
         }
 
-        // Update Logo Icon (A -> J for Jackson)
-        this._updateLogoIcon(themeName);
-
         // Update UI if theme selector exists
         this.updateThemeSelector(themeName);
 
@@ -270,14 +267,14 @@ class ThemeZoomManager {
 
     /**
      * Rewrite inline style="" attributes that contain hardcoded blue
-     * (#3b82f6, #2563eb, #1d4ed8) to Jackson red (#EB0028).
+     * (#3b82f6, #2563eb, #1d4ed8) to Jackson maroon (#722f37).
      */
     _recolorInlineBlue() {
         const BLUE_RE = /#3b82f6|#2563eb|#1d4ed8|rgba\(\s*59\s*,\s*130\s*,\s*246/gi;
         const replacements = {
-            '#3b82f6': '#EB0028',
-            '#2563eb': '#EB0028',
-            '#1d4ed8': '#C50022',
+            '#3b82f6': '#722f37',
+            '#2563eb': '#722f37',
+            '#1d4ed8': '#5a252c',
         };
 
         document.querySelectorAll('[style]').forEach(el => {
@@ -287,24 +284,24 @@ class ThemeZoomManager {
 
             let updated = raw;
             // Replace hex colors
-            updated = updated.replace(/#3b82f6/gi, '#EB0028');
-            updated = updated.replace(/#2563eb/gi, '#EB0028');
-            updated = updated.replace(/#1d4ed8/gi, '#C50022');
+            updated = updated.replace(/#3b82f6/gi, '#722f37');
+            updated = updated.replace(/#2563eb/gi, '#722f37');
+            updated = updated.replace(/#1d4ed8/gi, '#5a252c');
             // Replace rgba blue
             updated = updated.replace(
                 /rgba\(\s*59\s*,\s*130\s*,\s*246/gi,
-                'rgba(235, 0, 40'
+                'rgba(114, 47, 55'
             );
             // Replace linear-gradient blue combos
             updated = updated.replace(
-                /linear-gradient\([^)]*#EB0028[^)]*#EB0028[^)]*\)/gi,
+                /linear-gradient\([^)]*#722f37[^)]*#722f37[^)]*\)/gi,
                 (match) => match.replace(/linear-gradient\([^,]+,/, 'linear-gradient(135deg,')
             );
-            // Flatten double-red gradients to solid
-            if (updated.includes('linear-gradient') && updated.includes('#EB0028')) {
+            // Flatten double-maroon gradients to solid
+            if (updated.includes('linear-gradient') && updated.includes('#722f37')) {
                 updated = updated.replace(
                     /linear-gradient\([^)]*\)/gi,
-                    '#EB0028'
+                    '#722f37'
                 );
             }
 
@@ -336,13 +333,6 @@ class ThemeZoomManager {
         if (this._jacksonObs) {
             this._jacksonObs.disconnect();
             this._jacksonObs = null;
-        }
-    }
-
-    _updateLogoIcon(themeName) {
-        const logoSpan = document.querySelector('.sidebar-logo-icon span');
-        if (logoSpan) {
-            logoSpan.textContent = (themeName === 'jackson') ? 'J' : 'A';
         }
     }
 

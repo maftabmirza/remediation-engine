@@ -1,4 +1,4 @@
-﻿// AIOps Dashboard Logic
+// AIOps Dashboard Logic
 // Version: Premium Enterprise 3.0
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -38,48 +38,154 @@ function initGlobalUI() {
         }, 80 * index);
     });
 
-    // Sidebar Toggle Logic
+    // Sidebar Toggle Logic + Lock to keep open
     const appContainer = document.querySelector('.app-container');
     const sidebar = document.getElementById('sidebar');
     const sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
+    const sidebarLockBtn = document.getElementById('sidebarLockBtn');
 
-    // Default state: check class
-    // If appContainer has 'collapsed', it's closed.
+    const SIDEBAR_LOCK_KEY = 'aiops-sidebar-locked';
+    const SIDEBAR_OPEN_KEY = 'aiops-sidebar-open';
+
+    function isSidebarLocked() {
+        return localStorage.getItem(SIDEBAR_LOCK_KEY) === 'true';
+    }
+
+    function isSidebarOpenSaved() {
+        return localStorage.getItem(SIDEBAR_OPEN_KEY) === 'true';
+    }
+
+    function saveSidebarOpenState(open) {
+        localStorage.setItem(SIDEBAR_OPEN_KEY, open ? 'true' : 'false');
+    }
+
+    function setSidebarLocked(locked) {
+        localStorage.setItem(SIDEBAR_LOCK_KEY, locked ? 'true' : 'false');
+        if (sidebarLockBtn) {
+            sidebarLockBtn.innerHTML = `<i data-feather="${locked ? 'lock' : 'unlock'}"></i>`;
+            sidebarLockBtn.title = locked ? 'Unlock sidebar (allow collapse)' : 'Lock sidebar open';
+            sidebarLockBtn.classList.toggle('locked', locked);
+            if (typeof feather !== 'undefined') feather.replace();
+        }
+    }
+
+    function updateToggleIcon() {
+        if (!sidebarToggleBtn) return;
+        const isCollapsed = appContainer.classList.contains('collapsed');
+        const newIcon = isCollapsed ? 'skip-forward' : 'skip-back';
+        sidebarToggleBtn.innerHTML = `<i data-feather="${newIcon}"></i>`;
+        if (typeof feather !== 'undefined') feather.replace();
+    }
+
+    function updateLockButtonVisibility() {
+        if (!sidebarLockBtn) return;
+        const isCollapsed = appContainer.classList.contains('collapsed');
+        sidebarLockBtn.classList.toggle('sidebar-lock-hidden', isCollapsed);
+    }
 
     if (sidebarToggleBtn && appContainer) {
         sidebarToggleBtn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
 
-            const isCollapsed = appContainer.classList.toggle('collapsed');
-
-            // Update Icon
-            // Re-create the <i> tag because feather.replace() replaces it with an <svg>
-            const newIcon = isCollapsed ? 'skip-forward' : 'skip-back';
-            sidebarToggleBtn.innerHTML = `<i data-feather="${newIcon}"></i>`;
-
-            if (typeof feather !== 'undefined') {
-                feather.replace();
+            const isCollapsed = appContainer.classList.contains('collapsed');
+            if (isSidebarLocked() && !isCollapsed) {
+                return;
             }
 
-            // Trigger resize for charts
+            appContainer.classList.toggle('collapsed');
+            saveSidebarOpenState(!appContainer.classList.contains('collapsed'));
+            updateToggleIcon();
+            updateLockButtonVisibility();
             triggerResize();
         });
     }
 
-    // No more Lock/Auto logic needed as hover is disabled.
+    if (sidebarLockBtn && appContainer) {
+        const savedLock = localStorage.getItem(SIDEBAR_LOCK_KEY) === 'true';
+        setSidebarLocked(savedLock);
+        updateLockButtonVisibility();
+
+        sidebarLockBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const newLock = !isSidebarLocked();
+            setSidebarLocked(newLock);
+        });
+    }
+
+    if (appContainer) {
+        const shouldBeOpen = isSidebarLocked() || isSidebarOpenSaved();
+        if (shouldBeOpen && appContainer.classList.contains('collapsed')) {
+            appContainer.classList.remove('collapsed');
+        } else if (!shouldBeOpen && !appContainer.classList.contains('collapsed')) {
+            appContainer.classList.add('collapsed');
+        }
+        updateToggleIcon();
+        updateLockButtonVisibility();
+
+        const lockObserver = new MutationObserver(function() {
+            if (appContainer.classList.contains('collapsed') && isSidebarLocked()) {
+                appContainer.classList.remove('collapsed');
+                updateToggleIcon();
+                updateLockButtonVisibility();
+                triggerResize();
+            }
+        });
+        lockObserver.observe(appContainer, { attributes: true, attributeFilter: ['class'] });
+    }
 
     // Sidebar Hover Expansion REMOVED per user request
     // if (sidebar && appContainer) { ... }
 
-    // Submenu Logic
+    // Submenu Logic + preserve open state across navigation
+    const NAV_OPEN_GROUPS_KEY = 'aiops-nav-open-groups';
+
+    function getOpenNavGroups() {
+        try {
+            const stored = localStorage.getItem(NAV_OPEN_GROUPS_KEY);
+            return stored ? JSON.parse(stored) : [];
+        } catch (e) {
+            return [];
+        }
+    }
+
+    function saveOpenNavGroups() {
+        const groups = document.querySelectorAll('.nav-group[data-nav-group]');
+        const openIds = [];
+        groups.forEach(g => {
+            if (g.classList.contains('open')) openIds.push(g.getAttribute('data-nav-group'));
+        });
+        localStorage.setItem(NAV_OPEN_GROUPS_KEY, JSON.stringify(openIds));
+    }
+
+    function restoreOpenNavGroups() {
+        const saved = getOpenNavGroups();
+        document.querySelectorAll('.nav-group[data-nav-group]').forEach(g => {
+            const id = g.getAttribute('data-nav-group');
+            if (saved.includes(id)) g.classList.add('open');
+        });
+    }
+
+    restoreOpenNavGroups();
+
     const submenuParents = document.querySelectorAll('.has-submenu');
     submenuParents.forEach(parent => {
         const navGroup = parent.parentElement;
-        parent.addEventListener('click', () => {
+        parent.addEventListener('click', (e) => {
+            e.stopPropagation();
             navGroup.classList.toggle('open');
+            saveOpenNavGroups();
         });
     });
+
+    document.querySelectorAll('.sidebar .nav-item.submenu-item[onclick]').forEach(item => {
+        item.addEventListener('click', function() {
+            saveOpenNavGroups();
+        }, true);
+    });
+
+    window.addEventListener('beforeunload', saveOpenNavGroups);
 
     // RE-VIVE Chat Panel Logic
     initChatPanel();

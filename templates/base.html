@@ -23,7 +23,7 @@
     <link href="/static/style.css?v=20260212b" rel="stylesheet">
     <link href="/static/style_agent_widget.css?v=20260211a" rel="stylesheet">
     <link href="/static/css/theme-controls.css?v=20260213a" rel="stylesheet">
-    <link href="/static/css/themes/jackson.css?v=20260215b" rel="stylesheet">
+    <link href="/static/css/themes/jackson.css?v=20260215i" rel="stylesheet">
 
     <!-- ECharts -->
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
@@ -38,8 +38,13 @@
 </head>
 
 <body>
+    {% set current_path = current_path | default(request.url.path) %}
     {% block layout_container %}
-    <div class="app-container collapsed">
+    <div class="app-container collapsed" id="appContainer">
+        <script>
+        (function(){try{var o=localStorage.getItem('aiops-sidebar-open')==='true',l=localStorage.getItem('aiops-sidebar-locked')==='true';
+        if(o||l)document.getElementById('appContainer').classList.remove('collapsed');}catch(e){}})();
+        </script>
         {% include 'partials/sidebar.html' %}
 
         <!-- Header (Refactored for CSS Grid) -->
