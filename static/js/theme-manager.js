@@ -1,9 +1,10 @@
 /**
- * Theme & Zoom Manager for AIOps Platform
- * Manages Light and Aftab themes with zoom functionality
+ * Theme Manager for AIOps Platform
+ * Manages Light, Aftab, and Jackson themes
+ * Use browser zoom (Ctrl+/Ctrl-) for interface scaling
  */
 
-class ThemeZoomManager {
+class ThemeManager {
     constructor() {
         this.themes = {
             light: {
@@ -155,76 +156,20 @@ class ThemeZoomManager {
             }
         };
 
-        this.zoomLevels = [0.75, 0.85, 0.9, 1.0, 1.1, 1.25, 1.5];
-        this.currentZoomIndex = 3; // Default to 1.0 (100%)
-
         this.init();
     }
 
     init() {
-        // Load saved preferences
+        // Load saved theme preference
         const savedTheme = localStorage.getItem('aiops-theme') || 'light';
-        const savedZoom = localStorage.getItem('aiops-zoom');
 
         // Apply saved theme
         this.applyTheme(savedTheme);
 
-        // Auto-detect large screen on first visit (no saved zoom)
-        if (savedZoom === null) {
-            const detectedZoom = this.detectOptimalZoom();
-            const zoomIndex = this.zoomLevels.indexOf(detectedZoom);
-            if (zoomIndex !== -1) {
-                this.currentZoomIndex = zoomIndex;
-            }
-            console.log(`✓ Auto-detected screen ${window.screen.width}×${window.screen.height} → zoom ${Math.round(detectedZoom * 100)}%`);
-        } else {
-            // Apply previously saved zoom
-            const zoom = parseFloat(savedZoom) || 1.0;
-            const zoomIndex = this.zoomLevels.indexOf(zoom);
-            if (zoomIndex !== -1) {
-                this.currentZoomIndex = zoomIndex;
-            }
-        }
-        this.applyZoom();
-
-        // Setup keyboard shortcuts
-        this.setupKeyboardShortcuts();
-
         // Add data attribute for current theme
         document.documentElement.setAttribute('data-theme', savedTheme);
 
-        console.log('✓ Theme & Zoom Manager initialized');
-    }
-
-    /**
-     * Detect optimal zoom level based on screen resolution.
-     * On high-res monitors (2K/QHD/4K) the default 100% makes
-     * everything physically tiny — bump zoom so the UI stays
-     * comfortable. Uses window.screen (physical pixels).
-     */
-    detectOptimalZoom() {
-        const screenWidth = window.screen.width;
-        const screenHeight = window.screen.height;
-        const dpr = window.devicePixelRatio || 1;
-
-        // Effective resolution (CSS pixels available)
-        const effectiveWidth = screenWidth;
-
-        // 4K / UHD (≥ 3000 CSS pixels wide, or high DPR on large screen)
-        if (effectiveWidth >= 3000) {
-            return 1.5;
-        }
-        // QHD / 2K / 1440p (≥ 2400 CSS px)
-        if (effectiveWidth >= 2400) {
-            return 1.25;
-        }
-        // Wide QHD or high-density (≥ 1800 CSS px)
-        if (effectiveWidth >= 1800) {
-            return 1.1;
-        }
-
-        // Standard laptop / FHD — keep default
-        return 1.0;
+        console.log('✓ Theme Manager initialized');
     }
 
     applyTheme(themeName) {
@@ -337,94 +282,9 @@ class ThemeZoomManager {
     }
 
     updateThemeSelector(themeName) {
-        // Update theme toggle button
         const themeButtons = document.querySelectorAll('[data-theme-btn]');
         themeButtons.forEach(btn => {
             btn.classList.toggle('active', btn.dataset.themeBtn === themeName);
-        });
-    }
-
-    zoomIn() {
-        if (this.currentZoomIndex < this.zoomLevels.length - 1) {
-            this.currentZoomIndex++;
-            this.applyZoom();
-        }
-    }
-
-    zoomOut() {
-        if (this.currentZoomIndex > 0) {
-            this.currentZoomIndex--;
-            this.applyZoom();
-        }
-    }
-
-    resetZoom() {
-        this.currentZoomIndex = 3; // Reset to 1.0 (100%)
-        this.applyZoom();
-    }
-
-    applyZoom() {
-        const zoomLevel = this.zoomLevels[this.currentZoomIndex];
-
-        // Check if body exists before applying zoom
-        if (document.body) {
-            document.body.style.zoom = zoomLevel;
-
-            // Save preference
-            localStorage.setItem('aiops-zoom', zoomLevel);
-
-            // Update UI
-            this.updateZoomDisplay();
-
-            // Dispatch event
-            window.dispatchEvent(new CustomEvent('zoomChanged', {
-                detail: {
-                    zoom: zoomLevel,
-                    percent: Math.round(zoomLevel * 100),
-                    index: this.currentZoomIndex,
-                    isMin: this.currentZoomIndex === 0,
-                    isMax: this.currentZoomIndex === this.zoomLevels.length - 1
-                }
-            }));
-
-            console.log(`✓ Zoom level: ${Math.round(zoomLevel * 100)}%`);
-        } else {
-            // Body not ready yet, will apply when DOM is fully loaded
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', () => {
-                    this.applyZoom();
-                }, { once: true });
-            }
-        }
-    }
-
-    updateZoomDisplay() {
-        const display = document.getElementById('zoom-level-display');
-        if (display) {
-            const percent = Math.round(this.zoomLevels[this.currentZoomIndex] * 100);
-            display.textContent = `${percent}%`;
-        }
-    }
-
-    setupKeyboardShortcuts() {
-        document.addEventListener('keydown', (e) => {
-            // Ctrl/Cmd + Plus/Equals for zoom in
-            if ((e.ctrlKey || e.metaKey) && (e.key === '+' || e.key === '=')) {
-                e.preventDefault();
-                this.zoomIn();
-            }
-
-            // Ctrl/Cmd + Minus for zoom out
-            if ((e.ctrlKey || e.metaKey) && e.key === '-') {
-                e.preventDefault();
-                this.zoomOut();
-            }
-
-            // Ctrl/Cmd + 0 for reset zoom
-            if ((e.ctrlKey || e.metaKey) && e.key === '0') {
-                e.preventDefault();
-                this.resetZoom();
-            }
         });
     }
 
@@ -439,18 +299,16 @@ class ThemeZoomManager {
     getCurrentTheme() {
         return localStorage.getItem('aiops-theme') || 'light';
     }
-
-    getCurrentZoom() {
-        return this.zoomLevels[this.currentZoomIndex];
-    }
 }
 
-// Initialize globally
-window.themeZoomManager = new ThemeZoomManager();
+// Initialize globally - maintain backward compatibility with old variable name
+window.themeZoomManager = new ThemeManager();
+window.themeManager = window.themeZoomManager;
 
 // Ensure Jackson inline-style recolor runs after DOM is fully loaded
 document.addEventListener('DOMContentLoaded', () => {
-    if (window.themeZoomManager && window.themeZoomManager.getCurrentTheme() === 'jackson') {
-        window.themeZoomManager._recolorInlineBlue();
+    const currentTheme = window.themeManager.getCurrentTheme();
+    if (currentTheme === 'jackson') {
+        window.themeManager._recolorInlineBlue();
     }
 });

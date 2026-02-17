@@ -1,0 +1,146 @@
+/* Responsive Design - Media Queries for AIOps Platform */
+
+/* Base styles are optimized for 1920x1080 (100% scale) */
+
+/* Large screens / 4K (≥2560px) - Increase font size slightly for better readability */
+@media (min-width: 2560px) {
+    :root {
+        font-size: 18px;
+    }
+    
+    .app-container {
+        max-width: 2400px;
+        margin: 0 auto;
+    }
+}
+
+/* Laptop / FHD (1366px - 1920px) - Standard scaling */
+@media (min-width: 1366px) and (max-width: 1919px) {
+    :root {
+        font-size: 15px;
+    }
+}
+
+/* Small laptops / tablets landscape (1024px - 1365px) */
+@media (min-width: 1024px) and (max-width: 1365px) {
+    :root {
+        font-size: 14px;
+    }
+    
+    .app-container {
+        grid-template-columns: 160px 1fr 0px;
+    }
+    
+    .app-container.ai-open {
+        grid-template-columns: 160px 1fr var(--ai-helper-width);
+    }
+    
+    .main-content {
+        padding: 1rem;
+    }
+}
+
+/* Tablets portrait (768px - 1023px) */
+@media (min-width: 768px) and (max-width: 1023px) {
+    :root {
+        font-size: 14px;
+    }
+    
+    .sidebar {
+        position: fixed;
+        left: -250px;
+        transition: left 0.3s ease;
+        z-index: 1000;
+    }
+    
+    .sidebar.open {
+        left: 0;
+    }
+    
+    .main-content {
+        margin-left: 0;
+        padding: 0.75rem;
+    }
+    
+    .header-actions {
+        gap: 0.5rem;
+    }
+}
+
+/* Mobile devices (< 768px) */
+@media (max-width: 767px) {
+    :root {
+        font-size: 14px;
+    }
+    
+    .sidebar {
+        position: fixed;
+        left: -100%;
+        width: 80%;
+        max-width: 280px;
+        transition: left 0.3s ease;
+        z-index: 1000;
+    }
+    
+    .sidebar.open {
+        left: 0;
+    }
+    
+    .main-content {
+        margin-left: 0;
+        padding: 0.5rem;
+    }
+    
+    .header {
+        flex-direction: column;
+        gap: 0.5rem;
+        padding: 0.5rem;
+    }
+    
+    .header-actions {
+        flex-wrap: wrap;
+        gap: 0.25rem;
+    }
+    
+    .card, .panel {
+        padding: 0.75rem;
+    }
+    
+    /* Stack cards vertically on mobile */
+    .grid-cols-2,
+    .grid-cols-3,
+    .grid-cols-4 {
+        grid-template-columns: 1fr !important;
+    }
+    
+    /* Reduce chart heights on mobile */
+    .chart-container {
+        min-height: 250px !important;
+    }
+}
+
+/* High DPI displays (Retina) - Improve sharpness */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+    body {
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+}
+
+/* Print styles */
+@media print {
+    .sidebar,
+    .header-actions,
+    .revive-chat-btn,
+    .theme-zoom-controls {
+        display: none !important;
+    }
+    
+    .main-content {
+        margin-left: 0;
+    }
+    
+    .app-container {
+        max-width: 100%;
+    }
+}

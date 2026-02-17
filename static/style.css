@@ -7388,9 +7388,39 @@ input:checked+.toggle-slider:before {
     border-radius: 5px !important;
 }
 
-/* ---------- Main Content Area ---------- */
-[data-theme="jackson"] .main-content {
-    background: #FFFFFF !important;
+/* ---------- Light Theme: Main Content & Card Header ---------- */
+[data-theme="light"] .main-content {
+    background: #f8fafc !important;
+}
+
+[data-theme="light"] .card-header {
+    background: linear-gradient(180deg, #f8fafc 0%, #f4f6f9 100%);
+    padding: 14px 20px;
+    border-bottom: 1px solid #cbd5e15e;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset;
+}
+
+[data-theme="light"] .card-header h3 {
+    color: #0f172a;
+    font-weight: 600;
+}
+
+[data-theme="light"] .card-header .time-filter {
+    background: #fff;
+    border: 1px solid #cbd5e1;
+    color: #475569;
+}
+
+[data-theme="light"] .card-header .time-filter:hover {
+    background: #f8fafc;
+    border-color: var(--accent-blue);
+    color: var(--accent-blue);
+}
+
+[data-theme="light"] .card-header .time-filter.active {
+    background: var(--accent-blue);
+    color: #fff;
+    border-color: var(--accent-blue);
 }
 
 /* ---------- Cards & Panels ---------- */

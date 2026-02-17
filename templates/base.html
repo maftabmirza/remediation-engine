@@ -20,10 +20,11 @@
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 
     <!-- Main Styles -->
-    <link href="/static/style.css?v=20260212b" rel="stylesheet">
+    <link href="/static/style.css?v=20260216f" rel="stylesheet">
     <link href="/static/style_agent_widget.css?v=20260211a" rel="stylesheet">
     <link href="/static/css/theme-controls.css?v=20260213a" rel="stylesheet">
-    <link href="/static/css/themes/jackson.css?v=20260215i" rel="stylesheet">
+    <link href="/static/css/themes/jackson.css?v=20260215k" rel="stylesheet">
+    <link href="/static/css/responsive.css?v=20260216f" rel="stylesheet">
 
     <!-- ECharts -->
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
@@ -31,8 +32,8 @@
     <!-- xterm.js CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
 
-    <!-- Theme & Zoom Manager -->
-    <script src="/static/js/theme-manager.js?v=20260213a"></script>
+    <!-- Theme Manager -->
+    <script src="/static/js/theme-manager.js?v=20260216d"></script>
 
     {% block head %}{% endblock %}
 </head>
@@ -80,33 +81,7 @@
             <div class="header-actions">
                 {% block header_actions %}
 
-                <!-- Theme & Zoom Controls -->
                 <div class="theme-zoom-controls">
-                    <!-- Theme & Zoom Controls -->
-                    <div class="theme-zoom-controls">
-                        <!-- Theme Selector Removed per user request -->
-
-                        <!-- Zoom Controls -->
-
-                        <!-- Zoom Controls -->
-                        <div class="zoom-controls">
-                            <button class="zoom-btn" id="zoom-out-btn" onclick="window.themeZoomManager.zoomOut()"
-                                title="Zoom Out (Ctrl -)">
-                                <i data-feather="minus" style="width:14px;"></i>
-                            </button>
-                            <div class="zoom-level-display" id="zoom-level-display">100%</div>
-                            <button class="zoom-btn" id="zoom-in-btn" onclick="window.themeZoomManager.zoomIn()"
-                                title="Zoom In (Ctrl +)">
-                                <i data-feather="plus" style="width:14px;"></i>
-                            </button>
-                            <button class="zoom-btn" onclick="window.themeZoomManager.resetZoom()"
-                                title="Reset Zoom (Ctrl 0)">
-                                <i data-feather="maximize-2" style="width:14px;"></i>
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="theme-zoom-divider"></div>
 
                     <!-- RE-VIVE Chat Button -->
                     <button class="revive-chat-btn" id="ai-helper-toggle" title="RE-VIVE AI Assistant">
@@ -456,25 +431,9 @@
                 if (typeof feather !== 'undefined') feather.replace();
             });
 
-            // Update zoom controls on zoom change
-            window.addEventListener('zoomChanged', function (e) {
-                var zoomOutBtn = document.getElementById('zoom-out-btn');
-                var zoomInBtn = document.getElementById('zoom-in-btn');
-                if (zoomOutBtn) zoomOutBtn.disabled = e.detail.isMin;
-                if (zoomInBtn) zoomInBtn.disabled = e.detail.isMax;
-            });
-
             // Fire initial state
             var cur = window.themeZoomManager.getCurrentTheme();
             window.dispatchEvent(new CustomEvent('themeChanged', { detail: { theme: cur } }));
-            window.dispatchEvent(new CustomEvent('zoomChanged', {
-                detail: {
-                    zoom: window.themeZoomManager.getCurrentZoom(),
-                    percent: Math.round(window.themeZoomManager.getCurrentZoom() * 100),
-                    isMin: window.themeZoomManager.currentZoomIndex === 0,
-                    isMax: window.themeZoomManager.currentZoomIndex === window.themeZoomManager.zoomLevels.length - 1
-                }
-            }));
         }
     </script>
 </body>
