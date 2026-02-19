@@ -47,10 +47,12 @@
     --radius-lg: 16px;
 
     /* Layout Dimensions - 25% wider than default to match source design */
-    --layout-header-h: 90px;
+    --layout-header-h: 60px;
     --layout-sidebar-w: 218px;
     --layout-sidebar-collapsed-w: 64px;
 }
+
+
 
 /* Specific Jackson Theme Overrides */
 
@@ -64,6 +66,14 @@
 
 /* Header Overrides - White bar per reference */
 [data-theme="jackson"] .top-header {
+    background: #FFFFFF !important;
+    border-bottom: 1px solid #E5E5E5;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    /* height: 60px !important; REMOVED per user request */
+    min-height: auto !important;
+    max-height: none !important;
+    padding: 0 20px !important;
+    justify-content: space-between !important;
     color: #444444;
 }
 
@@ -933,13 +943,13 @@
     box-shadow: 0 0 0 3px rgba(114, 47, 55, 0.4) !important;
 }
 
-[data-theme="jackson"] #user-menu-button > div,
+[data-theme="jackson"] #user-menu-button>div,
 [data-theme="jackson"] #user-menu-button .bg-blue-600 {
     background: #722f37 !important;
     border-color: rgba(114, 47, 55, 0.6) !important;
 }
 
-[data-theme="jackson"] #user-menu-button > div:hover,
+[data-theme="jackson"] #user-menu-button>div:hover,
 [data-theme="jackson"] #user-menu-button .hover\:bg-blue-700:hover {
     background: #5a252c !important;
 }
@@ -961,9 +971,7 @@
 }
 
 [data-theme="jackson"] #user-menu-dropdown .border-slate-100,
-[data-theme="jackson"] #user-menu-dropdown [class*="border-slate"],
-[data-theme="jackson"] div.border-slate-100,
-[data-theme="jackson"] div[class*="border-slate"] {
+[data-theme="jackson"] #user-menu-dropdown [class*="border-slate"] {
     border-color: rgba(255, 255, 255, 0.12) !important;
 }
 
@@ -971,17 +979,11 @@
 [data-theme="jackson"] #user-menu-dropdown span,
 [data-theme="jackson"] #user-menu-dropdown .text-slate-500,
 [data-theme="jackson"] #user-menu-dropdown .text-slate-800,
-[data-theme="jackson"] #user-menu-dropdown .text-slate-400,
-[data-theme="jackson"] p.text-slate-500,
-[data-theme="jackson"] p.text-slate-800,
-[data-theme="jackson"] p.text-slate-400,
-[data-theme="jackson"] span[class*="text-slate"] {
+[data-theme="jackson"] #user-menu-dropdown .text-slate-400 {
     color: rgba(255, 255, 255, 0.9) !important;
 }
 
-[data-theme="jackson"] #user-menu-dropdown .text-slate-700,
-[data-theme="jackson"] a.text-slate-700,
-[data-theme="jackson"] .text-slate-700 {
+[data-theme="jackson"] #user-menu-dropdown .text-slate-700 {
     color: rgba(255, 255, 255, 0.8) !important;
 }
 
@@ -1323,4 +1325,339 @@
 
 [data-theme="jackson"] .hover\:text-white:hover {
     color: #FFFFFF !important;
+}
+
+/* Page Title Override */
+[data-theme="jackson"] #pageTitle {
+    font-size: 16px !important;
+}
+
+/* Application Detail h1 Override */
+[data-theme="jackson"] .header-title-wrapper h1 {
+    font-size: 16px !important;
+    font-weight: 600 !important;
+}
+
+/* Card-level h1 (e.g. application detail page title) */
+[data-theme="jackson"] .card h1.text-xl {
+    font-size: 16px !important;
+    font-weight: 600 !important;
+    color: #333333 !important;
+}
+
+/* Card-level h3 with text-white (e.g. Topology Map heading) */
+[data-theme="jackson"] .card h3.text-white {
+    color: #333333 !important;
+}
+
+/* Runbook Buttons - Save, Add Step, etc. */
+[data-theme="jackson"] .btn-save,
+[data-theme="jackson"] button.btn-save {
+    background: var(--brand-red) !important;
+    background-image: none !important;
+    border-color: var(--brand-red) !important;
+    border-radius: 5px !important;
+    color: white !important;
+    box-shadow: 0 2px 4px rgba(114, 47, 55, 0.2);
+}
+
+[data-theme="jackson"] .btn-save:hover,
+[data-theme="jackson"] button.btn-save:hover {
+    background: #5a252c !important;
+    background-image: none !important;
+    box-shadow: 0 4px 8px rgba(114, 47, 55, 0.3);
+    transform: translateY(-1px);
+}
+
+/* ===== Alert Details Page - Jackson Theme Overrides ===== */
+
+/* Header alert name */
+[data-theme="jackson"] #header_alert_name {
+    font-size: 16px !important;
+    font-weight: 700 !important;
+    color: #444444 !important;
+}
+
+/* Header wrapper alignment */
+[data-theme="jackson"] .header-title-wrapper {
+    display: flex !important;
+    align-items: center !important;
+}
+
+/* Header icon color override (exclamation-triangle in header) */
+[data-theme="jackson"] .header-title-wrapper .text-pink-400 {
+    color: var(--brand-red) !important;
+}
+
+/* --- Alert Info Bar --- */
+[data-theme="jackson"] .alert-detail-card {
+    background: #ffffff !important;
+    border: 1px solid #e2e0dc !important;
+    color: #333333 !important;
+}
+
+/* Fix white text inside alert info bar */
+[data-theme="jackson"] .alert-detail-card .text-white {
+    color: #333333 !important;
+}
+
+[data-theme="jackson"] .alert-detail-card .text-slate-800 {
+    color: #1e293b !important;
+}
+
+[data-theme="jackson"] .alert-detail-card .text-slate-500 {
+    color: #64748b !important;
+}
+
+[data-theme="jackson"] .alert-detail-card .text-slate-400 {
+    color: #94a3b8 !important;
+}
+
+/* --- Chat Session Header (ts-session-header) --- */
+[data-theme="jackson"] .ts-session-header {
+    background: #f8f6f4 !important;
+    border-bottom: 1px solid #e2e0dc !important;
+    padding: 6px 10px !important;
+}
+
+[data-theme="jackson"] .ts-session-header .ts-llm-text,
+[data-theme="jackson"] .ts-session-header .ts-llm-selected {
+    color: #333333 !important;
+    padding: 4px 10px !important;
+    font-size: 12px !important;
+}
+
+[data-theme="jackson"] .ts-session-header .ts-icon-btn {
+    color: #64748b !important;
+}
+
+[data-theme="jackson"] .ts-session-header .ts-icon-btn:hover {
+    color: var(--brand-red) !important;
+}
+
+[data-theme="jackson"] .ts-session-header .ts-dropdown-icon {
+    color: #64748b !important;
+}
+
+/* --- Terminal Header --- */
+[data-theme="jackson"] .alert-detail-card>div.bg-slate-800,
+[data-theme="jackson"] .alert-detail-card>.bg-slate-800 {
+    background: #2d2a28 !important;
+    border-bottom: 1px solid #443f3c !important;
+    padding-top: 4px !important;
+    padding-bottom: 4px !important;
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+}
+
+[data-theme="jackson"] .alert-detail-card .bg-slate-800 h2 {
+    color: #f0ece8 !important;
+    font-size: 12px !important;
+}
+
+[data-theme="jackson"] .alert-detail-card .bg-slate-800 .text-gray-400 {
+    color: #a09890 !important;
+}
+
+[data-theme="jackson"] .alert-detail-card .bg-slate-800 .text-gray-500 {
+    color: #8a8078 !important;
+}
+
+[data-theme="jackson"] .alert-detail-card .bg-slate-800 .text-green-400 {
+    color: #4ade80 !important;
+}
+
+[data-theme="jackson"] .alert-detail-card .bg-slate-800 .btn-secondary {
+    background: rgba(114, 47, 55, 0.2) !important;
+    border: 1px solid rgba(114, 47, 55, 0.4) !important;
+    color: #e8c4c8 !important;
+}
+
+/* --- Alert Detail Tabs --- */
+[data-theme="jackson"] .alert-detail-tab {
+    color: #64748b !important;
+}
+
+[data-theme="jackson"] .alert-detail-tab:hover {
+    color: #333333 !important;
+}
+
+[data-theme="jackson"] .alert-detail-tab.active {
+    color: var(--brand-red) !important;
+    border-bottom-color: var(--brand-red) !important;
+}
+
+/* --- Analysis Tab Cards --- */
+[data-theme="jackson"] .alert-analysis-card {
+    background: #ffffff !important;
+    border: 1px solid #e2e0dc !important;
+    color: #333333 !important;
+}
+
+[data-theme="jackson"] .alert-analysis-card .text-slate-500 {
+    color: #64748b !important;
+}
+
+[data-theme="jackson"] .alert-analysis-card .text-slate-600 {
+    color: #475569 !important;
+}
+
+[data-theme="jackson"] .alert-analysis-card .text-slate-800 {
+    color: #1e293b !important;
+}
+
+[data-theme="jackson"] .alert-analysis-card .text-purple-600 {
+    color: var(--brand-red) !important;
+}
+
+[data-theme="jackson"] .alert-analysis-card .text-red-600 {
+    color: #b91c1c !important;
+}
+
+[data-theme="jackson"] .alert-analysis-card .text-purple-500 {
+    color: var(--brand-red) !important;
+}
+
+/* Analysis - Investigation Path header */
+[data-theme="jackson"] .alert-detail-card .bg-slate-50 {
+    background: #f8f6f4 !important;
+}
+
+[data-theme="jackson"] .alert-detail-card .bg-white {
+    background: #ffffff !important;
+}
+
+[data-theme="jackson"] .alert-detail-card .text-blue-600 {
+    color: var(--brand-red) !important;
+}
+
+/* --- Chat messages area text fix --- */
+[data-theme="jackson"] .ts-chat-messages .text-slate-500 {
+    color: #64748b !important;
+}
+
+/* ===== Global Text Color Fixes for Jackson Theme ===== */
+
+/* Header title text: text-white is invisible on light header */
+[data-theme="jackson"] .header-title-wrapper .text-white,
+[data-theme="jackson"] .header-title-wrapper .text-sm.text-white {
+    color: #333333 !important;
+}
+
+/* Breadcrumb text: text-gray-200 is invisible on light header */
+[data-theme="jackson"] .header-breadcrumbs .text-gray-200 {
+    color: #555555 !important;
+}
+
+/* Page action buttons (Manage Apps, Sync Git, Add Document, etc.) */
+[data-theme="jackson"] .main-content .bg-gray-700 {
+    background: #555555 !important;
+}
+
+[data-theme="jackson"] .main-content .bg-gray-700:hover {
+    background: #444444 !important;
+}
+
+/* View document modal meta badges */
+[data-theme="jackson"] #viewMeta .bg-gray-700 {
+    background: #e2e0dc !important;
+    color: #333333 !important;
+}
+
+/* ===== Slate Color Polyfill (Tailwind v2 lacks slate) ===== */
+/* These classes are used in templates but undefined in Tailwind v2 */
+
+[data-theme="jackson"] .text-slate-900 {
+    color: #0f172a !important;
+}
+
+[data-theme="jackson"] .text-slate-800 {
+    color: #1e293b !important;
+}
+
+[data-theme="jackson"] .text-slate-700 {
+    color: #334155 !important;
+}
+
+[data-theme="jackson"] .text-slate-600 {
+    color: #475569 !important;
+}
+
+[data-theme="jackson"] .text-slate-500 {
+    color: #64748b !important;
+}
+
+[data-theme="jackson"] .text-slate-400 {
+    color: #94a3b8 !important;
+}
+
+[data-theme="jackson"] .text-slate-300 {
+    color: #cbd5e1 !important;
+}
+
+[data-theme="jackson"] .text-slate-200 {
+    color: #e2e8f0 !important;
+}
+
+[data-theme="jackson"] .bg-slate-50 {
+    background-color: #f8fafc !important;
+}
+
+[data-theme="jackson"] .bg-slate-100 {
+    background-color: #f1f5f9 !important;
+}
+
+[data-theme="jackson"] .bg-slate-200 {
+    background-color: #e2e8f0 !important;
+}
+
+[data-theme="jackson"] .bg-slate-800 {
+    background-color: #1e293b !important;
+}
+
+[data-theme="jackson"] .border-slate-100 {
+    border-color: #f1f5f9 !important;
+}
+
+[data-theme="jackson"] .border-slate-200 {
+    border-color: #e2e8f0 !important;
+}
+
+[data-theme="jackson"] .border-slate-300 {
+    border-color: #cbd5e1 !important;
+}
+
+/* ===== KPI Ribbon - Compact Jackson Override ===== */
+[data-theme="jackson"] .kpi-ribbon {
+    padding: 8px 12px !important;
+    border-radius: 6px !important;
+}
+
+[data-theme="jackson"] .kpi-ribbon-item {
+    gap: 8px !important;
+    padding: 0 12px !important;
+}
+
+[data-theme="jackson"] .ribbon-icon {
+    width: 28px !important;
+    height: 28px !important;
+    border-radius: 6px !important;
+}
+
+[data-theme="jackson"] .ribbon-icon svg {
+    width: 14px !important;
+    height: 14px !important;
+}
+
+[data-theme="jackson"] .ribbon-value {
+    font-size: 16px !important;
+    font-weight: 700 !important;
+}
+
+[data-theme="jackson"] .ribbon-label {
+    font-size: 10px !important;
+}
+
+[data-theme="jackson"] .ribbon-divider {
+    height: 24px !important;
 }

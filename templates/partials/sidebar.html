@@ -1,16 +1,15 @@
 <nav class="sidebar" id="sidebar">
     <!-- Sidebar Logo (Top-Left Corner) -->
     <div class="sidebar-logo">
-        <div class="sidebar-logo-icon">
-            <span style="font-weight: 700;">A</span>
-        </div>
-        <span class="sidebar-logo-text">AIOps Enterprise</span>
+        <img src="/static/images/jackson_logo.svg" alt="Jackson Logo" class="sidebar-logo-img logo-full">
+        <img src="/static/images/jackson-icon.png" alt="Jackson Icon" class="sidebar-logo-img logo-icon">
     </div>
 
     <ul class="nav-menu">
 
         <!-- Dashboard Group -->
-        <li class="nav-group {{ 'open' if active_page in ['dashboard', 'changes', 'incidents', 'dashboards', 'datasources', 'panels', 'playlists', 'alerts'] else '' }}" data-nav-group="dashboard">
+        <li class="nav-group {{ 'open' if active_page in ['dashboard', 'changes', 'incidents', 'dashboards', 'datasources', 'panels', 'playlists', 'alerts'] else '' }}"
+            data-nav-group="dashboard">
             <div class="nav-item has-submenu">
                 <i data-feather="home"></i>
                 <span class="nav-text">Dashboard</span>
@@ -61,7 +60,8 @@
         </li>
 
         <!-- Observability Group -->
-        <li class="nav-group {{ 'open' if (current_path or '').startswith('/logs') or (current_path or '').startswith('/traces') or (current_path or '').startswith('/grafana') or (current_path or '').startswith('/prometheus') else '' }}" data-nav-group="observability">
+        <li class="nav-group {{ 'open' if (current_path or '').startswith('/logs') or (current_path or '').startswith('/traces') or (current_path or '').startswith('/grafana') or (current_path or '').startswith('/prometheus') else '' }}"
+            data-nav-group="observability">
             <div class="nav-item has-submenu">
                 <i data-feather="activity"></i>
                 <span class="nav-text">Observability</span>
@@ -97,7 +97,8 @@
         </li>
 
         <!-- AI Analyst Group -->
-        <li class="nav-group {{ 'open' if (current_path or '').startswith('/inquiry') or (current_path or '').startswith('/troubleshoot') else '' }}" data-nav-group="ai_analyst">
+        <li class="nav-group {{ 'open' if (current_path or '').startswith('/inquiry') or (current_path or '').startswith('/troubleshoot') else '' }}"
+            data-nav-group="ai_analyst">
             <div class="nav-item has-submenu">
                 <i data-feather="cpu"></i>
                 <span class="nav-text">AI Analyst</span>
@@ -118,7 +119,8 @@
         </li>
 
         <!-- Remediation Group -->
-        <li class="nav-group {{ 'open' if (current_path or '').startswith('/runbooks') or (current_path or '').startswith('/executions') or (current_path or '').startswith('/schedules') else '' }}" data-nav-group="remediation">
+        <li class="nav-group {{ 'open' if (current_path or '').startswith('/runbooks') or (current_path or '').startswith('/executions') or (current_path or '').startswith('/schedules') else '' }}"
+            data-nav-group="remediation">
             <div class="nav-item has-submenu">
                 <i data-feather="tool"></i>
                 <span class="nav-text">Remediation</span>
@@ -145,7 +147,8 @@
         </li>
 
         <!-- Knowledge Group -->
-        <li class="nav-group {{ 'open' if (current_path or '').startswith('/knowledge') or (current_path or '').startswith('/applications') else '' }}" data-nav-group="knowledge">
+        <li class="nav-group {{ 'open' if (current_path or '').startswith('/knowledge') or (current_path or '').startswith('/applications') else '' }}"
+            data-nav-group="knowledge">
             <div class="nav-item has-submenu">
                 <i data-feather="book-open"></i>
                 <span class="nav-text">Knowledge</span>
@@ -167,7 +170,8 @@
 
 
         <!-- Settings Group -->
-        <li class="nav-group {{ 'open' if (current_path or '').startswith('/settings') or (current_path or '').startswith('/rules') or (current_path or '').startswith('/audit') or (current_path or '').startswith('/pii-detection') or (current_path or '').startswith('/pii-logs') or (current_path or '').startswith('/credential-profiles') else '' }}" data-nav-group="settings">
+        <li class="nav-group {{ 'open' if (current_path or '').startswith('/settings') or (current_path or '').startswith('/rules') or (current_path or '').startswith('/audit') or (current_path or '').startswith('/pii-detection') or (current_path or '').startswith('/pii-logs') or (current_path or '').startswith('/credential-profiles') else '' }}"
+            data-nav-group="settings">
             <div class="nav-item has-submenu">
                 <i data-feather="settings"></i>
                 <span class="nav-text">Settings</span>
