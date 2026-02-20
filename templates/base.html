@@ -23,7 +23,18 @@
     <link href="/static/style.css?v=20260216f" rel="stylesheet">
     <link href="/static/style_agent_widget.css?v=20260211a" rel="stylesheet">
     <link href="/static/css/theme-controls.css?v=20260213a" rel="stylesheet">
-    <link href="/static/css/themes/jackson.css?v=20260215k" rel="stylesheet">
+    <!-- Theme CSS (Dynamic) - Load synchronously to prevent FOUC -->
+    <script>
+        (function () {
+            try {
+                var theme = localStorage.getItem('aiops-theme') || 'light';
+                document.documentElement.setAttribute('data-theme', theme);
+                document.write('<link id="theme-css" href="/static/css/themes/' + theme + '.css?v=20260219a" rel="stylesheet">');
+            } catch (e) {
+                document.write('<link id="theme-css" href="/static/css/themes/light.css?v=20260219a" rel="stylesheet">');
+            }
+        })();
+    </script>
     <link href="/static/css/responsive.css?v=20260216f" rel="stylesheet">
 
     <!-- ECharts -->
@@ -43,8 +54,12 @@
     {% block layout_container %}
     <div class="app-container collapsed" id="appContainer">
         <script>
-        (function(){try{var o=localStorage.getItem('aiops-sidebar-open')==='true',l=localStorage.getItem('aiops-sidebar-locked')==='true';
-        if(o||l)document.getElementById('appContainer').classList.remove('collapsed');}catch(e){}})();
+            (function () {
+                try {
+                    var o = localStorage.getItem('aiops-sidebar-open') === 'true', l = localStorage.getItem('aiops-sidebar-locked') === 'true';
+                    if (o || l) document.getElementById('appContainer').classList.remove('collapsed');
+                } catch (e) { }
+            })();
         </script>
         {% include 'partials/sidebar.html' %}
 

@@ -186,6 +186,15 @@ class ThemeManager {
             root.style.setProperty(key, value);
         });
 
+        // Update Theme CSS File
+        const themeLink = document.getElementById('theme-css');
+        if (themeLink) {
+            // Check if href needs update to avoid reload flash if same
+            if (!themeLink.href.includes(`/${themeName}.css`)) {
+                themeLink.href = `/static/css/themes/${themeName}.css?v=20260219a`;
+            }
+        }
+
         // Save preference
         localStorage.setItem('aiops-theme', themeName);
         document.documentElement.setAttribute('data-theme', themeName);
