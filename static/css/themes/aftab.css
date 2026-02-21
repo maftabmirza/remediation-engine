@@ -56,8 +56,8 @@
 
     /* Layout dimensions — consumed by Grafana iframe pages */
     --layout-header-h: 48px;
-    --layout-sidebar-w: 170px;
-    --layout-sidebar-collapsed-w: 48px;
+    --layout-sidebar-w: 240px;
+    --layout-sidebar-collapsed-w: 64px;
 }
 
 /* Reset & Base */
@@ -151,6 +151,10 @@ body {
     /* Firefox */
 }
 
+.app-container:not(.collapsed) .sidebar {
+    padding: 0 6px 0 0;
+}
+
 .sidebar::-webkit-scrollbar {
     width: 0px;
     /* Chrome/Safari/Opera */
@@ -161,11 +165,9 @@ body {
 .sidebar-logo {
     display: flex;
     align-items: center;
-    justify-content: center;
-    /* Center the logo */
+    justify-content: flex-start;
     height: 48px;
-    /* Match header height */
-    padding: 0 12px;
+    padding: 12px 12px;
     background: var(--bg-sidebar);
     flex-shrink: 0;
 }
@@ -203,9 +205,9 @@ body {
     font-size: 11px;
     text-transform: uppercase;
     color: var(--text-muted-dark);
-    font-weight: 600;
-    letter-spacing: 0.5px;
-    padding: 16px 20px 8px 20px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    padding: 16px 12px 8px 12px;
     opacity: 0.7;
     margin-top: 4px;
 }
@@ -466,8 +468,8 @@ body {
 .nav-menu {
     display: flex;
     flex-direction: column;
-    gap: 2px;
-    padding: 0 8px;
+    gap: 4px;
+    padding: 4px 0 12px 0;
 }
 
 .app-container.collapsed .nav-menu {
@@ -480,17 +482,18 @@ body {
 .nav-item {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 8px 12px;
-    border-radius: var(--radius-sm);
+    gap: 8px;
+    padding: 10px 8px 10px 12px;
+    border-radius: 8px;
     color: var(--text-muted-dark);
     transition: all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
     cursor: pointer;
     font-weight: 400;
     border: none;
-    height: 36px;
+    min-height: 40px;
+    margin: 0 4px;
     justify-content: flex-start;
-    width: 100%;
+    width: auto;
     text-decoration: none;
 }
 
@@ -529,8 +532,8 @@ body {
 /* Sidebar Icons */
 .nav-item svg,
 .nav-item i {
-    width: 18px !important;
-    height: 18px !important;
+    width: 16px !important;
+    height: 16px !important;
     flex-shrink: 0;
     transition: color 0.2s;
     color: #a0a0a0;
@@ -596,7 +599,12 @@ body {
 .nav-text {
     white-space: nowrap;
     overflow: hidden;
+    text-overflow: ellipsis;
     transition: opacity 0.2s ease, max-width 0.3s ease;
+    font-size: 14px;
+    font-weight: 500;
+    flex: 1;
+    min-width: 0;
 }
 
 .app-container.collapsed .nav-text {
@@ -608,7 +616,7 @@ body {
 /* Submenu */
 .submenu {
     list-style: none;
-    padding-left: 0;
+    padding-left: 4px;
     max-height: 0;
     overflow: hidden;
     transition: max-height 0.3s ease-out, opacity 0.3s ease;
@@ -618,7 +626,8 @@ body {
     gap: 0.25rem;
     background: var(--bg-sidebar);
     border-radius: var(--radius-md);
-    margin-top: 0.25rem;
+    margin-left: 4px;
+    margin-top: 4px;
     border-left: 2px solid #444;
 }
 
@@ -637,13 +646,15 @@ body {
 }
 
 .submenu-item {
-    margin-left: 12px;
+    margin: 0 4px 0 0;
     font-size: 0.9em;
     border-left: 1px solid rgba(255, 255, 255, 0.1);
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 8px 12px;
+    gap: 8px;
+    padding: 8px 8px 8px 10px;
+    border-radius: 8px;
+    min-height: 36px;
 }
 
 .submenu-item:hover {
@@ -671,9 +682,9 @@ body {
     flex-direction: column;
     position: absolute;
     left: 100% !important;
-    transform: translateX(8px);
+    transform: translateX(4px);
     top: 0;
-    min-width: 200px;
+    min-width: 160px;
     background: var(--bg-sidebar);
     border: 1px solid rgba(255, 255, 255, 0.15);
     border-left: none;
@@ -681,7 +692,7 @@ body {
     border-radius: 0 8px 8px 0;
     z-index: var(--z-sidebar);
     max-height: none !important;
-    padding: 8px 0;
+    padding: 4px 0;
     overflow-y: auto;
     opacity: 0;
     visibility: hidden;
@@ -699,9 +710,9 @@ body {
 .app-container.collapsed .nav-group .submenu::before {
     content: '';
     position: absolute;
-    left: -20px;
+    left: -10px;
     top: 0;
-    width: 20px;
+    width: 10px;
     height: 100%;
     background: transparent;
 }
@@ -709,10 +720,10 @@ body {
 .app-container.collapsed .nav-group:hover .submenu .submenu-item {
     display: flex !important;
     align-items: center;
-    gap: 10px;
-    padding: 10px 16px !important;
+    gap: 8px;
+    padding: 8px 10px !important;
     width: auto !important;
-    min-width: 180px !important;
+    min-width: 140px !important;
     box-sizing: border-box;
     cursor: pointer;
     transition: background 0.2s ease;
@@ -6711,6 +6722,29 @@ input:checked+.toggle-slider:before {
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   1440p / Large Laptop Displays (≥1440 CSS px)
+   ═══════════════════════════════════════════════════════════════ */
+
+@media (min-width: 1440px) {
+
+    :root {
+        --layout-sidebar-w: 185px;
+    }
+
+    .app-container {
+        grid-template-columns: 185px 1fr 0px;
+    }
+
+    .app-container.ai-open {
+        grid-template-columns: 185px 1fr var(--ai-helper-width);
+    }
+
+    .header-logo-area {
+        width: 185px;
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════
    Large Screen Scaling — QHD / 2K+ Monitors (≥1800 CSS px)
    Proportionally scales sidebar, header, nav, fonts, cards,
    buttons, tables, and stat widgets so the UI doesn't look
@@ -6722,7 +6756,7 @@ input:checked+.toggle-slider:before {
     /* ── Layout dimension overrides ── */
     :root {
         --layout-header-h: 58px;
-        --layout-sidebar-w: 210px;
+        --layout-sidebar-w: 195px;
         --layout-sidebar-collapsed-w: 58px;
     }
 
@@ -6733,12 +6767,12 @@ input:checked+.toggle-slider:before {
 
     /* ── Grid shell ── */
     .app-container {
-        grid-template-columns: 210px 1fr 0px;
+        grid-template-columns: 195px 1fr 0px;
         grid-template-rows: 58px 1fr;
     }
 
     .app-container.ai-open {
-        grid-template-columns: 210px 1fr var(--ai-helper-width);
+        grid-template-columns: 195px 1fr var(--ai-helper-width);
     }
 
     .app-container.collapsed {
@@ -6774,7 +6808,7 @@ input:checked+.toggle-slider:before {
     }
 
     .header-logo-area {
-        width: 210px;
+        width: 195px;
         font-size: 1.2rem;
         padding-left: 14px;
     }
@@ -7049,7 +7083,7 @@ input:checked+.toggle-slider:before {
     /* ── Layout dimension overrides ── */
     :root {
         --layout-header-h: 68px;
-        --layout-sidebar-w: 250px;
+        --layout-sidebar-w: 205px;
         --layout-sidebar-collapsed-w: 68px;
     }
 
@@ -7060,12 +7094,12 @@ input:checked+.toggle-slider:before {
 
     /* ── Grid shell ── */
     .app-container {
-        grid-template-columns: 250px 1fr 0px;
+        grid-template-columns: 205px 1fr 0px;
         grid-template-rows: 68px 1fr;
     }
 
     .app-container.ai-open {
-        grid-template-columns: 250px 1fr var(--ai-helper-width);
+        grid-template-columns: 205px 1fr var(--ai-helper-width);
     }
 
     .app-container.collapsed {
@@ -7101,7 +7135,7 @@ input:checked+.toggle-slider:before {
     }
 
     .header-logo-area {
-        width: 250px;
+        width: 205px;
         font-size: 1.3rem;
         padding-left: 16px;
     }

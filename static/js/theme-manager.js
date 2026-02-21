@@ -11,45 +11,44 @@ class ThemeManager {
                 name: 'Light',
                 icon: 'sun',
                 colors: {
-                    // Current theme colors - keeping existing design
-                    '--bg-app': '#f4f6f8',
-                    '--bg-sidebar': '#0f0e47',
-                    '--bg-header': '#0f0e47',
+                    // Ocean Breeze - Teal-Blue Enterprise theme
+                    '--bg-app': '#FFFFFF',
+                    '--bg-sidebar': '#caf0f8',
+                    '--bg-header': '#FFFFFF',
 
-                    '--bg-panel': 'rgba(255, 255, 255, 0.75)',
-                    '--glass-border': '1px solid rgba(255, 255, 255, 0.8)',
-                    '--glass-shadow': '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+                    '--bg-panel': 'rgba(255, 255, 255, 0.95)',
+                    '--bg-surface': '#FFFFFF',
+                    '--bg-surface-raised': '#FFFFFF',
+                    '--glass-border': '1px solid #90e0ef',
+                    '--glass-shadow': '0 4px 12px rgba(3, 4, 94, 0.05)',
 
-                    '--border-subtle': '1px solid rgba(226, 232, 240, 0.8)',
-                    '--border-dark': '1px solid #334155',
+                    '--border-subtle': '1px solid #dbeafe',
+                    '--border-dark': '1px solid #03045e',
 
-                    '--text-primary': '#1e293b',
-                    '--text-secondary': '#64748b',
-                    '--text-primary': '#1e293b',
-                    '--text-secondary': '#64748b',
-                    '--text-on-dark': '#f1f5f9',
-                    '--text-on-dark': '#f1f5f9',
-                    '--text-header': '#f1f5f9', // Header text color (same as on-dark for Light theme)
-                    '--text-muted-dark': '#94a3b8',
+                    '--text-primary': '#03045e',
+                    '--text-secondary': '#334155',
+                    '--text-on-dark': '#03045e',
+                    '--text-header': '#03045e',
+                    '--text-muted-dark': '#64748b',
 
-                    '--border-header': 'rgba(255, 255, 255, 0.1)',
-                    '--header-btn-bg': 'rgba(255, 255, 255, 0.1)',
-                    '--header-btn-border': 'rgba(255, 255, 255, 0.2)',
-                    '--header-btn-hover': 'rgba(255, 255, 255, 0.18)',
-                    '--header-btn-color': '#f1f5f9',
+                    '--border-header': 'rgba(0, 119, 182, 0.1)',
+                    '--header-btn-bg': 'rgba(0, 0, 0, 0.05)',
+                    '--header-btn-border': 'rgba(0, 0, 0, 0.1)',
+                    '--header-btn-hover': 'rgba(0, 0, 0, 0.08)',
+                    '--header-btn-color': '#334155',
 
-                    '--accent-blue': '#3b82f6',
-                    '--accent-purple': '#8b5cf6',
-                    '--accent-cyan': '#06b6d4',
-                    '--accent-selected-bg': 'rgba(59, 130, 246, 0.08)',
+                    '--accent-blue': '#0077b6',
+                    '--accent-purple': '#03045e',
+                    '--accent-cyan': '#00b4d8',
+                    '--accent-selected-bg': 'rgba(0, 119, 182, 0.08)',
 
-                    '--status-success': '#10b981',
-                    '--status-warning': '#f59e0b',
-                    '--status-error': '#ef4444',
+                    '--status-success': '#059669',
+                    '--status-warning': '#D97706',
+                    '--status-error': '#DC2626',
 
-                    '--shadow-card': '0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03)',
-                    '--shadow-hover': '0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025)',
-                    '--shadow-levitate': '0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.02)'
+                    '--shadow-card': '0 1px 3px rgba(3, 4, 94, 0.06), 0 1px 2px rgba(3, 4, 94, 0.04)',
+                    '--shadow-hover': '0 8px 20px -4px rgba(3, 4, 94, 0.10), 0 4px 8px -2px rgba(3, 4, 94, 0.06)',
+                    '--shadow-levitate': '0 16px 32px -6px rgba(3, 4, 94, 0.12), 0 8px 16px -4px rgba(3, 4, 94, 0.06)'
                 }
             },
             aftab: {
@@ -96,6 +95,62 @@ class ThemeManager {
                     '--shadow-card': '0 2px 4px rgba(0, 0, 0, 0.1)',
                     '--shadow-hover': '0 8px 16px rgba(0, 0, 0, 0.1)',
                     '--shadow-levitate': '0 12px 24px rgba(0, 0, 0, 0.15)'
+                }
+            },
+            olive_leaf: {
+                name: 'Olive Leaf',
+                icon: 'feather',
+                colors: {
+                    // Olive Leaf Theme
+                    // Palette: Olive Leaf #606c38 | Black Forest #283618 | Cornsilk #fefae0 | Light Caramel #dda15e | Copper #bc6c25
+                    '--bg-app': '#fefae0',
+                    '--bg-sidebar': '#283618',
+                    '--bg-header': '#283618',
+
+                    '--bg-panel': 'rgba(254, 250, 224, 0.92)',
+                    '--bg-surface': '#f7f3df',
+                    '--bg-surface-raised': '#fefae0',
+                    '--glass-border': '1px solid rgba(188, 108, 37, 0.25)',
+                    '--glass-shadow': '0 4px 6px -1px rgba(40, 54, 24, 0.08), 0 2px 4px -1px rgba(40, 54, 24, 0.05)',
+
+                    '--border-subtle': '1px solid rgba(96, 108, 56, 0.22)',
+                    '--border-dark': '1px solid #283618',
+
+                    '--text-primary': '#283618',
+                    '--text-secondary': '#606c38',
+                    '--text-on-dark': '#fefae0',
+                    '--text-header': '#fefae0',
+                    '--text-muted-dark': '#9aaf82',
+
+                    '--border-header': 'rgba(254, 250, 224, 0.15)',
+                    '--header-btn-bg': 'rgba(254, 250, 224, 0.1)',
+                    '--header-btn-border': 'rgba(254, 250, 224, 0.2)',
+                    '--header-btn-hover': 'rgba(254, 250, 224, 0.18)',
+                    '--header-btn-color': '#fefae0',
+
+                    '--accent-blue': '#bc6c25',
+                    '--accent-purple': '#606c38',
+                    '--accent-cyan': '#dda15e',
+                    '--accent-selected-bg': 'rgba(188, 108, 37, 0.08)',
+
+                    '--status-success': '#16a34a',
+                    '--status-warning': '#d97706',
+                    '--status-error': '#ef4444',
+
+                    '--shadow-card': '0 1px 3px rgba(40, 54, 24, 0.08), 0 1px 2px rgba(40, 54, 24, 0.04)',
+                    '--shadow-hover': '0 8px 20px -4px rgba(40, 54, 24, 0.10), 0 4px 8px -2px rgba(40, 54, 24, 0.05)',
+                    '--shadow-levitate': '0 16px 32px -6px rgba(40, 54, 24, 0.12), 0 8px 16px -4px rgba(40, 54, 24, 0.06)',
+
+                    // Olive Leaf theme-specific extras
+                    '--olive-brand-copper': '#bc6c25',
+                    '--olive-cornsilk': '#fefae0',
+                    '--olive-forest': '#283618',
+                    '--olive-leaf-color': '#606c38',
+                    '--olive-caramel': '#dda15e',
+
+                    '--radius-sm': '8px',
+                    '--radius-md': '12px',
+                    '--radius-lg': '16px'
                 }
             },
             jackson: {
@@ -204,8 +259,13 @@ class ThemeManager {
             this._recolorInlineBlue();
             // Also observe DOM changes for dynamically-added elements
             this._startJacksonObserver();
+        } else if (themeName === 'olive_leaf') {
+            this._recolorInlineBlueToCopper();
+            this._startOliveObserver();
+            this._stopJacksonObserver();
         } else {
             this._stopJacksonObserver();
+            this._stopOliveObserver();
         }
 
         // Update UI if theme selector exists
@@ -290,6 +350,59 @@ class ThemeManager {
         }
     }
 
+    /**
+     * Rewrite inline style="" attributes that contain hardcoded blue
+     * to Olive Leaf Copper (#bc6c25) for the olive_leaf theme.
+     */
+    _recolorInlineBlueToCopper() {
+        const BLUE_RE = /#3b82f6|#2563eb|#1d4ed8|rgba\(\s*59\s*,\s*130\s*,\s*246/gi;
+        document.querySelectorAll('[style]').forEach(el => {
+            const raw = el.getAttribute('style');
+            if (!BLUE_RE.test(raw)) return;
+            BLUE_RE.lastIndex = 0;
+
+            let updated = raw;
+            updated = updated.replace(/#3b82f6/gi, '#bc6c25');
+            updated = updated.replace(/#2563eb/gi, '#9a5720');
+            updated = updated.replace(/#1d4ed8/gi, '#7a4415');
+            updated = updated.replace(
+                /rgba\(\s*59\s*,\s*130\s*,\s*246/gi,
+                'rgba(188, 108, 37'
+            );
+            if (updated.includes('linear-gradient') && updated.includes('#bc6c25')) {
+                updated = updated.replace(/linear-gradient\([^)]*\)/gi, '#bc6c25');
+            }
+            el.setAttribute('style', updated);
+        });
+    }
+
+    _startOliveObserver() {
+        if (this._oliveObs) return;
+        const startObserving = () => {
+            if (!document.body) return;
+            this._oliveObs = new MutationObserver((mutations) => {
+                let needsRecolor = false;
+                for (const m of mutations) {
+                    if (m.addedNodes.length) { needsRecolor = true; break; }
+                }
+                if (needsRecolor) this._recolorInlineBlueToCopper();
+            });
+            this._oliveObs.observe(document.body, { childList: true, subtree: true });
+        };
+        if (document.body) {
+            startObserving();
+        } else {
+            document.addEventListener('DOMContentLoaded', startObserving, { once: true });
+        }
+    }
+
+    _stopOliveObserver() {
+        if (this._oliveObs) {
+            this._oliveObs.disconnect();
+            this._oliveObs = null;
+        }
+    }
+
     updateThemeSelector(themeName) {
         const themeButtons = document.querySelectorAll('[data-theme-btn]');
         themeButtons.forEach(btn => {
@@ -314,10 +427,12 @@ class ThemeManager {
 window.themeZoomManager = new ThemeManager();
 window.themeManager = window.themeZoomManager;
 
-// Ensure Jackson inline-style recolor runs after DOM is fully loaded
+// Ensure inline-style recolor runs after DOM is fully loaded
 document.addEventListener('DOMContentLoaded', () => {
     const currentTheme = window.themeManager.getCurrentTheme();
     if (currentTheme === 'jackson') {
         window.themeManager._recolorInlineBlue();
+    } else if (currentTheme === 'olive_leaf') {
+        window.themeManager._recolorInlineBlueToCopper();
     }
 });

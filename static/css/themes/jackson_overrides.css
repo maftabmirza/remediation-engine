@@ -48,7 +48,7 @@
 
     /* Layout Dimensions - 25% wider than default to match source design */
     --layout-header-h: 60px;
-    --layout-sidebar-w: 218px;
+    --layout-sidebar-w: 240px;
     --layout-sidebar-collapsed-w: 64px;
 }
 
@@ -72,7 +72,7 @@
     /* height: 60px !important; REMOVED per user request */
     min-height: auto !important;
     max-height: none !important;
-    padding: 0 20px !important;
+    /* padding: 0 20px !important; */
     justify-content: space-between !important;
     color: #444444;
 }
@@ -118,12 +118,13 @@
 }
 
 [data-theme="jackson"] .app-container:not(.collapsed) .sidebar {
-    padding: 0 10px;
+    padding: 0 6px 0 0;
 }
 
 [data-theme="jackson"] .sidebar-logo {
     background: var(--bg-sidebar) !important;
-    padding: 12px 10px;
+    padding: 12px 12px;
+    justify-content: flex-start;
 }
 
 [data-theme="jackson"] .app-container.collapsed .sidebar-logo {
@@ -151,12 +152,12 @@
     text-transform: uppercase;
     letter-spacing: 0.05em;
     opacity: 1;
-    padding: 16px 10px 8px 10px;
+    padding: 16px 12px 8px 12px;
 }
 
 /* Nav menu - when sidebar OPEN */
 [data-theme="jackson"] .nav-menu {
-    padding: 4px 4px 12px 4px;
+    padding: 4px 0 12px 0;
     gap: 4px;
 }
 
@@ -168,17 +169,20 @@
     font-size: 14px;
     font-weight: 500;
     font-family: 'Inter', Roboto, Helvetica, Arial, sans-serif;
+    flex: 1;
+    min-width: 0;
+    text-overflow: ellipsis;
 }
 
 /* Nav item - when sidebar OPEN: padding, margin for pill-like floating look */
 [data-theme="jackson"] .nav-item {
     color: #333333;
     border: none;
-    border-radius: 10px;
-    margin: 0 8px;
-    padding: 10px 14px;
+    border-radius: 8px;
+    margin: 0 4px;
+    padding: 10px 8px 10px 12px;
     min-height: 40px;
-    gap: 12px;
+    gap: 8px;
     transition: background 0.2s ease, color 0.2s ease;
 }
 
@@ -203,9 +207,9 @@
     color: #FFFFFF !important;
     border: none;
     border-left: 3px solid var(--jackson-gold);
-    border-radius: 10px;
-    border-top-left-radius: 10px;
-    border-bottom-left-radius: 10px;
+    border-radius: 8px;
+    border-top-left-radius: 8px;
+    border-bottom-left-radius: 8px;
     box-shadow: none;
     font-weight: 600;
 }
@@ -235,8 +239,8 @@
 [data-theme="jackson"] .submenu {
     background: var(--bg-sidebar) !important;
     border-left-color: var(--jackson-sidebar-border) !important;
-    margin-left: 8px;
-    padding-left: 8px;
+    margin-left: 4px;
+    padding-left: 4px;
     margin-top: 4px;
 }
 
@@ -247,9 +251,9 @@
 [data-theme="jackson"] .submenu-item {
     color: #333333;
     border-left-color: var(--jackson-sidebar-border) !important;
-    padding: 8px 12px 8px 14px;
-    margin: 0 8px 0 0;
-    border-radius: 10px;
+    padding: 8px 8px 8px 10px;
+    margin: 0 4px 0 0;
+    border-radius: 8px;
     min-height: 36px;
 }
 

@@ -175,42 +175,61 @@ class ReviveOrchestrator:
             return base_modules
 
     def _build_system_message(self, mode_result, page_context: Optional[Dict[str, Any]] = None, history_length: int = 0):
+        # Shared formatting instructions appended to every mode
+        FORMATTING_INSTRUCTIONS = (
+            "\n\n---\n"
+            "## RESPONSE FORMATTING (MANDATORY)\n"
+            "Always format your responses using Markdown so they render clearly in the chat UI:\n"
+            "- **Bold** key terms, service names, and important values.\n"
+            "- Use bullet lists (`-`) for options, steps, or findings.\n"
+            "- Use numbered lists (`1.`) for sequential steps or procedures.\n"
+            "- Use `inline code` for commands, file paths, config keys, and technical values.\n"
+            "- Use fenced code blocks (``` ``` ```) for multi-line commands, scripts, or log snippets.\n"
+            "- Use `##` or `###` headers to separate distinct sections in longer responses.\n"
+            "- Use `>` blockquotes for important warnings or notes.\n"
+            "- Keep responses concise — avoid walls of plain text.\n"
+            "- Never output a response as a single unformatted paragraph if it contains multiple points.\n"
+        )
+
         if mode_result.mode == 'grafana':
             content = (
-                "You are the RE-VIVE Assistant (Quick Help Mode). "
-                "You help users understand Grafana dashboards and queries. "
-                "You have access to basic Grafana knowledge. "
-                "If the user needs deep troubleshooting, suggest they use '/ai troubleshooting' instead."
+                "You are the **RE-VIVE Assistant** (Quick Help Mode).\n\n"
+                "You help users understand Grafana dashboards and PromQL/LogQL queries.\n"
+                "You have access to basic Grafana knowledge.\n\n"
+                "> If the user needs deep troubleshooting with live metrics or logs, suggest they use `/ai troubleshooting` instead."
             )
         elif mode_result.mode == 'aiops':
             content = (
-                "You are RE-VIVE, a quick-help assistant for AIOps Platform. Your role is to:\\n"
-                "1. **Answer questions using the page context below** - if information is visible, use it directly\\n"
-                "2. **Explain what's on the page** and guide users on what to do next\\n"
-                "3. **Provide quick information** without making assumptions or taking actions\\n"
-                "\\n"
-                "**CRITICAL RULES:**\\n"
-                "- If the user asks 'how to' do something (execute, create, delete), explain the UI steps - DO NOT execute it\\n"
-                "- If runbook steps are in the page context below, **answer directly from that context** - do NOT call get_runbook\\n"
-                "- For complex actions (execute runbook, troubleshoot, query metrics), tell users: 'Use /ai troubleshooting for automated execution'\\n"
-                "- Only call tools if: (a) answer is NOT in page context, and (b) you need read-only information\\n"
-                "\\n"
-                "**Available Tools (use sparingly):**\\n"
-                "- get_runbook: Only if user asks about a runbook NOT currently displayed\\n"
-                "- show_available_runbooks: Only if user asks 'what runbooks exist?'\\n"
-                "- show_available_servers: Only if user asks 'what servers are available?'\\n"
+                "You are **RE-VIVE**, a quick-help assistant for the AIOps Platform.\n\n"
+                "## Your Role\n"
+                "1. **Answer questions using the page context below** — if the information is visible on the page, use it directly.\n"
+                "2. **Explain what's on the page** and guide users on what to do next.\n"
+                "3. **Provide quick information** without making assumptions or taking unsolicited actions.\n\n"
+                "## Critical Rules\n"
+                "- If the user asks *how to* do something (execute, create, delete), explain the UI steps — **do NOT execute it**.\n"
+                "- If runbook steps are in the page context below, **answer directly from that context** — do NOT call `get_runbook`.\n"
+                "- For complex automated actions (execute runbook, troubleshoot, query live metrics), tell users:\n"
+                "  > Use `/ai troubleshooting` for automated execution.\n"
+                "- Only call tools if: (a) the answer is NOT in the page context, **and** (b) you need read-only information.\n\n"
+                "## Available Tools (use sparingly)\n"
+                "- `get_runbook` — only if the user asks about a runbook **not** currently displayed.\n"
+                "- `show_available_runbooks` — only if the user asks *what runbooks exist?*\n"
+                "- `show_available_servers` — only if the user asks *what servers are available?*\n"
             )
             if history_length > 0:
-                content += f"\n\n**Session Context**: This conversation has {history_length} previous messages."
+                content += f"\n\n> **Session Context**: This conversation has {history_length} previous messages."
         else:
             content = (
-                "You are the RE-VIVE Assistant (Quick Help Mode). "
-                "I can help you with quick questions about the current page. "
-                "For deep troubleshooting with metrics and logs, suggest '/ai troubleshooting' instead."
+                "You are the **RE-VIVE Assistant** (Quick Help Mode).\n\n"
+                "I can help you with quick questions about the current page.\n\n"
+                "> For deep troubleshooting with live metrics and logs, suggest `/ai troubleshooting` instead."
             )
             if history_length > 0:
-                content += f" This conversation has {history_length} previous messages."
-            
+                content += f"\n\n> **Session Context**: This conversation has {history_length} previous messages."
+
+        # Append shared formatting instructions to all modes
+        content += FORMATTING_INSTRUCTIONS
+
         # Add Page Context if available
         if page_context:
             context_summary = f"\n\n[Current Context]\nUser is viewing: {page_context.get('title', 'Unknown Page')}"

@@ -1,7 +1,9 @@
 /**
  * AI Inquiry Page JavaScript
  * Dedicated Q&A interface with Artifacts Panel (Claude-inspired)
+ * Version: 2.3 (2026-02-21 history artifact fix)
  */
+console.log('[Inquiry] JS loaded - version 2.3 with history artifact support');
 
 // Global state
 let chatSocket = null;
@@ -244,25 +246,79 @@ async function switchModel(providerId) {
 
 async function loadMessageHistory(sessionId) {
     try {
+        console.log('[Inquiry] loadMessageHistory called for session:', sessionId);
         const response = await apiCall(`/api/v1/inquiry/sessions/${sessionId}/messages`);
         if (!response.ok) throw new Error('Failed to load history');
         const messages = await response.json();
+        console.log('[Inquiry] Loaded', messages.length, 'messages');
         const container = document.getElementById('chatMessages');
         container.innerHTML = '';
+
+        // Clear existing artifacts when loading a new/different session
+        resetArtifactsPanel();
+
         if (messages.length === 0) {
             showWelcomeScreen();
             return;
         }
+
+        // Collect all artifacts from history first, then display
+        const historyArtifacts = [];
+
         messages.forEach(msg => {
             if (msg.role === 'user') {
                 appendUserMessage(msg.content);
             } else if (msg.role === 'assistant') {
-                appendAIMessage(msg.content);
+                // Strip artifact markers and suggestions from the display text
+                const cleanText = (msg.content || '')
+                    .replace(/\[\s*ARTIFACT\s*\][\s\S]*?\[\s*\/ARTIFACT\s*\]/gi, '')
+                    .replace(/\[\s*SUGGESTIONS\s*\][\s\S]*?\[\s*\/SUGGESTIONS\s*\]/gi, '');
+                appendAIMessage(cleanText);
+
+                // Re-extract explicit [ARTIFACT] blocks from stored content
+                const rawContent = msg.content || '';
+                const artifactRegex = /\[ARTIFACT\]([\s\S]*?)\[\/ARTIFACT\]/g;
+                let match;
+                while ((match = artifactRegex.exec(rawContent)) !== null) {
+                    try {
+                        const artifactData = JSON.parse(match[1]);
+                        console.log('[Inquiry] Found stored artifact:', artifactData.id, artifactData.type, artifactData.title);
+                        if (typeof artifactData.content === 'string') {
+                            historyArtifacts.push({
+                                id: artifactData.id || generateArtifactId(),
+                                type: artifactData.type || 'markdown',
+                                title: artifactData.title || 'Tool Result',
+                                content: artifactData.content,
+                                rawContent: artifactData.content,
+                                timestamp: msg.created_at || new Date().toISOString()
+                            });
+                        }
+                    } catch (e) {
+                        console.error('[Inquiry] Error parsing stored artifact:', e, match[1].substring(0, 100));
+                    }
+                }
+
+                // Also detect artifacts from the message text (tables, code blocks, etc.)
+                const detectedArtifacts = detectArtifacts(cleanText);
+                console.log('[Inquiry] Detected', detectedArtifacts.length, 'artifacts from message text');
+                detectedArtifacts.forEach(artifact => {
+                    artifact.timestamp = msg.created_at || artifact.timestamp;
+                    historyArtifacts.push(artifact);
+                });
             }
         });
+
+        // Now add all collected artifacts to the panel
+        console.log('[Inquiry] Total artifacts to restore:', historyArtifacts.length);
+        historyArtifacts.forEach(artifact => {
+            if (!artifacts.find(a => a.id === artifact.id)) {
+                addArtifact(artifact);
+            }
+        });
+
         container.scrollTop = container.scrollHeight;
     } catch (error) {
-        console.error('Failed to load chat history:', error);
+        console.error('[Inquiry] Failed to load chat history:', error);
         showWelcomeScreen();
     }
 }
@@ -1424,23 +1480,30 @@ function minimizeArtifact() {
     });
 }
 
-function clearArtifacts() {
-    if (!confirm('Clear all artifacts?')) return;
-    
+/**
+ * Reset the artifacts panel (used when switching sessions / loading history).
+ * Does NOT prompt for confirmation.
+ */
+function resetArtifactsPanel() {
     artifacts = [];
     pinnedArtifacts.clear();
     activeArtifactId = null;
-    
+
     const history = document.getElementById('artifactHistory');
     if (history) history.innerHTML = '';
-    
+
     const active = document.getElementById('activeArtifact');
     if (active) active.classList.add('hidden');
-    
+
     const empty = document.getElementById('artifactsEmpty');
     if (empty) empty.classList.remove('hidden');
-    
+
     updateArtifactCount();
+}
+
+function clearArtifacts() {
+    if (!confirm('Clear all artifacts?')) return;
+    resetArtifactsPanel();
 }
 
 function exportAllArtifacts() {
