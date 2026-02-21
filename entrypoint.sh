@@ -85,10 +85,10 @@ except Exception as e:
     print(f'Error applying initial schema: {e}', file=sys.stderr)
     sys.exit(1)
 PYEOF
-    # The initial schema dump already includes objects from migrations up to 20260131000000.
-    # Set Atlas baseline to that version so only newer migrations are applied.
-    echo "Setting Atlas baseline to 20260131000000 (included in initial schema dump)..."
-    atlas migrate set --url "$DATABASE_URL" --dir "file://atlas/migrations" "20260131000000" 2>&1 || {
+    # The initial schema dump represents the state at 20260126000000.
+    # Set Atlas baseline to that version so all incremental migrations are applied.
+    echo "Setting Atlas baseline to 20260126000000 (initial schema version)..."
+    atlas migrate set --url "$DATABASE_URL" --dir "file://atlas/migrations" "20260126000000" 2>&1 || {
         echo "Warning: Atlas baseline set failed"
     }
     echo "Applying remaining migrations..."
