@@ -1,4 +1,4 @@
-﻿-- Atlas baseline migration: Initial schema
+-- Atlas baseline migration: Initial schema
 -- Created: 2026-01-26
 -- This represents the complete database schema as of this date.
 -- For existing databases, this migration is marked as applied (baseline).
@@ -65,6 +65,21 @@ CREATE TYPE public.paneltype AS ENUM (
 );
 
 
+
+
+--
+-- Name: update_updated_at_column; Type: FUNCTION; Schema: public; Owner: aiops
+--
+
+CREATE OR REPLACE FUNCTION public.update_updated_at_column()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$;
 
 
 SET default_tablespace = '';

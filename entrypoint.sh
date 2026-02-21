@@ -65,12 +65,34 @@ DB_CHECK=$?
 set -e
 
 if [ "$DB_CHECK" -eq 1 ]; then
-    echo "Fresh database - applying full schema with baseline..."
-    # For fresh DB, apply the baseline migration
-    atlas migrate apply --url "$DATABASE_URL" --dir "file://atlas/migrations" --baseline "20260126000000" 2>&1 || {
-        echo "Warning: Atlas apply with baseline failed, trying without baseline..."
-        atlas migrate apply --url "$DATABASE_URL" --dir "file://atlas/migrations" 2>&1 || true
+    echo "Fresh database - applying initial schema directly..."
+    # Apply the full initial schema SQL using Python/psycopg2 (psql not available in container)
+    python3 - <<'PYEOF'
+import os, psycopg2, sys
+db_url = os.environ.get('DATABASE_URL', 'postgresql://aiops:aiops@postgres:5432/aiops')
+schema_file = '/app/atlas/migrations/20260126000000_initial_schema.sql'
+try:
+    with open(schema_file, 'r', encoding='utf-8-sig') as f:
+        sql = f.read()
+    conn = psycopg2.connect(db_url)
+    conn.autocommit = True
+    cur = conn.cursor()
+    cur.execute(sql)
+    cur.close()
+    conn.close()
+    print('Initial schema applied successfully')
+except Exception as e:
+    print(f'Error applying initial schema: {e}', file=sys.stderr)
+    sys.exit(1)
+PYEOF
+    # The initial schema dump already includes objects from migrations up to 20260131000000.
+    # Set Atlas baseline to that version so only newer migrations are applied.
+    echo "Setting Atlas baseline to 20260131000000 (included in initial schema dump)..."
+    atlas migrate set --url "$DATABASE_URL" --dir "file://atlas/migrations" "20260131000000" 2>&1 || {
+        echo "Warning: Atlas baseline set failed"
     }
+    echo "Applying remaining migrations..."
+    atlas migrate apply --url "$DATABASE_URL" --dir "file://atlas/migrations" 2>&1 || true
 elif [ "$DB_CHECK" -eq 2 ]; then
     echo "Existing database needs Atlas baseline..."
     # Mark the initial migration as applied (baseline) without actually running it
