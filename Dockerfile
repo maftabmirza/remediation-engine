@@ -8,6 +8,11 @@ RUN apt-get update && apt-get install -y \
     libpq-dev \
     git \
     curl \
+    gosu \
+    pkg-config \
+    libxml2-dev \
+    libxmlsec1-dev \
+    libxmlsec1-openssl \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Atlas CLI
@@ -37,7 +42,8 @@ RUN chmod +x entrypoint.sh
 
 # Create non-root user
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
-USER appuser
+# We remove 'USER appuser' so the entrypoint runs as root first
+# to fix bind-mount permissions, then drops privileges using gosu
 
 EXPOSE 8080
 

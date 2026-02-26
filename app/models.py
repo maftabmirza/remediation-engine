@@ -39,6 +39,10 @@ class User(Base):
     last_login = Column(DateTime(timezone=True), nullable=True)
     ai_preferences = Column(JSON, default={}, nullable=True)
 
+    # SSO / CyberArk Identity fields (nullable — local users leave these blank)
+    sso_subject = Column(String(255), nullable=True, unique=True, index=True)
+    auth_provider = Column(String(50), nullable=True, default="local")  # "local" | "cyberark"
+
     # Relationships
     default_llm_provider = relationship("LLMProvider", foreign_keys=[default_llm_provider_id])
     rules_created = relationship("AutoAnalyzeRule", back_populates="created_by_user")

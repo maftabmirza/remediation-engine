@@ -12,8 +12,11 @@ asyncpg>=0.29.0
 # Authentication
 python-jose[cryptography]>=3.3.0
 passlib[bcrypt]>=1.7.4
-bcrypt>=4.1.2,<5.0.0
+bcrypt>=3.1.7,<4.0.0
 cryptography>=42.0.2
+
+# SAML 2.0 SSO (CyberArk Identity integration)
+python3-saml>=1.16.0
 
 # LLM
 litellm>=1.55.0

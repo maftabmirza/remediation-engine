@@ -1,8 +1,19 @@
 """
-Authentication API endpoints
+Authentication API endpoints.
+
+Supports two auth flows:
+  1. Local username/password  → POST /api/auth/login  (always available)
+  2. CyberArk Identity SAML   → GET  /api/auth/saml/login        (SP-initiated)
+                                 POST /api/auth/saml/acs          (assertion consumer)
+                                 GET  /api/auth/saml/metadata     (SP metadata XML)
+
+The SAML flow is dormant until an admin configures method="cyberark_saml" via
+POST /api/auth/config.  Both flows issue identical JWTs so all downstream
+authentication middleware is unchanged.
 """
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
+from fastapi.responses import RedirectResponse, Response as FastAPIResponse
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -14,6 +25,13 @@ from app.services.auth_service import (
     get_current_user,
     get_permissions_for_role,
     get_password_hash
+)
+from app.services.saml_service import (
+    require_cyberark_config,
+    is_cyberark_enabled,
+    build_saml_auth,
+    get_or_provision_sso_user,
+    generate_sp_metadata,
 )
 from app.metrics import AUTH_ATTEMPTS
 from slowapi import Limiter
@@ -93,6 +111,175 @@ async def login(
         user=user_payload
     )
 
+
+# ============================================================================ #
+#  CyberArk Identity SAML 2.0 endpoints                                        #
+# ============================================================================ #
+
+@router.get("/saml/login")
+async def saml_login(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """
+    SP-initiated SAML login.
+    Redirects the browser to CyberArk Identity for authentication.
+    Returns 503 if CyberArk SSO is not configured.
+    """
+    cfg = require_cyberark_config(db)
+    auth = await build_saml_auth(request, cfg)
+    sso_url = auth.login()
+    return RedirectResponse(url=sso_url, status_code=302)
+
+
+@router.post("/saml/acs")
+async def saml_acs(
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+):
+    """
+    Assertion Consumer Service (ACS) endpoint.
+    CyberArk POSTs the SAML Response here after successful authentication.
+
+    Flow:
+      1. Validate SAML assertion (signature, conditions, timestamps)
+      2. Extract NameID + user attributes
+      3. Find / auto-provision local User
+      4. Issue JWT + set HttpOnly cookie (identical to local login)
+      5. Redirect to app root  (or return JSON for API clients)
+    """
+    cfg = require_cyberark_config(db)
+    auth = await build_saml_auth(request, cfg)
+    auth.process_response()
+
+    errors = auth.get_errors()
+    if errors:
+        AUTH_ATTEMPTS.labels(status="sso_failed").inc()
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"CyberArk SAML authentication failed: {', '.join(errors)}",
+        )
+
+    if not auth.is_authenticated():
+        AUTH_ATTEMPTS.labels(status="sso_failed").inc()
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="CyberArk SAML response was not authenticated.",
+        )
+
+    # ---- Extract attributes ----------------------------------------------- #
+    sso_subject: str = auth.get_nameid() or ""
+    attributes: dict = auth.get_attributes()
+
+    attr_email    = cfg.get("attribute_email",    "email")
+    attr_username = cfg.get("attribute_username", "username")
+    attr_role     = cfg.get("attribute_role",     "role")
+
+    def _first(attrs: dict, key: str) -> str:
+        vals = attrs.get(key, [])
+        return vals[0] if vals else ""
+
+    email    = _first(attributes, attr_email)    or sso_subject
+    username = _first(attributes, attr_username) or sso_subject.split("@")[0]
+    cyberark_role_value = _first(attributes, attr_role)
+
+    if not sso_subject:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="CyberArk SAML response did not include a NameID.",
+        )
+
+    # ---- Find / provision user -------------------------------------------- #
+    user, created = get_or_provision_sso_user(
+        db=db,
+        sso_subject=sso_subject,
+        email=email,
+        username=username,
+        cyberark_role_value=cyberark_role_value,
+        cfg=cfg,
+        request=request,
+    )
+
+    if not user.is_active:
+        AUTH_ATTEMPTS.labels(status="disabled").inc()
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User account is disabled.",
+        )
+
+    AUTH_ATTEMPTS.labels(status="sso_success").inc()
+
+    # ---- Issue JWT (same as local login) ---------------------------------- #
+    access_token = create_access_token(data={"sub": str(user.id), "username": user.username})
+
+    user.last_login = datetime.now(timezone.utc)
+    db.add(AuditLog(
+        user_id=user.id,
+        action="sso_login",
+        resource_type="user",
+        resource_id=user.id,
+        ip_address=request.client.host if request.client else None,
+    ))
+    db.commit()
+
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        max_age=86400,
+        samesite="lax",
+    )
+
+    # Return JSON (API clients) and also a redirect header so browser UIs land on /
+    user_payload = UserResponse.model_validate(user)
+    user_payload.permissions = list(get_permissions_for_role(db, user.role))
+    return LoginResponse(
+        access_token=access_token,
+        token_type="bearer",
+        user=user_payload,
+    )
+
+
+@router.get("/saml/metadata")
+async def saml_metadata(
+    db: Session = Depends(get_db),
+):
+    """
+    Return the SP metadata XML.
+    CyberArk administrators use this to register the app as a SAML Service Provider.
+    This endpoint is public (no auth required) — standard SAML practice.
+    """
+    cfg = require_cyberark_config(db)
+    xml = generate_sp_metadata(cfg)
+    return FastAPIResponse(content=xml, media_type="application/xml")
+
+
+@router.get("/saml/status")
+async def saml_status(
+    db: Session = Depends(get_db),
+):
+    """
+    Quick health-check: is CyberArk SSO enabled?
+    Returns the configured SP entity ID and ACS URL (no secrets).
+    """
+    cfg = require_cyberark_config(db) if is_cyberark_enabled(db) else None
+    if not cfg:
+        return {"enabled": False, "message": "CyberArk SSO is not configured."}
+    return {
+        "enabled": True,
+        "sp_entity_id": cfg.get("sp_entity_id"),
+        "sp_acs_url": cfg.get("sp_acs_url"),
+        "auto_provision": cfg.get("auto_provision", True),
+        "default_role": cfg.get("default_role", "viewer"),
+        "login_url": "/api/auth/saml/login",
+        "metadata_url": "/api/auth/saml/metadata",
+    }
+
+
+# ============================================================================ #
+#  Original endpoints continue below                                            #
+# ============================================================================ #
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit("3/hour")
