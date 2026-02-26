@@ -11,7 +11,6 @@
 
     .settings-section.active {
         display: block;
-        margin-top: 12px;
     }
 
     /* Add Server Modal - Light Theme */
@@ -22,6 +21,7 @@
         border-left: 4px solid #3b82f6;
         background: #ffffff;
     }
+
     #serverModal .server-modal-dialog .input-field,
     #serverModal .server-modal-dialog input,
     #serverModal .server-modal-dialog select,
@@ -30,6 +30,7 @@
         border: 1px solid #e2e8f0 !important;
         color: #1e293b !important;
     }
+
     #serverModal .server-modal-dialog .input-field:focus,
     #serverModal .server-modal-dialog input:focus,
     #serverModal .server-modal-dialog select:focus,
@@ -37,6 +38,7 @@
         border-color: #3b82f6 !important;
         box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
     }
+
     #serverModal .server-modal-dialog label {
         color: #475569;
     }
@@ -50,8 +52,8 @@
     </div>
 
     <!-- All Settings Sections (Full Width) -->
-    <div class="space-y-4">
-        <section id="section-overview" class="settings-section active space-y-4">
+    <div>
+        <section id="section-overview" class="settings-section active">
 
             <!-- Stats Row -->
             <div class="settings-stats-row">
@@ -573,7 +575,7 @@
                 <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div class="flex flex-col min-w-0">
                         <h1 class="toolbar-title">Auth Settings</h1>
-                        <p class="toolbar-subtitle">Configure LDAP, SAML, and Local authentication</p>
+                        <p class="toolbar-subtitle">Configure LDAP, SAML, CyberArk Identity SSO, and Local authentication</p>
                     </div>
                 </div>
             </div>
@@ -593,6 +595,7 @@
                             <option value="local">Local Database (Default)</option>
                             <option value="ldap">LDAP / Active Directory</option>
                             <option value="saml">SAML 2.0 (SSO)</option>
+                            <option value="cyberark_saml">CyberArk Identity (SAML 2.0)</option>
                         </select>
                     </div>
 
@@ -703,13 +706,135 @@
                                 class="fas fa-heartbeat"></i>Test SSO Login</button>
                     </div>
 
+                    <!-- CyberArk Identity SAML Config -->
+                    <div id="cyberarkConfig" class="hidden space-y-4 config-section-green">
+                        <div class="flex items-center gap-3 mb-2">
+                            <h3 style="margin:0">CyberArk Identity Configuration</h3>
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium" style="background:#dcfce7;color:#166534;border:1px solid #86efac">Security Compliance</span>
+                        </div>
+                        <p class="text-xs" style="color:#64748b">Users log in via the CyberArk Identity portal and are mapped to app roles by group. Local login remains available for service accounts.</p>
+
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="label-with-tooltip block text-sm font-medium mb-1">
+                                    SP Entity ID
+                                    <span class="info-tooltip info-tooltip-align-left">
+                                        <span class="info-tooltip-icon">?</span>
+                                        <span class="info-tooltip-text">Your app's unique identifier. Provide this to the CyberArk admin when registering the Service Provider. Typically: https://your-domain/api/auth/saml/metadata</span>
+                                    </span>
+                                </label>
+                                <input type="text" id="cyberarkSpEntityId" class="settings-input w-full"
+                                    placeholder="https://your-domain/api/auth/saml/metadata">
+                            </div>
+                            <div>
+                                <label class="label-with-tooltip block text-sm font-medium mb-1">
+                                    ACS URL
+                                    <span class="info-tooltip info-tooltip-align-left">
+                                        <span class="info-tooltip-icon">?</span>
+                                        <span class="info-tooltip-text">Assertion Consumer Service URL — where CyberArk POSTs the SAML response. Typically: https://your-domain/api/auth/saml/acs</span>
+                                    </span>
+                                </label>
+                                <input type="text" id="cyberarkAcsUrl" class="settings-input w-full"
+                                    placeholder="https://your-domain/api/auth/saml/acs">
+                            </div>
+                        </div>
+
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="label-with-tooltip block text-sm font-medium mb-1">
+                                    IdP Metadata URL
+                                    <span class="info-tooltip info-tooltip-align-left">
+                                        <span class="info-tooltip-icon">?</span>
+                                        <span class="info-tooltip-text">CyberArk Identity tenant metadata URL. Get this from your CyberArk admin: Identity Admin &gt; Apps &gt; your app &gt; SAML Metadata.</span>
+                                    </span>
+                                </label>
+                                <input type="text" id="cyberarkIdpMetadataUrl" class="settings-input w-full"
+                                    placeholder="https://your-tenant.cyberark.cloud/saml/metadata/...">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-1">IdP Metadata XML <span class="text-xs" style="color:#94a3b8">(paste if URL unavailable)</span></label>
+                                <textarea id="cyberarkIdpMetadataXml" class="settings-input w-full h-16"
+                                    placeholder="Paste raw XML from CyberArk admin if no metadata URL yet"></textarea>
+                            </div>
+                        </div>
+
+                        <div class="grid md:grid-cols-3 gap-4">
+                            <div>
+                                <label class="label-with-tooltip block text-sm font-medium mb-1">
+                                    Email Attribute
+                                    <span class="info-tooltip"><span class="info-tooltip-icon">?</span>
+                                        <span class="info-tooltip-text">SAML attribute name that carries the user email. Default: email</span></span>
+                                </label>
+                                <input type="text" id="cyberarkAttrEmail" class="settings-input w-full" placeholder="email" value="email">
+                            </div>
+                            <div>
+                                <label class="label-with-tooltip block text-sm font-medium mb-1">
+                                    Username Attribute
+                                    <span class="info-tooltip"><span class="info-tooltip-icon">?</span>
+                                        <span class="info-tooltip-text">SAML attribute name for username. Default: username</span></span>
+                                </label>
+                                <input type="text" id="cyberarkAttrUsername" class="settings-input w-full" placeholder="username" value="username">
+                            </div>
+                            <div>
+                                <label class="label-with-tooltip block text-sm font-medium mb-1">
+                                    Role/Group Attribute
+                                    <span class="info-tooltip"><span class="info-tooltip-icon">?</span>
+                                        <span class="info-tooltip-text">SAML attribute name carrying the user's CyberArk group(s). Default: role</span></span>
+                                </label>
+                                <input type="text" id="cyberarkAttrRole" class="settings-input w-full" placeholder="role" value="role">
+                            </div>
+                        </div>
+
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="label-with-tooltip block text-sm font-medium mb-1">
+                                    Role Mapping
+                                    <span class="info-tooltip info-tooltip-align-left"><span class="info-tooltip-icon">?</span>
+                                        <span class="info-tooltip-text">JSON map from CyberArk group names to app roles. Roles: owner, admin, maintainer, operator, viewer, auditor, security_admin, security_viewer</span></span>
+                                </label>
+                                <textarea id="cyberarkRoleMapping" class="settings-input w-full h-24"
+                                    placeholder='{&#10;  "CyberArk_Admins": "admin",&#10;  "CyberArk_Ops": "operator",&#10;  "CyberArk_Viewers": "viewer"&#10;}'></textarea>
+                            </div>
+                            <div class="space-y-3">
+                                <div>
+                                    <label class="label-with-tooltip block text-sm font-medium mb-1">
+                                        Default Role
+                                        <span class="info-tooltip"><span class="info-tooltip-icon">?</span>
+                                            <span class="info-tooltip-text">Role assigned to SSO users when no role_mapping matches. Default: viewer</span></span>
+                                    </label>
+                                    <select id="cyberarkDefaultRole" class="settings-input w-full">
+                                        <option value="viewer">viewer</option>
+                                        <option value="operator">operator</option>
+                                        <option value="auditor">auditor</option>
+                                        <option value="security_viewer">security_viewer</option>
+                                    </select>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <input type="checkbox" id="cyberarkAutoProvision" checked class="form-checkbox rounded">
+                                    <label for="cyberarkAutoProvision" class="text-sm">Auto-provision new users on first SSO login</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-3 pt-1 flex-wrap">
+                            <button type="button" class="settings-btn-secondary" onclick="testCyberArkSSO()">
+                                <i class="fas fa-heartbeat"></i>Check SSO Status
+                            </button>
+                            <a id="cyberarkMetadataLink" href="/api/auth/saml/metadata" target="_blank"
+                                class="settings-btn-secondary" style="text-decoration:none">
+                                <i class="fas fa-download"></i>Download SP Metadata XML
+                            </a>
+                        </div>
+                    </div>
+
                     <div class="settings-guided-box">
                         <h3>Guided Setup</h3>
                         <ol class="list-decimal list-inside space-y-1">
                             <li>Choose auth method and fill required endpoints.</li>
                             <li>Upload certificates/metadata and map user attributes.</li>
-                            <li>Run "Test" to validate connectivity with a test account.</li>
-                            <li>Save and communicate the new login path to admins.</li>
+                            <li>For CyberArk: get SP Metadata XML (→ Download button) and send to your CyberArk admin to register the app as a Service Provider.</li>
+                            <li>Run “Test / Check Status” to validate connectivity.</li>
+                            <li>Save — local login remains available alongside SSO.</li>
                         </ol>
                     </div>
 
@@ -720,6 +845,123 @@
             </div>
         </section>
         {% endif %}
+
+        <!-- ===== DESIGN SETTINGS SECTION ===== -->
+        <section id="section-design" class="settings-section space-y-4">
+            <!-- Toolbar -->
+            <div class="settings-toolbar">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div class="flex flex-col min-w-0">
+                        <h1 class="toolbar-title">Design &amp; Branding</h1>
+                        <p class="toolbar-subtitle">Customize the sidebar logo and icon shown to all users</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="resetAllDesign()" class="settings-btn-secondary">
+                            <i class="fas fa-undo"></i> Reset to Defaults
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cards row -->
+            <div class="grid md:grid-cols-2 gap-4">
+
+                <!-- Full Logo Card -->
+                <div class="settings-light-card">
+                    <div class="p-4 border-b" style="border-color:#e2e8f0">
+                        <h3 class="font-semibold text-sm" style="color:#1e293b">Full Logo</h3>
+                        <p class="text-xs mt-1" style="color:#64748b">
+                            Shown in the <strong>expanded</strong> sidebar. Recommended dimensions: ~160 × 40 px.
+                            Supported formats: SVG, PNG, JPG, WebP, GIF (max 2 MB).
+                        </p>
+                    </div>
+                    <div class="p-4 space-y-4">
+                        <!-- Current preview -->
+                        <div class="flex items-center justify-center rounded-lg p-4"
+                            style="background:#f8fafc; border:1px dashed #cbd5e1; min-height:80px;">
+                            <img id="design-preview-logo"
+                                src="{{ request.state.design.get('logo_url') if request.state.design and request.state.design.get('logo_url') else '/static/images/jackson_logo.svg' }}"
+                                alt="Logo Preview" style="max-height:48px; max-width:200px; object-fit:contain;">
+                        </div>
+                        <!-- Upload zone -->
+                        <div id="design-logo-dropzone"
+                            class="flex flex-col items-center justify-center rounded-lg cursor-pointer transition-colors"
+                            style="border:2px dashed #cbd5e1; padding:20px; text-align:center;"
+                            ondragover="designDragOver(event,'logo')" ondragleave="designDragLeave(event,'logo')"
+                            ondrop="designDrop(event,'logo')"
+                            onclick="document.getElementById('design-logo-input').click()">
+                            <i class="fas fa-cloud-upload-alt text-2xl mb-2" style="color:#94a3b8"></i>
+                            <span class="text-xs" style="color:#64748b">Drag &amp; drop or <span
+                                    class="text-blue-500 underline cursor-pointer">browse</span></span>
+                            <span class="text-xs mt-1" style="color:#94a3b8">SVG · PNG · JPG · WebP &lt;2 MB</span>
+                        </div>
+                        <input type="file" id="design-logo-input" accept="image/*" class="hidden"
+                            onchange="designUpload('logo', this)">
+                        <div class="flex items-center gap-2 justify-end">
+                            <button onclick="designResetLogo()" class="settings-btn-secondary"
+                                style="font-size:12px; padding:4px 10px;">
+                                <i class="fas fa-undo mr-1"></i>Reset
+                            </button>
+                            <div id="design-logo-status" class="text-xs" style="color:#94a3b8"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Icon Card -->
+                <div class="settings-light-card">
+                    <div class="p-4 border-b" style="border-color:#e2e8f0">
+                        <h3 class="font-semibold text-sm" style="color:#1e293b">Sidebar Icon</h3>
+                        <p class="text-xs mt-1" style="color:#64748b">
+                            Shown when the sidebar is <strong>collapsed</strong>. Recommended: square, 40 × 40 px.
+                            Supported formats: PNG, JPG, SVG, WebP, GIF (max 2 MB).
+                        </p>
+                    </div>
+                    <div class="p-4 space-y-4">
+                        <!-- Current preview -->
+                        <div class="flex items-center justify-center rounded-lg p-4"
+                            style="background:#f8fafc; border:1px dashed #cbd5e1; min-height:80px;">
+                            <img id="design-preview-icon"
+                                src="{{ request.state.design.get('icon_url') if request.state.design and request.state.design.get('icon_url') else '/static/images/jackson-icon.png' }}"
+                                alt="Icon Preview" style="max-height:48px; max-width:48px; object-fit:contain;">
+                        </div>
+                        <!-- Upload zone -->
+                        <div id="design-icon-dropzone"
+                            class="flex flex-col items-center justify-center rounded-lg cursor-pointer transition-colors"
+                            style="border:2px dashed #cbd5e1; padding:20px; text-align:center;"
+                            ondragover="designDragOver(event,'icon')" ondragleave="designDragLeave(event,'icon')"
+                            ondrop="designDrop(event,'icon')"
+                            onclick="document.getElementById('design-icon-input').click()">
+                            <i class="fas fa-cloud-upload-alt text-2xl mb-2" style="color:#94a3b8"></i>
+                            <span class="text-xs" style="color:#64748b">Drag &amp; drop or <span
+                                    class="text-blue-500 underline cursor-pointer">browse</span></span>
+                            <span class="text-xs mt-1" style="color:#94a3b8">PNG · JPG · SVG · WebP &lt;2 MB</span>
+                        </div>
+                        <input type="file" id="design-icon-input" accept="image/*" class="hidden"
+                            onchange="designUpload('icon', this)">
+                        <div class="flex items-center gap-2 justify-end">
+                            <button onclick="designResetIcon()" class="settings-btn-secondary"
+                                style="font-size:12px; padding:4px 10px;">
+                                <i class="fas fa-undo mr-1"></i>Reset
+                            </button>
+                            <div id="design-icon-status" class="text-xs" style="color:#94a3b8"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Info box -->
+            <div class="settings-guided-box">
+                <h3>How it works</h3>
+                <ol class="list-decimal list-inside space-y-1">
+                    <li>Upload your full logo (SVG or PNG recommended for sharpness).</li>
+                    <li>Upload a square icon used when the sidebar is collapsed.</li>
+                    <li>Changes apply across all pages immediately — no refresh needed.</li>
+                    <li>Use <em>Reset to Defaults</em> to restore the original branding at any time.</li>
+                </ol>
+            </div>
+        </section>
+        <!-- ===== END DESIGN SETTINGS SECTION ===== -->
+
     </div>
 </div>
 
@@ -875,14 +1117,15 @@
 
 <!-- Server Modal -->
 <div id="serverModal"
-    class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 overflow-y-auto p-4">
-    <div class="server-modal-dialog card w-full max-w-5xl m-4 my-8 max-h-[90vh] flex flex-col">
+    class="fixed inset-0 bg-black bg-opacity-50 hidden items-start justify-center z-50 overflow-y-auto pt-20 pb-8 px-4">
+    <div class="server-modal-dialog card w-full max-w-5xl mx-auto max-h-[90vh] flex flex-col">
         <div class="flex items-center justify-between p-6 pb-0 flex-shrink-0">
             <div>
                 <h3 id="serverModalTitle" class="text-lg font-semibold text-[#1e293b]">Add Server Credential</h3>
                 <p class="text-sm text-[#64748b] mt-1">Configure secure connectivity for remediation actions.</p>
             </div>
-            <button onclick="closeServerModal()" class="p-2 rounded-lg text-[#64748b] hover:text-[#1e293b] hover:bg-[#f1f5f9] transition-colors">
+            <button onclick="closeServerModal()"
+                class="p-2 rounded-lg text-[#64748b] hover:text-[#1e293b] hover:bg-[#f1f5f9] transition-colors">
                 <i class="fas fa-times text-lg"></i>
             </button>
         </div>
@@ -993,7 +1236,8 @@
                             <div class="relative">
                                 <input type="password" id="serverPassword"
                                     class="input-field w-full px-3 py-2 rounded pr-14">
-                                <button type="button" class="absolute right-2 top-2 text-xs text-[#64748b] uppercase hover:text-[#1e293b]"
+                                <button type="button"
+                                    class="absolute right-2 top-2 text-xs text-[#64748b] uppercase hover:text-[#1e293b]"
                                     onclick="toggleSecretVisibility('serverPassword', this)">Show</button>
                             </div>
                         </div>
@@ -1009,8 +1253,7 @@
                     </div>
 
                     <!-- WinRM-specific Settings -->
-                    <div id="winrmSettings"
-                        class="hidden mt-4 p-4 border border-[#e2e8f0] rounded-lg bg-[#fffbeb]">
+                    <div id="winrmSettings" class="hidden mt-4 p-4 border border-[#e2e8f0] rounded-lg bg-[#fffbeb]">
                         <h5 class="text-sm font-semibold mb-3 text-[#d97706]"><i class="fab fa-windows mr-1"></i> WinRM
                             Configuration</h5>
                         <div class="grid md:grid-cols-2 gap-3">
@@ -1071,13 +1314,16 @@
                 </div>
             </div>
 
-            <div
-                class="flex justify-end gap-3 p-6 border-t border-[#e2e8f0] flex-shrink-0 bg-[#f8fafc]">
-                <button type="button" id="serverModalTestBtn" class="px-4 py-2 rounded-lg border border-[#e2e8f0] bg-white text-[#475569] hover:bg-[#f1f5f9] transition-colors" onclick="testServerFromForm()"><i class="fas fa-heartbeat mr-1"></i>Test
+            <div class="flex justify-end gap-3 p-6 border-t border-[#e2e8f0] flex-shrink-0 bg-[#f8fafc]">
+                <button type="button" id="serverModalTestBtn"
+                    class="px-4 py-2 rounded-lg border border-[#e2e8f0] bg-white text-[#475569] hover:bg-[#f1f5f9] transition-colors"
+                    onclick="testServerFromForm()"><i class="fas fa-heartbeat mr-1"></i>Test
                     Connection</button>
                 <button type="button" onclick="closeServerModal()"
                     class="px-4 py-2 rounded-lg border border-[#e2e8f0] bg-white text-[#475569] hover:bg-[#f1f5f9] transition-colors">Cancel</button>
-                <button type="submit" class="px-4 py-2 rounded-lg font-medium text-white transition-all" style="background: linear-gradient(135deg, #3b82f6, #2563eb); box-shadow: 0 2px 6px rgba(59, 130, 246, 0.25);">Save Server</button>
+                <button type="submit" class="px-4 py-2 rounded-lg font-medium text-white transition-all"
+                    style="background: linear-gradient(135deg, #3b82f6, #2563eb); box-shadow: 0 2px 6px rgba(59, 130, 246, 0.25);">Save
+                    Server</button>
             </div>
         </form>
     </div>
@@ -2025,7 +2271,8 @@
         'section-servers': 'Servers',
         'section-api-credentials': 'API Credentials',
         'section-credentials': 'Credential Profiles',
-        'section-auth': 'Authentication'
+        'section-auth': 'Authentication',
+        'section-design': 'Design'
     };
 
     function setActiveSection(targetId) {
@@ -3884,11 +4131,29 @@
         const method = document.getElementById('authMethod').value;
         document.getElementById('ldapConfig').classList.add('hidden');
         document.getElementById('samlConfig').classList.add('hidden');
+        document.getElementById('cyberarkConfig').classList.add('hidden');
 
         if (method === 'ldap') {
             document.getElementById('ldapConfig').classList.remove('hidden');
         } else if (method === 'saml') {
             document.getElementById('samlConfig').classList.remove('hidden');
+        } else if (method === 'cyberark_saml') {
+            document.getElementById('cyberarkConfig').classList.remove('hidden');
+        }
+    }
+
+    async function testCyberArkSSO() {
+        try {
+            const response = await apiCall('/api/auth/saml/status');
+            if (!response) return;
+            const result = await response.json();
+            if (result.enabled) {
+                showToast(`CyberArk SSO is active. SP: ${result.sp_entity_id}`, 'success');
+            } else {
+                showToast('CyberArk SSO config not yet saved. Save settings first.', 'warning');
+            }
+        } catch (error) {
+            showToast(`Status check failed: ${error.message}`, 'error');
         }
     }
 
@@ -3943,6 +4208,22 @@
                 document.getElementById('samlEntityId').value = config.saml_config.entity_id || '';
             }
 
+            if (config.cyberark_config) {
+                const cc = config.cyberark_config;
+                document.getElementById('cyberarkSpEntityId').value        = cc.sp_entity_id || '';
+                document.getElementById('cyberarkAcsUrl').value            = cc.sp_acs_url || '';
+                document.getElementById('cyberarkIdpMetadataUrl').value    = cc.idp_metadata_url || '';
+                document.getElementById('cyberarkIdpMetadataXml').value    = cc.idp_metadata_xml || '';
+                document.getElementById('cyberarkAttrEmail').value         = cc.attribute_email || 'email';
+                document.getElementById('cyberarkAttrUsername').value      = cc.attribute_username || 'username';
+                document.getElementById('cyberarkAttrRole').value          = cc.attribute_role || 'role';
+                document.getElementById('cyberarkDefaultRole').value       = cc.default_role || 'viewer';
+                document.getElementById('cyberarkAutoProvision').checked   = cc.auto_provision !== false;
+                if (cc.role_mapping && typeof cc.role_mapping === 'object') {
+                    document.getElementById('cyberarkRoleMapping').value = JSON.stringify(cc.role_mapping, null, 2);
+                }
+            }
+
             toggleAuthSections();
         } catch (error) {
             console.error('Failed to load auth config:', error);
@@ -3953,6 +4234,31 @@
         e.preventDefault();
 
         const method = document.getElementById('authMethod').value;
+
+        let cyberarkConfig = null;
+        if (method === 'cyberark_saml') {
+            let roleMapping = null;
+            try {
+                const raw = document.getElementById('cyberarkRoleMapping').value.trim();
+                roleMapping = raw ? JSON.parse(raw) : {};
+            } catch {
+                showToast('Role Mapping must be valid JSON', 'error');
+                return;
+            }
+            cyberarkConfig = {
+                sp_entity_id:      document.getElementById('cyberarkSpEntityId').value.trim(),
+                sp_acs_url:        document.getElementById('cyberarkAcsUrl').value.trim(),
+                idp_metadata_url:  document.getElementById('cyberarkIdpMetadataUrl').value.trim() || null,
+                idp_metadata_xml:  document.getElementById('cyberarkIdpMetadataXml').value.trim() || null,
+                attribute_email:   document.getElementById('cyberarkAttrEmail').value.trim() || 'email',
+                attribute_username:document.getElementById('cyberarkAttrUsername').value.trim() || 'username',
+                attribute_role:    document.getElementById('cyberarkAttrRole').value.trim() || 'role',
+                default_role:      document.getElementById('cyberarkDefaultRole').value,
+                auto_provision:    document.getElementById('cyberarkAutoProvision').checked,
+                role_mapping:      roleMapping
+            };
+        }
+
         const data = {
             method: method,
             ldap_config: method === 'ldap' ? {
@@ -3963,7 +4269,8 @@
             saml_config: method === 'saml' ? {
                 metadata_url: document.getElementById('samlMetadataUrl').value,
                 entity_id: document.getElementById('samlEntityId').value
-            } : null
+            } : null,
+            cyberark_config: cyberarkConfig
         };
 
         try {
@@ -4416,6 +4723,9 @@
         if (targetId === 'section-groups') {
             loadGroups();
         }
+        if (targetId === 'section-design') {
+            loadDesignSettings();
+        }
     };
 
     // ==================== GROUPS ====================
@@ -4695,6 +5005,131 @@
                 }
             }
         );
+    }
+
+    // ==================== DESIGN SETTINGS ====================
+
+    async function loadDesignSettings() {
+        try {
+            const res = await fetch('/api/design');
+            if (!res.ok) return;
+            const data = await res.json();
+            const logoPreview = document.getElementById('design-preview-logo');
+            const iconPreview = document.getElementById('design-preview-icon');
+            if (logoPreview && data.logo_url) logoPreview.src = data.logo_url + '?t=' + Date.now();
+            if (iconPreview && data.icon_url) iconPreview.src = data.icon_url + '?t=' + Date.now();
+        } catch (e) {
+            console.error('Failed to load design settings:', e);
+        }
+    }
+
+    async function designUpload(type, input) {
+        const file = input.files[0];
+        if (!file) return;
+        const statusEl = document.getElementById(`design-${type}-status`);
+        if (statusEl) statusEl.textContent = 'Uploading…';
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const res = await fetch(`/api/design/upload/${type}`, {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                showToast(data.detail || 'Upload failed', 'error');
+                if (statusEl) statusEl.textContent = '';
+                return;
+            }
+            // Update previews
+            const previewEl = document.getElementById(`design-preview-${type === 'logo' ? 'logo' : 'icon'}`);
+            if (previewEl) previewEl.src = data[`${type}_url`] + '?t=' + Date.now();
+            // Also update the live sidebar
+            const sidebarEl = document.getElementById(type === 'logo' ? 'sidebar-logo-full' : 'sidebar-logo-icon');
+            if (sidebarEl) sidebarEl.src = data[`${type}_url`] + '?t=' + Date.now();
+            // Bust cache
+            try { sessionStorage.removeItem('aiops-design'); } catch (e) { }
+            showToast(type === 'logo' ? 'Logo updated' : 'Icon updated', 'success');
+            if (statusEl) statusEl.textContent = '';
+        } catch (e) {
+            showToast('Upload error: ' + e.message, 'error');
+            if (statusEl) statusEl.textContent = '';
+        }
+        // Reset file input
+        input.value = '';
+    }
+
+    function designDragOver(e, type) {
+        e.preventDefault();
+        const dz = document.getElementById(`design-${type}-dropzone`);
+        if (dz) dz.style.borderColor = '#3b82f6';
+    }
+
+    function designDragLeave(e, type) {
+        const dz = document.getElementById(`design-${type}-dropzone`);
+        if (dz) dz.style.borderColor = '#cbd5e1';
+    }
+
+    function designDrop(e, type) {
+        e.preventDefault();
+        designDragLeave(e, type);
+        const file = e.dataTransfer.files[0];
+        if (!file) return;
+        // Simulate file input
+        const inputEl = document.getElementById(`design-${type}-input`);
+        if (!inputEl) return;
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        inputEl.files = dt.files;
+        designUpload(type, inputEl);
+    }
+
+    async function designResetLogo() {
+        try {
+            const res = await fetch('/api/design/reset/logo', { method: 'DELETE' });
+            const data = await res.json();
+            if (!res.ok) { showToast(data.detail || 'Reset failed', 'error'); return; }
+            const previewEl = document.getElementById('design-preview-logo');
+            if (previewEl) previewEl.src = data.logo_url + '?t=' + Date.now();
+            const sidebarEl = document.getElementById('sidebar-logo-full');
+            if (sidebarEl) sidebarEl.src = data.logo_url + '?t=' + Date.now();
+            try { sessionStorage.removeItem('aiops-design'); } catch (e) { }
+            showToast('Logo reset to default', 'success');
+        } catch (e) { showToast('Reset failed', 'error'); }
+    }
+
+    async function designResetIcon() {
+        try {
+            const res = await fetch('/api/design/reset/icon', { method: 'DELETE' });
+            const data = await res.json();
+            if (!res.ok) { showToast(data.detail || 'Reset failed', 'error'); return; }
+            const previewEl = document.getElementById('design-preview-icon');
+            if (previewEl) previewEl.src = data.icon_url + '?t=' + Date.now();
+            const sidebarEl = document.getElementById('sidebar-logo-icon');
+            if (sidebarEl) sidebarEl.src = data.icon_url + '?t=' + Date.now();
+            try { sessionStorage.removeItem('aiops-design'); } catch (e) { }
+            showToast('Icon reset to default', 'success');
+        } catch (e) { showToast('Reset failed', 'error'); }
+    }
+
+    async function resetAllDesign() {
+        try {
+            const res = await fetch('/api/design/reset', { method: 'DELETE' });
+            const data = await res.json();
+            if (!res.ok) { showToast(data.detail || 'Reset failed', 'error'); return; }
+            const logoPreview = document.getElementById('design-preview-logo');
+            const iconPreview = document.getElementById('design-preview-icon');
+            if (logoPreview) logoPreview.src = data.logo_url + '?t=' + Date.now();
+            if (iconPreview) iconPreview.src = data.icon_url + '?t=' + Date.now();
+            const sidebarLogo = document.getElementById('sidebar-logo-full');
+            const sidebarIcon = document.getElementById('sidebar-logo-icon');
+            if (sidebarLogo) sidebarLogo.src = data.logo_url + '?t=' + Date.now();
+            if (sidebarIcon) sidebarIcon.src = data.icon_url + '?t=' + Date.now();
+            try { sessionStorage.removeItem('aiops-design'); } catch (e) { }
+            showToast('Design reset to defaults', 'success');
+        } catch (e) { showToast('Reset failed', 'error'); }
     }
 
     // Initialize when script loads

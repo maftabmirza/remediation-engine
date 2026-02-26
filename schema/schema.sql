@@ -1505,7 +1505,7 @@ CREATE TABLE public.prometheus_panels (
     id character varying(36) NOT NULL,
     name character varying(255) NOT NULL,
     description text,
-    datasource_id character varying(36) NOT NULL,
+    datasource_id character varying(36),
     promql_query text NOT NULL,
     legend_format character varying(255),
     time_range character varying(50),
@@ -1961,7 +1961,9 @@ CREATE TABLE public.users (
     is_active boolean,
     created_at timestamp with time zone,
     last_login timestamp with time zone,
-    ai_preferences json
+    ai_preferences json,
+    sso_subject character varying(255),
+    auth_provider character varying(50) DEFAULT 'local'
 );
 
 
@@ -3757,6 +3759,20 @@ CREATE INDEX ix_terminal_sessions_user_id ON public.terminal_sessions USING btre
 --
 
 CREATE UNIQUE INDEX ix_users_username ON public.users USING btree (username);
+
+
+--
+-- Name: uq_users_sso_subject; Type: INDEX; Schema: public; Owner: aiops
+--
+
+CREATE UNIQUE INDEX uq_users_sso_subject ON public.users USING btree (sso_subject) WHERE (sso_subject IS NOT NULL);
+
+
+--
+-- Name: ix_users_auth_provider; Type: INDEX; Schema: public; Owner: aiops
+--
+
+CREATE INDEX ix_users_auth_provider ON public.users USING btree (auth_provider);
 
 
 --
