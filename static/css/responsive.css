@@ -1,5 +1,54 @@
 /* Responsive Design - Media Queries for AIOps Platform */
 
+/* Cross-theme fix: make nav-group full sidebar width so left:100% = sidebar right edge */
+
+/* Stretch nav-menu items to fill the full collapsed sidebar width */
+.app-container.collapsed .nav-menu {
+    padding: 0 !important;
+    align-items: stretch !important;
+}
+
+/* nav-group fills full width; nav-item centers its icon inside */
+.app-container.collapsed .nav-group {
+    width: 100%;
+    position: relative;
+}
+
+.app-container.collapsed .nav-item:not(.submenu-item) {
+    width: 100% !important;
+    justify-content: center !important;
+    padding: 8px 0 !important;
+}
+
+/* Submenu grows seamlessly from sidebar right edge */
+html[data-theme] .app-container.collapsed .nav-group .submenu,
+.app-container.collapsed .nav-group .submenu {
+    left: calc(100% - 1px) !important;   /* -1px overlaps the sidebar border-right so no gap */
+    transform: none !important;
+    margin-left: 0 !important;
+    border: none !important;
+    border-left: none !important;
+    border-radius: 0 8px 8px 0 !important;
+    background: var(--bg-sidebar) !important;
+    box-shadow: 8px 0 12px -6px rgba(0, 0, 0, 0.35) !important;  /* right-side only, no left halo */
+    z-index: var(--z-sidebar) !important; /* same layer as sidebar so left edge is hidden behind sidebar */
+}
+
+/* Submenu items: remove left-side radius so they sit flush against the sidebar */
+.app-container.collapsed .nav-group .submenu .submenu-item,
+.app-container.collapsed .nav-group:hover .submenu .submenu-item {
+    border-radius: 0 6px 6px 0 !important;
+    margin-left: 0 !important;
+    border-left: none !important;
+}
+
+/* Hover bridge sized to sidebar width for smooth mouse transition */
+html[data-theme] .app-container.collapsed .nav-group .submenu::before,
+.app-container.collapsed .nav-group .submenu::before {
+    left: calc(-1 * var(--layout-sidebar-collapsed-w)) !important;
+    width: var(--layout-sidebar-collapsed-w) !important;
+}
+
 /* Base styles are optimized for 1920x1080 (100% scale) */
 
 /* Large screens / 4K (≥2560px) - Increase font size slightly for better readability */
@@ -38,12 +87,21 @@
     .main-content {
         padding: 1rem;
     }
+    
+    .app-container.collapsed .nav-group .submenu {
+        min-width: 190px;
+        max-height: calc(100vh - 64px);
+    }
 }
 
 /* Tablets portrait (768px - 1023px) */
 @media (min-width: 768px) and (max-width: 1023px) {
     :root {
         font-size: 14px;
+    }
+    
+    .app-container.collapsed .nav-group .submenu {
+        max-height: calc(100vh - 64px);
     }
     
     .sidebar {
