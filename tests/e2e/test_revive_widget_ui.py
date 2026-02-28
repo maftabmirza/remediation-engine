@@ -21,7 +21,7 @@ def test_revive_button_exists_prometheus(authenticated_page: Page):
     # Check that RE-VIVE button exists in header
     revive_button = authenticated_page.locator("#ai-helper-toggle")
     expect(revive_button).to_be_visible()
-    expect(revive_button).to_have_text(re.compile(r"RE-VIVE", re.IGNORECASE))
+    expect(revive_button).to_have_attribute("title", re.compile(r"RE-VIVE", re.IGNORECASE))
 
 
 def test_revive_button_exists_grafana(authenticated_page: Page):
@@ -36,7 +36,7 @@ def test_revive_button_exists_grafana(authenticated_page: Page):
     # Check that RE-VIVE button exists in header
     revive_button = authenticated_page.locator("#ai-helper-toggle")
     expect(revive_button).to_be_visible()
-    expect(revive_button).to_have_text(re.compile(r"RE-VIVE", re.IGNORECASE))
+    expect(revive_button).to_have_attribute("title", re.compile(r"RE-VIVE", re.IGNORECASE))
 
 
 def test_widget_opens_on_button_click_prometheus(authenticated_page: Page):
