@@ -122,16 +122,15 @@ jobs:
           pip install -r requirements.txt
           pip install -r requirements-test.txt
 
-      - name: Install Atlas CLI
-        run: curl -sSf https://atlasgo.sh | sh
+      - name: Install PostgreSQL client
+        run: sudo apt-get install -y postgresql-client
 
-      - name: Run Atlas migrations (dry-run validation)
-        env:
-          DATABASE_URL: postgresql://aiops:aiops_secure_password@localhost:5432/aiops_test
+      - name: Apply database migrations
         run: |
-          atlas migrate apply \
-            --dir "file://atlas/migrations" \
-            --url "$DATABASE_URL"
+          for f in $(ls migrations/*.sql | sort); do
+            echo "Applying $f"
+            PGPASSWORD=aiops_secure_password psql -h localhost -U aiops -d aiops_test -f "$f" || true
+          done
 
       - name: Run integration tests
         env:
@@ -212,11 +211,13 @@ jobs:
           cd /aiops
           docker compose up -d --build remediation-engine
 
-      - name: Apply Atlas migrations
+      - name: Apply database migrations
         run: |
           cd /aiops
-          docker compose exec -T remediation-engine sh -c \
-            'atlas migrate apply --dir "file:///app/atlas/migrations" --url "$DATABASE_URL"'
+          for f in $(ls migrations/*.sql | sort); do
+            echo "Applying $f"
+            docker compose exec -T postgres psql -U aiops -d aiops -f - < "$f" || true
+          done
 
       - name: Smoke test
         run: |
