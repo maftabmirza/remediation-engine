@@ -258,6 +258,24 @@ jobs:
           pip install -r requirements-test.txt
           playwright install --with-deps chromium
 
+      - name: Ensure app is running
+        run: |
+          cd /aiops
+          docker compose up -d --build remediation-engine
+          echo "Waiting for app to be healthy..."
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8080/health > /dev/null 2>&1; then
+              echo "App is healthy after ${i}s"
+              break
+            fi
+            if [ "$i" -eq 30 ]; then
+              echo "App failed to start within 30s"
+              docker logs remediation-engine --tail=50
+              exit 1
+            fi
+            sleep 1
+          done
+
       - name: Run E2E tests
         env:
           BASE_URL: http://localhost:8080
