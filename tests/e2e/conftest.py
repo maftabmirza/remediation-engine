@@ -22,20 +22,17 @@ def authenticated_page(page: Page, base_url: str) -> Page:
     if "login" not in page.url:
         return page
 
-    # Fill credentials
-    # Using the default from docker-compose.yml
-    page.fill('input[name="username"]', "admin")
-    page.fill('input[name="password"]', "admin")
-    
-    # Click login
-    page.click('button[type="submit"]')
-    
-    # Wait for navigation to dashboard - adjust logic to match actual app behavior
-    # App redirects to root which might be dashboard or redirect to it
-    # We'll wait for URL to NOT be login
-    except_condition = lambda: "login" not in page.url
-    # expect(page).not_to_have_url(re.compile(r".*/login")) # Simplified wait below
-    page.wait_for_url(lambda u: "login" not in u, timeout=10000)
+    # Fill credentials — defaults from docker-compose ADMIN_PASSWORD env
+    page.fill('input[name="username"]', os.getenv("ADMIN_USERNAME", "admin"))
+    page.fill('input[name="password"]', os.getenv("ADMIN_PASSWORD", "admin123"))
+
+    # Click login — the form uses a JS fetch then window.location.href = '/'
+    with page.expect_navigation(timeout=20000):
+        page.click('button[type="submit"]')
+
+    # Extra guard: if somehow still on login (bad creds etc.) raise clearly
+    if "login" in page.url:
+        raise RuntimeError(f"E2E login failed — still on {page.url}")
     
     return page
 
