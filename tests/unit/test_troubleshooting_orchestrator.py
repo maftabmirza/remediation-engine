@@ -102,8 +102,6 @@ async def test_run_troubleshooting_turn_no_enrichment(mock_db_session, mock_user
         
         # Setup Agent
         agent_instance = MockAgent.return_value
-        agent_instance.stream = lambda msg: (async def_gen() for async def_gen in [list(),]).__anext__() # Mock empty stream properly?
-        # Simpler:
         async def mock_stream(msg):
             yield "Response"
         agent_instance.stream = mock_stream

@@ -129,9 +129,9 @@ jobs:
         env:
           PGPASSWORD: ${{ secrets.TEST_DB_PASSWORD || 'aiops_secure_password' }}
         run: |
-          for f in $(ls migrations/*.sql | sort); do
+          for f in $(ls atlas/migrations/*.sql | sort); do
             echo "Applying $f"
-            psql -h localhost -U aiops -d aiops_test -f "$f" || true
+            psql -h localhost -U aiops -d aiops_test -f "$f"
           done
 
       - name: Run integration tests
@@ -218,7 +218,7 @@ jobs:
       - name: Apply database migrations
         run: |
           cd /aiops
-          for f in $(ls migrations/*.sql | sort); do
+          for f in $(ls atlas/migrations/*.sql | sort); do
             echo "Applying $f"
             docker compose exec -T postgres psql -U aiops -d aiops -f - < "$f" || true
           done

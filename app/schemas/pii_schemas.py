@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 # Detection Request/Response Models
@@ -124,9 +124,8 @@ class DetectionLogResponse(BaseModel):
     source_id: Optional[UUID]
     context_snippet: Optional[str]
     was_redacted: bool
-    
-    class Config:
-        from_attributes = True
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class DetectionLogListResponse(BaseModel):
@@ -184,9 +183,8 @@ class DetectionLogDetailResponse(BaseModel):
     redaction_type: Optional[str]
     original_hash: str
     created_at: datetime
-    
-    class Config:
-        from_attributes = True
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 # Test Models
@@ -256,9 +254,8 @@ class FalsePositiveFeedbackResponse(BaseModel):
     review_status: str
     reported_at: datetime
     message: str = Field(default="Feedback submitted successfully. This text will no longer be flagged.")
-    
-    class Config:
-        from_attributes = True
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class FalsePositiveFeedbackDetail(BaseModel):
@@ -282,9 +279,8 @@ class FalsePositiveFeedbackDetail(BaseModel):
     review_notes: Optional[str]
     created_at: datetime
     updated_at: datetime
-    
-    class Config:
-        from_attributes = True
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class FalsePositiveFeedbackListResponse(BaseModel):
