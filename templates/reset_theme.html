@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reset Theme to Light</title>
+    <style>
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            max-width: 500px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        h1 {
+            margin: 0 0 10px 0;
+            color: #1a202c;
+            font-size: 28px;
+        }
+        p {
+            color: #4a5568;
+            line-height: 1.6;
+            margin: 0 0 20px 0;
+        }
+        .info-box {
+            background: #edf2f7;
+            border-left: 4px solid #3b82f6;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .info-box strong {
+            display: block;
+            color: #2d3748;
+            margin-bottom: 5px;
+        }
+        .info-box code {
+            background: #cbd5e0;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 13px;
+        }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 10px;
+            transition: all 0.2s;
+        }
+        button:hover {
+            background: #2563eb;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+        button:active {
+            transform: translateY(0);
+        }
+        .success {
+            background: #10b981;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            display: none;
+            animation: slideIn 0.3s ease;
+        }
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f7fafc;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .status div {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+        }
+        .status strong {
+            color: #2d3748;
+        }
+        .status span {
+            color: #4a5568;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎨 Reset Theme to Light</h1>
+        <p>Click the button below to reset your theme preference to <strong>Light</strong> (the default theme with your original design).</p>
+
+        <div class="info-box">
+            <strong>Current Status:</strong>
+            <div id="current-status">Loading...</div>
+        </div>
+
+        <button onclick="resetTheme()">Reset to Light Theme</button>
+        
+        <div class="success" id="success-msg">
+            ✅ Theme reset successfully! Redirecting to home page...
+        </div>
+
+        <div class="status">
+            <div>
+                <strong>Current Theme:</strong>
+                <span id="theme-value">-</span>
+            </div>
+            <div>
+                <strong>Current Zoom:</strong>
+                <span id="zoom-value">-</span>
+            </div>
+        </div>
+
+        <p style="margin-top: 30px; font-size: 13px; color: #718096;">
+            <strong>Note:</strong> This will clear your saved theme preference and reset it to "Light". Your zoom level will remain unchanged unless you clear it too.
+        </p>
+    </div>
+
+    <script>
+        function updateStatus() {
+            const theme = localStorage.getItem('aiops-theme') || 'light (default)';
+            const zoom = localStorage.getItem('aiops-zoom') || '1.0 (default)';
+            
+            document.getElementById('theme-value').textContent = theme;
+            document.getElementById('zoom-value').textContent = zoom;
+            
+            const status = document.getElementById('current-status');
+            if (theme === 'aftab') {
+                status.innerHTML = '<code>aftab</code> theme is currently saved. Click below to reset to Light.';
+                status.style.color = '#d97706';
+            } else {
+                status.innerHTML = '<code>light</code> theme is already set ✓';
+                status.style.color = '#059669';
+            }
+        }
+
+        function resetTheme() {
+            // Remove theme preference
+            localStorage.removeItem('aiops-theme');
+            
+            // Optional: Also reset zoom
+            // localStorage.removeItem('aiops-zoom');
+            
+            // Set explicitly to 'light'
+            localStorage.setItem('aiops-theme', 'light');
+            
+            // Show success message
+            document.getElementById('success-msg').style.display = 'block';
+            
+            // Update status
+            updateStatus();
+            
+            // Redirect after 2 seconds
+            setTimeout(() => {
+                window.location.href = '/';
+            }, 2000);
+        }
+
+        // Update status on load
+        updateStatus();
+    </script>
+</body>
+</html>

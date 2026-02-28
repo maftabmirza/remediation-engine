@@ -254,15 +254,25 @@ async def sync_integration(
         config_json = decrypt_value(integration.config_encrypted)
         config = json.loads(config_json)
         
-        # Create connector and sync
+        # Create connector and sync changes
         connector = GenericAPIConnector(config)
         since = integration.last_sync  # Get changes since last sync
+        
+        # Sync Changes
         created, updated, errors = connector.sync(db, integration_id, since)
+        
+        # Sync Incidents (if configured)
+        inc_created, inc_updated, inc_errors = 0, 0, []
+        if 'incident_config' in config:
+            inc_created, inc_updated, inc_errors = connector.sync_incidents(db, integration_id, since)
+            logger.info(f" synced incidents: {inc_created} created, {inc_updated} updated")
         
         # Update integration status
         integration.last_sync = utc_now()
-        integration.last_sync_status = 'success' if not errors else 'partial'
-        integration.last_error = '\n'.join(errors[:5]) if errors else None
+        integration.last_sync_status = 'success' if not errors and not inc_errors else 'partial'
+        
+        all_errors = errors + inc_errors
+        integration.last_error = '\n'.join(all_errors[:5]) if all_errors else None
         db.commit()
         
         # Analyze new changes
@@ -270,11 +280,13 @@ async def sync_integration(
         analyzed = impact_service.analyze_unprocessed_changes()
         
         return {
-            "status": "success" if not errors else "partial",
+            "status": "success" if not all_errors else "partial",
             "created": created,
             "updated": updated,
+            "incidents_created": inc_created,
+            "incidents_updated": inc_updated,
             "analyzed": analyzed,
-            "errors": errors[:5] if errors else []
+            "errors": all_errors[:5] if all_errors else []
         }
         
     except Exception as e:

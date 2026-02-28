@@ -1,7 +1,7 @@
 """
 Pydantic schemas for request/response validation
 """
-from pydantic import BaseModel, Field, EmailStr, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List, Any, Dict
 from datetime import datetime
 from uuid import UUID
@@ -34,7 +34,7 @@ class ChangePasswordRequest(BaseModel):
 
 class UserBase(BaseModel):
     username: str
-    email: Optional[EmailStr] = None
+    email: Optional[str] = None
     full_name: Optional[str] = None
     role: str = "operator"
 
@@ -45,7 +45,7 @@ class UserCreate(UserBase):
 
 
 class UserUpdate(BaseModel):
-    email: Optional[EmailStr] = None
+    email: Optional[str] = None
     full_name: Optional[str] = None
     password: Optional[str] = None
     role: Optional[str] = None
@@ -66,11 +66,13 @@ class UserResponse(UserBase):
 
 class LLMProviderBase(BaseModel):
     name: str
-    provider_type: str  # anthropic, openai, google, ollama
+    provider_type: str  # anthropic, openai, google, ollama, azure
     model_id: str
     api_base_url: Optional[str] = None
     is_default: bool = False
     is_enabled: bool = True
+    # 'llm' = general chat/completion, 'embedding' = vector embedding model
+    usage_type: str = 'llm'
     config_json: Dict[str, Any] = {"temperature": 0.3, "max_tokens": 2000}
 
     model_config = {
@@ -84,11 +86,13 @@ class LLMProviderCreate(LLMProviderBase):
 
 class LLMProviderUpdate(BaseModel):
     name: Optional[str] = None
+    provider_type: Optional[str] = None  # Allow updating provider type
     model_id: Optional[str] = None
     api_key: Optional[str] = None
     api_base_url: Optional[str] = None
     is_default: Optional[bool] = None
     is_enabled: Optional[bool] = None
+    usage_type: Optional[str] = None
     config_json: Optional[Dict[str, Any]] = None
 
     model_config = {

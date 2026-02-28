@@ -17,6 +17,15 @@ from app.services.ollama_service import ollama_completion
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
+# Module-level PII service factory (will be injected)
+_pii_service_factory = None
+
+
+def set_pii_service_factory(factory):
+    """Set the PII service factory for LLM output scanning."""
+    global _pii_service_factory
+    _pii_service_factory = factory
+
 
 def get_api_key_for_provider(provider: LLMProvider) -> Optional[str]:
     """Get API key for a provider."""
@@ -222,6 +231,50 @@ async def generate_completion(
                 ).observe(duration)
                 raise
 
+        # Scan and redact PII/secrets from LLM response if factory is available
+        if _pii_service_factory and analysis:
+            pii_service = None
+            try:
+                # Create PII service instance with async session
+                pii_service = await _pii_service_factory()
+                
+                # Detect PII/secrets in the response
+                detection_response = await pii_service.detect(
+                    text=analysis,
+                    source_type="llm_response",
+                    source_id=f"{provider.id}_{int(time.time())}"
+                )
+                
+                # Log detections if any found
+                if detection_response.detections:
+                    logger.info(
+                        f"Detected {detection_response.detection_count} PII/secret(s) "
+                        f"in LLM response from {provider.name}"
+                    )
+                    
+                    for detection in detection_response.detections:
+                        await pii_service.log_detection(
+                            detection=detection.model_dump(),
+                            source_type="llm_response",
+                            source_id=f"{provider.id}"
+                        )
+                    
+                    # Redact the response
+                    redaction_response = await pii_service.redact(
+                        text=analysis,
+                        redaction_type="tag"  # Use tags for LLM responses to maintain readability
+                    )
+                    
+                    analysis = redaction_response.redacted_text
+                    
+            except Exception as e:
+                logger.error(f"PII detection failed for LLM response: {e}")
+                # Continue even if PII detection fails
+            finally:
+                # Close PII service session to prevent connection leaks
+                if pii_service:
+                    await pii_service.close()
+
         return analysis, provider
         
     except Exception as e:
@@ -257,4 +310,52 @@ def get_default_provider(db: Session) -> Optional[LLMProvider]:
         LLMProvider.is_default == True,
         LLMProvider.is_enabled == True
     ).first()
+
+
+def build_incident_prompt(incident) -> str:
+    """Build the analysis prompt for an incident."""
+    prompt = f"""You are Antigravity, an expert Site Reliability Engineer (SRE).
+Your goal is to perform a Root Cause Analysis (RCA) on this incident and provide actionable remediation steps.
+
+## Incident Context
+- **Title:** {incident.title}
+- **ID:** {incident.incident_id}
+- **Severity:** {incident.severity}
+- **Status:** {incident.status}
+- **Service:** {incident.service_name}
+- **Created:** {incident.created_at}
+
+### Description
+{incident.description}
+
+### Additional Metadata
+{incident.incident_metadata}
+
+## Analysis Request
+
+1.  **Likely Root Cause**: Based on the description and metadata, what is the most probable cause?
+2.  **Investigation Steps**: What specific commands or queries should the user run to verify this?
+    - Provide `bash` or `promql` commands where applicable.
+3.  **Remediation**: How can this be fixed?
+4.  **Prevention**: How can we prevent this from happening again?
+
+Format your response in Markdown. Use bold headers.
+"""
+    return prompt
+
+
+async def analyze_incident(
+    db: Session,
+    incident,
+    provider: Optional[LLMProvider] = None
+) -> Tuple[str, List[str], LLMProvider]:
+    """Analyze an incident using the specified or default LLM provider."""
+    
+    prompt = build_incident_prompt(incident)
+    
+    analysis, provider_used = await generate_completion(db, prompt, provider)
+    
+    recommendations = parse_recommendations(analysis)
+    
+    return analysis, recommendations, provider_used
 

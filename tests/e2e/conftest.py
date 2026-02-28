@@ -32,11 +32,10 @@ def authenticated_page(page: Page, base_url: str) -> Page:
     page.fill('input[name="password"]', admin_pass)
 
     # Click login — the form uses a JS fetch then window.location.href = '/'
-    with page.expect_navigation(timeout=45000):
-        page.click('button[type="submit"]')
+    page.click('button[type="submit"]')
 
-    # Wait for the page to fully load before handing control to the test
-    page.wait_for_load_state('networkidle', timeout=45000)
+    # Wait flexibly for URL to leave login page
+    page.wait_for_url(lambda u: "login" not in u, timeout=45000)
 
     # Extra guard: if somehow still on login (bad creds etc.) raise clearly
     if "login" in page.url:

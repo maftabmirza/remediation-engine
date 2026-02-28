@@ -1,0 +1,581 @@
+{% extends "base.html" %}
+
+{% set active_page = "runbooks" %}
+{% set current_path = "/executions" %}
+
+{% block header_title %}Executions{% endblock %}
+{% block header_subtitle %}Home / Executions{% endblock %}
+
+{% block title %}Executions | Enterprise AIOps{% endblock %}
+
+{% block header_extra %}
+<div class="header-actions">
+    <button class="header-action-btn">
+        <i data-feather="refresh-cw" style="width: 14px; height: 14px;"></i>
+        <span>Refresh</span>
+    </button>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Modal Styles (Shared with Schedules) */
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(15, 23, 42, 0.6);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(4px);
+    }
+
+    .modal-overlay.active {
+        display: flex;
+    }
+
+    .modal-container {
+        background: white;
+        border-radius: 16px;
+        width: 90%;
+        max-width: 600px;
+        max-height: 85vh;
+        overflow-y: auto;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        display: flex;
+        flex-direction: column;
+    }
+
+    .modal-container.large {
+        max-width: 800px;
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px 24px;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .modal-title {
+        font-size: 18px;
+        font-weight: 700;
+        color: #0f172a;
+        margin: 0;
+    }
+
+    .modal-close-btn {
+        background: none;
+        border: none;
+        padding: 8px;
+        border-radius: 8px;
+        color: #64748b;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal-close-btn:hover {
+        background: #f1f5f9;
+        color: #0f172a;
+    }
+
+    .modal-body {
+        padding: 24px;
+        overflow-y: auto;
+    }
+
+    /* Execution Detail specific styles */
+    .execution-meta-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+        margin-bottom: 24px;
+        padding-bottom: 24px;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .meta-item {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .meta-label {
+        font-size: 12px;
+        color: #64748b;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .meta-value {
+        font-size: 14px;
+        color: #0f172a;
+        font-weight: 500;
+    }
+
+    .step-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .step-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 12px;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        background: #f8fafc;
+    }
+
+    .step-status-icon {
+        width: 20px;
+        height: 20px;
+        flex-shrink: 0;
+        color: #64748b;
+    }
+
+    .step-status-icon.success {
+        color: #10b981;
+    }
+
+    .step-status-icon.failed {
+        color: #ef4444;
+    }
+
+    .step-status-icon.running {
+        color: #3b82f6;
+    }
+
+    .step-content {
+        flex: 1;
+    }
+
+    .step-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: #1e293b;
+        margin-bottom: 4px;
+    }
+
+    .step-output {
+        font-family: monospace;
+        font-size: 12px;
+        color: #475569;
+        background: white;
+        padding: 8px;
+        border-radius: 4px;
+        border: 1px solid #e2e8f0;
+        margin-top: 8px;
+        white-space: pre-wrap;
+    }
+
+    .console-output {
+        background: #0f172a;
+        color: #f1f5f9;
+        font-family: 'Space Mono', monospace;
+        font-size: 13px;
+        padding: 16px;
+        border-radius: 8px;
+        min-height: 300px;
+        white-space: pre-wrap;
+        line-height: 1.5;
+    }
+
+    @keyframes spin {
+        0% {
+            transform: rotate(0deg);
+        }
+
+        100% {
+            transform: rotate(360deg);
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<main class="runbooks-main">
+    <!-- Filters Row -->
+    <div class="rb-filters">
+        <input type="text" placeholder="Search operations..." class="rb-search-input"
+            style="flex: 1; padding: 10px 16px; border: 1px solid #e2e8f0; border-radius: 8px; background: white; font-size: 14px; color: #1e293b; outline: none;">
+
+        <!-- Status Filter -->
+        <div class="custom-dropdown rb-filter" id="statusFilter">
+            <div class="dropdown-trigger">
+                <span class="dropdown-text">All Status</span>
+                <i data-feather="chevron-down" class="dropdown-icon"></i>
+            </div>
+            <div class="dropdown-menu">
+                <div class="dropdown-item selected" data-value="all">All Status</div>
+                <div class="dropdown-item" data-value="success">Success</div>
+                <div class="dropdown-item" data-value="failed">Failed</div>
+                <div class="dropdown-item" data-value="running">Running</div>
+            </div>
+        </div>
+
+        <!-- Time Range Filter -->
+        <div class="custom-dropdown rb-filter" id="timeFilter">
+            <div class="dropdown-trigger">
+                <span class="dropdown-text">Last 24 Hours</span>
+                <i data-feather="chevron-down" class="dropdown-icon"></i>
+            </div>
+            <div class="dropdown-menu">
+                <div class="dropdown-item selected" data-value="24h">Last 24 Hours</div>
+                <div class="dropdown-item" data-value="7d">Last 7 Days</div>
+                <div class="dropdown-item" data-value="30d">Last 30 Days</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- KPI Cards -->
+    <div class="rb-kpi-row compact-6">
+        <div class="rb-kpi-card">
+            <div class="rb-kpi-icon blue">
+                <i data-feather="play-circle"></i>
+            </div>
+            <div class="rb-kpi-content">
+                <span class="rb-kpi-label">Total</span>
+                <span class="rb-kpi-value">1,248</span>
+            </div>
+        </div>
+        <div class="rb-kpi-card">
+            <div class="rb-kpi-icon amber">
+                <i data-feather="clock"></i>
+            </div>
+            <div class="rb-kpi-content">
+                <span class="rb-kpi-label">Pending</span>
+                <span class="rb-kpi-value">5</span>
+            </div>
+        </div>
+        <div class="rb-kpi-card">
+            <div class="rb-kpi-icon purple">
+                <i data-feather="loader"></i>
+            </div>
+            <div class="rb-kpi-content">
+                <span class="rb-kpi-label">Running</span>
+                <span class="rb-kpi-value">12</span>
+            </div>
+        </div>
+        <div class="rb-kpi-card">
+            <div class="rb-kpi-icon green">
+                <i data-feather="check-circle"></i>
+            </div>
+            <div class="rb-kpi-content">
+                <span class="rb-kpi-label">Completed</span>
+                <span class="rb-kpi-value">1,180</span>
+            </div>
+        </div>
+        <div class="rb-kpi-card">
+            <div class="rb-kpi-icon red"
+                style="background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); color: #ef4444;">
+                <i data-feather="x-circle"></i>
+            </div>
+            <div class="rb-kpi-content">
+                <span class="rb-kpi-label">Failed</span>
+                <span class="rb-kpi-value">51</span>
+            </div>
+        </div>
+        <div class="rb-kpi-card">
+            <div class="rb-kpi-icon blue">
+                <i data-feather="percent"></i>
+            </div>
+            <div class="rb-kpi-content">
+                <span class="rb-kpi-label">Success Rate</span>
+                <span class="rb-kpi-value">95%</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Data Table -->
+    <div class="rb-table-container">
+        <table class="rb-table">
+            <thead>
+                <tr>
+                    <th>Execution ID</th>
+                    <th>Runbook</th>
+                    <th>Status</th>
+                    <th>Target</th>
+                    <th>Mode</th>
+                    <th>Started</th>
+                    <th>Duration</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><span style="font-family: monospace; color: #64748b;">#EX-8901</span></td>
+                    <td>
+                        <div class="rb-name-cell">
+                            <i data-feather="file-text" class="rb-icon blue"></i>
+                            <div class="rb-name-info">
+                                <span class="rb-name">[t-aiops-01] Disk Space Quick Check</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td><span class="rb-badge active">SUCCESS</span></td>
+                    <td>t-aiops-01</td>
+                    <td>Manual</td>
+                    <td>Feb 06, 18:24</td>
+                    <td>45s</td>
+                    <td class="rb-actions">
+                        <button class="rb-action-btn" title="View Details" onclick="openDetailsModal('#EX-8901')"><i
+                                data-feather="eye"></i></button>
+                        <button class="rb-action-btn" title="View Logs" onclick="openOutputModal()"><i
+                                data-feather="file-text"></i></button>
+                    </td>
+                </tr>
+                <tr>
+                    <td><span style="font-family: monospace; color: #64748b;">#EX-8902</span></td>
+                    <td>
+                        <div class="rb-name-cell">
+                            <i data-feather="settings" class="rb-icon green"></i>
+                            <div class="rb-name-info">
+                                <span class="rb-name">[t-aiops-01] Web Service Restart</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td><span class="rb-badge active">SUCCESS</span></td>
+                    <td>t-aiops-01</td>
+                    <td>Triggered</td>
+                    <td>Feb 06, 18:15</td>
+                    <td>1m 20s</td>
+                    <td class="rb-actions">
+                        <button class="rb-action-btn" title="View Details" onclick="openDetailsModal('#EX-8902')"><i
+                                data-feather="eye"></i></button>
+                        <button class="rb-action-btn" title="View Logs" onclick="openOutputModal()"><i
+                                data-feather="file-text"></i></button>
+                    </td>
+                </tr>
+                <tr>
+                    <td><span style="font-family: monospace; color: #64748b;">#EX-8903</span></td>
+                    <td>
+                        <div class="rb-name-cell">
+                            <i data-feather="file-text" class="rb-icon purple"></i>
+                            <div class="rb-name-info">
+                                <span class="rb-name">[t-aiops-01] Host Diagnostics</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td><span class="rb-badge draft"
+                            style="color: #ef4444; background: #fef2f2; border-color: #fee2e2;">FAILED</span></td>
+                    <td>t-aiops-01</td>
+                    <td>Manual</td>
+                    <td>Feb 06, 17:45</td>
+                    <td>2m 10s</td>
+                    <td class="rb-actions">
+                        <button class="rb-action-btn" title="View Details" onclick="openDetailsModal('#EX-8903')"><i
+                                data-feather="eye"></i></button>
+                        <button class="rb-action-btn" title="View Logs" onclick="openOutputModal()"><i
+                                data-feather="file-text"></i></button>
+                    </td>
+                </tr>
+                <tr>
+                    <td><span style="font-family: monospace; color: #64748b;">#EX-8904</span></td>
+                    <td>
+                        <div class="rb-name-cell">
+                            <i data-feather="file-text" class="rb-icon blue"></i>
+                            <div class="rb-name-info">
+                                <span class="rb-name">[t-aiops-01] Disk Space Quick Check</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td><span class="rb-badge draft"
+                            style="color: #3b82f6; background: #eff6ff; border-color: #dbeafe;">RUNNING</span></td>
+                    <td>t-aiops-01</td>
+                    <td>Scheduled</td>
+                    <td>Feb 06, 18:35</td>
+                    <td>
+                        <div class="spinner"
+                            style="border: 2px solid #f3f3f3; border-top: 2px solid #3498db; border-radius: 50%; width: 14px; height: 14px; animation: spin 1s linear infinite;">
+                        </div>
+                    </td>
+                    <td class="rb-actions">
+                        <button class="rb-action-btn" title="View Details" onclick="openDetailsModal('#EX-8904')"><i
+                                data-feather="eye"></i></button>
+                        <button class="rb-action-btn" title="View Logs" onclick="openOutputModal()"><i
+                                data-feather="file-text"></i></button>
+                        <button class="rb-action-btn delete" title="Stop" onclick="stopExecution()"><i
+                                data-feather="square"></i></button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="rb-pagination">
+        <span class="rb-page-info">Showing 1-4 of 1,248 executions</span>
+        <div class="rb-page-controls">
+            <button class="rb-page-btn" disabled><i data-feather="chevrons-left"></i></button>
+            <button class="rb-page-btn" disabled><i data-feather="chevron-left"></i></button>
+            <span class="rb-page-current">Page 1 of 50</span>
+            <button class="rb-page-btn"><i data-feather="chevron-right"></i></button>
+            <button class="rb-page-btn"><i data-feather="chevrons-right"></i></button>
+            <div class="custom-dropdown small" id="pageSize">
+                <div class="dropdown-trigger">
+                    <span class="dropdown-text">25 per page</span>
+                    <i data-feather="chevron-down" class="dropdown-icon"></i>
+                </div>
+                <div class="dropdown-menu up">
+                    <div class="dropdown-item selected" data-value="25">25 per page</div>
+                    <div class="dropdown-item" data-value="50">50 per page</div>
+                    <div class="dropdown-item" data-value="100">100 per page</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+
+    <!-- Execution Details Modal -->
+    <div id="detailsModal" class="modal-overlay">
+        <div class="modal-container large">
+            <div class="modal-header">
+                <h3 class="modal-title">Execution Details <span
+                        style="font-weight: 400; color: #64748b; font-size: 14px; margin-left: 8px;">#EX-8901</span>
+                </h3>
+                <button class="modal-close-btn" onclick="closeDetailsModal()">
+                    <i data-feather="x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="execution-meta-grid">
+                    <div class="meta-item">
+                        <span class="meta-label">Runbook</span>
+                        <span class="meta-value">[t-aiops-01] Disk Space Quick Check</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-label">Target</span>
+                        <span class="meta-value">t-aiops-01 (192.168.1.10)</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-label">Started</span>
+                        <span class="meta-value">Feb 06, 2025 - 18:24:12</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-label">Status</span>
+                        <span class="meta-value" style="color: #10b981;">SUCCESS</span>
+                    </div>
+                </div>
+
+                <h4 style="font-size: 14px; font-weight: 600; color: #0f172a; margin-bottom: 12px;">Step Execution</h4>
+                <div class="step-list">
+                    <div class="step-item">
+                        <div class="step-status-icon success"><i data-feather="check-circle"></i></div>
+                        <div class="step-content">
+                            <div class="step-title">1. Check Disk Usage</div>
+                            <div class="step-output">Filesystem Size Used Avail Use% Mounted on
+                                /dev/sda1 50G 25G 25G 50% /</div>
+                        </div>
+                    </div>
+                    <div class="step-item">
+                        <div class="step-status-icon success"><i data-feather="check-circle"></i></div>
+                        <div class="step-content">
+                            <div class="step-title">2. Analyze Thresholds</div>
+                            <div class="step-output">Status: OK
+                                Usage 50% is below warning threshold (80%)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Output Modal -->
+    <div id="outputModal" class="modal-overlay">
+        <div class="modal-container large">
+            <div class="modal-header">
+                <h3 class="modal-title">Execution Logs</h3>
+                <button class="modal-close-btn" onclick="closeOutputModal()">
+                    <i data-feather="x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="console-output">2025-02-06 18:24:12 [INFO] Starting execution #EX-8901
+                    2025-02-06 18:24:12 [INFO] Connecting to target t-aiops-01...
+                    2025-02-06 18:24:13 [INFO] Connection established.
+                    2025-02-06 18:24:13 [INFO] Running step 1: Check Disk Usage
+                    2025-02-06 18:24:15 [STDOUT] Filesystem Size Used Avail Use% Mounted on
+                    2025-02-06 18:24:15 [STDOUT] /dev/sda1 50G 25G 25G 50% /
+                    2025-02-06 18:24:15 [INFO] Step 1 completed successfully.
+                    2025-02-06 18:24:16 [INFO] Running step 2: Analyze Thresholds
+                    2025-02-06 18:24:16 [STDOUT] Status: OK
+                    2025-02-06 18:24:16 [STDOUT] Usage 50% is below warning threshold (80%)
+                    2025-02-06 18:24:16 [INFO] Execution completed successfully.</div>
+            </div>
+        </div>
+    </div>
+
+</main>
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+    feather.replace();
+
+    document.querySelectorAll('.custom-dropdown').forEach(dropdown => {
+        const trigger = dropdown.querySelector('.dropdown-trigger');
+        const menu = dropdown.querySelector('.dropdown-menu');
+        const items = dropdown.querySelectorAll('.dropdown-item');
+        const textDisplay = dropdown.querySelector('.dropdown-text');
+
+        trigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.querySelectorAll('.custom-dropdown').forEach(d => {
+                if (d !== dropdown) d.classList.remove('open');
+            });
+            dropdown.classList.toggle('open');
+        });
+
+        items.forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.stopPropagation();
+                items.forEach(i => i.classList.remove('selected'));
+                item.classList.add('selected');
+                textDisplay.textContent = item.textContent;
+                dropdown.classList.remove('open');
+            });
+        });
+    });
+
+    document.addEventListener('click', () => {
+        document.querySelectorAll('.custom-dropdown').forEach(d => {
+            d.classList.remove('open');
+        });
+    });
+
+    // Modal Functions
+    function openDetailsModal(id) {
+        document.getElementById('detailsModal').classList.add('active');
+        feather.replace();
+    }
+
+    function closeDetailsModal() {
+        document.getElementById('detailsModal').classList.remove('active');
+    }
+
+    function openOutputModal() {
+        document.getElementById('outputModal').classList.add('active');
+    }
+
+    function closeOutputModal() {
+        document.getElementById('outputModal').classList.remove('active');
+    }
+
+    function stopExecution() {
+        if (confirm('Are you sure you want to stop this execution?')) {
+            alert('Execution stopped.');
+        }
+    }
+</script>
+{% endblock %}

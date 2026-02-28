@@ -13,9 +13,24 @@ from app.services.auth_service import require_admin
 router = APIRouter(prefix="/api/auth/config", tags=["Auth Config"])
 
 class AuthConfig(BaseModel):
-    method: str  # "local", "ldap", "saml"
+    method: str  # "local", "ldap", "saml", "cyberark_saml"
     ldap_config: Optional[Dict[str, Any]] = None
     saml_config: Optional[Dict[str, Any]] = None
+    cyberark_config: Optional[Dict[str, Any]] = None
+    """
+    cyberark_config expected keys:
+      - idp_metadata_url  : CyberArk Identity IdP metadata URL (or leave blank, upload xml)
+      - idp_metadata_xml  : Raw IdP metadata XML string (alternative to URL)
+      - sp_entity_id      : e.g. https://your-app/api/auth/saml/metadata
+      - sp_acs_url        : e.g. https://your-app/api/auth/saml/acs
+      - attribute_email   : SAML attribute name carrying the email  (default: email)
+      - attribute_username: SAML attribute name carrying the username (default: username)
+      - attribute_role    : SAML attribute name carrying the role/group (default: role)
+      - role_mapping      : dict mapping CyberArk group names -> app roles
+                            e.g. {"CyberArk_Admins": "admin", "CyberArk_Ops": "operator"}
+      - auto_provision    : bool – create user on first SSO login (default: true)
+      - default_role      : role assigned when no role_mapping match (default: "viewer")
+    """
 
     @model_validator(mode="after")
     def validate_method_requirements(self):
@@ -25,8 +40,24 @@ class AuthConfig(BaseModel):
         if self.method == "saml":
             if not self.saml_config or not all(self.saml_config.get(k) for k in ["metadata_url", "entity_id"]):
                 raise HTTPException(status_code=400, detail="SAML configuration requires metadata_url and entity_id")
-        if self.method not in {"local", "ldap", "saml"}:
-            raise HTTPException(status_code=400, detail="Authentication method must be local, ldap, or saml")
+        if self.method == "cyberark_saml":
+            if not self.cyberark_config:
+                raise HTTPException(status_code=400, detail="cyberark_config is required for cyberark_saml method")
+            required = ["sp_entity_id", "sp_acs_url"]
+            missing = [k for k in required if not self.cyberark_config.get(k)]
+            if missing:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"cyberark_config missing required fields: {', '.join(missing)}"
+                )
+            has_metadata = self.cyberark_config.get("idp_metadata_url") or self.cyberark_config.get("idp_metadata_xml")
+            if not has_metadata:
+                raise HTTPException(
+                    status_code=400,
+                    detail="cyberark_config requires either idp_metadata_url or idp_metadata_xml"
+                )
+        if self.method not in {"local", "ldap", "saml", "cyberark_saml"}:
+            raise HTTPException(status_code=400, detail="Authentication method must be local, ldap, saml, or cyberark_saml")
         return self
 
 @router.get("", response_model=AuthConfig)

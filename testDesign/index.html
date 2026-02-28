@@ -1,0 +1,603 @@
+{% extends "base.html" %}
+
+{% set active_page = "dashboard" %}
+{% set current_path = "/" %}
+
+{% block content %}
+<main class="main-content">
+    <div class="dashboard-grid command-center-grid">
+
+        <!-- Row 1: KPI Metrics Ribbon -->
+        <!-- ALTERNATIVE DESIGN: Horizontal Ribbon KPI Strip -->
+        <div class="kpi-ribbon-container">
+            <div class="kpi-ribbon">
+                <div class="kpi-ribbon-item">
+                    <div class="ribbon-icon">
+                        <i data-feather="bell"></i>
+                    </div>
+                    <div class="ribbon-data">
+                        <span class="ribbon-value">5</span>
+                        <span class="ribbon-label">Total Alerts</span>
+                    </div>
+                </div>
+                <div class="ribbon-divider"></div>
+                <div class="kpi-ribbon-item">
+                    <div class="ribbon-icon analyzed">
+                        <i data-feather="search"></i>
+                    </div>
+                    <div class="ribbon-data">
+                        <span class="ribbon-value">0</span>
+                        <span class="ribbon-label">Analyzed</span>
+                    </div>
+                </div>
+                <div class="ribbon-divider"></div>
+                <div class="kpi-ribbon-item warning">
+                    <div class="ribbon-icon warning">
+                        <i data-feather="clock"></i>
+                    </div>
+                    <div class="ribbon-data">
+                        <span class="ribbon-value">5</span>
+                        <span class="ribbon-label">Pending</span>
+                    </div>
+                </div>
+                <div class="ribbon-divider"></div>
+                <div class="kpi-ribbon-item critical">
+                    <div class="ribbon-icon critical">
+                        <i data-feather="alert-triangle"></i>
+                    </div>
+                    <div class="ribbon-data">
+                        <span class="ribbon-value">2</span>
+                        <span class="ribbon-label">Critical</span>
+                    </div>
+                </div>
+                <div class="ribbon-divider"></div>
+                <div class="kpi-ribbon-item">
+                    <div class="ribbon-icon">
+                        <i data-feather="eye"></i>
+                    </div>
+                    <div class="ribbon-data">
+                        <span class="ribbon-value">—</span>
+                        <span class="ribbon-label">MTTA</span>
+                    </div>
+                </div>
+                <div class="ribbon-divider"></div>
+                <div class="kpi-ribbon-item">
+                    <div class="ribbon-icon">
+                        <i data-feather="check-square"></i>
+                    </div>
+                    <div class="ribbon-data">
+                        <span class="ribbon-value">—</span>
+                        <span class="ribbon-label">MTTR</span>
+                    </div>
+                </div>
+                <div class="ribbon-divider"></div>
+                <div class="kpi-ribbon-item">
+                    <div class="ribbon-icon success">
+                        <i data-feather="zap"></i>
+                    </div>
+                    <div class="ribbon-data">
+                        <span class="ribbon-value">0.0%</span>
+                        <span class="ribbon-label">Remediation</span>
+                    </div>
+                </div>
+                <div class="ribbon-divider"></div>
+                <div class="kpi-ribbon-item primary">
+                    <div class="ribbon-icon primary">
+                        <i data-feather="activity"></i>
+                    </div>
+                    <div class="ribbon-data">
+                        <span class="ribbon-value">59%</span>
+                        <span class="ribbon-label">Reliability</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Row 2: Service Health Overview -->
+        <div class="card services-overview-card">
+            <div class="card-header">
+                <h3>Service Health Overview</h3>
+                <div class="header-controls">
+                    <span class="time-filter active">24h</span>
+                    <span class="time-filter">7d</span>
+                    <span class="time-filter">30d</span>
+                </div>
+            </div>
+            <div class="services-grid">
+                <div class="service-tile healthy">
+                    <div class="service-status-indicator"></div>
+                    <div class="service-info">
+                        <span class="service-name">API Gateway</span>
+                        <span class="service-uptime">99.99%</span>
+                    </div>
+                    <div class="service-sparkline" id="sparkApi"></div>
+                </div>
+                <div class="service-tile healthy">
+                    <div class="service-status-indicator"></div>
+                    <div class="service-info">
+                        <span class="service-name">Auth Service</span>
+                        <span class="service-uptime">99.98%</span>
+                    </div>
+                    <div class="service-sparkline" id="sparkAuth"></div>
+                </div>
+                <div class="service-tile warning">
+                    <div class="service-status-indicator"></div>
+                    <div class="service-info">
+                        <span class="service-name">Payment Processing</span>
+                        <span class="service-uptime">99.45%</span>
+                    </div>
+                    <div class="service-sparkline" id="sparkPayment"></div>
+                </div>
+                <div class="service-tile healthy">
+                    <div class="service-status-indicator"></div>
+                    <div class="service-info">
+                        <span class="service-name">Database Cluster</span>
+                        <span class="service-uptime">99.97%</span>
+                    </div>
+                    <div class="service-sparkline" id="sparkDb"></div>
+                </div>
+                <div class="service-tile critical">
+                    <div class="service-status-indicator"></div>
+                    <div class="service-info">
+                        <span class="service-name">Notification Svc</span>
+                        <span class="service-uptime">97.20%</span>
+                    </div>
+                    <div class="service-sparkline" id="sparkNotif"></div>
+                </div>
+                <div class="service-tile healthy">
+                    <div class="service-status-indicator"></div>
+                    <div class="service-info">
+                        <span class="service-name">CDN Edge</span>
+                        <span class="service-uptime">100%</span>
+                    </div>
+                    <div class="service-sparkline" id="sparkCdn"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Row 2: Active Incidents -->
+        <div class="card incidents-panel-card">
+            <div class="card-header">
+                <h3>Active Incidents</h3>
+                <span class="badge danger">3 Critical</span>
+            </div>
+            <div class="incidents-list">
+                <div class="incident-row critical">
+                    <div class="incident-severity">
+                        <span class="severity-dot"></span>
+                        <span>P1</span>
+                    </div>
+                    <div class="incident-details">
+                        <div class="incident-title code-font">ProbeDown</div>
+                        <div class="incident-labels">
+                            <span class="label-pill">severity=critical</span>
+                            <span class="label-pill">instance=notification-svc-04</span>
+                            <span class="label-pill">job=blackbox</span>
+                        </div>
+                        <div class="incident-meta">
+                            <span><i data-feather="clock" style="width:12px;"></i> 12m ago</span>
+                            <span><i data-feather="monitor" style="width:12px;"></i> US-East-1</span>
+                        </div>
+                    </div>
+                    <div class="incident-actions">
+                        <button class="btn-action">Investigate</button>
+                    </div>
+                    <div class="incident-actions">
+                        <button class="btn-action">Investigate</button>
+                    </div>
+                </div>
+                <div class="incident-row critical">
+                    <div class="incident-severity">
+                        <span class="severity-dot"></span>
+                        <span>P1</span>
+                    </div>
+                    <div class="incident-details">
+                        <div class="incident-title code-font">KubePodCrashLooping</div>
+                        <div class="incident-labels">
+                            <span class="label-pill">severity=critical</span>
+                            <span class="label-pill">namespace=checkout</span>
+                            <span class="label-pill">pod=checkout-api-x72b</span>
+                        </div>
+                        <div class="incident-meta">
+                            <span><i data-feather="clock" style="width:12px;"></i> 8m ago</span>
+                            <span><i data-feather="monitor" style="width:12px;"></i> EU-West-1</span>
+                        </div>
+                    </div>
+                    <div class="incident-actions">
+                        <button class="btn-action">Investigate</button>
+                    </div>
+                </div>
+                <div class="incident-row warning">
+                    <div class="incident-severity">
+                        <span class="severity-dot"></span>
+                        <span>P2</span>
+                    </div>
+                    <div class="incident-details">
+                        <div class="incident-title code-font">HighRequestLatency</div>
+                        <div class="incident-labels">
+                            <span class="label-pill">severity=warning</span>
+                            <span class="label-pill">service=payment-gateway</span>
+                            <span class="label-pill">p99=4.2s</span>
+                        </div>
+                        <div class="incident-meta">
+                            <span><i data-feather="clock" style="width:12px;"></i> 24m ago</span>
+                            <span><i data-feather="monitor" style="width:12px;"></i> AP-South-2</span>
+                        </div>
+                    </div>
+                    <div class="incident-actions">
+                        <button class="btn-action secondary">View</button>
+                    </div>
+                </div>
+                <div class="incident-row info">
+                    <div class="incident-severity">
+                        <span class="severity-dot"></span>
+                        <span>P3</span>
+                    </div>
+                    <div class="incident-details">
+                        <div class="incident-title code-font">RedisCacheMissHigh</div>
+                        <div class="incident-labels">
+                            <span class="label-pill">severity=info</span>
+                            <span class="label-pill">cluster=cache-global</span>
+                        </div>
+                        <div class="incident-meta">
+                            <span><i data-feather="clock" style="width:12px;"></i> 1h ago</span>
+                            <span><i data-feather="database" style="width:12px;"></i> Global-Edge</span>
+                        </div>
+                    </div>
+                    <div class="incident-actions">
+                        <button class="btn-action secondary">View</button>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer">
+                <a href="#" class="view-all-link">View all 12 incidents <i data-feather="arrow-right"
+                        style="width:14px;"></i></a>
+            </div>
+        </div>
+
+        <!-- Row 3: MTTR Trend -->
+        <div class="card chart-card">
+            <div class="card-header">
+                <h3>MTTR Trend (30 Days)</h3>
+                <span class="badge success">Improving</span>
+            </div>
+            <div id="mttrTrendChart" style="height: 220px; width: 100%;"></div>
+        </div>
+
+        <!-- Row 3: Incident Volume Trend -->
+        <div class="card chart-card">
+            <div class="card-header">
+                <h3>Incident Volume (7 Days)</h3>
+                <div class="chart-legend">
+                    <span class="legend-item"><span class="legend-dot" style="background:#ef4444;"></span>
+                        P1</span>
+                    <span class="legend-item"><span class="legend-dot" style="background:#f59e0b;"></span>
+                        P2</span>
+                    <span class="legend-item"><span class="legend-dot" style="background:#3b82f6;"></span>
+                        P3</span>
+                </div>
+            </div>
+            <div id="incidentTrendChart" style="height: 220px; width: 100%;"></div>
+        </div>
+
+        <!-- Row 4: Infrastructure Map -->
+        <!-- Row 4: ITSM Tickets -->
+        <div class="card itsm-tickets-card">
+            <div class="card-header">
+                <h3>Recent ITSM Tickets</h3>
+                <div class="header-actions">
+                    <span class="badge primary">4 Open</span>
+                    <button class="icon-btn btn-sm">
+                        <i data-feather="external-link" style="width: 14px;"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="table-container">
+                <table class="premium-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 100px;">Key</th>
+                            <th>Summary</th>
+                            <th style="width: 100px;">Priority</th>
+                            <th style="width: 100px;">Status</th>
+                            <th style="width: 120px;">Created</th>
+                            <th style="width: 60px;">Assignee</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><a href="#" class="ticket-link">INC-4024</a></td>
+                            <td class="ticket-summary">Checkout API latency spike > 500ms</td>
+                            <td>
+                                <div class="priority-badge critical">
+                                    <i data-feather="chevrons-up"></i> P1
+                                </div>
+                            </td>
+                            <td><span class="status-lozenge in-progress">In Progress</span></td>
+                            <td class="text-muted">10m ago</td>
+                            <td>
+                                <div class="user-avatar-sm" title="Alex D.">AD</div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><a href="#" class="ticket-link">INC-4023</a></td>
+                            <td class="ticket-summary">Elasticsearch cluster yellow state</td>
+                            <td>
+                                <div class="priority-badge high">
+                                    <i data-feather="chevron-up"></i> P2
+                                </div>
+                            </td>
+                            <td><span class="status-lozenge new">To Do</span></td>
+                            <td class="text-muted">45m ago</td>
+                            <td>
+                                <div class="user-avatar-sm" title="Sarah J.">SJ</div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><a href="#" class="ticket-link">INC-4021</a></td>
+                            <td class="ticket-summary">Invalid SSL cert on staging LB</td>
+                            <td>
+                                <div class="priority-badge medium">
+                                    <i data-feather="minus"></i> P3
+                                </div>
+                            </td>
+                            <td><span class="status-lozenge done">Done</span></td>
+                            <td class="text-muted">2h ago</td>
+                            <td>
+                                <div class="user-avatar-sm" title="Mike R.">MR</div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><a href="#" class="ticket-link">SR-5591</a></td>
+                            <td class="ticket-summary">Access request for Production DB</td>
+                            <td>
+                                <div class="priority-badge low">
+                                    <i data-feather="arrow-down"></i> P4
+                                </div>
+                            </td>
+                            <td><span class="status-lozenge done">Approved</span></td>
+                            <td class="text-muted">4h ago</td>
+                            <td>
+                                <div class="user-avatar-sm" title="Auto Bot">AI</div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Empty State (Hidden by default) -->
+            <div class="empty-state" style="display: none;">
+                <div class="empty-icon">
+                    <i data-feather="check-circle"></i>
+                </div>
+                <h3>All Clear!</h3>
+                <p>No open tickets found. Great job!</p>
+                <button class="btn-sm primary">Create Ticket</button>
+            </div>
+
+            <!-- Pagination Footer -->
+            <div class="card-footer pagination-footer">
+                <span class="pagination-info">Showing 1-4 of 124</span>
+                <div class="pagination-controls">
+                    <button class="icon-btn btn-sm disabled">
+                        <i data-feather="chevron-left" style="width: 14px;"></i>
+                    </button>
+                    <button class="icon-btn btn-sm">
+                        <i data-feather="chevron-right" style="width: 14px;"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Row 4: AI Insights Panel -->
+        <div class="card ai-insights-card">
+            <div class="card-header">
+                <h3>AI Insights</h3>
+                <span class="badge magic">ML Powered</span>
+            </div>
+            <div class="insights-list">
+                <div class="insight-item">
+                    <div class="insight-icon prediction">
+                        <i data-feather="trending-up"></i>
+                    </div>
+                    <div class="insight-content">
+                        <div class="insight-title">Capacity Alert Predicted</div>
+                        <div class="insight-desc">Database storage reaching 85% in ~4 days based on current
+                            growth rate.</div>
+                        <div class="insight-action">
+                            <button class="btn-sm">Scale Now</button>
+                            <button class="btn-sm secondary">Schedule</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="insight-item">
+                    <div class="insight-icon anomaly">
+                        <i data-feather="alert-triangle"></i>
+                    </div>
+                    <div class="insight-content">
+                        <div class="insight-title">Anomaly Detected</div>
+                        <div class="insight-desc">Unusual traffic pattern from AS12345 - potential DDoS
+                            signature.</div>
+                        <div class="insight-action">
+                            <button class="btn-sm">Block</button>
+                            <button class="btn-sm secondary">Monitor</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="insight-item">
+                    <div class="insight-icon optimization">
+                        <i data-feather="zap"></i>
+                    </div>
+                    <div class="insight-content">
+                        <div class="insight-title">Cost Optimization</div>
+                        <div class="insight-desc">3 underutilized instances detected. Potential savings:
+                            $1,240/mo.</div>
+                        <div class="insight-action">
+                            <button class="btn-sm">Review</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Row 5: Live Operations Feed -->
+        <div class="card activity-feed-card">
+            <div class="card-header">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <h3>Live Operations Feed</h3>
+                    <span class="live-indicator"><span class="pulse"></span> Live</span>
+                </div>
+                <button class="icon-btn" style="width: 24px; height: 24px;">
+                    <i data-feather="filter" style="width: 14px;"></i>
+                </button>
+            </div>
+
+            <div class="timeline-container">
+                <!-- Item 1: Auto-Remediation -->
+                <div class="timeline-item">
+                    <div class="timeline-marker success glow">
+                        <i data-feather="zap"></i>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="feed-header">
+                            <span class="feed-title text-success">Auto-Remediation Executed</span>
+                            <span class="feed-time">Just now</span>
+                        </div>
+                        <div class="feed-message">
+                            Scaled up <strong>payment-service</strong> pods (3 → 5) to handle surge.
+                        </div>
+                        <div class="feed-meta">
+                            <span class="meta-tag"><i data-feather="cpu"></i> Avg CPU: 88%</span>
+                            <span class="meta-tag source">AIOps Bot</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Item 2: Security Anomaly -->
+                <div class="timeline-item">
+                    <div class="timeline-marker warning">
+                        <i data-feather="shield"></i>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="feed-header">
+                            <span class="feed-title text-warning">Security Policy Activated</span>
+                            <span class="feed-time">12m ago</span>
+                        </div>
+                        <div class="feed-message">
+                            Blocked suspicious IP range <span class="code-snippet">192.168.x.x</span> attempting
+                            unauthorized access.
+                        </div>
+                        <div class="feed-meta">
+                            <span class="meta-tag">Threat Level: Medium</span>
+                            <span class="meta-tag source">NetSec Guard</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Item 3: Deployment -->
+                <div class="timeline-item">
+                    <div class="timeline-marker info">
+                        <i data-feather="git-merge"></i>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="feed-header">
+                            <span class="feed-title text-info">Canary Deployment Started</span>
+                            <span class="feed-time">45m ago</span>
+                        </div>
+                        <div class="feed-message">
+                            Rolling out <strong>checkout-api v2.4.0</strong> to 5% of traffic.
+                        </div>
+                        <div class="feed-meta">
+                            <span class="meta-tag">Success Rate: 100%</span>
+                            <span class="meta-tag source">CI/CD Pipeline</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Item 4: Incident Resolved -->
+                <div class="timeline-item">
+                    <div class="timeline-marker primary">
+                        <i data-feather="check-circle"></i>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="feed-header">
+                            <span class="feed-title">Incident Resolved</span>
+                            <span class="feed-time">1h 20m ago</span>
+                        </div>
+                        <div class="feed-message">
+                            <strong>INC-4022</strong> (Redis Cache Miss) has been resolved.
+                        </div>
+                        <div class="feed-meta">
+                            <span class="meta-tag">MTTR: 14m</span>
+                            <span class="meta-tag source">SRE Team</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Row 5: Quick Actions -->
+        <div class="card quick-actions-card">
+            <div class="card-header">
+                <h3>Quick Actions</h3>
+            </div>
+            <div class="quick-actions-grid">
+                <button class="action-tile">
+                    <div class="action-icon">
+                        <i data-feather="plus-circle"></i>
+                    </div>
+                    <span>New Incident</span>
+                </button>
+                <button class="action-tile">
+                    <div class="action-icon">
+                        <i data-feather="play-circle"></i>
+                    </div>
+                    <span>Run Playbook</span>
+                </button>
+                <button class="action-tile">
+                    <div class="action-icon">
+                        <i data-feather="user-plus"></i>
+                    </div>
+                    <span>Invite Team</span>
+                </button>
+                <button class="action-tile">
+                    <div class="action-icon">
+                        <i data-feather="bar-chart-2"></i>
+                    </div>
+                    <span>Generate Report</span>
+                </button>
+            </div>
+        </div>
+
+    </div>
+</main>
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+    // Header Logic
+    const timeRangeBtn = document.getElementById('timeRangeBtn');
+    const timeRangeDropdown = document.querySelector('.time-range-dropdown');
+    const timeRangeOptions = document.querySelectorAll('.time-range-option');
+
+    if (timeRangeBtn) {
+        timeRangeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            timeRangeDropdown.classList.toggle('open');
+        });
+
+        timeRangeOptions.forEach(option => {
+            option.addEventListener('click', () => {
+                timeRangeOptions.forEach(o => o.classList.remove('active'));
+                option.classList.add('active');
+                timeRangeBtn.querySelector('span').textContent = option.textContent;
+                timeRangeDropdown.classList.remove('open');
+            });
+        });
+
+        document.addEventListener('click', () => {
+            timeRangeDropdown.classList.remove('open');
+        });
+    }
+</script>
+{% endblock %}

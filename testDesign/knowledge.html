@@ -1,0 +1,239 @@
+﻿{% extends "base.html" %}
+
+{% set active_page = "knowledge" %}
+{% set current_path = "/knowledge" %}
+
+{% block header_title %}Knowledge Base{% endblock %}
+{% block header_subtitle %}Home / Knowledge{% endblock %}
+
+{% block title %}Knowledge Base | Enterprise AIOps{% endblock %}
+
+{% block content %}
+<main class="runbooks-main">
+    <!-- Filters Row -->
+    <div class="rb-filters">
+        <!-- Type Filter -->
+        <div class="custom-dropdown rb-filter" id="typeFilter">
+            <div class="dropdown-trigger">
+                <span class="dropdown-text">All Types</span>
+                <i data-feather="chevron-down" class="dropdown-icon"></i>
+            </div>
+            <div class="dropdown-menu">
+                <div class="dropdown-item selected" data-value="all">All Types</div>
+                <div class="dropdown-item" data-value="document">Documents</div>
+                <div class="dropdown-item" data-value="snippet">Code Snippets</div>
+                <div class="dropdown-item" data-value="faq">FAQs</div>
+            </div>
+        </div>
+
+        <!-- Category Filter -->
+        <div class="custom-dropdown rb-filter" id="categoryFilter">
+            <div class="dropdown-trigger">
+                <span class="dropdown-text">All Categories</span>
+                <i data-feather="chevron-down" class="dropdown-icon"></i>
+            </div>
+            <div class="dropdown-menu">
+                <div class="dropdown-item selected" data-value="all">All Categories</div>
+                <div class="dropdown-item" data-value="troubleshooting">Troubleshooting</div>
+                <div class="dropdown-item" data-value="configuration">Configuration</div>
+                <div class="dropdown-item" data-value="bestpractices">Best Practices</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- KPI Cards -->
+    <div class="rb-kpi-row">
+        <div class="rb-kpi-card">
+            <div class="rb-kpi-icon blue">
+                <i data-feather="database"></i>
+            </div>
+            <div class="rb-kpi-content">
+                <span class="rb-kpi-label">Total Articles</span>
+                <span class="rb-kpi-value">156</span>
+            </div>
+        </div>
+        <div class="rb-kpi-card">
+            <div class="rb-kpi-icon green">
+                <i data-feather="check-circle"></i>
+            </div>
+            <div class="rb-kpi-content">
+                <span class="rb-kpi-label">Published</span>
+                <span class="rb-kpi-value">142</span>
+            </div>
+        </div>
+        <div class="rb-kpi-card">
+            <div class="rb-kpi-icon amber">
+                <i data-feather="clock"></i>
+            </div>
+            <div class="rb-kpi-content">
+                <span class="rb-kpi-label">Pending Review</span>
+                <span class="rb-kpi-value">14</span>
+            </div>
+        </div>
+        <div class="rb-kpi-card">
+            <div class="rb-kpi-icon purple">
+                <i data-feather="eye"></i>
+            </div>
+            <div class="rb-kpi-content">
+                <span class="rb-kpi-label">Views Today</span>
+                <span class="rb-kpi-value">1,284</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Data Table -->
+    <div class="rb-table-container">
+        <table class="rb-table">
+            <thead>
+                <tr>
+                    <th class="rb-th-check"><input type="checkbox" class="rb-checkbox"></th>
+                    <th>Title</th>
+                    <th>Type</th>
+                    <th>Category</th>
+                    <th>Author</th>
+                    <th>Views</th>
+                    <th>Updated</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><input type="checkbox" class="rb-checkbox"></td>
+                    <td>
+                        <div class="rb-name-cell">
+                            <i data-feather="file-text" class="rb-icon blue"></i>
+                            <div class="rb-name-info">
+                                <span class="rb-name">Troubleshooting Apache Web Server Issues</span>
+                                <span class="rb-desc">Complete guide to diagnosing and resolving common...</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td><span class="rb-badge active">DOCUMENT</span></td>
+                    <td><span class="rb-category infrastructure">TROUBLESHOOTING</span></td>
+                    <td>John Doe</td>
+                    <td>1,245</td>
+                    <td>Feb 5, 2026</td>
+                    <td class="rb-actions">
+                        <button class="rb-action-btn edit" title="Edit"><i data-feather="edit-2"></i></button>
+                        <button class="rb-action-btn duplicate" title="Duplicate"><i data-feather="copy"></i></button>
+                        <button class="rb-action-btn run" title="View"><i data-feather="eye"></i></button>
+                        <button class="rb-action-btn delete" title="Delete"><i data-feather="trash-2"></i></button>
+                    </td>
+                </tr>
+                <tr>
+                    <td><input type="checkbox" class="rb-checkbox"></td>
+                    <td>
+                        <div class="rb-name-cell">
+                            <i data-feather="code" class="rb-icon purple"></i>
+                            <div class="rb-name-info">
+                                <span class="rb-name">Python Script: Database Connection Check</span>
+                                <span class="rb-desc">Reusable Python snippet to verify database connec...</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td><span class="rb-badge draft">SNIPPET</span></td>
+                    <td><span class="rb-category diagnostics">CONFIGURATION</span></td>
+                    <td>Jane Smith</td>
+                    <td>892</td>
+                    <td>Feb 3, 2026</td>
+                    <td class="rb-actions">
+                        <button class="rb-action-btn edit" title="Edit"><i data-feather="edit-2"></i></button>
+                        <button class="rb-action-btn duplicate" title="Duplicate"><i data-feather="copy"></i></button>
+                        <button class="rb-action-btn run" title="View"><i data-feather="eye"></i></button>
+                        <button class="rb-action-btn delete" title="Delete"><i data-feather="trash-2"></i></button>
+                    </td>
+                </tr>
+                <tr>
+                    <td><input type="checkbox" class="rb-checkbox"></td>
+                    <td>
+                        <div class="rb-name-cell">
+                            <i data-feather="help-circle" class="rb-icon green"></i>
+                            <div class="rb-name-info">
+                                <span class="rb-name">FAQ: How to Configure SSL Certificates</span>
+                                <span class="rb-desc">Step-by-step guide for SSL/TLS certificate config...</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td><span class="rb-badge active">FAQ</span></td>
+                    <td><span class="rb-category application">BEST PRACTICES</span></td>
+                    <td>Mike Johnson</td>
+                    <td>2,103</td>
+                    <td>Jan 28, 2026</td>
+                    <td class="rb-actions">
+                        <button class="rb-action-btn edit" title="Edit"><i data-feather="edit-2"></i></button>
+                        <button class="rb-action-btn duplicate" title="Duplicate"><i data-feather="copy"></i></button>
+                        <button class="rb-action-btn run" title="View"><i data-feather="eye"></i></button>
+                        <button class="rb-action-btn delete" title="Delete"><i data-feather="trash-2"></i></button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="rb-pagination">
+        <span class="rb-page-info">Showing 1-3 of 156 articles</span>
+        <div class="rb-page-controls">
+            <button class="rb-page-btn" disabled><i data-feather="chevrons-left"></i></button>
+            <button class="rb-page-btn" disabled><i data-feather="chevron-left"></i></button>
+            <span class="rb-page-current">Page 1 of 7</span>
+            <button class="rb-page-btn"><i data-feather="chevron-right"></i></button>
+            <button class="rb-page-btn"><i data-feather="chevrons-right"></i></button>
+            <div class="custom-dropdown small" id="pageSize">
+                <div class="dropdown-trigger">
+                    <span class="dropdown-text">25 per page</span>
+                    <i data-feather="chevron-down" class="dropdown-icon"></i>
+                </div>
+                <div class="dropdown-menu up">
+                    <div class="dropdown-item selected" data-value="25">25 per page</div>
+                    <div class="dropdown-item" data-value="50">50 per page</div>
+                    <div class="dropdown-item" data-value="100">100 per page</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+    // Initialize Feather icons
+    feather.replace();
+
+    // Dropdown Logic
+    document.querySelectorAll('.custom-dropdown').forEach(dropdown => {
+        const trigger = dropdown.querySelector('.dropdown-trigger');
+        const menu = dropdown.querySelector('.dropdown-menu');
+        const items = dropdown.querySelectorAll('.dropdown-item');
+        const textDisplay = dropdown.querySelector('.dropdown-text');
+
+        // Toggle dropdown
+        trigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            // Close all other dropdowns
+            document.querySelectorAll('.custom-dropdown').forEach(d => {
+                if (d !== dropdown) d.classList.remove('open');
+            });
+            dropdown.classList.toggle('open');
+        });
+
+        // Select item
+        items.forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.stopPropagation();
+                items.forEach(i => i.classList.remove('selected'));
+                item.classList.add('selected');
+                textDisplay.textContent = item.textContent;
+                dropdown.classList.remove('open');
+            });
+        });
+    });
+
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', () => {
+        document.querySelectorAll('.custom-dropdown').forEach(d => {
+            d.classList.remove('open');
+        });
+    });
+</script>
+{% endblock %}

@@ -62,6 +62,7 @@ async def submit_solution_feedback(
     This enables the learning system to track what solutions work for which problems.
     """
     import uuid
+    from app.services.embedding_service import EmbeddingService
     
     # Parse session_id safely (may be None or invalid UUID format)
     parsed_session_id = None
@@ -72,10 +73,29 @@ async def submit_solution_feedback(
             logger.warning(f"Invalid session_id format: {feedback.session_id[:50]}... - ignoring")
             parsed_session_id = None
     
+    # Generate embedding for problem description to enable similarity search
+    problem_embedding = None
+    problem_desc = feedback.problem_description or f"User ran: {feedback.solution_reference}"
+    
+    try:
+        embedding_service = EmbeddingService()
+        if embedding_service.is_configured():
+            problem_embedding = embedding_service.generate_embedding(problem_desc)
+            if problem_embedding:
+                logger.info("Generated problem embedding for solution feedback")
+            else:
+                logger.warning("Failed to generate embedding for problem description")
+        else:
+            logger.debug("Embedding service not configured - skipping embedding generation")
+    except Exception as e:
+        logger.error(f"Error generating problem embedding: {e}")
+        # Continue without embedding - it's not critical
+    
     # Create solution outcome record
     outcome = SolutionOutcome(
         session_id=parsed_session_id,
-        problem_description=feedback.problem_description or f"User ran: {feedback.solution_reference}",
+        problem_description=problem_desc,
+        problem_embedding=problem_embedding,  # ✅ Now populated
         solution_type=feedback.solution_type,
         solution_reference=feedback.solution_reference,
         solution_summary=feedback.solution_reference[:200] if feedback.solution_reference else None,

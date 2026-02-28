@@ -24,7 +24,7 @@ class DocumentBase(BaseModel):
     @field_validator('doc_type')
     @classmethod
     def validate_doc_type(cls, v):
-        valid_types = ['architecture', 'api_spec', 'runbook', 'sop', 'troubleshooting', 'design_doc', 'postmortem', 'onboarding', 'deployment', 'config']
+        valid_types = ['document', 'architecture', 'code']
         if v not in valid_types:
             raise ValueError(f"doc_type must be one of: {', '.join(valid_types)}")
         return v
@@ -57,11 +57,11 @@ class DocumentUpdate(BaseModel):
     @classmethod
     def validate_doc_type(cls, v):
         if v is not None:
-            valid_types = ['architecture', 'api_spec', 'runbook', 'sop', 'troubleshooting', 'design_doc', 'postmortem', 'onboarding', 'deployment', 'config']
+            valid_types = ['document', 'architecture', 'code']
             if v not in valid_types:
                 raise ValueError(f"doc_type must be one of: {', '.join(valid_types)}")
         return v
-    
+
     @field_validator('status')
     @classmethod
     def validate_status(cls, v):

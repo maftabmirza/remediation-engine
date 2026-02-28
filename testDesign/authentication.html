@@ -1,0 +1,344 @@
+{% extends "base.html" %}
+
+{% set active_page = "settings" %}
+{% set current_path = "/authentication" %}
+
+{% block header_title %}Settings{% endblock %}
+{% block header_subtitle %}Settings / Auth{% endblock %}
+
+{% block title %}Authentication | Enterprise AIOps{% endblock %}
+
+{% block content %}
+<main class="runbooks-main settings-page">
+
+    <!-- Section Dropdown + Title + Admin Badge -->
+    <div class="settings-header-bar">
+        <div class="settings-title-group">
+            <div class="section-selector">
+                <button class="section-dropdown-btn" id="sectionDropdownBtn">
+                    <i data-feather="lock"></i>
+                    <span id="currentSection">Auth Settings</span>
+                    <i data-feather="chevron-down" class="dropdown-arrow"></i>
+                </button>
+                {% include "partials/settings_nav_menu.html" %}
+            </div>
+            <p class="section-desc">Configure LDAP, SAML, and Local authentication</p>
+        </div>
+        <!-- No top-right button needed for this page -->
+    </div>
+
+    <!-- Auth Settings Card -->
+    <div class="users-card auth-card">
+
+        <div class="auth-section">
+            <label class="auth-label">Authentication Method <i data-feather="help-circle" class="help-icon"
+                    title="Choose the primary source of truth for user identities"></i></label>
+            <div class="custom-select-wrapper">
+                <select class="auth-select">
+                    <option value="local" selected>Local Database (Default)</option>
+                    <option value="ldap">LDAP / Active Directory</option>
+                    <option value="saml">SAML 2.0 (SSO)</option>
+                    <option value="oidc">OIDC / OAuth2</option>
+                </select>
+                <i data-feather="chevron-down" class="select-arrow"></i>
+            </div>
+        </div>
+
+        <div class="guided-setup-panel">
+            <h3 class="panel-title">Guided Setup</h3>
+            <div class="steps-list">
+                <div class="step-item">1. Choose auth method and fill required endpoints.</div>
+                <div class="step-item">2. Upload certificates/metadata and map user attributes.</div>
+                <div class="step-item">3. Run "Test" to validate connectivity with a test account.</div>
+                <div class="step-item">4. Save and communicate the new login path to admins.</div>
+            </div>
+        </div>
+
+        <div class="auth-actions">
+            <button class="save-btn">Save Auth Settings</button>
+        </div>
+
+    </div>
+
+</main>
+
+<style>
+    /* Settings Shared Layout */
+    .settings-page {
+        gap: 24px;
+        display: flex;
+        flex-direction: column;
+        padding-bottom: 40px;
+    }
+
+    /* Header Bar Reused */
+    .settings-header-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+    }
+
+    .settings-title-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .section-selector {
+        position: relative;
+    }
+
+    .section-dropdown-btn {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 18px;
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        font-size: 16px;
+        font-weight: 700;
+        color: #0f172a;
+        cursor: pointer;
+        transition: all 0.15s;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    }
+
+    .section-dropdown-btn:hover {
+        border-color: #cbd5e1;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    }
+
+    .section-dropdown-btn svg {
+        width: 20px;
+        height: 20px;
+        color: #3b82f6;
+    }
+
+    .section-dropdown-btn .dropdown-arrow {
+        width: 14px;
+        height: 14px;
+        color: #94a3b8;
+    }
+
+    /* Dropdown Menu Styles (Duplicated from partial context if needed, but partial handles structure. 
+       We rely on global styles presumably, or we need to ensure they are here. 
+       Since previous pages had them, I'll include the essential Dropdown menu styles here just in case.) */
+    .section-dropdown-menu {
+        display: none;
+        position: absolute;
+        top: calc(100% + 8px);
+        left: 0;
+        width: 260px;
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        box-shadow: 0 12px 48px rgba(0, 0, 0, 0.15);
+        z-index: 100;
+        padding: 8px;
+    }
+
+    .section-dropdown-menu.open {
+        display: block;
+    }
+
+    .dropdown-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 14px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 500;
+        color: #475569;
+        cursor: pointer;
+        text-decoration: none;
+        transition: all 0.12s;
+    }
+
+    .dropdown-item svg {
+        width: 16px;
+        height: 16px;
+    }
+
+    .dropdown-item:hover {
+        background: #f1f5f9;
+        color: #1e293b;
+    }
+
+    .dropdown-item.active {
+        background: #eff6ff;
+        color: #2563eb;
+    }
+
+    .dropdown-item.active svg {
+        color: #3b82f6;
+    }
+
+    .section-desc {
+        font-size: 13px;
+        color: #64748b;
+        margin: 0 0 0 4px;
+    }
+
+    /* Auth Card Specifics */
+    .users-card {
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+    }
+
+    .auth-card {
+        padding: 32px;
+        display: flex;
+        flex-direction: column;
+        gap: 32px;
+    }
+
+    .auth-section {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .auth-label {
+        font-size: 14px;
+        font-weight: 600;
+        color: #cbd5e1;
+        /* Dark theme looking label? No, light theme: #64748b */
+        color: #64748b;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .help-icon {
+        width: 14px;
+        height: 14px;
+        cursor: help;
+        color: #3b82f6;
+    }
+
+    .custom-select-wrapper {
+        position: relative;
+        width: 100%;
+    }
+
+    .auth-select {
+        width: 100%;
+        padding: 12px 16px;
+        background: #0f172a;
+        /* Dark dropdown background for contrast? Or white? */
+        /* Let's stick to Light Theme strictly: White input, dark text */
+        background: #f8fafc;
+        /* Very light grey */
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        font-size: 14px;
+        color: #0f172a;
+        appearance: none;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.15s;
+    }
+
+    /* Wait, the screenshot often shows dark inputs in Premium themes, or clean white. 
+       Let's use a Dark Input style for the Auth Selector specifically to make it stand out? 
+       Actually, `authentication.html` implies "Settings". Settings pages we made Light.
+       However, the screenshot user provided earlier showed a Dark Theme for "Auth Settings" (implied by context of other convos? No, I should stick to Premium Light).
+       Use White/Light Grey input. */
+
+    .auth-select:hover {
+        border-color: #cbd5e1;
+    }
+
+    .auth-select:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        background: white;
+    }
+
+    .select-arrow {
+        position: absolute;
+        right: 16px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 16px;
+        height: 16px;
+        color: #64748b;
+        pointer-events: none;
+    }
+
+    /* Guided Setup Panel - Darker background for contrast within the light card */
+    .guided-setup-panel {
+        background: #0f172a;
+        border-radius: 8px;
+        padding: 24px;
+        color: #e2e8f0;
+    }
+
+    .panel-title {
+        font-size: 15px;
+        font-weight: 600;
+        color: #f8fafc;
+        margin: 0 0 16px 0;
+    }
+
+    .steps-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .step-item {
+        font-size: 14px;
+        line-height: 1.5;
+        color: #94a3b8;
+    }
+
+    .auth-actions {
+        display: flex;
+        justify-content: flex-end;
+        padding-top: 8px;
+    }
+
+    .save-btn {
+        background: #3b82f6;
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s;
+        box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
+    }
+
+    .save-btn:hover {
+        background: #2563eb;
+        transform: translateY(-1px);
+    }
+</style>
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+    feather.replace();
+
+    const dropdownBtn = document.getElementById('sectionDropdownBtn');
+    const dropdownMenu = document.getElementById('sectionDropdownMenu');
+
+    dropdownBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        dropdownMenu.classList.toggle('open');
+    });
+
+    document.addEventListener('click', function () {
+        dropdownMenu.classList.remove('open');
+    });
+</script>
+{% endblock %}

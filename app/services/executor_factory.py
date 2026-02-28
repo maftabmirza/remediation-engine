@@ -90,23 +90,36 @@ class ExecutorFactory:
         if not executor_class:
             raise ValueError(f"Unsupported protocol: {protocol}")
         
-        # Decrypt credentials
+        # Decrypt credentials — respect auth_type so we never hand a stale/wrong
+        # key to an executor that was configured for password auth (and vice-versa).
+        auth_type = getattr(server, 'auth_type', 'key') or 'key'
         password = None
         private_key = None
         sudo_password = None
         api_token = None
 
-        if server.password_encrypted:
+        if auth_type == 'password' and server.password_encrypted:
             try:
                 password = fernet.decrypt(server.password_encrypted.encode()).decode()
             except Exception as e:
                 logger.error(f"Failed to decrypt password for {server.hostname}: {e}")
-
-        if server.ssh_key_encrypted:
+        elif auth_type == 'key' and server.ssh_key_encrypted:
             try:
                 private_key = fernet.decrypt(server.ssh_key_encrypted.encode()).decode()
             except Exception as e:
                 logger.error(f"Failed to decrypt SSH key for {server.hostname}: {e}")
+        else:
+            # Fallback: try whichever field is populated
+            if server.password_encrypted:
+                try:
+                    password = fernet.decrypt(server.password_encrypted.encode()).decode()
+                except Exception as e:
+                    logger.error(f"Failed to decrypt password for {server.hostname}: {e}")
+            if server.ssh_key_encrypted:
+                try:
+                    private_key = fernet.decrypt(server.ssh_key_encrypted.encode()).decode()
+                except Exception as e:
+                    logger.error(f"Failed to decrypt SSH key for {server.hostname}: {e}")
 
         # Handle shared credential profile
         if getattr(server, 'credential_source', 'inline') == 'shared_profile':

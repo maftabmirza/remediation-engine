@@ -21,6 +21,7 @@ from app.schemas_application_profile import (
     ApplicationProfileListResponse,
 )
 from app.services.auth_service import get_current_user
+from app.utils.search import like_escape
 
 router = APIRouter(prefix="/api/application-profiles", tags=["application-profiles"])
 
@@ -96,7 +97,7 @@ def list_application_profiles(
         query = query.filter(ApplicationProfile.architecture_type == architecture_type)
 
     if language:
-        query = query.filter(ApplicationProfile.language.ilike(f"%{language}%"))
+        query = query.filter(ApplicationProfile.language.ilike(f"%{like_escape(language)}%", escape="\\"))
 
     # Get total count
     total = query.count()

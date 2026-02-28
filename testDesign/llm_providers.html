@@ -1,0 +1,730 @@
+{% extends "base.html" %}
+
+{% set active_page = "settings" %}
+{% set current_path = "/llm-providers" %}
+
+{% block header_title %}Settings{% endblock %}
+{% block header_subtitle %}Home / Settings / LLM Providers{% endblock %}
+
+{% block title %}LLM Providers | Enterprise AIOps{% endblock %}
+
+{% block content %}
+<main class="runbooks-main settings-page">
+
+    <!-- Section Dropdown + Title + Admin Badge -->
+    <div class="settings-header-bar">
+        <div class="settings-title-group">
+            <div class="section-selector">
+                <button class="section-dropdown-btn" id="sectionDropdownBtn">
+                    <i data-feather="cpu"></i>
+                    <span id="currentSection">LLM Providers</span>
+                    <i data-feather="chevron-down" class="dropdown-arrow"></i>
+                </button>
+                {% include "partials/settings_nav_menu.html" %}
+            </div>
+            <p class="section-desc">Manage AI models and API endpoints</p>
+        </div>
+        <button class="add-user-btn">
+            <i data-feather="plus"></i>
+            <span>Add Provider</span>
+        </button>
+    </div>
+
+    <!-- Groups Content -->
+    <div class="users-card">
+
+        <!-- Filters Bar -->
+        <div class="table-filters-bar">
+            <div class="search-wrapper">
+                <i data-feather="search"></i>
+                <input type="text" placeholder="Search name or model">
+            </div>
+
+            <div class="filter-group">
+                <div class="filter-dropdown">
+                    <span>All Types</span>
+                    <i data-feather="chevron-down"></i>
+                </div>
+                <div class="filter-dropdown">
+                    <span>Any Status</span>
+                    <i data-feather="chevron-down"></i>
+                </div>
+            </div>
+
+            <div class="bulk-actions">
+                <button class="bulk-btn">
+                    <i data-feather="check"></i> Enable
+                </button>
+                <button class="bulk-btn">
+                    <i data-feather="pause"></i> Disable
+                </button>
+            </div>
+        </div>
+
+        <!-- Meta Bar -->
+        <div class="table-meta-bar">
+            <div class="select-all-wrapper">
+                <input type="checkbox" class="bulk-checkbox">
+                <span class="showing-text">Select all</span>
+            </div>
+        </div>
+
+        <!-- Data Table -->
+        <div class="users-table-wrapper">
+            <table class="users-table">
+                <thead>
+                    <tr>
+                        <th width="4%"></th>
+                        <th width="25%">PROVIDER</th>
+                        <th width="15%">TYPE</th>
+                        <th width="20%">MODEL</th>
+                        <th width="15%">CONFIGURATION</th>
+                        <th width="10%">STATUS</th>
+                        <th width="16%" class="text-right">ACTIONS</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="checkbox-cell"><input type="checkbox"></td>
+                        <td>
+                            <div class="user-info-cell">
+                                <div class="avatar-circle white-icon">
+                                    <!-- Use specific logo placeholder or generic bot -->
+                                    <i data-feather="cpu"></i>
+                                </div>
+                                <div class="info-content">
+                                    <span class="username">Claude Sonnet 4</span>
+                                    <span class="subtext">Updated Jan 22, 2026</span>
+                                    <div class="badges-row">
+                                        <span class="mini-badge primary"><i data-feather="star"></i> Default</span>
+                                        <span class="mini-badge warning">Key required</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="text-secondary">Anthropic</td>
+                        <td>
+                            <div class="model-tag">
+                                <span>claude-sonnet-4-20250514</span>
+                            </div>
+                            <span class="mini-badge warning mt-1"><i data-feather="alert-triangle"></i> Missing
+                                key</span>
+                        </td>
+                        <td>
+                            <div class="config-stats">
+                                <span title="Temperature"><i data-feather="thermometer"></i> 0.3</span>
+                                <span title="Max Tokens"><i data-feather="maximize-2"></i> 2000</span>
+                                <span class="warning-icon"><i data-feather="alert-triangle"></i></span>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="status-badge active">
+                                <i data-feather="check-circle"></i>
+                                Active
+                            </span>
+                        </td>
+                        <td class="text-right">
+                            <div class="actions-row">
+                                <button class="action-icon-btn"><i data-feather="star"></i></button>
+                                <button class="action-icon-btn"><i data-feather="pause"></i></button>
+                                <button class="action-icon-btn"><i data-feather="edit-2"></i></button>
+                                <button class="action-icon-btn danger"><i data-feather="trash-2"></i></button>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="checkbox-cell"><input type="checkbox"></td>
+                        <td>
+                            <div class="user-info-cell">
+                                <div class="avatar-circle green-icon">
+                                    <i data-feather="zap"></i>
+                                </div>
+                                <div class="info-content">
+                                    <span class="username">OpenAI GPT-4</span>
+                                    <span class="subtext">Updated Jan 27, 2026</span>
+                                    <span class="subtext highlight">Last rotated Jan 27, 2026</span>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="text-secondary">Openai</td>
+                        <td>
+                            <div class="model-tag">
+                                <span>gpt-4-turbo-preview</span>
+                            </div>
+                            <span class="mini-badge success mt-1"><i data-feather="key"></i> Secret stored</span>
+                        </td>
+                        <td>
+                            <div class="config-stats">
+                                <span title="Temperature"><i data-feather="thermometer"></i> 0.7</span>
+                                <span title="Max Tokens"><i data-feather="maximize-2"></i> 2000</span>
+                                <span class="success-icon"><i data-feather="key"></i></span>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="status-badge active">
+                                <i data-feather="check-circle"></i>
+                                Active
+                            </span>
+                        </td>
+                        <td class="text-right">
+                            <div class="actions-row">
+                                <button class="action-icon-btn"><i data-feather="heart"></i></button>
+                                <button class="action-icon-btn"><i data-feather="star"></i></button>
+                                <button class="action-icon-btn"><i data-feather="pause"></i></button>
+                                <button class="action-icon-btn"><i data-feather="edit-2"></i></button>
+                                <button class="action-icon-btn danger"><i data-feather="trash-2"></i></button>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+
+</main>
+
+<style>
+    /* Settings/Users/Roles/Groups Shared Layout */
+    .settings-page {
+        gap: 24px;
+        display: flex;
+        flex-direction: column;
+        padding-bottom: 40px;
+    }
+
+    /* Header Bar Reused */
+    .settings-header-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+    }
+
+    .settings-title-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .section-selector {
+        position: relative;
+    }
+
+    .section-dropdown-btn {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 18px;
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        font-size: 16px;
+        font-weight: 700;
+        color: #0f172a;
+        cursor: pointer;
+        transition: all 0.15s;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    }
+
+    .section-dropdown-btn:hover {
+        border-color: #cbd5e1;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    }
+
+    .section-dropdown-btn svg {
+        width: 20px;
+        height: 20px;
+        color: #3b82f6;
+    }
+
+    .section-dropdown-btn .dropdown-arrow {
+        width: 14px;
+        height: 14px;
+        color: #94a3b8;
+    }
+
+    .section-dropdown-menu {
+        display: none;
+        position: absolute;
+        top: calc(100% + 8px);
+        left: 0;
+        width: 260px;
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        box-shadow: 0 12px 48px rgba(0, 0, 0, 0.15);
+        z-index: 100;
+        padding: 8px;
+    }
+
+    .section-dropdown-menu.open {
+        display: block;
+    }
+
+    .dropdown-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 14px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 500;
+        color: #475569;
+        cursor: pointer;
+        text-decoration: none;
+        transition: all 0.12s;
+    }
+
+    .dropdown-item svg {
+        width: 16px;
+        height: 16px;
+    }
+
+    .dropdown-item:hover {
+        background: #f1f5f9;
+        color: #1e293b;
+    }
+
+    .dropdown-item.active {
+        background: #eff6ff;
+        color: #2563eb;
+    }
+
+    .dropdown-item.active svg {
+        color: #3b82f6;
+    }
+
+    .section-desc {
+        font-size: 13px;
+        color: #64748b;
+        margin: 0 0 0 4px;
+    }
+
+    .add-user-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 20px;
+        background: #3b82f6;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s;
+        box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
+    }
+
+    .add-user-btn:hover {
+        background: #2563eb;
+        transform: translateY(-1px);
+    }
+
+    .add-user-btn svg {
+        width: 16px;
+        height: 16px;
+    }
+
+    /* Users Card Container (reused class) */
+    .users-card {
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+    }
+
+    /* Filters Bar */
+    .table-filters-bar {
+        padding: 16px 24px;
+        border-bottom: 1px solid #f1f5f9;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+
+    .search-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 8px 12px;
+        width: 320px;
+        transition: all 0.2s;
+    }
+
+    .search-wrapper:focus-within {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+        background: white;
+    }
+
+    .search-wrapper svg {
+        width: 16px;
+        height: 16px;
+        color: #94a3b8;
+    }
+
+    .search-wrapper input {
+        border: none;
+        background: transparent;
+        outline: none;
+        font-size: 13px;
+        color: #0f172a;
+        width: 100%;
+    }
+
+    .filter-group {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex: 1;
+    }
+
+    .filter-dropdown {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 500;
+        color: #475569;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+
+    .filter-dropdown:hover {
+        background: white;
+        border-color: #cbd5e1;
+        color: #1e293b;
+    }
+
+    .filter-dropdown svg {
+        width: 14px;
+        height: 14px;
+        color: #94a3b8;
+    }
+
+    .bulk-actions {
+        margin-left: auto;
+        display: flex;
+        gap: 8px;
+    }
+
+    .bulk-btn {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 14px;
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        color: #475569;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+
+    .bulk-btn:hover {
+        background: #f8fafc;
+        border-color: #cbd5e1;
+        color: #1e293b;
+    }
+
+    .bulk-btn svg {
+        width: 14px;
+        height: 14px;
+    }
+
+
+    /* Meta Bar */
+    .table-meta-bar {
+        padding: 12px 24px;
+        background: #f8fafc;
+        border-bottom: 1px solid #f1f5f9;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 12px;
+    }
+
+    .select-all-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .showing-text {
+        color: #64748b;
+        font-weight: 500;
+    }
+
+    /* Table */
+    .users-table-wrapper {
+        width: 100%;
+        overflow-x: auto;
+    }
+
+    .users-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .users-table th {
+        padding: 12px 24px;
+        background: #f1f5f9;
+        text-align: left;
+        font-size: 11px;
+        font-weight: 600;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .users-table td {
+        padding: 16px 24px;
+        border-bottom: 1px solid #f1f5f9;
+        font-size: 14px;
+        color: #0f172a;
+        vertical-align: middle;
+    }
+
+    .users-table tr:last-child td {
+        border-bottom: none;
+    }
+
+    .users-table tr:hover td {
+        background: #f8fafc;
+    }
+
+    .checkbox-cell {
+        width: 40px;
+        text-align: center;
+    }
+
+    /* User Info Special */
+    .user-info-cell {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+    }
+
+    .avatar-circle {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid #e2e8f0;
+    }
+
+    .avatar-circle.white-icon {
+        background: white;
+        color: #475569;
+    }
+
+    .avatar-circle.green-icon {
+        background: #f0fdf4;
+        color: #16a34a;
+        border-color: #bbf7d0;
+    }
+
+    .info-content {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .username {
+        font-weight: 600;
+        font-size: 14px;
+        color: #0f172a;
+    }
+
+    .subtext {
+        font-size: 11px;
+        color: #64748b;
+    }
+
+    .subtext.highlight {
+        color: #16a34a;
+    }
+
+    .badges-row {
+        display: flex;
+        gap: 6px;
+        margin-top: 4px;
+    }
+
+    .mini-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 10px;
+        font-weight: 600;
+        padding: 2px 6px;
+        border-radius: 4px;
+        text-transform: uppercase;
+    }
+
+    .mini-badge.primary {
+        background: #eff6ff;
+        color: #2563eb;
+    }
+
+    .mini-badge.warning {
+        background: #fff7ed;
+        color: #c2410c;
+    }
+
+    .mini-badge.success {
+        background: #f0fdf4;
+        color: #16a34a;
+    }
+
+    .mt-1 {
+        margin-top: 4px;
+    }
+
+    .mini-badge svg {
+        width: 10px;
+        height: 10px;
+    }
+
+    .text-secondary {
+        color: #64748b;
+        font-weight: 500;
+    }
+
+    .model-tag {
+        display: inline-block;
+        background: #f1f5f9;
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-family: monospace;
+        font-size: 12px;
+        color: #475569;
+        border: 1px solid #e2e8f0;
+    }
+
+    .config-stats {
+        display: flex;
+        gap: 12px;
+        color: #64748b;
+        font-size: 13px;
+        font-family: monospace;
+    }
+
+    .config-stats span {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .config-stats svg {
+        width: 14px;
+        height: 14px;
+    }
+
+    .warning-icon {
+        color: #eab308;
+    }
+
+    .success-icon {
+        color: #22c55e;
+    }
+
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 500;
+    }
+
+    .status-badge.active {
+        background: #dcfce7;
+        color: #16a34a;
+    }
+
+    .status-badge svg {
+        width: 12px;
+        height: 12px;
+    }
+
+    .actions-row {
+        display: flex;
+        gap: 6px;
+        justify-content: flex-end;
+    }
+
+    /* Action Buttons (Blue) */
+    .action-icon-btn {
+        background: #f0f9ff;
+        border: 1px solid #bae6fd;
+        border-radius: 6px;
+        width: 32px;
+        height: 32px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #0284c7;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+
+    .action-icon-btn:hover {
+        border-color: #0ea5e9;
+        color: white;
+        background: #0ea5e9;
+        box-shadow: 0 2px 4px rgba(14, 165, 233, 0.2);
+    }
+
+    .action-icon-btn.danger {
+        background: #fff1f2;
+        border-color: #fecdd3;
+        color: #e11d48;
+    }
+
+    .action-icon-btn.danger:hover {
+        background: #e11d48;
+        border-color: #e11d48;
+        color: white;
+        box-shadow: 0 2px 4px rgba(225, 29, 72, 0.2);
+    }
+
+    .action-icon-btn svg {
+        width: 14px;
+        height: 14px;
+    }
+</style>
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+    feather.replace();
+
+    const dropdownBtn = document.getElementById('sectionDropdownBtn');
+    const dropdownMenu = document.getElementById('sectionDropdownMenu');
+
+    dropdownBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        dropdownMenu.classList.toggle('open');
+    });
+
+    document.addEventListener('click', function () {
+        dropdownMenu.classList.remove('open');
+    });
+</script>
+{% endblock %}

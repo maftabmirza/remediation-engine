@@ -86,15 +86,12 @@ async def proxy_prometheus(path: str, request: Request, current_user: User = Dep
             html_content = content.decode('utf-8', errors='replace')
             
             # AI Agent and Theme Injection
-            ai_agent_injection = '''
-            <!-- AI Agent Widget and Theme Injection -->
-            <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-            <link href="/static/css/agent_widget.css" rel="stylesheet">
-            <link href="/static/css/prometheus_theme.css" rel="stylesheet">
-            <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-            <script src="/static/js/agent_widget.js"></script>
-            <!-- End AI Agent Widget -->
-            '''
+            # AI Agent and Theme Injection
+            # Note: Widget injection is now handled by the parent template (prometheus_view.html)
+            # We only inject font-awesome if needed, or keep it minimal.
+            # actually, let's remove the widget injection completely to avoid duplicates.
+            ai_agent_injection = ''
+
             
             if '</body>' in html_content:
                 html_content = html_content.replace('</body>', f'{ai_agent_injection}</body>')

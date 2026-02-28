@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  mcp-grafana:
+    image: grafana/mcp-grafana:latest # Official image from Docker Hub
+    container_name: mcp-grafana
+    restart: unless-stopped
+    environment:
+      # Grafana connection - NOTE: must include /grafana base path
+      - GRAFANA_URL=${GRAFANA_URL:-http://grafana:3000/grafana}
+      - GRAFANA_SERVICE_ACCOUNT_TOKEN=${GRAFANA_SERVICE_ACCOUNT_TOKEN:-your_grafana_token_here}
+
+      # Server configuration
+      - MCP_SERVER_PORT=${MCP_SERVER_PORT:-8080}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+
+      # Optional: Additional Grafana datasources
+      - PROMETHEUS_URL=${PROMETHEUS_URL:-}
+      - LOKI_URL=${LOKI_URL:-}
+      - TEMPO_URL=${TEMPO_URL:-}
+
+    # Run in SSE mode (default) - client connects to HTTP server
+    command: [] # Default entrypoint runs SSE mode
+
+    ports:
+      - "8081:8000" # MCP server on port 8081 (cadvisor removed)
+
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    networks:
+      - aiops-network
+
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  aiops-network:
+    external: true
+    name: remediate-engine-antigravity_aiops-network # Use same network as remediation-engine

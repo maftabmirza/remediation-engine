@@ -1,5 +1,5 @@
 from app.database import SessionLocal
-# Import all models to resolve relationships (Same as Alembic)
+# Import all models to resolve relationships
 from app.models import *
 from app.models_agent import *
 from app.models_application import *

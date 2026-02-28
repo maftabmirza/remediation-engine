@@ -62,7 +62,7 @@ async def create_document(
     logger.info(f"Source URL: {source_url}")
     logger.info(f"=====================")
     doc_service = DocumentService(db)
-    embedding_service = EmbeddingService()
+    embedding_service = EmbeddingService(db=db)
     pdf_service = PDFService()
     vision_service = VisionAIService()
     
@@ -372,13 +372,20 @@ async def get_knowledge_stats(
         DesignDocument.doc_type,
         func.count(DesignDocument.id)
     ).group_by(DesignDocument.doc_type).all()
-    
+
+    embedding_svc = EmbeddingService(db=db)
+    embedding_configured = embedding_svc.is_configured()
+
     return {
         "total_documents": total_documents,
         "total_chunks": total_chunks,
         "documents_by_type": {doc_type: count for doc_type, count in docs_by_type},
-        "embedding_model": EmbeddingService().get_embedding_model(),
-        "embedding_configured": EmbeddingService().is_configured()
+        "embedding_model": embedding_svc.get_provider_display() if embedding_configured else None,
+        "embedding_configured": embedding_configured,
+        "embedding_error": None if embedding_configured else (
+            "No embedding provider configured. "
+            "Go to Settings → LLM Providers → Add Provider and set Usage Type to 'Embedding'."
+        )
     }
 
 
@@ -393,6 +400,7 @@ class GitSyncRequest(BaseModel):
     repo_url: str
     branch: str = "main"
     app_id: Optional[UUID] = None
+    sync_code: bool = False
 
 @router.post("/sync/git", status_code=status.HTTP_200_OK)
 async def sync_git_repository(
@@ -404,13 +412,16 @@ async def sync_git_repository(
     Trigger synchronization from a Git repository.
     Clones the repo and auto-imports all markdown files.
     """
+    from app.services.git_sync_service import GitSyncConfig
     sync_service = GitSyncService(db)
     try:
+        config = GitSyncConfig(sync_docs=True, sync_code=sync_req.sync_code)
         stats = sync_service.sync_repository(
             repo_url=sync_req.repo_url,
             app_id=sync_req.app_id,
             branch=sync_req.branch,
-            user_id=current_user.id
+            user_id=current_user.id,
+            config=config
         )
         return {
             "message": "Git sync completed",

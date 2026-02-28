@@ -8,7 +8,9 @@ from typing import List, Optional
 from uuid import UUID
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import text
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from pydantic import BaseModel
 import yaml
 
@@ -651,8 +653,15 @@ async def test_server_on_demand(
                 server.ssh_key_encrypted = encrypt_value(payload.ssh_key)
 
         # Use the executor factory to test connection
+        # Wrap with a hard outer timeout so the API always returns,
+        # even if asyncssh hangs during handshake.
+        import asyncio as _asyncio
+        TEST_TIMEOUT = 20  # seconds
         try:
-            result = await ExecutorFactory.test_server_connection(server)
+            result = await _asyncio.wait_for(
+                ExecutorFactory.test_server_connection(server),
+                timeout=TEST_TIMEOUT
+            )
             
             status_code = "success" if result.success else "error"
             message = result.stdout if result.success else (result.error_message or result.stderr)
@@ -661,6 +670,11 @@ async def test_server_on_demand(
                 status=status_code,
                 message=message or "Connection successful",
                 latency_ms=result.duration_ms
+            )
+        except _asyncio.TimeoutError:
+            return ServerTestResponse(
+                status="error",
+                message=f"Connection test timed out after {TEST_TIMEOUT}s — host unreachable or port blocked"
             )
         except Exception as e:
             return ServerTestResponse(status="error", message=str(e))
@@ -858,6 +872,7 @@ async def delete_server(
     server = db.query(ServerCredential).filter(ServerCredential.id == server_id).first()
     if not server:
         raise HTTPException(status_code=404, detail="Server not found")
+    server_name = server.name
     
     # Cleanup dependencies
     # 1. Terminal Sessions
@@ -881,19 +896,39 @@ async def delete_server(
     except ImportError:
         pass
 
-    db.delete(server)
-    db.commit()
-    
+    # 4. Agent Sessions
+    try:
+        db.execute(
+            text("UPDATE agent_sessions SET server_id = NULL WHERE server_id = CAST(:server_id AS uuid)"),
+            {"server_id": str(server_id)}
+        )
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to clear agent session references for server delete: {exc}"
+        ) from exc
+
     # Audit
     audit = AuditLog(
         user_id=current_user.id,
         action="delete_server",
         resource_type="server",
         resource_id=server_id,
-        details_json={"name": server.name}
+        details_json={"name": server_name}
     )
+
+    db.delete(server)
     db.add(audit)
-    db.commit()
+    try:
+        db.flush()
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Server cannot be deleted because it is still referenced by related records."
+        ) from exc
 
     return {"message": "Server deleted successfully"}
 

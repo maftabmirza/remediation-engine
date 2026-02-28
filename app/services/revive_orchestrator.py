@@ -188,6 +188,7 @@ class ReviveOrchestrator:
         try:
             session = AISession(
                 user_id=user_id,
+                pillar="revive",
                 title="New Conversation",
                 context_context_json=context or {}
             )

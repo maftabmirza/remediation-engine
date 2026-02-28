@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+{% set active_page = 'inquiry' %}
+
+{% block title %}AI Inquiry Analyst - AIOps Platform{% endblock %}
+
+{% block breadcrumbs %}
+<span class="mx-2">/</span>
+<span class="text-gray-200 truncate">AI Analyst</span>
+{% endblock %}
+
+{% block header_title %}
+<i data-feather="message-circle" class="text-blue-400" style="width:16px;height:16px;"></i>
+<span class="text-sm font-semibold text-white tracking-tight">AI Inquiry Analyst</span>
+{% endblock %}
+
+{% block main_wrapper %}
+<main class="inquiry-main">
+    <!-- Left Panel: Chat -->
+    <div class="inq-chat-panel">
+        <!-- Chat Header -->
+        <div class="inq-chat-header">
+            <div class="inq-chat-header-left">
+                <!-- New Session Button -->
+                <button class="inq-new-session-btn" onclick="createNewSession()">
+                    <i data-feather="zap" style="width: 14px; height: 14px;"></i>
+                    <span>New Session</span>
+                </button>
+
+            </div>
+            <div class="inq-chat-header-right">
+                <!-- LLM Model Selector Icon -->
+                <div class="inq-llm-icon-wrapper" id="llmSelector" style="position: relative;">
+                    <button class="inq-icon-btn inq-llm-icon-btn" onclick="toggleModelDropdown()" id="llmIconBtn" title="LLM Provider">
+                        <span class="inq-llm-icon-status inq-llm-icon-connecting" id="llmIconStatus">
+                            <i data-feather="zap" style="width: 14px; height: 14px;"></i>
+                        </span>
+                        <span class="inq-llm-status-dot" id="llmStatusDot" title="Connecting"></span>
+                    </button>
+                    <div class="hidden inq-llm-dropdown-panel" id="modelListContainer">
+                        <div class="inq-llm-dropdown-header">
+                            <i data-feather="zap" style="width: 13px; height: 13px; color: #3b82f6;"></i>
+                            <span>LLM Provider</span>
+                            <span class="inq-llm-status-badge" id="llmStatusBadge">Connecting</span>
+                        </div>
+                        <div class="inq-llm-provider-list" id="llmProviderList">
+                            <!-- Options injected by populateModelDropdown -->
+                        </div>
+                    </div>
+                    <div id="modelDropdown" class="hidden"></div>
+                </div>
+                <div class="inq-session-dropdown-wrapper" style="position: relative;">
+                    <button onclick="toggleSessionDropdown()" id="sessionDropdownBtn"
+                        class="inq-icon-btn" title="Chat History">
+                        <i data-feather="clock" style="width: 14px; height: 14px;"></i>
+                    </button>
+                    <div id="sessionDropdown" class="hidden inq-session-dropdown-panel">
+                        <div class="inq-session-dropdown-header">
+                            <i data-feather="message-square" style="width: 13px; height: 13px; color: #3b82f6;"></i>
+                            <span>Chat History</span>
+                        </div>
+                        <div id="sessionListContainer" class="inq-session-list">
+                            <div class="inq-session-empty">No sessions yet</div>
+                        </div>
+                    </div>
+                </div>
+                <button onclick="adjustChatFont(-1)" class="inq-icon-btn" title="Decrease Font">
+                    <i data-feather="minus" style="width: 14px; height: 14px;"></i>
+                </button>
+                <button onclick="adjustChatFont(1)" class="inq-icon-btn" title="Increase Font">
+                    <i data-feather="plus" style="width: 14px; height: 14px;"></i>
+                </button>
+                <button onclick="clearChat()" class="inq-icon-btn" title="Clear Chat" style="color: #ef4444;">
+                    <i data-feather="trash-2" style="width: 14px; height: 14px;"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Chat Messages -->
+        <div id="chatMessages" class="inq-chat-messages">
+            <!-- Welcome/Empty state handled by JS -->
+        </div>
+
+        <!-- Chat Input -->
+        <div class="inq-chat-input-container">
+            <form id="chatForm" onsubmit="sendMessage(event)" class="flex" style="gap: 8px;">
+                <textarea id="chatInput" class="inq-chat-input" placeholder="Ask about logs, metrics, traces, or infrastructure status..."
+                    autocomplete="off" title="Type your message here" rows="2"></textarea>
+                <button type="submit" title="Send Message">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Resize Handle -->
+    <div class="inq-resize-handle" id="inquiryResizeHandle">
+        <div class="inq-resize-line"></div>
+    </div>
+
+    <!-- Right Panel: Artifacts -->
+    <div class="inq-artifacts-panel">
+        <!-- Artifacts Header -->
+        <div class="inq-artifacts-header">
+            <div class="inq-artifacts-header-left">
+                <div class="inq-artifact-tabs-wrapper">
+                    <div class="inq-artifact-tabs">
+                        <button onclick="switchArtifactTab('recent')" id="artifactTabRecent"
+                            class="inq-artifact-tab active">
+                            <span class="inq-tab-dot active"></span>
+                            Recent
+                        </button>
+                        <button onclick="switchArtifactTab('all')" id="artifactTabAll" class="inq-artifact-tab">
+                            <i class="fas fa-layer-group inq-tab-icon"></i>
+                            All Artifacts
+                            <span id="artifactCount" class="inq-artifact-badge">0</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="inq-artifact-controls">
+                <button onclick="clearArtifacts()" class="inq-ctrl-btn inq-ctrl-danger" title="Clear All">
+                    <i class="fas fa-trash-alt"></i>
+                    <span>Clear</span>
+                </button>
+                <button onclick="exportAllArtifacts()" class="inq-ctrl-btn" title="Export All">
+                    <i class="fas fa-file-export"></i>
+                    <span>Export</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Artifacts Content -->
+        <div id="artifactsContainer" class="inq-artifacts-content">
+            <!-- Sequential Artifact Feed -->
+            <div id="artifactFeed" style="padding:8px;display:flex;flex-direction:column;gap:10px;">
+                <!-- full artifact cards appended in order -->
+            </div>
+
+            <!-- Empty State -->
+            <div id="artifactsEmpty" class="inq-empty-state">
+                <div class="inq-empty-state-icon">
+                    <i class="fas fa-cube"></i>
+                </div>
+                <h3>No Artifacts Yet</h3>
+                <p>When you ask questions, structured data like tables, code, and charts will appear here for easy
+                    viewing and export.</p>
+                <div class="inq-empty-state-tags">
+                    <span><i class="fas fa-table"></i>Tables</span>
+                    <span><i class="fas fa-code"></i>Code</span>
+                    <span><i class="fas fa-chart-bar"></i>Charts</span>
+                    <span><i class="fas fa-file-alt"></i>Reports</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="/static/js/troubleshoot_chat_base.js?v=2.6"></script>
+<script src="/static/js/inquiry_chat.js?v={{ range(100000, 999999) | random }}"></script>
+<script>
+    // Specific inits
+    let currentChatMode = 'general';
+
+    // Utility function for toast notifications
+    function showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.className = `fixed bottom-4 right-4 px-4 py-2 rounded shadow-lg text-white text-sm z-50 ${type === 'error' ? 'bg-red-600' : type === 'success' ? 'bg-green-600' : 'bg-gray-800'
+            }`;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    }
+    window.showToast = showToast;
+
+    async function apiCall(endpoint, options = {}) {
+        const defaults = { headers: { 'Content-Type': 'application/json' } };
+        options = { ...defaults, ...options, headers: { ...defaults.headers, ...options.headers } };
+        try {
+            const res = await fetch(endpoint, options);
+            if (res.status === 401) window.location.href = '/login';
+            return res;
+        } catch (e) {
+            console.error("API Call error", e);
+            throw e;
+        }
+    }
+    window.apiCall = apiCall;
+
+    // Initialize Feather icons
+    document.addEventListener('DOMContentLoaded', function () {
+        if (typeof feather !== 'undefined') {
+            feather.replace();
+        }
+
+        // Initialize resize handle
+        initInquiryResize();
+    });
+
+    // Inquiry Panel Resize
+    function initInquiryResize() {
+        const mainContainer = document.querySelector('.inquiry-main');
+        const resizeHandle = document.getElementById('inquiryResizeHandle');
+        const chatPanel = document.querySelector('.inq-chat-panel');
+        const artifactsPanel = document.querySelector('.inq-artifacts-panel');
+
+        if (!mainContainer || !resizeHandle || !chatPanel || !artifactsPanel) {
+            return;
+        }
+
+        let isResizing = false;
+        let startX = 0;
+        let startChatWidth = 0;
+
+        resizeHandle.addEventListener('mousedown', (e) => {
+            isResizing = true;
+            startX = e.clientX;
+            startChatWidth = chatPanel.getBoundingClientRect().width;
+            mainContainer.classList.add('resizing');
+            document.body.style.cursor = 'col-resize';
+            e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isResizing) return;
+
+            const delta = e.clientX - startX;
+            const newWidth = startChatWidth + delta;
+            const minWidth = 320;
+            const maxWidth = window.innerWidth - 400;
+
+            if (newWidth >= minWidth && newWidth <= maxWidth) {
+                mainContainer.style.gridTemplateColumns = `${newWidth}px auto 1fr`;
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (isResizing) {
+                isResizing = false;
+                mainContainer.classList.remove('resizing');
+                document.body.style.cursor = '';
+            }
+        });
+    }
+</script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/vs2015.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+{% endblock %}

@@ -3,6 +3,7 @@ Authentication service - JWT tokens, password hashing
 """
 from datetime import datetime, timedelta
 from typing import Optional, Set, List
+from uuid import uuid4
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status, Request, WebSocket
@@ -17,6 +18,36 @@ from app.models_group import Group, GroupMember
 from app.models_runbook_acl import RunbookACL
 
 settings = get_settings()
+
+# ---------------------------------------------------------------------------
+# In-memory JWT blacklist
+# Stores {jti: expiry_datetime} for tokens that have been explicitly revoked
+# (e.g. via logout).  Expired entries are lazily pruned on each lookup.
+# For multi-instance deployments this should be replaced with a shared store
+# (Redis, DB table, etc.).
+# ---------------------------------------------------------------------------
+_token_blacklist: dict[str, datetime] = {}
+
+
+def _prune_blacklist() -> None:
+    """Remove entries whose token has already expired naturally."""
+    now = datetime.utcnow()
+    expired = [jti for jti, exp in _token_blacklist.items() if exp <= now]
+    for jti in expired:
+        del _token_blacklist[jti]
+
+
+def blacklist_token(jti: str, expiry: datetime) -> None:
+    """Add a token identifier to the revocation list."""
+    _prune_blacklist()
+    _token_blacklist[jti] = expiry
+
+
+def is_token_blacklisted(jti: str) -> bool:
+    """Return True if the token ID has been explicitly revoked."""
+    _prune_blacklist()
+    return jti in _token_blacklist
+
 
 # ---- Role & Permission model ----
 
@@ -36,6 +67,10 @@ ROLE_PERMISSIONS = {
         "view_knowledge",
         "upload_documents",
         "manage_knowledge",
+        "pii_view_config",
+        "pii_edit_config",
+        "pii_read_logs",
+        "pii_report_false_positive",
     },
     "admin": {
         "manage_users",
@@ -49,6 +84,23 @@ ROLE_PERMISSIONS = {
         "view_knowledge",
         "upload_documents",
         "manage_knowledge",
+        "pii_view_config",
+        "pii_edit_config",
+        "pii_read_logs",
+        "pii_report_false_positive",
+    },
+    "security_admin": {
+        "read",
+        "view_audit",
+        "pii_view_config",
+        "pii_edit_config",
+        "pii_read_logs",
+        "pii_report_false_positive",
+    },
+    "security_viewer": {
+        "read",
+        "pii_view_config",
+        "pii_read_logs",
     },
     "maintainer": {
         "manage_servers",
@@ -66,6 +118,7 @@ ROLE_PERMISSIONS = {
         "read",
         "view_knowledge",
         "upload_documents",
+        "pii_report_false_positive",
     },
     "viewer": {
         "read",
@@ -79,7 +132,7 @@ ROLE_PERMISSIONS = {
 }
 
 DEFAULT_ROLE = "operator"
-ADMIN_ROLES = {"owner", "admin"}
+ADMIN_ROLES = {"owner", "admin", "security_admin"}
 VALID_ROLES = set(ROLE_PERMISSIONS.keys())
 
 # Password hashing
@@ -91,34 +144,49 @@ security = HTTPBearer(auto_error=False)
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a password against its hash"""
-    return pwd_context.verify(plain_password, hashed_password)
+    # bcrypt has a 72-byte limit for passwords
+    truncated_password = plain_password[:72] if plain_password else plain_password
+    try:
+        return pwd_context.verify(truncated_password, hashed_password)
+    except ValueError:
+        # Handle invalid hash format or other bcrypt errors
+        return False
 
 
 def get_password_hash(password: str) -> str:
     """Hash a password"""
-    return pwd_context.hash(password)
+    # bcrypt has a 72-byte limit for passwords
+    truncated_password = password[:72] if password else password
+    return pwd_context.hash(truncated_password)
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
-    """Create a JWT access token"""
+    """Create a JWT access token with a unique JTI for revocation support."""
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
     else:
         expire = datetime.utcnow() + timedelta(hours=settings.jwt_expiry_hours)
-    
-    to_encode.update({"exp": expire})
+
+    # jti (JWT ID) enables server-side revocation via the token blacklist
+    to_encode.update({"exp": expire, "jti": str(uuid4())})
     encoded_jwt = jwt.encode(to_encode, settings.jwt_secret, algorithm=settings.jwt_algorithm)
     return encoded_jwt
 
 
 def decode_token(token: str) -> Optional[dict]:
-    """Decode and validate a JWT token"""
+    """Decode, validate, and revocation-check a JWT token."""
     try:
         payload = jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
-        return payload
     except JWTError:
         return None
+
+    # Reject tokens that have been explicitly revoked (e.g. via logout)
+    jti = payload.get("jti")
+    if jti and is_token_blacklisted(jti):
+        return None
+
+    return payload
 
 
 def get_user_by_username(db: Session, username: str) -> Optional[User]:

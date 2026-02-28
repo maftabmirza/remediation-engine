@@ -6,7 +6,7 @@ import logging
 from typing import List, Optional
 from uuid import UUID
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, or_, func
 
 from app.models import Alert
 from app.models_remediation import RunbookExecution
@@ -73,12 +73,14 @@ class SimilarityService:
                 .all()
             )
             
-            # Build response
+            # Build response — fetch all resolution info in one bulk query to avoid N+1
+            similar_alert_ids = [sa.id for sa, _ in similar_alerts_query]
+            resolution_map = self._get_resolution_info_bulk(similar_alert_ids)
+
             similar_incidents = []
             for similar_alert, similarity_score in similar_alerts_query:
-                # Get resolution info if available
-                resolution_info = self._get_resolution_info(similar_alert.id)
-                
+                resolution_info = resolution_map.get(similar_alert.id)
+
                 similar_incidents.append(SimilarIncident(
                     alert_id=similar_alert.id,
                     alert_name=similar_alert.alert_name,
@@ -99,41 +101,65 @@ class SimilarityService:
             logger.error(f"Error finding similar alerts for {alert_id}: {e}")
             return None
     
-    def _get_resolution_info(self, alert_id: UUID) -> Optional[ResolutionInfo]:
-        """Get resolution information for an alert."""
+    def _get_resolution_info_bulk(self, alert_ids: list) -> dict:
+        """
+        Get resolution information for multiple alerts in a single query.
+        Avoids the N+1 pattern of calling _get_resolution_info() inside a loop.
+        Returns a dict mapping alert_id -> ResolutionInfo.
+        """
+        if not alert_ids:
+            return {}
+
         try:
-            # Find the most recent successful execution for this alert
-            execution_with_outcome = (
-                self.db.query(RunbookExecution, ExecutionOutcome)
-                .join(ExecutionOutcome, ExecutionOutcome.execution_id == RunbookExecution.id)
+            from app.models_remediation import Runbook
+
+            # Subquery: latest successful completed_at per alert
+            subq = (
+                self.db.query(
+                    RunbookExecution.alert_id,
+                    func.max(RunbookExecution.completed_at).label('max_completed_at')
+                )
                 .filter(
-                    RunbookExecution.alert_id == alert_id,
+                    RunbookExecution.alert_id.in_(alert_ids),
                     RunbookExecution.status == 'success'
                 )
-                .order_by(RunbookExecution.completed_at.desc())
-                .first()
+                .group_by(RunbookExecution.alert_id)
+                .subquery()
             )
-            
-            if execution_with_outcome:
-                execution, outcome = execution_with_outcome
-                
-                return ResolutionInfo(
+
+            rows = (
+                self.db.query(RunbookExecution, ExecutionOutcome, Runbook)
+                .join(ExecutionOutcome, ExecutionOutcome.execution_id == RunbookExecution.id)
+                .outerjoin(Runbook, Runbook.id == RunbookExecution.runbook_id)
+                .join(
+                    subq,
+                    and_(
+                        RunbookExecution.alert_id == subq.c.alert_id,
+                        RunbookExecution.completed_at == subq.c.max_completed_at,
+                    )
+                )
+                .all()
+            )
+
+            return {
+                execution.alert_id: ResolutionInfo(
                     method="runbook",
                     runbook_id=execution.runbook_id,
-                    runbook_name=execution.runbook.name if execution.runbook else None,
+                    runbook_name=runbook.name if runbook else None,
                     success=outcome.resolved_issue or False,
-                    time_minutes=outcome.time_to_resolution_minutes
+                    time_minutes=outcome.time_to_resolution_minutes,
                 )
-            
-            # Check if there was a manual resolution (feedback without runbook execution)
-            # This would require analyzing feedback data
-            # For now, just return None if no runbook execution found
-            
-            return None
-            
+                for execution, outcome, runbook in rows
+            }
+
         except Exception as e:
-            logger.error(f"Error getting resolution info for alert {alert_id}: {e}")
-            return None
+            logger.error(f"Error getting bulk resolution info: {e}")
+            return {}
+
+    def _get_resolution_info(self, alert_id: UUID) -> Optional[ResolutionInfo]:
+        """Get resolution information for a single alert (used outside bulk context)."""
+        result = self._get_resolution_info_bulk([alert_id])
+        return result.get(alert_id)
     
     def generate_missing_embeddings(
         self,

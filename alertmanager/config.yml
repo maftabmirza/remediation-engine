@@ -20,17 +20,17 @@ receivers:
   - name: 'default'
     # Default receiver - can be configured with webhooks, email, etc.
     webhook_configs:
-      - url: 'http://remediation-engine:8080/api/alerts/webhook'
+      - url: 'http://remediation-engine:8080/webhook/alerts'
         send_resolved: true
 
   - name: 'critical'
     webhook_configs:
-      - url: 'http://remediation-engine:8080/api/alerts/webhook'
+      - url: 'http://remediation-engine:8080/webhook/alerts'
         send_resolved: true
 
   - name: 'warning'
     webhook_configs:
-      - url: 'http://remediation-engine:8080/api/alerts/webhook'
+      - url: 'http://remediation-engine:8080/webhook/alerts'
         send_resolved: true
 
 inhibit_rules:

@@ -6,8 +6,21 @@
  */
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Inject Widget HTML if not present
-    if (!document.getElementById('agent-widget')) {
+    console.log('RE-VIVE: DOMContentLoaded fired');
+    console.log('RE-VIVE: window.self === window.top:', window.self === window.top);
+
+    // Remove any pre-existing widget injected by the base revive_widget.js
+    // (that script runs first from base.html and creates a grid-based widget
+    //  which conflicts with this fixed-position Grafana widget)
+    const existingWidget = document.getElementById('agent-widget');
+    if (existingWidget) {
+        console.log('RE-VIVE Grafana: Removing pre-existing base widget to avoid conflict');
+        existingWidget.remove();
+    }
+
+    // Inject Grafana-specific Widget HTML
+    {
+        console.log('RE-VIVE: Injecting Grafana widget HTML...');
         const widgetHTML = `
             <div id="agent-widget">
                 <div id="agent-window">
@@ -40,6 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         `;
         document.body.insertAdjacentHTML('beforeend', widgetHTML);
+        console.log('RE-VIVE: Widget HTML injected');
     }
 
     const agentWindow = document.getElementById('agent-window');
@@ -50,6 +64,47 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let isOpen = false;
     let sessionId = getValidSessionId();
+    let conversationHistory = []; // Store conversation for context
+    let currentMode = 'auto'; // Track detected mode
+
+    // Load existing session history from backend
+    async function loadSessionHistory() {
+        try {
+            const token = localStorage.getItem('token');
+            if (!token || !sessionId) return;
+            
+            const response = await fetch(`/api/revive/sessions/${sessionId}/messages`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                conversationHistory = data.messages || [];
+                console.log(`RE-VIVE: Loaded ${conversationHistory.length} messages from session`);
+                
+                // Restore messages to UI if any
+                if (conversationHistory.length > 1) { // More than welcome message
+                    restoreMessagesToUI();
+                }
+            }
+        } catch (e) {
+            console.warn('RE-VIVE: Failed to load session history:', e);
+        }
+    }
+    
+    function restoreMessagesToUI() {
+        messagesContainer.innerHTML = ''; // Clear welcome
+        conversationHistory.forEach(msg => {
+            if (msg.role === 'user') {
+                addMessage(msg.content, 'user');
+            } else if (msg.role === 'assistant') {
+                addMessage(msg.content, 'ai');
+            }
+        });
+    }
 
     function getValidSessionId() {
         let id = localStorage.getItem('revive_grafana_session_id');
@@ -92,6 +147,11 @@ document.addEventListener('DOMContentLoaded', () => {
             document.body.classList.add('ai-helper-open');
             const widget = document.getElementById('agent-widget');
             if (widget) widget.style.pointerEvents = 'auto';
+            
+            // Load session history on first open
+            if (conversationHistory.length === 0) {
+                loadSessionHistory();
+            }
 
             // METHOD 1: Direct Resize of Parent Containers with !important
             // METHOD 1: Direct Resize of Parent Containers with !important
@@ -109,6 +169,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // METHOD 3: Send message to parent (Redundant if running in parent, but safe)
             window.postMessage({ type: 'REVIVE_TOGGLE', isOpen: true }, '*');
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage({ type: 'REVIVE_TOGGLE', isOpen: true }, '*');
+            }
 
             setTimeout(() => input?.focus(), 0);
         } else {
@@ -130,14 +193,18 @@ document.addEventListener('DOMContentLoaded', () => {
             document.body.style.setProperty('width', '100%', 'important');
 
             window.postMessage({ type: 'REVIVE_TOGGLE', isOpen: false }, '*');
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage({ type: 'REVIVE_TOGGLE', isOpen: false }, '*');
+            }
         }
     }
 
     function toggleWindow() {
+        console.log('RE-VIVE: toggleWindow() called, current isOpen:', isOpen);
         setOpen(!isOpen);
     }
 
-    // Extract page context for Grafana
+    // Extract page context for Grafana with enhanced metadata
     function extractPageContext() {
         // Try getting iframe window/location
         let win = window;
@@ -156,7 +223,15 @@ document.addEventListener('DOMContentLoaded', () => {
             page_type: 'grafana_stack',
             url: win.location.href,
             title: win.document.title || document.title,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            conversation_history_length: conversationHistory.length,
+            session_id: sessionId,
+            current_mode: currentMode,
+            user_context: {
+                viewport: { width: win.innerWidth, height: win.innerHeight },
+                scroll_position: { x: win.scrollX, y: win.scrollY },
+                time_on_page: getTimeOnPage()
+            }
         };
 
         // Detect specific page type using effectively "win"
@@ -205,6 +280,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         console.log('RE-VIVE: Full Page Context:', context);
         return context;
+    }
+    
+    // Helper: Track time on page
+    let pageLoadTime = Date.now();
+    function getTimeOnPage() {
+        return Math.floor((Date.now() - pageLoadTime) / 1000); // seconds
     }
 
     function extractPrometheusQuery(win) {
@@ -381,11 +462,14 @@ document.addEventListener('DOMContentLoaded', () => {
     async function sendQuery(query) {
         addMessage(query, 'user');
         showTypingIndicator();
+        
+        // Store in conversation history
+        conversationHistory.push({ role: 'user', content: query });
 
         try {
             const context = extractPageContext();
 
-            const response = await fetch('/api/ai-helper/query', {
+            const response = await fetch('/api/revive/grafana/query', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -401,16 +485,39 @@ document.addEventListener('DOMContentLoaded', () => {
             hideTypingIndicator();
 
             if (!response.ok) {
-                throw new Error('Network response was not ok');
+                // Check for specific error codes
+                if (response.status === 401) {
+                    addMessage('❌ Session expired. Please refresh the page and try again.', 'ai');
+                } else if (response.status === 503) {
+                    addMessage('⚠️ Service temporarily unavailable. Please try again in a moment.', 'ai');
+                } else {
+                    throw new Error(`Server error: ${response.status}`);
+                }
+                return;
             }
 
             const data = await response.json();
-            addMessage(data.response, 'ai', data.query_id);
+            const aiResponse = data.response;
+            addMessage(aiResponse, 'ai', data.query_id);
+            
+            // Store in conversation history
+            conversationHistory.push({ role: 'assistant', content: aiResponse });
+            
+            // Update detected mode if provided
+            if (data.mode) {
+                currentMode = data.mode;
+            }
 
         } catch (error) {
             hideTypingIndicator();
-            addMessage('Sorry, I encountered an error. Please try again.', 'ai');
             console.error('RE-VIVE query error:', error);
+            
+            // User-friendly error messages
+            if (error.message.includes('Failed to fetch')) {
+                addMessage('🔌 Connection lost. Please check your internet connection and try again.', 'ai');
+            } else {
+                addMessage('❌ Sorry, I encountered an error. Please try again or refresh the page.', 'ai');
+            }
         }
     }
 
@@ -444,23 +551,45 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Add toggle button to top of Grafana iframe (if in iframe context)
     // This will be visible when looking at the Grafana page
+    // Add toggle button to top of Grafana iframe (if in iframe context)
+    // This will be visible when looking at the Grafana page
     if (window.self !== window.top) {
-        // We're in an iframe - add a floating toggle button
-        const toggleBtn = document.createElement('button');
-        toggleBtn.id = 'grafana-ai-toggle';
-        toggleBtn.className = 'grafana-ai-toggle';
-        toggleBtn.innerHTML = '<i class="fas fa-robot"></i> RE-VIVE';
-        toggleBtn.onclick = toggleWindow;
-        document.body.appendChild(toggleBtn);
+        // Check if the parent already has a toggle (e.g. we are in the AIOps wrapper)
+        let parentHasToggle = false;
+        try {
+            if (window.parent && window.parent.document.getElementById('ai-helper-toggle')) {
+                parentHasToggle = true;
+                console.log('RE-VIVE: Detected parent wrapper, suppressing duplicate toggle button');
+            }
+        } catch (e) {
+            // Cross-origin, cannot check parent. Assume standalone or external embed.
+        }
+
+        if (!parentHasToggle) {
+            // We're in an iframe without a parent controller - add a floating toggle button
+            const toggleBtn = document.createElement('button');
+            toggleBtn.id = 'grafana-ai-toggle';
+            toggleBtn.className = 'grafana-ai-toggle';
+            toggleBtn.innerHTML = '<i class="fas fa-robot"></i> RE-VIVE';
+            toggleBtn.onclick = toggleWindow;
+            document.body.appendChild(toggleBtn);
+        }
     }
 
     // Bind to the global header toggle button (if present)
+    console.log('RE-VIVE: Looking for #ai-helper-toggle button...');
     const headerToggle = document.getElementById('ai-helper-toggle');
+    console.log('RE-VIVE: Header toggle found:', !!headerToggle);
     if (headerToggle) {
+        console.log('RE-VIVE: Attaching click listener to header toggle');
         headerToggle.addEventListener('click', (e) => {
             e.preventDefault();
+            console.log('RE-VIVE: Header toggle clicked!');
             toggleWindow();
         });
+        console.log('RE-VIVE: Header toggle listener attached successfully');
+    } else {
+        console.warn('RE-VIVE: Header toggle button NOT found in DOM');
     }
 
     // Keyboard shortcut: Ctrl+Shift+A to toggle
@@ -501,4 +630,11 @@ document.addEventListener('DOMContentLoaded', () => {
             document.body.style.cursor = '';
         });
     }
+
+    // LISTENER FOR PARENT WINDOW COMMANDS
+    window.addEventListener('message', (event) => {
+        if (event.data && event.data.type === 'REVIVE_TOGGLE_CMD') {
+            toggleWindow();
+        }
+    });
 });

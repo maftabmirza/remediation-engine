@@ -12,6 +12,7 @@ import uuid
 from app.database import get_db
 from app.models_dashboards import Dashboard, DashboardPanel, PrometheusPanel, PrometheusDatasource
 from app.routers.auth import get_current_user
+from app.utils.search import like_escape
 
 router = APIRouter(prefix="/api/dashboards", tags=["Dashboards"])
 
@@ -149,10 +150,10 @@ async def list_dashboards(
         query = query.filter(Dashboard.is_favorite == True)
 
     if search:
-        search_pattern = f"%{search}%"
+        search_pattern = f"%{like_escape(search)}%"
         query = query.filter(
-            (Dashboard.name.ilike(search_pattern)) |
-            (Dashboard.description.ilike(search_pattern))
+            (Dashboard.name.ilike(search_pattern, escape="\\")) |
+            (Dashboard.description.ilike(search_pattern, escape="\\"))
         )
 
     if tag:

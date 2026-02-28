@@ -1,0 +1,11 @@
+.site-selector-bar{max-width:100%;background-color:#000}
+.site-selector-bar__block{max-width:1440px;margin:0 auto;padding:.5rem 4.8rem}
+@media screen and (max-width:768px){.site-selector-bar__block{padding:.5rem 2.4rem}
+}
+.site-selector-bar__links{display:flex;margin:0 auto;padding:0;list-style:none}
+.site-selector-bar__link::after{content:"|";color:#eb0028;margin-left:1rem;margin-right:1rem;position:relative;top:2px}
+.site-selector-bar__link:last-child::after{content:""}
+.site-selector-bar__link a{color:#fff;font-size:1.4rem;line-height:2.1rem;text-decoration:none;text-underline-position:under}
+.site-selector-bar__link a:hover{text-decoration:underline;text-decoration-thickness:.2rem}
+.site-selector-bar__link a:visited{color:#fff}
+.site-selector-bar__link--active a{text-decoration:underline;font-weight:700}

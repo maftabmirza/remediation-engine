@@ -7,6 +7,8 @@ Uses AsyncSSH for async, non-blocking operations.
 
 import asyncio
 import time
+import shlex
+import logging
 from datetime import datetime, timezone
 from typing import Optional, Dict, AsyncIterator
 import logging
@@ -80,6 +82,9 @@ class SSHExecutor(BaseExecutor):
     def supports_elevation(self) -> bool:
         return True
     
+    # How long (seconds) to wait for the TCP+SSH handshake to complete.
+    CONNECT_TIMEOUT = 15
+
     async def connect(self) -> bool:
         """Establish SSH connection."""
         try:
@@ -88,6 +93,8 @@ class SSHExecutor(BaseExecutor):
                 "port": self.port,
                 "username": self.username,
                 "known_hosts": None if not self.host_key_checking else self.known_hosts,
+                # Hard limit on the entire SSH handshake so we never hang.
+                "connect_timeout": self.CONNECT_TIMEOUT,
             }
             
             # Authentication method
@@ -99,14 +106,24 @@ class SSHExecutor(BaseExecutor):
                 )
                 connect_options["client_keys"] = [key]
             elif self.password:
-                # Password auth
+                # Password auth — explicitly disable key discovery so asyncssh
+                # does not attempt to load ~/.ssh/* keys, which can raise a
+                # KeyImportError and surface as "invalid key" in the UI.
                 connect_options["password"] = self.password
+                connect_options["client_keys"] = []
+                connect_options["preferred_auth"] = "password"
             
-            self._conn = await asyncssh.connect(**connect_options)
+            self._conn = await asyncio.wait_for(
+                asyncssh.connect(**connect_options),
+                timeout=self.CONNECT_TIMEOUT
+            )
             self._connected = True
             logger.info(f"SSH connected to {self.hostname}:{self.port}")
             return True
             
+        except asyncio.TimeoutError:
+            logger.error(f"SSH connect timed out for {self.hostname}:{self.port}")
+            raise ConnectionError(f"SSH connection timed out after {self.CONNECT_TIMEOUT}s — host unreachable or firewall blocking port {self.port}")
         except asyncssh.DisconnectError as e:
             logger.error(f"SSH disconnect error: {e}")
             raise ConnectionError(f"SSH connection failed: {e}")
@@ -176,16 +193,18 @@ class SSHExecutor(BaseExecutor):
             # Add environment variables
             if env:
                 env_prefix = " ".join(f'{k}="{v}"' for k, v in env.items())
-                full_command = f"{env_prefix} {full_command}"
-            
             # Handle sudo
             if with_elevation:
+                # Wrap command in sh -c to handle shell keywords (if, for, etc) and builtins (cd)
+                safe_command = shlex.quote(full_command)
+                
                 if self.sudo_password:
                     # Sudo with password via stdin
-                    full_command = f"echo '{self.sudo_password}' | sudo -S {full_command}"
+                    # Note: We use sh -c explicitly to run the quoted command
+                    full_command = f"echo '{self.sudo_password}' | sudo -S sh -c {safe_command}"
                 else:
                     # Passwordless sudo
-                    full_command = f"sudo {full_command}"
+                    full_command = f"sudo sh -c {safe_command}"
             
             # Execute command
             result = await asyncio.wait_for(

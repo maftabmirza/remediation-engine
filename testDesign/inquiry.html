@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+
+{% set active_page = "ai_analyst" %}
+{% set current_path = "/inquiry" %}
+
+{% block header_title %}AI Inquiry{% endblock %}
+{% block header_subtitle %}Session #5302{% endblock %}
+
+{% block title %}AI Inquiry | Enterprise AIOps{% endblock %}
+
+{% block header_extra %}
+<button class="revive-btn">
+    <i data-feather="zap" style="width: 14px; height: 14px;"></i>
+    <span>RE-VIVE</span>
+</button>
+{% endblock %}
+
+{% block content %}
+<main class="troubleshoot-main">
+    <!-- Left Panel - Chat -->
+    <div class="ts-chat-panel">
+        <!-- Session Header -->
+        <div class="ts-session-header">
+            <div class="ts-session-left">
+                <button class="ts-new-session-btn">
+                    <i data-feather="zap" style="width: 14px; height: 14px;"></i>
+                    <span>New Session</span>
+                </button>
+                <div class="ts-llm-selector" id="llmSelector">
+                    <div class="ts-llm-selected">
+                        <span class="ts-model-dot"></span>
+                        <span class="ts-llm-text">GPT-5</span>
+                        <i data-feather="chevron-down" class="ts-dropdown-icon"></i>
+                    </div>
+                    <div class="ts-llm-options">
+                        <div class="ts-llm-option selected" data-value="gpt-5">
+                            <i data-feather="cpu" style="width: 14px; height: 14px;"></i>
+                            <span>GPT-5</span>
+                        </div>
+                        <div class="ts-llm-option" data-value="claude-3">
+                            <i data-feather="zap" style="width: 14px; height: 14px;"></i>
+                            <span>Claude 3.5</span>
+                        </div>
+                        <div class="ts-llm-option" data-value="gemini-3">
+                            <i data-feather="star" style="width: 14px; height: 14px;"></i>
+                            <span>Gemini 3 Pro</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="ts-session-actions">
+                <button class="ts-icon-btn" title="Edit">
+                    <i data-feather="edit-2" style="width: 14px; height: 14px;"></i>
+                </button>
+                <button class="ts-icon-btn" title="History">
+                    <i data-feather="rotate-ccw" style="width: 14px; height: 14px;"></i>
+                </button>
+                <button class="ts-icon-btn" title="Minimize">
+                    <i data-feather="minus" style="width: 14px; height: 14px;"></i>
+                </button>
+                <button class="ts-icon-btn" title="Add">
+                    <i data-feather="plus" style="width: 14px; height: 14px;"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Chat Messages -->
+        <div class="ts-chat-messages">
+            <!-- AI Response -->
+            <div class="ts-message ts-message-ai">
+                <div class="ts-ai-avatar">
+                    <i data-feather="cpu"></i>
+                </div>
+                <div class="ts-message-content">
+                    <span class="ts-ai-label">AI Analyst</span>
+                    <div class="ts-message-bubble">
+                        <p>Hello! I am your AI Inquiry Assistant. I can help you analyze data, generate reports, or
+                            answer complex questions about your system architecture.</p>
+                        <p>What would you like to explore today?</p>
+                        <ul>
+                            <li>Analyze recent error trends?</li>
+                            <li>Generate a system health report?</li>
+                            <li>Compare performance metrics?</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Input -->
+        <div class="ts-chat-input-container">
+            <div class="ts-chat-input-wrapper">
+                <input type="text" class="ts-chat-input"
+                    placeholder="Ask a question, request data analysis, or generate a report...">
+                <button class="ts-send-btn">
+                    <i data-feather="send" style="width: 18px; height: 18px;"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Resize Handle -->
+    <div class="ts-resize-handle">
+        <div class="ts-resize-line"></div>
+    </div>
+
+    <!-- Right Panel - Artifacts -->
+    <div class="ts-tools-panel">
+        <!-- Tools Header with Tabs -->
+        <div class="ts-tools-header">
+            <div class="ts-tabs">
+                <button class="ts-tab active">
+                    <i data-feather="clock" style="width: 14px; height: 14px;"></i>
+                    <span>Recent</span>
+                </button>
+                <button class="ts-tab">
+                    <i data-feather="layers" style="width: 14px; height: 14px;"></i>
+                    <span>All Artifacts</span>
+                </button>
+                <div class="ts-tab-actions">
+                    <span class="ts-badge-count">0</span>
+                </div>
+            </div>
+            <div class="ts-connection-status-area">
+                <button class="ts-icon-btn" title="Delete">
+                    <i data-feather="trash-2" style="width: 14px; height: 14px;"></i>
+                </button>
+                <button class="ts-connect-btn"
+                    style="background: transparent; border: 1px solid #475569; box-shadow: none;">
+                    <i data-feather="download" style="width: 14px; height: 14px;"></i>
+                    <span>Export</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Artifacts Content -->
+        <div class="ts-artifacts-content">
+            <div class="ts-empty-state">
+                <div class="ts-empty-icon">
+                    <i data-feather="box" style="width: 48px; height: 48px;"></i>
+                </div>
+                <h3>No Artifacts Yet</h3>
+                <p>When you ask questions, structured data like tables, code, and charts will appear here for easy
+                    viewing and export.</p>
+                <div class="ts-empty-actions">
+                    <span class="ts-empty-tag"><i data-feather="grid"></i> Tables</span>
+                    <span class="ts-empty-tag"><i data-feather="code"></i> Code</span>
+                    <span class="ts-empty-tag"><i data-feather="bar-chart-2"></i> Charts</span>
+                    <span class="ts-empty-tag"><i data-feather="file-text"></i> Reports</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+    // Tab switching
+    document.querySelectorAll('.ts-tab').forEach(tab => {
+        tab.addEventListener('click', function () {
+            document.querySelectorAll('.ts-tab').forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+        });
+    });
+
+    // Custom LLM Dropdown
+    const llmSelector = document.getElementById('llmSelector');
+    const llmSelected = llmSelector?.querySelector('.ts-llm-selected');
+    const llmText = llmSelector?.querySelector('.ts-llm-text');
+    const llmOptions = llmSelector?.querySelectorAll('.ts-llm-option');
+
+    llmSelected?.addEventListener('click', function (e) {
+        e.stopPropagation();
+        llmSelector.classList.toggle('open');
+    });
+
+    llmOptions?.forEach(option => {
+        option.addEventListener('click', function () {
+            llmOptions.forEach(opt => opt.classList.remove('selected'));
+            this.classList.add('selected');
+            llmText.textContent = this.querySelector('span').textContent;
+            llmSelector.classList.remove('open');
+        });
+    });
+
+    document.addEventListener('click', function (e) {
+        if (!llmSelector?.contains(e.target)) {
+            llmSelector?.classList.remove('open');
+        }
+    });
+
+    // Send button animation
+    document.querySelector('.ts-send-btn').addEventListener('click', function () {
+        this.style.transform = 'scale(0.9)';
+        setTimeout(() => this.style.transform = 'scale(1)', 150);
+    });
+
+    // Resizable Panels
+    const mainContainer = document.querySelector('.troubleshoot-main');
+    const resizeHandle = document.querySelector('.ts-resize-handle');
+    let isResizing = false;
+
+    if (resizeHandle && mainContainer) {
+        resizeHandle.addEventListener('mousedown', function (e) {
+            isResizing = true;
+            mainContainer.classList.add('resizing');
+            document.body.style.cursor = 'col-resize';
+        });
+
+        document.addEventListener('mousemove', function (e) {
+            if (!isResizing) return;
+
+            const containerRect = mainContainer.getBoundingClientRect();
+            const mouseX = e.clientX - containerRect.left;
+            const containerWidth = containerRect.width;
+
+            // Calculate percentage (min 300px, max container width - 300px)
+            const minWidth = 300;
+            const maxWidth = containerWidth - 300;
+
+            let newWidthInfo = mouseX;
+            if (newWidthInfo < minWidth) newWidthInfo = minWidth;
+            if (newWidthInfo > maxWidth) newWidthInfo = maxWidth;
+
+            const leftPercentage = (newWidthInfo / containerWidth) * 100;
+
+            mainContainer.style.gridTemplateColumns = `${leftPercentage}% auto 1fr`;
+        });
+
+        document.addEventListener('mouseup', function () {
+            if (isResizing) {
+                isResizing = false;
+                mainContainer.classList.remove('resizing');
+                document.body.style.cursor = 'default';
+            }
+        });
+    }
+</script>
+{% endblock %}

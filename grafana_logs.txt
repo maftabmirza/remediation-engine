@@ -1,0 +1,148 @@
+INFO:     172.19.0.1:49180 - "GET /public/build/4691.2f69f76af87a66a1513c.js HTTP/1.1" 404 Not Found
+INFO:     172.19.0.1:34402 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently
+INFO:     172.19.0.1:34390 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently
+INFO:     172.19.0.1:34420 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently
+INFO:     172.19.0.1:34416 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently
+INFO:     172.19.0.1:49180 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently
+INFO:     172.19.0.1:34412 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently       
+INFO:     172.19.0.1:34420 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently
+INFO:     172.19.0.1:34402 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently
+INFO:     172.19.0.1:34390 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently       
+INFO:     172.19.0.1:49180 - "GET /grafana/api/health HTTP/1.1" 200 OK
+INFO:     172.19.0.1:34412 - "GET /grafana/api/user HTTP/1.1" 200 OK
+INFO:     172.19.0.1:34416 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently
+INFO:     172.19.0.1:34402 - "GET /grafana/dashboards?orgId=1 HTTP/1.1" 200 OK
+INFO:     172.19.0.1:49180 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently
+INFO:     172.19.0.1:34420 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently       
+INFO:     172.19.0.1:34390 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently
+INFO:     172.19.0.1:34412 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently
+INFO:     172.19.0.1:34416 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently
+INFO:     172.19.0.1:34402 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently
+INFO:     172.19.0.1:49180 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently
+INFO:     172.19.0.1:34420 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently
+INFO:     172.19.0.1:34390 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently       
+INFO:     172.19.0.1:34412 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently       
+INFO:     172.19.0.1:34402 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently
+INFO:     172.19.0.1:34416 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently
+INFO:     172.19.0.1:49180 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently
+INFO:     172.19.0.1:34412 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently
+INFO:     172.19.0.1:34390 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently       
+INFO:     172.19.0.1:34420 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently
+INFO:     172.19.0.1:34420 - "GET /public/build/4691.2f69f76af87a66a1513c.js HTTP/1.1" 404 Not Found
+INFO:     172.19.0.1:34416 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently
+INFO:     172.19.0.1:34402 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently
+INFO:     172.19.0.1:49180 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently
+INFO:     172.19.0.1:34390 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently
+INFO:     172.19.0.1:34420 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently       
+INFO:     172.19.0.1:34412 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently       
+INFO:     172.19.0.1:34416 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently
+INFO:     172.19.0.1:34402 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently
+INFO:     172.19.0.1:34390 - "GET /grafana/api/health HTTP/1.1" 200 OK
+INFO:     172.19.0.1:34412 - "GET /grafana/api/user HTTP/1.1" 200 OK
+INFO:     172.19.0.1:49180 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently
+INFO:     172.19.0.1:34420 - "GET /grafana/dashboards?orgId=1 HTTP/1.1" 200 OK
+INFO:     172.19.0.1:34416 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently
+INFO:     172.19.0.1:34390 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently
+INFO:     172.19.0.1:34402 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently       
+INFO:     172.19.0.1:34412 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently       
+INFO:     172.19.0.1:49180 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently
+INFO:     172.19.0.1:34420 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently
+INFO:     172.19.0.1:34416 - "GET /grafana/public/build/4691.2f69f76af87a66a1513c.js HTTP/1.1" 200 OK       
+INFO:     172.19.0.1:34412 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently
+INFO:     172.19.0.1:34390 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently
+INFO:     172.19.0.1:34402 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently       
+INFO:     172.19.0.1:34420 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently
+INFO:     172.19.0.1:34416 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently
+INFO:     172.19.0.1:49180 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently
+INFO:     172.19.0.1:34402 - "GET /grafana/public/build/3326.cabc370d66d7ecfbd2c3.js HTTP/1.1" 200 OK
+INFO:     172.19.0.1:34390 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently
+INFO:     172.19.0.1:34412 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently       
+INFO:     172.19.0.1:34416 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently
+INFO:     172.19.0.1:49180 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently
+INFO:     172.19.0.1:34420 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently       
+INFO:     172.19.0.1:34416 - "GET /public/build/3326.cabc370d66d7ecfbd2c3.js HTTP/1.1" 404 Not Found        
+INFO:     172.19.0.1:34412 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently
+INFO:     172.19.0.1:34402 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently
+INFO:     172.19.0.1:34390 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently       
+INFO:     172.19.0.1:34420 - "GET /grafana/public/build/5742.4562f9b3ccfc935c0a6e.js HTTP/1.1" 200 OK       
+INFO:     172.19.0.1:34416 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently
+INFO:     172.19.0.1:49180 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently
+INFO:     172.19.0.1:34412 - "GET /grafana/api/health HTTP/1.1" 200 OK
+INFO:     172.19.0.1:34390 - "GET /grafana/api/user HTTP/1.1" 200 OK
+INFO:     172.19.0.1:34402 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently
+INFO:     172.19.0.1:34420 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently       
+INFO:     172.19.0.1:34416 - "GET /grafana/dashboards?orgId=1 HTTP/1.1" 200 OK
+INFO:     172.19.0.1:49180 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently
+INFO:     172.19.0.1:34412 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently       
+INFO:     172.19.0.1:34402 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently
+INFO:     172.19.0.1:34420 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently
+INFO:     172.19.0.1:34390 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently       
+INFO:     172.19.0.1:49180 - "GET /grafana/public/build/3003.98f28eaf2b5ed2c2fdec.js HTTP/1.1" 200 OK       
+INFO:     172.19.0.1:34412 - "GET /grafana/public/build/DashboardListPage.0decc795542c907d713d.js HTTP/1.1" 200 OK
+INFO:     172.19.0.1:34416 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently
+INFO:     172.19.0.1:34402 - "GET /grafana/public/plugins/grafana-lokiexplore-app/module.js?_cache=1.0.35 HTTP/1.1" 200 OK
+INFO:     172.19.0.1:34420 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently
+INFO:     172.19.0.1:49180 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently       
+INFO:     172.19.0.1:34390 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently       
+INFO:     172.19.0.1:34412 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently
+INFO:     172.19.0.1:34416 - "GET /grafana/public/plugins/grafana-pyroscope-app/module.js?_cache=1.16.0 HTTP/1.1" 200 OK
+INFO:     172.19.0.1:34420 - "GET /grafana/public/plugins/grafana-exploretraces-app/module.js?_cache=1.3.2 HTTP/1.1" 200 OK
+INFO:     172.19.0.1:34390 - "GET /grafana/public/plugins/grafana-metricsdrilldown-app/module.js?_cache=1.0.29 HTTP/1.1" 200 OK
+INFO:     172.19.0.1:34402 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently       
+INFO:     172.19.0.1:49180 - "GET /grafana/public/build/9521.e0e3c3ff1e08a86418ce.js.map HTTP/1.1" 200 OK   
+INFO:     172.19.0.1:34412 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently
+INFO:     172.19.0.1:34416 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently
+INFO:     172.19.0.1:34390 - "GET /grafana/api/search/sorting HTTP/1.1" 200 OK
+INFO:     172.19.0.1:49180 - "GET /grafana/api/folders/general?accesscontrol=true HTTP/1.1" 200 OK
+INFO:     172.19.0.1:34420 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently
+INFO:     172.19.0.1:34412 - "GET /grafana/public/build/4857.4971a98037d2ec3b663d.js.map HTTP/1.1" 200 OK
+INFO:     172.19.0.1:49180 - "GET /grafana/public/build/4691.2f69f76af87a66a1513c.js.map HTTP/1.1" 200 OK
+INFO:     172.19.0.1:34390 - "GET /grafana/public/build/9740.f922c43cef9fefc8139a.js.map HTTP/1.1" 200 OK
+INFO:     172.24.0.3:39978 - "GET /metrics HTTP/1.1" 200 OK
+INFO:     172.19.0.1:49180 - "GET /grafana/public/build/5742.4562f9b3ccfc935c0a6e.js.map HTTP/1.1" 200 OK
+INFO:     172.19.0.1:34390 - "GET /grafana/public/build/3003.98f28eaf2b5ed2c2fdec.js.map HTTP/1.1" 200 OK
+INFO:     172.19.0.1:34412 - "GET /grafana/public/build/3326.cabc370d66d7ecfbd2c3.js.map HTTP/1.1" 200 OK   
+INFO:     172.19.0.1:34390 - "GET /grafana/public/build/DashboardListPage.0decc795542c907d713d.js.map HTTP/1.1" 200 OK
+INFO:     172.19.0.1:34412 - "GET /grafana/api/search?limit=1000&starred=true HTTP/1.1" 200 OK
+INFO:     172.19.0.1:49180 - "GET /grafana/public/plugins/grafana-lokiexplore-app/module.js.map HTTP/1.1" 200 OK
+INFO:     172.19.0.1:34416 - "GET /grafana/public/fonts/inter/Inter-Medium.woff2 HTTP/1.1" 200 OK
+INFO:     172.19.0.1:34402 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently
+INFO:     172.19.0.1:34420 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 Moved Permanently
+INFO:     172.19.0.1:34390 - "GET /grafana/public/plugins/grafana-pyroscope-app/module.js?_cache=1.16.0 HTTP/1.1" 200 OK
+INFO:     172.19.0.1:34416 - "GET /grafana/public/build/5757.5a4b7f2368dd09da42be.js HTTP/1.1" 200 OK       
+INFO:     172.19.0.1:49180 - "GET /grafana/public/plugins/grafana-pyroscope-app/module.js.map HTTP/1.1" 200 OK
+INFO:     172.19.0.1:34412 - "GET /grafana/public/build/manifest.json HTTP/1.1" 301 
+
+
+
+A
+
+AIOps Platform
+|
+System Operational
+Search...
+/
+
+
+JD
+
+URL: http://localhost:8080/grafana-advanced
+Body: display=block visibility=visible opacity=1
+App: display=grid visibility=visible opacity=1
+Sidebar: rect={"x":0,"y":0,"width":48,"height":259.20001220703125,"top":0,"right":48,"bottom":259.20001220703125,"left":0}
+Header: rect={"x":48,"y":0,"width":1488,"height":48,"top":0,"right":1536,"bottom":48,"left":48}
+Main: display=block rect={"x":48,"y":48,"width":1488,"height":211.1999969482422,"top":48,"right":1536,"bottom":259.1999969482422,"left":48}
+Iframe: src=http://localhost:8080/grafana/dashboards?starred
+Iframe rect: {"x":48,"y":48,"width":1488,"height":211.1999969482422,"top":48,"right":1536,"bottom":259.1999969482422,"left":48}
+Iframe title: Dashboards - Grafana
+Iframe ready: complete
+Iframe body length: 147
+Iframe text sample: Skip to main content Home Dashboards Search... ctrl+k Dashboards New Create and manage dashboards to visualize your data Filter by tag Starred Sort
+Iframe scripts: public/build/runtime.836b8524ae0742d60550.js, public/build/6029.bdcbf27bcdd36812f646.js, public/build/5671.8f3bca2d707b276a1a54.js, public/build/7228.126faee593b57ed30d4d.js, public/build/5923.aeaf625512c50b16652a.js
+First script fetch: 404 error
+Proxy health: 200 ok
+Proxy user: 200 ok
+Dashboards GET: 200 ok
+Manifest: fetch error: TypeError: Failed to fetch
+Manifest sample: (none)
+Loading: none

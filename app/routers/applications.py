@@ -28,6 +28,7 @@ from app.schemas_application import (
 )
 from app.services.application_service import ApplicationService
 from app.services.auth_service import get_current_user
+from app.utils.search import like_escape
 
 router = APIRouter(prefix="/api/applications", tags=["applications"])
 
@@ -87,8 +88,8 @@ def list_applications(
     # Apply filters
     if search:
         query = query.filter(
-            (Application.name.ilike(f"%{search}%")) |
-            (Application.display_name.ilike(f"%{search}%"))
+            (Application.name.ilike(f"%{like_escape(search)}%", escape="\\")) |
+            (Application.display_name.ilike(f"%{like_escape(search)}%", escape="\\"))
         )
     
     if criticality:

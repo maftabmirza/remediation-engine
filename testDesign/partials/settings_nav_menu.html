@@ -1,0 +1,47 @@
+<div class="section-dropdown-menu" id="sectionDropdownMenu">
+    <a href="/settings" class="dropdown-item {% if current_path == '/settings' %}active{% endif %}">
+        <i data-feather="layout"></i>
+        <span>Overview</span>
+    </a>
+    <a href="/users" class="dropdown-item {% if current_path == '/users' %}active{% endif %}">
+        <i data-feather="users"></i>
+        <span>Users</span>
+    </a>
+    <a href="/roles" class="dropdown-item {% if current_path == '/roles' %}active{% endif %}">
+        <i data-feather="shield"></i>
+        <span>Roles (RBAC)</span>
+    </a>
+    <a href="/groups" class="dropdown-item {% if current_path == '/groups' %}active{% endif %}">
+        <i data-feather="folder"></i>
+        <span>Groups</span>
+    </a>
+    <a href="/llm-providers" class="dropdown-item {% if current_path == '/llm-providers' %}active{% endif %}">
+        <i data-feather="cpu"></i>
+        <span>LLM Providers</span>
+    </a>
+    <a href="/servers" class="dropdown-item {% if current_path == '/servers' %}active{% endif %}">
+        <i data-feather="server"></i>
+        <span>Servers</span>
+    </a>
+    <a href="/api-credentials" class="dropdown-item {% if current_path == '/api-credentials' %}active{% endif %}">
+        <i data-feather="key"></i>
+        <span>API Credentials</span>
+    </a>
+    <a href="/credential-profiles"
+        class="dropdown-item {% if current_path == '/credential-profiles' %}active{% endif %}">
+        <i data-feather="unlock"></i>
+        <span>Credential Profiles</span>
+    </a>
+    <a href="/authentication" class="dropdown-item {% if current_path == '/authentication' %}active{% endif %}">
+        <i data-feather="lock"></i>
+        <span>Authentication</span>
+    </a>
+    <a href="/pii-detection" class="dropdown-item {% if current_path == '/pii-detection' %}active{% endif %}">
+        <i data-feather="alert-triangle"></i>
+        <span>PII Detection</span>
+    </a>
+    <a href="/pii-logs" class="dropdown-item {% if current_path == '/pii-logs' %}active{% endif %}">
+        <i data-feather="file-text"></i>
+        <span>PII Logs</span>
+    </a>
+</div>

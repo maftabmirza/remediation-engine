@@ -1,0 +1,862 @@
+{% extends "base.html" %}
+
+{% set active_page = "settings" %}
+{% set current_path = "/servers" %}
+
+{% block header_title %}Settings{% endblock %}
+{% block header_subtitle %}Home / Settings / Servers{% endblock %}
+
+{% block title %}Server Inventory | Enterprise AIOps{% endblock %}
+
+{% block content %}
+<main class="runbooks-main settings-page">
+
+    <!-- Section Dropdown + Title + Admin Badge -->
+    <div class="settings-header-bar">
+        <div class="settings-title-group">
+            <div class="section-selector">
+                <button class="section-dropdown-btn" id="sectionDropdownBtn">
+                    <i data-feather="server"></i>
+                    <span id="currentSection">Server Inventory</span>
+                    <i data-feather="chevron-down" class="dropdown-arrow"></i>
+                </button>
+                {% include "partials/settings_nav_menu.html" %}
+            </div>
+            <p class="section-desc">Manage target nodes and connections</p>
+        </div>
+        <div class="header-actions">
+            <button class="test-btn">
+                <i data-feather="heart"></i>
+                <span>Test Selected</span>
+            </button>
+            <button class="add-user-btn">
+                <i data-feather="plus"></i>
+                <span>Add Server</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Servers Card -->
+    <div class="users-card">
+
+        <!-- Filters Bar -->
+        <div class="table-filters-bar">
+            <div class="search-wrapper">
+                <i data-feather="search"></i>
+                <input type="text" placeholder="Search server or host">
+            </div>
+
+            <div class="filter-group">
+                <div class="filter-dropdown">
+                    <span>All Environments</span>
+                    <i data-feather="chevron-down"></i>
+                </div>
+                <div class="filter-dropdown">
+                    <span>Any Auth</span>
+                    <i data-feather="chevron-down"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Group Creation Row -->
+        <div class="group-creation-row">
+            <div class="group-input-wrapper">
+                <label>New Group Name</label>
+                <input type="text" placeholder="e.g., Production/Web">
+            </div>
+            <div class="group-input-wrapper">
+                <label>Parent Group</label>
+                <div class="filter-dropdown simple">
+                    <span>No parent</span>
+                    <i data-feather="chevron-down"></i>
+                </div>
+            </div>
+            <div class="group-actions">
+                <button class="create-group-btn">
+                    <i data-feather="folder-plus"></i> Create Group
+                </button>
+                <span class="help-text">Organize hosts with parent/child groupings</span>
+            </div>
+        </div>
+
+        <!-- Meta Bar -->
+        <div class="table-meta-bar">
+            <div class="select-all-wrapper">
+                <input type="checkbox" class="bulk-checkbox">
+                <span class="showing-text">Select all</span>
+            </div>
+        </div>
+
+        <!-- Data Table -->
+        <div class="users-table-wrapper">
+            <table class="users-table">
+                <thead>
+                    <tr>
+                        <th width="4%"></th>
+                        <th width="30%">SERVER</th>
+                        <th width="20%">CONNECTION</th>
+                        <th width="15%">CREDENTIAL</th>
+                        <th width="15%">ENVIRONMENT</th>
+                        <th width="16%" class="text-right">ACTIONS</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="checkbox-cell"><input type="checkbox"></td>
+                        <td>
+                            <div class="server-info-cell">
+                                <div class="server-icon-box">
+                                    <i data-feather="terminal"></i>
+                                </div>
+                                <div class="info-content">
+                                    <span class="username">15.204.233.209:9117</span>
+                                    <span class="subtext strike">15.204.233.209</span>
+                                    <span class="subtext">Added Jan 25, 2026</span>
+                                    <span class="subtext">Ungrouped</span>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="connection-info">
+                                <span class="conn-string">ubuntu@15.204.233.209:22</span>
+                                <span class="conn-status success"><i data-feather="check-circle"></i> success</span>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="credential-info">
+                                <span class="cred-badge"><i data-feather="lock"></i> Password</span>
+                                <span class="subtext">Inline credential</span>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="env-badge production">PRODUCTION</span>
+                        </td>
+                        <td class="text-right">
+                            <div class="actions-row">
+                                <button class="action-icon-btn"><i data-feather="edit-2"></i></button>
+                                <button class="action-icon-btn"><i data-feather="heart"></i></button>
+                                <button class="action-icon-btn danger"><i data-feather="trash-2"></i></button>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+
+    <!-- Bulk Import Section -->
+    <div class="users-card mt-6">
+        <div class="card-header-row">
+            <div class="header-text">
+                <h3>Bulk import servers</h3>
+                <p>Paste YAML/JSON to create many hosts at once. We test reachability before saving.</p>
+            </div>
+            <div class="header-controls">
+                <div class="control-dropdown">YAML <i data-feather="chevron-down"></i></div>
+                <div class="control-dropdown">Default auth: key <i data-feather="chevron-down"></i></div>
+                <div class="control-dropdown">Group: none <i data-feather="chevron-down"></i></div>
+                <button class="import-btn">Import</button>
+            </div>
+        </div>
+        <div class="code-editor-area">
+            <pre><code>- name: prod-db-01
+  hostname: 10.0.0.5
+  username: ec2-user
+  auth_type: key
+  ssh_key: |-
+      -----BEGIN OPENSSH PRIVATE KEY-----
+      ...</code></pre>
+        </div>
+        <div class="editor-footer">
+            <span class="tip">Tips: set <span class="code">credential_source: shared_profile</span> to reuse vault or
+                CyberArk secrets. You can also pre-set defaults for <span class="code">auth_type</span> and <span
+                    class="code">group</span> via the dropdowns.</span>
+        </div>
+    </div>
+
+</main>
+
+<style>
+    /* Settings/Users/Roles/Groups Shared Layout */
+    .settings-page {
+        gap: 24px;
+        display: flex;
+        flex-direction: column;
+        padding-bottom: 40px;
+    }
+
+    .mt-6 {
+        margin-top: 24px;
+    }
+
+    /* Header Bar Reused */
+    .settings-header-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+    }
+
+    .settings-title-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .section-selector {
+        position: relative;
+    }
+
+    .section-dropdown-btn {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 18px;
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        font-size: 16px;
+        font-weight: 700;
+        color: #0f172a;
+        cursor: pointer;
+        transition: all 0.15s;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    }
+
+    .section-dropdown-btn:hover {
+        border-color: #cbd5e1;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    }
+
+    .section-dropdown-btn svg {
+        width: 20px;
+        height: 20px;
+        color: #3b82f6;
+    }
+
+    .section-dropdown-btn .dropdown-arrow {
+        width: 14px;
+        height: 14px;
+        color: #94a3b8;
+    }
+
+    .section-dropdown-menu {
+        display: none;
+        position: absolute;
+        top: calc(100% + 8px);
+        left: 0;
+        width: 260px;
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        box-shadow: 0 12px 48px rgba(0, 0, 0, 0.15);
+        z-index: 100;
+        padding: 8px;
+    }
+
+    .section-dropdown-menu.open {
+        display: block;
+    }
+
+    .dropdown-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 14px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 500;
+        color: #475569;
+        cursor: pointer;
+        text-decoration: none;
+        transition: all 0.12s;
+    }
+
+    .dropdown-item svg {
+        width: 16px;
+        height: 16px;
+    }
+
+    .dropdown-item:hover {
+        background: #f1f5f9;
+        color: #1e293b;
+    }
+
+    .dropdown-item.active {
+        background: #eff6ff;
+        color: #2563eb;
+    }
+
+    .dropdown-item.active svg {
+        color: #3b82f6;
+    }
+
+    .section-desc {
+        font-size: 13px;
+        color: #64748b;
+        margin: 0 0 0 4px;
+    }
+
+    .header-actions {
+        display: flex;
+        gap: 12px;
+    }
+
+    .add-user-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 20px;
+        background: #3b82f6;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s;
+        box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
+    }
+
+    .add-user-btn:hover {
+        background: #2563eb;
+        transform: translateY(-1px);
+    }
+
+    .add-user-btn svg {
+        width: 16px;
+        height: 16px;
+    }
+
+    .test-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 16px;
+        background: white;
+        color: #475569;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+
+    .test-btn:hover {
+        background: #f8fafc;
+        border-color: #cbd5e1;
+        color: #1e293b;
+    }
+
+    .test-btn svg {
+        width: 16px;
+        height: 16px;
+    }
+
+
+    /* Users Card Container (reused class) */
+    .users-card {
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+    }
+
+    /* Filters Bar */
+    .table-filters-bar {
+        padding: 16px 24px;
+        border-bottom: 1px solid #f1f5f9;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+
+    .search-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 8px 12px;
+        width: 320px;
+        transition: all 0.2s;
+    }
+
+    .search-wrapper:focus-within {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+        background: white;
+    }
+
+    .search-wrapper svg {
+        width: 16px;
+        height: 16px;
+        color: #94a3b8;
+    }
+
+    .search-wrapper input {
+        border: none;
+        background: transparent;
+        outline: none;
+        font-size: 13px;
+        color: #0f172a;
+        width: 100%;
+    }
+
+    .filter-group {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex: 1;
+    }
+
+    .filter-dropdown {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 500;
+        color: #475569;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+
+    .filter-dropdown:hover {
+        background: white;
+        border-color: #cbd5e1;
+        color: #1e293b;
+    }
+
+    .filter-dropdown svg {
+        width: 14px;
+        height: 14px;
+        color: #94a3b8;
+    }
+
+    /* Group Creation Row */
+    .group-creation-row {
+        padding: 16px 24px;
+        background: #f8fafc;
+        border-bottom: 1px solid #f1f5f9;
+        display: flex;
+        align-items: flex-end;
+        gap: 16px;
+    }
+
+    .group-input-wrapper {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .group-input-wrapper label {
+        font-size: 11px;
+        font-weight: 600;
+        color: #64748b;
+        text-transform: uppercase;
+    }
+
+    .group-input-wrapper input {
+        padding: 8px 12px;
+        background: #1e293b;
+        border: 1px solid #334155;
+        border-radius: 6px;
+        font-size: 13px;
+        color: #f8fafc;
+        width: 200px;
+    }
+
+    .group-input-wrapper input::placeholder {
+        color: #64748b;
+    }
+
+    .filter-dropdown.simple {
+        background: white;
+        border-color: #cbd5e1;
+        color: #0f172a;
+        padding: 8px 12px;
+    }
+
+    .group-actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding-bottom: 1px;
+    }
+
+    .create-group-btn {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 14px;
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        color: #475569;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .create-group-btn:hover {
+        background: #f1f5f9;
+        color: #1e293b;
+    }
+
+    .create-group-btn svg {
+        width: 14px;
+        height: 14px;
+    }
+
+    .help-text {
+        font-size: 12px;
+        color: #64748b;
+    }
+
+    /* Meta Bar */
+    .table-meta-bar {
+        padding: 12px 24px;
+        background: #f8fafc;
+        border-bottom: 1px solid #f1f5f9;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 12px;
+    }
+
+    .select-all-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .showing-text {
+        color: #64748b;
+        font-weight: 500;
+    }
+
+    /* Table */
+    .users-table-wrapper {
+        width: 100%;
+        overflow-x: auto;
+    }
+
+    .users-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .users-table th {
+        padding: 12px 24px;
+        background: #f1f5f9;
+        text-align: left;
+        font-size: 11px;
+        font-weight: 600;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .users-table td {
+        padding: 16px 24px;
+        border-bottom: 1px solid #f1f5f9;
+        font-size: 14px;
+        color: #0f172a;
+        vertical-align: top;
+    }
+
+    .users-table tr:last-child td {
+        border-bottom: none;
+    }
+
+    .users-table tr:hover td {
+        background: #f8fafc;
+    }
+
+    .checkbox-cell {
+        width: 40px;
+        text-align: center;
+    }
+
+    /* Server Info */
+    .server-info-cell {
+        display: flex;
+        gap: 14px;
+    }
+
+    .server-icon-box {
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #f1f5f9;
+        color: #64748b;
+        border-radius: 6px;
+    }
+
+    .server-icon-box svg {
+        width: 16px;
+        height: 16px;
+    }
+
+    .info-content {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .username {
+        font-weight: 600;
+        font-size: 14px;
+        color: #0f172a;
+    }
+
+    .subtext {
+        font-size: 11px;
+        color: #64748b;
+    }
+
+    .subtext.strike {
+        text-decoration: line-through;
+        color: #94a3b8;
+    }
+
+    /* Connection */
+    .connection-info {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .conn-string {
+        font-family: monospace;
+        color: #059669;
+        font-size: 12px;
+    }
+
+    .conn-status {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .conn-status.success {
+        color: #16a34a;
+    }
+
+    .conn-status svg {
+        width: 10px;
+        height: 10px;
+    }
+
+    /* Credential */
+    .credential-info {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .cred-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        background: #fff7ed;
+        color: #c2410c;
+        font-size: 11px;
+        font-weight: 600;
+        padding: 2px 6px;
+        border-radius: 4px;
+        border: 1px solid #fed7aa;
+        width: fit-content;
+    }
+
+    .cred-badge svg {
+        width: 10px;
+        height: 10px;
+    }
+
+    /* Environment */
+    .env-badge {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+
+    .env-badge.production {
+        background: #fee2e2;
+        color: #dc2626;
+        border: 1px solid #fecaca;
+    }
+
+    .actions-row {
+        display: flex;
+        gap: 6px;
+        justify-content: flex-end;
+    }
+
+    /* Action Buttons (Blue) */
+    .action-icon-btn {
+        background: #f0f9ff;
+        border: 1px solid #bae6fd;
+        border-radius: 6px;
+        width: 32px;
+        height: 32px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #0284c7;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+
+    .action-icon-btn:hover {
+        border-color: #0ea5e9;
+        color: white;
+        background: #0ea5e9;
+        box-shadow: 0 2px 4px rgba(14, 165, 233, 0.2);
+    }
+
+    .action-icon-btn.danger {
+        background: #fff1f2;
+        border-color: #fecdd3;
+        color: #e11d48;
+    }
+
+    .action-icon-btn.danger:hover {
+        background: #e11d48;
+        border-color: #e11d48;
+        color: white;
+        box-shadow: 0 2px 4px rgba(225, 29, 72, 0.2);
+    }
+
+    .action-icon-btn svg {
+        width: 14px;
+        height: 14px;
+    }
+
+
+    /* Import Section */
+    .card-header-row {
+        padding: 20px 24px;
+        border-bottom: 1px solid #f1f5f9;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .header-text h3 {
+        font-size: 15px;
+        font-weight: 600;
+        color: #0f172a;
+        margin: 0 0 4px;
+    }
+
+    .header-text p {
+        font-size: 13px;
+        color: #64748b;
+        margin: 0;
+    }
+
+    .header-controls {
+        display: flex;
+        gap: 10px;
+    }
+
+    .control-dropdown {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        font-size: 13px;
+        color: #475569;
+        cursor: pointer;
+    }
+
+    .control-dropdown svg {
+        width: 14px;
+        height: 14px;
+        color: #94a3b8;
+    }
+
+    .import-btn {
+        padding: 8px 16px;
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #0f172a;
+        cursor: pointer;
+    }
+
+    .import-btn:hover {
+        background: #f8fafc;
+        border-color: #cbd5e1;
+    }
+
+    .code-editor-area {
+        background: #0f172a;
+        color: #f8fafc;
+        padding: 16px 24px;
+        font-family: 'Fira Code', monospace;
+        font-size: 13px;
+        line-height: 1.5;
+        overflow-x: auto;
+    }
+
+    .code-editor-area pre {
+        margin: 0;
+    }
+
+    .editor-footer {
+        padding: 12px 24px;
+        background: #f8fafc;
+        border-top: 1px solid #e2e8f0;
+        font-size: 12px;
+        color: #64748b;
+    }
+
+    .tip .code {
+        font-family: monospace;
+        color: #059669;
+        background: #ecfdf5;
+        padding: 2px 4px;
+        border-radius: 4px;
+    }
+</style>
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+    feather.replace();
+
+    const dropdownBtn = document.getElementById('sectionDropdownBtn');
+    const dropdownMenu = document.getElementById('sectionDropdownMenu');
+
+    dropdownBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        dropdownMenu.classList.toggle('open');
+    });
+
+    document.addEventListener('click', function () {
+        dropdownMenu.classList.remove('open');
+    });
+</script>
+{% endblock %}

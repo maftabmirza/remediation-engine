@@ -2,8 +2,11 @@
 AIOps Platform - Main Application
 """
 import logging
+from datetime import datetime, timezone
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Depends
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -20,6 +23,7 @@ import app.models_knowledge  # noqa: F401
 import app.models_learning  # noqa: F401 - Phase 3: Learning System
 import app.models_dashboards  # noqa: F401 - Prometheus Dashboard Builder
 import app.models_agent  # noqa: F401 - Agent Mode
+import app.models_changeset  # noqa: F401 - File ops / change sets
 from app.services.auth_service import (
     get_current_user_optional,
     create_user,
@@ -46,11 +50,15 @@ from app.routers import (
     application_profiles_api,  # Phase 3: Application Profiles
     grafana_datasources_api,  # Phase 3: Grafana Datasources
     observability_api,  # Phase 4: AI-Powered Observability Queries
-    revive_api,  # RE-VIVE Widget
+    revive_app,  # RE-VIVE App Helper (Independent Pillar 1)
+    revive_grafana,  # RE-VIVE Grafana Helper (Independent Pillar 2)
+    revive,      # RE-VIVE Unified Assistant (New)
     knowledge,  # Phase 2: Knowledge Base
     feedback,  # Phase 3: Learning System
     troubleshooting,  # Phase 4: Troubleshooting Engine
-    troubleshooting,  # Phase 4: Troubleshooting Engine
+    troubleshoot_api,  # Phase 4: Troubleshooting Chat
+    inquiry,  # Phase 2: AI Inquiry
+    admin_ai,  # Phase 5: Admin AI Managementt Clustering
     clusters,  # Week 1-2: Alert Clustering
     analytics,  # Phase 3-4: Analytics API
     itsm,  # Week 5-6: Change Correlation
@@ -70,12 +78,19 @@ from app.routers import (
     query_history_api,  # Prometheus Dashboard Builder - Query History
     dashboard_permissions_api,  # Dashboard Permissions
     grafana_proxy,  # Grafana Integration - SSO Proxy
-    chat_api,  # AI Chat API
+    alerts_chat_api,  # Independent Pillar 5: Alerts Assistant
     prometheus_proxy,  # Prometheus Integration - Proxy
     troubleshoot_api,  # Troubleshooting Mode API (separated from revive_api)
     knowledge_apps,
     remediation_view,
     agent_api,  # Agent Mode API
+    agent_hq_api, # Agent HQ API
+    inquiry,    # Phase 2: AI Inquiry Pillar
+    pii,  # PII & Secret Detection
+    pii_logs,  # PII Detection Logs
+    pii_feedback,  # PII False Positive Feedback
+    incidents,  # Incidents Management
+    design,  # Design Settings (logo/icon uploads)
 )
 from app import api_credential_profiles
 from app.services.execution_worker import start_execution_worker, stop_execution_worker
@@ -84,10 +99,31 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 # Configure logging
+# request_id: per-request correlation UUID (set by RequestIDMiddleware)
+# otelTraceID / otelSpanID: set by OpenTelemetry LoggingInstrumentor when OTEL is enabled
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    format="%(asctime)s - %(name)s - %(levelname)s - %(request_id)s - %(otelTraceID)s - %(otelSpanID)s - %(message)s"
 )
+
+# Ensure log records always have otel fields (safe even when OTEL is disabled).
+try:
+    from app.telemetry import install_otel_log_filter
+
+    install_otel_log_filter()
+except Exception:
+    # Never block app startup on log correlation.
+    pass
+
+# Install request-ID log factory so %(request_id)s is always present on every
+# LogRecord. A factory (not a logger-level filter) is used because filters on
+# the root *logger* are not invoked for records propagated from child loggers.
+try:
+    from app.middleware.request_id import install_request_id_log_factory
+
+    install_request_id_log_factory()
+except Exception:
+    pass
 
 # Custom filter to suppress noisy Grafana WebSocket 403 errors
 class WebSocketLogFilter(logging.Filter):
@@ -180,6 +216,15 @@ async def lifespan(app: FastAPI):
     """Application lifespan handler"""
     # Startup
     logger.info("Starting AIOps Platform...")
+
+    # OpenTelemetry tracing (safe-by-default; enabled only via env vars)
+    try:
+        from app.telemetry import setup_telemetry
+
+        if not settings.testing:
+            setup_telemetry(app)
+    except Exception as e:
+        logger.debug(f"Telemetry setup skipped: {e}")
     
     # PRODUCTION SECURITY: Verify no test code in production
     if not settings.testing:
@@ -243,6 +288,48 @@ async def lifespan(app: FastAPI):
         from app.services.itsm_sync_worker import start_itsm_sync_jobs
         start_itsm_sync_jobs(scheduler._scheduler)  # Pass APScheduler instance
         logger.info("✅ ITSM sync jobs started")
+        
+        # Initialize PII service factory for LLM scanning
+        logger.info("Initializing PII detection for LLM scanning...")
+        try:
+            from app.database import AsyncSessionLocal
+            from app.services.pii_service import PIIService
+            from app.services.presidio_service import PresidioService
+            from app.services.secret_detection_service import SecretDetectionService
+            from app.services import llm_service
+            
+            # Create singleton instances of expensive services at startup
+            # This avoids re-initializing Presidio (~6 seconds) on every request
+            _shared_presidio_service = PresidioService()
+            _shared_secret_service = SecretDetectionService()
+            logger.info("✅ Presidio and SecretDetection services initialized (singleton)")
+            
+            # Create factory function that returns PII service with async session
+            async def create_pii_service():
+                """Factory to create PII service with async database session.
+                
+                Uses singleton Presidio/Secret services but creates a fresh 
+                async session for each call to avoid transaction state issues.
+                The PIIService owns the session and will close it when done.
+                """
+                # Create session directly instead of using get_async_db generator
+                # to avoid IllegalStateChangeError when session is closed during GC
+                session = AsyncSessionLocal()
+                try:
+                    # owns_session=True ensures the session is closed when PIIService.close() is called
+                    from app.services.pii_whitelist_service import PIIWhitelistService
+                    whitelist_service = PIIWhitelistService(session)
+                    return PIIService(session, _shared_presidio_service, _shared_secret_service, owns_session=True, whitelist_service=whitelist_service)
+                except Exception:
+                    await session.close()
+                    raise
+            
+            # Inject factory into LLM service
+            llm_service.set_pii_service_factory(create_pii_service)
+            logger.info("✅ PII detection enabled for LLM requests")
+        except Exception as e:
+            logger.error(f"Failed to initialize PII service: {e}")
+            # Don't fail startup, but log the issue
     else:
         logger.info("Testing mode enabled: skipping init_db and background jobs")
     
@@ -281,6 +368,29 @@ app = FastAPI(
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=["*"])
 
+# Security headers on every response (X-Content-Type-Options, HSTS, etc.)
+from app.middleware.security_headers import SecurityHeadersMiddleware
+app.add_middleware(SecurityHeadersMiddleware)
+
+# CORS — restrict cross-origin access to explicitly configured origins.
+# Set CORS_ALLOWED_ORIGINS in .env to a comma-separated list of origins.
+# If left empty, no cross-origin requests are permitted.
+from fastapi.middleware.cors import CORSMiddleware
+_cors_origins = get_settings().cors_origins_list
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_cors_origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
+)
+
+# Add RequestIDMiddleware — assigns a UUID to every request, propagates it
+# through background tasks via ContextVar, injects into log records, and
+# returns X-Request-ID on every response.
+from app.middleware.request_id import RequestIDMiddleware
+app.add_middleware(RequestIDMiddleware)
+
 @app.get("/redoc", include_in_schema=False)
 async def redoc_html():
     return get_redoc_html(
@@ -289,16 +399,38 @@ async def redoc_html():
         redoc_js_url="/static/redoc.standalone.js",
     )
 
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    return RedirectResponse(url="/static/favicon.ico")
+
 
 # Rate Limiter
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    logger.error(f"Validation error for request {request.method} {request.url}: {exc.errors()}")
+    try:
+        body = await request.json()
+        logger.error(f"Request body: {body}")
+    except Exception:
+        pass
+    return JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors(), "body": exc.body},
+    )
+
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/uploaded-images", StaticFiles(directory="storage/design/images"), name="uploaded-images")
 
 # Setup templates
 templates = Jinja2Templates(directory="templates")
+
+# Expose design settings to every template (logo / icon uploads)
+from app.routers.design import _load_settings as _load_design_settings
+templates.env.globals["get_design_settings"] = _load_design_settings
 
 # Include API routers
 app.include_router(auth.router)
@@ -325,9 +457,13 @@ app.include_router(applications.router)  # Phase 1: Application Registry
 app.include_router(application_profiles_api.router)  # Phase 3: Application Profiles
 app.include_router(grafana_datasources_api.router)  # Phase 3: Grafana Datasources
 app.include_router(observability_api.router)  # Phase 4: AI-Powered Observability
-app.include_router(revive_api.router)  # RE-VIVE Widget
+app.include_router(revive_app.router)  # RE-VIVE App Helper (Independent Pillar 1)
+app.include_router(revive_grafana.router)  # RE-VIVE Grafana Helper (Independent Pillar 2)
+app.include_router(revive.router)      # RE-VIVE Unified Assistant (New)
+app.include_router(revive.ws_router)   # RE-VIVE WebSocket
 app.include_router(knowledge.router)      # Phase 2: Knowledge Base
 app.include_router(feedback.router, prefix="/api/v1", tags=["learning"])  # Phase 3: Learning System
+app.include_router(admin_ai.router)       # Phase 5: Admin AI Management
 app.include_router(troubleshooting.router, prefix="/api/v1", tags=["troubleshooting"])  # Phase 4: Troubleshooting Engine
 app.include_router(clusters.router)       # Week 1-2: Alert Clustering
 app.include_router(analytics.router)      # Phase 3-4: Analytics API
@@ -348,13 +484,32 @@ app.include_router(rows_api.router)         # Prometheus Dashboard Builder - Pan
 app.include_router(query_history_api.router) # Prometheus Dashboard Builder - Query History
 app.include_router(dashboard_permissions_api.router) # Dashboard Permissions
 app.include_router(grafana_proxy.router)    # Grafana Integration - SSO Proxy
-app.include_router(chat_api.router)          # AI Chat API
+app.include_router(alerts_chat_api.router)  # Alerts Chat API
 app.include_router(prometheus_proxy.router) # Prometheus Integration - Proxy
 app.include_router(troubleshoot_api.router)  # Troubleshooting Mode API
 app.include_router(knowledge_apps.router)
 app.include_router(remediation_view.router)
 app.include_router(agent_api.router)         # Agent Mode API
 app.include_router(agent_api.ws_router)      # Agent Mode WebSocket
+app.include_router(inquiry.router)           # Phase 2: AI Inquiry Pillar
+app.include_router(agent_hq_api.router)      # Agent HQ API
+app.include_router(pii.router)               # PII & Secret Detection
+app.include_router(pii_logs.router)          # PII Detection Logs
+app.include_router(pii_feedback.router)      # PII False Positive Feedback
+app.include_router(incidents.router)         # Incidents Management
+app.include_router(design.router)            # Design Settings (logo/icon uploads)
+
+
+# Mock OFREP endpoint for Grafana OpenFeature - returns valid empty response to prevent 404 errors
+@app.post("/apis/features.grafana.app/v0alpha1/namespaces/default/ofrep/v1/evaluate/flags")
+async def mock_ofrep_evaluate_flags():
+    """
+    Mock OpenFeature OFREP endpoint for Grafana.
+    
+    Grafana 12.x makes calls to this endpoint regardless of server-side config.
+    Return a valid OFREP response with empty flags to prevent console 404 errors.
+    """
+    return {"flags": []}
 
 
 @app.get("/profile", response_class=HTMLResponse)
@@ -367,10 +522,20 @@ async def profile_page(
     """
     if not current_user:
         return RedirectResponse(url="/login", status_code=302)
-    
+
     return templates.TemplateResponse("profile.html", {
         "request": request,
         "user": current_user
+    })
+
+
+@app.get("/reset-theme", response_class=HTMLResponse)
+async def reset_theme_page(request: Request):
+    """
+    Reset theme to Light - Utility page
+    """
+    return templates.TemplateResponse("reset_theme.html", {
+        "request": request
     })
 
 
@@ -383,19 +548,60 @@ async def index(
     db: Session = Depends(get_db)
 ):
     """
-    Dashboard / Home page
+    Dashboard / Home page — Command Center Overview
     """
     if not current_user:
         return RedirectResponse(url="/login", status_code=302)
-    
-    # Get stats
+
     from app.models import Alert, AutoAnalyzeRule
-    
-    total_alerts = db.query(Alert).count()
-    analyzed = db.query(Alert).filter(Alert.analyzed == True).count()
-    pending = db.query(Alert).filter(Alert.analyzed == False).count()
-    critical = db.query(Alert).filter(Alert.severity == "critical").count()
-    
+    from datetime import timedelta
+
+    now = datetime.now(timezone.utc)
+    start_24h = now - timedelta(hours=24)
+
+    # Core KPI stats
+    total_alerts = db.query(Alert).filter(Alert.timestamp >= start_24h).count()
+    analyzed = db.query(Alert).filter(Alert.analyzed == True, Alert.timestamp >= start_24h).count()
+    pending = total_alerts - analyzed
+    critical = db.query(Alert).filter(Alert.severity == "critical", Alert.timestamp >= start_24h).count()
+    warning_count = db.query(Alert).filter(Alert.severity == "warning", Alert.timestamp >= start_24h).count()
+
+    # Recent alerts for the incident panel (top 8 most recent firing/unresolved)
+    recent_alerts = (
+        db.query(Alert)
+        .filter(Alert.timestamp >= start_24h)
+        .order_by(Alert.timestamp.desc())
+        .limit(8)
+        .all()
+    )
+
+    recent_alerts_data = []
+    for a in recent_alerts:
+        labels = {}
+        raw_labels = getattr(a, "labels_json", None)
+        if raw_labels is None:
+            raw_labels = getattr(a, "labels", None)
+
+        if raw_labels and isinstance(raw_labels, dict):
+            labels = raw_labels
+        elif raw_labels and isinstance(raw_labels, str):
+            import json as _json
+            try:
+                labels = _json.loads(raw_labels)
+            except Exception:
+                labels = {}
+
+        recent_alerts_data.append({
+            "id": a.id,
+            "alert_name": a.alert_name or "Unknown",
+            "severity": a.severity or "info",
+            "status": a.status or "firing",
+            "instance": a.instance or labels.get("instance", ""),
+            "job": labels.get("job", ""),
+            "timestamp": a.timestamp.isoformat() if a.timestamp else "",
+            "labels": labels,
+        })
+
     return templates.TemplateResponse("dashboard.html", {
         "request": request,
         "user": current_user,
@@ -403,8 +609,10 @@ async def index(
             "total_alerts": total_alerts,
             "analyzed": analyzed,
             "pending": pending,
-            "critical": critical
-        }
+            "critical": critical,
+            "warning": warning_count,
+        },
+        "recent_alerts": recent_alerts_data,
     })
 
 
@@ -439,6 +647,55 @@ async def changes_page(
     return templates.TemplateResponse("changes.html", {
         "request": request,
         "user": current_user
+    })
+
+
+@app.get("/incidents", response_class=HTMLResponse)
+async def incidents_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    Incidents dashboard page
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    return templates.TemplateResponse("incidents.html", {
+        "request": request,
+        "user": current_user
+    })
+
+
+@app.get("/incidents/{incident_id}", response_class=HTMLResponse)
+async def incident_detail_page(
+    request: Request,
+    incident_id: str,
+    current_user: User = Depends(get_current_user_optional),
+    db: Session = Depends(get_db)
+):
+    """
+    Single incident detail page
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    from app.models_itsm import IncidentEvent
+    incident = db.query(IncidentEvent).filter(IncidentEvent.id == incident_id).first()
+    
+    if not incident:
+        return templates.TemplateResponse("404.html", {"request": request})
+
+    # Enrich with provider name if analyzed (to match what template expects)
+    # The template uses incident.llm_provider_name if available
+    # We can attach it to the object dynamically or pass a wrapper
+    if incident.llm_provider:
+        incident.llm_provider_name = incident.llm_provider.name
+
+    return templates.TemplateResponse("incident_detail.html", {
+        "request": request,
+        "user": current_user,
+        "incident": incident
     })
 
 
@@ -532,12 +789,10 @@ async def register_page(
     current_user: User = Depends(get_current_user_optional)
 ):
     """
-    Registration page
+    Registration page — disabled for security.
+    Users must be created by an admin via Settings > Users.
     """
-    if current_user:
-        return RedirectResponse(url="/", status_code=302)
-
-    return templates.TemplateResponse("register.html", {"request": request})
+    return RedirectResponse(url="/login", status_code=302)
 
 
 @app.get("/alerts", response_class=HTMLResponse)
@@ -576,18 +831,108 @@ async def alert_detail_page(
     })
 
 
-@app.get("/ai", response_class=HTMLResponse)
-async def ai_chat_page(
+@app.get("/ai", include_in_schema=False)
+@app.get("/ai/", include_in_schema=False)
+async def ai_compat_root(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """Backward-compatible alias for the legacy /ai page.
+
+    Historically, the unified troubleshooting experience lived at /ai.
+    We now serve the equivalent UI at /troubleshoot.
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    return RedirectResponse(url="/troubleshoot", status_code=302)
+
+
+@app.get("/ai/troubleshoot", include_in_schema=False)
+@app.get("/ai/troubleshoot/", include_in_schema=False)
+async def ai_compat_troubleshoot(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """Backward-compatible alias for legacy deep-linking."""
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    return RedirectResponse(url="/troubleshoot", status_code=302)
+
+
+@app.get("/ai/inquiry", include_in_schema=False)
+@app.get("/ai/inquiry/", include_in_schema=False)
+async def ai_compat_inquiry(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """Backward-compatible alias for the Inquiry pillar page."""
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    return RedirectResponse(url="/inquiry", status_code=302)
+
+
+@app.get("/troubelshoot", include_in_schema=False)
+@app.get("/troubelshoot/", include_in_schema=False)
+async def troubleshoot_typo_alias(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """Compatibility alias for the common misspelling of /troubleshoot."""
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    return RedirectResponse(url="/troubleshoot", status_code=302)
+
+
+@app.get("/troubleshoot", response_class=HTMLResponse)
+async def troubleshoot_chat_page(
     request: Request,
     current_user: User = Depends(get_current_user_optional)
 ):
     """
-    Standalone AI Chat page with terminal
+    Standalone Troubleshoot Console page
     """
     if not current_user:
         return RedirectResponse(url="/login", status_code=302)
     
-    return templates.TemplateResponse("ai_chat.html", {
+    return templates.TemplateResponse("troubleshoot_chat.html", {
+        "request": request,
+        "user": current_user
+    })
+
+
+@app.get("/revive", response_class=HTMLResponse)
+async def revive_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    RE-VIVE Unified Assistant page
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+    
+    return templates.TemplateResponse("revive.html", {
+        "request": request,
+        "user": current_user
+    })
+
+
+@app.get("/inquiry", response_class=HTMLResponse)
+async def inquiry_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    AI Inquiry Pillar page
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+    
+    return templates.TemplateResponse("inquiry_chat.html", {
         "request": request,
         "user": current_user
     })
@@ -663,6 +1008,56 @@ async def audit_page(
     return templates.TemplateResponse("audit.html", {
         "request": request,
         "user": current_user
+    })
+
+
+@app.get("/pii-detection", response_class=HTMLResponse)
+async def pii_detection_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional),
+    db: Session = Depends(get_db)
+):
+    """
+    PII Detection configuration page (Admin only)
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+    
+    user_permissions = get_permissions_for_user(db, current_user)
+    print(f"DEBUG [pii_detection_page]: User={current_user.username}, Role={current_user.role}, Permissions={user_permissions}", flush=True)
+    if "pii_view_config" not in user_permissions:
+        print(f"DEBUG [pii_detection_page]: Redirecting to /. Missing pii_view_config. User perms: {user_permissions}", flush=True)
+        return RedirectResponse(url="/", status_code=302)
+    
+    return templates.TemplateResponse("pii_detection.html", {
+        "request": request,
+        "user": current_user,
+        "active_page": "pii_detection",
+        "permissions": list(user_permissions)
+    })
+
+
+@app.get("/pii-logs", response_class=HTMLResponse)
+async def pii_logs_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional),
+    db: Session = Depends(get_db)
+):
+    """
+    PII Detection logs page (Security viewer role or admin)
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+    
+    user_permissions = get_permissions_for_user(db, current_user)
+    if "pii_read_logs" not in user_permissions:
+        return RedirectResponse(url="/", status_code=302)
+    
+    return templates.TemplateResponse("pii_logs.html", {
+        "request": request,
+        "user": current_user,
+        "active_page": "pii_logs",
+        "permissions": list(user_permissions)
     })
 
 
@@ -1029,6 +1424,9 @@ async def grafana_advanced_page(
     response.headers["X-Frame-Options"] = "SAMEORIGIN"
     origin = str(request.base_url).rstrip("/")
     response.headers["Content-Security-Policy"] = f"frame-src 'self' {origin} http://grafana:3000"
+    # Prevent browser caching stale template HTML
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
     return response
 
 
@@ -1041,6 +1439,58 @@ async def grafana_diagnostic_page(request: Request):
     return templates.TemplateResponse("grafana_diagnostic.html", {
         "request": request
     })
+
+
+# ============== Grafana Debug Steps (temporary) ==============
+
+@app.get("/grafana-debug", response_class=HTMLResponse)
+async def grafana_debug_index(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """Landing page listing all grafana debug steps."""
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+    return templates.TemplateResponse("grafana_debug_index.html", {
+        "request": request,
+        "user": current_user,
+        "active_page": "grafana-advanced"
+    })
+
+
+@app.get("/grafana-debug/step{step}", response_class=HTMLResponse)
+async def grafana_debug_page(
+    step: int,
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    Step-by-step debug pages for /grafana-advanced blank page issue.
+    Step 1: Bare HTML (no CSS, no iframe, no JS)
+    Step 2: + Grafana CSS container
+    Step 3: + iframe (no widget JS)
+    Step 4: + widget JS (both revive_widget.js and revive_widget_grafana.js)
+    Step 5: Full page (identical to grafana_advanced.html)
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    if step < 1 or step > 5:
+        return RedirectResponse(url="/grafana-debug/step1", status_code=302)
+
+    template_name = f"grafana_debug_step{step}.html"
+    response = templates.TemplateResponse(template_name, {
+        "request": request,
+        "user": current_user,
+        "active_page": "grafana-advanced"
+    })
+    # Same headers as grafana-advanced to match conditions
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    origin = str(request.base_url).rstrip("/")
+    response.headers["Content-Security-Policy"] = f"frame-src 'self' {origin} http://grafana:3000"
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    return response
 
 
 # ============== Prometheus View Page ==============

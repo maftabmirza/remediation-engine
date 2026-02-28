@@ -21,7 +21,7 @@ def check_for_null_bytes(directory):
     return corrupted
 
 if __name__ == "__main__":
-    dirs_to_scan = ['alembic', 'app']
+    dirs_to_scan = ['app', 'atlas', 'schema']  # Updated: removed alembic, added atlas/schema
     all_corrupted = []
     for d in dirs_to_scan:
         if os.path.exists(d):

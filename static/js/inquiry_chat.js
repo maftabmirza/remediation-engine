@@ -1,0 +1,1625 @@
+/**
+ * AI Inquiry Page JavaScript
+ * Dedicated Q&A interface with Artifacts Panel (Claude-inspired)
+ * Version: 2.3 (2026-02-21 history artifact fix)
+ */
+console.log('[Inquiry] JS loaded - version 2.3 with history artifact support');
+
+// Global state
+let chatSocket = null;
+var currentSessionId = null;
+let currentSession = null;
+let availableProviders = [];
+let lastMessageRole = null;
+let currentMessageDiv = null;
+let chatFontSize = 14;
+let pendingCommandCancelled = false;  // Flag to cancel pending command polling
+let currentStreamController = null;   // AbortController for streaming requests
+let isStreaming = false;              // Flag to track if streaming is active
+
+// Artifacts state
+let artifacts = [];
+let activeArtifactId = null;
+let pinnedArtifacts = new Set();
+let currentArtifactTab = 'recent';
+
+// Reasoning panel state
+let reasoningHistory = [];
+let reasoningPanelVisible = true;
+
+// Font Size Controls
+function adjustChatFont(delta) {
+    AIChatBase.adjustChatFont(delta);
+}
+
+// ============= REASONING PANEL =============
+
+function initReasoningPanel() {
+    const chatMessages = document.getElementById('chatMessages');
+    if (!chatMessages || document.getElementById('reasoningPanel')) {
+        return; // Already exists or can't create
+    }
+
+    const panel = document.createElement('div');
+    panel.id = 'reasoningPanel';
+    panel.className = 'reasoning-panel hidden inq-reasoning-panel rounded-lg mb-4';
+    panel.innerHTML = `
+        <div class="reasoning-header flex justify-between items-center p-2 inq-reasoning-header cursor-pointer" 
+             onclick="toggleReasoningPanel()">
+            <span class="text-sm font-medium inq-reasoning-title">
+                <i class="fas fa-brain mr-2 text-purple-400"></i>AI Analysis
+            </span>
+            <i class="fas fa-chevron-down inq-subtext" id="reasoningToggleIcon"></i>
+        </div>
+        <div class="reasoning-body p-3 max-h-64 overflow-y-auto" id="reasoningBody">
+            <div class="inq-subtext text-sm">Waiting for analysis...</div>
+        </div>
+    `;
+
+    chatMessages.parentElement.insertBefore(panel, chatMessages);
+}
+
+function toggleReasoningPanel() {
+    const panel = document.getElementById('reasoningPanel');
+    const icon = document.getElementById('reasoningToggleIcon');
+    if (!panel) return;
+
+    reasoningPanelVisible = !reasoningPanelVisible;
+
+    if (reasoningPanelVisible) {
+        panel.classList.remove('collapsed');
+        icon.className = 'fas fa-chevron-down inq-subtext';
+    } else {
+        panel.classList.add('collapsed');
+        icon.className = 'fas fa-chevron-right inq-subtext';
+    }
+}
+
+function handleReasoningEvent(data) {
+    reasoningHistory.push(data);
+    renderReasoningSteps();
+
+    // Show panel if hidden
+    const panel = document.getElementById('reasoningPanel');
+    if (panel && panel.classList.contains('hidden')) {
+        panel.classList.remove('hidden');
+    }
+}
+
+function renderReasoningSteps() {
+    const body = document.getElementById('reasoningBody');
+    if (!body) return;
+
+    // Simplified phases for Inquiry
+    const phaseIcons = {
+        'identify': '🔍',
+        'verify': '✅',
+        'investigate': '📊',
+        'plan': '🧠',
+        'act': '💡' // Changed from tool to bulb
+    };
+
+    body.innerHTML = reasoningHistory.map((step, i) => {
+        const icon = phaseIcons[step.phase] || '❓';
+        // Only render known phases or generic info to avoid noise
+        return `
+            <div class="reasoning-step mb-3 pl-4 border-l-2 inq-reasoning-border">
+                <div class="flex items-center text-xs font-medium mb-1">
+                    <span class="mr-2">${icon}</span>
+                    <span>${step.phase || 'Info'}</span>
+                </div>
+                ${step.thought ? `<div class="inq-subtext text-xs italic mb-1">"${escapeHtml(step.thought)}"</div>` : ''}
+                ${step.tool ? `
+                    <div class="text-xs mt-1">
+                        <span class="text-yellow-400">Tool:</span> <code class="text-green-400">${escapeHtml(step.tool)}</code>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }).join('');
+
+    body.scrollTop = body.scrollHeight;
+}
+
+function resetReasoningPanel() {
+    reasoningHistory = [];
+    const body = document.getElementById('reasoningBody');
+    if (body) {
+        body.innerHTML = '<div class="inq-subtext text-sm">Waiting for analysis...</div>';
+    }
+    const panel = document.getElementById('reasoningPanel');
+    if (panel) {
+        panel.classList.add('hidden');
+    }
+}
+
+// Chat Session Management
+async function initChatSession() {
+    try {
+        await loadAvailableProviders();
+
+        // Get available sessions
+        let response = await apiCall('/api/v1/inquiry/sessions');
+
+        if (response.ok) {
+            const data = await response.json();
+            if (data.sessions && data.sessions.length > 0) {
+                currentSessionId = data.sessions[0].id;
+                currentSession = data.sessions[0];
+            }
+        }
+
+        if (!currentSessionId) {
+            response = await apiCall('/api/v1/inquiry/sessions', {
+                method: 'POST'
+            });
+
+            if (response.ok) {
+                currentSession = await response.json();
+                currentSessionId = currentSession.id;
+            } else {
+                throw new Error('Failed to create session');
+            }
+        }
+
+        updateModelSelector();
+        await loadMessageHistory(currentSessionId);
+
+        // No WebSocket for Inquiry - it's purely REST/Streaming for now to allow simple scaling
+        // connectChatWebSocket(currentSession.id); 
+
+    } catch (error) {
+        console.error('Chat init failed:', error);
+        showToast('Failed to initialize chat', 'error');
+    }
+}
+
+async function loadAvailableProviders() {
+    try {
+        updateModelStatusIcon('connecting');
+        const response = await apiCall('/api/v1/inquiry/providers');
+        if (!response.ok) throw new Error('Failed to load providers');
+        availableProviders = await response.json();
+
+        if (typeof populateModelDropdown === 'function') {
+            populateModelDropdown(availableProviders);
+        }
+        updateModelStatusIcon('connected');
+    } catch (error) {
+        console.error('Failed to load providers:', error);
+        updateModelStatusIcon('disconnected');
+    }
+}
+
+function updateModelSelector() {
+    if (currentSession && currentSession.llm_provider_id) {
+        if (typeof selectedModelId !== 'undefined') {
+            selectedModelId = currentSession.llm_provider_id;
+        }
+    }
+}
+
+function updateModelStatusIcon(status) {
+    const iconWrap = document.getElementById('llmIconStatus');
+    const dot = document.getElementById('llmStatusDot');
+    const badge = document.getElementById('llmStatusBadge');
+    const statusClasses = ['inq-llm-icon-connected', 'inq-llm-icon-disconnected', 'inq-llm-icon-connecting'];
+
+    // Icon color: green when connected, red/warning when not
+    if (iconWrap) {
+        iconWrap.classList.remove(...statusClasses);
+        iconWrap.classList.add(status === 'connected' ? 'inq-llm-icon-connected' :
+            status === 'disconnected' ? 'inq-llm-icon-disconnected' : 'inq-llm-icon-connecting');
+    }
+
+    // Status dot
+    if (dot) {
+        dot.classList.remove('inq-llm-status-connected', 'inq-llm-status-disconnected', 'inq-llm-status-connecting');
+        dot.title = status === 'connected' ? 'Connected' : status === 'disconnected' ? 'Disconnected' : 'Connecting';
+        dot.classList.add(status === 'connected' ? 'inq-llm-status-connected' :
+            status === 'disconnected' ? 'inq-llm-status-disconnected' : 'inq-llm-status-connecting');
+    }
+
+    // Status badge in dropdown header
+    if (badge) {
+        const labels = { connected: 'Connected', disconnected: 'Disconnected', connecting: 'Connecting' };
+        badge.textContent = labels[status] || 'Connecting';
+        badge.className = 'inq-llm-status-badge inq-llm-status-badge-' + status;
+    }
+}
+
+async function switchModel(providerId) {
+    if (!currentSessionId || !providerId) return;
+    try {
+        const response = await apiCall(`/api/v1/inquiry/sessions/${currentSessionId}/provider`, {
+            method: 'PATCH',
+            body: JSON.stringify({ provider_id: providerId })
+        });
+        if (!response.ok) throw new Error('Failed to switch model');
+        showToast('Model switched', 'success');
+        currentSession.llm_provider_id = providerId;
+    } catch (error) {
+        console.error('Failed to switch model:', error);
+        showToast('Failed to switch model', 'error');
+    }
+}
+
+async function loadMessageHistory(sessionId) {
+    try {
+        console.log('[Inquiry] loadMessageHistory called for session:', sessionId);
+        const response = await apiCall(`/api/v1/inquiry/sessions/${sessionId}/messages`);
+        if (!response.ok) throw new Error('Failed to load history');
+        const messages = await response.json();
+        console.log('[Inquiry] Loaded', messages.length, 'messages');
+        const container = document.getElementById('chatMessages');
+        container.innerHTML = '';
+
+        // Clear existing artifacts when loading a new/different session
+        resetArtifactsPanel();
+
+        if (messages.length === 0) {
+            showWelcomeScreen();
+            return;
+        }
+
+        // Collect all artifacts from history first, then display
+        const historyArtifacts = [];
+
+        messages.forEach(msg => {
+            if (msg.role === 'user') {
+                appendUserMessage(msg.content);
+            } else if (msg.role === 'assistant') {
+                // Strip artifact markers and suggestions from the display text
+                const cleanText = (msg.content || '')
+                    .replace(/\[\s*ARTIFACT\s*\][\s\S]*?\[\s*\/ARTIFACT\s*\]/gi, '')
+                    .replace(/\[\s*SUGGESTIONS\s*\][\s\S]*?\[\s*\/SUGGESTIONS\s*\]/gi, '');
+                appendAIMessage(cleanText);
+
+                // Re-extract explicit [ARTIFACT] blocks from stored content
+                const rawContent = msg.content || '';
+                const artifactRegex = /\[ARTIFACT\]([\s\S]*?)\[\/ARTIFACT\]/g;
+                let match;
+                let hasExplicitArtifacts = false;
+                while ((match = artifactRegex.exec(rawContent)) !== null) {
+                    try {
+                        const artifactData = JSON.parse(match[1]);
+                        console.log('[Inquiry] Found stored artifact:', artifactData.id, artifactData.type, artifactData.title);
+                        if (typeof artifactData.content === 'string') {
+                            hasExplicitArtifacts = true;
+                            historyArtifacts.push({
+                                id: artifactData.id || generateArtifactId(),
+                                type: artifactData.type || 'markdown',
+                                title: artifactData.title || 'Tool Result',
+                                content: artifactData.content,
+                                rawContent: artifactData.content,
+                                timestamp: msg.created_at || new Date().toISOString()
+                            });
+                        }
+                    } catch (e) {
+                        console.error('[Inquiry] Error parsing stored artifact:', e, match[1].substring(0, 100));
+                    }
+                }
+
+                // Only auto-detect artifacts if no explicit [ARTIFACT] blocks were found
+                // to avoid duplicates (same table in both ARTIFACT block and prose)
+                if (!hasExplicitArtifacts) {
+                    const detectedArtifacts = detectArtifacts(cleanText);
+                    console.log('[Inquiry] Detected', detectedArtifacts.length, 'artifacts from message text');
+                    detectedArtifacts.forEach(artifact => {
+                        artifact.timestamp = msg.created_at || artifact.timestamp;
+                        historyArtifacts.push(artifact);
+                    });
+                }
+            }
+        });
+
+        // Now add all collected artifacts to the panel
+        console.log('[Inquiry] Total artifacts to restore:', historyArtifacts.length);
+        historyArtifacts.forEach(artifact => {
+            if (!artifacts.find(a => a.id === artifact.id)) {
+                addArtifact(artifact);
+            }
+        });
+
+        container.scrollTop = container.scrollHeight;
+    } catch (error) {
+        console.error('[Inquiry] Failed to load chat history:', error);
+        showWelcomeScreen();
+    }
+}
+
+function showWelcomeScreen() {
+    AIChatBase.showWelcomeScreen(
+        "AI Analyst",
+        "Ask me about infrastructure, metrics, or logs.",
+        [
+            { text: "What alerts are currently firing?", icon: "fas fa-bell" },
+            { text: "Show me system health status", icon: "fas fa-heartbeat" },
+            { text: "Explain recent errors in logs", icon: "fas fa-file-alt" }
+        ]
+    );
+}
+
+function sendSuggestion(text) {
+    const input = document.getElementById('chatInput');
+    input.value = text;
+    sendMessage(new Event('submit'));
+}
+
+function appendUserMessage(text) {
+    AIChatBase.appendUserMessage(text);
+    lastMessageRole = 'user';
+}
+
+function appendAIMessage(text) {
+    AIChatBase.appendAIMessage(text, {
+        skipRunButtons: true, // Inquiry doesn't run terminal commands
+        messageId: 'inquiry-' + Date.now()
+    });
+    lastMessageRole = 'assistant';
+}
+
+// Redundant, handled by AIChatBase
+
+// Chat Interaction
+async function sendMessage(e) {
+    e.preventDefault();
+
+    const input = document.getElementById('chatInput');
+    const text = input.value.trim();
+    if (!text) return;
+
+    if (typeof resetReasoningPanel === 'function') resetReasoningPanel();
+
+    appendUserMessage(text);
+    input.value = '';
+    showTypingIndicator();
+
+    await sendStreamingMessage(text);
+}
+
+async function sendStreamingMessage(message) {
+    currentStreamController = new AbortController();
+    isStreaming = true;
+
+    try {
+        const token = localStorage.getItem('token');
+        // Pointing to INQUIRY endpoint
+        const response = await fetch('/api/v1/inquiry/stream', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                query: message,
+                session_id: currentSessionId
+            }),
+            signal: currentStreamController.signal
+        });
+
+        if (!response.ok) {
+            removeTypingIndicator();
+            appendAIMessage('Failed to get response from AI. Please try again.');
+            return;
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let fullResponse = '';
+        let firstChunkReceived = false;
+
+        // Keep typing indicator visible until first content chunk arrives
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
+
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    try {
+                        const data = JSON.parse(line.slice(6));
+
+                        if (data.type === 'session') {
+                            currentSessionId = data.session_id;
+                        } else if (data.type === 'chunk') {
+                            // Remove typing indicator on first content chunk
+                            if (!firstChunkReceived) {
+                                removeTypingIndicator();
+                                firstChunkReceived = true;
+                            }
+                            fullResponse += data.content;
+                            appendStreamingChunk(data.content);
+                        } else if (data.type === 'artifact') {
+                            // Handle explicit artifact events from backend
+                            if (data.artifact) {
+                                addArtifact({
+                                    id: data.artifact.id || generateArtifactId(),
+                                    type: data.artifact.type || 'markdown',
+                                    title: data.artifact.title || 'Data',
+                                    content: data.artifact.content,
+                                    rawContent: data.artifact.content,
+                                    timestamp: new Date().toISOString()
+                                });
+                            }
+                        } else if (data.type === 'tools_used') {
+                            handleToolsUsedEvent(data.content);
+                        } else if (data.type === 'done') {
+                            finalizeStreamingMessage(fullResponse, data.tool_calls || []);
+                        } else if (data.type === 'error') {
+                            appendAIMessage(`Error: ${data.content}`);
+                        }
+                    } catch (e) {
+                        console.error("Error parsing SSE data:", e);
+                    }
+                }
+            }
+        }
+    } catch (error) {
+        if (error.name !== 'AbortError') {
+            console.error('Streaming error:', error);
+            removeTypingIndicator();
+            appendAIMessage('Error communicating with AI service.');
+        }
+    } finally {
+        isStreaming = false;
+        currentStreamController = null;
+        removeTypingIndicator();
+    }
+}
+
+
+// --- Missing Reasoning Panel Functions ---
+
+function handleReasoningEvent(data) {
+    // Attempt to find the reasoning panel container
+    // Common IDs from ai_chat.js: reasoningActionList or similar
+    // HTML uses 'dataOutputResults' for the right pane
+    const container = document.getElementById('reasoningActionList') ||
+        document.getElementById('reasoningPanel') ||
+        document.getElementById('dataOutputResults');
+
+    if (!container) {
+        // If panel doesn't exist, just log it and return to avoid crashing
+        console.log('Reasoning event (panel not found):', data);
+        return;
+    }
+
+    const item = document.createElement('div');
+    item.className = 'reasoning-item mb-2 p-2 inq-reasoning-item rounded text-xs';
+
+    let icon = 'fa-cog';
+    let color = 'text-slate-400';
+
+    if (data.phase === 'plan') { icon = 'fa-map'; color = 'text-blue-400'; }
+    else if (data.phase === 'act') { icon = 'fa-bolt'; color = 'text-yellow-400'; }
+    else if (data.phase === 'observe') { icon = 'fa-eye'; color = 'text-purple-400'; }
+
+    item.innerHTML = `
+        <div class="flex items-start">
+            <i class="fas ${icon} ${color} mt-1 mr-2 width-4"></i>
+            <div>
+                <div class="font-semibold inq-body-text">${data.tool || data.phase}</div>
+                <div class="inq-subtext">${escapeHtml(data.thought || '')}</div>
+            </div>
+        </div>
+    `;
+    container.appendChild(item);
+    container.scrollTop = container.scrollHeight;
+}
+
+function resetReasoningPanel() {
+    const container = document.getElementById('reasoningActionList') || document.getElementById('reasoningPanel');
+    if (container) {
+        container.innerHTML = '';
+    }
+}
+
+function handleToolsUsedEvent(tools) {
+    if (!tools || tools.length === 0) return;
+
+    // Add to reasoning history
+    const toolValidation = {
+        phase: 'act',
+        tool: tools.join(', '),
+        thought: 'Tools executed successfully.'
+    };
+    handleReasoningEvent(toolValidation);
+
+    // Also show a small indicator in the chat if reasoning panel is closed
+    const container = document.getElementById('chatMessages');
+    if (lastMessageRole === 'assistant' && currentMessageDiv) {
+        // We are streaming, so maybe just append a marker? 
+        // Or better, let reasoning panel handle it.
+        // We can add a "Tools Used" badge to the message wrapper
+    }
+}
+
+function appendStreamingChunk(chunk) {
+    const container = document.getElementById('chatMessages');
+    if (lastMessageRole !== 'assistant' || !currentMessageDiv) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'flex justify-start w-full pr-2 mb-3'; // Added mb-3 for spacing
+        wrapper.innerHTML = `
+            <div class="ai-message-wrapper w-full">
+                <div class="flex items-center mb-2">
+                     <div class="w-6 h-6 rounded-full bg-gradient-to-r from-blue-600 to-cyan-600 flex items-center justify-center mr-2">
+                        <i class="fas fa-search text-white text-xs"></i>
+                    </div>
+                    <span class="text-xs inq-subtext">AI Analyst</span>
+                </div>
+                <div class="inq-ai-message ai-message-content shadow-lg streaming-message" data-full-text=""></div>
+            </div>
+        `;
+        container.appendChild(wrapper);
+        currentMessageDiv = wrapper.querySelector('.ai-message-content');
+        lastMessageRole = 'assistant';
+    }
+
+    if (currentMessageDiv) {
+        const currentText = currentMessageDiv.getAttribute('data-full-text') || '';
+        const newText = currentText + chunk;
+        currentMessageDiv.setAttribute('data-full-text', newText);
+
+        // Extract and process artifacts from the stream
+        const artifactRegex = /\[ARTIFACT\]([\s\S]*?)\[\/ARTIFACT\]/g;
+        let match;
+        while ((match = artifactRegex.exec(newText)) !== null) {
+            try {
+                const artifactData = JSON.parse(match[1]);
+                // Validate artifact: content must be a string (real tool results are strings)
+                // Hallucinated artifacts often have object content (like chart configs)
+                if (typeof artifactData.content !== 'string') {
+                    console.warn('Skipping hallucinated artifact with non-string content');
+                    continue;
+                }
+                // Also validate that ID starts with 'tool-' (our real artifacts do)
+                if (artifactData.id && !artifactData.id.startsWith('tool-')) {
+                    console.warn('Skipping artifact with suspicious ID:', artifactData.id);
+                    continue;
+                }
+                // Check if we already added this artifact
+                if (!artifacts.find(a => a.id === artifactData.id)) {
+                    addArtifact({
+                        id: artifactData.id || generateArtifactId(),
+                        type: artifactData.type || 'markdown',
+                        title: artifactData.title || 'Tool Result',
+                        content: artifactData.content,
+                        rawContent: artifactData.content,
+                        timestamp: new Date().toISOString()
+                    });
+                }
+            } catch (e) {
+                console.error('Error parsing artifact:', e);
+            }
+        }
+
+        // Remove artifact markers and suggestions from display text
+        let displayText = newText
+            .replace(/\[\s*ARTIFACT\s*\][\s\S]*?\[\s*\/ARTIFACT\s*\]/gi, '')
+            .replace(/\[\s*SUGGESTIONS\s*\]([\s\S]*?)\[\s*\/SUGGESTIONS\s*\]/gi, '');
+        currentMessageDiv.innerHTML = marked.parse(displayText);
+    }
+    container.scrollTop = container.scrollHeight;
+}
+
+function finalizeStreamingMessage(fullText, toolCalls = []) {
+    // Re-render full message to handle any formatting properly
+    if (currentMessageDiv) {
+        // Safer removal: traverse up to the main wrapper
+        const wrapper = currentMessageDiv.closest('.flex.justify-start');
+        if (wrapper && wrapper.parentNode) {
+            wrapper.parentNode.removeChild(wrapper);
+        } else {
+            currentMessageDiv.remove();
+        }
+        currentMessageDiv = null;
+    }
+    
+    // Extract artifacts from the full text
+    const artifactRegex = /\[ARTIFACT\]([\s\S]*?)\[\/ARTIFACT\]/g;
+    let match;
+    while ((match = artifactRegex.exec(fullText)) !== null) {
+        try {
+            const artifactData = JSON.parse(match[1]);
+            // Validate artifact: content must be a string (real tool results are strings)
+            // Hallucinated artifacts often have object content (like chart configs)
+            if (typeof artifactData.content !== 'string') {
+                console.warn('Skipping hallucinated artifact with non-string content');
+                continue;
+            }
+            // Also validate that ID starts with 'tool-' (our real artifacts do)
+            if (artifactData.id && !artifactData.id.startsWith('tool-')) {
+                console.warn('Skipping artifact with suspicious ID:', artifactData.id);
+                continue;
+            }
+            // Check if we already added this artifact
+            if (!artifacts.find(a => a.id === artifactData.id)) {
+                addArtifact({
+                    id: artifactData.id || generateArtifactId(),
+                    type: artifactData.type || 'markdown',
+                    title: artifactData.title || 'Tool Result',
+                    content: artifactData.content,
+                    rawContent: artifactData.content,
+                    timestamp: new Date().toISOString()
+                });
+            }
+        } catch (e) {
+            console.error('Error parsing artifact:', e);
+        }
+    }
+    
+    // Remove artifact markers from display text
+    const cleanText = fullText.replace(/\[\s*ARTIFACT\s*\][\s\S]*?\[\s*\/ARTIFACT\s*\]/gi, '');
+    appendAIMessage(cleanText);
+    
+    // Count how many explicit [ARTIFACT] blocks were already added in this response
+    const explicitArtifactCount = (fullText.match(/\[ARTIFACT\]/gi) || []).length;
+    
+    // Only auto-detect artifacts if NO explicit [ARTIFACT] blocks were found.
+    // This prevents duplicates: e.g. backend sends a table as [ARTIFACT] AND
+    // the AI also writes the same table in its prose, causing detectArtifacts
+    // to create a second artifact with a new ID.
+    if (explicitArtifactCount === 0) {
+        const detectedArtifacts = detectArtifacts(cleanText);
+        detectedArtifacts.forEach(artifact => {
+            addArtifact(artifact);
+        });
+    
+        // If tools were used but no artifacts detected, create a summary artifact
+        if (toolCalls && toolCalls.length > 0 && detectedArtifacts.length === 0 && artifacts.length === 0) {
+            addArtifact({
+                id: generateArtifactId(),
+                type: 'markdown',
+                title: 'Query Summary',
+                content: `**Tools Used:** ${toolCalls.join(', ')}\n\n${cleanText}`,
+                rawContent: cleanText,
+                timestamp: new Date().toISOString()
+            });
+        }
+    }
+}
+
+// --- UI Helpers ---
+
+function toggleSessionDropdown() {
+    const dropdown = document.getElementById('sessionDropdown');
+    const btn = document.getElementById('sessionDropdownBtn');
+    const wrapper = btn ? btn.closest('.inq-session-dropdown-wrapper') : null;
+    if (!dropdown) return;
+
+    dropdown.classList.toggle('hidden');
+
+    // Toggle open class on wrapper for icon highlight
+    if (wrapper) {
+        wrapper.classList.toggle('open', !dropdown.classList.contains('hidden'));
+    }
+
+    if (!dropdown.classList.contains('hidden')) {
+        loadSessions();
+    }
+}
+
+async function loadSessions() {
+    try {
+        const response = await apiCall('/api/v1/inquiry/sessions');
+        if (!response.ok) return;
+
+        const data = await response.json();
+        const sessions = data.sessions || [];
+        populateSessionDropdown(sessions);
+    } catch (error) {
+        console.error('Failed to load sessions:', error);
+    }
+}
+
+function populateSessionDropdown(sessions) {
+    const container = document.getElementById('sessionListContainer');
+    if (!container) return;
+
+    if (sessions.length === 0) {
+        container.innerHTML = '<div class="inq-session-empty">No previous sessions</div>';
+    } else {
+        container.innerHTML = sessions.map(session => {
+            const isActive = session.id === currentSessionId;
+            const title = AIChatBase.escapeHtml(session.title || 'Untitled Session');
+            const date = new Date(session.created_at).toLocaleDateString();
+            const time = new Date(session.created_at).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+            return `
+            <div class="inq-session-item ${isActive ? 'active' : ''}" onclick="switchSession('${session.id}')">
+                <div class="inq-session-item-title">${title}</div>
+                <div class="inq-session-item-date">${date} ${time}</div>
+            </div>`;
+        }).join('');
+    }
+}
+
+async function createNewSession() {
+    try {
+        const response = await apiCall('/api/v1/inquiry/sessions', {
+            method: 'POST',
+            body: JSON.stringify({})
+        });
+
+        if (response.ok) {
+            const session = await response.json();
+            switchSession(session.id);
+            showToast('New session created', 'success');
+        } else {
+            showToast('Failed to create session', 'error');
+        }
+    } catch (error) {
+        console.error('Create session failed:', error);
+        showToast('Error creating session', 'error');
+    }
+}
+
+async function switchSession(sessionId) {
+    if (sessionId === currentSessionId) return;
+
+    currentSessionId = sessionId;
+    const dropdown = document.getElementById('sessionDropdown');
+    if (dropdown) {
+        dropdown.classList.add('hidden');
+        const wrapper = dropdown.closest('.inq-session-dropdown-wrapper');
+        if (wrapper) wrapper.classList.remove('open');
+    }
+
+    // Update UI title
+    const titleEl = document.getElementById('currentSessionTitle');
+    if (titleEl) titleEl.textContent = 'Loading...';
+
+    // Load messages
+    await loadMessageHistory(sessionId);
+
+    // Reconnect WebSocket to new session
+    if (typeof connectChatWebSocket === 'function') {
+        connectChatWebSocket(sessionId);
+    }
+
+    if (titleEl) titleEl.textContent = 'Active Session';
+    showToast('Session switched', 'info');
+}
+
+// Populate Model Dropdown helper (needed if loadAvailableProviders calls it)
+function populateModelDropdown(providers) {
+    const list = document.getElementById('llmProviderList');
+    if (!list) return;
+
+    if (!providers || providers.length === 0) {
+        list.innerHTML = '<div style="padding: 9px 12px; font-size: 13px; color: #94a3b8;">No providers available</div>';
+        updateModelStatusIcon('disconnected');
+        return;
+    }
+
+    // Determine which provider is currently selected
+    const selectedId = (currentSession && currentSession.llm_provider_id) 
+        ? currentSession.llm_provider_id 
+        : (providers.find(p => p.is_default)?.id || '');
+
+    list.innerHTML = providers.map(p => {
+        const isSelected = p.id === selectedId;
+        return `
+        <div class="inq-llm-option ${isSelected ? 'selected' : ''}" 
+             data-provider-id="${p.id}" onclick="selectModel('${p.id}')">
+            <div style="width: 8px; height: 8px; border-radius: 50%; background: ${p.is_enabled ? '#22c55e' : '#ef4444'};" 
+                 title="${p.is_enabled ? 'Enabled' : 'Disabled'}"></div>
+            <div style="flex-grow: 1;">
+                <div style="font-weight: ${isSelected ? '600' : '500'};">${AIChatBase.escapeHtml(p.name)}${p.is_default ? ' ⭐' : ''}</div>
+                <div style="font-size: 11px; color: #64748b;">${AIChatBase.escapeHtml(p.model_id)}</div>
+            </div>
+            ${isSelected ? '<i data-feather="check" style="width: 14px; height: 14px; color: #3b82f6;"></i>' : ''}
+        </div>
+    `}).join('');
+    
+    // Re-initialize feather icons
+    if (typeof feather !== 'undefined') feather.replace();
+    
+    // Ensure icon shows green when providers loaded successfully
+    updateModelStatusIcon('connected');
+}
+
+async function selectModel(providerId) {
+    if (!currentSessionId) return;
+    
+    try {
+        const response = await apiCall(`/api/v1/inquiry/sessions/${currentSessionId}/provider`, {
+            method: 'PATCH',
+            body: JSON.stringify({ provider_id: providerId })
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            
+            // Update session tracking FIRST
+            if (currentSession) {
+                currentSession.llm_provider_id = providerId;
+            } else {
+                currentSession = { llm_provider_id: providerId };
+            }
+            
+            // Re-render dropdown with new selection
+            populateModelDropdown(availableProviders);
+            
+            // Update model name display
+            const provider = availableProviders.find(p => p.id === providerId);
+            if (provider) {
+                const currentModelNameEl = document.getElementById('currentModelName');
+                if (currentModelNameEl) {
+                    currentModelNameEl.textContent = provider.name;
+                }
+            }
+            
+            // Add system message to chat
+            const container = document.getElementById('chatMessages');
+            const msg = document.createElement('div');
+            msg.className = 'text-center text-xs inq-subtext my-2 italic';
+            msg.innerHTML = `<i class="fas fa-sync-alt mr-1"></i>Now using: ${result.provider_name} - ${result.model_name}`;
+            container.appendChild(msg);
+            container.scrollTop = container.scrollHeight;
+            
+            showToast(`Switched to ${result.provider_name}`, 'success');
+        }
+    } catch (error) {
+        console.error('Failed to switch model:', error);
+        showToast('Failed to switch model', 'error');
+    }
+    
+    // Close the dropdown
+    const list = document.getElementById('modelListContainer');
+    const selector = document.getElementById('llmSelector');
+    if (list) list.style.display = 'none';
+    if (selector) selector.classList.remove('open');
+}
+
+function toggleModelDropdown() {
+    const list = document.getElementById('modelListContainer');
+    const selector = document.getElementById('llmSelector');
+    if (list) {
+        const isHidden = list.style.display === 'none' || !list.style.display;
+        list.style.display = isHidden ? 'block' : 'none';
+        if (selector) {
+            if (isHidden) selector.classList.add('open');
+            else selector.classList.remove('open');
+        }
+    }
+}
+
+// Close dropdowns when clicking outside
+window.addEventListener('click', function (e) {
+    const sessionDropdown = document.getElementById('sessionDropdown');
+    const sessionBtn = document.getElementById('sessionDropdownBtn');
+    if (sessionDropdown && !sessionDropdown.classList.contains('hidden') &&
+        !sessionDropdown.contains(e.target) && (!sessionBtn || !sessionBtn.contains(e.target))) {
+        sessionDropdown.classList.add('hidden');
+        const wrapper = sessionBtn ? sessionBtn.closest('.inq-session-dropdown-wrapper') : null;
+        if (wrapper) wrapper.classList.remove('open');
+    }
+
+    const llmSelector = document.getElementById('llmSelector');
+    const modelListContainer = document.getElementById('modelListContainer');
+    if (llmSelector && !llmSelector.contains(e.target)) {
+        if (modelListContainer) modelListContainer.style.display = 'none';
+        llmSelector.classList.remove('open');
+    }
+});
+
+function showTypingIndicator() {
+    AIChatBase.showTypingIndicator('Analyzing data...');
+}
+
+function removeTypingIndicator() {
+    AIChatBase.removeTypingIndicator();
+}
+
+function cancelStreaming() {
+    if (currentStreamController && isStreaming) {
+        currentStreamController.abort();
+        showToast('Cancelled', 'info');
+    }
+}
+
+// Utils
+function escapeHtml(text) {
+    return AIChatBase.escapeHtml(text);
+}
+
+function clearChat() {
+    // Simple clear, no modal for inquiry to keep it fast
+    if (confirm('Clear conversation history?')) {
+        document.getElementById('chatMessages').innerHTML = '';
+        showWelcomeScreen();
+        lastMessageRole = null;
+    }
+}
+
+// Event Listeners
+document.addEventListener('keydown', function (e) {
+    if (e.target && e.target.id === 'chatInput') {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage(e);
+        }
+    }
+    if (e.ctrlKey && e.key === 'l') { e.preventDefault(); clearChat(); }
+});
+
+// ============= ARTIFACTS SYSTEM =============
+
+/**
+ * Artifact type definitions with icons and colors
+ */
+const ARTIFACT_TYPES = {
+    table: { icon: 'fa-table', color: 'text-blue-400', bgColor: 'bg-blue-900/30', label: 'Table' },
+    code: { icon: 'fa-code', color: 'text-green-400', bgColor: 'bg-green-900/30', label: 'Code' },
+    json: { icon: 'fa-brackets-curly', color: 'text-yellow-400', bgColor: 'bg-yellow-900/30', label: 'JSON' },
+    yaml: { icon: 'fa-file-code', color: 'text-purple-400', bgColor: 'bg-purple-900/30', label: 'YAML' },
+    markdown: { icon: 'fa-file-alt', color: 'text-slate-400', bgColor: 'inq-doc-type-bg', label: 'Document' },
+    list: { icon: 'fa-list', color: 'text-cyan-400', bgColor: 'bg-cyan-900/30', label: 'List' },
+    alert: { icon: 'fa-bell', color: 'text-red-400', bgColor: 'bg-red-900/30', label: 'Alerts' },
+    metrics: { icon: 'fa-chart-line', color: 'text-emerald-400', bgColor: 'bg-emerald-900/30', label: 'Metrics' }
+};
+
+/**
+ * Detect artifacts from AI response content
+ */
+function detectArtifacts(content) {
+    const detectedArtifacts = [];
+    
+    // 1. Detect Markdown tables
+    const tableRegex = /(\|[^\n]+\|\n\|[-:\s|]+\|\n(?:\|[^\n]+\|\n?)+)/g;
+    let match;
+    while ((match = tableRegex.exec(content)) !== null) {
+        const tableContent = match[1];
+        const lines = tableContent.trim().split('\n');
+        const title = extractTableTitle(content, match.index) || `Data Table`;
+        detectedArtifacts.push({
+            id: generateArtifactId(),
+            type: 'table',
+            title: title,
+            content: tableContent,
+            rawContent: tableContent,
+            timestamp: new Date().toISOString()
+        });
+    }
+    
+    // 2. Detect code blocks
+    const codeRegex = /```(\w+)?\n([\s\S]*?)```/g;
+    while ((match = codeRegex.exec(content)) !== null) {
+        const lang = match[1] || 'text';
+        const codeContent = match[2];
+        
+        // Skip if it's just a small inline code
+        if (codeContent.trim().split('\n').length < 3) continue;
+        
+        let artifactType = 'code';
+        if (lang === 'json') artifactType = 'json';
+        if (lang === 'yaml' || lang === 'yml') artifactType = 'yaml';
+        
+        detectedArtifacts.push({
+            id: generateArtifactId(),
+            type: artifactType,
+            title: `${lang.toUpperCase()} Snippet`,
+            content: codeContent,
+            language: lang,
+            rawContent: match[0],
+            timestamp: new Date().toISOString()
+        });
+    }
+    
+    // 3. Detect alert lists (common pattern: bullet points with alert names)
+    const alertListRegex = /(?:Found \d+ alerts?|Alerts?:)\s*\n((?:[-*•]\s*.+\n?)+)/gi;
+    while ((match = alertListRegex.exec(content)) !== null) {
+        const listContent = match[1];
+        const alertCount = (listContent.match(/[-*•]\s/g) || []).length;
+        if (alertCount >= 2) {
+            detectedArtifacts.push({
+                id: generateArtifactId(),
+                type: 'alert',
+                title: `${alertCount} Alerts`,
+                content: listContent,
+                rawContent: match[0],
+                timestamp: new Date().toISOString()
+            });
+        }
+    }
+    
+    // 4. Detect numbered/bulleted lists (5+ items)
+    const listRegex = /(?:^|\n)((?:(?:\d+\.|[-*•])\s+.+\n?){5,})/g;
+    while ((match = listRegex.exec(content)) !== null) {
+        // Skip if already captured as alert list
+        if (detectedArtifacts.some(a => a.rawContent && match[0].includes(a.rawContent))) continue;
+        
+        const listContent = match[1];
+        const itemCount = (listContent.match(/(?:\d+\.|[-*•])\s/g) || []).length;
+        detectedArtifacts.push({
+            id: generateArtifactId(),
+            type: 'list',
+            title: `List (${itemCount} items)`,
+            content: listContent,
+            rawContent: match[0],
+            timestamp: new Date().toISOString()
+        });
+    }
+    
+    return detectedArtifacts;
+}
+
+function extractTableTitle(content, tableIndex) {
+    // Look for heading or bold text before the table
+    const beforeTable = content.substring(Math.max(0, tableIndex - 200), tableIndex);
+    
+    // Check for markdown heading
+    const headingMatch = beforeTable.match(/#{1,3}\s+(.+?)(?:\n|$)/);
+    if (headingMatch) return headingMatch[1].trim();
+    
+    // Check for bold text
+    const boldMatch = beforeTable.match(/\*\*(.+?)\*\*(?:\s*:)?/);
+    if (boldMatch) return boldMatch[1].trim();
+    
+    return null;
+}
+
+function generateArtifactId() {
+    return 'artifact-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+}
+
+/**
+ * Add artifact to the panel
+ */
+function addArtifact(artifact) {
+    // Add to global list
+    artifacts.unshift(artifact);
+    
+    // Update count
+    updateArtifactCount();
+    
+    // Hide empty state
+    const emptyState = document.getElementById('artifactsEmpty');
+    if (emptyState) emptyState.style.display = 'none';
+    
+    // Append full rendered card to the sequential feed
+    appendArtifactToFeed(artifact);
+    
+    // Add link in chat
+    addArtifactLinkToChat(artifact);
+}
+
+function updateArtifactCount() {
+    const countEl = document.getElementById('artifactCount');
+    if (countEl) countEl.textContent = artifacts.length;
+}
+
+/**
+ * Scroll to artifact in the sequential feed and briefly highlight it
+ */
+function setActiveArtifact(artifactId) {
+    activeArtifactId = artifactId;
+    const el = document.getElementById('feed-' + artifactId);
+    if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        el.style.outline = '2px solid #3b82f6';
+        el.style.outlineOffset = '-2px';
+        setTimeout(() => { el.style.outline = ''; el.style.outlineOffset = ''; }, 1500);
+    }
+}
+
+/**
+ * Append a fully-rendered artifact card to the sequential feed
+ */
+function appendArtifactToFeed(artifact) {
+    const feed = document.getElementById('artifactFeed');
+    if (!feed) return;
+
+    const typeInfo = ARTIFACT_TYPES[artifact.type] || ARTIFACT_TYPES.markdown;
+    const time = new Date(artifact.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const seqNum = artifacts.length;
+
+    const card = document.createElement('div');
+    card.id = 'feed-' + artifact.id;
+    card.className = 'inq-feed-card';
+    card.dataset.artifactId = artifact.id;
+    card.dataset.pinned = 'false';
+
+    card.innerHTML = `
+        <div class="inq-feed-card-header">
+            <span class="inq-feed-card-seq">#${seqNum}</span>
+            <i class="fas ${typeInfo.icon} inq-feed-card-type-icon"></i>
+            <span class="inq-feed-card-title" title="${escapeHtml(artifact.title)}">${escapeHtml(artifact.title)}</span>
+            <span class="inq-feed-card-type-badge">${typeInfo.label}</span>
+            <span class="inq-feed-card-time">${time}</span>
+            <div class="inq-feed-card-actions">
+                <button class="inq-feed-action-btn" onclick="copyArtifact('${artifact.id}')" title="Copy to clipboard">
+                    <i class="fas fa-copy"></i>
+                </button>
+                <button class="inq-feed-action-btn" onclick="exportArtifact('${artifact.id}')" title="Export">
+                    <i class="fas fa-download"></i>
+                </button>
+                <button class="inq-feed-action-btn ${pinnedArtifacts.has(artifact.id) ? 'pinned' : ''}" id="pin-btn-${artifact.id}" onclick="pinArtifact('${artifact.id}')" title="Pin">
+                    <i class="fas fa-thumbtack"></i>
+                </button>
+            </div>
+        </div>
+        <div class="inq-feed-card-content">
+            ${renderArtifactContent(artifact)}
+        </div>
+    `;
+
+    feed.appendChild(card);
+
+    // Syntax highlight code blocks
+    if (artifact.type === 'code' || artifact.type === 'json' || artifact.type === 'yaml') {
+        card.querySelectorAll('pre code').forEach(block => {
+            if (typeof hljs !== 'undefined') hljs.highlightElement(block);
+        });
+    }
+
+    // Scroll to new card
+    const container = document.getElementById('artifactsContainer');
+    if (container) container.scrollTop = container.scrollHeight;
+}
+
+/**
+ * Render artifact content based on type
+ */
+function renderArtifactContent(artifact) {
+    // Check if content contains chart data
+    if (artifact.content && artifact.content.includes('[CHART]')) {
+        return renderChartArtifact(artifact);
+    }
+    
+    switch (artifact.type) {
+        case 'table':
+            return renderTableArtifact(artifact);
+        case 'code':
+        case 'json':
+        case 'yaml':
+            return renderCodeArtifact(artifact);
+        case 'alert':
+            return renderAlertArtifact(artifact);
+        case 'list':
+            return renderListArtifact(artifact);
+        case 'chart':
+            return renderChartArtifact(artifact);
+        default:
+            return `<div class="inq-prose">${marked.parse(artifact.content)}</div>`;
+    }
+}
+
+/**
+ * Render chart artifact using Chart.js
+ */
+function renderChartArtifact(artifact) {
+    const content = artifact.content;
+    
+    // Extract chart data from [CHART]...[/CHART] markers
+    const chartMatch = content.match(/\[CHART\]([\s\S]*?)\[\/CHART\]/);
+    if (!chartMatch) {
+        // No chart data, render as markdown
+        return `<div class="inq-prose">${marked.parse(content)}</div>`;
+    }
+    
+    try {
+        const chartData = JSON.parse(chartMatch[1]);
+        const chartId = 'chart-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+        
+        // Extract text content (before chart marker)
+        const textContent = content.replace(/\[CHART\][\s\S]*?\[\/CHART\]/, '').trim();
+        
+        // Schedule chart rendering after DOM update
+        setTimeout(() => {
+            const canvas = document.getElementById(chartId);
+            if (canvas && typeof Chart !== 'undefined') {
+                new Chart(canvas, {
+                    type: chartData.type || 'bar',
+                    data: {
+                        labels: chartData.labels || [],
+                        datasets: chartData.datasets || []
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                labels: { color: getComputedStyle(document.documentElement).getPropertyValue('--chart-text-color').trim() || '#64748b' }
+                            }
+                        },
+                        scales: chartData.type !== 'doughnut' && chartData.type !== 'pie' ? {
+                            x: {
+                                ticks: { color: getComputedStyle(document.documentElement).getPropertyValue('--chart-text-color').trim() || '#64748b' },
+                                grid: { color: getComputedStyle(document.documentElement).getPropertyValue('--chart-grid-color').trim() || '#e2e8f0' }
+                            },
+                            y: {
+                                ticks: { color: getComputedStyle(document.documentElement).getPropertyValue('--chart-text-color').trim() || '#64748b' },
+                                grid: { color: getComputedStyle(document.documentElement).getPropertyValue('--chart-grid-color').trim() || '#e2e8f0' },
+                                beginAtZero: true
+                            }
+                        } : undefined
+                    }
+                });
+            }
+        }, 100);
+        
+        return `
+            <div class="space-y-4">
+                ${textContent ? `<div class="inq-prose">${marked.parse(textContent)}</div>` : ''}
+                <div class="inq-chart-container">
+                    <canvas id="${chartId}"></canvas>
+                </div>
+            </div>
+        `;
+    } catch (e) {
+        console.error('Error rendering chart:', e);
+        return `<div class="inq-prose">${marked.parse(content.replace(/\[CHART\][\s\S]*?\[\/CHART\]/, ''))}</div>`;
+    }
+}
+
+function renderTableArtifact(artifact) {
+    // Parse markdown table and render as proper HTML table
+    const lines = artifact.content.trim().split('\n');
+    if (lines.length < 2) return `<pre>${escapeHtml(artifact.content)}</pre>`;
+    
+    const headers = lines[0].split('|').filter(c => c.trim()).map(c => c.trim());
+    const rows = lines.slice(2)
+        .filter(line => line.trim() && !line.match(/^\|[-:\s|]+\|$/))
+        .map(line => 
+            line.split('|').filter(c => c.trim()).map(c => c.trim())
+        );
+    
+    // Detect severity/status columns for smart formatting
+    const severityIdx = headers.findIndex(h => h.toLowerCase() === 'severity');
+    const statusIdx = headers.findIndex(h => h.toLowerCase() === 'status');
+    
+    const severityColors = {
+        critical: { bg: '#fef2f2', text: '#dc2626', border: '#fecaca' },
+        error: { bg: '#fef2f2', text: '#dc2626', border: '#fecaca' },
+        warning: { bg: '#fffbeb', text: '#d97706', border: '#fde68a' },
+        info: { bg: '#eff6ff', text: '#2563eb', border: '#bfdbfe' }
+    };
+    
+    const statusColors = {
+        firing: { bg: '#fef2f2', text: '#dc2626', dot: '#ef4444' },
+        resolved: { bg: '#f0fdf4', text: '#16a34a', dot: '#22c55e' },
+        active: { bg: '#fef2f2', text: '#dc2626', dot: '#ef4444' },
+        pending: { bg: '#fffbeb', text: '#d97706', dot: '#f59e0b' }
+    };
+
+    function formatCell(value, colIdx) {
+        const raw = escapeHtml(value);
+        const lower = value.toLowerCase().trim();
+        
+        // Severity column
+        if (colIdx === severityIdx) {
+            const colors = severityColors[lower] || { bg: '#f8fafc', text: '#64748b', border: '#e2e8f0' };
+            return `<span style="display:inline-flex;align-items:center;padding:3px 10px;font-size:11px;font-weight:600;background:${colors.bg};color:${colors.text};border:1px solid ${colors.border};border-radius:6px;text-transform:capitalize;">${raw}</span>`;
+        }
+        
+        // Status column
+        if (colIdx === statusIdx) {
+            const colors = statusColors[lower] || { bg: '#f8fafc', text: '#64748b', dot: '#94a3b8' };
+            return `<span style="display:inline-flex;align-items:center;gap:6px;padding:3px 10px;font-size:11px;font-weight:600;background:${colors.bg};color:${colors.text};border-radius:6px;"><span style="width:6px;height:6px;border-radius:50%;background:${colors.dot};${lower === 'firing' ? 'animation:pulse 2s infinite;' : ''}"></span>${raw}</span>`;
+        }
+        
+        // Date-like values
+        if (value.match(/^\d{4}-\d{2}-\d{2}/)) {
+            return `<span style="color:#64748b;font-size:12px;font-variant-numeric:tabular-nums;">${raw}</span>`;
+        }
+        
+        // Separator row markers
+        if (value.match(/^[-]+$/)) return '';
+        
+        return raw;
+    }
+    
+    // Filter out separator-only rows (rows where all cells are dashes)
+    const dataRows = rows.filter(row => !row.every(cell => cell.match(/^[-]+$/)));
+    
+    return `
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm text-left" style="border-collapse:separate;border-spacing:0;">
+                <thead>
+                    <tr>
+                        ${headers.map(h => `<th style="padding:10px 16px;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;background:#f8fafc;border-bottom:2px solid #e2e8f0;text-align:left;white-space:nowrap;">${escapeHtml(h)}</th>`).join('')}
+                    </tr>
+                </thead>
+                <tbody>
+                    ${dataRows.map((row, ri) => `
+                        <tr style="transition:background 0.1s;">
+                            ${row.map((cell, ci) => `<td style="padding:10px 16px;color:#334155;border-bottom:1px solid #f1f5f9;">${formatCell(cell, ci)}</td>`).join('')}
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+        <div style="padding:8px 16px;font-size:11px;color:#94a3b8;border-top:1px solid #f1f5f9;background:#fafbfd;">${dataRows.length} rows</div>
+    `;
+}
+
+function renderCodeArtifact(artifact) {
+    const lang = artifact.language || 'text';
+    return `
+        <div class="inq-code-block-wrap">
+            <div class="inq-code-lang-badge">${lang}</div>
+            <pre class="inq-code-block"><code class="language-${lang} inq-code-text">${escapeHtml(artifact.content)}</code></pre>
+        </div>
+    `;
+}
+
+function renderAlertArtifact(artifact) {
+    const items = artifact.content.split('\n').filter(l => l.trim().match(/^[-*•]/));
+    return `
+        <div style="padding: 12px 16px;" class="space-y-2">
+            ${items.map(item => {
+                const text = item.replace(/^[-*•]\s*/, '').trim();
+                const severity = detectAlertSeverity(text);
+                const severityStyles = {
+                    critical: 'background:#fef2f2;border:1px solid #fecaca;color:#991b1b;',
+                    warning: 'background:#fffbeb;border:1px solid #fde68a;color:#92400e;',
+                    info: 'background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;'
+                };
+                const iconColor = {
+                    critical: '#ef4444',
+                    warning: '#f59e0b',
+                    info: '#3b82f6'
+                };
+                return `
+                    <div style="display:flex;align-items:center;padding:10px 14px;border-radius:10px;${severityStyles[severity] || severityStyles.info}">
+                        <i class="fas fa-exclamation-circle" style="margin-right:10px;color:${iconColor[severity] || '#3b82f6'};font-size:13px;"></i>
+                        <span style="font-size:13px;">${escapeHtml(text)}</span>
+                    </div>
+                `;
+            }).join('')}
+        </div>
+        <div style="padding:8px 16px;font-size:11px;color:#94a3b8;border-top:1px solid #f1f5f9;background:#fafbfd;">${items.length} alerts</div>
+    `;
+}
+
+function detectAlertSeverity(text) {
+    const lower = text.toLowerCase();
+    if (lower.includes('critical') || lower.includes('error') || lower.includes('down')) return 'critical';
+    if (lower.includes('warning') || lower.includes('warn') || lower.includes('high')) return 'warning';
+    return 'info';
+}
+
+function renderListArtifact(artifact) {
+    return `<div class="inq-prose" style="padding:16px 18px;">${marked.parse(artifact.content)}</div>`;
+}
+
+function getArtifactPreview(artifact) {
+    const text = artifact.content.replace(/[#*`|]/g, '').trim();
+    return escapeHtml(text.substring(0, 80)) + (text.length > 80 ? '...' : '');
+}
+
+/**
+ * Add artifact link to the chat message
+ */
+function addArtifactLinkToChat(artifact) {
+    const typeInfo = ARTIFACT_TYPES[artifact.type] || ARTIFACT_TYPES.markdown;
+    
+    // Find the current streaming message or last AI message
+    const messages = document.querySelectorAll('.ai-message-content');
+    const lastMessage = messages[messages.length - 1];
+    
+    if (lastMessage) {
+        // Check if link container exists, if not create it
+        let linkContainer = lastMessage.querySelector('.artifact-links');
+        if (!linkContainer) {
+            linkContainer = document.createElement('div');
+            linkContainer.className = 'artifact-links mt-3 pt-3 inq-artifact-links flex flex-wrap gap-2';
+            lastMessage.appendChild(linkContainer);
+        }
+        
+        const link = document.createElement('button');
+        link.className = `inline-flex items-center px-3 py-1.5 text-xs ${typeInfo.bgColor} ${typeInfo.color} rounded-full hover:opacity-80 transition-opacity`;
+        link.onclick = (e) => { e.stopPropagation(); setActiveArtifact(artifact.id); };
+        link.innerHTML = `<i class="fas ${typeInfo.icon} mr-1.5"></i>${escapeHtml(artifact.title)} <i class="fas fa-arrow-right ml-2 text-[10px]"></i>`;
+        
+        linkContainer.appendChild(link);
+    }
+}
+
+/**
+ * Artifact Actions
+ */
+function copyArtifact(artifactId) {
+    const id = artifactId || activeArtifactId;
+    const artifact = artifacts.find(a => a.id === id);
+    if (!artifact) return;
+    
+    navigator.clipboard.writeText(artifact.content).then(() => {
+        showToast('Copied to clipboard', 'success');
+    }).catch(() => {
+        showToast('Failed to copy', 'error');
+    });
+}
+
+function exportArtifact(artifactId) {
+    const id = artifactId || activeArtifactId;
+    const artifact = artifacts.find(a => a.id === id);
+    if (!artifact) return;
+    
+    let filename, content, mimeType;
+    
+    switch (artifact.type) {
+        case 'json':
+            filename = 'artifact.json';
+            content = artifact.content;
+            mimeType = 'application/json';
+            break;
+        case 'yaml':
+            filename = 'artifact.yaml';
+            content = artifact.content;
+            mimeType = 'text/yaml';
+            break;
+        case 'table':
+            filename = 'artifact.csv';
+            content = convertTableToCSV(artifact.content);
+            mimeType = 'text/csv';
+            break;
+        default:
+            filename = 'artifact.txt';
+            content = artifact.content;
+            mimeType = 'text/plain';
+    }
+    
+    downloadFile(content, filename, mimeType);
+}
+
+function convertTableToCSV(tableContent) {
+    const lines = tableContent.trim().split('\n');
+    return lines
+        .filter((_, i) => i !== 1) // Skip separator line
+        .map(line => 
+            line.split('|')
+                .filter(c => c.trim())
+                .map(c => `"${c.trim().replace(/"/g, '""')}"`)
+                .join(',')
+        )
+        .join('\n');
+}
+
+function downloadFile(content, filename, mimeType) {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+function pinArtifact(artifactId) {
+    const id = artifactId || activeArtifactId;
+    if (!id) return;
+    
+    if (pinnedArtifacts.has(id)) {
+        pinnedArtifacts.delete(id);
+        showToast('Unpinned', 'info');
+    } else {
+        pinnedArtifacts.add(id);
+        showToast('Pinned', 'success');
+    }
+    
+    const isPinned = pinnedArtifacts.has(id);
+    
+    // Update pin button in feed card
+    const pinBtn = document.getElementById('pin-btn-' + id);
+    if (pinBtn) {
+        pinBtn.classList.toggle('pinned', isPinned);
+    }
+    
+    // Update card pinned dataset for tab filtering
+    const card = document.getElementById('feed-' + id);
+    if (card) card.dataset.pinned = isPinned ? 'true' : 'false';
+}
+
+function minimizeArtifact() {
+    // No-op in feed view — all artifacts are always visible
+}
+
+/**
+ * Reset the artifacts panel (used when switching sessions / loading history).
+ * Does NOT prompt for confirmation.
+ */
+function resetArtifactsPanel() {
+    artifacts = [];
+    pinnedArtifacts.clear();
+    activeArtifactId = null;
+
+    const feed = document.getElementById('artifactFeed');
+    if (feed) feed.innerHTML = '';
+
+    const empty = document.getElementById('artifactsEmpty');
+    if (empty) empty.style.display = '';
+
+    updateArtifactCount();
+}
+
+function clearArtifacts() {
+    if (!confirm('Clear all artifacts?')) return;
+    resetArtifactsPanel();
+}
+
+function exportAllArtifacts() {
+    if (artifacts.length === 0) {
+        showToast('No artifacts to export', 'info');
+        return;
+    }
+    
+    let content = `# AI Inquiry Artifacts Report\n`;
+    content += `Generated: ${new Date().toLocaleString()}\n\n`;
+    
+    artifacts.forEach((artifact, i) => {
+        content += `---\n\n## ${i + 1}. ${artifact.title}\n`;
+        content += `Type: ${artifact.type} | Time: ${new Date(artifact.timestamp).toLocaleString()}\n\n`;
+        content += artifact.content + '\n\n';
+    });
+    
+    downloadFile(content, 'inquiry-artifacts.md', 'text/markdown');
+}
+
+function switchArtifactTab(tab) {
+    currentArtifactTab = tab;
+    
+    document.querySelectorAll('.inq-artifact-tab').forEach(el => el.classList.remove('active'));
+    const activeTab = document.getElementById(`artifactTab${tab.charAt(0).toUpperCase() + tab.slice(1)}`);
+    if (activeTab) activeTab.classList.add('active');
+    
+    // Filter feed cards
+    const feed = document.getElementById('artifactFeed');
+    if (!feed) return;
+    
+    const cards = Array.from(feed.querySelectorAll('.inq-feed-card')).reverse(); // newest first
+    if (tab === 'all') {
+        cards.forEach(el => el.style.display = '');
+    } else {
+        // Recent: show last 5 + pinned
+        cards.forEach((el, i) => {
+            const isPinned = el.dataset.pinned === 'true';
+            el.style.display = (i < 5 || isPinned) ? '' : 'none';
+        });
+    }
+}
+
+// Expose artifact functions globally
+window.setActiveArtifact = setActiveArtifact;
+window.copyArtifact = copyArtifact;
+window.exportArtifact = exportArtifact;
+window.pinArtifact = pinArtifact;
+window.minimizeArtifact = minimizeArtifact;
+window.clearArtifacts = clearArtifacts;
+window.exportAllArtifacts = exportAllArtifacts;
+window.switchArtifactTab = switchArtifactTab;
+
+// Expose functions for inline onclick handlers
+window.createNewSession = createNewSession;
+window.switchSession = switchSession;
+window.selectModel = selectModel;
+window.toggleModelDropdown = toggleModelDropdown;
+window.toggleSessionDropdown = toggleSessionDropdown;
+
+window.addEventListener('load', function () {
+    if (typeof marked === 'undefined') {
+        console.error('marked.js failed to load');
+        if (typeof showToast === 'function') {
+            showToast('Failed to load chat library', 'error');
+        }
+        return;
+    }
+    console.log('Initializing AI Inquiry...');
+
+    AIChatBase.init({
+        aiIconClass: 'fas fa-search',
+        aiGradientClass: 'from-blue-600 to-cyan-600',
+        aiName: 'AI Analyst',
+        userGradientClass: 'bg-blue-900/40'
+    });
+    initChatSession();
+});

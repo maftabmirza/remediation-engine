@@ -62,6 +62,7 @@ class PanelType(str, enum.Enum):
     HEATMAP = "heatmap"  # Heatmap
     BAR = "bar"  # Bar chart
     PIE = "pie"  # Pie/donut chart
+    WIDGET = "widget"  # Reusable HTML Widget
 
 
 class PrometheusPanel(Base):
@@ -77,7 +78,7 @@ class PrometheusPanel(Base):
     description = Column(Text, nullable=True)
 
     # Data source
-    datasource_id = Column(String(36), ForeignKey("prometheus_datasources.id"), nullable=False)
+    datasource_id = Column(String(36), ForeignKey("prometheus_datasources.id"), nullable=True)
 
     # Query configuration
     promql_query = Column(Text, nullable=False)

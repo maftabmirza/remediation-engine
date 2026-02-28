@@ -1,0 +1,53 @@
+<header class="top-header">
+    <!-- Page Header Info -->
+    <div class="header-logo-area">
+        <div class="logo-icon">
+            <span style="font-weight: 700;">A</span>
+        </div>
+        <span class="logo-text">AIOps Enterprise</span>
+    </div>
+    <!-- Divider removed -->
+    <div class="header-info">
+        <h1 class="header-title">{% block header_title %}Command Center{% endblock %}</h1>
+        <span class="header-divider">|</span>
+        <div class="header-status">
+            <span class="status-dot"></span>
+            <span>{% block header_subtitle %}All Systems Operational{% endblock %}</span>
+            {% block header_extra %}{% endblock %}
+        </div>
+    </div>
+
+    <div class="search-bar">
+        <i data-feather="search" style="width: 16px;"></i>
+        <input type="text" placeholder="Search services, alerts, metrics...">
+        <span class="kbd-shortcut">/</span>
+    </div>
+
+    <div class="header-actions">
+        <button class="icon-btn" id="chatToggleBtn" title="RE-VIVE Assistant">
+            <i data-feather="message-circle" style="width: 20px;"></i>
+        </button>
+        <div class="time-range-dropdown">
+            <button class="time-range-btn" id="timeRangeBtn">
+                <i data-feather="calendar" style="width: 16px;"></i>
+                <span>7 Days</span>
+                <i data-feather="chevron-down" style="width: 14px;"></i>
+            </button>
+            <div class="time-range-menu" id="timeRangeMenu">
+                <div class="time-range-option" data-value="24h">24 Hours</div>
+                <div class="time-range-option active" data-value="7d">7 Days</div>
+                <div class="time-range-option" data-value="30d">30 Days</div>
+            </div>
+        </div>
+        <button class="icon-btn" title="Sync">
+            <i data-feather="refresh-cw" style="width: 18px;"></i>
+        </button>
+        <button class="icon-btn">
+            <i data-feather="bell" style="width: 20px;"></i>
+            <span class="notification-dot"></span>
+        </button>
+        <div class="user-profile">
+            <div class="avatar">JD</div>
+        </div>
+    </div>
+</header>

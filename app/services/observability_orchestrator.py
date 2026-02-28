@@ -258,7 +258,7 @@ class ObservabilityOrchestrator:
 
             # Execute range query
             result_data = await self.prometheus_service.query_range(
-                query=query.query,
+                promql=query.query,
                 start=start_time,
                 end=end_time,
                 step=self._calculate_step(query.time_range)

@@ -1,0 +1,41 @@
+<header class="header">
+    <div class="header-left">
+        <div class="logo">
+            <i data-feather="monitor"></i>
+            <span>Command Center</span>
+        </div>
+
+        <!-- Header Title Block for Page Overrides -->
+        <div class="header-title-container">
+            {% block header_title %}
+            <!-- Default Content if not overridden -->
+            {% endblock %}
+        </div>
+    </div>
+
+    <div class="header-right">
+        <div class="search-bar">
+            <i data-feather="search"></i>
+            <input type="text" placeholder="Search...">
+            <span class="shortcut">⌘K</span>
+        </div>
+
+        <!-- Header Actions Block for Page Overrides -->
+        <div class="header-actions-container">
+            {% block header_actions %}
+            <!-- Default Content if not overridden -->
+            <button class="icon-btn">
+                <i data-feather="bell"></i>
+                <span class="badge">3</span>
+            </button>
+            <button class="icon-btn">
+                <i data-feather="settings"></i>
+            </button>
+            <div class="user-profile">
+                <!-- <img src="https://ui-avatars.com/api/?name=Admin+User&background=random" alt="User"> -->
+                <div class="avatar-placeholder">AU</div>
+            </div>
+            {% endblock %}
+        </div>
+    </div>
+</header>

@@ -1,0 +1,718 @@
+{% extends "base.html" %}
+
+{% block title %}Troubleshoot Console - AIOps Platform{% endblock %}
+
+{% block head %}
+{{ super() }}
+<style>
+/* Agent Mode Modal - better visibility & buttons */
+.agent-modal-subtitle {
+    font-size: 13px;
+    color: #a5b4fc !important;
+    font-weight: 500;
+}
+.agent-modal-label {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    color: #e2e8f0 !important;
+    margin-bottom: 10px;
+}
+.agent-modal-textarea {
+    width: 100%;
+    background: #0f172a !important;
+    border: 1px solid #475569 !important;
+    color: #f1f5f9 !important;
+    padding: 14px 16px;
+    border-radius: 12px;
+    font-size: 14px;
+    outline: none;
+    resize: none;
+    height: 100px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+.agent-modal-textarea:focus {
+    border-color: #7c3aed !important;
+    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.25);
+}
+.agent-modal-textarea::placeholder {
+    color: #94a3b8 !important;
+}
+.agent-modal-checkbox-wrap {
+    background: #1e293b;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 20px;
+    border: 1px solid #334155;
+}
+.agent-modal-checkbox-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #f1f5f9 !important;
+}
+.agent-modal-checkbox-desc {
+    font-size: 12px;
+    color: #94a3b8 !important;
+    margin-top: 4px;
+}
+.agent-modal-cancel-btn {
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #e2e8f0;
+    background: rgba(71, 85, 105, 0.5);
+    border: 1px solid #475569;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.agent-modal-cancel-btn:hover {
+    background: rgba(71, 85, 105, 0.8);
+    color: white;
+    border-color: #64748b;
+}
+.agent-modal-start-btn {
+    padding: 10px 24px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    color: white;
+    background: linear-gradient(135deg, #7c3aed, #3b82f6);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 4px 14px rgba(124, 58, 237, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    transition: all 0.2s;
+}
+.agent-modal-start-btn:hover {
+    background: linear-gradient(135deg, #6d28d9, #2563eb);
+    box-shadow: 0 6px 20px rgba(124, 58, 237, 0.45);
+    transform: translateY(-1px);
+}
+/* Agent Mode trigger button - more visible */
+#agentModeBtn {
+    color: #7c3aed;
+}
+#agentModeBtn:hover {
+    background: rgba(124, 58, 237, 0.12) !important;
+    color: #6d28d9;
+}
+</style>
+{% endblock %}
+
+{% block header_title %}
+<i data-feather="zap" class="text-orange-400" style="width:16px;height:16px;"></i>
+<span class="text-sm font-semibold text-white tracking-tight">AI Troubleshooter</span>
+{% endblock %}
+{% block breadcrumbs %}
+<span class="mx-2">/</span>
+<span class="text-gray-200 truncate" id="currentSessionTitle">New Session</span>
+{% endblock %}
+
+{% block main_wrapper %}
+<main class="troubleshoot-main">
+    <!-- Left Panel - Chat -->
+    <div class="ts-chat-panel">
+        <!-- Session Header -->
+        <div class="ts-session-header">
+            <div class="ts-session-left">
+                <button class="ts-new-session-btn" onclick="createNewSession()">
+                    <i data-feather="zap" style="width: 14px; height: 14px;"></i>
+                    <span>New Session</span>
+                </button>
+            </div>
+            <div class="ts-session-actions">
+                <!-- LLM Model Selector Icon (right side, matches inquiry) -->
+                <div class="ts-llm-icon-wrapper" id="llmSelector" style="position: relative;">
+                    <button class="ts-icon-btn ts-llm-icon-btn" onclick="toggleModelDropdown()" id="llmIconBtn" title="LLM Provider">
+                        <span class="ts-llm-icon-status ts-llm-icon-connecting" id="llmIconStatus">
+                            <i data-feather="zap" style="width: 14px; height: 14px;"></i>
+                        </span>
+                        <span class="ts-llm-status-dot" id="llmStatusDot" title="Connecting"></span>
+                    </button>
+                    <div class="hidden ts-llm-dropdown-panel" id="modelListContainer">
+                        <div class="ts-llm-dropdown-header">
+                            <i data-feather="zap" style="width: 13px; height: 13px; color: #3b82f6;"></i>
+                            <span>LLM Provider</span>
+                            <span class="ts-llm-status-badge" id="llmStatusBadge">Connecting</span>
+                        </div>
+                        <div class="ts-llm-provider-list" id="llmProviderList">
+                            <!-- Options injected by populateModelDropdown -->
+                        </div>
+                    </div>
+                    <div id="modelDropdown" class="hidden"></div>
+                </div>
+                <div class="ts-session-dropdown-wrapper" style="position: relative;">
+                    <button onclick="toggleSessionDropdown()" id="sessionDropdownBtn"
+                        class="ts-icon-btn" title="Chat History">
+                        <i data-feather="clock" style="width: 14px; height: 14px;"></i>
+                    </button>
+                    <div id="sessionDropdown"
+                        class="hidden ts-session-dropdown-panel">
+                        <div class="ts-session-dropdown-header">
+                            <i data-feather="message-square" style="width: 13px; height: 13px; color: #3b82f6;"></i>
+                            <span>Chat History</span>
+                        </div>
+                        <div id="sessionListContainer" class="ts-session-list">
+                            <div class="ts-session-empty">No sessions yet</div>
+                        </div>
+                    </div>
+                </div>
+                <button class="ts-icon-btn" id="agentModeBtn" onclick="openAgentModal()" title="Agent Mode (Ctrl+Shift+A)">
+                    <i data-feather="cpu" style="width: 14px; height: 14px;"></i>
+                </button>
+                <button class="ts-icon-btn" onclick="toggleCommandHistory()" title="Command History (Ctrl+H)">
+                    <i data-feather="rotate-ccw" style="width: 14px; height: 14px;"></i>
+                </button>
+                <button class="ts-icon-btn" onclick="adjustChatFont(-1)" title="Decrease Font">
+                    <i data-feather="minus" style="width: 12px; height: 12px;"></i>
+                </button>
+                <button class="ts-icon-btn" onclick="adjustChatFont(1)" title="Increase Font">
+                    <i data-feather="plus" style="width: 12px; height: 12px;"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Command History Panel -->
+        <div id="commandHistoryPanel" class="hidden ts-cmd-history-panel">
+            <div class="ts-cmd-history-header">
+                <div class="ts-cmd-history-title">
+                    <i data-feather="terminal" style="width: 13px; height: 13px; color: #3b82f6;"></i>
+                    <span>Command History</span>
+                    <span id="historyCount" class="ts-cmd-history-badge">0</span>
+                </div>
+                <div style="display: flex; gap: 2px;">
+                    <button onclick="clearCommandHistory()" class="ts-icon-btn" style="width: 26px; height: 26px;" title="Clear History">
+                        <i data-feather="trash-2" style="width: 12px; height: 12px;"></i>
+                    </button>
+                    <button onclick="toggleCommandHistory()" class="ts-icon-btn" style="width: 26px; height: 26px;" title="Close">
+                        <i data-feather="x" style="width: 12px; height: 12px;"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="history-list ts-cmd-history-list">
+                <p class="ts-cmd-history-empty">No commands executed yet</p>
+            </div>
+        </div>
+
+        <!-- Chat Messages -->
+        <div class="ts-chat-messages" id="chatMessages">
+            <!-- Messages injected here by troubleshoot_chat.js -->
+        </div>
+
+        <!-- Chat Input -->
+        <div class="ts-chat-input-container">
+            <form id="chatForm" onsubmit="sendMessage(event); return false;" class="ts-chat-input-wrapper">
+                <textarea id="chatInput" class="ts-chat-input"
+                    placeholder="Ask to run commands, check logs, or troubleshoot issues..." autocomplete="off"
+                    rows="1"></textarea>
+                <button type="submit" class="ts-send-btn">
+                    <i data-feather="send" style="width: 18px; height: 18px;"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Resize Handle -->
+    <div class="ts-resize-handle">
+        <div class="ts-resize-line"></div>
+    </div>
+
+    <!-- Right Panel - Terminal/Tools -->
+    <div class="ts-tools-panel">
+        <!-- Tools Header with Tabs -->
+        <div class="ts-tools-header">
+            <div class="ts-tabs">
+                <button class="ts-tab active" onclick="switchRightPane('terminal')">
+                    <i data-feather="terminal" style="width: 14px; height: 14px;"></i>
+                    <span>Terminal</span>
+                </button>
+                <button class="ts-tab" onclick="switchRightPane('file')">
+                    <i data-feather="file" style="width: 14px; height: 14px;"></i>
+                    <span>File</span>
+                </button>
+                <button class="ts-tab" onclick="switchRightPane('diff')" style="position: relative;">
+                    <i data-feather="git-merge" style="width: 14px; height: 14px;"></i>
+                    <span>Diff</span>
+                    <span id="diffBadge" class="hidden" style="position: absolute; top: 2px; right: 2px; width: 7px; height: 7px; background: #ef4444; border-radius: 50%;"></span>
+                </button>
+                <button class="ts-tab" onclick="switchRightPane('agentHQ')">
+                    <i data-feather="cpu" style="width: 14px; height: 14px;"></i>
+                    <span>HQ</span>
+                </button>
+                <!-- Terminal font controls -->
+                <div id="terminalControls" class="flex items-center ml-2" style="gap: 2px;">
+                    <button class="ts-icon-btn" onclick="adjustTermFont(-1)" title="Decrease Terminal Font" style="width: 24px; height: 24px;">
+                        <i data-feather="minus" style="width: 10px; height: 10px;"></i>
+                    </button>
+                    <button class="ts-icon-btn" onclick="adjustTermFont(1)" title="Increase Terminal Font" style="width: 24px; height: 24px;">
+                        <i data-feather="plus" style="width: 10px; height: 10px;"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="ts-connection-status-area">
+                <!-- File Editor Controls (shown when file tab active) -->
+                <div id="fileEditorControls" class="hidden flex items-center" style="gap: 8px; margin-right: 12px;">
+                    <span id="currentFileLabel" class="text-xs truncate" style="color: #94a3b8; max-width: 140px;">No file open</span>
+                    <button class="ts-icon-btn" onclick="refreshCurrentFile()" title="Refresh" style="width: 24px; height: 24px;">
+                        <i data-feather="refresh-cw" style="width: 12px; height: 12px;"></i>
+                    </button>
+                </div>
+                <!-- Agent HQ Controls (shown when HQ tab active) -->
+                <div id="agentHQControls" class="hidden flex items-center" style="gap: 8px; margin-right: 12px;">
+                    <span id="agentHQStatusLabel" class="text-xs" style="color: #94a3b8;">Loading...</span>
+                    <button class="ts-icon-btn" onclick="refreshAgentHQ()" title="Refresh HQ" style="width: 24px; height: 24px;">
+                        <i data-feather="refresh-cw" style="width: 12px; height: 12px;"></i>
+                    </button>
+                    <button class="ts-icon-btn" onclick="showSpawnAgentModal()" title="Spawn Agent" style="width: 24px; height: 24px; color: #4ade80;">
+                        <i data-feather="plus-circle" style="width: 12px; height: 12px;"></i>
+                    </button>
+                </div>
+                <span id="termStatus" class="ts-disconnected-badge">Disconnected</span>
+                <button class="ts-connect-btn" onclick="openServerModal()">
+                    <i data-feather="zap" style="width: 14px; height: 14px;"></i>
+                    <span>Connect</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Terminal Content -->
+        <div class="ts-terminal" style="position: relative;">
+            <div id="terminalContainer" class="absolute inset-0">
+                <div id="terminal" class="absolute inset-0"></div>
+
+                <!-- Inline Chat Overlay (Ctrl+I) -->
+                <div id="inlineChatOverlay" class="hidden absolute bottom-4 left-4 right-4 z-50">
+                    <div style="background: rgba(15,14,71,0.95); border: 1px solid rgba(139,92,246,0.4); border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.4); backdrop-filter: blur(8px);">
+                        <div class="flex items-center px-4 py-2" style="border-bottom: 1px solid rgba(255,255,255,0.06);">
+                            <i class="fas fa-robot" style="color: #a78bfa; margin-right: 8px; font-size: 12px;"></i>
+                            <span style="font-size: 12px; color: #cbd5e1;">Ask AI about terminal</span>
+                            <span style="margin-left: auto; font-size: 10px; color: #64748b;">Esc to close</span>
+                        </div>
+                        <div class="p-3">
+                            <div class="flex" style="gap: 8px;">
+                                <input type="text" id="inlineChatInput"
+                                    style="flex: 1; background: #1e293b; border: 1px solid #334155; color: white; font-size: 13px; padding: 8px 12px; border-radius: 8px; outline: none;"
+                                    placeholder="Ask about what you see in the terminal..."
+                                    onkeydown="handleInlineChatKey(event)">
+                                <button onclick="sendInlineChat()"
+                                    style="background: linear-gradient(135deg, #7c3aed, #6366f1); color: white; padding: 8px 14px; border: none; border-radius: 8px; cursor: pointer; font-size: 13px;">
+                                    <i class="fas fa-paper-plane"></i>
+                                </button>
+                            </div>
+                            <div class="mt-2 flex flex-wrap" style="gap: 6px;">
+                                <button onclick="sendQuickInlineChat('What does this error mean?')"
+                                    style="font-size: 10px; background: #1e293b; color: #94a3b8; padding: 4px 10px; border: 1px solid #334155; border-radius: 6px; cursor: pointer;">Error meaning?</button>
+                                <button onclick="sendQuickInlineChat('How do I fix this?')"
+                                    style="font-size: 10px; background: #1e293b; color: #94a3b8; padding: 4px 10px; border: 1px solid #334155; border-radius: 6px; cursor: pointer;">Fix?</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Explain Selection Button -->
+                <div id="explainSelectionBtn" class="hidden absolute z-50">
+                    <button onclick="explainSelectedText()"
+                        style="background: linear-gradient(135deg, #7c3aed, #6366f1); color: white; font-size: 12px; padding: 6px 14px; border: none; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                        <i class="fas fa-magic"></i>
+                        <span>Explain</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Agent HQ Container -->
+            <div id="agentHQContainer" class="hidden absolute inset-0 overflow-hidden flex flex-col" style="background: #0f172a; z-index: 40;">
+                <div class="p-4" style="border-bottom: 1px solid #1e293b; background: rgba(15,23,42,0.5);">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 style="font-size: 13px; font-weight: 600; color: #e2e8f0;">Active Agents</h3>
+                        <div style="font-size: 11px; color: #64748b;" id="hqPoolInfo">Default Pool</div>
+                    </div>
+                    <div id="activeAgentsList" class="space-y-3">
+                        <div class="text-center py-4" style="color: #64748b; font-size: 13px;">No active agents running</div>
+                    </div>
+                </div>
+                <div class="flex-grow overflow-y-auto p-4">
+                    <h3 style="font-size: 13px; font-weight: 600; color: #e2e8f0; margin-bottom: 12px;">Task Queue</h3>
+                    <div id="queuedTasksList" class="space-y-2">
+                        <span style="font-size: 12px; color: #475569;">Queue is empty</span>
+                    </div>
+                    <h3 style="font-size: 13px; font-weight: 600; color: #e2e8f0; margin-bottom: 12px; margin-top: 24px;">Completed Tasks</h3>
+                    <div id="completedTasksList" class="space-y-2"></div>
+                </div>
+            </div>
+
+            <!-- File Editor Container -->
+            <div id="fileEditorContainer" class="hidden absolute inset-0 flex flex-col" style="background: #1e1e1e; font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.6;">
+                <div class="flex-1 overflow-auto relative">
+                    <div id="fileEditorContent" class="absolute inset-0 p-4" style="white-space: pre; color: #d4d4d4;">
+                        <div class="flex flex-col items-center justify-center h-full" style="color: #64748b;">
+                            <i class="fas fa-file-code" style="font-size: 36px; margin-bottom: 16px;"></i>
+                            <p>Select a file to view content</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Diff View Container -->
+            <div id="diffViewContainer" class="hidden absolute inset-0 flex flex-col" style="background: #1e1e1e; font-family: 'JetBrains Mono', monospace; font-size: 13px;">
+                <div id="pendingChangesList" class="hidden h-full flex flex-col">
+                    <div class="p-4 flex justify-between items-center" style="border-bottom: 1px solid #334155; background: #1e293b;">
+                        <h3 style="font-size: 13px; font-weight: 600; color: white;">Pending Changes</h3>
+                        <div style="font-size: 12px; color: #94a3b8;" id="diffChangeSummary">Loading...</div>
+                    </div>
+                    <div class="flex-1 overflow-auto p-4 space-y-4" id="diffListContent"></div>
+                    <div class="p-4 flex justify-end" style="border-top: 1px solid #334155; background: #1e293b; gap: 12px;">
+                        <button id="btnDiscardAll" onclick="discardAllChanges()"
+                            style="background: transparent; border: 1px solid rgba(239,68,68,0.3); color: #f87171; padding: 8px 16px; border-radius: 8px; font-size: 13px; cursor: pointer;">
+                            <i class="fas fa-times" style="margin-right: 8px;"></i>Reject All
+                        </button>
+                        <button id="btnApplyAll" onclick="applyAllChanges()"
+                            style="background: #16a34a; color: white; padding: 8px 16px; border: none; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer;">
+                            <i class="fas fa-check" style="margin-right: 8px;"></i>Apply All Changes
+                        </button>
+                    </div>
+                </div>
+                <div id="diffEmptyState" class="flex flex-col items-center justify-center h-full" style="color: #64748b;">
+                    <i class="fas fa-exchange-alt" style="font-size: 36px; margin-bottom: 16px;"></i>
+                    <p>No pending changes</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<!-- Server Selection Modal -->
+<div id="serverModal" class="fixed inset-0 bg-black bg-opacity-60 hidden items-center justify-center z-50" style="backdrop-filter: blur(4px);">
+    <div class="bg-gray-800 rounded-xl p-6 w-[450px] max-w-full border border-gray-700/50 shadow-2xl">
+        <h3 class="text-lg font-bold mb-4 text-white flex items-center gap-2">
+            <i data-feather="server" style="width: 18px; height: 18px; color: #60a5fa;"></i>
+            Connect to Server
+        </h3>
+        <!-- Tabs -->
+        <div class="flex mb-4" style="border-bottom: 1px solid #334155;">
+            <button id="tabSavedServers" onclick="switchServerTab('saved')"
+                style="padding: 8px 16px; font-size: 13px; font-weight: 500; border-bottom: 2px solid #8b5cf6; color: #a78bfa; background: none; border-top: none; border-left: none; border-right: none; cursor: pointer;">
+                <i class="fas fa-server" style="margin-right: 6px;"></i>Saved Servers
+            </button>
+            <button id="tabQuickConnect" onclick="switchServerTab('quick')"
+                style="padding: 8px 16px; font-size: 13px; font-weight: 500; border-bottom: 2px solid transparent; color: #94a3b8; background: none; border-top: none; border-left: none; border-right: none; cursor: pointer;">
+                <i class="fas fa-bolt" style="margin-right: 6px;"></i>Quick Connect
+            </button>
+        </div>
+        <!-- Saved Servers Tab -->
+        <div id="savedServersPane" class="space-y-2 mb-4 max-h-60 overflow-y-auto">
+            <div id="serverList" class="text-gray-400 text-sm">Loading servers...</div>
+        </div>
+        <!-- Quick Connect Tab -->
+        <div id="quickConnectPane" class="hidden space-y-3 mb-4">
+            <div style="background: rgba(30,41,59,0.5); border: 1px solid #334155; border-radius: 10px; padding: 14px;">
+                <div class="space-y-3">
+                    <div class="flex" style="gap: 8px;">
+                        <div style="flex: 1;">
+                            <label style="display: block; font-size: 11px; color: #94a3b8; margin-bottom: 4px;">Host</label>
+                            <input type="text" id="adhocHost" style="width: 100%; background: #1e293b; border: 1px solid #334155; color: white; padding: 8px 12px; border-radius: 8px; font-size: 13px; outline: none;" placeholder="hostname or IP" />
+                        </div>
+                        <div style="width: 80px;">
+                            <label style="display: block; font-size: 11px; color: #94a3b8; margin-bottom: 4px;">Port</label>
+                            <input type="number" id="adhocPort" value="22" style="width: 100%; background: #1e293b; border: 1px solid #334155; color: white; padding: 8px 12px; border-radius: 8px; font-size: 13px; outline: none;" />
+                        </div>
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 11px; color: #94a3b8; margin-bottom: 4px;">Username</label>
+                        <input type="text" id="adhocUsername" style="width: 100%; background: #1e293b; border: 1px solid #334155; color: white; padding: 8px 12px; border-radius: 8px; font-size: 13px; outline: none;" placeholder="root" />
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 11px; color: #94a3b8; margin-bottom: 4px;">Password</label>
+                        <input type="password" id="adhocPassword" style="width: 100%; background: #1e293b; border: 1px solid #334155; color: white; padding: 8px 12px; border-radius: 8px; font-size: 13px; outline: none;" placeholder="••••••••" />
+                    </div>
+                </div>
+            </div>
+            <button onclick="connectAdhoc()"
+                style="width: 100%; background: #16a34a; color: white; padding: 10px; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;">
+                <i class="fas fa-plug" style="margin-right: 8px;"></i>Connect
+            </button>
+        </div>
+        <div class="flex justify-end space-x-2 pt-2" style="border-top: 1px solid rgba(51,65,85,0.5);">
+            <button onclick="closeServerModal()"
+                class="px-4 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-700 transition-colors text-sm">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- Agent Mode Modal -->
+<div id="agentModal" class="fixed inset-0 bg-black bg-opacity-60 hidden items-center justify-center z-50 p-4" style="backdrop-filter: blur(4px);">
+    <div class="agent-modal-content bg-gray-800 rounded-xl p-6 w-[480px] max-w-full border border-gray-700/50 shadow-2xl">
+        <div class="flex items-center mb-6">
+            <div style="width: 48px; height: 48px; border-radius: 14px; background: linear-gradient(135deg, #7c3aed, #3b82f6); display: flex; align-items: center; justify-content: center; margin-right: 16px; box-shadow: 0 4px 16px rgba(124, 58, 237, 0.35);">
+                <i class="fas fa-robot text-white" style="font-size: 20px;"></i>
+            </div>
+            <div>
+                <h3 class="text-lg font-bold text-white">Agent Mode</h3>
+                <p class="agent-modal-subtitle">Autonomous troubleshooting assistant</p>
+            </div>
+        </div>
+        <div class="mb-5">
+            <label class="agent-modal-label">What should the agent accomplish?</label>
+            <textarea id="agentGoal" class="agent-modal-textarea"
+                placeholder="e.g., Check disk space and clean up unnecessary files"></textarea>
+        </div>
+        <div class="agent-modal-checkbox-wrap">
+            <label style="display: flex; align-items: flex-start; cursor: pointer; gap: 12px;">
+                <input type="checkbox" id="autoApprove" style="margin-top: 3px; accent-color: #7c3aed;">
+                <div>
+                    <span class="agent-modal-checkbox-title">Auto-approve commands</span>
+                    <p class="agent-modal-checkbox-desc">Agent will execute commands without asking for approval</p>
+                </div>
+            </label>
+        </div>
+        <div class="flex justify-end gap-3 pt-2">
+            <button onclick="closeAgentModal()" class="agent-modal-cancel-btn">Cancel</button>
+            <button onclick="startAgent()" class="agent-modal-start-btn">
+                <i class="fas fa-play"></i>Start Agent
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Clear Chat Confirmation Modal -->
+<div id="clearChatModal" class="fixed inset-0 bg-black bg-opacity-60 hidden z-50 flex items-center justify-center p-4" style="backdrop-filter: blur(4px);">
+    <div class="bg-gray-800 rounded-xl p-6 w-full max-w-md border border-gray-700/50 shadow-2xl">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-bold text-white flex items-center" style="gap: 8px;">
+                <i class="fas fa-eraser" style="color: #fbbf24;"></i>
+                Clear Chat History
+            </h2>
+            <button onclick="closeClearChatModal()" class="text-gray-400 hover:text-white" style="background: none; border: none; cursor: pointer;">
+                <i class="fas fa-times" style="font-size: 18px;"></i>
+            </button>
+        </div>
+        <p style="color: #94a3b8; margin-bottom: 20px; font-size: 14px;">Clear chat display?</p>
+        <div class="flex justify-end" style="gap: 10px;">
+            <button onclick="closeClearChatModal()" class="px-4 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-700 transition-colors text-sm">Cancel</button>
+            <button onclick="confirmClearChat()"
+                style="background: #d97706; color: white; padding: 8px 16px; border: none; border-radius: 8px; font-size: 13px; cursor: pointer;">Clear Chat</button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<!-- Load dependencies -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/vs2015.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+
+<script src="/static/js/progress_indicator.js?v=1.0"></script>
+<script src="/static/js/pii_feedback_ui.js?v=1.2"></script>
+<script src="/static/js/troubleshoot_chat_base.js?v=2.6"></script>
+<script src="/static/js/troubleshoot_chat.js?v=5.0"></script>
+
+<script>
+    // --- Hybrid Bridge Logic ---
+
+    // 1. Override populateModelDropdown - inject into llmProviderList, update status icon
+    const originalPopulateModelDropdown = populateModelDropdown;
+    window.populateModelDropdown = function (providers) {
+        const list = document.getElementById('llmProviderList');
+        if (!list) return;
+
+        if (!providers || providers.length === 0) {
+            list.innerHTML = '<div class="px-3 py-2 text-xs text-gray-500">No providers available</div>';
+            updateModelStatusIcon('disconnected');
+            return;
+        }
+
+        const selectedId = (currentSession && currentSession.llm_provider_id)
+            ? currentSession.llm_provider_id
+            : (providers.find(p => p.is_default)?.id || '');
+
+        list.innerHTML = providers.map(p => {
+            const isSelected = p.id === selectedId;
+            const name = p.provider_name || p.name || 'Unknown';
+            return `
+            <div class="ts-llm-option ${isSelected ? 'selected' : ''}" 
+                 onclick="selectModel('${p.id}'); toggleModelDropdown();">
+                <i data-feather="${p.is_enabled !== false ? 'check-circle' : 'x-circle'}" style="width: 14px; height: 14px; color: ${p.is_enabled !== false ? '#4ade80' : '#f87171'}"></i>
+                <span class="ml-2">${AIChatBase.escapeHtml(name)}${p.is_default ? ' ⭐' : ''}</span>
+            </div>
+            `;
+        }).join('');
+
+        if (typeof feather !== 'undefined') feather.replace();
+        updateModelStatusIcon('connected');
+    };
+
+    // 2. Toggle Dropdown Logic
+    window.toggleModelDropdown = function () {
+        const list = document.getElementById('modelListContainer');
+        const selector = document.getElementById('llmSelector');
+        if (list) {
+            const isHidden = list.classList.contains('hidden');
+            list.classList.toggle('hidden', !isHidden);
+            if (selector) {
+                if (isHidden) selector.classList.add('open');
+                else selector.classList.remove('open');
+            }
+        }
+    };
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function (e) {
+        const selector = document.getElementById('llmSelector');
+        const list = document.getElementById('modelListContainer');
+        if (selector && !selector.contains(e.target)) {
+            if (list) list.classList.add('hidden');
+            selector.classList.remove('open');
+        }
+    });
+
+    // 3. Tab Switching Logic (Bridge to switchRightPane)
+    const originalSwitchRightPane = switchRightPane;
+    window.switchRightPane = function (pane) {
+        // Call original logic if it exists (it handles hiding/showing containers)
+        if (typeof originalSwitchRightPane === 'function') {
+            originalSwitchRightPane(pane);
+        }
+
+        // Update Tab UI
+        document.querySelectorAll('.ts-tab').forEach(tab => tab.classList.remove('active'));
+        // Find button that triggers this pane
+        const btn = document.querySelector(`button[onclick="switchRightPane('${pane}')"]`);
+        if (btn) btn.classList.add('active');
+    };
+
+    // 4. Resize Handling
+    const mainContainer = document.querySelector('.troubleshoot-main');
+    const resizeHandle = document.querySelector('.ts-resize-handle');
+    let isResizing = false;
+
+    if (resizeHandle && mainContainer) {
+        resizeHandle.addEventListener('mousedown', function (e) {
+            isResizing = true;
+            mainContainer.classList.add('resizing');
+            document.body.style.cursor = 'col-resize';
+            e.preventDefault(); // Prevent text selection
+        });
+
+        document.addEventListener('mousemove', function (e) {
+            if (!isResizing) return;
+
+            const containerRect = mainContainer.getBoundingClientRect();
+            const mouseX = e.clientX - containerRect.left;
+            const containerWidth = containerRect.width;
+
+            const minWidth = 300;
+            const maxWidth = containerWidth - 300;
+
+            let newWidthInfo = mouseX;
+            if (newWidthInfo < minWidth) newWidthInfo = minWidth;
+            if (newWidthInfo > maxWidth) newWidthInfo = maxWidth;
+
+            const leftPercentage = (newWidthInfo / containerWidth) * 100;
+
+            // Apply grid template
+            mainContainer.style.gridTemplateColumns = `${leftPercentage}% auto 1fr`;
+        });
+
+        document.addEventListener('mouseup', function () {
+            if (isResizing) {
+                isResizing = false;
+                mainContainer.classList.remove('resizing');
+                document.body.style.cursor = 'default';
+            }
+        });
+    }
+
+    // 5. Utility Injections (Missing from troubleshoot_chat.js context)
+    function showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.className = `fixed bottom-4 right-4 px-4 py-2 rounded shadow-lg text-white text-sm z-50 ${type === 'error' ? 'bg-red-600' : type === 'success' ? 'bg-green-600' : 'bg-gray-800'
+            }`;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    }
+    window.showToast = showToast;
+
+    async function apiCall(endpoint, options = {}) {
+        /* Simple wrapper */
+        const defaults = { headers: { 'Content-Type': 'application/json' } };
+        options = { ...defaults, ...options, headers: { ...defaults.headers, ...options.headers } };
+        try {
+            const res = await fetch(endpoint, options);
+            if (res.status === 401) window.location.href = '/login';
+            return res;
+        } catch (e) {
+            console.error("API Call error", e);
+            throw e;
+        }
+    }
+    window.apiCall = apiCall;
+
+    // 6. Suggestion Handler (Required for Welcome Screen)
+    window.sendSuggestion = function (text) {
+        const input = document.getElementById('chatInput');
+        if (input) {
+            input.value = text;
+            const form = document.getElementById('chatForm');
+            if (form) {
+                // Create cancellable submit event to trigger sendMessage
+                const event = new Event('submit', {
+                    bubbles: true,
+                    cancelable: true
+                });
+                form.dispatchEvent(event);
+            }
+        }
+    };
+
+    // 7. Session Switch Override (Fixes TypeError)
+    window.switchSession = async function (sessionId) {
+        if (typeof currentSessionId !== 'undefined' && sessionId === currentSessionId) return;
+
+        currentSessionId = sessionId;
+
+        // Fix: Safely handle missing dropdown (it doesn't exist in new design)
+        const dropdown = document.getElementById('sessionDropdown');
+        if (dropdown) dropdown.classList.add('hidden');
+
+        // Update UI title
+        const titleEl = document.getElementById('currentSessionTitle');
+        if (titleEl) titleEl.textContent = 'Loading...';
+
+        // Load messages
+        if (typeof loadMessageHistory === 'function') {
+            await loadMessageHistory(sessionId);
+        }
+
+        // Reconnect WebSocket to new session
+        if (typeof connectChatWebSocket === 'function') {
+            connectChatWebSocket(sessionId);
+        }
+
+        if (titleEl) titleEl.textContent = 'Active Session';
+        if (typeof showToast === 'function') showToast('Session switched', 'info');
+    };
+
+    // 8. Close session dropdown when clicking outside
+    document.addEventListener('click', function (e) {
+        const dropdown = document.getElementById('sessionDropdown');
+        const btn = document.getElementById('sessionDropdownBtn');
+        if (dropdown && !dropdown.classList.contains('hidden')) {
+            if (!dropdown.contains(e.target) && (!btn || !btn.contains(e.target))) {
+                dropdown.classList.add('hidden');
+            }
+        }
+    });
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function () {
+        if (typeof feather !== 'undefined') feather.replace();
+    });
+
+</script>
+{% endblock %}

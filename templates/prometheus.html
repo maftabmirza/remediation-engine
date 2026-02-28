@@ -1,4 +1,4 @@
-{% extends "layout.html" %}
+{% extends "base.html" %}
 
 {% block title %}Prometheus Server{% endblock %}
 
@@ -6,13 +6,13 @@
 <style>
     .prometheus-container {
         position: fixed !important;
-        top: 0 !important;
-        left: 80px !important;
-        /* Sidebar width */
+        top: var(--layout-header-h, 48px) !important;
+        left: var(--layout-sidebar-collapsed-w, 48px) !important;
+        /* Sidebar collapsed width */
         right: 0 !important;
         width: auto !important;
 
-        height: 100% !important;
+        height: calc(100vh - var(--layout-header-h, 48px)) !important;
         bottom: 0 !important;
         overflow: hidden !important;
         background: #fff !important;
@@ -23,9 +23,13 @@
     }
 
     /* Adjust when sidebar is expanded */
-    body:has(.sidebar.w-64) .prometheus-container {
-        left: 256px !important;
-        width: calc(100% - 256px) !important;
+    .app-container:not(.collapsed) .prometheus-container {
+        left: var(--layout-sidebar-w, 170px) !important;
+    }
+
+    /* Shrink prometheus iframe when RE-VIVE chat panel is open */
+    .app-container.ai-open .prometheus-container {
+        right: var(--ai-helper-width, 380px) !important;
     }
 
     .prometheus-container iframe {
@@ -90,6 +94,28 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+        // ── Sidebar-aware positioning ─────────────────────────────────────────
+        // CSS handles this via .app-container:not(.collapsed), but we also
+        // drive it from JS so the layout is instantly correct on every toggle.
+        const appContainer = document.getElementById('appContainer');
+        const container = document.querySelector('.prometheus-container');
+
+        function updateContainerLeft() {
+            if (!appContainer || !container) return;
+            const isCollapsed = appContainer.classList.contains('collapsed');
+            const sidebarW = isCollapsed
+                ? getComputedStyle(document.documentElement).getPropertyValue('--layout-sidebar-collapsed-w').trim() || '48px'
+                : getComputedStyle(document.documentElement).getPropertyValue('--layout-sidebar-w').trim() || '170px';
+            container.style.left = sidebarW;
+        }
+
+        // Run once on load, then watch for class changes on appContainer
+        updateContainerLeft();
+        if (appContainer) {
+            new MutationObserver(updateContainerLeft).observe(appContainer, { attributes: true, attributeFilter: ['class'] });
+        }
+        // ─────────────────────────────────────────────────────────────────────
+
         // Dynamically set Prometheus URL based on current hostname
         // This allows it to work on localhost and remote servers (assuming port 9090 is open)
         const hostname = window.location.hostname;
@@ -121,11 +147,4 @@
     });
 </script>
 
-<!-- RE-VIVE AI Assistant Widget -->
-<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-<link href="/static/css/revive_widget_grafana.css" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-<script src="/static/js/revive_widget_grafana.js"></script>
 {% endblock %}
-
-{% block ai_agent %}{% endblock %}

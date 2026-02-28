@@ -15,9 +15,21 @@ from app.schemas import (
 from app.services.auth_service import get_current_user, require_permission
 from app.utils.crypto import encrypt_value
 from app.services.llm_service import get_api_key_for_provider
-from litellm import completion
+from litellm import completion, embedding as litellm_embedding
 
 router = APIRouter(prefix="/api/settings", tags=["Settings"])
+
+
+def _parse_rotation_time(value) -> Optional[datetime]:
+    """Parse secret_last_rotated from config_json (stored as ISO string) into datetime."""
+    if not value:
+        return None
+    if isinstance(value, datetime):
+        return value
+    try:
+        return datetime.fromisoformat(str(value))
+    except (ValueError, TypeError):
+        return None
 
 
 @router.get("/llm/{provider_id}/test")
@@ -30,36 +42,45 @@ async def test_llm_provider(
     provider = db.query(LLMProvider).filter(LLMProvider.id == provider_id).first()
     if not provider:
         raise HTTPException(status_code=404, detail="Provider not found")
-    
+
     try:
         api_key = get_api_key_for_provider(provider)
-        
-        # Prepare model name for LiteLLM
+
+        # Prefix model name for Ollama
         model_name = provider.model_id
         if provider.provider_type == "ollama" and not model_name.startswith("ollama/"):
             model_name = f"ollama/{model_name}"
-            
-        kwargs = {
-            "model": model_name,
-            "messages": [{"role": "user", "content": "Say OK"}],
-            "max_tokens": 10,
-        }
-        
-        # Handle authentication based on provider type
-        if provider.provider_type == "ollama":
-            # Ollama with API key (Bearer token)
-            if api_key:
-                kwargs["api_key"] = api_key
-        else:
-            # Other providers
-            if api_key:
-                kwargs["api_key"] = api_key
-            
+
+        base_kwargs = {}
+        if api_key:
+            base_kwargs["api_key"] = api_key
         if provider.api_base_url:
-            kwargs["api_base"] = provider.api_base_url
-            
-        response = completion(**kwargs)
-        return {"status": "success", "response": response.choices[0].message.content}
+            base_kwargs["api_base"] = provider.api_base_url
+
+        usage_type = getattr(provider, "usage_type", "llm") or "llm"
+
+        if usage_type == "embedding":
+            # Embedding models use the embeddings API, not chat completion
+            response = litellm_embedding(
+                model=model_name,
+                input=["test"],
+                **base_kwargs
+            )
+            dims = len(response.data[0]["embedding"]) if response.data else 0
+            return {
+                "status": "success",
+                "response": f"Embedding OK — {dims} dimensions",
+            }
+        else:
+            # Standard chat/completion test
+            response = completion(
+                model=model_name,
+                messages=[{"role": "user", "content": "Say OK"}],
+                max_tokens=10,
+                **base_kwargs
+            )
+            return {"status": "success", "response": response.choices[0].message.content}
+
     except Exception as e:
         return {"status": "error", "error": str(e)}
 
@@ -79,8 +100,9 @@ async def list_llm_providers(
     for p in providers:
         response = LLMProviderResponse.model_validate(p)
         response.has_api_key = bool(p.api_key_encrypted)
-        if p.config_json and p.config_json.get("secret_last_rotated"):
-            response.secret_last_rotated = p.config_json.get("secret_last_rotated")
+        response.secret_last_rotated = _parse_rotation_time(
+            p.config_json.get("secret_last_rotated") if p.config_json else None
+        )
         result.append(response)
     
     return result
@@ -97,11 +119,21 @@ async def create_llm_provider(
     Create a new LLM provider. Admin only.
     """
     # Validate provider type
-    valid_types = ["anthropic", "openai", "google", "ollama", "azure"]
+    valid_llm_types = ["anthropic", "openai", "google", "ollama", "azure"]
+    valid_embedding_types = ["openai", "azure", "ollama"]
+    usage_type = provider_data.usage_type or 'llm'
+
+    if usage_type not in ('llm', 'embedding'):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="usage_type must be 'llm' or 'embedding'"
+        )
+
+    valid_types = valid_embedding_types if usage_type == 'embedding' else valid_llm_types
     if provider_data.provider_type not in valid_types:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Provider type must be one of: {', '.join(valid_types)}"
+            detail=f"For usage_type='{usage_type}', provider_type must be one of: {', '.join(valid_types)}"
         )
 
     requires_secret = provider_data.provider_type != "ollama"
@@ -114,10 +146,10 @@ async def create_llm_provider(
     # Prepare config with sane defaults
     config = provider_data.config_json or {}
     config.setdefault("secret_storage", "vault")
-    
-    # If setting as default, unset other defaults
+
+    # If setting as default, unset other defaults within the same usage_type only
     if provider_data.is_default:
-        db.query(LLMProvider).update({LLMProvider.is_default: False})
+        db.query(LLMProvider).filter(LLMProvider.usage_type == usage_type).update({LLMProvider.is_default: False})
     
     rotation_time = None
     if provider_data.api_key:
@@ -133,6 +165,7 @@ async def create_llm_provider(
         api_base_url=provider_data.api_base_url,
         is_default=provider_data.is_default,
         is_enabled=provider_data.is_enabled,
+        usage_type=usage_type,
         config_json=config
     )
     
@@ -158,8 +191,9 @@ async def create_llm_provider(
 
     response = LLMProviderResponse.model_validate(provider)
     response.has_api_key = bool(provider.api_key_encrypted)
-    if provider.config_json and provider.config_json.get("secret_last_rotated"):
-        response.secret_last_rotated = provider.config_json.get("secret_last_rotated")
+    response.secret_last_rotated = _parse_rotation_time(
+        provider.config_json.get("secret_last_rotated") if provider.config_json else None
+    )
     return response
 
 
@@ -182,8 +216,9 @@ async def get_llm_provider(
 
     response = LLMProviderResponse.model_validate(provider)
     response.has_api_key = bool(provider.api_key_encrypted)
-    if provider.config_json and provider.config_json.get("secret_last_rotated"):
-        response.secret_last_rotated = provider.config_json.get("secret_last_rotated")
+    response.secret_last_rotated = _parse_rotation_time(
+        provider.config_json.get("secret_last_rotated") if provider.config_json else None
+    )
     return response
 
 
@@ -208,9 +243,13 @@ async def update_llm_provider(
 
     update_data = provider_data.model_dump(exclude_unset=True)
 
-    # If setting as default, unset other defaults
+    # If setting as default, unset other defaults within the same usage_type
     if update_data.get("is_default"):
-        db.query(LLMProvider).filter(LLMProvider.id != provider_id).update({LLMProvider.is_default: False})
+        target_usage_type = update_data.get("usage_type", provider.usage_type)
+        db.query(LLMProvider).filter(
+            LLMProvider.id != provider_id,
+            LLMProvider.usage_type == target_usage_type
+        ).update({LLMProvider.is_default: False})
 
     # Handle API key separately (rename field)
     if "api_key" in update_data:
@@ -252,8 +291,9 @@ async def update_llm_provider(
 
     response = LLMProviderResponse.model_validate(provider)
     response.has_api_key = bool(provider.api_key_encrypted)
-    if provider.config_json and provider.config_json.get("secret_last_rotated"):
-        response.secret_last_rotated = provider.config_json.get("secret_last_rotated")
+    response.secret_last_rotated = _parse_rotation_time(
+        provider.config_json.get("secret_last_rotated") if provider.config_json else None
+    )
     return response
 
 
@@ -316,9 +356,9 @@ async def set_default_provider(
             detail="Cannot set disabled provider as default"
         )
     
-    # Unset all defaults
-    db.query(LLMProvider).update({LLMProvider.is_default: False})
-    
+    # Unset defaults within the same usage_type only
+    db.query(LLMProvider).filter(LLMProvider.usage_type == provider.usage_type).update({LLMProvider.is_default: False})
+
     # Set this one as default
     provider.is_default = True
     db.commit()

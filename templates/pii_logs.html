@@ -1,0 +1,366 @@
+{% extends "base.html" %}
+{% set active_page = 'settings' %}
+{% set active_section = 'pii-logs' %}
+{% set section_label = 'PII Logs' %}
+
+{% block title %}PII Detection Logs - Settings{% endblock %}
+
+{% block content %}
+<style>
+    /* Custom styles for Logs page specific elements */
+    .filter-group label {
+        display: block;
+        font-size: 13px;
+        font-weight: 500;
+        color: #475569;
+        margin-bottom: 6px;
+    }
+
+    .stat-label {
+        font-size: 12px;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-weight: 600;
+    }
+
+    .stat-value {
+        font-size: 24px;
+        font-weight: 700;
+        color: #0f172a;
+        margin-top: 4px;
+    }
+
+    .entity-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 2px 8px;
+        border-radius: 9999px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .entity-badge.email {
+        background: #eff6ff;
+        color: #3b82f6;
+    }
+
+    /* Blue */
+    .entity-badge.api_key {
+        background: #fff7ed;
+        color: #f97316;
+    }
+
+    /* Orange */
+    .entity-badge.password {
+        background: #fef2f2;
+        color: #ef4444;
+    }
+
+    /* Red */
+    .entity-badge.phone {
+        background: #f0fdf4;
+        color: #22c55e;
+    }
+
+    /* Green */
+    .entity-badge.default {
+        background: #f1f5f9;
+        color: #64748b;
+    }
+
+    /* Slate */
+
+    .confidence-bar {
+        width: 100%;
+        max-width: 80px;
+        height: 6px;
+        background: #e2e8f0;
+        border-radius: 3px;
+        overflow: hidden;
+        display: inline-block;
+        vertical-align: middle;
+        margin-right: 8px;
+    }
+
+    .confidence-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #22c55e 0%, #eab308 50%, #ef4444 100%);
+        transition: width 0.3s;
+    }
+
+    /* Utility overrides for consistent spacing */
+    .settings-toolbar {
+        margin-bottom: 24px;
+    }
+</style>
+
+<div class="settings-full-width">
+    <!-- Header -->
+    <div class="settings-header-bar">
+        {% include 'partials/settings_nav_dropdown.html' %}
+        <span class="admin-badge"><i data-feather="shield"></i> PII Admin</span>
+    </div>
+
+    <!-- Active Section Container -->
+    <div class="settings-section active space-y-6" style="display:block; margin-top:12px;">
+
+        <!-- Toolbar -->
+        <div class="settings-toolbar">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div class="flex flex-col min-w-0">
+                    <h1 class="toolbar-title">Detection Logs</h1>
+                    <p class="toolbar-subtitle">Audit history of PII and Secret detections</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button class="settings-btn-primary" onclick="exportLogs()">
+                        <i data-feather="download" class="w-4 h-4 mr-2"></i>
+                        Export CSV
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistics Row -->
+        <div class="settings-stats-row">
+            <div class="settings-stat-card">
+                <div class="w-12 h-12 rounded-xl flex items-center justify-center bg-blue-50 text-blue-600">
+                    <i data-feather="grid" class="w-6 h-6"></i>
+                </div>
+                <div class="flex flex-col">
+                    <span class="stat-label">Total Detections</span>
+                    <span class="stat-value" id="statTotal">0</span>
+                </div>
+            </div>
+            <div class="settings-stat-card">
+                <div class="w-12 h-12 rounded-xl flex items-center justify-center bg-green-50 text-green-600">
+                    <i data-feather="calendar" class="w-6 h-6"></i>
+                </div>
+                <div class="flex flex-col">
+                    <span class="stat-label">Today</span>
+                    <span class="stat-value" id="statToday">0</span>
+                </div>
+            </div>
+            <div class="settings-stat-card">
+                <div class="w-12 h-12 rounded-xl flex items-center justify-center bg-orange-50 text-orange-600">
+                    <i data-feather="alert-circle" class="w-6 h-6"></i>
+                </div>
+                <div class="flex flex-col">
+                    <span class="stat-label">Top Type</span>
+                    <span class="stat-value text-sm truncate max-w-[120px]" id="statTopType">-</span>
+                </div>
+            </div>
+            <div class="settings-stat-card">
+                <div class="w-12 h-12 rounded-xl flex items-center justify-center bg-purple-50 text-purple-600">
+                    <i data-feather="eye-off" class="w-6 h-6"></i>
+                </div>
+                <div class="flex flex-col">
+                    <span class="stat-label">Redacted</span>
+                    <span class="stat-value" id="statRedacted">0%</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filters Card -->
+        <div class="settings-light-card p-6">
+            <div class="flex flex-col gap-6">
+                <!-- Search Row -->
+                <div class="flex gap-4">
+                    <div class="flex-1 relative">
+                        <i data-feather="search" class="absolute left-3 top-2.5 w-4 h-4 text-slate-400"></i>
+                        <input type="text" id="searchQuery" class="settings-input w-full pl-9"
+                            placeholder="Search logs by content, source, or ID...">
+                    </div>
+                    <button class="settings-btn-primary" onclick="searchLogs()">Search</button>
+                    <button class="settings-btn-secondary" onclick="clearFilters()">Clear</button>
+                </div>
+
+                <div class="h-px bg-slate-100 w-full"></div>
+
+                <!-- Filter Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div class="filter-group">
+                        <label>Start Date</label>
+                        <input type="date" id="startDate" class="settings-input w-full" />
+                    </div>
+                    <div class="filter-group">
+                        <label>End Date</label>
+                        <input type="date" id="endDate" class="settings-input w-full" />
+                    </div>
+                    <div class="filter-group">
+                        <label>Entity Type</label>
+                        <select id="entityTypeFilter" class="settings-input w-full">
+                            <option value="">All Types</option>
+                            <option value="EMAIL_ADDRESS">Email</option>
+                            <option value="API_KEY">API Key</option>
+                            <option value="PASSWORD">Password</option>
+                            <option value="PHONE_NUMBER">Phone</option>
+                            <option value="AWS_KEY">AWS Key</option>
+                            <option value="US_SSN">US SSN</option>
+                            <option value="CREDIT_CARD">Credit Card</option>
+                            <option value="PERSON">Person</option>
+                            <option value="IP_ADDRESS">IP Address</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Source</label>
+                        <select id="sourceFilter" class="settings-input w-full">
+                            <option value="">All Sources</option>
+                            <option value="runbook_output">Runbook Output</option>
+                            <option value="llm_response">LLM Response</option>
+                            <option value="alert_data">Alert Data</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Engine</label>
+                        <select id="engineFilter" class="settings-input w-full">
+                            <option value="">All Engines</option>
+                            <option value="presidio">Presidio</option>
+                            <option value="detect_secrets">detect-secrets</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="flex justify-end">
+                    <button class="settings-btn-secondary text-xs" onclick="applyFilters()">Apply Filters</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Logs Table Card -->
+        <div class="settings-light-card overflow-hidden">
+            <table class="settings-table w-full">
+                <thead>
+                    <tr>
+                        <th class="p-4 text-left">Timestamp</th>
+                        <th class="p-4 text-left">Type</th>
+                        <th class="p-4 text-left">Engine</th>
+                        <th class="p-4 text-left">Confidence</th>
+                        <th class="p-4 text-left">Source</th>
+                        <th class="p-4 text-left w-20">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="logsTableBody">
+                    <!-- Populated by JavaScript -->
+                    <tr>
+                        <td colspan="6" class="p-8 text-center text-slate-500">Loading logs...</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- Pagination -->
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-t border-slate-100 bg-slate-50 p-4">
+                <div class="flex items-center gap-4 flex-wrap">
+                    <div class="text-xs text-slate-500">
+                        Showing <span id="pageStart" class="font-medium">0</span>-<span id="pageEnd"
+                            class="font-medium">0</span> of <span id="totalLogs" class="font-medium">0</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <label for="pageSizeSelect" class="text-xs text-slate-500">Per page:</label>
+                        <select id="pageSizeSelect" class="settings-input py-1 px-2 text-xs w-16">
+                            <option value="10">10</option>
+                            <option value="25" selected>25</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button class="settings-btn-secondary py-1 px-3 text-xs" id="prevButton" onclick="previousPage()"
+                        disabled>Previous</button>
+                    <span id="pageInfo" class="text-xs font-medium text-slate-600">Page 1 of 1</span>
+                    <button class="settings-btn-secondary py-1 px-3 text-xs" id="nextButton" onclick="nextPage()"
+                        disabled>Next</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Log Detail Modal (Adapted styles) -->
+<div id="detailModal" class="fixed inset-0 bg-black/50 z-50 hidden items-center justify-center">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] flex flex-col">
+        <div class="p-6 border-b border-slate-100 flex justify-between items-center">
+            <h2 class="text-lg font-bold text-slate-800">Detection Details</h2>
+            <button class="text-slate-400 hover:text-slate-600" onclick="closeModal()">
+                <i data-feather="x" class="w-6 h-6"></i>
+            </button>
+        </div>
+        <div id="modalBody" class="p-6 overflow-y-auto">
+            <!-- Populated by JavaScript -->
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Modal active state helper */
+    #detailModal.active {
+        display: flex;
+    }
+
+    /* Styles for modal content injected by JS */
+    .detail-row {
+        display: flex;
+        border-bottom: 1px solid #f1f5f9;
+        padding: 12px 0;
+    }
+
+    .detail-row:last-child {
+        border-bottom: none;
+    }
+
+    .detail-label {
+        width: 30%;
+        font-size: 13px;
+        font-weight: 600;
+        color: #64748b;
+    }
+
+    .detail-value {
+        width: 70%;
+        font-size: 14px;
+        color: #1e293b;
+        word-break: break-all;
+    }
+
+    .context-box {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 12px;
+        font-family: monospace;
+        font-size: 12px;
+        color: #334155;
+        white-space: pre-wrap;
+        width: 100%;
+    }
+</style>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/pii_logs.js"></script>
+<script>
+    // Local implementation of dropdown toggle
+    function toggleSettingsDropdown(e) {
+        e.stopPropagation();
+        const dropdown = document.getElementById('settingsDropdownMenu');
+        const btn = document.getElementById('settingsDropdownBtn');
+        dropdown.classList.toggle('open');
+        btn.classList.toggle('open');
+    }
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function (e) {
+        const dropdown = document.getElementById('settingsDropdownMenu');
+        const btn = document.getElementById('settingsDropdownBtn');
+        if (dropdown && dropdown.classList.contains('open')) {
+            if (!dropdown.contains(e.target) && !btn.contains(e.target)) {
+                dropdown.classList.remove('open');
+                btn.classList.remove('open');
+            }
+        }
+    });
+</script>
+{% endblock %}

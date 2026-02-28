@@ -14,6 +14,7 @@ from app.database import get_db
 from app.models_dashboards import PrometheusPanel, PrometheusDatasource, PanelType
 from app.routers.auth import get_current_user
 from app.routers.datasources_api import decrypt_password
+from app.utils.search import like_escape
 
 router = APIRouter(prefix="/api/panels", tags=["Panels"])
 
@@ -22,7 +23,7 @@ router = APIRouter(prefix="/api/panels", tags=["Panels"])
 class PanelBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = None
-    datasource_id: str
+    datasource_id: Optional[str] = None
     promql_query: str = Field(..., min_length=1)
     legend_format: Optional[str] = None
     time_range: str = Field(default="24h")
@@ -69,7 +70,7 @@ class PanelResponse(BaseModel):
     id: str
     name: str
     description: Optional[str]
-    datasource_id: str
+    datasource_id: Optional[str]
     promql_query: str
     legend_format: Optional[str]
     time_range: str
@@ -242,10 +243,10 @@ async def list_panels(
         query = query.filter(PrometheusPanel.is_template == is_template)
 
     if search:
-        search_pattern = f"%{search}%"
+        search_pattern = f"%{like_escape(search)}%"
         query = query.filter(
-            (PrometheusPanel.name.ilike(search_pattern)) |
-            (PrometheusPanel.description.ilike(search_pattern))
+            (PrometheusPanel.name.ilike(search_pattern, escape="\\")) |
+            (PrometheusPanel.description.ilike(search_pattern, escape="\\"))
         )
 
     if tag:
@@ -296,16 +297,25 @@ async def create_panel(
     - **panel_type**: Visualization type (graph, gauge, stat, etc.)
     - **tags**: Tags for organization
     """
-    # Verify datasource exists
-    datasource = db.query(PrometheusDatasource).filter(
-        PrometheusDatasource.id == panel.datasource_id
-    ).first()
+    # Verify datasource exists if panel type is not widget
+    if panel.panel_type != PanelType.WIDGET:
+        if not panel.datasource_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Datasource is required for non-widget panels"
+            )
+        datasource = db.query(PrometheusDatasource).filter(
+            PrometheusDatasource.id == panel.datasource_id
+        ).first()
 
-    if not datasource:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Datasource {panel.datasource_id} not found"
-        )
+        if not datasource:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Datasource {panel.datasource_id} not found"
+            )
+    else:
+        # If it's a widget, ignore datasource_id
+        panel.datasource_id = None
 
     # Create panel
     new_panel = PrometheusPanel(
@@ -353,15 +363,30 @@ async def update_panel(
         )
 
     # Verify datasource if being changed
-    if panel_update.datasource_id:
-        datasource = db.query(PrometheusDatasource).filter(
-            PrometheusDatasource.id == panel_update.datasource_id
-        ).first()
-        if not datasource:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Datasource {panel_update.datasource_id} not found"
+    # Need to check the target panel_type (either from update or existing panel)
+    target_type = panel_update.panel_type if panel_update.panel_type is not None else panel.panel_type
+    
+    if target_type != PanelType.WIDGET:
+        target_datasource_id = panel_update.datasource_id if panel_update.datasource_id is not None else panel.datasource_id
+        if not target_datasource_id:
+             raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Datasource is required for non-widget panels"
             )
+        if panel_update.datasource_id:
+            datasource = db.query(PrometheusDatasource).filter(
+                PrometheusDatasource.id == panel_update.datasource_id
+            ).first()
+            if not datasource:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Datasource {panel_update.datasource_id} not found"
+                )
+    else:
+        # For widgets, force datasource_id to None if it's being updated
+        if panel_update.datasource_id is not None:
+             panel_update.datasource_id = None
+        panel.datasource_id = None
 
     # Update fields
     update_data = panel_update.dict(exclude_unset=True)
@@ -518,7 +543,26 @@ async def get_panel_data(
             detail=f"Panel {panel_id} not found"
         )
 
+    # For widgets, just return the placeholder data
+    if panel.panel_type == PanelType.WIDGET:
+        return PanelDataResponse(
+            panel_id=panel_id,
+            panel_name=panel.name,
+            query=panel.promql_query,
+            result_type="widget",
+            data=[],  # Frontend will fetch data as needed
+            metadata={
+                "widget_type": panel.promql_query.replace("widget:", "") if panel.promql_query.startswith("widget:") else panel.promql_query
+            }
+        )
+
     # Get datasource
+    if not panel.datasource_id:
+         raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Panel {panel_id} has no datasource"
+        )
+    
     datasource = db.query(PrometheusDatasource).filter(
         PrometheusDatasource.id == panel.datasource_id
     ).first()

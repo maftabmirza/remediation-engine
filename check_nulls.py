@@ -1,8 +1,8 @@
 
 files = [
-    r'd:\remediate-engine-antigravity\entrypoint.sh',
-    r'd:\remediate-engine-antigravity\alembic\versions\019_add_incident_metrics.py',
-    r'd:\remediate-engine-antigravity\app\models.py'
+    r'd:\remediation-engine-vscode\entrypoint.sh',
+    r'd:\remediation-engine-vscode\atlas\migrations\20260126000000_initial_schema.sql',
+    r'd:\remediation-engine-vscode\app\models.py'
 ]
 for f in files:
     try:

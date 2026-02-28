@@ -1,0 +1,204 @@
+/* Responsive Design - Media Queries for AIOps Platform */
+
+/* Cross-theme fix: make nav-group full sidebar width so left:100% = sidebar right edge */
+
+/* Stretch nav-menu items to fill the full collapsed sidebar width */
+.app-container.collapsed .nav-menu {
+    padding: 0 !important;
+    align-items: stretch !important;
+}
+
+/* nav-group fills full width; nav-item centers its icon inside */
+.app-container.collapsed .nav-group {
+    width: 100%;
+    position: relative;
+}
+
+.app-container.collapsed .nav-item:not(.submenu-item) {
+    width: 100% !important;
+    justify-content: center !important;
+    padding: 8px 0 !important;
+}
+
+/* Submenu grows seamlessly from sidebar right edge */
+html[data-theme] .app-container.collapsed .nav-group .submenu,
+.app-container.collapsed .nav-group .submenu {
+    left: calc(100% - 1px) !important;   /* -1px overlaps the sidebar border-right so no gap */
+    transform: none !important;
+    margin-left: 0 !important;
+    border: none !important;
+    border-left: none !important;
+    border-radius: 0 8px 8px 0 !important;
+    background: var(--bg-sidebar) !important;
+    box-shadow: 8px 0 12px -6px rgba(0, 0, 0, 0.35) !important;  /* right-side only, no left halo */
+    z-index: var(--z-sidebar) !important; /* same layer as sidebar so left edge is hidden behind sidebar */
+}
+
+/* Submenu items: remove left-side radius so they sit flush against the sidebar */
+.app-container.collapsed .nav-group .submenu .submenu-item,
+.app-container.collapsed .nav-group:hover .submenu .submenu-item {
+    border-radius: 0 6px 6px 0 !important;
+    margin-left: 0 !important;
+    border-left: none !important;
+}
+
+/* Hover bridge sized to sidebar width for smooth mouse transition */
+html[data-theme] .app-container.collapsed .nav-group .submenu::before,
+.app-container.collapsed .nav-group .submenu::before {
+    left: calc(-1 * var(--layout-sidebar-collapsed-w)) !important;
+    width: var(--layout-sidebar-collapsed-w) !important;
+}
+
+/* Base styles are optimized for 1920x1080 (100% scale) */
+
+/* Large screens / 4K (≥2560px) - Increase font size slightly for better readability */
+@media (min-width: 2560px) {
+    :root {
+        font-size: 18px;
+    }
+    
+    .app-container {
+        max-width: 2400px;
+        margin: 0 auto;
+    }
+}
+
+/* Laptop / FHD (1366px - 1920px) - Standard scaling */
+@media (min-width: 1366px) and (max-width: 1919px) {
+    :root {
+        font-size: 15px;
+    }
+}
+
+/* Small laptops / tablets landscape (1024px - 1365px) */
+@media (min-width: 1024px) and (max-width: 1365px) {
+    :root {
+        font-size: 14px;
+    }
+    
+    .app-container {
+        grid-template-columns: 160px 1fr 0px;
+    }
+    
+    .app-container.ai-open {
+        grid-template-columns: 160px 1fr var(--ai-helper-width);
+    }
+    
+    .main-content {
+        padding: 1rem;
+    }
+    
+    .app-container.collapsed .nav-group .submenu {
+        min-width: 190px;
+        max-height: calc(100vh - 64px);
+    }
+}
+
+/* Tablets portrait (768px - 1023px) */
+@media (min-width: 768px) and (max-width: 1023px) {
+    :root {
+        font-size: 14px;
+    }
+    
+    .app-container.collapsed .nav-group .submenu {
+        max-height: calc(100vh - 64px);
+    }
+    
+    .sidebar {
+        position: fixed;
+        left: -250px;
+        transition: left 0.3s ease;
+        z-index: 1000;
+    }
+    
+    .sidebar.open {
+        left: 0;
+    }
+    
+    .main-content {
+        margin-left: 0;
+        padding: 0.75rem;
+    }
+    
+    .header-actions {
+        gap: 0.5rem;
+    }
+}
+
+/* Mobile devices (< 768px) */
+@media (max-width: 767px) {
+    :root {
+        font-size: 14px;
+    }
+    
+    .sidebar {
+        position: fixed;
+        left: -100%;
+        width: 80%;
+        max-width: 280px;
+        transition: left 0.3s ease;
+        z-index: 1000;
+    }
+    
+    .sidebar.open {
+        left: 0;
+    }
+    
+    .main-content {
+        margin-left: 0;
+        padding: 0.5rem;
+    }
+    
+    .header {
+        flex-direction: column;
+        gap: 0.5rem;
+        padding: 0.5rem;
+    }
+    
+    .header-actions {
+        flex-wrap: wrap;
+        gap: 0.25rem;
+    }
+    
+    .card, .panel {
+        padding: 0.75rem;
+    }
+    
+    /* Stack cards vertically on mobile */
+    .grid-cols-2,
+    .grid-cols-3,
+    .grid-cols-4 {
+        grid-template-columns: 1fr !important;
+    }
+    
+    /* Reduce chart heights on mobile */
+    .chart-container {
+        min-height: 250px !important;
+    }
+}
+
+/* High DPI displays (Retina) - Improve sharpness */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+    body {
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+}
+
+/* Print styles */
+@media print {
+    .sidebar,
+    .header-actions,
+    .revive-chat-btn,
+    .theme-zoom-controls {
+        display: none !important;
+    }
+    
+    .main-content {
+        margin-left: 0;
+    }
+    
+    .app-container {
+        max-width: 100%;
+    }
+}

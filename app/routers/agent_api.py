@@ -6,22 +6,25 @@ Provides API endpoints for AI Agent Mode - autonomous goal-driven SSH execution.
 import asyncio
 import logging
 import json
-from typing import Dict, Optional, Set
-from datetime import datetime, timezone
+from typing import Dict, Optional, Set, Annotated
+from datetime import datetime, timezone, timedelta
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, Query
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, Query, Request
+from pydantic import BaseModel, Field
+from pydantic import ConfigDict
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from starlette.websockets import WebSocketState
 
 from app.database import get_db
 from app.models import User, LLMProvider, ServerCredential
-from app.models_agent import AgentSession, AgentStep
-from app.models_revive import AISession
+from app.models_agent import AgentSession, AgentStep, AgentAuditLog, AgentRateLimit
+from app.models_revive import AISession, AIMessage
 from app.services.auth_service import get_current_user, get_current_user_ws
 from app.services.ssh_service import get_ssh_connection
 from app.services.llm_service import get_api_key_for_provider
+from app.services.command_validator import CommandValidator, ValidationResult
 from app.config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -30,16 +33,26 @@ router = APIRouter(prefix="/api/agent", tags=["agent"])
 ws_router = APIRouter(tags=["agent"])
 settings = get_settings()
 
+# Session timeout settings
+SESSION_IDLE_TIMEOUT_MINUTES = 30
+SESSION_MAX_DURATION_HOURS = 2
+
+# Rate limit settings
+DEFAULT_MAX_COMMANDS_PER_MINUTE = settings.agent_max_commands_per_minute
+DEFAULT_MAX_SESSIONS_PER_HOUR = settings.agent_max_sessions_per_hour
+
 
 # ============= Schemas =============
 
 class AgentStartRequest(BaseModel):
     """Request to start a new agent session"""
-    chat_session_id: Optional[str] = None
-    server_id: str
+    model_config = ConfigDict(populate_by_name=True)
+
+    chat_session_id: Annotated[Optional[str], Field(alias="chatSessionId")] = None
+    server_id: Annotated[str, Field(alias="serverId")]
     goal: str
-    auto_approve: bool = False
-    max_steps: int = 20
+    auto_approve: Annotated[bool, Field(alias="autoApprove")] = False
+    max_steps: Annotated[int, Field(alias="maxSteps")] = 20
 
 
 class AgentStepResponse(BaseModel):
@@ -90,11 +103,158 @@ async def broadcast_to_session(session_id: UUID, message: dict):
             active_connections[session_id].discard(ws)
 
 
+# ============= Helper Functions =============
+
+def check_rate_limit(db: Session, user_id: UUID, limit_type: str = "command") -> tuple[bool, str]:
+    """
+    Check if user has exceeded rate limits.
+    
+    Returns:
+        (allowed, message) - True if allowed, False if rate limited
+    """
+    now = datetime.now(timezone.utc)
+    
+    rate_limit = db.query(AgentRateLimit).filter(AgentRateLimit.user_id == user_id).first()
+    
+    if not rate_limit:
+        # Create new rate limit record
+        rate_limit = AgentRateLimit(
+            user_id=user_id,
+            commands_this_minute=0,
+            sessions_this_hour=0,
+            minute_window_start=now,
+            hour_window_start=now
+        )
+        db.add(rate_limit)
+        db.commit()
+
+    # Ensure stored per-user limits match current configured defaults.
+    # This keeps existing DB rows (created under older defaults) in sync.
+    dirty = False
+    if rate_limit.max_commands_per_minute != DEFAULT_MAX_COMMANDS_PER_MINUTE:
+        rate_limit.max_commands_per_minute = DEFAULT_MAX_COMMANDS_PER_MINUTE
+        dirty = True
+    if rate_limit.max_sessions_per_hour != DEFAULT_MAX_SESSIONS_PER_HOUR:
+        rate_limit.max_sessions_per_hour = DEFAULT_MAX_SESSIONS_PER_HOUR
+        dirty = True
+    
+    # Reset counters if time has passed
+    if now - rate_limit.minute_window_start > timedelta(minutes=1):
+        rate_limit.commands_this_minute = 0
+        rate_limit.minute_window_start = now
+        dirty = True
+    
+    if now - rate_limit.hour_window_start > timedelta(hours=1):
+        rate_limit.sessions_this_hour = 0
+        rate_limit.hour_window_start = now
+        dirty = True
+    
+    if limit_type == "command":
+        if rate_limit.commands_this_minute >= rate_limit.max_commands_per_minute:
+            return False, f"Rate limit exceeded: max {rate_limit.max_commands_per_minute} commands per minute"
+        rate_limit.commands_this_minute += 1
+        dirty = True
+    elif limit_type == "session":
+        if rate_limit.sessions_this_hour >= rate_limit.max_sessions_per_hour:
+            return False, f"Rate limit exceeded: max {rate_limit.max_sessions_per_hour} sessions per hour"
+        rate_limit.sessions_this_hour += 1
+        dirty = True
+    
+    if dirty:
+        db.commit()
+    return True, ""
+
+
+def check_session_timeout(session: AgentSession) -> tuple[bool, str]:
+    """
+    Check if session has timed out.
+    
+    Returns:
+        (valid, message) - True if session is still valid
+    """
+    now = datetime.now(timezone.utc)
+    
+    # Check idle timeout (30 minutes)
+    last_activity = session.last_activity_at or session.created_at
+    if now - last_activity > timedelta(minutes=SESSION_IDLE_TIMEOUT_MINUTES):
+        return False, f"Session timed out after {SESSION_IDLE_TIMEOUT_MINUTES} minutes of inactivity"
+    
+    # Check max duration (2 hours)
+    if now - session.created_at > timedelta(hours=SESSION_MAX_DURATION_HOURS):
+        return False, f"Session exceeded maximum duration of {SESSION_MAX_DURATION_HOURS} hours"
+    
+    return True, ""
+
+
+def update_session_activity(db: Session, session: AgentSession):
+    """Update session last activity timestamp"""
+    session.last_activity_at = datetime.now(timezone.utc)
+    db.commit()
+
+
+def create_audit_log(
+    db: Session,
+    session: AgentSession,
+    action: str,
+    user_id: UUID,
+    step: Optional[AgentStep] = None,
+    command: Optional[str] = None,
+    details: Optional[dict] = None,
+    exit_code: Optional[int] = None,
+    output: Optional[str] = None,
+    ip_address: Optional[str] = None
+):
+    """Create an audit log entry"""
+    try:
+        server = db.query(ServerCredential).filter(ServerCredential.id == session.server_id).first()
+        
+        # Serialize details dict to JSON string since column is TEXT in database
+        details_str = json.dumps(details) if details else None
+        
+        audit = AgentAuditLog(
+            session_id=session.id,
+            step_id=step.id if step else None,
+            user_id=user_id,
+            action=action,
+            command=command,
+            details=details_str,
+            server_id=session.server_id,
+            server_name=server.name if server else None,
+            exit_code=exit_code,
+            output_preview=output[:500] if output else None,
+            ip_address=ip_address
+        )
+        db.add(audit)
+        db.commit()
+        logger.debug(f"Audit log: {action} for session {session.id}")
+    except Exception as e:
+        logger.warning(f"Failed to create audit log: {e}")
+
+
+def validate_command_safety(command: str, os_type: str = "linux") -> tuple[bool, str, str]:
+    """
+    Validate command against blocklist.
+    
+    Returns:
+        (allowed, result, reason) - True if command is safe to execute
+    """
+    validator = CommandValidator()
+    validation = validator.validate_command(command, os_type)
+    
+    if validation.result == ValidationResult.BLOCKED:
+        return False, "blocked", validation.reason or "Command blocked by security policy"
+    elif validation.result == ValidationResult.SUSPICIOUS:
+        return True, "suspicious", validation.reason or "Command flagged as suspicious"
+    
+    return True, "allowed", ""
+
+
 # ============= REST API Endpoints =============
 
 @router.post("/start")
 async def start_agent(
     request: AgentStartRequest,
+    http_request: Request,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -104,6 +264,10 @@ async def start_agent(
     Creates an agent session that will work towards the specified goal
     by executing commands on the target server.
     """
+    # Check rate limit for sessions
+    allowed, rate_msg = check_rate_limit(db, current_user.id, "session")
+    if not allowed:
+        raise HTTPException(status_code=429, detail=rate_msg)
     # Validate server exists
     try:
         server_uuid = UUID(request.server_id)
@@ -115,9 +279,31 @@ async def start_agent(
     
     # Optionally link to chat session
     chat_session_id = None
+    seeded_chat = False
     if request.chat_session_id:
         try:
-            chat_session_id = UUID(request.chat_session_id)
+            candidate_chat_session_id = UUID(request.chat_session_id)
+
+            # Ensure the referenced ai_sessions row exists (or create it).
+            # Without this, Postgres will reject the insert due to FK constraint.
+            ai_session = db.query(AISession).filter(AISession.id == candidate_chat_session_id).first()
+
+            if ai_session:
+                if ai_session.user_id != current_user.id:
+                    raise HTTPException(status_code=403, detail="Chat session access denied")
+            else:
+                ai_session = AISession(
+                    id=candidate_chat_session_id,
+                    user_id=current_user.id,
+                    pillar="troubleshooting",
+                    context_type="agent",
+                    title=(request.goal or "Agent Session")[:100],
+                )
+                db.add(ai_session)
+                db.commit()
+                seeded_chat = True
+
+            chat_session_id = candidate_chat_session_id
         except ValueError:
             pass  # Not a valid UUID, ignore
     
@@ -132,12 +318,47 @@ async def start_agent(
         status='idle',
         auto_approve=request.auto_approve,
         max_steps=request.max_steps,
-        current_step_number=0
+        current_step_number=0,
+        last_activity_at=datetime.now(timezone.utc)
     )
     
     db.add(agent_session)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail="Unable to start agent session due to invalid related data (chatSessionId/serverId).",
+        )
     db.refresh(agent_session)
+
+    # If we created a new linked troubleshoot session (or it has no messages yet),
+    # add a minimal chat history so selecting it in /troubleshoot isn't blank.
+    if chat_session_id is not None:
+        try:
+            existing_msg = db.query(AIMessage).filter(AIMessage.session_id == chat_session_id).first()
+            if seeded_chat or not existing_msg:
+                db.add(AIMessage(session_id=chat_session_id, role="user", content=request.goal))
+                db.add(AIMessage(
+                    session_id=chat_session_id,
+                    role="assistant",
+                    content=(
+                        "Agent Mode started. I will propose and execute steps in the terminal, "
+                        "and stream results here as we go."
+                    ),
+                ))
+                db.commit()
+        except Exception as e:
+            logger.warning(f"Failed to seed chat history for linked session {chat_session_id}: {e}")
+    
+    # Audit log: session start
+    client_ip = http_request.client.host if http_request.client else None
+    create_audit_log(
+        db, agent_session, "session_start", current_user.id,
+        details={"goal": request.goal, "auto_approve": request.auto_approve, "max_steps": request.max_steps},
+        ip_address=client_ip
+    )
     
     logger.info(f"Agent session created: {session_id} for goal: {request.goal[:50]}...")
     
@@ -310,6 +531,57 @@ async def answer_agent_question(
     return {"success": True}
 
 
+@router.post("/feedback")
+async def submit_agent_feedback(
+    payload: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Submit feedback for an agent step"""
+    session_id = payload.get("session_id")
+    step_id = payload.get("step_id")
+    helpful = payload.get("helpful", True)
+    
+    if not session_id or not step_id:
+        raise HTTPException(status_code=400, detail="session_id and step_id required")
+    
+    try:
+        session_uuid = UUID(session_id)
+        step_uuid = UUID(step_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid ID format")
+    
+    # Verify session belongs to user
+    session = db.query(AgentSession).filter(
+        AgentSession.id == session_uuid,
+        AgentSession.user_id == current_user.id
+    ).first()
+    
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    # Find and update the step
+    step = db.query(AgentStep).filter(
+        AgentStep.id == step_uuid,
+        AgentStep.session_id == session_uuid
+    ).first()
+    
+    if step:
+        # Store feedback in metadata
+        metadata = step.metadata or {}
+        metadata['user_feedback'] = {
+            'helpful': helpful,
+            'timestamp': datetime.utcnow().isoformat(),
+            'user_id': str(current_user.id)
+        }
+        step.metadata = metadata
+        db.commit()
+        
+        logger.info(f"Agent step feedback: step={step_id}, helpful={helpful}")
+    
+    return {"success": True}
+
+
 # ============= WebSocket Endpoint =============
 
 @ws_router.websocket("/ws/agent/{session_id}")
@@ -387,6 +659,11 @@ async def agent_websocket(
                     elif msg_type == "answer":
                         approval_result["answer"] = msg.get("answer", "")
                         approval_event.set()
+                    elif msg_type == "command_result":
+                        # Result from frontend terminal execution
+                        approval_result["output"] = msg.get("output", "")
+                        approval_result["exit_code"] = msg.get("exit_code", 0)
+                        approval_event.set()
                         
                 except json.JSONDecodeError:
                     pass
@@ -414,18 +691,7 @@ async def agent_websocket(
             })
             return
         
-        # Get SSH connection
-        try:
-            ssh_client = await get_ssh_connection(db, session.server_id)
-            await ssh_client.connect()
-        except Exception as e:
-            logger.error(f"SSH connection failed: {e}")
-            await websocket.send_json({
-                "type": "error",
-                "message": f"SSH connection failed: {str(e)}"
-            })
-            return
-        
+        # Commands are executed in the user's connected terminal (frontend), not server-side.
         try:
             # Update session status
             session.status = 'thinking'
@@ -458,6 +724,7 @@ If you need information from the user:
 
 Important rules:
 - Always use non-interactive commands (add -y for apt, etc.)
+- Never invoke pagers or interactive UIs. For `systemctl status` and `journalctl`, always include `--no-pager` (or use `SYSTEMD_PAGER=cat`).
 - Check command results before proceeding
 - Maximum {session.max_steps} steps allowed
 - Current step: {session.current_step_number}"""
@@ -541,6 +808,12 @@ Important rules:
                     db.add(step)
                     db.commit()
                     
+                    # Audit log: session completed
+                    create_audit_log(
+                        db, session, "session_complete", user.id, step=step,
+                        details={"summary": step.content, "total_steps": session.current_step_number + 1}
+                    )
+                    
                     await websocket.send_json({
                         "type": "step_created",
                         "step": {
@@ -612,6 +885,11 @@ Important rules:
                     session.current_step_number += 1
                     db.commit()
                     
+                    logger.info(f"Agent asking question: {step.content[:100]}...")
+                    
+                    # Send status update to frontend
+                    await websocket.send_json({"type": "status_changed", "status": "awaiting_input"})
+                    
                     await websocket.send_json({
                         "type": "step_created",
                         "step": {
@@ -650,7 +928,74 @@ Important rules:
                         })
                         continue
                     
-                    # Create step
+                    # Check session timeout
+                    valid, timeout_msg = check_session_timeout(session)
+                    if not valid:
+                        create_audit_log(db, session, "session_timeout", user.id, details={"reason": timeout_msg})
+                        session.status = 'failed'
+                        session.error_message = timeout_msg
+                        db.commit()
+                        await websocket.send_json({"type": "error", "message": timeout_msg})
+                        break
+                    
+                    # Check rate limit for commands
+                    allowed, rate_msg = check_rate_limit(db, user.id, "command")
+                    if not allowed:
+                        await websocket.send_json({"type": "error", "message": rate_msg})
+                        # Wait a bit before continuing
+                        await asyncio.sleep(5)
+                        messages.append({"role": "user", "content": f"Rate limited: {rate_msg}. Please wait."})
+                        continue
+                    
+                    # Validate command safety
+                    cmd_allowed, validation_result, blocked_reason = validate_command_safety(command, "linux")
+                    
+                    if not cmd_allowed:
+                        # Command is blocked
+                        step = AgentStep(
+                            id=uuid4(),
+                            agent_session_id=session.id,
+                            step_number=session.current_step_number + 1,
+                            step_type='command',
+                            content=command,
+                            reasoning=reasoning,
+                            status='blocked',
+                            validation_result=validation_result,
+                            blocked_reason=blocked_reason
+                        )
+                        db.add(step)
+                        session.current_step_number += 1
+                        db.commit()
+                        
+                        # Audit log: command blocked
+                        create_audit_log(
+                            db, session, "command_blocked", user.id, step=step,
+                            command=command, details={"reason": blocked_reason}
+                        )
+                        
+                        logger.warning(f"Blocked dangerous command: {command[:50]}... Reason: {blocked_reason}")
+                        
+                        await websocket.send_json({
+                            "type": "step_created",
+                            "step": {
+                                "id": str(step.id),
+                                "step_number": step.step_number,
+                                "step_type": "command",
+                                "content": command,
+                                "reasoning": reasoning,
+                                "status": "blocked",
+                                "blocked_reason": blocked_reason
+                            }
+                        })
+                        
+                        # Tell LLM the command was blocked
+                        messages.append({
+                            "role": "user",
+                            "content": f"SECURITY: Command blocked - {blocked_reason}. Please use a safer approach."
+                        })
+                        continue
+                    
+                    # Create step (command allowed)
                     step = AgentStep(
                         id=uuid4(),
                         agent_session_id=session.id,
@@ -658,11 +1003,20 @@ Important rules:
                         step_type='command',
                         content=command,
                         reasoning=reasoning,
-                        status='pending'
+                        status='pending',
+                        validation_result=validation_result
                     )
                     db.add(step)
                     session.current_step_number += 1
-                    db.commit()
+                    update_session_activity(db, session)
+                    
+                    # Audit log: command proposed
+                    create_audit_log(
+                        db, session, "command_proposed", user.id, step=step,
+                        command=command, details={"reasoning": reasoning, "validation": validation_result}
+                    )
+                    
+                    logger.info(f"Agent step {step.step_number}: {command[:50]}... (auto_approve={session.auto_approve})")
                     
                     await websocket.send_json({
                         "type": "step_created",
@@ -673,7 +1027,9 @@ Important rules:
                             "content": command,
                             "reasoning": reasoning,
                             "status": "pending"
-                        }
+                        },
+                        "execute_in_terminal": True,
+                        "auto_approve": session.auto_approve  # Tell frontend if auto-approve is enabled
                     })
                     
                     # Check if auto-approve or wait for approval
@@ -693,6 +1049,11 @@ Important rules:
                             step.status = 'rejected'
                             db.commit()
                             
+                            # Audit log: command rejected
+                            create_audit_log(
+                                db, session, "command_rejected", user.id, step=step, command=command
+                            )
+                            
                             await websocket.send_json({
                                 "type": "step_updated",
                                 "step": {
@@ -711,82 +1072,61 @@ Important rules:
                             db.commit()
                             await websocket.send_json({"type": "status_changed", "status": "thinking"})
                             continue
+                    else:
+                        # Auto-approved - audit log
+                        create_audit_log(
+                            db, session, "command_approved", user.id, step=step,
+                            command=command, details={"auto_approve": True}
+                        )
                     
-                    # Execute command
+                    # Wait for the frontend terminal to execute the command and return result
                     session.status = 'executing'
                     db.commit()
                     await websocket.send_json({"type": "status_changed", "status": "executing"})
-                    
+
+                    approval_result["output"] = ""
+                    approval_result["exit_code"] = 0
+                    approval_event.clear()
+
                     try:
-                        # Run command via SSH
-                        result = await ssh_client.conn.run(command, timeout=120)
-                        output = result.stdout + result.stderr
-                        exit_code = result.exit_status
-                        
-                        step.output = output[:50000]  # Limit output size
-                        step.exit_code = exit_code
-                        step.status = 'executed'
-                        step.executed_at = datetime.now(timezone.utc)
-                        db.commit()
-                        
-                        await websocket.send_json({
-                            "type": "step_updated",
-                            "step": {
-                                "id": str(step.id),
-                                "output": output[:5000],  # Limit for WS
-                                "exit_code": exit_code,
-                                "status": "executed"
-                            }
-                        })
-                        
-                        # Add result to conversation
-                        messages.append({
-                            "role": "user",
-                            "content": f"Command output (exit code {exit_code}):\n{output[:10000]}"
-                        })
-                        
+                        await asyncio.wait_for(approval_event.wait(), timeout=180)
                     except asyncio.TimeoutError:
-                        step.output = "Command timed out after 120 seconds"
-                        step.exit_code = -1
-                        step.status = 'failed'
-                        db.commit()
-                        
-                        await websocket.send_json({
-                            "type": "step_updated",
-                            "step": {
-                                "id": str(step.id),
-                                "output": "Command timed out",
-                                "exit_code": -1,
-                                "status": "failed"
-                            }
-                        })
-                        
-                        messages.append({
-                            "role": "user",
-                            "content": "Command timed out after 120 seconds."
-                        })
-                        
-                    except Exception as e:
-                        logger.error(f"Command execution error: {e}")
-                        step.output = str(e)
-                        step.exit_code = -1
-                        step.status = 'failed'
-                        db.commit()
-                        
-                        await websocket.send_json({
-                            "type": "step_updated",
-                            "step": {
-                                "id": str(step.id),
-                                "output": str(e),
-                                "exit_code": -1,
-                                "status": "failed"
-                            }
-                        })
-                        
-                        messages.append({
-                            "role": "user",
-                            "content": f"Command failed with error: {str(e)}"
-                        })
+                        output = "Timed out waiting for terminal execution result"
+                        exit_code = 124
+                    else:
+                        output = approval_result.get("output", "")
+                        exit_code = approval_result.get("exit_code", 0)
+
+                    if stop_requested:
+                        break
+
+                    step.output = (output or "")[:50000]  # Limit output size
+                    step.exit_code = exit_code
+                    step.status = 'executed' if exit_code == 0 else 'failed'
+                    step.executed_at = datetime.now(timezone.utc)
+                    update_session_activity(db, session)
+
+                    # Audit log: command executed
+                    create_audit_log(
+                        db, session, "command_executed", user.id, step=step,
+                        command=command, exit_code=exit_code, output=output
+                    )
+
+                    await websocket.send_json({
+                        "type": "step_updated",
+                        "step": {
+                            "id": str(step.id),
+                            "output": (step.output or "")[:5000],  # Limit for WS
+                            "exit_code": step.exit_code,
+                            "status": step.status
+                        }
+                    })
+
+                    # Add result to conversation
+                    messages.append({
+                        "role": "user",
+                        "content": f"Command output (exit code {exit_code}):\n{(step.output or '')[:10000]}"
+                    })
                     
                     session.status = 'thinking'
                     db.commit()
@@ -806,11 +1146,7 @@ Important rules:
                 })
                 
         finally:
-            # Close SSH connection
-            try:
-                await ssh_client.close()
-            except Exception:
-                pass
+            pass
     
     # Run both tasks
     message_task = asyncio.create_task(handle_messages())

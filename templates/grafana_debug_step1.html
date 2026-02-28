@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% set active_page = 'grafana-advanced' %}
+
+{% block title %}Debug Step 1 — Bare HTML{% endblock %}
+
+{% block content %}
+<div style="padding: 40px; color: #fff;">
+    <h1 style="font-size: 28px; margin-bottom: 16px;">🟢 Step 1 — Bare HTML</h1>
+    <p style="font-size: 16px; color: #ccc;">If you can see this text, the sidebar, and the header — <strong>base.html is working fine.</strong></p>
+    <hr style="border-color: #333; margin: 24px 0;">
+    <ul style="font-size: 14px; color: #aaa; line-height: 2;">
+        <li>✅ base.html extends OK</li>
+        <li>✅ Sidebar renders</li>
+        <li>✅ Header renders</li>
+        <li>✅ Content block renders</li>
+        <li>🚫 No Grafana CSS</li>
+        <li>🚫 No iframe</li>
+        <li>🚫 No JS widgets</li>
+    </ul>
+    <p style="margin-top: 24px;">
+        <a href="/grafana-debug/step2" style="color: #60a5fa; text-decoration: underline;">→ Proceed to Step 2 (Add CSS)</a>
+    </p>
+</div>
+{% endblock %}

@@ -1,9 +1,9 @@
 """SQLAlchemy ORM Models"""
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, Boolean, Integer, Text, ForeignKey, DateTime, JSON, CheckConstraint
+from sqlalchemy import Column, String, Boolean, Integer, Text, ForeignKey, DateTime, JSON, CheckConstraint, Index
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, validates, object_session
 from typing import TYPE_CHECKING
 from pgvector.sqlalchemy import Vector
 
@@ -37,11 +37,41 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), default=utc_now)
     last_login = Column(DateTime(timezone=True), nullable=True)
+    ai_preferences = Column(JSON, default={}, nullable=True)
+
+    # SSO / CyberArk Identity fields (nullable — local users leave these blank)
+    sso_subject = Column(String(255), nullable=True, unique=True, index=True)
+    auth_provider = Column(String(50), nullable=True, default="local")  # "local" | "cyberark"
 
     # Relationships
     default_llm_provider = relationship("LLMProvider", foreign_keys=[default_llm_provider_id])
     rules_created = relationship("AutoAnalyzeRule", back_populates="created_by_user")
     alerts_analyzed = relationship("Alert", back_populates="analyzed_by_user")
+
+    @property
+    def role_id(self):
+        """
+        Resolve role ID from role name.
+
+        This is a computed property (not a DB column) used by AI RBAC tests and
+        services that depend on Role IDs. If the role does not exist in the DB,
+        it is created on-demand for the current session.
+        """
+        session = object_session(self)
+        if session is None:
+            return None
+
+        normalized_role = (self.role or "").strip()
+        if not normalized_role:
+            return None
+
+        role = session.query(Role).filter(Role.name == normalized_role).first()
+        if role is None:
+            role = Role(name=normalized_role, description=f"Auto-created role: {normalized_role}")
+            session.add(role)
+            session.flush()
+
+        return role.id
 
 
 class Role(Base):
@@ -61,15 +91,24 @@ class LLMProvider(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String(100), nullable=False)
-    provider_type = Column(String(50), nullable=False, index=True)  # anthropic, openai, google, ollama
+    provider_type = Column(String(50), nullable=False, index=True)  # anthropic, openai, google, ollama, azure
     model_id = Column(String(100), nullable=False)
     api_key_encrypted = Column(Text, nullable=True)
     api_base_url = Column(String(255), nullable=True)
     is_default = Column(Boolean, default=False, index=True)
     is_enabled = Column(Boolean, default=True, index=True)
+    # 'llm' = general chat/completion model, 'embedding' = vector embedding model
+    usage_type = Column(String(20), nullable=False, default='llm', index=True)
     config_json = Column(JSON, default={"temperature": 0.3, "max_tokens": 2000})
     created_at = Column(DateTime(timezone=True), default=utc_now)
     updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+
+    @validates('provider_type')
+    def normalize_provider_type(self, key, value):
+        """Automatically normalize provider_type to lowercase and strip whitespace"""
+        if value:
+            return value.lower().strip()
+        return value
 
 
 class AutoAnalyzeRule(Base):
@@ -89,6 +128,11 @@ class AutoAnalyzeRule(Base):
     created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), default=utc_now)
     updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+
+    # Composite index: rules engine queries enabled=True ORDER BY priority on every alert
+    __table_args__ = (
+        Index('ix_auto_analyze_rules_enabled_priority', 'enabled', 'priority'),
+    )
 
     # Relationships
     created_by_user = relationship("User", back_populates="rules_created")
@@ -200,6 +244,12 @@ class Alert(Base):
     # Alert Clustering
     cluster_id = Column(UUID(as_uuid=True), ForeignKey("alert_clusters.id", ondelete="SET NULL"), nullable=True, index=True)
     clustered_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Composite indexes for high-frequency query patterns
+    __table_args__ = (
+        Index('ix_alerts_fingerprint_timestamp', 'fingerprint', 'timestamp'),
+        Index('ix_alerts_status_analyzed', 'status', 'analyzed'),
+    )
 
     # Relationships
     matched_rule = relationship("AutoAnalyzeRule", back_populates="matched_alerts")

@@ -1,25 +1,123 @@
 """
 Embedding Service
-Generates vector embeddings using OpenAI API
+Generates vector embeddings using the configured embedding LLM provider.
+
+API key resolution:
+1. Explicit api_key argument (for backward compat)
+2. Enabled provider with usage_type='embedding' in DB (set in Settings → LLM Providers)
+
+NO .env fallback — embeddings must be explicitly configured via the Settings UI.
 """
 import os
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 import logging
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
 
 class EmbeddingService:
-    """Service for generating text embeddings using OpenAI."""
-    
-    def __init__(self, api_key: Optional[str] = None):
+    """Service for generating text embeddings.
+
+    API key resolution order:
+    1. Explicit api_key argument (for backward compat)
+    2. Enabled provider with usage_type='embedding' in DB
+
+    No .env fallback — if no embedding provider is configured, is_configured()
+    returns False and callers will receive a clear error.
+    """
+
+    def __init__(self, api_key: Optional[str] = None, db: Optional["Session"] = None):
         self.model = os.getenv('EMBEDDING_MODEL', 'text-embedding-3-small')
         self.dimensions = int(os.getenv('EMBEDDING_DIMENSIONS', '1536'))
-        self.api_key = api_key or os.getenv('OPENAI_API_KEY')
-        
-        if not self.api_key:
-            logger.warning("OPENAI_API_KEY not set - embeddings will not work")
-    
+        self._explicit_api_key = api_key
+        self._db = db
+        self._resolved_api_key: Optional[str] = None
+        self._provider_name: Optional[str] = None
+        self._resolved_model: Optional[str] = None
+
+    @property
+    def api_key(self) -> Optional[str]:
+        """Lazily resolve API key on first use."""
+        if self._resolved_api_key:
+            return self._resolved_api_key
+
+        # 1. Explicit key passed at construction
+        if self._explicit_api_key:
+            self._resolved_api_key = self._explicit_api_key
+            return self._resolved_api_key
+
+        # 2. Look up embedding provider from DB (usage_type='embedding')
+        if self._db:
+            key, name, model = self._resolve_from_db(self._db)
+            if key:
+                self._resolved_api_key = key
+                self._provider_name = name
+                if model:
+                    self.model = model
+                    self.dimensions = self._infer_dimensions(model)
+                return self._resolved_api_key
+
+        # No fallback to env — embedding provider must be explicitly configured
+        logger.warning(
+            "No embedding provider configured. "
+            "Go to Settings → LLM Providers → Add Provider → Usage: Embedding"
+        )
+        return None
+
+    @staticmethod
+    def _infer_dimensions(model: str) -> int:
+        """Infer embedding dimensions from model name."""
+        if 'text-embedding-3-large' in model:
+            return 3072
+        if 'text-embedding-ada' in model:
+            return 1536
+        return 1536  # safe default for text-embedding-3-small and others
+
+    @staticmethod
+    def _resolve_from_db(db: "Session"):
+        """Return (api_key, provider_name, model_id) from the DB embedding provider.
+
+        Prefers the default embedding provider, falls back to any enabled one.
+        """
+        try:
+            from app.models import LLMProvider
+            from app.utils.crypto import decrypt_value
+
+            # Prefer default embedding provider
+            provider = db.query(LLMProvider).filter(
+                LLMProvider.usage_type == 'embedding',
+                LLMProvider.is_enabled == True,
+                LLMProvider.is_default == True,
+            ).first()
+
+            # Fall back to any enabled embedding provider
+            if not provider:
+                provider = db.query(LLMProvider).filter(
+                    LLMProvider.usage_type == 'embedding',
+                    LLMProvider.is_enabled == True,
+                ).first()
+
+            if not provider:
+                return None, None, None
+
+            api_key = None
+            if provider.api_key_encrypted:
+                api_key = decrypt_value(provider.api_key_encrypted)
+
+            return api_key, (provider.name or provider.provider_type), provider.model_id
+
+        except Exception as e:
+            logger.warning(f"Could not resolve embedding provider from DB: {e}")
+            return None, None, None
+
+    def get_provider_display(self) -> str:
+        """Human-readable model name for the stats card."""
+        _ = self.api_key  # trigger lazy resolution
+        return self.model or "Not configured"
+
     def generate_embedding(self, text: str) -> Optional[List[float]]:
         """
         Generate embedding for a single text.
