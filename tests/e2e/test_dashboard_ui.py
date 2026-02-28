@@ -13,10 +13,10 @@ def test_dashboard_elements(authenticated_page: Page):
     # Check for main content area
     expect(authenticated_page.locator('main')).to_be_visible()
     
-    # Check for dashboard-related headers - the dashboard shows Alert Clustering as the main widget
-    # Use regex for flexibility to match various dashboard section headings
-    expect(authenticated_page.locator('h1, h2').first).to_have_text(
-        re.compile(r'(Alert Clustering|Dashboard|Overview)', re.IGNORECASE)
+    # The dashboard has no <h1>/<h2>; section cards use <h3> headings.
+    # Verify one of the known dashboard card headings is present.
+    expect(authenticated_page.locator('h3').first).to_have_text(
+        re.compile(r'(Service Health|Active Incidents|MTTR|Alert Volume|Dashboard|Overview)', re.IGNORECASE)
     )
 
 def test_navigation_to_runbooks(authenticated_page: Page):
@@ -32,14 +32,12 @@ def test_navigation_to_runbooks(authenticated_page: Page):
     # Click the group header to expand the submenu
     remediation_nav.locator('.has-submenu').click()
 
-    # Click the Runbooks submenu item (uses onclick navigation, not <a> tags)
+    # Click the Runbooks submenu item (uses onclick=window.location.href navigation)
     runbooks_item = remediation_nav.locator('.submenu-item', has_text='Runbooks')
     runbooks_item.click()
-    
-    # Verify we navigated to the runbooks page
-    expect(authenticated_page).to_have_url(re.compile(r'.*/runbooks'))
-    
-    # Verify the page content shows Runbooks
-    expect(authenticated_page.locator('h1, h2').first).to_have_text(
-        re.compile(r'Runbook', re.IGNORECASE)
-    )
+
+    # Wait for full page navigation triggered by window.location.href
+    authenticated_page.wait_for_url('**/runbooks', timeout=15000)
+
+    # Verify the page title confirms we're on the Runbooks page
+    expect(authenticated_page).to_have_title(re.compile(r'Runbook', re.IGNORECASE))

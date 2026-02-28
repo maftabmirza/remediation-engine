@@ -11,7 +11,7 @@ def test_login_page_loads(unauthenticated_page: Page, base_url: str):
     unauthenticated_page.goto(f"{base_url}/login")
 
     # Check title
-    expect(unauthenticated_page).to_have_title("Login - AIOps Platform")
+    expect(unauthenticated_page).to_have_title("Sign In - Remediation Engine")
 
     # Check form elements
     expect(unauthenticated_page.locator('input[name="username"]')).to_be_visible()
