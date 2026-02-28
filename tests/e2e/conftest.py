@@ -52,6 +52,19 @@ def browser_context_args(browser_context_args, _auth_storage_state):
 
 
 @pytest.fixture(scope="function")
+def unauthenticated_page(browser, base_url: str) -> Page:
+    """
+    Return a page with NO auth cookies so login-page tests work.
+    Uses a fresh, isolated browser context.
+    """
+    ctx = browser.new_context(viewport={"width": 1280, "height": 720})
+    page = ctx.new_page()
+    yield page
+    page.close()
+    ctx.close()
+
+
+@pytest.fixture(scope="function")
 def authenticated_page(page: Page, base_url: str, _auth_storage_state) -> Page:
     """
     Return an authenticated page. Authentication is handled once per session

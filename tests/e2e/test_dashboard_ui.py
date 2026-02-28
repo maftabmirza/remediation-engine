@@ -7,8 +7,8 @@ def test_dashboard_elements(authenticated_page: Page):
     """
     # The authenticated_page fixture ensures we are on the dashboard
     
-    # Check for sidebar navigation (use .first since there may be multiple nav elements)
-    expect(authenticated_page.locator('#sidebar nav').first).to_be_visible()
+    # Check for sidebar navigation — #sidebar IS the <nav> element
+    expect(authenticated_page.locator('nav#sidebar')).to_be_visible()
     
     # Check for main content area
     expect(authenticated_page.locator('main')).to_be_visible()
@@ -23,20 +23,18 @@ def test_navigation_to_runbooks(authenticated_page: Page):
     """
     Verify navigation from Dashboard to Runbooks page.
     """
-    # The sidebar is collapsed by default, so we need to hover on the parent nav item
-    # to trigger the flyout menu, then click the Runbooks link in the flyout
-    
-    # Find the Remediation nav group (parent of Runbooks)
-    remediation_nav = authenticated_page.locator('.nav-group').filter(
-        has=authenticated_page.locator('[data-tooltip="Remediation"]')
-    )
-    
-    # Hover to trigger the flyout menu
-    remediation_nav.hover()
-    
-    # Wait for flyout to appear and click Runbooks link in the flyout
-    runbooks_link = authenticated_page.locator('#remediationFlyout a[href="/runbooks"]')
-    runbooks_link.click()
+    # The sidebar uses expandable nav-groups with submenu items.
+    # Click the Remediation group header to expand it, then click the Runbooks item.
+
+    # Find the Remediation nav group by its data-nav-group attribute
+    remediation_nav = authenticated_page.locator('.nav-group[data-nav-group="remediation"]')
+
+    # Click the group header to expand the submenu
+    remediation_nav.locator('.has-submenu').click()
+
+    # Click the Runbooks submenu item (uses onclick navigation, not <a> tags)
+    runbooks_item = remediation_nav.locator('.submenu-item', has_text='Runbooks')
+    runbooks_item.click()
     
     # Verify we navigated to the runbooks page
     expect(authenticated_page).to_have_url(re.compile(r'.*/runbooks'))
