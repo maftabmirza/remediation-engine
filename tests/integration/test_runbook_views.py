@@ -3,6 +3,7 @@ Integration tests for runbook view pages (HTML rendering).
 Tests that templates render correctly and return proper content.
 """
 import pytest
+from fastapi.testclient import TestClient
 from uuid import uuid4
 
 
@@ -253,9 +254,9 @@ class TestOtherViewPages:
         # Should redirect to login or return 401
         assert response.status_code in [302, 401]
     
-    def test_runbook_view_renders_with_auth(self, client: TestClient, auth_headers, test_runbook):
+    def test_runbook_view_renders_with_auth(self, test_client: TestClient, auth_headers, test_runbook):
         """Test that authenticated user can view runbook page."""
-        response = client.get(
+        response = test_client.get(
             f"/runbooks/{test_runbook.id}/view",
             headers=auth_headers
         )
@@ -263,9 +264,9 @@ class TestOtherViewPages:
         assert response.status_code == 200
         assert "text/html" in response.headers.get("content-type", "")
     
-    def test_runbook_view_contains_runbook_name(self, client: TestClient, auth_headers, test_runbook):
+    def test_runbook_view_contains_runbook_name(self, test_client: TestClient, auth_headers, test_runbook):
         """Test that runbook view page contains the runbook name."""
-        response = client.get(
+        response = test_client.get(
             f"/runbooks/{test_runbook.id}/view",
             headers=auth_headers
         )
@@ -274,9 +275,9 @@ class TestOtherViewPages:
         html = response.text
         assert test_runbook.name in html
     
-    def test_runbook_view_contains_essential_sections(self, client: TestClient, auth_headers, test_runbook):
+    def test_runbook_view_contains_essential_sections(self, test_client: TestClient, auth_headers, test_runbook):
         """Test that runbook view page has all essential sections."""
-        response = client.get(
+        response = test_client.get(
             f"/runbooks/{test_runbook.id}/view",
             headers=auth_headers
         )
@@ -294,9 +295,9 @@ class TestOtherViewPages:
         # Should have some form of navigation (sidebar or header)
         assert "nav" in html.lower() or "sidebar" in html.lower() or "menu" in html.lower()
     
-    def test_runbook_view_has_correct_css_framework(self, client: TestClient, auth_headers, test_runbook):
+    def test_runbook_view_has_correct_css_framework(self, test_client: TestClient, auth_headers, test_runbook):
         """Test that runbook view uses Tailwind CSS, not Bootstrap."""
-        response = client.get(
+        response = test_client.get(
             f"/runbooks/{test_runbook.id}/view",
             headers=auth_headers
         )
@@ -314,9 +315,9 @@ class TestOtherViewPages:
         has_bootstrap = any(cls in html for cls in bootstrap_classes)
         assert not has_bootstrap, "Page should not use Bootstrap classes"
     
-    def test_runbook_view_with_steps(self, client: TestClient, auth_headers, test_runbook_with_steps):
+    def test_runbook_view_with_steps(self, test_client: TestClient, auth_headers, test_runbook_with_steps):
         """Test that runbook view displays steps."""
-        response = client.get(
+        response = test_client.get(
             f"/runbooks/{test_runbook_with_steps.id}/view",
             headers=auth_headers
         )
@@ -328,19 +329,19 @@ class TestOtherViewPages:
         for step in test_runbook_with_steps.steps:
             assert step.name in html
     
-    def test_runbook_view_nonexistent_returns_404(self, client: TestClient, auth_headers):
+    def test_runbook_view_nonexistent_returns_404(self, test_client: TestClient, auth_headers):
         """Test that non-existent runbook returns 404."""
         fake_id = uuid4()
-        response = client.get(
+        response = test_client.get(
             f"/runbooks/{fake_id}/view",
             headers=auth_headers
         )
         
         assert response.status_code == 404
     
-    def test_runbook_view_has_execute_modal(self, client: TestClient, auth_headers, test_runbook):
+    def test_runbook_view_has_execute_modal(self, test_client: TestClient, auth_headers, test_runbook):
         """Test that page includes execute modal functionality."""
-        response = client.get(
+        response = test_client.get(
             f"/runbooks/{test_runbook.id}/view",
             headers=auth_headers
         )
@@ -354,9 +355,9 @@ class TestOtherViewPages:
         # Should have form or button to execute
         assert "button" in html or "form" in html
     
-    def test_runbook_view_shows_metadata(self, client: TestClient, auth_headers, test_runbook):
+    def test_runbook_view_shows_metadata(self, test_client: TestClient, auth_headers, test_runbook):
         """Test that runbook view shows metadata like category and status."""
-        response = client.get(
+        response = test_client.get(
             f"/runbooks/{test_runbook.id}/view",
             headers=auth_headers
         )
@@ -371,9 +372,9 @@ class TestOtherViewPages:
         # Should show status indicators
         assert "active" in html.lower() or "enabled" in html.lower() or "draft" in html.lower()
     
-    def test_runbook_view_has_proper_html_structure(self, client: TestClient, auth_headers, test_runbook):
+    def test_runbook_view_has_proper_html_structure(self, test_client: TestClient, auth_headers, test_runbook):
         """Test that page has proper HTML structure."""
-        response = client.get(
+        response = test_client.get(
             f"/runbooks/{test_runbook.id}/view",
             headers=auth_headers
         )
@@ -390,9 +391,9 @@ class TestOtherViewPages:
         # Should have title
         assert "<title>" in html
     
-    def test_runbook_view_includes_scripts(self, client: TestClient, auth_headers, test_runbook):
+    def test_runbook_view_includes_scripts(self, test_client: TestClient, auth_headers, test_runbook):
         """Test that page includes necessary JavaScript."""
-        response = client.get(
+        response = test_client.get(
             f"/runbooks/{test_runbook.id}/view",
             headers=auth_headers
         )
@@ -408,16 +409,16 @@ class TestOtherViewPages:
 class TestRunbookListView:
     """Test runbook list page."""
     
-    def test_runbooks_list_page_loads(self, client: TestClient, auth_headers):
+    def test_runbooks_list_page_loads(self, test_client: TestClient, auth_headers):
         """Test that runbooks list page loads."""
-        response = client.get("/runbooks", headers=auth_headers)
+        response = test_client.get("/runbooks", headers=auth_headers)
         
         assert response.status_code == 200
         assert "text/html" in response.headers.get("content-type", "")
     
-    def test_runbooks_list_has_content(self, client: TestClient, auth_headers):
+    def test_runbooks_list_has_content(self, test_client: TestClient, auth_headers):
         """Test that runbooks list page has content."""
-        response = client.get("/runbooks", headers=auth_headers)
+        response = test_client.get("/runbooks", headers=auth_headers)
         
         assert response.status_code == 200
         html = response.text
@@ -425,9 +426,9 @@ class TestRunbookListView:
         assert len(html) > 1000
         assert "Runbook" in html or "runbook" in html
     
-    def test_runbooks_list_requires_auth(self, client: TestClient):
+    def test_runbooks_list_requires_auth(self, test_client: TestClient):
         """Test that runbooks list requires authentication."""
-        response = client.get("/runbooks")
+        response = test_client.get("/runbooks")
         
         # Should redirect to login or return 401
         assert response.status_code in [302, 401]
@@ -437,9 +438,9 @@ class TestRunbookListView:
 class TestRunbookEditView:
     """Test runbook edit page."""
     
-    def test_runbook_edit_page_loads(self, client: TestClient, auth_headers, test_runbook):
+    def test_runbook_edit_page_loads(self, test_client: TestClient, auth_headers, test_runbook):
         """Test that runbook edit page loads."""
-        response = client.get(
+        response = test_client.get(
             f"/runbooks/{test_runbook.id}/edit",
             headers=auth_headers
         )
@@ -447,9 +448,9 @@ class TestRunbookEditView:
         assert response.status_code == 200
         assert "text/html" in response.headers.get("content-type", "")
     
-    def test_runbook_edit_has_form(self, client: TestClient, auth_headers, test_runbook):
+    def test_runbook_edit_has_form(self, test_client: TestClient, auth_headers, test_runbook):
         """Test that edit page has form elements."""
-        response = client.get(
+        response = test_client.get(
             f"/runbooks/{test_runbook.id}/edit",
             headers=auth_headers
         )
@@ -472,9 +473,9 @@ class TestOtherViewPages:
         ("/alerts", ["Alert", "Severity"]),
         ("/executions", ["Execution", "Runbook"]),
     ])
-    def test_important_pages_render(self, client: TestClient, auth_headers, path, should_contain):
+    def test_important_pages_render(self, test_client: TestClient, auth_headers, path, should_contain):
         """Test that important pages render with expected content."""
-        response = client.get(path, headers=auth_headers)
+        response = test_client.get(path, headers=auth_headers)
         
         assert response.status_code == 200
         assert "text/html" in response.headers.get("content-type", "")
