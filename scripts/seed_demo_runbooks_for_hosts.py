@@ -358,7 +358,7 @@ def main() -> None:
     parser.add_argument("--base-url", default="http://t-aiops-01:8080")
     parser.add_argument("--hosts", required=True, help="Comma-separated hostnames, e.g. t-aiops-02,t-aiops-03")
     parser.add_argument("--username", default="admin")
-    parser.add_argument("--password", default="admin123")
+    parser.add_argument("--password", required=True, help="Admin password (no default for security)")
     parser.add_argument("--target-os", choices=["linux", "windows", "both"], default="linux")
     parser.add_argument("--ssh-port", type=int, default=22)
     parser.add_argument("--ssh-username", default="demo")

@@ -21,7 +21,7 @@ class Settings(BaseSettings):
 
     # Initial Admin
     admin_username: str = "admin"
-    admin_password: str = "admin123"
+    admin_password: str = ""  # Must be set via ADMIN_PASSWORD env var
 
     # LLM API Keys
     anthropic_api_key: str = ""
