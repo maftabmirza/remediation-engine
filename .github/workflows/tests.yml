@@ -252,6 +252,7 @@ jobs:
       - name: Install test dependencies
         run: |
           cd /aiops
+          pip install -r requirements.txt
           pip install -r requirements-test.txt
           playwright install --with-deps chromium
 
@@ -294,6 +295,7 @@ jobs:
       - name: Install test dependencies
         run: |
           cd /aiops
+          pip install -r requirements.txt
           pip install -r requirements-test.txt
 
       - name: Run performance tests
