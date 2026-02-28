@@ -57,6 +57,9 @@ class _StubPIIService:
     async def redact(self, text: str, redaction_type: str):
         return _StubRedactionResponse(text.replace("test@example.com", "[EMAIL_ADDRESS]"))
 
+    async def close(self):
+        pass
+
 
 def test_troubleshoot_agent_redacts_user_input(monkeypatch):
     from app.services.agentic.troubleshoot_native_agent import TroubleshootNativeAgent

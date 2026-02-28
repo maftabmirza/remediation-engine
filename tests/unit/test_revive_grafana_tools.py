@@ -30,7 +30,7 @@ async def test_search_dashboards_delegation(mock_db, mock_mcp_client):
     
     # Mock MCP response
     mock_result = MagicMock()
-    mock_result.is_error = False
+    mock_result.isError = False
     mock_result.content = [MagicMock(text="Dashboard 1")]
     mock_mcp_client.call_tool.return_value = mock_result
     
@@ -47,7 +47,7 @@ async def test_mcp_error_handling(mock_db, mock_mcp_client):
     
     # Mock MCP error
     mock_result = MagicMock()
-    mock_result.is_error = True
+    mock_result.isError = True
     mock_result.content = [MagicMock(text="Auth failed")]
     mock_mcp_client.call_tool.return_value = mock_result
     
