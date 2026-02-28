@@ -1,6 +1,6 @@
 import pytest
 import os
-from playwright.sync_api import Page, expect, sync_playwright
+from playwright.sync_api import Page, expect
 
 # Default to running against the local docker-compose environment
 DEFAULT_BASE_URL = os.getenv("BASE_URL", "http://localhost:8080")
@@ -11,31 +11,29 @@ def base_url():
 
 
 @pytest.fixture(scope="session")
-def _auth_storage_state(base_url):
+def _auth_storage_state(browser, base_url):
     """
     Log in ONCE per test session and capture the auth cookies/localStorage.
-    Subsequent tests reuse this state via browser_context_args, eliminating
-    per-test logins that can hit rate limits or cause navigation timeouts.
+    Uses the pytest-playwright session-scoped `browser` fixture directly so
+    we never call sync_playwright() inside an asyncio loop (which is forbidden
+    when asyncio_mode=auto is active).
     """
     admin_pass = os.getenv("ADMIN_PASSWORD")
     if not admin_pass:
         return None  # individual tests will skip when they detect no auth state
 
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        ctx = browser.new_context(viewport={"width": 1280, "height": 720})
-        page = ctx.new_page()
-        try:
-            page.goto(f"{base_url}/login")
-            page.fill('input[name="username"]', os.getenv("ADMIN_USERNAME", "admin"))
-            page.fill('input[name="password"]', admin_pass)
-            page.click('button[type="submit"]')
-            page.wait_for_url(lambda u: "login" not in u, timeout=45000)
-            return ctx.storage_state()
-        finally:
-            page.close()
-            ctx.close()
-            browser.close()
+    ctx = browser.new_context(viewport={"width": 1280, "height": 720})
+    page = ctx.new_page()
+    try:
+        page.goto(f"{base_url}/login")
+        page.fill('input[name="username"]', os.getenv("ADMIN_USERNAME", "admin"))
+        page.fill('input[name="password"]', admin_pass)
+        page.click('button[type="submit"]')
+        page.wait_for_url(lambda u: "login" not in u, timeout=45000)
+        return ctx.storage_state()
+    finally:
+        page.close()
+        ctx.close()
 
 
 @pytest.fixture(scope="function")
