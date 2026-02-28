@@ -2,8 +2,8 @@
     <!-- Sidebar Logo (Top-Left Corner) -->
     {% set design = get_design_settings() %}
     <div class="sidebar-logo">
-        <img src="{{ design.logo_url }}" alt="Logo" class="sidebar-logo-img logo-full">
-        <img src="{{ design.icon_url }}" alt="Icon" class="sidebar-logo-img logo-icon">
+        {% if design.logo_url %}<img src="{{ design.logo_url }}" alt="Logo" class="sidebar-logo-img logo-full">{% endif %}
+        {% if design.icon_url %}<img src="{{ design.icon_url }}" alt="Icon" class="sidebar-logo-img logo-icon">{% endif %}
     </div>
 
     <ul class="nav-menu">

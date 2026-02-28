@@ -20,6 +20,10 @@
         box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05);
         border-left: 4px solid #3b82f6;
         background: #ffffff;
+        max-height: 90vh;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
     }
 
     #serverModal .server-modal-dialog .input-field,
@@ -885,7 +889,7 @@
                         <div class="flex items-center justify-center rounded-lg p-4"
                             style="background:#f8fafc; border:1px dashed #cbd5e1; min-height:80px;">
                             <img id="design-preview-logo"
-                                src="{{ request.state.design.get('logo_url') if request.state.design and request.state.design.get('logo_url') else '/static/images/jackson_logo.svg' }}"
+                                src="{{ request.state.design.get('logo_url') if request.state.design and request.state.design.get('logo_url') else '' }}"
                                 alt="Logo Preview" style="max-height:48px; max-width:200px; object-fit:contain;">
                         </div>
                         <!-- Upload zone -->
@@ -926,7 +930,7 @@
                         <div class="flex items-center justify-center rounded-lg p-4"
                             style="background:#f8fafc; border:1px dashed #cbd5e1; min-height:80px;">
                             <img id="design-preview-icon"
-                                src="{{ request.state.design.get('icon_url') if request.state.design and request.state.design.get('icon_url') else '/static/images/jackson-icon.png' }}"
+                                src="{{ request.state.design.get('icon_url') if request.state.design and request.state.design.get('icon_url') else '' }}"
                                 alt="Icon Preview" style="max-height:48px; max-width:48px; object-fit:contain;">
                         </div>
                         <!-- Upload zone -->
@@ -1153,7 +1157,7 @@
 
 <!-- Server Modal -->
 <div id="serverModal"
-    class="modal-overlay" style="align-items: flex-start; padding-top: 80px; padding-bottom: 32px;">
+    class="modal-overlay" style="align-items: flex-start; padding-top: 80px; padding-bottom: 32px; overflow-y: auto;">
     <div class="server-modal-dialog card w-full max-w-5xl mx-auto max-h-[90vh] flex flex-col">
         <div class="flex items-center justify-between p-6 pb-0 flex-shrink-0">
             <div>
@@ -3981,8 +3985,7 @@
         toggleAuthFields();
         serverFormTestOk = false;
         editingServerId = null;
-        document.getElementById('serverModal').classList.remove('hidden');
-        document.getElementById('serverModal').classList.add('flex');
+        document.getElementById('serverModal').classList.add('active');
     }
 
     function showEditServerModal(serverId) {
@@ -4023,13 +4026,11 @@
         toggleProtocolFields();
         toggleCredentialSource();
         toggleAuthFields();
-        document.getElementById('serverModal').classList.remove('hidden');
-        document.getElementById('serverModal').classList.add('flex');
+        document.getElementById('serverModal').classList.add('active');
     }
 
     function closeServerModal() {
-        document.getElementById('serverModal').classList.add('hidden');
-        document.getElementById('serverModal').classList.remove('flex');
+        document.getElementById('serverModal').classList.remove('active');
     }
 
     document.getElementById('serverForm').addEventListener('submit', async (e) => {

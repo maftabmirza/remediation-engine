@@ -24,9 +24,9 @@ STORAGE_DIR = Path(__file__).parents[2] / "storage" / "design"
 UPLOAD_IMAGES_DIR = STORAGE_DIR / "images"  # writable volume (storage is not :ro)
 SETTINGS_FILE = STORAGE_DIR / "design_settings.json"
 
-# Default image paths (shipped with the repo)
-DEFAULT_LOGO = "/static/images/jackson_logo.png"
-DEFAULT_ICON = "/static/images/jackson-icon.png"
+# Default image paths (no built-in logo — upload via Settings → Design)
+DEFAULT_LOGO = ""
+DEFAULT_ICON = ""
 
 # Allowed MIME types
 ALLOWED_IMAGE_TYPES = {
