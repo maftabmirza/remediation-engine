@@ -37,7 +37,7 @@ async def test_run_revive_turn_grafana_mode(
     
     # Mock Agent and Registry
     with patch("app.services.revive.orchestrator.EnhancedToolRegistry") as MockRegistry, \
-         patch("app.services.revive.orchestrator.NativeToolAgent") as MockAgent:
+         patch("app.services.revive.orchestrator.ReviveQuickHelpAgent") as MockAgent:
             
         mock_registry_instance = MockRegistry.return_value
         mock_registry_instance.initialize = AsyncMock()
@@ -61,15 +61,14 @@ async def test_run_revive_turn_grafana_mode(
         MockRegistry.assert_called_once()
         call_kwargs = MockRegistry.call_args[1]
         assert "revive_grafana" in call_kwargs["modules"]
-        assert "revive_aiops" not in call_kwargs["modules"]
+        assert "revive_aiops_helper" not in call_kwargs["modules"]
         mock_registry_instance.initialize.assert_awaited_once()
         
         # Verify Agent Creation
         MockAgent.assert_called_once()
         agent_init_kwargs = MockAgent.call_args[1]
         assert agent_init_kwargs["initial_messages"][0]["role"] == "system"
-        assert "GRAFANA Mode" in agent_init_kwargs["initial_messages"][0]["content"]
-
+        assert "Grafana dashboards" in agent_init_kwargs["initial_messages"][0]["content"]
         # Verify stream content
         assert "data: " in chunks[0] # Mode event
         assert "Hello" in chunks[1]
@@ -86,14 +85,12 @@ async def test_run_revive_turn_aiops_mode(
     orchestrator.mode_detector.detect = MagicMock(return_value=mock_mode_result)
     
     with patch("app.services.revive.orchestrator.EnhancedToolRegistry") as MockRegistry, \
-         patch("app.services.revive.orchestrator.NativeToolAgent") as MockAgent:
+         patch("app.services.revive.orchestrator.ReviveQuickHelpAgent") as MockAgent:
             
         mock_registry_instance = MockRegistry.return_value
         mock_registry_instance.initialize = AsyncMock()
         
         mock_agent_instance = MockAgent.return_value
-        mock_agent_instance.stream = lambda msg: (yield "Executing") # Simpler mock if needed, but async generator preferred
-        
         async def mock_stream_gen(msg): yield "Executing"
         mock_agent_instance.stream = mock_stream_gen
 
@@ -102,9 +99,9 @@ async def test_run_revive_turn_aiops_mode(
             
         # Verify Modules
         call_kwargs = MockRegistry.call_args[1]
-        assert "revive_aiops" in call_kwargs["modules"]
+        assert "revive_aiops_helper" in call_kwargs["modules"]
         assert "revive_grafana" not in call_kwargs["modules"]
         
         # Verify System Prompt
         agent_init_kwargs = MockAgent.call_args[1]
-        assert "AIOps Mode" in agent_init_kwargs["initial_messages"][0]["content"]
+        assert "AIOps Platform" in agent_init_kwargs["initial_messages"][0]["content"]

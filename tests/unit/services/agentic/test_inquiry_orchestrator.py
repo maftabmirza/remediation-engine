@@ -53,7 +53,7 @@ async def test_process_query_success(orchestrator, mock_permission_service, mock
     mock_response_obj.tool_calls_made = ["tool1"]
 
     # Mock NativeToolAgent
-    with patch("app.services.agentic.inquiry_orchestrator.NativeToolAgent") as MockAgentClass:
+    with patch("app.services.agentic.inquiry_orchestrator.AiInquiryAgent") as MockAgentClass:
         mock_agent_instance = MockAgentClass.return_value
         mock_agent_instance.run = AsyncMock(return_value=mock_response_obj)
         
@@ -97,7 +97,7 @@ async def test_process_query_error(orchestrator, mock_permission_service):
     mock_permission_service.can_access_pillar.return_value = True
     
     # Mock NativeToolAgent to raise exception
-    with patch("app.services.agentic.inquiry_orchestrator.NativeToolAgent") as MockAgentClass:
+    with patch("app.services.agentic.inquiry_orchestrator.AiInquiryAgent") as MockAgentClass:
         mock_agent_instance = MockAgentClass.return_value
         mock_agent_instance.run = AsyncMock(side_effect=Exception("LLM Error"))
         

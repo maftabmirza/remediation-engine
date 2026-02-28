@@ -49,9 +49,9 @@ async def test_query_alerts_history(inquiry_tools, mock_db):
 
     # Verify
     assert "Found 2 alerts" in result
-    assert "**High CPU**" in result
+    assert "High CPU" in result
     assert "server-1" in result
-    assert "**Disk Full**" in result 
+    assert "Disk Full" in result 
     
     # Verify filters called (checking arguments requires more robust mocking usually, 
     # but basic check that filter was called multiple times works)

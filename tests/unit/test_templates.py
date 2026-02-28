@@ -24,7 +24,6 @@ class TestTemplateStructure:
     def test_base_templates_exist(self, template_dir):
         """Test that base templates exist."""
         assert (template_dir / "base.html").exists()
-        assert (template_dir / "layout.html").exists()
     
     def test_runbook_templates_exist(self, template_dir):
         """Test that runbook templates exist."""
@@ -33,8 +32,8 @@ class TestTemplateStructure:
         assert (template_dir / "runbook_form.html").exists()
     
     def test_templates_extend_correct_base(self, template_dir):
-        """Test that page templates extend layout.html."""
-        # Templates that should extend layout.html
+        """Test that page templates extend base.html."""
+        # Templates that should extend base.html
         page_templates = [
             "runbooks.html",
             "runbook_view.html",
@@ -51,10 +50,10 @@ class TestTemplateStructure:
             
             content = template_path.read_text()
             
-            # Should extend layout.html
+            # Should extend base.html
             if "{% extends" in content:
-                assert '{% extends "layout.html"' in content, \
-                    f"{template_name} should extend layout.html"
+                assert '{% extends "base.html"' in content, \
+                    f"{template_name} should extend base.html"
     
     def test_runbook_view_has_required_blocks(self, template_dir):
         """Test that runbook_view.html has required template blocks."""

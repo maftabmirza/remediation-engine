@@ -190,7 +190,14 @@ class PIIService:
         # Merge and deduplicate results
         merged_results = self.merger.merge(presidio_results, secret_results)
         deduplicated_results = self.merger.deduplicate(merged_results)
-        
+
+        # Filter out results below minimum confidence threshold (0.5)
+        MIN_CONFIDENCE = 0.5
+        deduplicated_results = [
+            r for r in deduplicated_results
+            if r.get('confidence', 0.0) >= MIN_CONFIDENCE
+        ]
+
         # Filter out whitelisted items
         if self.whitelist_service:
             logger.info(f"🔍 PII Whitelist Check: Checking {len(deduplicated_results)} detections against whitelist")

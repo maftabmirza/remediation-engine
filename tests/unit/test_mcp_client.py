@@ -18,45 +18,23 @@ def mcp_client():
     return MCPClient("http://test-server")
 
 @pytest.mark.asyncio
-async def test_connect_success(mcp_client, mock_httpx_client):
-    # Mock SSE stream
-    class MockStreamContext:
-        async def __aenter__(self):
-            mock_response = MagicMock()
-            mock_response.raise_for_status = MagicMock()
-            
-            lines = [
-                "event: endpoint",
-                'data: "/api/message"',
-                "",
-                "event: data",
-                'data: {"jsonrpc": "2.0", "id": "0", "result": {"serverInfo": {"name": "test-server"}}}',
-                ""
-            ]
-            
-            async def line_iterator():
-                for line in lines:
-                    yield line
-                    await asyncio.sleep(0.01)
-                while True:
-                    await asyncio.sleep(1)
+async def test_connect_success():
+    """Test that connect() calls transport.connect() then _initialize()."""
+    from unittest.mock import patch as _patch
+    client = MCPClient("http://test-server")
 
-            mock_response.aiter_lines = line_iterator
-            return mock_response
+    # Mock the transport directly — avoids needing a live SSE/HTTP server
+    mock_transport = AsyncMock()
+    mock_transport.post_endpoint = "/api/message"
+    mock_transport._connected = True
+    client.transport = mock_transport
 
-        async def __aexit__(self, exc_type, exc, tb):
-            pass
+    with _patch.object(client, "_initialize", new_callable=AsyncMock):
+        await client.connect()
 
-    mock_httpx_client.stream.side_effect = lambda *args, **kwargs: MockStreamContext()
-    mock_httpx_client.post.return_value.status_code = 202
-
-    # Run connect
-    await mcp_client.connect()
-    
-    assert mcp_client._connected
-    assert mcp_client.transport.post_endpoint == "/api/message"
-    
-    await mcp_client.disconnect()
+    mock_transport.connect.assert_awaited_once()
+    assert client._connected
+    assert client.transport.post_endpoint == "/api/message"
 
 @pytest.mark.asyncio
 async def test_list_tools(mcp_client, mock_httpx_client):

@@ -510,6 +510,7 @@ Tools called so far will be tracked. If you try to suggest a command without suf
         text: str,
         *,
         source_type: str,
+        source_id: Optional[str] = None,
         redaction_type: str = "tag",
         context_label: str = "text",
     ) -> str:

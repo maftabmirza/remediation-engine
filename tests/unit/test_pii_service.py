@@ -114,7 +114,7 @@ class TestPIIService:
         mock_presidio_service.analyze.return_value = [
             Mock(entity_type='EMAIL_ADDRESS', start=12, end=28, score=0.95)
         ]
-        mock_presidio_service.anonymize.return_value = "My email is [EMAIL_ADDRESS]"
+        mock_presidio_service.anonymize.return_value = {"text": "My email is [EMAIL_ADDRESS]", "items": []}
         
         # Act
         result = await pii_service.redact(text=text, redaction_type="mask")
@@ -134,7 +134,7 @@ class TestPIIService:
         mock_presidio_service.analyze.return_value = [
             Mock(entity_type='PASSWORD', start=10, end=19, score=0.88)
         ]
-        mock_presidio_service.anonymize.return_value = "Password: <HASH:abc123>"
+        mock_presidio_service.anonymize.return_value = {"text": "Password: <HASH:abc123>", "items": []}
         
         # Act
         result1 = await pii_service.redact(text=text1, redaction_type="hash")
@@ -167,7 +167,7 @@ class TestPIIService:
         await pii_service.log_detection(
             detection=detection,
             source_type="test",
-            source_id="test-123"
+            source_id="12345678-1234-5678-1234-567812345678"
         )
         
         # Assert

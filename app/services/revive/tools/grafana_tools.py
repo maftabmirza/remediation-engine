@@ -162,7 +162,7 @@ class GrafanaTools(ToolModule):
     # --- Handlers (Delegating to MCP Client) ---
 
     async def search_dashboards(self, args: Dict[str, Any]) -> str:
-        return await self._call_mcp("search_dashboards", args)
+        return await self._call_mcp("dashboards/search", args)
 
     async def get_dashboard_by_uid(self, args: Dict[str, Any]) -> str:
         return await self._call_mcp("get_dashboard_by_uid", args)
