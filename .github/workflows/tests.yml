@@ -203,8 +203,10 @@ jobs:
         run: |
           cd /aiops
           git fetch origin
+          git reset --hard HEAD
+          git clean -fd
           git checkout main
-          git pull origin main
+          git reset --hard origin/main
 
       - name: Build and restart app
         run: |
@@ -235,7 +237,13 @@ jobs:
     runs-on: self-hosted
     steps:
       - name: Pull latest code
-        run: cd /aiops && git pull
+        run: |
+          cd /aiops
+          git fetch origin
+          git reset --hard HEAD
+          git clean -fd
+          git checkout main
+          git reset --hard origin/main
 
       - uses: actions/setup-python@v5
         with:
@@ -271,7 +279,13 @@ jobs:
     runs-on: self-hosted
     steps:
       - name: Pull latest code
-        run: cd /aiops && git pull
+        run: |
+          cd /aiops
+          git fetch origin
+          git reset --hard HEAD
+          git clean -fd
+          git checkout main
+          git reset --hard origin/main
 
       - uses: actions/setup-python@v5
         with:
