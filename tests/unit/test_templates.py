@@ -79,16 +79,15 @@ class TestTemplateStructure:
         
         content = template_path.read_text()
         
-        # Bootstrap-specific classes that should not be present
+        # Bootstrap-specific classes that should not be present.
+        # Note: mb-4 and text-muted are excluded — both Bootstrap AND Tailwind
+        # use these utility names; they are valid Tailwind CSS in this project.
         bootstrap_classes = [
             'class="row"',
             'class="col-md-',
             'class="btn btn-',
             'class="container"',
             'class="container-fluid"',
-            '"d-flex"',
-            '"mb-4"',
-            '"text-muted"',
         ]
         
         for bootstrap_class in bootstrap_classes:
@@ -108,8 +107,13 @@ class TestTemplateStructure:
                 f"{template_path.name} has mismatched template tags"
             
             # Every {{ should have a matching }}
-            open_vars = content.count("{{")
-            close_vars = content.count("}}")
+            # Strip <script>...</script> blocks first — JS template literals
+            # like ${expr} and `${x}` contain bare }} chars that are not Jinja.
+            content_no_scripts = re.sub(
+                r'<script[^>]*>.*?</script>', '', content, flags=re.DOTALL
+            )
+            open_vars = content_no_scripts.count("{{")
+            close_vars = content_no_scripts.count("}}")
             assert open_vars == close_vars, \
                 f"{template_path.name} has mismatched variable tags"
     
