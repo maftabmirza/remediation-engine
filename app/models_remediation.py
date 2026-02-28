@@ -299,6 +299,7 @@ class RunbookExecution(Base):
         Index("idx_executions_status", "status"),
         Index("idx_executions_runbook_status", "runbook_id", "status"),
         Index("idx_executions_alert", "alert_id"),
+        Index("ix_runbook_executions_alert_id_status", "alert_id", "status"),  # similarity service bulk resolution lookup
         Index("idx_executions_queued_at", "queued_at"),
         Index("idx_executions_approval_token", "approval_token"),
     )

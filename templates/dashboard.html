@@ -721,15 +721,15 @@
         const badge = document.getElementById('itsmOpenBadge');
 
         try {
-            const incidents = await apiCall('/api/incidents?time_range=30d&status=open&page=1&page_size=5');
-
-            if (!Array.isArray(incidents) || incidents.length === 0) {
+            const _incResp = await apiCall('/api/incidents?time_range=30d&status=open&page=1&page_size=5');
+            const incidents = _incResp?.items || [];
+            if (incidents.length === 0) {
                 tbody.innerHTML = ''; empty.style.display = 'block';
                 badge.textContent = '0 Open';
                 return;
             }
 
-            badge.textContent = `${incidents.length} Open`;
+            badge.textContent = `${_incResp.total ?? incidents.length} Open`;
             empty.style.display = 'none';
             tbody.innerHTML = incidents.map(inc => {
                 const p = normalizeItsmPriority(inc.priority, inc.severity);

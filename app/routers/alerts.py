@@ -17,6 +17,7 @@ from app.schemas import (
 )
 from app.services.auth_service import get_current_user
 from app.services.llm_service import analyze_alert
+from app.utils.search import like_escape
 
 router = APIRouter(prefix="/api/alerts", tags=["Alerts"])
 
@@ -45,7 +46,7 @@ async def list_alerts(
     if analyzed is not None:
         query = query.filter(Alert.analyzed == analyzed)
     if alert_name:
-        query = query.filter(Alert.alert_name.ilike(f"%{alert_name}%"))
+        query = query.filter(Alert.alert_name.ilike(f"%{like_escape(alert_name)}%", escape="\\"))
     
     # Get total count
     total = query.count()

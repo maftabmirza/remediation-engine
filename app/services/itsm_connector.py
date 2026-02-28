@@ -636,6 +636,7 @@ class GenericAPIConnector:
                 db.rollback()
                 errors.append(f"Duplicate change_id: {record.get('change_id')}")
             except Exception as e:
+                db.rollback()
                 errors.append(f"Error processing {record.get('change_id')}: {str(e)}")
 
         try:
@@ -747,6 +748,7 @@ class GenericAPIConnector:
                 db.rollback()
                 errors.append(f"Duplicate incident_id: {record.get('incident_id')}")
             except Exception as e:
+                db.rollback()
                 errors.append(f"Error processing incident {record.get('incident_id')}: {str(e)}")
 
         try:

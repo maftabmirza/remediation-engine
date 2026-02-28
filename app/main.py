@@ -99,11 +99,11 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 # Configure logging
-# Include trace/span fields when OpenTelemetry logging instrumentation is enabled.
-# A filter in app.telemetry ensures these fields exist even when OTEL is off.
+# request_id: per-request correlation UUID (set by RequestIDMiddleware)
+# otelTraceID / otelSpanID: set by OpenTelemetry LoggingInstrumentor when OTEL is enabled
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(otelTraceID)s - %(otelSpanID)s - %(message)s"
+    format="%(asctime)s - %(name)s - %(levelname)s - %(request_id)s - %(otelTraceID)s - %(otelSpanID)s - %(message)s"
 )
 
 # Ensure log records always have otel fields (safe even when OTEL is disabled).
@@ -113,6 +113,16 @@ try:
     install_otel_log_filter()
 except Exception:
     # Never block app startup on log correlation.
+    pass
+
+# Install request-ID log factory so %(request_id)s is always present on every
+# LogRecord. A factory (not a logger-level filter) is used because filters on
+# the root *logger* are not invoked for records propagated from child loggers.
+try:
+    from app.middleware.request_id import install_request_id_log_factory
+
+    install_request_id_log_factory()
+except Exception:
     pass
 
 # Custom filter to suppress noisy Grafana WebSocket 403 errors
@@ -357,6 +367,29 @@ app = FastAPI(
 # This ensures HTTPS URLs are used in redirects when behind Nginx/SSL termination
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=["*"])
+
+# Security headers on every response (X-Content-Type-Options, HSTS, etc.)
+from app.middleware.security_headers import SecurityHeadersMiddleware
+app.add_middleware(SecurityHeadersMiddleware)
+
+# CORS — restrict cross-origin access to explicitly configured origins.
+# Set CORS_ALLOWED_ORIGINS in .env to a comma-separated list of origins.
+# If left empty, no cross-origin requests are permitted.
+from fastapi.middleware.cors import CORSMiddleware
+_cors_origins = get_settings().cors_origins_list
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_cors_origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
+)
+
+# Add RequestIDMiddleware — assigns a UUID to every request, propagates it
+# through background tasks via ContextVar, injects into log records, and
+# returns X-Request-ID on every response.
+from app.middleware.request_id import RequestIDMiddleware
+app.add_middleware(RequestIDMiddleware)
 
 @app.get("/redoc", include_in_schema=False)
 async def redoc_html():

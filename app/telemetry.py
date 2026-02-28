@@ -40,6 +40,10 @@ class _EnsureOtelLogFields(logging.Filter):
             record.otelSpanID = "-"
         if not hasattr(record, "otelServiceName"):
             record.otelServiceName = os.getenv("OTEL_SERVICE_NAME", "-")
+        # request_id is set by RequestIDLogFilter (app.middleware.request_id).
+        # Provide a safe default here so OTEL-only deployments never crash.
+        if not hasattr(record, "request_id"):
+            record.request_id = "-"
         return True
 
 
@@ -65,6 +69,8 @@ def install_otel_log_filter() -> None:
                 record.otelSpanID = "-"
             if not hasattr(record, "otelServiceName"):
                 record.otelServiceName = os.getenv("OTEL_SERVICE_NAME", "-")
+            if not hasattr(record, "request_id"):
+                record.request_id = "-"
             return record
 
         logging.setLogRecordFactory(record_factory)

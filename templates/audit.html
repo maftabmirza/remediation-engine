@@ -776,7 +776,7 @@
     // ─── Chat Sessions List ───
     async function loadChats() {
         try {
-            const data = await apiCall(`/api/audit/chat-sessions?page=${chatPage}&limit=${chatLimit}`);
+            const data = await apiCall(`/api/audit/chat-sessions?page=${chatPage}&page_size=${chatLimit}`);
             chatTotal = (data && typeof data.total === 'number') ? data.total : 0;
             renderChats(Array.isArray(data?.items) ? data.items : []);
             updateChatPagination();

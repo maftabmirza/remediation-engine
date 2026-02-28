@@ -15,15 +15,16 @@ from sqlalchemy import func, desc
 from app.database import get_db
 from app.models import User, LLMProvider, AuditLog
 from app.models_itsm import IncidentEvent
-from app.schemas_itsm import IncidentEventResponse, IncidentStatistics, IncidentAnalysisRequest
+from app.schemas_itsm import IncidentEventResponse, IncidentListResponse, IncidentStatistics, IncidentAnalysisRequest
 from app.routers.auth import get_current_user
+from app.utils.search import like_escape
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/incidents", tags=["incidents"])
 
 
-@router.get("", response_model=List[IncidentEventResponse])
+@router.get("", response_model=IncidentListResponse)
 async def list_incidents(
     time_range: str = Query("7d", pattern="^(24h|7d|30d|90d)$"),
     status: Optional[str] = None,
@@ -58,23 +59,23 @@ async def list_incidents(
         elif status.lower() == 'closed':
             query = query.filter(IncidentEvent.is_open == False)
         else:
-            query = query.filter(IncidentEvent.status.ilike(f"%{status}%"))
+            query = query.filter(IncidentEvent.status.ilike(f"%{like_escape(status)}%", escape="\\"))
             
     if severity:
-        query = query.filter(IncidentEvent.severity.ilike(f"%{severity}%"))
+        query = query.filter(IncidentEvent.severity.ilike(f"%{like_escape(severity)}%", escape="\\"))
         
     if priority:
-        query = query.filter(IncidentEvent.priority.ilike(f"%{priority}%"))
+        query = query.filter(IncidentEvent.priority.ilike(f"%{like_escape(priority)}%", escape="\\"))
         
     if service_name:
-        query = query.filter(IncidentEvent.service_name.ilike(f"%{service_name}%"))
-        
+        query = query.filter(IncidentEvent.service_name.ilike(f"%{like_escape(service_name)}%", escape="\\"))
+    
     if search:
-        search_term = f"%{search}%"
+        search_term = f"%{like_escape(search)}%"
         query = query.filter(
-            (IncidentEvent.title.ilike(search_term)) | 
-            (IncidentEvent.description.ilike(search_term)) |
-            (IncidentEvent.incident_id.ilike(search_term))
+            (IncidentEvent.title.ilike(search_term, escape="\\")) |
+            (IncidentEvent.description.ilike(search_term, escape="\\")) |
+            (IncidentEvent.incident_id.ilike(search_term, escape="\\"))
         )
         
     # Pagination
@@ -84,7 +85,14 @@ async def list_incidents(
         .limit(page_size)\
         .all()
         
-    return incidents
+    total_pages = (total + page_size - 1) // page_size if page_size > 0 else 1
+    return IncidentListResponse(
+        items=incidents,
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=max(total_pages, 1)
+    )
 
 
 @router.get("/statistics", response_model=IncidentStatistics)

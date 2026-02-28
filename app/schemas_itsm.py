@@ -195,6 +195,15 @@ class IncidentEventResponse(IncidentEventBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+class IncidentListResponse(BaseModel):
+    """Paginated list of incidents"""
+    items: List["IncidentEventResponse"]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+
+
 class IncidentAnalysisRequest(BaseModel):
     """Request to analyze an incident"""
     force: bool = False

@@ -304,6 +304,8 @@
 <script>
     let charts = {};
     let currentPage = 1;
+    let totalPages = 1;
+    let total = 0;
 
     // Initialize
     document.addEventListener('DOMContentLoaded', () => {
@@ -372,18 +374,18 @@
                 </tr>
             `;
 
-            const incidents = await apiCall(`/api/incidents?time_range=${timeRange}&page=${currentPage}&page_size=${pageSize}`);
-            if (!incidents) return;
+            const response = await apiCall(`/api/incidents?time_range=${timeRange}&page=${currentPage}&page_size=${pageSize}`);
+            if (!response) return;
+            const incidents = response.items || [];
 
-            // This is a simplified pagination because the API doesn't return total count in list response
-            // In a real app we'd wrap response in { items: [], total: 0 }
-            // For now assume if we got full page, there might be more
-            const hasMore = incidents.length === pageSize;
+            totalPages = response.total_pages || 1;
+            total = response.total || 0;
+            const hasMore = currentPage < totalPages;
 
             renderIncidentsTable(incidents);
 
-            // Update pagination UI roughly
-            document.getElementById('pageIndicator').textContent = `Page ${currentPage}`;
+            // Update pagination UI
+            document.getElementById('pageIndicator').textContent = `Page ${currentPage} of ${totalPages}`;
             document.getElementById('prevBtn').disabled = currentPage <= 1;
             document.getElementById('nextBtn').disabled = !hasMore;
 
@@ -450,7 +452,7 @@
             </tr>
         `).join('');
 
-        document.getElementById('paginationInfo').textContent = `Showing incidents on page ${currentPage}`;
+        document.getElementById('paginationInfo').textContent = `Showing incidents on page ${currentPage} — ${total} total`;
     }
 
     function prevPage() {

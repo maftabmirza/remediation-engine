@@ -28,6 +28,7 @@ from app.services.loki_client import LokiClient
 from app.services.tempo_client import TempoClient
 from app.services.auth_service import get_current_user
 from app.models import User
+from app.utils.search import like_escape
 
 router = APIRouter(
     prefix="/api/grafana-datasources",
@@ -200,11 +201,11 @@ async def list_datasources(
         query = query.filter(GrafanaDatasource.is_enabled == is_enabled)
 
     if search:
-        search_pattern = f"%{search}%"
+        search_pattern = f"%{like_escape(search)}%"
         query = query.filter(
             or_(
-                GrafanaDatasource.name.ilike(search_pattern),
-                GrafanaDatasource.description.ilike(search_pattern)
+                GrafanaDatasource.name.ilike(search_pattern, escape="\\"),
+                GrafanaDatasource.description.ilike(search_pattern, escape="\\")
             )
         )
 

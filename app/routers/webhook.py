@@ -285,10 +285,10 @@ async def receive_alertmanager_webhook(
             )
             
             db.add(alert)
-            db.commit()
+            db.flush()   # Flush to get alert.id without committing yet
             db.refresh(alert)
-            
-            # Create incident metrics
+
+            # Create incident metrics (committed together with the alert below)
             metric = IncidentMetrics(
                 alert_id=alert.id,
                 incident_started=timestamp,
@@ -298,7 +298,7 @@ async def receive_alertmanager_webhook(
             )
             metric.calculate_durations()
             db.add(metric)
-            db.commit()
+            db.commit()  # Single commit for both alert and metric
             
             logger.info(f"Stored alert: {alert_name} (action: {action})")
             
@@ -330,6 +330,7 @@ async def receive_alertmanager_webhook(
                 
         except Exception as e:
             logger.error(f"Error processing alert: {str(e)}")
+            db.rollback()
             ALERTS_PROCESSED.labels(action="error").inc()
             processed.append({
                 "alert_name": alert_data.labels.get("alertname", "Unknown"),

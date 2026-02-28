@@ -59,7 +59,13 @@ with engine.connect() as conn:
     has_tables = 'users' in tables or 'alerts' in tables or 'runbooks' in tables
     
     # Check if Atlas tracking table exists
-    has_atlas = 'atlas_schema_revisions' in tables
+    # Atlas stores its revision table in a dedicated schema, not public
+    has_atlas_result = conn.execute(text(
+        \"SELECT 1 FROM information_schema.tables \"
+        \"WHERE table_schema = 'atlas_schema_revisions' \"
+        \"AND table_name = 'atlas_schema_revisions'\"
+    )).first()
+    has_atlas = has_atlas_result is not None
     
     if has_tables and has_atlas:
         print('ATLAS: Existing database with Atlas tracking')

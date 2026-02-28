@@ -3112,6 +3112,13 @@ CREATE INDEX ix_alerts_fingerprint ON public.alerts USING btree (fingerprint);
 
 
 --
+-- Name: ix_alerts_fingerprint_timestamp; Type: INDEX; Schema: public; Owner: aiops
+--
+
+CREATE INDEX ix_alerts_fingerprint_timestamp ON public.alerts USING btree (fingerprint, "timestamp");
+
+
+--
 -- Name: ix_alerts_severity; Type: INDEX; Schema: public; Owner: aiops
 --
 
@@ -3123,6 +3130,13 @@ CREATE INDEX ix_alerts_severity ON public.alerts USING btree (severity);
 --
 
 CREATE INDEX ix_alerts_status ON public.alerts USING btree (status);
+
+
+--
+-- Name: ix_alerts_status_analyzed; Type: INDEX; Schema: public; Owner: aiops
+--
+
+CREATE INDEX ix_alerts_status_analyzed ON public.alerts USING btree (status, analyzed);
 
 
 --
@@ -3242,6 +3256,13 @@ CREATE INDEX ix_auto_analyze_rules_enabled ON public.auto_analyze_rules USING bt
 --
 
 CREATE INDEX ix_auto_analyze_rules_priority ON public.auto_analyze_rules USING btree (priority);
+
+
+--
+-- Name: ix_auto_analyze_rules_enabled_priority; Type: INDEX; Schema: public; Owner: aiops
+--
+
+CREATE INDEX ix_auto_analyze_rules_enabled_priority ON public.auto_analyze_rules USING btree (enabled, priority);
 
 
 --
@@ -3606,6 +3627,13 @@ CREATE INDEX ix_query_history_executed_at ON public.query_history USING btree (e
 --
 
 CREATE UNIQUE INDEX ix_roles_name ON public.roles USING btree (name);
+
+
+--
+-- Name: ix_runbook_executions_alert_id_status; Type: INDEX; Schema: public; Owner: aiops
+--
+
+CREATE INDEX ix_runbook_executions_alert_id_status ON public.runbook_executions USING btree (alert_id, status);
 
 
 --

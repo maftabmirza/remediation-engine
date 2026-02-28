@@ -63,7 +63,7 @@ class PaginatedChatSessionsResponse(BaseModel):
     items: List[ChatSessionListItem]
     total: int
     page: int
-    limit: int
+    page_size: int
 
 
 class ChatMessageResponse(BaseModel):
@@ -182,13 +182,13 @@ def get_terminal_recording(
 @router.get("/chat-sessions", response_model=PaginatedChatSessionsResponse)
 def list_chat_sessions(
     page: int = Query(1, ge=1),
-    limit: int = Query(25, ge=1, le=100),
+    page_size: int = Query(25, ge=1, le=100),
     user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     """List AI chat sessions (admin only) with pagination."""
     total = db.query(func.count(AISession.id)).scalar() or 0
-    offset = (page - 1) * limit
+    offset = (page - 1) * page_size
 
     sessions = (
         db.query(
@@ -201,7 +201,7 @@ def list_chat_sessions(
         .outerjoin(User, User.id == AISession.user_id)
         .order_by(desc(AISession.created_at))
         .offset(offset)
-        .limit(limit)
+        .limit(page_size)
         .all()
     )
 
@@ -230,7 +230,7 @@ def list_chat_sessions(
             )
         )
 
-    return PaginatedChatSessionsResponse(items=items, total=int(total), page=page, limit=limit)
+    return PaginatedChatSessionsResponse(items=items, total=int(total), page=page, page_size=page_size)
 
 
 @router.get("/chat-sessions/{session_id}/transcript", response_model=List[ChatMessageResponse])

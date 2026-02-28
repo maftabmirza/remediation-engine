@@ -1,7 +1,7 @@
 """SQLAlchemy ORM Models"""
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, Boolean, Integer, Text, ForeignKey, DateTime, JSON, CheckConstraint
+from sqlalchemy import Column, String, Boolean, Integer, Text, ForeignKey, DateTime, JSON, CheckConstraint, Index
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship, validates, object_session
 from typing import TYPE_CHECKING
@@ -129,6 +129,11 @@ class AutoAnalyzeRule(Base):
     created_at = Column(DateTime(timezone=True), default=utc_now)
     updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
 
+    # Composite index: rules engine queries enabled=True ORDER BY priority on every alert
+    __table_args__ = (
+        Index('ix_auto_analyze_rules_enabled_priority', 'enabled', 'priority'),
+    )
+
     # Relationships
     created_by_user = relationship("User", back_populates="rules_created")
     matched_alerts = relationship("Alert", back_populates="matched_rule")
@@ -239,6 +244,12 @@ class Alert(Base):
     # Alert Clustering
     cluster_id = Column(UUID(as_uuid=True), ForeignKey("alert_clusters.id", ondelete="SET NULL"), nullable=True, index=True)
     clustered_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Composite indexes for high-frequency query patterns
+    __table_args__ = (
+        Index('ix_alerts_fingerprint_timestamp', 'fingerprint', 'timestamp'),
+        Index('ix_alerts_status_analyzed', 'status', 'analyzed'),
+    )
 
     # Relationships
     matched_rule = relationship("AutoAnalyzeRule", back_populates="matched_alerts")

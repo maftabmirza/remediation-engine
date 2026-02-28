@@ -22,6 +22,8 @@ from app.schemas import LoginRequest, LoginResponse, UserResponse, UserCreate, C
 from app.services.auth_service import (
     authenticate_user,
     create_access_token,
+    decode_token,
+    blacklist_token,
     get_current_user,
     get_permissions_for_role,
     get_password_hash
@@ -306,8 +308,26 @@ async def logout(
     db: Session = Depends(get_db)
 ):
     """
-    Logout user by clearing the cookie.
+    Logout user: clears the session cookie and revokes the current token
+    so it cannot be replayed for the remainder of its validity window.
     """
+    # Extract the raw token from cookie or Authorization header
+    raw_token = request.cookies.get("access_token")
+    if not raw_token:
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            raw_token = auth_header[7:]
+
+    # Revoke the token so it cannot be reused even before it expires
+    if raw_token:
+        payload = decode_token(raw_token)
+        if payload:
+            from datetime import datetime
+            jti = payload.get("jti")
+            exp = payload.get("exp")
+            if jti and exp:
+                blacklist_token(jti, datetime.utcfromtimestamp(exp))
+
     # Log the logout
     audit = AuditLog(
         user_id=current_user.id,
@@ -318,10 +338,10 @@ async def logout(
     )
     db.add(audit)
     db.commit()
-    
+
     # Clear cookie
     response.delete_cookie(key="access_token")
-    
+
     return {"message": "Successfully logged out"}
 
 

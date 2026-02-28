@@ -14,6 +14,7 @@ from app.database import get_db
 from app.models_dashboards import PrometheusPanel, PrometheusDatasource, PanelType
 from app.routers.auth import get_current_user
 from app.routers.datasources_api import decrypt_password
+from app.utils.search import like_escape
 
 router = APIRouter(prefix="/api/panels", tags=["Panels"])
 
@@ -242,10 +243,10 @@ async def list_panels(
         query = query.filter(PrometheusPanel.is_template == is_template)
 
     if search:
-        search_pattern = f"%{search}%"
+        search_pattern = f"%{like_escape(search)}%"
         query = query.filter(
-            (PrometheusPanel.name.ilike(search_pattern)) |
-            (PrometheusPanel.description.ilike(search_pattern))
+            (PrometheusPanel.name.ilike(search_pattern, escape="\\")) |
+            (PrometheusPanel.description.ilike(search_pattern, escape="\\"))
         )
 
     if tag:

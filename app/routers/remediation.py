@@ -35,6 +35,7 @@ from ..schemas_remediation import (
 )
 from ..services.auth_service import get_current_user, require_role
 from ..services.runbook_knowledge_service import RunbookKnowledgeService
+from ..utils.search import like_escape
 
 router = APIRouter(prefix="/api/remediation", tags=["Auto-Remediation"])
 
@@ -77,8 +78,8 @@ async def list_runbooks(
     if search:
         conditions.append(
             or_(
-                Runbook.name.ilike(f"%{search}%"),
-                Runbook.description.ilike(f"%{search}%")
+                Runbook.name.ilike(f"%{like_escape(search)}%", escape="\\"),
+                Runbook.description.ilike(f"%{like_escape(search)}%", escape="\\")
             )
         )
     

@@ -1,4 +1,4 @@
-h1:0lg27P5dLVqSG9XDO9ll0ZKZaVOPiNyMzzvAQ02ASV4=
+h1:+o/T9AC2QJZ3iIUatNbkgtYC1YU0MpoSBog2euplKYE=
 20260126000000_initial_schema.sql h1:BSAXiYDSX3UpJAGtIbVmzhfrkvXPcHp0m9fTZ3yaUt0=
 20260127000000_add_pii_detection_tables.sql h1:oAbBJNKXEgD3x6H4LFmml2jb52SmUz2kMtiY38uwuW4=
 20260131000000_add_pii_mapping_to_sessions.sql h1:fiERzU0U11Q5je2BDVePJPy4wj8UHR2OAysF/KGojgA=
@@ -8,3 +8,4 @@ h1:0lg27P5dLVqSG9XDO9ll0ZKZaVOPiNyMzzvAQ02ASV4=
 20260226000000_add_sso_fields.sql h1:sIkdUe8QaTotBG7eOwEbVPVM7joxvvdnXirTgeoBS6g=
 20260226000001_update_doc_type_to_three_types.sql h1:ETGx0Ir85M1sAhQlifhhi9VZj+L4QdKbZypkqJaeOXU=
 20260228000000_add_llm_provider_usage_type.sql h1:VjwaZxDXg1lFgwKRrCbnELbMGUAxQt6O2kREBoKMVfg=
+20260228000001_add_composite_indexes.sql h1:rLiThJ+S5V6Y1Y92BFNbZNQYdA2qiZ/FTpfKR9Xv7qU=
