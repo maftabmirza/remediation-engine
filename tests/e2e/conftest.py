@@ -1,6 +1,6 @@
 import pytest
 import os
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Page, expect, sync_playwright
 
 # Default to running against the local docker-compose environment
 DEFAULT_BASE_URL = os.getenv("BASE_URL", "http://localhost:8080")
@@ -9,50 +9,62 @@ DEFAULT_BASE_URL = os.getenv("BASE_URL", "http://localhost:8080")
 def base_url():
     return DEFAULT_BASE_URL
 
-@pytest.fixture(scope="function")
-def authenticated_page(page: Page, base_url: str) -> Page:
-    """
-    Login to the application and return the authenticated page.
-    This fixture assumes the default admin credentials.
-    """
-    # Go to login page
-    page.goto(f"{base_url}/login")
-    
-    # Check if we are already logged in (redirected to dashboard)
-    if "login" not in page.url:
-        return page
-
-    # Credentials come from env vars set by CI (GitHub Secrets) or local env.
-    # For local runs: export ADMIN_USERNAME=admin ADMIN_PASSWORD=<your-password>
-    admin_user = os.getenv("ADMIN_USERNAME", "admin")
-    admin_pass = os.getenv("ADMIN_PASSWORD")
-    if not admin_pass:
-        pytest.skip("ADMIN_PASSWORD env var not set — skipping E2E login tests")
-    page.fill('input[name="username"]', admin_user)
-    page.fill('input[name="password"]', admin_pass)
-
-    # Click login — the form uses a JS fetch then window.location.href = '/'
-    page.click('button[type="submit"]')
-
-    # Wait flexibly for URL to leave login page
-    page.wait_for_url(lambda u: "login" not in u, timeout=45000)
-
-    # Extra guard: if somehow still on login (bad creds etc.) raise clearly
-    if "login" in page.url:
-        raise RuntimeError(f"E2E login failed — still on {page.url}")
-    
-    return page
 
 @pytest.fixture(scope="session")
-def browser_context_args(browser_context_args):
+def _auth_storage_state(base_url):
     """
-    Override default browser context arguments.
+    Log in ONCE per test session and capture the auth cookies/localStorage.
+    Subsequent tests reuse this state via browser_context_args, eliminating
+    per-test logins that can hit rate limits or cause navigation timeouts.
     """
-    return {
+    admin_pass = os.getenv("ADMIN_PASSWORD")
+    if not admin_pass:
+        return None  # individual tests will skip when they detect no auth state
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        ctx = browser.new_context(viewport={"width": 1280, "height": 720})
+        page = ctx.new_page()
+        try:
+            page.goto(f"{base_url}/login")
+            page.fill('input[name="username"]', os.getenv("ADMIN_USERNAME", "admin"))
+            page.fill('input[name="password"]', admin_pass)
+            page.click('button[type="submit"]')
+            page.wait_for_url(lambda u: "login" not in u, timeout=45000)
+            return ctx.storage_state()
+        finally:
+            page.close()
+            ctx.close()
+            browser.close()
+
+
+@pytest.fixture(scope="function")
+def browser_context_args(browser_context_args, _auth_storage_state):
+    """
+    Inject session-scoped auth cookies into every new browser context so that
+    each test page starts already authenticated — no per-test login needed.
+    """
+    base_args = {
         **browser_context_args,
-        "viewport": {
-            "width": 1280,
-            "height": 720,
-        },
-        # "record_video_dir": "test-results/videos",  # Enable if debugging needed
+        "viewport": {"width": 1280, "height": 720},
     }
+    if _auth_storage_state:
+        base_args["storage_state"] = _auth_storage_state
+    return base_args
+
+
+@pytest.fixture(scope="function")
+def authenticated_page(page: Page, base_url: str, _auth_storage_state) -> Page:
+    """
+    Return an authenticated page. Authentication is handled once per session
+    by _auth_storage_state and injected into the context via browser_context_args.
+    """
+    if not _auth_storage_state:
+        pytest.skip("ADMIN_PASSWORD env var not set — skipping E2E login tests")
+
+    # Navigate to home; if cookies are valid we won't be redirected to /login
+    page.goto(f"{base_url}/")
+    if "login" in page.url:
+        raise RuntimeError(f"E2E auth failed — still on {page.url}")
+
+    return page

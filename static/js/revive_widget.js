@@ -59,11 +59,11 @@ document.addEventListener('DOMContentLoaded', () => {
         isOpen = !!nextOpen;
         if (isOpen) {
             appContainer.classList.add('ai-open');
-            // agentWindow.classList.add('visible'); // Handled by CSS
+            if (agentWindow) agentWindow.classList.add('visible');
             setTimeout(() => input?.focus(), 0);
         } else {
             appContainer.classList.remove('ai-open');
-            // agentWindow.classList.remove('visible'); // Handled by CSS
+            if (agentWindow) agentWindow.classList.remove('visible');
         }
     }
 
@@ -144,6 +144,14 @@ document.addEventListener('DOMContentLoaded', () => {
             setOpen(false);
         });
     }
+
+    // Keyboard shortcut: Ctrl+Shift+A to toggle widget
+    document.addEventListener('keydown', (e) => {
+        if (e.ctrlKey && e.shiftKey && e.key === 'A') {
+            e.preventDefault();
+            toggleWindow();
+        }
+    });
 
     async function trackSolutionChoice(auditLogId, choiceData) {
         try {

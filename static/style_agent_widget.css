@@ -12,7 +12,7 @@
     height: 100%;
     width: 100%;
     position: relative;
-    z-index: 100;
+    z-index: 300;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     pointer-events: auto;
     overflow: hidden;

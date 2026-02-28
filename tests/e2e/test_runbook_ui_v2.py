@@ -13,7 +13,8 @@ def test_runbook_list_loads(authenticated_page: Page):
     expect(authenticated_page.locator("h1, h2").first).to_have_text(re.compile(r"Runbook", re.IGNORECASE))
     
     # Check for "Create Runbook" button - it is an anchor tag
-    expect(authenticated_page.locator("a[href='/runbooks/new']")).to_be_visible()
+    # Use .first to avoid strict mode violation when the empty-state also has a link
+    expect(authenticated_page.locator("a[href='/runbooks/new']").first).to_be_visible()
     
     # Check for list headers - div based layout
     # Using specific text locators for headers we know exist
@@ -28,7 +29,7 @@ def test_create_new_runbook(authenticated_page: Page):
     authenticated_page.goto("/runbooks")
     
     # Click Create Runbook
-    authenticated_page.click("a[href='/runbooks/new']")
+    authenticated_page.locator("a[href='/runbooks/new']").first.click()
     
     # Verify we are on create page
     expect(authenticated_page).to_have_url(re.compile(r".*/runbooks/new"))
