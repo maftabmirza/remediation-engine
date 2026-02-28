@@ -22,9 +22,14 @@ def authenticated_page(page: Page, base_url: str) -> Page:
     if "login" not in page.url:
         return page
 
-    # Fill credentials — defaults from docker-compose ADMIN_PASSWORD env
-    page.fill('input[name="username"]', os.getenv("ADMIN_USERNAME", "admin"))
-    page.fill('input[name="password"]', os.getenv("ADMIN_PASSWORD", "admin123"))
+    # Credentials come from env vars set by CI (GitHub Secrets) or local env.
+    # For local runs: export ADMIN_USERNAME=admin ADMIN_PASSWORD=<your-password>
+    admin_user = os.getenv("ADMIN_USERNAME", "admin")
+    admin_pass = os.getenv("ADMIN_PASSWORD")
+    if not admin_pass:
+        pytest.skip("ADMIN_PASSWORD env var not set — skipping E2E login tests")
+    page.fill('input[name="username"]', admin_user)
+    page.fill('input[name="password"]', admin_pass)
 
     # Click login — the form uses a JS fetch then window.location.href = '/'
     with page.expect_navigation(timeout=20000):

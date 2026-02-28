@@ -69,8 +69,8 @@ jobs:
 
       - name: Run unit tests
         env:
-          JWT_SECRET_KEY: test-secret-key-for-ci
-          ENCRYPTION_KEY: test-encryption-key-32chars-ok!
+          JWT_SECRET_KEY: ${{ secrets.CI_JWT_SECRET_KEY || 'test-secret-key-for-ci' }}
+          ENCRYPTION_KEY: ${{ secrets.CI_ENCRYPTION_KEY || 'test-encryption-key-32chars-ok!' }}
         run: pytest tests/unit -v --cov=app --cov-report=xml --cov-report=term
 
       - name: Upload coverage to Codecov
@@ -99,7 +99,7 @@ jobs:
         image: pgvector/pgvector:pg16
         env:
           POSTGRES_USER: aiops
-          POSTGRES_PASSWORD: aiops_secure_password
+          POSTGRES_PASSWORD: ${{ secrets.TEST_DB_PASSWORD || 'aiops_secure_password' }}
           POSTGRES_DB: aiops_test
         options: >-
           --health-cmd pg_isready
@@ -126,17 +126,19 @@ jobs:
         run: sudo apt-get install -y postgresql-client
 
       - name: Apply database migrations
+        env:
+          PGPASSWORD: ${{ secrets.TEST_DB_PASSWORD || 'aiops_secure_password' }}
         run: |
           for f in $(ls migrations/*.sql | sort); do
             echo "Applying $f"
-            PGPASSWORD=aiops_secure_password psql -h localhost -U aiops -d aiops_test -f "$f" || true
+            psql -h localhost -U aiops -d aiops_test -f "$f" || true
           done
 
       - name: Run integration tests
         env:
-          DATABASE_URL: postgresql://aiops:aiops_secure_password@localhost:5432/aiops_test
-          JWT_SECRET_KEY: test-secret-key-for-ci
-          ENCRYPTION_KEY: test-encryption-key-32chars-ok!
+          DATABASE_URL: postgresql://aiops:${{ secrets.TEST_DB_PASSWORD || 'aiops_secure_password' }}@localhost:5432/aiops_test
+          JWT_SECRET_KEY: ${{ secrets.CI_JWT_SECRET_KEY || 'test-secret-key-for-ci' }}
+          ENCRYPTION_KEY: ${{ secrets.CI_ENCRYPTION_KEY || 'test-encryption-key-32chars-ok!' }}
         run: pytest tests/integration -v --cov=app --cov-report=xml --cov-report=term
 
       - name: Upload coverage to Codecov
@@ -257,6 +259,10 @@ jobs:
           playwright install --with-deps chromium
 
       - name: Run E2E tests
+        env:
+          BASE_URL: http://localhost:8080
+          ADMIN_USERNAME: ${{ secrets.ADMIN_USERNAME || 'admin' }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
         run: |
           cd /aiops
           pytest tests/e2e -v
