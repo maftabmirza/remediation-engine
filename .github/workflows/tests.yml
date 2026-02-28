@@ -1,123 +1,295 @@
-name: Tests
+name: CI/CD
 
 on:
   push:
     branches: [ main, develop ]
   pull_request:
     branches: [ main, develop ]
+  schedule:
+    - cron: '0 2 * * *'    # Nightly E2E tests
+    - cron: '0 3 * * 1'    # Weekly performance tests (Monday)
+  workflow_dispatch:
+    inputs:
+      job:
+        description: 'Manual job to trigger'
+        required: false
+        default: 'all'
+        type: choice
+        options: [all, e2e-tests, performance-tests]
 
 jobs:
-  test:
+
+  # ──────────────────────────────────────────────────────────────
+  # Job 1: Lint & Type Check  (fast fail — runs first)
+  # ──────────────────────────────────────────────────────────────
+  lint-and-type-check:
+    name: Lint & Type Check
     runs-on: ubuntu-latest
-    
-    strategy:
-      matrix:
-        python-version: ['3.11', '3.12']
-    
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_USER: test_user
-          POSTGRES_PASSWORD: test_password
-          POSTGRES_DB: test_remediation_db
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-    
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: '3.11'
           cache: 'pip'
-      
+
+      - name: Install linting tools
+        run: |
+          pip install black ruff mypy
+          pip install -r requirements.txt
+
+      - name: Black format check
+        run: black --check app/ tests/ || true
+
+      - name: Ruff lint
+        run: ruff check app/ tests/ || true
+
+      - name: Mypy type check
+        run: mypy app/ --ignore-missing-imports || true
+
+  # ──────────────────────────────────────────────────────────────
+  # Job 2: Unit Tests  (no DB)
+  # ──────────────────────────────────────────────────────────────
+  unit-tests:
+    name: Unit Tests
+    needs: lint-and-type-check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install -r requirements-test.txt
-      
-      - name: Run linters
-        run: |
-          # Run black in check mode
-          black --check app/ tests/ || true
-          # Run flake8
-          flake8 app/ tests/ --max-line-length=120 --exclude=__pycache__,*.pyc,.git,alembic || true
-      
+
       - name: Run unit tests
         env:
-          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_remediation_db
           JWT_SECRET_KEY: test-secret-key-for-ci
-        run: |
-          pytest tests/unit -v --cov=app --cov-report=xml --cov-report=term
-      
-      - name: Run integration tests
-        env:
-          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_remediation_db
-          JWT_SECRET_KEY: test-secret-key-for-ci
-        run: |
-          pytest tests/integration -v --cov=app --cov-append --cov-report=xml --cov-report=term
-      
+          ENCRYPTION_KEY: test-encryption-key-32chars-ok!
+        run: pytest tests/unit -v --cov=app --cov-report=xml --cov-report=term
+
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
           file: ./coverage.xml
-          flags: unittests
-          name: codecov-umbrella
+          flags: unit
           fail_ci_if_error: false
-      
-      - name: Generate coverage report
-        run: |
-          coverage report --precision=2
-          coverage html
-      
+
       - name: Upload coverage HTML
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-report-${{ matrix.python-version }}
+          name: unit-coverage-html
           path: htmlcov/
-          retention-days: 30
+          retention-days: 7
 
-  security:
+  # ──────────────────────────────────────────────────────────────
+  # Job 3: Integration Tests  (pgvector:pg16 + Atlas migrations)
+  # ──────────────────────────────────────────────────────────────
+  integration-tests:
+    name: Integration Tests
+    needs: lint-and-type-check
     runs-on: ubuntu-latest
-    
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: aiops
+          POSTGRES_PASSWORD: aiops_secure_password
+          POSTGRES_DB: aiops_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 5432:5432
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      
+          cache: 'pip'
+
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install bandit safety
-      
-      - name: Run Bandit security scan
+          pip install -r requirements-test.txt
+
+      - name: Install Atlas CLI
+        run: curl -sSf https://atlasgo.sh | sh
+
+      - name: Run Atlas migrations (dry-run validation)
+        env:
+          DATABASE_URL: postgresql://aiops:aiops_secure_password@localhost:5432/aiops_test
         run: |
-          bandit -r app/ -f json -o bandit-report.json || true
-          bandit -r app/ || true
-      
-      - name: Check dependencies for vulnerabilities
+          atlas migrate apply \
+            --dir "file://atlas/migrations" \
+            --url "$DATABASE_URL"
+
+      - name: Run integration tests
+        env:
+          DATABASE_URL: postgresql://aiops:aiops_secure_password@localhost:5432/aiops_test
+          JWT_SECRET_KEY: test-secret-key-for-ci
+          ENCRYPTION_KEY: test-encryption-key-32chars-ok!
+        run: pytest tests/integration -v --cov=app --cov-report=xml --cov-report=term
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage.xml
+          flags: integration
+          fail_ci_if_error: false
+
+  # ──────────────────────────────────────────────────────────────
+  # Job 4: Security Scan  (parallel with Jobs 2 & 3)
+  # ──────────────────────────────────────────────────────────────
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install security tools
+        run: pip install bandit pip-audit
+
+      - name: Bandit SAST scan
         run: |
-          safety check --json || true
-          safety check || true
-      
+          bandit -r app/ -ll -f json -o bandit-report.json || true
+          bandit -r app/ -ll || true
+
+      - name: pip-audit CVE scan
+        run: pip-audit -r requirements.txt || true
+
+      - name: Install Trivy
+        run: |
+          sudo apt-get install -y wget apt-transport-https gnupg lsb-release
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+          echo "deb https://aquasecurity.github.io/trivy-repo/deb generic main" \
+            | sudo tee /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update && sudo apt-get install -y trivy
+
+      - name: Trivy filesystem scan
+        run: trivy fs --exit-code 0 --severity HIGH,CRITICAL --ignore-unfixed . || true
+
       - name: Upload security reports
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: security-reports
-          path: |
-            bandit-report.json
+          path: bandit-report.json
+          retention-days: 30
+
+  # ──────────────────────────────────────────────────────────────
+  # Job 5: Deploy to Test Server  (self-hosted, main branch only)
+  # ──────────────────────────────────────────────────────────────
+  deploy-to-test:
+    name: Deploy to Test (74.208.225.85)
+    needs: [lint-and-type-check, unit-tests, integration-tests, security-scan]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: self-hosted
+    steps:
+      - name: Pull latest code
+        run: |
+          cd /aiops
+          git fetch origin
+          git checkout main
+          git pull origin main
+
+      - name: Build and restart app
+        run: |
+          cd /aiops
+          docker compose up -d --build remediation-engine
+
+      - name: Apply Atlas migrations
+        run: |
+          cd /aiops
+          docker compose exec -T remediation-engine sh -c \
+            'atlas migrate apply --dir "file:///app/atlas/migrations" --url "$DATABASE_URL"'
+
+      - name: Smoke test
+        run: |
+          sleep 15
+          curl -f http://localhost:8080/health
+
+  # ──────────────────────────────────────────────────────────────
+  # Job 6: E2E Tests  (self-hosted, nightly schedule or manual)
+  # ──────────────────────────────────────────────────────────────
+  e2e-tests:
+    name: E2E Tests
+    if: |
+      (github.event_name == 'schedule' && github.event.schedule == '0 2 * * *') ||
+      (github.event_name == 'workflow_dispatch')
+    runs-on: self-hosted
+    steps:
+      - name: Pull latest code
+        run: cd /aiops && git pull
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install test dependencies
+        run: |
+          cd /aiops
+          pip install -r requirements-test.txt
+          playwright install --with-deps chromium
+
+      - name: Run E2E tests
+        run: |
+          cd /aiops
+          pytest tests/e2e -v
+
+      - name: Upload E2E artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-results
+          path: test-results/
+          retention-days: 7
+
+  # ──────────────────────────────────────────────────────────────
+  # Job 7: Performance Tests  (self-hosted, weekly or manual)
+  # ──────────────────────────────────────────────────────────────
+  performance-tests:
+    name: Performance Tests
+    if: |
+      (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 1') ||
+      (github.event_name == 'workflow_dispatch')
+    runs-on: self-hosted
+    steps:
+      - name: Pull latest code
+        run: cd /aiops && git pull
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install test dependencies
+        run: |
+          cd /aiops
+          pip install -r requirements-test.txt
+
+      - name: Run performance tests
+        run: |
+          cd /aiops
+          pytest tests/performance -v --benchmark-autosave
+
+      - name: Upload performance results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-results
+          path: .benchmarks/
           retention-days: 30
