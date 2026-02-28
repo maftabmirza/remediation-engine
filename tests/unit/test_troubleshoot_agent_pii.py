@@ -40,7 +40,7 @@ class _StubPIIService:
     def __init__(self):
         self.logged = []
 
-    async def detect(self, text: str, source_type: str, source_id: str):
+    async def detect(self, text: str, source_type: str, source_id: str = ""):
         if "@" in text:
             return _StubDetectionResponse([
                 _StubDetection({

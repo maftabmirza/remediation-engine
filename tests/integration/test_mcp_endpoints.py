@@ -9,6 +9,11 @@ import asyncio
 from app.services.mcp.client import MCPClient
 import os
 
+# These tests require a live mcp-grafana server (port 8081) which is not
+# available in the standard CI environment. They are intended for manual /
+# staging environment runs only.
+pytestmark = pytest.mark.skip(reason="requires live mcp-grafana server at port 8081")
+
 
 # Get MCP server URL from environment or use default
 MCP_SERVER_URL = os.getenv("MCP_GRAFANA_URL", "http://localhost:8081")
