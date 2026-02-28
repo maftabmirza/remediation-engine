@@ -141,7 +141,6 @@ body {
     padding: 0;
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
     z-index: var(--z-sidebar);
     position: relative;
     box-shadow: 2px 0 5px rgba(0, 0, 0, 0.2);
@@ -151,9 +150,6 @@ body {
     /* Firefox */
 }
 
-.app-container:not(.collapsed) .sidebar {
-    padding: 0 6px 0 0;
-}
 
 .sidebar::-webkit-scrollbar {
     width: 0px;
@@ -167,17 +163,19 @@ body {
     align-items: center;
     justify-content: flex-start;
     height: 48px;
-    padding: 12px 12px;
+    padding: 8px 16px;
     background: var(--bg-sidebar);
     flex-shrink: 0;
+    width: 100%;
 }
 
-
 .sidebar-logo-img {
-    max-height: 32px;
-    /* Adjust as needed */
-    width: auto;
+    height: 100%;
+    width: 100%;
+    max-height: 40px;
     max-width: 100%;
+    object-fit: contain;
+    object-position: left center;
     transition: all 0.2s ease;
 }
 
@@ -188,6 +186,7 @@ body {
 
 .app-container.collapsed .sidebar-logo {
     padding: 0;
+    justify-content: center;
 }
 
 .app-container.collapsed .logo-full {
@@ -196,8 +195,13 @@ body {
 
 .app-container.collapsed .logo-icon {
     display: block;
-    max-width: 32px;
+    width: 38px !important;
+    height: 38px !important;
+    max-height: none !important;
+    max-width: none !important;
     padding: 4px;
+    margin: 0 auto;
+    object-position: center !important;
 }
 
 /* Sidebar Header Group */
@@ -307,7 +311,6 @@ body {
     margin-top: auto;
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
     padding: 8px;
     /* Default */
 }
@@ -872,6 +875,13 @@ body {
     letter-spacing: 0.01em;
 }
 
+/* Header wrapper alignment — consistent icon/text spacing */
+.header-title-wrapper {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.75rem !important;
+}
+
 .header-divider {
     color: var(--text-muted-dark);
     opacity: 0.5;
@@ -1154,7 +1164,7 @@ body {
     height: 100%;
     min-height: 0;
     overflow: hidden;
-    border-radius: 14px;
+    border-radius: 5px;
     border: 1px solid #dce1e8;
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.02);
 }
@@ -1834,7 +1844,7 @@ body {
     height: 100%;
     min-height: 0;
     overflow: hidden;
-    border-radius: 14px;
+    border-radius: 5px;
     border: 1px solid rgba(255, 255, 255, 0.08);
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.04);
 }
@@ -2006,7 +2016,7 @@ body {
     height: 100%;
     min-height: 0;
     overflow: hidden;
-    border-radius: 16px;
+    border-radius: 5px;
     border: 1px solid rgba(226, 232, 240, 0.9);
     box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(0, 0, 0, 0.03),
         inset 0 1px 0 rgba(255, 255, 255, 0.8);
@@ -2621,7 +2631,7 @@ body {
     height: 100%;
     min-height: 0;
     overflow: hidden;
-    border-radius: 16px;
+    border-radius: 5px;
     border: 1px solid rgba(226, 232, 240, 0.9);
     box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(0, 0, 0, 0.03),
         inset 0 1px 0 rgba(255, 255, 255, 0.8);
@@ -6786,7 +6796,11 @@ input:checked+.toggle-slider:before {
     .sidebar-logo {
         height: 58px;
         gap: 12px;
-        padding: 0 14px;
+        /* padding: 8px 16px; */
+        padding-top: 20px;
+        padding-bottom: 10px;
+        padding-left: 16px;
+        padding-right: 16px;
     }
 
     .sidebar-logo-icon {
@@ -7113,7 +7127,7 @@ input:checked+.toggle-slider:before {
     .sidebar-logo {
         height: 68px;
         gap: 14px;
-        padding: 0 16px;
+        padding: 8px 16px;
     }
 
     .sidebar-logo-icon {
@@ -7995,9 +8009,6 @@ input:checked+.toggle-slider:before {
     font-family: 'Inter', Roboto, Helvetica, Arial, sans-serif;
 }
 
-[data-theme="jackson"] .app-container:not(.collapsed) .sidebar {
-    padding: 0 6px 0 0;
-}
 
 [data-theme="jackson"] .sidebar-logo {
     background: var(--bg-sidebar) !important;
@@ -8007,6 +8018,7 @@ input:checked+.toggle-slider:before {
 
 [data-theme="jackson"] .app-container.collapsed .sidebar-logo {
     padding: 0;
+    justify-content: center;
 }
 
 [data-theme="jackson"] .sidebar-logo-icon {
@@ -9148,13 +9160,14 @@ input:checked+.toggle-slider:before {
    ============================================================ */
 
 /* Time Range Select & All Select Dropdowns in Top Header */
+/* Jackson has a white header — use dark text */
 [data-theme="jackson"] .top-header select,
 [data-theme="jackson"] .header-actions select,
 [data-theme="jackson"] select#timeRange,
 [data-theme="jackson"] select.bg-transparent {
-    background: rgba(255, 255, 255, 0.05) !important;
-    color: rgba(255, 255, 255, 0.9) !important;
-    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    background: rgba(0, 0, 0, 0.04) !important;
+    color: #333333 !important;
+    border: 1px solid rgba(0, 0, 0, 0.12) !important;
     border-radius: 6px !important;
     padding: 6px 28px 6px 12px !important;
 }
@@ -9162,28 +9175,28 @@ input:checked+.toggle-slider:before {
 [data-theme="jackson"] .top-header select:hover,
 [data-theme="jackson"] .header-actions select:hover,
 [data-theme="jackson"] select#timeRange:hover {
-    background: rgba(255, 255, 255, 0.1) !important;
-    border-color: rgba(255, 255, 255, 0.25) !important;
-    color: #FFFFFF !important;
+    background: rgba(114, 47, 55, 0.06) !important;
+    border-color: rgba(114, 47, 55, 0.2) !important;
+    color: #722f37 !important;
 }
 
 [data-theme="jackson"] .top-header select:focus,
 [data-theme="jackson"] .header-actions select:focus,
 [data-theme="jackson"] select#timeRange:focus {
-    background: rgba(255, 255, 255, 0.12) !important;
-    border-color: rgba(114, 47, 55, 0.6) !important;
+    background: rgba(114, 47, 55, 0.04) !important;
+    border-color: rgba(114, 47, 55, 0.5) !important;
     outline: none !important;
-    box-shadow: 0 0 0 3px rgba(114, 47, 55, 0.15) !important;
+    box-shadow: 0 0 0 3px rgba(114, 47, 55, 0.12) !important;
 }
 
-/* Option elements - dark background */
+/* Option elements — light background to match white header */
 [data-theme="jackson"] .top-header select option,
 [data-theme="jackson"] .header-actions select option,
 [data-theme="jackson"] select#timeRange option,
 [data-theme="jackson"] select option,
 [data-theme="jackson"] option.text-gray-900 {
-    background: #1F1F1F !important;
-    color: rgba(255, 255, 255, 0.9) !important;
+    background: #ffffff !important;
+    color: #333333 !important;
     padding: 8px 12px !important;
 }
 
@@ -9191,24 +9204,33 @@ input:checked+.toggle-slider:before {
 [data-theme="jackson"] .header-actions select option:hover,
 [data-theme="jackson"] select option:hover,
 [data-theme="jackson"] select option:checked {
-    background: rgba(114, 47, 55, 0.2) !important;
-    color: #FFFFFF !important;
+    background: rgba(114, 47, 55, 0.1) !important;
+    color: #722f37 !important;
 }
 
 /* Override text-gray classes in options */
 [data-theme="jackson"] select option.text-gray-900,
 [data-theme="jackson"] select option[class*="text-gray"] {
-    color: rgba(255, 255, 255, 0.9) !important;
+    color: #333333 !important;
 }
+
+/* Time range widget specific (new semantic classes) */
+[data-theme="jackson"] .time-range-picker {
+    background: rgba(0, 0, 0, 0.04) !important;
+    border: 1px solid rgba(0, 0, 0, 0.12) !important;
+}
+[data-theme="jackson"] .time-range-select {
+    color: #333333 !important;
+}
+[data-theme="jackson"] .time-range-select:hover { color: #722f37 !important; }
+[data-theme="jackson"] .time-range-icon { color: #555555 !important; }
+[data-theme="jackson"] .time-range-divider { background: rgba(0, 0, 0, 0.15) !important; }
+[data-theme="jackson"] .time-range-refresh { color: #444444 !important; }
+[data-theme="jackson"] .time-range-refresh:hover { color: #722f37 !important; background: rgba(114, 47, 55, 0.06) !important; }
 
 /* Text color overrides for select elements */
-[data-theme="jackson"] .text-gray-200,
 [data-theme="jackson"] select.text-gray-200 {
-    color: rgba(255, 255, 255, 0.9) !important;
-}
-
-[data-theme="jackson"] .hover\:text-white:hover {
-    color: #FFFFFF !important;
+    color: #444444 !important;
 }
 
 /* Page Title Override */
@@ -9266,6 +9288,7 @@ input:checked+.toggle-slider:before {
 [data-theme="jackson"] .header-title-wrapper {
     display: flex !important;
     align-items: center !important;
+    gap: 0.75rem !important;
 }
 
 /* Header icon color override (exclamation-triangle in header) */

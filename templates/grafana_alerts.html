@@ -3,7 +3,7 @@
 {% block title %}Alerts - Alertmanager{% endblock %}
 
 {% block header_title %}
-<i class="fas fa-bell"></i>
+<i data-feather="bell-off" class="text-blue-400" style="width:16px;height:16px;"></i>
 <span class="text-sm font-semibold text-white tracking-tight">Alert Manager</span>
 {% endblock %}
 
@@ -82,7 +82,7 @@
         <div class="spinner"></div>
         <div>Loading Alertmanager...</div>
     </div>
-    <iframe id="grafana-iframe" src="/grafana/alerting/list?alertState=all&dataSource=Alertmanager&kiosk">
+    <iframe id="grafana-iframe" src="/grafana/alerting/list?alertState=all&dataSource=Alertmanager">
     </iframe>
 </div>
 

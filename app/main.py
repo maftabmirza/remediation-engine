@@ -90,6 +90,7 @@ from app.routers import (
     pii_logs,  # PII Detection Logs
     pii_feedback,  # PII False Positive Feedback
     incidents,  # Incidents Management
+    design,  # Design Settings (logo/icon uploads)
 )
 from app import api_credential_profiles
 from app.services.execution_worker import start_execution_worker, stop_execution_worker
@@ -389,9 +390,14 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/uploaded-images", StaticFiles(directory="storage/design/images"), name="uploaded-images")
 
 # Setup templates
 templates = Jinja2Templates(directory="templates")
+
+# Expose design settings to every template (logo / icon uploads)
+from app.routers.design import _load_settings as _load_design_settings
+templates.env.globals["get_design_settings"] = _load_design_settings
 
 # Include API routers
 app.include_router(auth.router)
@@ -458,6 +464,7 @@ app.include_router(pii.router)               # PII & Secret Detection
 app.include_router(pii_logs.router)          # PII Detection Logs
 app.include_router(pii_feedback.router)      # PII False Positive Feedback
 app.include_router(incidents.router)         # Incidents Management
+app.include_router(design.router)            # Design Settings (logo/icon uploads)
 
 
 # Mock OFREP endpoint for Grafana OpenFeature - returns valid empty response to prevent 404 errors

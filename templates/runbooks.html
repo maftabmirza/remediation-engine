@@ -9,7 +9,7 @@
 {% endblock %}
 
 {% block header_title %}
-<i class="fas fa-book text-blue-400"></i>
+<i data-feather="book" class="text-blue-400" style="width:16px;height:16px;"></i>
 <span class="text-sm font-semibold text-white tracking-tight">Runbook Library</span>
 {% endblock %}
 
@@ -27,7 +27,7 @@
         padding: 8px 16px;
         font-size: 13px;
         font-weight: 600;
-        border-radius: 10px;
+        border-radius: 5px;
         cursor: pointer;
         transition: all 0.2s ease;
         border: none;
@@ -79,7 +79,7 @@
     .runbook-search-input {
         background: #ffffff;
         border: 1px solid #e2e8f0;
-        border-radius: 10px;
+        border-radius: 5px;
         padding: 8px 14px 8px 36px;
         font-size: 13px;
         color: #1e293b;
@@ -129,7 +129,7 @@
         gap: 8px;
         background: #ffffff;
         border: 1px solid #e2e8f0;
-        border-radius: 10px;
+        border-radius: 5px;
         padding: 8px 12px 8px 14px;
         font-size: 13px;
         font-weight: 500;
@@ -172,7 +172,7 @@
         min-width: 100%;
         background: #ffffff;
         border: 1px solid #e2e8f0;
-        border-radius: 12px;
+        border-radius: 5px;
         box-shadow: 0 12px 40px rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.06);
         z-index: 9999;
         padding: 5px;
@@ -204,7 +204,7 @@
         font-size: 13px;
         font-weight: 500;
         color: #475569;
-        border-radius: 8px;
+        border-radius: 5px;
         cursor: pointer;
         transition: all 0.12s ease;
         white-space: nowrap;
@@ -251,14 +251,14 @@
     .panel-card {
         background-color: #181b1f;
         border: 1px solid rgba(204, 204, 220, 0.12);
-        border-radius: 4px;
+        border-radius: 5px;
         transition: transform 0.2s, box-shadow 0.2s;
     }
 
     /* Modern Badge Styles */
     .badge {
         padding: 3px 10px;
-        border-radius: 20px;
+        border-radius: 5px;
         font-size: 0.7rem;
         font-weight: 600;
         display: inline-flex;
@@ -369,6 +369,10 @@
 
     .rb-modal-overlay {
         z-index: 2000;
+    }
+
+    .input-field {
+        border-radius: 5px !important;
     }
 </style>
 {% endblock %}
@@ -668,9 +672,9 @@
         <i class="fas fa-book-open text-4xl text-secondary mb-4"></i>
         <h3 class="text-lg font-medium text-primary mb-2">No Runbooks Found</h3>
         <p class="text-secondary mb-4">Create your first runbook to start automating remediation tasks.</p>
-        <button onclick="openCreateModal()" class="btn-primary px-4 py-2 rounded-lg">
+        <a href="/runbooks/new" class="btn-primary px-4 py-2 rounded-lg inline-block">
             <i class="fas fa-plus mr-2"></i>Create Runbook
-        </button>
+        </a>
     </div>
 </div>
 

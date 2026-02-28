@@ -279,11 +279,13 @@ async function loadMessageHistory(sessionId) {
                 const rawContent = msg.content || '';
                 const artifactRegex = /\[ARTIFACT\]([\s\S]*?)\[\/ARTIFACT\]/g;
                 let match;
+                let hasExplicitArtifacts = false;
                 while ((match = artifactRegex.exec(rawContent)) !== null) {
                     try {
                         const artifactData = JSON.parse(match[1]);
                         console.log('[Inquiry] Found stored artifact:', artifactData.id, artifactData.type, artifactData.title);
                         if (typeof artifactData.content === 'string') {
+                            hasExplicitArtifacts = true;
                             historyArtifacts.push({
                                 id: artifactData.id || generateArtifactId(),
                                 type: artifactData.type || 'markdown',
@@ -298,13 +300,16 @@ async function loadMessageHistory(sessionId) {
                     }
                 }
 
-                // Also detect artifacts from the message text (tables, code blocks, etc.)
-                const detectedArtifacts = detectArtifacts(cleanText);
-                console.log('[Inquiry] Detected', detectedArtifacts.length, 'artifacts from message text');
-                detectedArtifacts.forEach(artifact => {
-                    artifact.timestamp = msg.created_at || artifact.timestamp;
-                    historyArtifacts.push(artifact);
-                });
+                // Only auto-detect artifacts if no explicit [ARTIFACT] blocks were found
+                // to avoid duplicates (same table in both ARTIFACT block and prose)
+                if (!hasExplicitArtifacts) {
+                    const detectedArtifacts = detectArtifacts(cleanText);
+                    console.log('[Inquiry] Detected', detectedArtifacts.length, 'artifacts from message text');
+                    detectedArtifacts.forEach(artifact => {
+                        artifact.timestamp = msg.created_at || artifact.timestamp;
+                        historyArtifacts.push(artifact);
+                    });
+                }
             }
         });
 
@@ -653,22 +658,30 @@ function finalizeStreamingMessage(fullText, toolCalls = []) {
     const cleanText = fullText.replace(/\[\s*ARTIFACT\s*\][\s\S]*?\[\s*\/ARTIFACT\s*\]/gi, '');
     appendAIMessage(cleanText);
     
-    // Detect and create additional artifacts from the cleaned response
-    const detectedArtifacts = detectArtifacts(cleanText);
-    detectedArtifacts.forEach(artifact => {
-        addArtifact(artifact);
-    });
+    // Count how many explicit [ARTIFACT] blocks were already added in this response
+    const explicitArtifactCount = (fullText.match(/\[ARTIFACT\]/gi) || []).length;
     
-    // If tools were used but no artifacts detected, create a summary artifact
-    if (toolCalls && toolCalls.length > 0 && detectedArtifacts.length === 0 && artifacts.length === 0) {
-        addArtifact({
-            id: generateArtifactId(),
-            type: 'markdown',
-            title: 'Query Summary',
-            content: `**Tools Used:** ${toolCalls.join(', ')}\n\n${cleanText}`,
-            rawContent: cleanText,
-            timestamp: new Date().toISOString()
+    // Only auto-detect artifacts if NO explicit [ARTIFACT] blocks were found.
+    // This prevents duplicates: e.g. backend sends a table as [ARTIFACT] AND
+    // the AI also writes the same table in its prose, causing detectArtifacts
+    // to create a second artifact with a new ID.
+    if (explicitArtifactCount === 0) {
+        const detectedArtifacts = detectArtifacts(cleanText);
+        detectedArtifacts.forEach(artifact => {
+            addArtifact(artifact);
         });
+    
+        // If tools were used but no artifacts detected, create a summary artifact
+        if (toolCalls && toolCalls.length > 0 && detectedArtifacts.length === 0 && artifacts.length === 0) {
+            addArtifact({
+                id: generateArtifactId(),
+                type: 'markdown',
+                title: 'Query Summary',
+                content: `**Tools Used:** ${toolCalls.join(', ')}\n\n${cleanText}`,
+                rawContent: cleanText,
+                timestamp: new Date().toISOString()
+            });
+        }
     }
 }
 
@@ -1066,9 +1079,9 @@ function addArtifact(artifact) {
     // Update count
     updateArtifactCount();
     
-    // Hide empty state
+    // Hide empty state (use style.display to override .inq-empty-state display:flex)
     const emptyState = document.getElementById('artifactsEmpty');
-    if (emptyState) emptyState.classList.add('hidden');
+    if (emptyState) emptyState.style.display = 'none';
     
     // Set as active and render
     setActiveArtifact(artifact.id);
@@ -1110,8 +1123,11 @@ function setActiveArtifact(artifactId) {
     const typeInfo = ARTIFACT_TYPES[artifact.type] || ARTIFACT_TYPES.markdown;
     titleEl.textContent = artifact.title;
     typeEl.textContent = typeInfo.label;
-    typeEl.className = `ml-2 px-2 py-0.5 text-[10px] ${typeInfo.bgColor} ${typeInfo.color} rounded`;
-    iconEl.className = `fas ${typeInfo.icon} ${typeInfo.color} mr-2`;
+    typeEl.className = 'inq-artifact-type-badge';
+    
+    // Update icon wrap with type-specific color
+    const iconWrap = iconEl.closest('.inq-artifact-icon-wrap');
+    iconEl.className = `fas ${typeInfo.icon}`;
     
     // Update pin button state
     if (pinBtn) {
@@ -1231,42 +1247,92 @@ function renderChartArtifact(artifact) {
 }
 
 function renderTableArtifact(artifact) {
-    // Parse markdown table and render as HTML table with styling
+    // Parse markdown table and render as proper HTML table
     const lines = artifact.content.trim().split('\n');
     if (lines.length < 2) return `<pre>${escapeHtml(artifact.content)}</pre>`;
     
     const headers = lines[0].split('|').filter(c => c.trim()).map(c => c.trim());
-    const rows = lines.slice(2).map(line => 
-        line.split('|').filter(c => c.trim()).map(c => c.trim())
-    );
+    const rows = lines.slice(2)
+        .filter(line => line.trim() && !line.match(/^\|[-:\s|]+\|$/))
+        .map(line => 
+            line.split('|').filter(c => c.trim()).map(c => c.trim())
+        );
+    
+    // Detect severity/status columns for smart formatting
+    const severityIdx = headers.findIndex(h => h.toLowerCase() === 'severity');
+    const statusIdx = headers.findIndex(h => h.toLowerCase() === 'status');
+    
+    const severityColors = {
+        critical: { bg: '#fef2f2', text: '#dc2626', border: '#fecaca' },
+        error: { bg: '#fef2f2', text: '#dc2626', border: '#fecaca' },
+        warning: { bg: '#fffbeb', text: '#d97706', border: '#fde68a' },
+        info: { bg: '#eff6ff', text: '#2563eb', border: '#bfdbfe' }
+    };
+    
+    const statusColors = {
+        firing: { bg: '#fef2f2', text: '#dc2626', dot: '#ef4444' },
+        resolved: { bg: '#f0fdf4', text: '#16a34a', dot: '#22c55e' },
+        active: { bg: '#fef2f2', text: '#dc2626', dot: '#ef4444' },
+        pending: { bg: '#fffbeb', text: '#d97706', dot: '#f59e0b' }
+    };
+
+    function formatCell(value, colIdx) {
+        const raw = escapeHtml(value);
+        const lower = value.toLowerCase().trim();
+        
+        // Severity column
+        if (colIdx === severityIdx) {
+            const colors = severityColors[lower] || { bg: '#f8fafc', text: '#64748b', border: '#e2e8f0' };
+            return `<span style="display:inline-flex;align-items:center;padding:3px 10px;font-size:11px;font-weight:600;background:${colors.bg};color:${colors.text};border:1px solid ${colors.border};border-radius:6px;text-transform:capitalize;">${raw}</span>`;
+        }
+        
+        // Status column
+        if (colIdx === statusIdx) {
+            const colors = statusColors[lower] || { bg: '#f8fafc', text: '#64748b', dot: '#94a3b8' };
+            return `<span style="display:inline-flex;align-items:center;gap:6px;padding:3px 10px;font-size:11px;font-weight:600;background:${colors.bg};color:${colors.text};border-radius:6px;"><span style="width:6px;height:6px;border-radius:50%;background:${colors.dot};${lower === 'firing' ? 'animation:pulse 2s infinite;' : ''}"></span>${raw}</span>`;
+        }
+        
+        // Date-like values
+        if (value.match(/^\d{4}-\d{2}-\d{2}/)) {
+            return `<span style="color:#64748b;font-size:12px;font-variant-numeric:tabular-nums;">${raw}</span>`;
+        }
+        
+        // Separator row markers
+        if (value.match(/^[-]+$/)) return '';
+        
+        return raw;
+    }
+    
+    // Filter out separator-only rows (rows where all cells are dashes)
+    const dataRows = rows.filter(row => !row.every(cell => cell.match(/^[-]+$/)));
     
     return `
         <div class="overflow-x-auto">
-            <table class="w-full text-sm text-left">
-                <thead class="text-xs text-gray-400 uppercase bg-gray-800">
+            <table class="w-full text-sm text-left" style="border-collapse:separate;border-spacing:0;">
+                <thead>
                     <tr>
-                        ${headers.map(h => `<th class="px-4 py-3 font-medium">${escapeHtml(h)}</th>`).join('')}
+                        ${headers.map(h => `<th style="padding:10px 16px;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;background:#f8fafc;border-bottom:2px solid #e2e8f0;text-align:left;white-space:nowrap;">${escapeHtml(h)}</th>`).join('')}
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-700">
-                    ${rows.map(row => `
-                        <tr class="hover:bg-gray-800/50">
-                            ${row.map(cell => `<td class="px-4 py-3 text-gray-300">${escapeHtml(cell)}</td>`).join('')}
+                <tbody>
+                    ${dataRows.map((row, ri) => `
+                        <tr style="transition:background 0.1s;">
+                            ${row.map((cell, ci) => `<td style="padding:10px 16px;color:#334155;border-bottom:1px solid #f1f5f9;">${formatCell(cell, ci)}</td>`).join('')}
                         </tr>
                     `).join('')}
                 </tbody>
             </table>
         </div>
-        <div class="mt-3 text-xs text-gray-500">${rows.length} rows</div>
+        <div style="padding:8px 16px;font-size:11px;color:#94a3b8;border-top:1px solid #f1f5f9;background:#fafbfd;">${dataRows.length} rows</div>
     `;
 }
 
 function renderCodeArtifact(artifact) {
     const lang = artifact.language || 'text';
     return `
-        <div class="relative">
-            <div class="absolute top-2 right-2 text-xs text-gray-500 bg-gray-900 px-2 py-1 rounded">${lang}</div>
-            <pre class="bg-gray-900 rounded-lg p-4 overflow-x-auto"><code class="language-${lang} text-sm">${escapeHtml(artifact.content)}</code></pre>
+        <div style="position:relative;">
+            <div style="position:absolute;top:8px;right:12px;font-size:10px;color:#94a3b8;background:#f1f5f9;padding:2px 8px;border-radius:4px;font-weight:600;text-transform:uppercase;letter-spacing:0.03em;">${lang}</div>
+            <pre style="background:#1e293b;padding:16px;margin:0;overflow-x:auto;"><code class="language-${lang}" style="font-size:12px;color:#e2e8f0;">${escapeHtml(artifact.content)}</code></pre>
         </div>
     `;
 }
@@ -1274,24 +1340,29 @@ function renderCodeArtifact(artifact) {
 function renderAlertArtifact(artifact) {
     const items = artifact.content.split('\n').filter(l => l.trim().match(/^[-*•]/));
     return `
-        <div class="space-y-2">
+        <div style="padding: 12px 16px;" class="space-y-2">
             ${items.map(item => {
                 const text = item.replace(/^[-*•]\s*/, '').trim();
                 const severity = detectAlertSeverity(text);
-                const severityColors = {
-                    critical: 'bg-red-900/30 border-red-700 text-red-300',
-                    warning: 'bg-yellow-900/30 border-yellow-700 text-yellow-300',
-                    info: 'bg-blue-900/30 border-blue-700 text-blue-300'
+                const severityStyles = {
+                    critical: 'background:#fef2f2;border:1px solid #fecaca;color:#991b1b;',
+                    warning: 'background:#fffbeb;border:1px solid #fde68a;color:#92400e;',
+                    info: 'background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;'
+                };
+                const iconColor = {
+                    critical: '#ef4444',
+                    warning: '#f59e0b',
+                    info: '#3b82f6'
                 };
                 return `
-                    <div class="flex items-center p-3 rounded border ${severityColors[severity] || severityColors.info}">
-                        <i class="fas fa-exclamation-circle mr-3"></i>
-                        <span class="text-sm">${escapeHtml(text)}</span>
+                    <div style="display:flex;align-items:center;padding:10px 14px;border-radius:10px;${severityStyles[severity] || severityStyles.info}">
+                        <i class="fas fa-exclamation-circle" style="margin-right:10px;color:${iconColor[severity] || '#3b82f6'};font-size:13px;"></i>
+                        <span style="font-size:13px;">${escapeHtml(text)}</span>
                     </div>
                 `;
             }).join('')}
         </div>
-        <div class="mt-3 text-xs text-gray-500">${items.length} alerts</div>
+        <div style="padding:8px 16px;font-size:11px;color:#94a3b8;border-top:1px solid #f1f5f9;background:#fafbfd;">${items.length} alerts</div>
     `;
 }
 
@@ -1303,7 +1374,7 @@ function detectAlertSeverity(text) {
 }
 
 function renderListArtifact(artifact) {
-    return `<div class="prose prose-invert max-w-none text-sm">${marked.parse(artifact.content)}</div>`;
+    return `<div style="padding:16px 18px;" class="prose max-w-none text-sm">${marked.parse(artifact.content)}</div>`;
 }
 
 /**
@@ -1496,7 +1567,7 @@ function resetArtifactsPanel() {
     if (active) active.classList.add('hidden');
 
     const empty = document.getElementById('artifactsEmpty');
-    if (empty) empty.classList.remove('hidden');
+    if (empty) empty.style.display = '';
 
     updateArtifactCount();
 }
@@ -1527,16 +1598,14 @@ function exportAllArtifacts() {
 function switchArtifactTab(tab) {
     currentArtifactTab = tab;
     
-    // Update tab styles
-    document.querySelectorAll('.artifact-tab').forEach(el => {
-        el.classList.remove('border-blue-500', 'text-blue-400', 'bg-gray-800');
-        el.classList.add('border-transparent', 'text-gray-400');
+    // Update tab styles using the new structure
+    document.querySelectorAll('.inq-artifact-tab').forEach(el => {
+        el.classList.remove('active');
     });
     
     const activeTab = document.getElementById(`artifactTab${tab.charAt(0).toUpperCase() + tab.slice(1)}`);
     if (activeTab) {
-        activeTab.classList.add('border-blue-500', 'text-blue-400', 'bg-gray-800');
-        activeTab.classList.remove('border-transparent');
+        activeTab.classList.add('active');
     }
     
     // Filter displayed artifacts

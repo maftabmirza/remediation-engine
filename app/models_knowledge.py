@@ -59,11 +59,11 @@ class DesignDocument(Base):
     
     __table_args__ = (
         CheckConstraint(
-            doc_type.in_(['sop', 'architecture', 'code']),
+            doc_type.in_(['document', 'architecture', 'code']),
             name='ck_design_documents_doc_type'
         ),
         CheckConstraint(
-            format.in_(['markdown', 'pdf', 'html', 'yaml']),
+            format.in_(['markdown', 'pdf', 'html', 'yaml', 'text', 'image']),
             name='ck_design_documents_format'
         ),
     )

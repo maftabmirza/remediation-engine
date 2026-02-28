@@ -20,7 +20,7 @@ class KnowledgeSearchService:
     
     def __init__(self, db: Session):
         self.db = db
-        self.embedding_service = EmbeddingService()
+        self.embedding_service = EmbeddingService(db=db)
     
     def search_similar(
         self,

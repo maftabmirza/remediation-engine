@@ -117,23 +117,33 @@
     font-family: 'Inter', Roboto, Helvetica, Arial, sans-serif;
 }
 
-[data-theme="jackson"] .app-container:not(.collapsed) .sidebar {
-    padding: 0 6px 0 0;
-}
 
 [data-theme="jackson"] .sidebar-logo {
     background: var(--bg-sidebar) !important;
-    padding: 12px 12px;
+    padding: 8px 16px;
     justify-content: flex-start;
+    width: 100%;
 }
 
 [data-theme="jackson"] .app-container.collapsed .sidebar-logo {
     padding: 0;
+    justify-content: center;
 }
 
 [data-theme="jackson"] .sidebar-logo-icon {
     background: #722f37 !important;
     color: white !important;
+}
+
+[data-theme="jackson"] .app-container.collapsed .logo-icon {
+    display: block;
+    width: 38px !important;
+    height: 38px !important;
+    max-height: none !important;
+    max-width: none !important;
+    padding: 4px;
+    margin: 0 auto;
+    object-position: center !important;
 }
 
 [data-theme="jackson"] .sidebar-logo-text {
@@ -690,13 +700,29 @@
 
 /* Artifact Tabs (Active State) */
 [data-theme="jackson"] .inq-artifact-tab.active {
-    background: rgba(114, 47, 55, 0.1) !important;
+    background: #ffffff !important;
     color: var(--brand-red) !important;
-    border-color: var(--brand-red) !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04) !important;
 }
 
-[data-theme="jackson"] .inq-artifact-tab.active i {
+[data-theme="jackson"] .inq-artifact-tab.active i,
+[data-theme="jackson"] .inq-artifact-tab.active .inq-tab-icon {
     color: var(--brand-red) !important;
+}
+
+[data-theme="jackson"] .inq-artifact-tab.active .inq-tab-dot {
+    background: var(--brand-red) !important;
+}
+
+[data-theme="jackson"] .inq-artifact-tab.active .inq-artifact-badge {
+    background: var(--brand-red) !important;
+    color: #ffffff !important;
+}
+
+[data-theme="jackson"] .inq-artifact-type-badge {
+    background: rgba(114, 47, 55, 0.08) !important;
+    color: var(--brand-red) !important;
+    border-color: rgba(114, 47, 55, 0.15) !important;
 }
 
 /* Runbook Page Overrides */

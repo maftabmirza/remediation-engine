@@ -12,7 +12,7 @@
 
 {% block header_title %}
 <div class="flex items-center gap-3">
-    <i class="fas fa-exclamation-triangle text-pink-400"></i>
+    <i data-feather="bell" class="text-pink-400" style="width:16px;height:16px;"></i>
     <span id="header_alert_name" class="text-sm font-semibold text-white tracking-tight truncate">Loading
         alert...</span>
 </div>
@@ -28,14 +28,14 @@
     .status-firing { color: #ff5286; }
     .status-resolved { color: #1a7f4b; }
     .status-acknowledged { color: #6e9fff; }
-    /* Alert detail cards - compact, aligned with runbooks/applications */
-    .alert-detail-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
-    .alert-detail-tabs { display: flex; gap: 16px; border-bottom: 1px solid #e2e8f0; margin-bottom: 0; padding-bottom: 0; }
-    .alert-detail-tab { background: none; border: none; padding: 8px 2px; font-size: 13px; font-weight: 500; color: #64748b; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; }
-    .alert-detail-tab:hover { color: #1e293b; }
-    .alert-detail-tab.active { color: #3b82f6; border-bottom-color: #3b82f6; font-weight: 600; }
+    /* Alert detail cards — use CSS variables so they adapt to every theme */
+    .alert-detail-card { background: var(--bg-surface-raised, #ffffff); border: var(--border-subtle, 1px solid #e2e8f0); border-radius: 8px; box-shadow: var(--shadow-card, 0 1px 2px rgba(0,0,0,0.04)); }
+    .alert-detail-tabs { display: flex; gap: 16px; border-bottom: var(--border-subtle, 1px solid #e2e8f0); margin-bottom: 0; padding-bottom: 0; }
+    .alert-detail-tab { background: none; border: none; padding: 8px 2px; font-size: 13px; font-weight: 500; color: var(--text-secondary, #64748b); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; }
+    .alert-detail-tab:hover { color: var(--text-primary, #1e293b); }
+    .alert-detail-tab.active { color: var(--accent-blue, #3b82f6); border-bottom-color: var(--accent-blue, #3b82f6); font-weight: 600; }
     /* Compact analysis section */
-    .alert-analysis-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+    .alert-analysis-card { background: var(--bg-surface-raised, #ffffff); border: var(--border-subtle, 1px solid #e2e8f0); border-radius: 8px; box-shadow: var(--shadow-card, 0 1px 2px rgba(0,0,0,0.04)); }
     .alert-detail-card .ts-chat-messages { padding: 20px 16px; gap: 14px; }
     .alert-detail-card .ts-chat-input-container { padding: 10px 14px 14px; }
 </style>
@@ -912,15 +912,15 @@
                 <div style="width: 56px; height: 56px; border-radius: 14px; background: linear-gradient(135deg, #8b5cf6, #6366f1); display: flex; align-items: center; justify-content: center; margin-bottom: 20px; box-shadow: 0 8px 24px rgba(99, 102, 241, 0.25);">
                     <i class="fas fa-robot text-white" style="font-size: 22px;"></i>
                 </div>
-                <h2 style="font-size: 20px; font-weight: 700; color: #1e293b; margin-bottom: 8px;">Alert Assistant</h2>
-                <p style="color: #64748b; font-size: 13px; margin-bottom: 28px; max-width: 340px; line-height: 1.5;">Connect to a server and ask me to help troubleshoot this alert.</p>
+                <h2 class="text-slate-800" style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">Alert Assistant</h2>
+                <p class="text-slate-500" style="font-size: 13px; margin-bottom: 28px; max-width: 340px; line-height: 1.5;">Connect to a server and ask me to help troubleshoot this alert.</p>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; max-width: 460px;">
                     ${suggestions.map(s => `
                         <button onclick="sendSuggestion(this.dataset.txt)" data-txt="${escapeHtml(s.text).replace(/"/g, '&quot;')}"
-                                style="display: flex; align-items: flex-start; gap: 10px; padding: 14px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; text-align: left; font-size: 12px; color: #475569; cursor: pointer; transition: all 0.2s; line-height: 1.4; box-shadow: 0 1px 3px rgba(0,0,0,0.05);"
+                                style="display: flex; align-items: flex-start; gap: 10px; padding: 14px; background: var(--bg-surface-raised, #ffffff); border: var(--border-subtle, 1px solid #e2e8f0); border-radius: 12px; text-align: left; font-size: 12px; color: var(--text-secondary, #475569); cursor: pointer; transition: all 0.2s; line-height: 1.4; box-shadow: 0 1px 3px rgba(0,0,0,0.05);"
                                 onmouseenter="this.style.borderColor='#93c5fd'; this.style.boxShadow='0 4px 14px rgba(59,130,246,0.12)'; this.style.transform='translateY(-2px)';"
-                                onmouseleave="this.style.borderColor='#e2e8f0'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.05)'; this.style.transform='translateY(0)';">
-                            <i class="${s.icon}" style="font-size: 14px; color: #3b82f6; flex-shrink: 0;"></i>
+                                onmouseleave="this.style.borderColor=''; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.05)'; this.style.transform='translateY(0)';">
+                            <i class="${s.icon}" style="font-size: 14px; color: var(--accent-blue, #3b82f6); flex-shrink: 0;"></i>
                             <span style="font-weight: 500;">${escapeHtml(s.text)}</span>
                         </button>
                     `).join('')}

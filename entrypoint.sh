@@ -1,6 +1,16 @@
 #!/bin/sh
 set -e
 
+# If running as root, fix permissions and drop privileges
+if [ "$(id -u)" = "0" ]; then
+    echo "Fixing permissions for /app/storage..."
+    # Ensure the directory exists so it doesn't fail if empty
+    mkdir -p /app/storage/design/images
+    chown -R appuser:appuser /app/storage || true
+    
+    # Re-execute this script as appuser using gosu
+    exec gosu appuser "$0" "$@"
+fi
 
 # Run pre-flight checks
 echo "Running pre-flight checks..."

@@ -3,7 +3,7 @@
 {% block title %}Traces - Tempo{% endblock %}
 
 {% block header_title %}
-<i class="fas fa-project-diagram"></i>
+<i data-feather="git-pull-request" class="text-blue-400" style="width:16px;height:16px;"></i>
 <span class="text-sm font-semibold text-white tracking-tight">Traces</span>
 {% endblock %}
 
@@ -83,7 +83,7 @@
         <div>Loading Tempo Traces...</div>
     </div>
     <iframe id="grafana-iframe"
-        src="/grafana/explore?orgId=1&left=%7B%22datasource%22:%22Tempo%22,%22queries%22:%5B%7B%22refId%22:%22A%22,%22queryType%22:%22search%22%7D%5D,%22range%22:%7B%22from%22:%22now-1h%22,%22to%22:%22now%22%7D%7D&kiosk">
+        src="/grafana/explore?orgId=1&left=%7B%22datasource%22:%22Tempo%22,%22queries%22:%5B%7B%22refId%22:%22A%22,%22queryType%22:%22search%22%7D%5D,%22range%22:%7B%22from%22:%22now-1h%22,%22to%22:%22now%22%7D%7D">
     </iframe>
 </div>
 

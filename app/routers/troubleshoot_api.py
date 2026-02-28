@@ -589,6 +589,7 @@ async def list_troubleshoot_providers(
             "is_enabled": p.is_enabled
         }
         for p in providers
+        if getattr(p, 'usage_type', 'llm') != 'embedding'
     ]
 
 @router.post("/sessions")

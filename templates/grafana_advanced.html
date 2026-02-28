@@ -3,7 +3,7 @@
 {% block title %}Advanced Dashboards - Grafana{% endblock %}
 
 {% block header_title %}
-<i class="fas fa-th-large"></i>
+<i data-feather="settings" class="text-blue-400" style="width:16px;height:16px;"></i>
 <span class="text-sm font-semibold text-white tracking-tight">Advanced Dashboards</span>
 {% endblock %}
 
@@ -86,7 +86,7 @@
         <div>Loading Grafana Dashboards...</div>
     </div>
     <iframe id="grafana-iframe"
-        src="/grafana/dashboards?orgId=1&kiosk">
+        src="/grafana/dashboards?orgId=1">
     </iframe>
 </div>
 

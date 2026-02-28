@@ -9,7 +9,7 @@
 {% endblock %}
 
 {% block header_title %}
-<i class="fas fa-search text-blue-400"></i>
+<i data-feather="message-circle" class="text-blue-400" style="width:16px;height:16px;"></i>
 <span class="text-sm font-semibold text-white tracking-tight">AI Inquiry Analyst</span>
 {% endblock %}
 
@@ -101,24 +101,30 @@
     <div class="inq-artifacts-panel">
         <!-- Artifacts Header -->
         <div class="inq-artifacts-header">
-            <div style="display: flex; align-items: center;">
-                <div class="inq-artifact-tabs">
-                    <button onclick="switchArtifactTab('recent')" id="artifactTabRecent"
-                        class="inq-artifact-tab active">
-                        <i class="fas fa-clock" style="margin-right: 4px; font-size: 11px;"></i>Recent
-                    </button>
-                    <button onclick="switchArtifactTab('all')" id="artifactTabAll" class="inq-artifact-tab">
-                        <i class="fas fa-layer-group" style="margin-right: 4px; font-size: 11px;"></i>All Artifacts
-                    </button>
+            <div class="inq-artifacts-header-left">
+                <div class="inq-artifact-tabs-wrapper">
+                    <div class="inq-artifact-tabs">
+                        <button onclick="switchArtifactTab('recent')" id="artifactTabRecent"
+                            class="inq-artifact-tab active">
+                            <span class="inq-tab-dot active"></span>
+                            Recent
+                        </button>
+                        <button onclick="switchArtifactTab('all')" id="artifactTabAll" class="inq-artifact-tab">
+                            <i class="fas fa-layer-group inq-tab-icon"></i>
+                            All Artifacts
+                            <span id="artifactCount" class="inq-artifact-badge">0</span>
+                        </button>
+                    </div>
                 </div>
-                <span id="artifactCount" class="inq-artifact-count">0</span>
             </div>
             <div class="inq-artifact-controls">
-                <button onclick="clearArtifacts()" title="Clear All" style="color: #ef4444;">
-                    <i class="fas fa-trash-alt" style="margin-right: 4px; font-size: 11px;"></i>Clear
+                <button onclick="clearArtifacts()" class="inq-ctrl-btn inq-ctrl-danger" title="Clear All">
+                    <i class="fas fa-trash-alt"></i>
+                    <span>Clear</span>
                 </button>
-                <button onclick="exportAllArtifacts()" title="Export All">
-                    <i class="fas fa-file-export" style="margin-right: 4px; font-size: 11px;"></i>Export
+                <button onclick="exportAllArtifacts()" class="inq-ctrl-btn" title="Export All">
+                    <i class="fas fa-file-export"></i>
+                    <span>Export</span>
                 </button>
             </div>
         </div>
@@ -126,33 +132,30 @@
         <!-- Artifacts Content -->
         <div id="artifactsContainer" class="inq-artifacts-content">
             <!-- Active/Recent Artifact (Large) -->
-            <div id="activeArtifact" class="hidden" style="margin-bottom: 16px;">
+            <div id="activeArtifact" class="hidden">
                 <div class="inq-artifact-card">
                     <div class="inq-artifact-card-header">
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <i id="activeArtifactIcon" class="fas fa-table"
-                                style="color: #3b82f6; font-size: 14px;"></i>
-                            <span id="activeArtifactTitle"
-                                style="font-size: 13px; font-weight: 600; color: #1e293b;">Artifact</span>
-                            <span id="activeArtifactType"
-                                style="padding: 2px 8px; font-size: 10px; background: rgba(59,130,246,0.1); color: #3b82f6; border-radius: 6px;">table</span>
+                        <div class="inq-artifact-card-title-group">
+                            <div class="inq-artifact-icon-wrap">
+                                <i id="activeArtifactIcon" class="fas fa-table"></i>
+                            </div>
+                            <div class="inq-artifact-title-info">
+                                <span id="activeArtifactTitle" class="inq-artifact-title-text">Artifact</span>
+                                <span id="activeArtifactType" class="inq-artifact-type-badge">Table</span>
+                            </div>
                         </div>
-                        <div style="display: flex; gap: 4px;">
-                            <button onclick="copyArtifact()" class="inq-icon-btn" style="width: 28px; height: 28px;"
-                                title="Copy">
-                                <i class="fas fa-copy" style="font-size: 11px;"></i>
+                        <div class="inq-artifact-card-actions">
+                            <button onclick="copyArtifact()" class="inq-action-btn" title="Copy">
+                                <i class="fas fa-copy"></i>
                             </button>
-                            <button onclick="exportArtifact()" class="inq-icon-btn" style="width: 28px; height: 28px;"
-                                title="Export">
-                                <i class="fas fa-download" style="font-size: 11px;"></i>
+                            <button onclick="exportArtifact()" class="inq-action-btn" title="Export">
+                                <i class="fas fa-download"></i>
                             </button>
-                            <button onclick="pinArtifact()" id="pinArtifactBtn" class="inq-icon-btn"
-                                style="width: 28px; height: 28px;" title="Pin">
-                                <i class="fas fa-thumbtack" style="font-size: 11px;"></i>
+                            <button onclick="pinArtifact()" id="pinArtifactBtn" class="inq-action-btn" title="Pin">
+                                <i class="fas fa-thumbtack"></i>
                             </button>
-                            <button onclick="minimizeArtifact()" class="inq-icon-btn" style="width: 28px; height: 28px;"
-                                title="Minimize">
-                                <i class="fas fa-compress-alt" style="font-size: 11px;"></i>
+                            <button onclick="minimizeArtifact()" class="inq-action-btn inq-action-expand" title="Minimize">
+                                <i class="fas fa-compress-alt"></i>
                             </button>
                         </div>
                     </div>
@@ -163,7 +166,7 @@
             </div>
 
             <!-- Artifact History Grid -->
-            <div id="artifactHistory" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div id="artifactHistory" class="inq-artifact-history-grid">
                 <!-- Artifact thumbnails will be added here -->
             </div>
 
@@ -176,10 +179,10 @@
                 <p>When you ask questions, structured data like tables, code, and charts will appear here for easy
                     viewing and export.</p>
                 <div class="inq-empty-state-tags">
-                    <span><i class="fas fa-table" style="margin-right: 4px;"></i>Tables</span>
-                    <span><i class="fas fa-code" style="margin-right: 4px;"></i>Code</span>
-                    <span><i class="fas fa-chart-bar" style="margin-right: 4px;"></i>Charts</span>
-                    <span><i class="fas fa-file-alt" style="margin-right: 4px;"></i>Reports</span>
+                    <span><i class="fas fa-table"></i>Tables</span>
+                    <span><i class="fas fa-code"></i>Code</span>
+                    <span><i class="fas fa-chart-bar"></i>Charts</span>
+                    <span><i class="fas fa-file-alt"></i>Reports</span>
                 </div>
             </div>
         </div>

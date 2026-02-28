@@ -91,12 +91,14 @@ class LLMProvider(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String(100), nullable=False)
-    provider_type = Column(String(50), nullable=False, index=True)  # anthropic, openai, google, ollama
+    provider_type = Column(String(50), nullable=False, index=True)  # anthropic, openai, google, ollama, azure
     model_id = Column(String(100), nullable=False)
     api_key_encrypted = Column(Text, nullable=True)
     api_base_url = Column(String(255), nullable=True)
     is_default = Column(Boolean, default=False, index=True)
     is_enabled = Column(Boolean, default=True, index=True)
+    # 'llm' = general chat/completion model, 'embedding' = vector embedding model
+    usage_type = Column(String(20), nullable=False, default='llm', index=True)
     config_json = Column(JSON, default={"temperature": 0.3, "max_tokens": 2000})
     created_at = Column(DateTime(timezone=True), default=utc_now)
     updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)

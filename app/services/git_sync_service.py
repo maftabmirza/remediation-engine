@@ -92,11 +92,20 @@ class GitSyncConfig:
     ):
         self.sync_docs = sync_docs
         self.sync_code = sync_code
-        self.doc_patterns = doc_patterns or ["*. md", "*.markdown", "*.txt", "*.rst", "docs/**/*"]
-        self.code_patterns = code_patterns or ["*.py", "*. js", "*.ts", "*.java", "*.go"]
+        self.doc_patterns = doc_patterns or ["*.md", "*.markdown", "*.txt", "*.rst"]
+        self.code_patterns = code_patterns or ["*.py", "*.js", "*.ts", "*.java", "*.go"]
         self.exclude_patterns = exclude_patterns or [
-            "**/node_modules/**", "**/.git/**", "**/vendor/**",
-            "**/__pycache__/**", "**/dist/**", "**/build/**"
+            # Dependency / build dirs
+            "*/node_modules/*", "*/.git/*", "*/vendor/*",
+            "*/__pycache__/*", "*/dist/*", "*/build/*",
+            # Archived docs — not useful knowledge base content
+            "archive*/*", "*/archive*/*",
+            # Old/legacy dirs
+            "old/*", "*/old/*",
+            # Hidden dirs (e.g. .agent, .github, .vscode)
+            ".*/*", ".*/.*/*",
+            # Test dirs
+            "tests/*", "*/tests/*",
         ]
         self.max_file_size_kb = max_file_size_kb
         self. auto_chunk = auto_chunk
@@ -118,8 +127,8 @@ class GitSyncService:
     
     def __init__(self, db: Session):
         self.db = db
-        self. doc_service = DocumentService(db)
-        self.embedding_service = EmbeddingService()
+        self.doc_service = DocumentService(db)
+        self.embedding_service = EmbeddingService(db=db)
     
     def sync_repository(
         self,
@@ -150,8 +159,11 @@ class GitSyncService:
         stats = {
             "docs_synced": 0,
             "docs_updated": 0,
+            "docs_unchanged": 0,
             "docs_skipped": 0,
             "code_synced": 0,
+            "code_updated": 0,
+            "code_unchanged": 0,
             "chunks_created": 0,
             "embeddings_generated": 0,
             "errors": []
@@ -202,6 +214,7 @@ class GitSyncService:
                 doc_stats = self._sync_docs(repo_path, app_id, user_id, config, repo_url)
                 stats["docs_synced"] = doc_stats["synced"]
                 stats["docs_updated"] = doc_stats["updated"]
+                stats["docs_unchanged"] = doc_stats["unchanged"]
                 stats["docs_skipped"] = doc_stats["skipped"]
                 stats["chunks_created"] += doc_stats["chunks"]
                 stats["embeddings_generated"] += doc_stats["embeddings"]
@@ -210,6 +223,8 @@ class GitSyncService:
             if config.sync_code:
                 code_stats = self._sync_code(repo_path, app_id, user_id, config, repo_url)
                 stats["code_synced"] = code_stats["synced"]
+                stats["code_updated"] = code_stats.get("updated", 0)
+                stats["code_unchanged"] = code_stats.get("unchanged", 0)
                 stats["chunks_created"] += code_stats["chunks"]
                 stats["embeddings_generated"] += code_stats["embeddings"]
             
@@ -240,16 +255,22 @@ class GitSyncService:
         """Sync documentation files."""
         import fnmatch
         
-        stats = {"synced": 0, "updated": 0, "skipped": 0, "chunks": 0, "embeddings": 0}
+        stats = {"synced": 0, "updated": 0, "unchanged": 0, "skipped": 0, "chunks": 0, "embeddings": 0}
         
         # Find matching files
+        seen_paths = set()
         for pattern in config.doc_patterns:
-            for file_path in repo_path.rglob(pattern. replace("**/*", "*")):
+            for file_path in repo_path.rglob(pattern):
                 if not file_path.is_file():
                     continue
-                
+
+                # Skip already-processed files (duplicate pattern matches)
+                if file_path in seen_paths:
+                    continue
+                seen_paths.add(file_path)
+
                 # Check exclusions
-                rel_path = str(file_path. relative_to(repo_path))
+                rel_path = str(file_path.relative_to(repo_path))
                 if any(fnmatch.fnmatch(rel_path, exc) for exc in config.exclude_patterns):
                     continue
                 
@@ -260,56 +281,28 @@ class GitSyncService:
                 
                 try: 
                     logger.debug(f"Processing file: {rel_path}")
-                    # Create code document
-                    content = file_path.read_text(encoding='utf-8', errors='ignore')
-                    file_source_url = f"{source_url}/blob/main/{rel_path}"
-                    
-                    existing = self.db.query(DesignDocument).filter(
-                        DesignDocument.source_url == file_source_url
-                    ).first()
-                    
-                    if existing:
-                        existing.raw_content = content
-                        existing.updated_at = datetime.now(timezone.utc)
-                        existing.version += 1
-                        document = existing
-                        stats["updated"] += 1
-                    else:
-                        document = self.doc_service.create_document(
-                            title=file_path.name,
-                            doc_type='code',
-                            content=content,
-                            format='markdown',
-                            app_id=app_id,
-                            user_id=user_id,
-                            source_url=file_source_url,
-                            source_type='git'
-                        )
-                        stats["synced"] += 1
-                    
-                    # Create chunks
-                    if config.auto_chunk:
-                        chunks = self.doc_service.create_chunks_for_document(document)
-                        if chunks:
-                            stats["chunks"] += len(chunks)
-                            
-                            # Generate embeddings
-                            if config.generate_embeddings and self.embedding_service.is_configured():
-                                chunk_texts = [chunk.content for chunk in chunks]
-                                embeddings = self.embedding_service.generate_embeddings_batch(chunk_texts)
-                                for chunk, embedding in zip(chunks, embeddings):
-                                    if embedding:
-                                        chunk.embedding = embedding
-                                        stats["embeddings"] += 1
+                    result = self._process_doc_file(
+                        file_path=file_path,
+                        rel_path=rel_path,
+                        app_id=app_id,
+                        user_id=user_id,
+                        config=config,
+                        source_url=source_url
+                    )
                     if result["new"]:
                         stats["synced"] += 1
                         logger.info(f"Synced new document: {rel_path}")
+                    elif result["unchanged"]:
+                        stats["unchanged"] += 1
+                        logger.debug(f"Unchanged, skipped re-chunk: {rel_path}")
                     else:
                         stats["updated"] += 1
+                        logger.info(f"Updated document: {rel_path}")
                     stats["chunks"] += result["chunks"]
                     stats["embeddings"] += result["embeddings"]
                 except Exception as e: 
                     logger.error(f"Failed to process {rel_path}: {e}")
+                    self.db.rollback()
                     stats["skipped"] += 1
         
         return stats
@@ -327,8 +320,8 @@ class GitSyncService:
         import hashlib
         
         # Read content
-        content = file_path. read_text(encoding='utf-8', errors='ignore')
-        content_hash = hashlib. sha256(content. encode()).hexdigest()[:16]
+        content = file_path.read_text(encoding='utf-8', errors='ignore')
+        content_hash = hashlib.sha256(content.encode()).hexdigest()[:16]
         
         # Determine doc type from path
         doc_type = self._infer_doc_type(rel_path, content)
@@ -342,34 +335,37 @@ class GitSyncService:
         is_new = existing is None
         
         if existing:
-            # Update existing document
+            # Skip re-processing if content hasn't changed
+            if existing.raw_content == content:
+                return {"new": False, "unchanged": True, "chunks": 0, "embeddings": 0}
+            # Content changed — update
             existing.raw_content = content
-            existing.updated_at = datetime. now(timezone.utc)
+            existing.updated_at = datetime.now(timezone.utc)
             existing.version += 1
             document = existing
         else:
             # Create new document
-            document = self. doc_service.create_document(
-                title=file_path.stem. replace("-", " ").replace("_", " ").title(),
+            document = self.doc_service.create_document(
+                title=file_path.stem.replace("-", " ").replace("_", " ").title(),
                 doc_type=doc_type,
                 content=content,
-                format='markdown' if file_path.suffix in ['.md', '. markdown'] else 'text',
+                format='markdown' if file_path.suffix in ['.md', '.markdown'] else 'text',
                 app_id=app_id,
                 user_id=user_id,
                 source_url=file_source_url,
                 source_type='git'
             )
         
-        # Create chunks
+        # Create chunks (old chunks deleted inside create_chunks_for_document)
         chunks_created = 0
         embeddings_generated = 0
         
         if config.auto_chunk:
-            chunks = self. doc_service.create_chunks_for_document(document)
+            chunks = self.doc_service.create_chunks_for_document(document)
             chunks_created = len(chunks)
             
-            # Generate embeddings in batch (much faster than individual calls)
-            if config.generate_embeddings and self.embedding_service. is_configured() and chunks:
+            # Generate embeddings in batch
+            if config.generate_embeddings and self.embedding_service.is_configured() and chunks:
                 chunk_texts = [chunk.content for chunk in chunks]
                 embeddings = self.embedding_service.generate_embeddings_batch(chunk_texts)
                 for chunk, embedding in zip(chunks, embeddings):
@@ -379,6 +375,7 @@ class GitSyncService:
         
         return {
             "new": is_new,
+            "unchanged": False,
             "chunks": chunks_created,
             "embeddings": embeddings_generated
         }
@@ -394,7 +391,7 @@ class GitSyncService:
         """Sync code files with documentation extraction."""
         import fnmatch
         
-        stats = {"synced": 0, "updated": 0, "skipped": 0, "chunks": 0, "embeddings": 0}
+        stats = {"synced": 0, "updated": 0, "unchanged": 0, "skipped": 0, "chunks": 0, "embeddings": 0}
         
         # Find matching files
         for pattern in config.code_patterns:
@@ -413,34 +410,33 @@ class GitSyncService:
                     continue
                 
                 try:
-                    # Map code files to 'code' doc_type
-                    
-                    # Read content
+                    # Read content and wrap in markdown code block
                     content = file_path.read_text(encoding='utf-8', errors='ignore')
-                    
-                    # Wrap code in markdown block for better rendering/chunking
                     extension = file_path.suffix.lstrip('.')
                     formatted_content = f"``` {extension}\n{content}\n```"
-                    
+
                     # Create/Update document
                     file_source_url = f"{source_url}/blob/main/{rel_path}"
-                    
+
                     existing = self.db.query(DesignDocument).filter(
                         DesignDocument.source_url == file_source_url
                     ).first()
-                    
-                    is_new = existing is None
-                    
+
                     if existing:
+                        # Skip if content unchanged
+                        if existing.raw_content == formatted_content:
+                            stats["unchanged"] += 1
+                            continue
                         existing.raw_content = formatted_content
                         existing.updated_at = datetime.now(timezone.utc)
                         existing.version += 1
                         document = existing
                         stats["updated"] += 1
+                        logger.info(f"Updated code file: {rel_path}")
                     else:
                         document = self.doc_service.create_document(
-                            title=rel_path, # Use relative path as title for code
-                            doc_type='design_doc', # Generic type for now
+                            title=rel_path,
+                            doc_type='code',
                             content=formatted_content,
                             format='markdown',
                             app_id=app_id,
@@ -449,13 +445,13 @@ class GitSyncService:
                             source_type='git'
                         )
                         stats["synced"] += 1
-                    
-                    # Chunk and Embed
+                        logger.info(f"Synced new code file: {rel_path}")
+
+                    # Chunk and embed
                     if config.auto_chunk:
                         chunks = self.doc_service.create_chunks_for_document(document)
                         stats["chunks"] += len(chunks)
-                        
-                        # Generate embeddings in batch (much faster than individual calls)
+
                         if config.generate_embeddings and self.embedding_service.is_configured() and chunks:
                             chunk_texts = [chunk.content for chunk in chunks]
                             embeddings = self.embedding_service.generate_embeddings_batch(chunk_texts)
@@ -466,6 +462,7 @@ class GitSyncService:
                                     
                 except Exception as e:
                     logger.error(f"Failed to process code file {rel_path}: {e}")
+                    self.db.rollback()
                     stats["skipped"] += 1
         
         return stats
@@ -474,19 +471,7 @@ class GitSyncService:
         """Infer document type from path and content."""
         path_lower = path.lower()
         
-        if 'architecture' in path_lower or 'design' in path_lower: 
+        if 'architecture' in path_lower or 'design' in path_lower:
             return 'architecture'
-        elif 'runbook' in path_lower:
-            return 'runbook'
-        elif 'sop' in path_lower or 'procedure' in path_lower:
-            return 'sop'
-        elif 'troubleshoot' in path_lower or 'debug' in path_lower:
-            return 'troubleshooting'
-        elif 'api' in path_lower: 
-            return 'api_spec'
-        elif 'postmortem' in path_lower or 'incident' in path_lower:
-            return 'postmortem'
-        elif 'readme' in path_lower or 'getting' in path_lower: 
-            return 'onboarding'
         
-        return 'design_doc'
+        return 'document'

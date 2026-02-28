@@ -236,26 +236,136 @@
         width: 1px;
         height: 24px;
         background: rgba(204, 204, 220, 0.12);
-        /* Grafana border color */
         margin: 0 4px;
+    }
+
+    /* ─── Dashboard-View Toolbar (themed) ──────────────────────────── */
+    .dv-breadcrumb-link {
+        color: var(--text-muted-dark, #64748b);
+        text-decoration: none;
+        transition: color 0.15s;
+    }
+    .dv-breadcrumb-link:hover {
+        color: var(--brand-primary, #0077b6);
+    }
+
+    .dv-toolbar-group {
+        display: flex;
+        align-items: center;
+        background: var(--bg-surface-raised, rgba(241,245,249,0.6));
+        border-radius: 8px;
+        padding: 3px;
+        border: 1px solid rgba(203,213,225,0.5);
+    }
+
+    .dv-toolbar-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 6px 10px;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-secondary, #475569);
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        white-space: nowrap;
+    }
+    .dv-toolbar-btn:hover {
+        background: rgba(241,245,249,0.9);
+        color: var(--text-primary, #0f172a);
+    }
+    .dv-toolbar-btn:active {
+        transform: scale(0.97);
+    }
+
+    .dv-edit-btn {
+        border: 1px solid rgba(203,213,225,0.5);
+        border-radius: 8px;
+        padding: 6px 14px;
+    }
+    .dv-edit-btn:hover {
+        border-color: var(--brand-primary, #0077b6);
+        color: var(--brand-primary, #0077b6);
+        background: rgba(0,119,182,0.04);
+    }
+
+    .dv-toolbar-divider {
+        width: 1px;
+        height: 20px;
+        background: rgba(203,213,225,0.5);
+        margin: 0 2px;
+        flex-shrink: 0;
+    }
+
+    /* Dropdown Menu (themed) */
+    .dv-dropdown-menu {
+        position: absolute;
+        right: 0;
+        margin-top: 8px;
+        width: 240px;
+        background: var(--bg-surface, #fff);
+        border: 1px solid rgba(203,213,225,0.5);
+        border-radius: 12px;
+        box-shadow: 0 12px 32px -4px rgba(15,14,71,0.15), 0 0 0 1px rgba(203,213,225,0.2);
+        z-index: 50;
+        padding: 6px;
+        max-height: 70vh;
+        overflow-y: auto;
+    }
+
+    .dv-dropdown-section-title {
+        padding: 8px 10px 4px 10px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-muted-dark, #94a3b8);
+    }
+
+    .dv-dropdown-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        text-align: left;
+        padding: 9px 10px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-secondary, #475569);
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        transition: all 0.12s ease;
+    }
+    .dv-dropdown-item:hover {
+        background: #f1f5f9;
+        color: var(--text-primary, #1e293b);
+    }
+
+    .dv-dropdown-divider {
+        height: 1px;
+        background: rgba(203,213,225,0.5);
+        margin: 4px 6px;
     }
 
     /* Query editor textarea styling */
     #query-editor {
         font-family: 'Courier New', monospace;
         font-size: 14px;
-        background-color: #111217;
-        /* Grafana primary bg */
-        color: #ccccdc;
-        /* Grafana text color */
-        border: 1px solid rgba(204, 204, 220, 0.2);
-        border-radius: 4px;
+        background-color: var(--bg-surface, #fff);
+        color: var(--text-primary, #0f172a);
+        border: 1px solid rgba(203,213,225,0.5);
+        border-radius: 8px;
     }
 
     #query-editor:focus {
-        border-color: #3d71d9;
-        /* Grafana blue */
+        border-color: var(--brand-primary, #0077b6);
         outline: none;
+        box-shadow: 0 0 0 3px rgba(0,119,182,0.12);
     }
 
     /* Empty State Styling */
@@ -296,150 +406,326 @@
             background-position: -200% 0;
         }
     }
+
+    /* ─── Widget: KPI Ribbon Panel (matches Overview page) ─────────────────── */
+    .widget-kpi-ribbon {
+        display: flex;
+        align-items: center;
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 16px 24px;
+        gap: 0;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        height: 100%;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .widget-kpi-ribbon .kpi-ribbon-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 0 24px;
+        flex: 1;
+        min-width: 0;
+    }
+
+    .widget-kpi-ribbon .ribbon-divider {
+        width: 1px;
+        height: 40px;
+        background: #e2e8f0;
+        flex-shrink: 0;
+    }
+
+    .widget-kpi-ribbon .ribbon-icon {
+        width: 40px;
+        height: 40px;
+        min-width: 40px;
+        border-radius: 10px;
+        background: #f1f5f9;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #64748b;
+        font-size: 16px;
+        flex-shrink: 0;
+    }
+    .widget-kpi-ribbon .ribbon-icon.analyzed { background: #eff6ff; color: #3b82f6; }
+    .widget-kpi-ribbon .ribbon-icon.warning  { background: #fef3c7; color: #d97706; }
+    .widget-kpi-ribbon .ribbon-icon.critical { background: #fef2f2; color: #ef4444; }
+    .widget-kpi-ribbon .ribbon-icon.success  { background: #dcfce7; color: #16a34a; }
+    .widget-kpi-ribbon .ribbon-icon.primary  { background: #eff6ff; color: #3b82f6; }
+
+    .widget-kpi-ribbon .ribbon-data {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+    }
+
+    .widget-kpi-ribbon .ribbon-value {
+        font-size: 24px;
+        font-weight: 700;
+        color: #0f172a;
+        line-height: 1;
+        white-space: nowrap;
+    }
+
+    .widget-kpi-ribbon .kpi-ribbon-item.warning  .ribbon-value { color: #d97706; }
+    .widget-kpi-ribbon .kpi-ribbon-item.critical .ribbon-value { color: #ef4444; }
+    .widget-kpi-ribbon .kpi-ribbon-item.primary  .ribbon-value { color: #3b82f6; }
+
+    .widget-kpi-ribbon .ribbon-label {
+        font-size: 12px;
+        color: #64748b;
+        font-weight: 500;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* When KPI ribbon is in panel chart container */
+    .panel-chart-container:has(.widget-kpi-ribbon) {
+        background: transparent !important;
+        align-items: stretch;
+        justify-content: stretch;
+        padding: 0;
+    }
+
+    /* Loading skeleton */
+    .widget-kpi-ribbon .ribbon-value.loading {
+        color: #cbd5e1;
+        animation: skeleton-loading 1.5s infinite;
+        border-radius: 4px;
+        min-width: 32px;
+        display: inline-block;
+    }
+
+    /* ─── Time Picker Themed Styles ──────────────────────────────── */
+    .tp-quick-btn {
+        width: 100%;
+        text-align: left;
+        padding: 7px 12px;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-secondary, #334155);
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+    .tp-quick-btn:hover {
+        background: rgba(241, 245, 249, 0.9);
+        color: var(--text-primary, #0f172a);
+    }
+    .tp-quick-btn.tp-quick-active {
+        background: var(--accent-selected-bg, rgba(0,119,182,0.08));
+        color: var(--brand-primary, #0077b6);
+        font-weight: 600;
+    }
+
+    .tp-tab {
+        padding: 6px 16px;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-secondary, #475569);
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+    .tp-tab:hover { background: rgba(255,255,255,0.6); }
+    .tp-tab.tp-tab-active {
+        background: var(--bg-surface, white);
+        color: var(--brand-primary, #0077b6);
+        font-weight: 600;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+
+    .tp-label {
+        display: block;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-primary, #0f172a);
+        margin-bottom: 6px;
+    }
+
+    .tp-input {
+        width: 100%;
+        padding: 9px 12px;
+        border: 1px solid rgba(203, 213, 225, 0.6);
+        border-radius: 8px;
+        font-size: 13px;
+        color: var(--text-primary, #0f172a);
+        background: var(--bg-surface, white);
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .tp-input:focus {
+        outline: none;
+        border-color: var(--brand-primary, #0077b6);
+        box-shadow: 0 0 0 3px rgba(0,119,182,0.12);
+    }
+    .tp-input::placeholder {
+        color: #94a3b8;
+    }
+
+    .tp-hint {
+        font-size: 11px;
+        color: var(--text-muted-dark, #94a3b8);
+        margin-top: 4px;
+    }
+
+    .tp-refresh-btn {
+        padding: 7px 12px;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-secondary, #475569);
+        background: rgba(241, 245, 249, 0.8);
+        border: 1px solid rgba(203,213,225,0.4);
+        cursor: pointer;
+        transition: all 0.15s ease;
+        text-align: center;
+    }
+    .tp-refresh-btn:hover {
+        background: rgba(241, 245, 249, 1);
+        border-color: rgba(203,213,225,0.7);
+    }
+    .tp-refresh-btn.tp-refresh-active {
+        background: var(--accent-selected-bg, rgba(0,119,182,0.08));
+        color: var(--brand-primary, #0077b6);
+        border-color: var(--brand-primary, #0077b6);
+        font-weight: 600;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="space-y-4">
-    <!-- Grafana-style Toolbar -->
-    <!-- Grafana-style Toolbar -->
-    <div class="dashboard-header"
-        style="padding: 12px; background: #16171b; border-bottom: 1px solid rgba(255,255,255,0.05);">
-        <div class="flex items-center justify-between gap-4">
+    <!-- Dashboard Toolbar -->
+    <div class="dashboard-header" style="padding: 12px 16px; background: var(--bg-surface, #fff); border-bottom: 1px solid rgba(203,213,225,0.5); box-shadow: 0 1px 3px rgba(3,4,94,0.04);">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;">
             <!-- Left: Breadcrumbs & Title -->
-            <div class="flex flex-col min-w-0">
+            <div style="display:flex;flex-direction:column;min-width:0;">
                 <!-- Breadcrumbs -->
-                <nav class="flex items-center text-xs text-gray-400 mb-1">
-                    <a href="/" class="hover:text-blue-400 transition-colors">Home</a>
-                    <span class="mx-2">/</span>
-                    <a href="/dashboards" class="hover:text-blue-400 transition-colors">Dashboards</a>
-                    <span class="mx-2">/</span>
-                    <span class="text-gray-200">Operations</span>
+                <nav class="dv-breadcrumbs" style="display:flex;align-items:center;font-size:12px;color:var(--text-muted-dark,#64748b);margin-bottom:4px;">
+                    <a href="/" class="dv-breadcrumb-link">Home</a>
+                    <span style="margin:0 6px;opacity:0.5;">/</span>
+                    <a href="/dashboards" class="dv-breadcrumb-link">Dashboards</a>
+                    <span style="margin:0 6px;opacity:0.5;">/</span>
+                    <span style="color:var(--text-primary,#03045e);font-weight:500;">Operations</span>
                 </nav>
-                <div class="flex items-center gap-3">
-                    <h1 id="dashboard-title" class="text-xl font-bold text-white tracking-tight truncate">Loading...
-                    </h1>
-                    <span id="dashboard-description"
-                        class="hidden px-2 py-0.5 rounded text-[10px] bg-gray-800 text-gray-400 border border-gray-700 truncate max-w-[200px]"></span>
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <h1 id="dashboard-title" style="font-size:18px;font-weight:700;color:var(--text-primary,#03045e);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Loading...</h1>
+                    <span id="dashboard-description" class="hidden" style="padding:2px 8px;border-radius:6px;font-size:10px;background:rgba(241,245,249,0.8);color:var(--text-muted-dark,#64748b);border:1px solid rgba(203,213,225,0.5);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px;"></span>
                 </div>
             </div>
 
             <!-- Right: Toolbar Actions -->
-            <div class="flex items-center gap-2">
+            <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
 
                 <!-- Primary Actions Group -->
-                <div class="flex items-center bg-gray-800 rounded-lg p-1 border border-gray-700">
+                <div class="dv-toolbar-group">
                     <!-- Time Range -->
-                    <button onclick="showTimePickerModal()"
-                        class="toolbar-btn px-3 py-1.5 rounded text-sm hover:bg-gray-700 transition-colors flex items-center gap-2 text-gray-300">
-                        <i class="fas fa-clock text-blue-400 text-xs"></i>
-                        <span id="time-range-display">Last 24h</span>
-                        <i class="fas fa-chevron-down text-[10px] text-gray-500"></i>
+                    <button onclick="showTimePickerModal()" class="dv-toolbar-btn" style="padding:6px 12px;gap:6px;">
+                        <i class="fas fa-clock" style="font-size:12px;color:var(--brand-primary,#0077b6);"></i>
+                        <span id="time-range-display" style="font-size:13px;">Last 24h</span>
+                        <i class="fas fa-chevron-down" style="font-size:9px;opacity:0.5;"></i>
                     </button>
 
-                    <div class="w-px h-5 bg-gray-600 mx-1"></div>
+                    <div class="dv-toolbar-divider"></div>
 
                     <!-- Refresh -->
-                    <button id="refresh-btn" onclick="refreshAllPanels()"
-                        class="toolbar-btn px-2 py-1.5 rounded hover:bg-gray-700 transition-colors flex items-center gap-2"
-                        title="Refresh Data">
-                        <i class="fas fa-sync-alt text-green-400 text-sm"></i>
-                        <span id="refresh-countdown" class="text-xs text-gray-400 hidden"></span>
+                    <button id="refresh-btn" onclick="refreshAllPanels()" class="dv-toolbar-btn" title="Refresh Data" style="padding:6px 8px;">
+                        <i class="fas fa-sync-alt" style="font-size:13px;color:var(--status-success,#059669);"></i>
+                        <span id="refresh-countdown" class="hidden" style="font-size:11px;color:var(--text-muted-dark,#94a3b8);"></span>
                     </button>
                 </div>
 
                 <!-- Editor Actions -->
-                <button id="edit-mode-btn" onclick="toggleEditMode()"
-                    class="toolbar-btn px-3 py-1.5 rounded border border-gray-600 hover:border-blue-400 hover:text-blue-400 text-sm transition-all flex items-center gap-2"
-                    title="Edit Layout">
-                    <i class="fas fa-pen text-xs"></i>
+                <button id="edit-mode-btn" onclick="toggleEditMode()" class="dv-toolbar-btn dv-edit-btn" title="Edit Layout">
+                    <i class="fas fa-pen" style="font-size:11px;"></i>
                     <span id="edit-mode-text" class="hidden sm:inline">Edit</span>
                 </button>
 
                 <!-- Save/Cancel (Hidden by default) -->
                 <button id="save-layout-btn" onclick="saveLayoutChanges()"
-                    class="hidden btn-primary px-3 py-1.5 text-sm flex items-center gap-2">
+                    class="hidden btn-primary" style="padding:6px 14px;font-size:13px;">
                     <i class="fas fa-save"></i> Save
                 </button>
                 <button id="cancel-edit-btn" onclick="cancelEditMode()"
-                    class="hidden btn-secondary px-3 py-1.5 text-sm">
+                    class="hidden btn-secondary" style="padding:6px 14px;font-size:13px;">
                     Cancel
                 </button>
 
                 <!-- More Actions Dropdown -->
-                <div class="relative ml-2" id="more-actions-container">
-                    <button onclick="toggleMoreActions()"
-                        class="toolbar-btn p-2 rounded hover:bg-gray-700 transition-colors text-gray-400">
-                        <i class="fas fa-ellipsis-v"></i>
+                <div class="relative" id="more-actions-container" style="margin-left:4px;">
+                    <button onclick="toggleMoreActions()" class="dv-toolbar-btn" style="padding:6px 8px;">
+                        <i class="fas fa-ellipsis-v" style="font-size:14px;"></i>
                     </button>
                     <!-- Dropdown Menu -->
                     <div id="more-actions-menu"
-                        class="hidden absolute right-0 mt-2 w-56 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-50 py-1">
-                        <div class="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Dashboard
-                        </div>
+                        class="hidden dv-dropdown-menu">
+                        <div class="dv-dropdown-section-title">Dashboard</div>
 
-                        <button onclick="showRowsModal()"
-                            class="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white flex items-center gap-3">
-                            <i class="fas fa-layer-group text-indigo-400 w-4"></i> Manage Rows
+                        <button onclick="showAddExistingPanelModal()" class="dv-dropdown-item">
+                            <i class="fas fa-th-large" style="color:var(--brand-primary,#0077b6);width:16px;text-align:center;"></i> Add Existing Panel
                         </button>
-                        <button onclick="showVariablesModal()"
-                            class="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white flex items-center gap-3">
-                            <i class="fas fa-sliders-h text-purple-400 w-4"></i> Variables
+                        <button onclick="showPanelModal()" class="dv-dropdown-item">
+                            <i class="fas fa-plus-circle" style="color:var(--status-success,#059669);width:16px;text-align:center;"></i> Create New Panel
                         </button>
-                        <button onclick="showAnnotationsModal()"
-                            class="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white flex items-center gap-3">
-                            <i class="fas fa-bookmark text-yellow-400 w-4"></i> Annotations
+                        <div class="dv-dropdown-divider"></div>
+                        <button onclick="showRowsModal()" class="dv-dropdown-item">
+                            <i class="fas fa-layer-group" style="color:#6366f1;width:16px;text-align:center;"></i> Manage Rows
                         </button>
-                        <button onclick="showAlertsModal()"
-                            class="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white flex items-center gap-3">
-                            <div class="relative">
-                                <i class="fas fa-bell text-red-400 w-4"></i>
-                                <span id="alerts-badge"
-                                    class="hidden absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-2 h-2"></span>
-                            </div>
+                        <button onclick="showVariablesModal()" class="dv-dropdown-item">
+                            <i class="fas fa-sliders-h" style="color:#8b5cf6;width:16px;text-align:center;"></i> Variables
+                        </button>
+                        <button onclick="showAnnotationsModal()" class="dv-dropdown-item">
+                            <i class="fas fa-bookmark" style="color:var(--status-warning,#d97706);width:16px;text-align:center;"></i> Annotations
+                        </button>
+                        <button onclick="showAlertsModal()" class="dv-dropdown-item">
+                            <span style="position:relative;display:inline-flex;">
+                                <i class="fas fa-bell" style="color:var(--status-error,#dc2626);width:16px;text-align:center;"></i>
+                                <span id="alerts-badge" class="hidden" style="position:absolute;top:-3px;right:-3px;width:6px;height:6px;border-radius:50%;background:var(--status-error,#dc2626);"></span>
+                            </span>
                             Alerts
                         </button>
 
-                        <!-- Links Section (Restored for JS compatibility) -->
+                        <!-- Links Section -->
                         <div id="links-dropdown" class="block">
-                            <div class="border-t border-gray-700 my-1"></div>
-                            <div class="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Links
-                            </div>
+                            <div class="dv-dropdown-divider"></div>
+                            <div class="dv-dropdown-section-title">Links</div>
                             <div id="links-list"></div>
                         </div>
 
-                        <div class="border-t border-gray-700 my-1"></div>
-                        <div class="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions
-                        </div>
+                        <div class="dv-dropdown-divider"></div>
+                        <div class="dv-dropdown-section-title">Actions</div>
 
-                        <button onclick="showSnapshotModal()"
-                            class="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white flex items-center gap-3">
-                            <i class="fas fa-camera text-gray-400 w-4"></i> Snapshot
+                        <button onclick="showSnapshotModal()" class="dv-dropdown-item">
+                            <i class="fas fa-camera" style="color:var(--text-muted-dark,#64748b);width:16px;text-align:center;"></i> Snapshot
                         </button>
-                        <button onclick="exportDashboard()"
-                            class="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white flex items-center gap-3">
-                            <i class="fas fa-download text-gray-400 w-4"></i> Export JSON
+                        <button onclick="exportDashboard()" class="dv-dropdown-item">
+                            <i class="fas fa-download" style="color:var(--text-muted-dark,#64748b);width:16px;text-align:center;"></i> Export JSON
                         </button>
-                        <button onclick="showImportModal()"
-                            class="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white flex items-center gap-3">
-                            <i class="fas fa-upload text-gray-400 w-4"></i> Import JSON
+                        <button onclick="showImportModal()" class="dv-dropdown-item">
+                            <i class="fas fa-upload" style="color:var(--text-muted-dark,#64748b);width:16px;text-align:center;"></i> Import JSON
                         </button>
 
-                        <div class="border-t border-gray-700 my-1"></div>
+                        <div class="dv-dropdown-divider"></div>
 
-                        <button onclick="toggleKioskMode()"
-                            class="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white flex items-center gap-3">
-                            <i class="fas fa-tv text-orange-400 w-4"></i> Kiosk Mode
+                        <button onclick="toggleKioskMode()" class="dv-dropdown-item">
+                            <i class="fas fa-tv" style="color:#f97316;width:16px;text-align:center;"></i> Kiosk Mode
                         </button>
 
-                        <!-- Settings Items Flattened -->
-                        <button onclick="showShareModal()"
-                            class="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white flex items-center gap-3">
-                            <i class="fas fa-share-alt text-blue-400 w-4"></i> Share
+                        <button onclick="showShareModal()" class="dv-dropdown-item">
+                            <i class="fas fa-share-alt" style="color:var(--brand-primary,#0077b6);width:16px;text-align:center;"></i> Share
                         </button>
-                        <button onclick="duplicateDashboard()"
-                            class="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white flex items-center gap-3">
-                            <i class="fas fa-copy text-green-400 w-4"></i> Duplicate
+                        <button onclick="duplicateDashboard()" class="dv-dropdown-item">
+                            <i class="fas fa-copy" style="color:var(--status-success,#059669);width:16px;text-align:center;"></i> Duplicate
                         </button>
                     </div>
                 </div>
@@ -451,7 +737,7 @@
 
 <!-- Dashboard Variables -->
 <div id="variables-container" class="hidden">
-    <div class="rounded-lg p-4 mb-6 shadow-sm" style="background-color: #181b1f; border: 1px solid #2d2d31;">
+    <div class="rounded-lg p-4 mb-6 shadow-sm" style="background:var(--bg-surface,#fff);border:1px solid rgba(203,213,225,0.5);">
         <div class="flex items-center gap-4 flex-wrap" id="variables-list">
             <!-- Variables will be populated here -->
         </div>
@@ -485,10 +771,16 @@
         <i class="fas fa-chart-bar text-5xl text-gray-600 mb-4"></i>
         <h3 class="text-lg font-semibold text-gray-300 mb-2">No panels in this dashboard</h3>
         <p class="text-gray-500 mb-6">Add some panels to visualize your metrics.</p>
-        <a href="/dashboards" class="btn-primary px-6 py-2 rounded-lg">
-            <i class="fas fa-plus mr-2"></i>
-            Add Panels
-        </a>
+        <div class="flex gap-3 justify-center">
+            <button onclick="showAddExistingPanelModal()" class="btn-secondary px-6 py-2 rounded-lg flex items-center gap-2">
+                <i class="fas fa-th-large"></i>
+                Add Existing Panel
+            </button>
+            <button onclick="showPanelModal()" class="btn-primary px-6 py-2 rounded-lg flex items-center gap-2">
+                <i class="fas fa-plus"></i>
+                Create New Panel
+            </button>
+        </div>
     </div>
 </div>
 
@@ -663,131 +955,93 @@
 </div>
 
 <!-- Time Picker Modal -->
-<div id="time-picker-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
-    <div class="bg-gray-800 rounded-lg p-6 w-full max-w-3xl">
-        <div class="flex justify-between items-center mb-6">
-            <h2 class="text-xl font-bold text-white">Time Range</h2>
-            <button onclick="closeTimePickerModal()" class="text-gray-400 hover:text-white">
-                <i class="fas fa-times text-xl"></i>
+<div id="time-picker-modal" class="modal-overlay" style="z-index:1050;">
+    <div class="modal-container large">
+        <div class="modal-header">
+            <h2 class="modal-title"><i class="fas fa-clock" style="margin-right:8px;color:var(--brand-primary,#0077b6);"></i>Time Range</h2>
+            <button onclick="closeTimePickerModal()" class="modal-close-btn">
+                <i class="fas fa-times"></i>
             </button>
         </div>
 
-        <div class="grid grid-cols-3 gap-6">
-            <!-- Quick Ranges -->
-            <div class="col-span-1">
-                <h3 class="text-sm font-semibold text-gray-300 mb-3">Quick Ranges</h3>
-                <div class="space-y-1">
-                    <button onclick="selectQuickRange('5m')"
-                        class="quick-range-btn w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-700 transition-colors">Last
-                        5 minutes</button>
-                    <button onclick="selectQuickRange('15m')"
-                        class="quick-range-btn w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-700 transition-colors">Last
-                        15 minutes</button>
-                    <button onclick="selectQuickRange('30m')"
-                        class="quick-range-btn w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-700 transition-colors">Last
-                        30 minutes</button>
-                    <button onclick="selectQuickRange('1h')"
-                        class="quick-range-btn w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-700 transition-colors">Last
-                        1 hour</button>
-                    <button onclick="selectQuickRange('3h')"
-                        class="quick-range-btn w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-700 transition-colors">Last
-                        3 hours</button>
-                    <button onclick="selectQuickRange('6h')"
-                        class="quick-range-btn w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-700 transition-colors">Last
-                        6 hours</button>
-                    <button onclick="selectQuickRange('12h')"
-                        class="quick-range-btn w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-700 transition-colors">Last
-                        12 hours</button>
-                    <button onclick="selectQuickRange('24h')"
-                        class="quick-range-btn w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-700 transition-colors bg-gray-700">Last
-                        24 hours</button>
-                    <button onclick="selectQuickRange('2d')"
-                        class="quick-range-btn w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-700 transition-colors">Last
-                        2 days</button>
-                    <button onclick="selectQuickRange('7d')"
-                        class="quick-range-btn w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-700 transition-colors">Last
-                        7 days</button>
-                    <button onclick="selectQuickRange('30d')"
-                        class="quick-range-btn w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-700 transition-colors">Last
-                        30 days</button>
-                    <button onclick="selectQuickRange('90d')"
-                        class="quick-range-btn w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-700 transition-colors">Last
-                        90 days</button>
-                </div>
-            </div>
-
-            <!-- Absolute/Relative Time -->
-            <div class="col-span-2">
-                <div class="mb-4">
-                    <div class="flex gap-2 mb-4">
-                        <button id="tab-relative" onclick="switchTimeTab('relative')"
-                            class="px-4 py-2 rounded bg-blue-600 text-white text-sm">Relative</button>
-                        <button id="tab-absolute" onclick="switchTimeTab('absolute')"
-                            class="px-4 py-2 rounded bg-gray-700 text-gray-300 text-sm">Absolute</button>
+        <div class="modal-body" style="padding:0;">
+            <div style="display:grid;grid-template-columns:220px 1fr;min-height:380px;">
+                <!-- Quick Ranges (left column) -->
+                <div style="padding:20px;border-right:1px solid rgba(203,213,225,0.5);overflow-y:auto;">
+                    <h3 style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted-dark,#64748b);margin-bottom:12px;">Quick Ranges</h3>
+                    <div style="display:flex;flex-direction:column;gap:2px;">
+                        <button onclick="selectQuickRange('5m')" class="quick-range-btn tp-quick-btn">Last 5 minutes</button>
+                        <button onclick="selectQuickRange('15m')" class="quick-range-btn tp-quick-btn">Last 15 minutes</button>
+                        <button onclick="selectQuickRange('30m')" class="quick-range-btn tp-quick-btn">Last 30 minutes</button>
+                        <button onclick="selectQuickRange('1h')" class="quick-range-btn tp-quick-btn">Last 1 hour</button>
+                        <button onclick="selectQuickRange('3h')" class="quick-range-btn tp-quick-btn">Last 3 hours</button>
+                        <button onclick="selectQuickRange('6h')" class="quick-range-btn tp-quick-btn">Last 6 hours</button>
+                        <button onclick="selectQuickRange('12h')" class="quick-range-btn tp-quick-btn">Last 12 hours</button>
+                        <button onclick="selectQuickRange('24h')" class="quick-range-btn tp-quick-btn tp-quick-active">Last 24 hours</button>
+                        <button onclick="selectQuickRange('2d')" class="quick-range-btn tp-quick-btn">Last 2 days</button>
+                        <button onclick="selectQuickRange('7d')" class="quick-range-btn tp-quick-btn">Last 7 days</button>
+                        <button onclick="selectQuickRange('30d')" class="quick-range-btn tp-quick-btn">Last 30 days</button>
+                        <button onclick="selectQuickRange('90d')" class="quick-range-btn tp-quick-btn">Last 90 days</button>
                     </div>
                 </div>
 
-                <!-- Relative Time Range -->
-                <div id="relative-time-panel" class="space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-2">From</label>
-                        <input type="text" id="relative-from" value="now-24h" placeholder="now-24h"
-                            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500">
-                        <p class="text-xs text-gray-500 mt-1">Examples: now-1h, now-24h, now-7d</p>
+                <!-- Right column: Tabs + Inputs -->
+                <div style="padding:20px;display:flex;flex-direction:column;gap:20px;">
+                    <!-- Tab Switcher -->
+                    <div style="display:flex;gap:4px;background:rgba(241,245,249,0.8);border-radius:8px;padding:3px;width:fit-content;">
+                        <button id="tab-relative" onclick="switchTimeTab('relative')" class="tp-tab tp-tab-active">Relative</button>
+                        <button id="tab-absolute" onclick="switchTimeTab('absolute')" class="tp-tab">Absolute</button>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-2">To</label>
-                        <input type="text" id="relative-to" value="now" placeholder="now"
-                            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500">
-                        <p class="text-xs text-gray-500 mt-1">Examples: now, now-1h</p>
-                    </div>
-                </div>
 
-                <!-- Absolute Time Range -->
-                <div id="absolute-time-panel" class="hidden space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-2">From</label>
-                        <input type="datetime-local" id="absolute-from"
-                            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500">
+                    <!-- Relative Time Range -->
+                    <div id="relative-time-panel" style="display:flex;flex-direction:column;gap:16px;">
+                        <div>
+                            <label class="tp-label">From</label>
+                            <input type="text" id="relative-from" value="now-24h" placeholder="now-24h" class="tp-input">
+                            <p class="tp-hint">Examples: now-1h, now-24h, now-7d</p>
+                        </div>
+                        <div>
+                            <label class="tp-label">To</label>
+                            <input type="text" id="relative-to" value="now" placeholder="now" class="tp-input">
+                            <p class="tp-hint">Examples: now, now-1h</p>
+                        </div>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-2">To</label>
-                        <input type="datetime-local" id="absolute-to"
-                            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500">
-                    </div>
-                </div>
 
-                <!-- Refresh Interval -->
-                <div class="mt-6 pt-4 border-t border-gray-700">
-                    <label class="block text-sm font-medium text-gray-300 mb-2">Auto Refresh</label>
-                    <div class="grid grid-cols-3 gap-2">
-                        <button onclick="selectRefreshInterval(0)"
-                            class="refresh-interval-btn px-3 py-2 rounded text-sm bg-gray-700 hover:bg-gray-600 transition-colors">Off</button>
-                        <button onclick="selectRefreshInterval(5)"
-                            class="refresh-interval-btn px-3 py-2 rounded text-sm bg-gray-700 hover:bg-gray-600 transition-colors">5s</button>
-                        <button onclick="selectRefreshInterval(10)"
-                            class="refresh-interval-btn px-3 py-2 rounded text-sm bg-gray-700 hover:bg-gray-600 transition-colors">10s</button>
-                        <button onclick="selectRefreshInterval(30)"
-                            class="refresh-interval-btn px-3 py-2 rounded text-sm bg-gray-700 hover:bg-gray-600 transition-colors">30s</button>
-                        <button onclick="selectRefreshInterval(60)"
-                            class="refresh-interval-btn px-3 py-2 rounded text-sm bg-gray-700 hover:bg-gray-600 transition-colors">1m</button>
-                        <button onclick="selectRefreshInterval(300)"
-                            class="refresh-interval-btn px-3 py-2 rounded text-sm bg-gray-700 hover:bg-gray-600 transition-colors">5m</button>
+                    <!-- Absolute Time Range -->
+                    <div id="absolute-time-panel" class="hidden" style="display:none;flex-direction:column;gap:16px;">
+                        <div>
+                            <label class="tp-label">From</label>
+                            <input type="datetime-local" id="absolute-from" class="tp-input">
+                        </div>
+                        <div>
+                            <label class="tp-label">To</label>
+                            <input type="datetime-local" id="absolute-to" class="tp-input">
+                        </div>
                     </div>
-                    <div class="mt-2">
-                        <input type="number" id="custom-refresh-interval" placeholder="Custom (seconds)" min="1"
-                            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500">
+
+                    <!-- Refresh Interval -->
+                    <div style="margin-top:auto;padding-top:16px;border-top:1px solid rgba(203,213,225,0.5);">
+                        <label class="tp-label">Auto Refresh</label>
+                        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px;">
+                            <button onclick="selectRefreshInterval(0)" class="refresh-interval-btn tp-refresh-btn">Off</button>
+                            <button onclick="selectRefreshInterval(5)" class="refresh-interval-btn tp-refresh-btn">5s</button>
+                            <button onclick="selectRefreshInterval(10)" class="refresh-interval-btn tp-refresh-btn">10s</button>
+                            <button onclick="selectRefreshInterval(30)" class="refresh-interval-btn tp-refresh-btn">30s</button>
+                            <button onclick="selectRefreshInterval(60)" class="refresh-interval-btn tp-refresh-btn">1m</button>
+                            <button onclick="selectRefreshInterval(300)" class="refresh-interval-btn tp-refresh-btn">5m</button>
+                        </div>
+                        <input type="number" id="custom-refresh-interval" placeholder="Custom interval (seconds)" min="1" class="tp-input" style="margin-top:8px;">
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="flex justify-end gap-2 mt-6">
-            <button onclick="closeTimePickerModal()" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded text-white">
+        <div class="modal-footer">
+            <button onclick="closeTimePickerModal()" class="btn-secondary">
                 Cancel
             </button>
-            <button onclick="applyTimeRange()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white">
-                <i class="fas fa-check mr-2"></i>
+            <button onclick="applyTimeRange()" class="btn-primary">
+                <i class="fas fa-check"></i>
                 Apply
             </button>
         </div>
@@ -1137,6 +1391,53 @@
     <i class="fas fa-times mr-2"></i>
     Exit Kiosk Mode
 </button>
+
+<!-- Add Existing Panel Modal -->
+<div id="add-existing-panel-modal"
+    class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
+    <div class="bg-gray-800 rounded-lg w-full max-w-3xl" style="display:flex; flex-direction:column; height:85vh; max-height:85vh;">
+        <!-- Header -->
+        <div class="flex justify-between items-center p-6 pb-4 flex-shrink-0">
+            <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                <i class="fas fa-th-large text-blue-400"></i> Add Existing Panel
+            </h2>
+            <button onclick="closeAddExistingPanelModal()" class="text-gray-400 hover:text-white">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+
+        <!-- Search -->
+        <div class="px-6 pb-3 flex-shrink-0">
+            <input type="text" id="existing-panel-search" placeholder="Search panels by name, type or tags..."
+                oninput="filterExistingPanels(this.value)"
+                class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-blue-500">
+        </div>
+
+        <!-- Selection info -->
+        <div class="flex items-center justify-between px-6 pb-3 flex-shrink-0">
+            <span id="existing-panel-count" class="text-sm text-gray-400">Loading panels...</span>
+            <span id="existing-panel-selected-count" class="text-sm text-blue-400 font-medium hidden">0 selected</span>
+        </div>
+
+        <!-- Panel list — scrollable -->
+        <div id="existing-panels-list" class="px-6 space-y-2" style="flex:1; overflow-y:auto; min-height:0;">
+            <!-- Panels populated by JS -->
+        </div>
+
+        <!-- Footer -->
+        <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-700 flex-shrink-0">
+            <button onclick="closeAddExistingPanelModal()"
+                class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-gray-300 text-sm transition-colors">
+                Cancel
+            </button>
+            <button onclick="addSelectedExistingPanels()" id="add-existing-panels-btn"
+                class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                disabled>
+                <i class="fas fa-plus mr-1"></i> Add Selected Panels
+            </button>
+        </div>
+    </div>
+</div>
 
 <!-- Create/Edit Panel Modal -->
 <div id="panel-modal"
@@ -1495,7 +1796,9 @@
             // Entering edit mode - save current state for potential cancel
             originalLayoutState = saveCurrentLayoutState();
 
-            editBtn.classList.add('bg-blue-600', 'border-blue-500');
+            editBtn.style.borderColor = 'var(--brand-primary, #0077b6)';
+            editBtn.style.color = 'var(--brand-primary, #0077b6)';
+            editBtn.style.background = 'rgba(0,119,182,0.06)';
             editText.textContent = 'Editing';
             cancelBtn.classList.remove('hidden');
             saveBtn.classList.remove('hidden');
@@ -1525,7 +1828,9 @@
         const cancelBtn = document.getElementById('cancel-edit-btn');
         const saveBtn = document.getElementById('save-layout-btn');
 
-        editBtn.classList.remove('bg-blue-600', 'border-blue-500');
+        editBtn.style.borderColor = '';
+        editBtn.style.color = '';
+        editBtn.style.background = '';
         editText.textContent = 'Edit';
         cancelBtn.classList.add('hidden');
         saveBtn.classList.add('hidden');
@@ -1645,6 +1950,9 @@
             <h3 class="text-xl font-bold text-white mb-2">This dashboard is empty</h3>
             <p class="text-gray-400 mb-6 max-w-md">Start building your operations view by adding panels or importing an existing layout.</p>
             <div class="flex gap-4">
+                <button onclick="showAddExistingPanelModal()" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-gray-200 font-medium transition-colors flex items-center gap-2">
+                    <i class="fas fa-th-large"></i> Add Existing Panel
+                </button>
                 <button onclick="showPanelModal()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white font-medium transition-colors flex items-center gap-2">
                     <i class="fas fa-plus"></i> Add New Panel
                 </button>
@@ -1700,6 +2008,7 @@
             await loadPanelRows();
 
             if (panels.length === 0) {
+                showEmpty();
                 renderEmptyState();
             } else {
                 renderPanels();
@@ -2085,6 +2394,7 @@
         const panelName = panelItem.panel_name || panelItem.name || 'Unnamed Panel';
         const panelDescription = panelItem.description || '';
         const panelQuery = panelItem.promql_query || 'No query';
+        const isWidget = panelItem.panel_type === 'widget';
 
         // Use saved grid position or default
         const gridX = panelItem.grid_x !== undefined ? panelItem.grid_x : (index % 2) * 6;
@@ -2136,9 +2446,7 @@
                     <div id="chart-${panelId}" class="panel-chart-container bg-gray-800/50 rounded-lg">
                         <i class="fas fa-spinner fa-spin text-2xl text-gray-500"></i>
                     </div>
-                    <div class="mt-2 text-xs text-gray-600 font-mono truncate" title="${escapeHtml(panelQuery)}">
-                        ${escapeHtml(panelQuery)}
-                    </div>
+                    ${isWidget ? '' : `<div class="mt-2 text-xs text-gray-600 font-mono truncate" title="${escapeHtml(panelQuery)}">${escapeHtml(panelQuery)}</div>`}
                 </div>
             </div>
         `;
@@ -2166,6 +2474,19 @@
         const statusEl = document.getElementById(`panel-status-${panelId}`);
 
         if (!chartContainer) return;
+
+        // ── Widget panel types: bypass Prometheus / echarts entirely ──────────
+        if (panelItem.panel_type === 'widget') {
+            const widgetId = panelItem.promql_query || '';
+            if (widgetId === 'widget:kpi_ribbon') {
+                await renderWidgetKpiRibbon(panelId, chartContainer, statusEl);
+            } else {
+                chartContainer.innerHTML = `<div class="text-center text-gray-500 py-6">
+                    <i class="fas fa-puzzle-piece text-2xl mb-2"></i>
+                    <p class="text-sm">Unknown widget: ${escapeHtml(widgetId)}</p></div>`;
+            }
+            return;
+        }
 
         try {
             // Get time range bounds
@@ -2267,6 +2588,137 @@
                 Error
             `;
             }
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    //  Widget: KPI Ribbon — renders exactly like the Overview page ribbon
+    // ══════════════════════════════════════════════════════════════════════════
+    function fmtMinutesWidget(val) {
+        if (!val && val !== 0) return '—';
+        const n = parseFloat(val);
+        if (isNaN(n)) return '—';
+        if (n < 60)   return `${n.toFixed(0)}m`;
+        if (n < 1440) return `${(n / 60).toFixed(1)}h`;
+        return `${(n / 1440).toFixed(1)}d`;
+    }
+
+    async function renderWidgetKpiRibbon(panelId, container, statusEl) {
+        const pid = panelId;
+
+        // Matches the Overview page kpi-ribbon exactly
+        container.innerHTML = `
+        <div class="widget-kpi-ribbon" id="widget-ribbon-${pid}">
+            <div class="kpi-ribbon-item">
+                <div class="ribbon-icon"><i class="fas fa-bell"></i></div>
+                <div class="ribbon-data">
+                    <span class="ribbon-value" id="wkr-total-${pid}">&mdash;</span>
+                    <span class="ribbon-label">Total Alerts</span>
+                </div>
+            </div>
+            <div class="ribbon-divider"></div>
+            <div class="kpi-ribbon-item">
+                <div class="ribbon-icon analyzed"><i class="fas fa-search"></i></div>
+                <div class="ribbon-data">
+                    <span class="ribbon-value" id="wkr-analyzed-${pid}">&mdash;</span>
+                    <span class="ribbon-label">Analyzed</span>
+                </div>
+            </div>
+            <div class="ribbon-divider"></div>
+            <div class="kpi-ribbon-item warning">
+                <div class="ribbon-icon warning"><i class="fas fa-clock"></i></div>
+                <div class="ribbon-data">
+                    <span class="ribbon-value" id="wkr-pending-${pid}">&mdash;</span>
+                    <span class="ribbon-label">Pending</span>
+                </div>
+            </div>
+            <div class="ribbon-divider"></div>
+            <div class="kpi-ribbon-item critical">
+                <div class="ribbon-icon critical"><i class="fas fa-exclamation-triangle"></i></div>
+                <div class="ribbon-data">
+                    <span class="ribbon-value" id="wkr-critical-${pid}">&mdash;</span>
+                    <span class="ribbon-label">Critical</span>
+                </div>
+            </div>
+            <div class="ribbon-divider"></div>
+            <div class="kpi-ribbon-item">
+                <div class="ribbon-icon"><i class="fas fa-eye"></i></div>
+                <div class="ribbon-data">
+                    <span class="ribbon-value" id="wkr-mtta-${pid}">&mdash;</span>
+                    <span class="ribbon-label">MTTA</span>
+                </div>
+            </div>
+            <div class="ribbon-divider"></div>
+            <div class="kpi-ribbon-item">
+                <div class="ribbon-icon"><i class="fas fa-check-square"></i></div>
+                <div class="ribbon-data">
+                    <span class="ribbon-value" id="wkr-mttr-${pid}">&mdash;</span>
+                    <span class="ribbon-label">MTTR</span>
+                </div>
+            </div>
+            <div class="ribbon-divider"></div>
+            <div class="kpi-ribbon-item">
+                <div class="ribbon-icon success"><i class="fas fa-bolt"></i></div>
+                <div class="ribbon-data">
+                    <span class="ribbon-value" id="wkr-remediation-${pid}">0.0%</span>
+                    <span class="ribbon-label">Remediation</span>
+                </div>
+            </div>
+            <div class="ribbon-divider"></div>
+            <div class="kpi-ribbon-item primary">
+                <div class="ribbon-icon primary"><i class="fas fa-heartbeat"></i></div>
+                <div class="ribbon-data">
+                    <span class="ribbon-value" id="wkr-reliability-${pid}">&mdash;</span>
+                    <span class="ribbon-label">Reliability</span>
+                </div>
+            </div>
+        </div>`;
+
+        // Fetch live stats
+        try {
+            // Build time_range param from current dashboard time selection
+            let trParam = '24h';
+            if (currentTimeRange.mode === 'quick') {
+                trParam = currentTimeRange.value || '24h';
+            } else if (currentTimeRange.mode === 'relative') {
+                // Extract duration from relative "now-Xh" format
+                const m = (currentTimeRange.from || '').match(/^now-(\d+[mhd])$/);
+                trParam = m ? m[1] : '24h';
+            } else if (currentTimeRange.mode === 'absolute') {
+                // For absolute, compute approximate duration
+                const bounds = getTimeRangeBounds();
+                const diffMs = bounds.end - bounds.start;
+                const diffH = Math.max(1, Math.round(diffMs / (60 * 60 * 1000)));
+                trParam = diffH + 'h';
+            }
+
+            const response = await apiCall(`/api/alerts/stats?time_range=${trParam}`);
+            if (!response) return;
+
+            const s = (id, val) => {
+                const el = document.getElementById(`wkr-${id}-${pid}`);
+                if (el) el.textContent = val;
+            };
+
+            s('total',       response.total_alerts ?? 0);
+            s('analyzed',    response.analyzed_alerts ?? 0);
+            s('pending',     response.pending_alerts ?? 0);
+            s('critical',    response.critical_alerts ?? 0);
+            s('mtta',        fmtMinutesWidget(response.mtta_minutes));
+            s('mttr',        fmtMinutesWidget(response.mttr_minutes));
+            s('remediation', (response.remediation_success_rate || 0).toFixed(1) + '%');
+            s('reliability', (response.reliability_index ?? 0) + '%');
+
+            if (statusEl) statusEl.innerHTML = `<i class="fas fa-circle text-green-400 text-xs"></i> Live`;
+
+        } catch (err) {
+            console.error(`[KPI Ribbon] Failed for panel ${pid}:`, err);
+            container.innerHTML = `
+                <div style="display:flex;align-items:center;justify-content:center;height:100%;color:#ef4444;gap:8px;">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <span style="font-size:13px;">Failed to load KPI data</span>
+                </div>`;
+            if (statusEl) statusEl.innerHTML = `<i class="fas fa-circle text-red-400 text-xs"></i> Error`;
         }
     }
 
@@ -2687,6 +3139,27 @@
             });
     }
 
+    function showPanelModal() {
+        document.getElementById('modal-title').textContent = 'Create Panel';
+        document.getElementById('panel-id').value = '';
+        document.getElementById('panel-name').value = '';
+        document.getElementById('panel-description').value = '';
+        document.getElementById('panel-type').value = 'graph';
+        document.getElementById('panel-legend').value = '';
+        document.getElementById('panel-time-range').value = '1h';
+        document.getElementById('panel-refresh').value = '0';
+        document.getElementById('panel-is-template').checked = false;
+        document.getElementById('panel-is-public').checked = false;
+        document.getElementById('panel-tags').value = '';
+        document.getElementById('query-result').classList.add('hidden');
+        const queryTextarea = document.getElementById('query-editor');
+        queryTextarea.value = '';
+        queryTextarea.style.display = 'block';
+        PanelEditor.loadVisualizationConfig(null);
+        ensureDatasourcesLoaded();
+        document.getElementById('panel-modal').classList.remove('hidden');
+    }
+
     function openEditModal(panel) {
         document.getElementById('modal-title').textContent = 'Edit Panel';
         document.getElementById('panel-id').value = panel.id;
@@ -2719,6 +3192,165 @@
 
     function closePanelModal() {
         document.getElementById('panel-modal').classList.add('hidden');
+    }
+
+    // --- Add Existing Panel Logic ---
+
+    let allAvailablePanels = [];
+    let selectedExistingPanelIds = new Set();
+
+    async function showAddExistingPanelModal() {
+        selectedExistingPanelIds = new Set();
+        document.getElementById('existing-panel-search').value = '';
+        document.getElementById('add-existing-panels-btn').disabled = true;
+        document.getElementById('existing-panel-selected-count').classList.add('hidden');
+        document.getElementById('existing-panel-count').textContent = 'Loading panels...';
+        document.getElementById('existing-panels-list').innerHTML =
+            '<div class="flex items-center justify-center py-10"><i class="fas fa-spinner fa-spin text-blue-400 text-2xl"></i></div>';
+        document.getElementById('add-existing-panel-modal').classList.remove('hidden');
+
+        try {
+            // Fetch all panels and current dashboard panels in parallel
+            const [allResp, dashResp] = await Promise.all([
+                fetch('/api/panels/?limit=500'),
+                fetch(`/api/dashboards/${dashboardId}`)
+            ]);
+            const allPanels = await allResp.json();
+            const dashData = await dashResp.json();
+
+            // Build set of panel IDs already in this dashboard
+            const existingIds = new Set((dashData.panels || []).map(p => p.panel_id || p.id));
+
+            // Only show panels NOT already in the dashboard
+            allAvailablePanels = allPanels.filter(p => !existingIds.has(p.id));
+            renderExistingPanelList(allAvailablePanels);
+        } catch (err) {
+            console.error('Failed to load panels:', err);
+            document.getElementById('existing-panels-list').innerHTML =
+                '<p class="text-red-400 text-center py-8">Failed to load panels. Please try again.</p>';
+            document.getElementById('existing-panel-count').textContent = 'Error loading panels';
+        }
+    }
+
+    function renderExistingPanelList(panels) {
+        const container = document.getElementById('existing-panels-list');
+        document.getElementById('existing-panel-count').textContent =
+            panels.length === 0 ? 'No panels available' : `${panels.length} panel${panels.length !== 1 ? 's' : ''} available`;
+
+        if (panels.length === 0) {
+            container.innerHTML = '<p class="text-gray-400 text-center py-10">All existing panels are already in this dashboard, or no panels exist yet.</p>';
+            return;
+        }
+
+        const panelTypeIcons = {
+            graph: 'fa-chart-line', area: 'fa-chart-area', stacked_area: 'fa-chart-area',
+            bar: 'fa-chart-bar', stacked_bar: 'fa-chart-bar', stat: 'fa-tachometer-alt',
+            gauge: 'fa-tachometer-alt', sparkline: 'fa-chart-line', table: 'fa-table',
+            heatmap: 'fa-th', pie: 'fa-chart-pie', text: 'fa-font', logs: 'fa-list'
+        };
+
+        container.innerHTML = panels.map(p => {
+            const icon = panelTypeIcons[p.panel_type] || 'fa-chart-bar';
+            const tags = (p.tags || []).map(t =>
+                `<span class="px-1.5 py-0.5 bg-gray-700 rounded text-xs text-gray-300">${t}</span>`
+            ).join(' ');
+            const checked = selectedExistingPanelIds.has(p.id) ? 'checked' : '';
+            return `
+            <label class="flex items-start gap-3 p-3 bg-gray-750 border border-gray-700 rounded-lg cursor-pointer hover:border-blue-500 hover:bg-gray-700 transition-all"
+                   style="background:#1e2128">
+                <input type="checkbox" value="${p.id}" ${checked}
+                    class="mt-1 h-4 w-4 rounded border-gray-500 text-blue-600 bg-gray-700 cursor-pointer flex-shrink-0"
+                    onchange="toggleExistingPanelSelection('${p.id}', this.checked)">
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2">
+                        <i class="fas ${icon} text-blue-400 text-sm w-4 flex-shrink-0"></i>
+                        <span class="font-medium text-white text-sm truncate">${p.name}</span>
+                        <span class="text-xs text-gray-500 flex-shrink-0">${p.panel_type || 'graph'}</span>
+                    </div>
+                    ${p.description ? `<p class="text-xs text-gray-400 mt-0.5 truncate">${p.description}</p>` : ''}
+                    ${tags ? `<div class="flex gap-1 flex-wrap mt-1">${tags}</div>` : ''}
+                </div>
+            </label>`;
+        }).join('');
+    }
+
+    function filterExistingPanels(query) {
+        const q = query.toLowerCase().trim();
+        const filtered = q
+            ? allAvailablePanels.filter(p =>
+                p.name.toLowerCase().includes(q) ||
+                (p.panel_type || '').toLowerCase().includes(q) ||
+                (p.description || '').toLowerCase().includes(q) ||
+                (p.tags || []).some(t => t.toLowerCase().includes(q))
+            )
+            : allAvailablePanels;
+        renderExistingPanelList(filtered);
+    }
+
+    function toggleExistingPanelSelection(panelId, checked) {
+        if (checked) {
+            selectedExistingPanelIds.add(panelId);
+        } else {
+            selectedExistingPanelIds.delete(panelId);
+        }
+        const count = selectedExistingPanelIds.size;
+        const btn = document.getElementById('add-existing-panels-btn');
+        const selCount = document.getElementById('existing-panel-selected-count');
+        btn.disabled = count === 0;
+        if (count > 0) {
+            selCount.textContent = `${count} selected`;
+            selCount.classList.remove('hidden');
+        } else {
+            selCount.classList.add('hidden');
+        }
+    }
+
+    function closeAddExistingPanelModal() {
+        document.getElementById('add-existing-panel-modal').classList.add('hidden');
+        selectedExistingPanelIds = new Set();
+    }
+
+    async function addSelectedExistingPanels() {
+        if (selectedExistingPanelIds.size === 0) return;
+
+        const btn = document.getElementById('add-existing-panels-btn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Adding...';
+
+        let successCount = 0;
+        let failCount = 0;
+
+        for (const panelId of selectedExistingPanelIds) {
+            try {
+                const resp = await fetch(`/api/dashboards/${dashboardId}/panels`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        panel_id: panelId,
+                        grid_x: 0, grid_y: 0,
+                        grid_width: 6, grid_height: 4
+                    })
+                });
+                if (resp.ok) {
+                    successCount++;
+                } else {
+                    failCount++;
+                }
+            } catch (e) {
+                console.error('Failed to add panel', panelId, e);
+                failCount++;
+            }
+        }
+
+        closeAddExistingPanelModal();
+
+        if (successCount > 0) {
+            showToast(`${successCount} panel${successCount !== 1 ? 's' : ''} added successfully`, 'success');
+            setTimeout(() => location.reload(), 600);
+        }
+        if (failCount > 0) {
+            showToast(`${failCount} panel${failCount !== 1 ? 's' : ''} failed to add`, 'error');
+        }
     }
 
     async function savePanel(event) {
@@ -3295,11 +3927,11 @@
 
     // Time Picker Functions
     function showTimePickerModal() {
-        document.getElementById('time-picker-modal').classList.remove('hidden');
+        document.getElementById('time-picker-modal').classList.add('active');
     }
 
     function closeTimePickerModal() {
-        document.getElementById('time-picker-modal').classList.add('hidden');
+        document.getElementById('time-picker-modal').classList.remove('active');
     }
 
     function switchTimeTab(tab) {
@@ -3309,20 +3941,16 @@
         const absoluteTab = document.getElementById('tab-absolute');
 
         if (tab === 'relative') {
-            relativePanel.classList.remove('hidden');
-            absolutePanel.classList.add('hidden');
-            relativeTab.classList.add('bg-blue-600', 'text-white');
-            relativeTab.classList.remove('bg-gray-700', 'text-gray-300');
-            absoluteTab.classList.remove('bg-blue-600', 'text-white');
-            absoluteTab.classList.add('bg-gray-700', 'text-gray-300');
+            relativePanel.style.display = 'flex';
+            absolutePanel.style.display = 'none';
+            relativeTab.classList.add('tp-tab-active');
+            absoluteTab.classList.remove('tp-tab-active');
             currentTimeRange.mode = 'relative';
         } else {
-            relativePanel.classList.add('hidden');
-            absolutePanel.classList.remove('hidden');
-            absoluteTab.classList.add('bg-blue-600', 'text-white');
-            absoluteTab.classList.remove('bg-gray-700', 'text-gray-300');
-            relativeTab.classList.remove('bg-blue-600', 'text-white');
-            relativeTab.classList.add('bg-gray-700', 'text-gray-300');
+            relativePanel.style.display = 'none';
+            absolutePanel.style.display = 'flex';
+            absoluteTab.classList.add('tp-tab-active');
+            relativeTab.classList.remove('tp-tab-active');
             currentTimeRange.mode = 'absolute';
         }
     }
@@ -3353,22 +3981,20 @@
         document.getElementById('relative-to').value = 'now';
 
         // Highlight selected button
-        document.querySelectorAll('.quick-range-btn').forEach(btn => {
-            btn.classList.remove('bg-gray-700');
+        document.querySelectorAll('.tp-quick-btn').forEach(btn => {
+            btn.classList.remove('tp-quick-active');
         });
-        event.target.classList.add('bg-gray-700');
+        event.target.classList.add('tp-quick-active');
     }
 
     function selectRefreshInterval(seconds) {
         customRefreshIntervalSeconds = seconds;
 
         // Highlight selected button
-        document.querySelectorAll('.refresh-interval-btn').forEach(btn => {
-            btn.classList.remove('bg-blue-600', 'text-white');
-            btn.classList.add('bg-gray-700');
+        document.querySelectorAll('.tp-refresh-btn').forEach(btn => {
+            btn.classList.remove('tp-refresh-active');
         });
-        event.target.classList.remove('bg-gray-700');
-        event.target.classList.add('bg-blue-600', 'text-white');
+        event.target.classList.add('tp-refresh-active');
 
         // Clear custom input if preset is selected
         if (seconds > 0) {

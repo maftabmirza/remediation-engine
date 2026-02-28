@@ -4,7 +4,7 @@
 {% block title %}Schedules - AIOps Platform{% endblock %}
 
 {% block header_title %}
-<i class="fas fa-calendar-alt text-blue-400"></i>
+<i data-feather="calendar" class="text-blue-400" style="width:16px;height:16px;"></i>
 <span class="text-sm font-semibold text-white tracking-tight">Runbook Schedules</span>
 {% endblock %}
 
@@ -177,19 +177,19 @@
                 </label>
                 <div class="grid grid-cols-3 gap-2">
                     <button type="button" onclick="setScheduleType('cron')"
-                        class="schedule-type-btn p-3 rounded border border-gray-600 hover:border-blue-500 transition"
+                        class="schedule-type-btn p-3 rounded transition" style="border: 1px solid var(--border-color);"
                         data-type="cron">
                         <i class="fas fa-clock block text-2xl mb-1"></i>
                         <span class="text-sm">Cron</span>
                     </button>
                     <button type="button" onclick="setScheduleType('interval')"
-                        class="schedule-type-btn p-3 rounded border border-gray-600 hover:border-blue-500 transition"
+                        class="schedule-type-btn p-3 rounded transition" style="border: 1px solid var(--border-color);"
                         data-type="interval">
                         <i class="fas fa-sync block text-2xl mb-1"></i>
                         <span class="text-sm">Interval</span>
                     </button>
                     <button type="button" onclick="setScheduleType('date')"
-                        class="schedule-type-btn p-3 rounded border border-gray-600 hover:border-blue-500 transition"
+                        class="schedule-type-btn p-3 rounded transition" style="border: 1px solid var(--border-color);"
                         data-type="date">
                         <i class="fas fa-calendar-day block text-2xl mb-1"></i>
                         <span class="text-sm">One-time</span>

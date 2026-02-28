@@ -1116,7 +1116,7 @@ CREATE TABLE public.design_documents (
     created_by uuid,
     created_at timestamp with time zone,
     updated_at timestamp with time zone,
-    CONSTRAINT ck_design_documents_doc_type CHECK (((doc_type)::text = ANY ((ARRAY['architecture'::character varying, 'api_spec'::character varying, 'runbook'::character varying, 'sop'::character varying, 'troubleshooting'::character varying, 'design_doc'::character varying, 'postmortem'::character varying, 'onboarding'::character varying, 'deployment'::character varying, 'config'::character varying])::text[]))),
+    CONSTRAINT ck_design_documents_doc_type CHECK (((doc_type)::text = ANY ((ARRAY['document'::character varying, 'architecture'::character varying, 'code'::character varying])::text[]))),
     CONSTRAINT ck_design_documents_format CHECK (((format)::text = ANY ((ARRAY['markdown'::character varying, 'pdf'::character varying, 'html'::character varying, 'yaml'::character varying, 'text'::character varying, 'image'::character varying])::text[])))
 );
 
@@ -1413,6 +1413,7 @@ CREATE TABLE public.llm_providers (
     api_base_url character varying(255),
     is_default boolean,
     is_enabled boolean,
+    usage_type character varying(20) NOT NULL DEFAULT 'llm',
     config_json json,
     created_at timestamp with time zone,
     updated_at timestamp with time zone
@@ -3570,6 +3571,13 @@ CREATE INDEX ix_llm_providers_is_enabled ON public.llm_providers USING btree (is
 --
 
 CREATE INDEX ix_llm_providers_provider_type ON public.llm_providers USING btree (provider_type);
+
+
+--
+-- Name: ix_llm_providers_usage_type; Type: INDEX; Schema: public; Owner: aiops
+--
+
+CREATE INDEX ix_llm_providers_usage_type ON public.llm_providers USING btree (usage_type);
 
 
 --

@@ -172,18 +172,6 @@ class InquiryTools(ToolModule):
                 # Format timestamp to be more readable
                 time_str = alert.timestamp.strftime("%Y-%m-%d %H:%M") if alert.timestamp else "N/A"
                 output.append(f"| {alert.alert_name} | {alert.severity} | {alert.status} | {time_str} |")
-            
-            # Add additional details section for each alert
-            output.append("\n**Alert Details:**")
-            for alert in alerts[:5]:  # Show details for first 5
-                output.append(f"\n**{alert.alert_name}** ({alert.severity})")
-                output.append(f"- Status: {alert.status}")
-                output.append(f"- Time: {alert.timestamp}")
-                if hasattr(alert, 'labels') and alert.labels:
-                    labels = {k: v for k, v in alert.labels.items() if k in ['instance', 'job', 'namespace', 'alertname']}
-                    if labels:
-                        for k, v in labels.items():
-                            output.append(f"- {k}: {v}")
                 
             return "\n".join(output)
             

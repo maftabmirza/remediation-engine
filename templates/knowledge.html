@@ -1,6 +1,40 @@
 {% extends "base.html" %}
 {% set active_page = 'knowledge' %}
 
+{% block head %}
+<style>
+/* ── Knowledge Doc Viewer ───────────────────────────────────── */
+.custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(148,163,184,0.4); border-radius: 3px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(100,116,139,0.6); }
+/* Markdown content rendered inside the view modal */
+.doc-view-content { color: #1e293b; line-height: 1.75; font-size: 0.92rem; }
+.doc-view-content h1 { font-size: 1.5rem; font-weight: 700; color: #0f172a; margin: 1.25rem 0 0.6rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.4rem; }
+.doc-view-content h2 { font-size: 1.2rem; font-weight: 700; color: #1e293b; margin: 1.1rem 0 0.5rem; }
+.doc-view-content h3 { font-size: 1.05rem; font-weight: 600; color: #334155; margin: 0.9rem 0 0.4rem; }
+.doc-view-content h4, .doc-view-content h5, .doc-view-content h6 { font-weight: 600; color: #475569; margin: 0.8rem 0 0.3rem; }
+.doc-view-content p { margin: 0.5rem 0; }
+.doc-view-content ul, .doc-view-content ol { margin: 0.5rem 0 0.5rem 1.4rem; }
+.doc-view-content ul { list-style: disc; }
+.doc-view-content ol { list-style: decimal; }
+.doc-view-content li { margin: 0.25rem 0; }
+.doc-view-content a { color: #3b82f6; text-decoration: underline; }
+.doc-view-content a:hover { color: #2563eb; }
+.doc-view-content blockquote { border-left: 3px solid #93c5fd; background: #eff6ff; color: #475569; margin: 0.75rem 0; padding: 0.5rem 1rem; border-radius: 0 6px 6px 0; font-style: italic; }
+.doc-view-content code { background: #f1f5f9; color: #dc2626; padding: 0.1em 0.35em; border-radius: 4px; font-size: 0.85em; font-family: 'Consolas', 'Monaco', monospace; }
+.doc-view-content pre { background: #1e293b; color: #e2e8f0; padding: 1rem; border-radius: 8px; overflow-x: auto; margin: 0.75rem 0; }
+.doc-view-content pre code { background: transparent; color: #e2e8f0; padding: 0; font-size: 0.82rem; }
+.doc-view-content table { width: 100%; border-collapse: collapse; margin: 0.75rem 0; font-size: 0.875rem; }
+.doc-view-content th { background: #f1f5f9; color: #475569; font-weight: 600; text-align: left; padding: 8px 12px; border-bottom: 2px solid #e2e8f0; }
+.doc-view-content td { padding: 7px 12px; border-bottom: 1px solid #f1f5f9; color: #334155; }
+.doc-view-content tr:last-child td { border-bottom: none; }
+.doc-view-content hr { border: none; border-top: 1px solid #e2e8f0; margin: 1rem 0; }
+.doc-view-content strong { font-weight: 700; color: #0f172a; }
+.doc-view-content em { font-style: italic; }
+</style>
+{% endblock %}
+
 {% block title %}Knowledge Base - AIOps Platform{% endblock %}
 
 {% block breadcrumbs %}
@@ -9,7 +43,7 @@
 {% endblock %}
 
 {% block header_title %}
-<i class="fas fa-book-open text-teal-400"></i>
+<i data-feather="database" class="text-teal-400" style="width:16px;height:16px;"></i>
 <span class="text-sm font-semibold text-white tracking-tight">Knowledge Base</span>
 {% endblock %}
 
@@ -79,6 +113,18 @@
         </div>
     </div>
 
+    <!-- Embedding Not Configured Banner -->
+    <div id="embeddingErrorBanner" class="hidden card p-4 border border-red-300 bg-red-50 flex items-start gap-3">
+        <i class="fas fa-exclamation-triangle text-red-500 mt-0.5 text-lg"></i>
+        <div>
+            <p class="font-semibold text-red-700">No Embedding Provider Configured</p>
+            <p id="embeddingErrorMsg" class="text-sm text-red-600 mt-0.5">Semantic search and document indexing require an embedding provider.</p>
+            <a href="/settings" class="inline-block mt-2 text-sm font-medium text-red-700 underline hover:text-red-900">
+                <i class="fas fa-cog mr-1"></i>Go to Settings → LLM Providers → Add Provider (Usage: Embedding)
+            </a>
+        </div>
+    </div>
+
     <!-- Toolbar & Search -->
     <div class="card p-4 flex gap-4 items-center flex-wrap">
         <div class="flex-1 relative">
@@ -90,15 +136,15 @@
         </div>
 
         <select id="filterApp" class="input-field px-3 py-2 rounded border border-slate-200 bg-white"
-            onchange="loadDocuments()">
+            onchange="currentPage=1; loadDocuments()">
             <option value="">All Applications</option>
             <!-- Populated by JS -->
         </select>
 
         <select id="filterDocType" class="input-field px-3 py-2 rounded border border-slate-200 bg-white"
-            onchange="loadDocuments()">
+            onchange="currentPage=1; loadDocuments()">
             <option value="">All Types</option>
-            <option value="sop">SOP</option>
+            <option value="document">Document</option>
             <option value="architecture">Architecture</option>
             <option value="code">Code</option>
         </select>
@@ -138,6 +184,13 @@
             </table>
         </div>
     </div>
+
+    <!-- Pagination Bar -->
+    <div id="paginationBar" class="hidden card px-4 py-3 flex items-center justify-between gap-4 flex-wrap">
+        <span id="paginationInfo" class="text-xs text-slate-500"></span>
+        <div id="paginationControls" class="flex items-center gap-1"></div>
+    </div>
+
 </div>
 
 <!-- Upload Modal -->
@@ -166,7 +219,7 @@
                     <select name="doc_type" required
                         class="input-field w-full px-4 py-2 rounded border border-slate-200 focus:border-blue-500">
                         <option value="">Select type...</option>
-                        <option value="sop">SOP</option>
+                        <option value="document">Document</option>
                         <option value="architecture">Architecture</option>
                         <option value="code">Code</option>
                     </select>
@@ -285,8 +338,7 @@
 
 <!-- View Document Modal -->
 <div id="viewModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-    <div
-        class="card bg-white p-6 w-full max-w-5xl h-[90vh] overflow-hidden flex flex-col m-4 shadow-2xl border border-slate-200 rounded-xl">
+    <div class="card bg-white p-6 w-full max-w-5xl overflow-hidden flex flex-col m-4 shadow-2xl border border-slate-200 rounded-xl" style="height:90vh">
         <div class="flex items-center justify-between mb-4 flex-shrink-0">
             <div>
                 <h3 id="viewTitle"
@@ -299,7 +351,7 @@
             </button>
         </div>
         <div class="flex-1 overflow-y-auto custom-scrollbar">
-            <div id="viewContent" class="prose prose-invert max-w-none p-2"></div>
+            <div id="viewContent" class="doc-view-content p-2"></div>
         </div>
     </div>
 </div>
@@ -395,18 +447,21 @@
     // State
     let allDocuments = [];
     let applications = [];
+    let currentPage = 1;
+    const pageSize = 20;
+    let totalDocuments = 0;
 
     // Icons map
     const typeIcons = {
         'architecture': 'fa-sitemap text-purple-400',
-        'api_spec': 'fa-server text-blue-400',
-        'runbook': 'fa-book-medical text-green-400',
-        'sop': 'fa-list-check text-teal-400',
-        'troubleshooting': 'fa-wrench text-orange-400',
+        'document': 'fa-file-alt text-teal-400',
         'code': 'fa-code text-pink-400',
-        'deployment': 'fa-rocket text-indigo-400',
-        'config': 'fa-cogs text-gray-400',
-        'default': 'fa-file-alt text-gray-400'
+        'default': 'fa-file text-gray-400'
+    };
+    const typeLabels = {
+        'architecture': 'Architecture',
+        'document': 'Document',
+        'code': 'Code'
     };
 
     // --- Data Loading ---
@@ -428,14 +483,26 @@
             document.getElementById('totalDocs').textContent = stats.total_documents;
             document.getElementById('totalChunks').textContent = stats.total_chunks;
 
-            // Format model name
-            const model = stats.embedding_model || 'Unknown';
-            document.getElementById('embeddingModel').textContent = model.replace('text-embedding-', '').replace('openai/', '');
-            document.getElementById('embeddingModel').title = model;
-
             const isConfigured = stats.embedding_configured;
+            const banner = document.getElementById('embeddingErrorBanner');
+
+            if (!isConfigured) {
+                // Show error banner
+                banner.classList.remove('hidden');
+                if (stats.embedding_error) {
+                    document.getElementById('embeddingErrorMsg').textContent = stats.embedding_error;
+                }
+                document.getElementById('embeddingModel').textContent = 'Not set';
+                document.getElementById('embeddingModel').title = 'No embedding provider configured';
+            } else {
+                banner.classList.add('hidden');
+                const model = stats.embedding_model || 'Unknown';
+                document.getElementById('embeddingModel').textContent = model;
+                document.getElementById('embeddingModel').title = model;
+            }
+
             const statusEl = document.getElementById('embeddingStatus');
-            statusEl.textContent = isConfigured ? 'Active' : 'Missing Key';
+            statusEl.textContent = isConfigured ? 'Active' : 'Not Configured';
             statusEl.className = isConfigured ? 'text-lg font-bold text-green-400' : 'text-lg font-bold text-red-400';
 
         } catch (e) {
@@ -475,11 +542,13 @@
         });
     }
 
-    async function loadDocuments() {
+    async function loadDocuments(page) {
+        if (page !== undefined) currentPage = page;
         const appFilter = document.getElementById('filterApp').value;
         const typeFilter = document.getElementById('filterDocType').value;
+        const skip = (currentPage - 1) * pageSize;
 
-        let url = `/api/knowledge/documents?limit=100`;
+        let url = `/api/knowledge/documents?limit=${pageSize}&skip=${skip}`;
         if (appFilter) url += `&app_id=${appFilter}`;
         if (typeFilter) url += `&doc_type=${typeFilter}`;
 
@@ -490,10 +559,73 @@
             const data = await apiCall(url);
             if (!data) return;
             allDocuments = data.items;
+            totalDocuments = data.total || 0;
             renderDocumentsTable(allDocuments);
+            renderPagination();
         } catch (e) {
             tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-8 text-center text-red-400">Failed to load documents</td></tr>';
         }
+    }
+
+    function renderPagination() {
+        const bar = document.getElementById('paginationBar');
+        const info = document.getElementById('paginationInfo');
+        const controls = document.getElementById('paginationControls');
+        const totalPages = Math.ceil(totalDocuments / pageSize);
+
+        if (totalDocuments === 0) {
+            bar.classList.add('hidden');
+            return;
+        }
+        bar.classList.remove('hidden');
+
+        const start = (currentPage - 1) * pageSize + 1;
+        const end = Math.min(currentPage * pageSize, totalDocuments);
+        info.textContent = `Showing ${start}–${end} of ${totalDocuments} documents`;
+
+        if (totalPages <= 1) {
+            controls.innerHTML = '';
+            return;
+        }
+
+        const btnClass = 'px-2.5 py-1 rounded text-xs font-medium border transition-colors';
+        const activeClass = `${btnClass} bg-blue-600 text-white border-blue-600`;
+        const inactiveClass = `${btnClass} bg-white text-slate-600 border-slate-200 hover:bg-slate-50`;
+        const disabledClass = `${btnClass} bg-white text-slate-300 border-slate-200 cursor-not-allowed`;
+
+        let html = '';
+
+        // Prev
+        if (currentPage > 1) {
+            html += `<button class="${inactiveClass}" onclick="loadDocuments(${currentPage - 1})"><i class="fas fa-chevron-left"></i></button>`;
+        } else {
+            html += `<button class="${disabledClass}" disabled><i class="fas fa-chevron-left"></i></button>`;
+        }
+
+        // Page numbers with ellipsis
+        const pages = [];
+        for (let i = 1; i <= totalPages; i++) {
+            if (i === 1 || i === totalPages || (i >= currentPage - 2 && i <= currentPage + 2)) {
+                pages.push(i);
+            }
+        }
+        let prev = null;
+        for (const p of pages) {
+            if (prev !== null && p - prev > 1) {
+                html += `<span class="px-1.5 py-1 text-xs text-slate-400">…</span>`;
+            }
+            html += `<button class="${p === currentPage ? activeClass : inactiveClass}" onclick="loadDocuments(${p})">${p}</button>`;
+            prev = p;
+        }
+
+        // Next
+        if (currentPage < totalPages) {
+            html += `<button class="${inactiveClass}" onclick="loadDocuments(${currentPage + 1})"><i class="fas fa-chevron-right"></i></button>`;
+        } else {
+            html += `<button class="${disabledClass}" disabled><i class="fas fa-chevron-right"></i></button>`;
+        }
+
+        controls.innerHTML = html;
     }
 
     function renderDocumentsTable(docs) {
@@ -540,15 +672,17 @@
 
             for (const doc of groupDocs) {
                 const iconClass = typeIcons[doc.doc_type] || typeIcons['default'];
+                const typeLabel = typeLabels[doc.doc_type] || (doc.doc_type || 'Doc');
                 const chunkCount = doc.chunk_count || 0;
 
                 html += `
                 <tr class="hover:bg-slate-50 transition-colors group border-b border-slate-100 last:border-0">
                     <td class="px-6 py-3 whitespace-nowrap">
-                        <div class="flex items-center" title="${doc.doc_type}">
-                            <div class="w-8 h-8 rounded bg-slate-100 flex items-center justify-center mr-3 border border-slate-200">
-                                <i class="fas ${iconClass}"></i>
+                        <div class="flex items-center gap-2">
+                            <div class="w-7 h-7 rounded bg-slate-100 flex items-center justify-center border border-slate-200 flex-shrink-0">
+                                <i class="fas ${iconClass} text-xs"></i>
                             </div>
+                            <span class="text-xs font-medium text-slate-600">${typeLabel}</span>
                         </div>
                     </td>
                     <td class="px-6 py-3">
@@ -573,12 +707,12 @@
                          ${doc.source_type === 'git' ? '<i class="fab fa-git-alt mr-1"></i> Git' : '<i class="fas fa-user-edit mr-1"></i> Manual'}
                     </td>
                     <td class="px-6 py-3 whitespace-nowrap text-right text-sm font-medium">
-                        <div class="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button onclick="viewDocument('${doc.id}')" class="text-slate-400 hover:text-blue-600" title="View">
-                                <i class="fas fa-eye"></i>
+                        <div class="flex justify-end gap-1">
+                            <button onclick="viewDocument('${doc.id}')" class="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200 transition-colors" title="View">
+                                <i class="fas fa-eye"></i> View
                             </button>
-                            <button onclick="deleteDocument('${doc.id}')" class="text-slate-400 hover:text-red-500" title="Delete">
-                                <i class="fas fa-trash"></i>
+                            <button onclick="deleteDocument('${doc.id}')" class="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 transition-colors" title="Delete">
+                                <i class="fas fa-trash"></i> Delete
                             </button>
                         </div>
                     </td>
@@ -673,7 +807,7 @@
 
             titleEl.textContent = doc.title;
             metaEl.innerHTML = `
-                <span class="bg-gray-700 px-2 rounded">${doc.doc_type}</span>
+                <span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs font-medium">${doc.doc_type}</span>
                 <span>• v${doc.version}</span>
                 <span>• ${new Date(doc.updated_at).toLocaleString()}</span>
                 ${doc.app_name ? `<span>• App: ${doc.app_name}</span>` : ''}
@@ -681,11 +815,6 @@
 
             // Render Markdown
             contentEl.innerHTML = marked.parse(doc.raw_content || '*No content*');
-
-            // Highlight code blocks (basic)
-            contentEl.querySelectorAll('pre code').forEach((block) => {
-                block.className = "bg-gray-800 p-2 rounded block overflow-x-auto text-sm";
-            });
 
         } catch (e) {
             titleEl.textContent = 'Error';

@@ -1,6 +1,6 @@
 /**
  * Theme Manager for AIOps Platform
- * Manages Light, Aftab, and Jackson themes
+ * Manages Light and Jackson themes
  * Use browser zoom (Ctrl+/Ctrl-) for interface scaling
  */
 
@@ -49,108 +49,6 @@ class ThemeManager {
                     '--shadow-card': '0 1px 3px rgba(3, 4, 94, 0.06), 0 1px 2px rgba(3, 4, 94, 0.04)',
                     '--shadow-hover': '0 8px 20px -4px rgba(3, 4, 94, 0.10), 0 4px 8px -2px rgba(3, 4, 94, 0.06)',
                     '--shadow-levitate': '0 16px 32px -6px rgba(3, 4, 94, 0.12), 0 8px 16px -4px rgba(3, 4, 94, 0.06)'
-                }
-            },
-            aftab: {
-                name: 'Aftab',
-                icon: 'zap',
-                colors: {
-                    // Placeholder - Aftab theme to be designed later
-                    // Using temporary colors for now
-                    '--bg-app': '#f0f0f0',
-                    '--bg-sidebar': '#1a1a1a',
-                    '--bg-header': '#2a2a2a',
-
-                    '--bg-panel': 'rgba(255, 255, 255, 0.8)',
-                    '--glass-border': '1px solid rgba(255, 255, 255, 0.9)',
-                    '--glass-shadow': '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-
-                    '--border-subtle': '1px solid rgba(200, 200, 200, 0.8)',
-                    '--border-dark': '1px solid #444444',
-
-                    '--text-primary': '#1a1a1a',
-                    '--text-secondary': '#666666',
-                    '--text-primary': '#1a1a1a',
-                    '--text-secondary': '#666666',
-                    '--text-on-dark': '#ffffff',
-                    '--text-on-dark': '#ffffff',
-                    '--text-header': '#ffffff', // Header text color
-                    '--text-muted-dark': '#aaaaaa',
-
-                    '--border-header': 'rgba(255, 255, 255, 0.1)',
-                    '--header-btn-bg': 'rgba(255, 255, 255, 0.1)',
-                    '--header-btn-border': 'rgba(255, 255, 255, 0.2)',
-                    '--header-btn-hover': 'rgba(255, 255, 255, 0.18)',
-                    '--header-btn-color': '#ffffff',
-
-                    '--accent-blue': '#4a90e2',
-                    '--accent-purple': '#9b59b6',
-                    '--accent-cyan': '#1abc9c',
-                    '--accent-selected-bg': 'rgba(74, 144, 226, 0.1)',
-
-                    '--status-success': '#27ae60',
-                    '--status-warning': '#f39c12',
-                    '--status-error': '#e74c3c',
-
-                    '--shadow-card': '0 2px 4px rgba(0, 0, 0, 0.1)',
-                    '--shadow-hover': '0 8px 16px rgba(0, 0, 0, 0.1)',
-                    '--shadow-levitate': '0 12px 24px rgba(0, 0, 0, 0.15)'
-                }
-            },
-            olive_leaf: {
-                name: 'Olive Leaf',
-                icon: 'feather',
-                colors: {
-                    // Olive Leaf Theme
-                    // Palette: Olive Leaf #606c38 | Black Forest #283618 | Cornsilk #fefae0 | Light Caramel #dda15e | Copper #bc6c25
-                    '--bg-app': '#fefae0',
-                    '--bg-sidebar': '#283618',
-                    '--bg-header': '#283618',
-
-                    '--bg-panel': 'rgba(254, 250, 224, 0.92)',
-                    '--bg-surface': '#f7f3df',
-                    '--bg-surface-raised': '#fefae0',
-                    '--glass-border': '1px solid rgba(188, 108, 37, 0.25)',
-                    '--glass-shadow': '0 4px 6px -1px rgba(40, 54, 24, 0.08), 0 2px 4px -1px rgba(40, 54, 24, 0.05)',
-
-                    '--border-subtle': '1px solid rgba(96, 108, 56, 0.22)',
-                    '--border-dark': '1px solid #283618',
-
-                    '--text-primary': '#283618',
-                    '--text-secondary': '#606c38',
-                    '--text-on-dark': '#fefae0',
-                    '--text-header': '#fefae0',
-                    '--text-muted-dark': '#9aaf82',
-
-                    '--border-header': 'rgba(254, 250, 224, 0.15)',
-                    '--header-btn-bg': 'rgba(254, 250, 224, 0.1)',
-                    '--header-btn-border': 'rgba(254, 250, 224, 0.2)',
-                    '--header-btn-hover': 'rgba(254, 250, 224, 0.18)',
-                    '--header-btn-color': '#fefae0',
-
-                    '--accent-blue': '#bc6c25',
-                    '--accent-purple': '#606c38',
-                    '--accent-cyan': '#dda15e',
-                    '--accent-selected-bg': 'rgba(188, 108, 37, 0.08)',
-
-                    '--status-success': '#16a34a',
-                    '--status-warning': '#d97706',
-                    '--status-error': '#ef4444',
-
-                    '--shadow-card': '0 1px 3px rgba(40, 54, 24, 0.08), 0 1px 2px rgba(40, 54, 24, 0.04)',
-                    '--shadow-hover': '0 8px 20px -4px rgba(40, 54, 24, 0.10), 0 4px 8px -2px rgba(40, 54, 24, 0.05)',
-                    '--shadow-levitate': '0 16px 32px -6px rgba(40, 54, 24, 0.12), 0 8px 16px -4px rgba(40, 54, 24, 0.06)',
-
-                    // Olive Leaf theme-specific extras
-                    '--olive-brand-copper': '#bc6c25',
-                    '--olive-cornsilk': '#fefae0',
-                    '--olive-forest': '#283618',
-                    '--olive-leaf-color': '#606c38',
-                    '--olive-caramel': '#dda15e',
-
-                    '--radius-sm': '8px',
-                    '--radius-md': '12px',
-                    '--radius-lg': '16px'
                 }
             },
             jackson: {
@@ -216,7 +114,13 @@ class ThemeManager {
 
     init() {
         // Load saved theme preference
-        const savedTheme = localStorage.getItem('aiops-theme') || 'light';
+        let savedTheme = localStorage.getItem('aiops-theme') || 'light';
+
+        // Fall back to light if saved theme no longer exists
+        if (!this.themes[savedTheme]) {
+            savedTheme = 'light';
+            localStorage.setItem('aiops-theme', 'light');
+        }
 
         // Apply saved theme
         this.applyTheme(savedTheme);
@@ -259,13 +163,8 @@ class ThemeManager {
             this._recolorInlineBlue();
             // Also observe DOM changes for dynamically-added elements
             this._startJacksonObserver();
-        } else if (themeName === 'olive_leaf') {
-            this._recolorInlineBlueToCopper();
-            this._startOliveObserver();
-            this._stopJacksonObserver();
         } else {
             this._stopJacksonObserver();
-            this._stopOliveObserver();
         }
 
         // Update UI if theme selector exists
@@ -350,59 +249,6 @@ class ThemeManager {
         }
     }
 
-    /**
-     * Rewrite inline style="" attributes that contain hardcoded blue
-     * to Olive Leaf Copper (#bc6c25) for the olive_leaf theme.
-     */
-    _recolorInlineBlueToCopper() {
-        const BLUE_RE = /#3b82f6|#2563eb|#1d4ed8|rgba\(\s*59\s*,\s*130\s*,\s*246/gi;
-        document.querySelectorAll('[style]').forEach(el => {
-            const raw = el.getAttribute('style');
-            if (!BLUE_RE.test(raw)) return;
-            BLUE_RE.lastIndex = 0;
-
-            let updated = raw;
-            updated = updated.replace(/#3b82f6/gi, '#bc6c25');
-            updated = updated.replace(/#2563eb/gi, '#9a5720');
-            updated = updated.replace(/#1d4ed8/gi, '#7a4415');
-            updated = updated.replace(
-                /rgba\(\s*59\s*,\s*130\s*,\s*246/gi,
-                'rgba(188, 108, 37'
-            );
-            if (updated.includes('linear-gradient') && updated.includes('#bc6c25')) {
-                updated = updated.replace(/linear-gradient\([^)]*\)/gi, '#bc6c25');
-            }
-            el.setAttribute('style', updated);
-        });
-    }
-
-    _startOliveObserver() {
-        if (this._oliveObs) return;
-        const startObserving = () => {
-            if (!document.body) return;
-            this._oliveObs = new MutationObserver((mutations) => {
-                let needsRecolor = false;
-                for (const m of mutations) {
-                    if (m.addedNodes.length) { needsRecolor = true; break; }
-                }
-                if (needsRecolor) this._recolorInlineBlueToCopper();
-            });
-            this._oliveObs.observe(document.body, { childList: true, subtree: true });
-        };
-        if (document.body) {
-            startObserving();
-        } else {
-            document.addEventListener('DOMContentLoaded', startObserving, { once: true });
-        }
-    }
-
-    _stopOliveObserver() {
-        if (this._oliveObs) {
-            this._oliveObs.disconnect();
-            this._oliveObs = null;
-        }
-    }
-
     updateThemeSelector(themeName) {
         const themeButtons = document.querySelectorAll('[data-theme-btn]');
         themeButtons.forEach(btn => {
@@ -432,7 +278,5 @@ document.addEventListener('DOMContentLoaded', () => {
     const currentTheme = window.themeManager.getCurrentTheme();
     if (currentTheme === 'jackson') {
         window.themeManager._recolorInlineBlue();
-    } else if (currentTheme === 'olive_leaf') {
-        window.themeManager._recolorInlineBlueToCopper();
     }
 });

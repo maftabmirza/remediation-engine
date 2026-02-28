@@ -311,6 +311,11 @@
                     <div class="flex items-center gap-2">
                         <input id="providerSearch" type="text" class="settings-input"
                             placeholder="Search name or model">
+                        <select id="providerUsageFilter" class="settings-input" onchange="loadProviders()">
+                            <option value="">All Usage</option>
+                            <option value="llm">LLM (Chat)</option>
+                            <option value="embedding">Embedding</option>
+                        </select>
                         <select id="providerTypeFilter" class="settings-input">
                             <option value="">All Types</option>
                             <option value="anthropic">Anthropic</option>
@@ -966,27 +971,32 @@
 </div>
 
 <!-- Custom Confirm Modal -->
-<div id="confirmModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-    <div class="card p-6 w-full max-w-md m-4">
-        <div class="flex items-center space-x-3 mb-4">
-            <div id="confirmIcon"
-                class="w-10 h-10 rounded-full bg-red-900 bg-opacity-50 flex items-center justify-center">
-                <i class="fas fa-exclamation-triangle text-red-400"></i>
+<div id="confirmModal" class="modal-overlay">
+    <div class="modal-container" style="max-width: 460px; width: 92%;">
+        <div class="modal-header">
+            <div class="flex items-center space-x-3">
+                <div id="confirmIcon" class="w-10 h-10 rounded-full flex items-center justify-center" style="background: rgba(220,38,38,0.12);">
+                    <i class="fas fa-exclamation-triangle text-red-500"></i>
+                </div>
+                <div>
+                    <h3 id="confirmTitle" class="modal-title">Confirm Action</h3>
+                    <p class="text-xs" style="color: var(--text-muted);">Destructive actions require an explicit confirmation phrase.</p>
+                </div>
             </div>
-            <div>
-                <h3 id="confirmTitle" class="text-lg font-semibold">Confirm Action</h3>
-                <p class="text-xs text-gray-400">Destructive actions require an explicit confirmation phrase.</p>
+            <button type="button" onclick="closeConfirmModal()" class="modal-close-btn" aria-label="Close">
+                <i class="fas fa-times" style="font-size:14px;"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <p id="confirmMessage" class="mb-4" style="color: var(--text-secondary);">Are you sure you want to proceed?</p>
+            <div id="confirmInputContainer" class="hidden mb-4">
+                <label for="confirmInput" class="block text-sm font-medium mb-1" style="color: var(--text-secondary);">Type <span id="confirmInputHint" class="font-mono text-red-500"></span> to continue</label>
+                <input id="confirmInput" type="text" class="settings-input w-full"
+                    placeholder="Type the confirmation text" autocomplete="off">
+                <p id="confirmInputError" class="text-xs text-red-500 mt-1 hidden">Confirmation text does not match.</p>
             </div>
         </div>
-        <p id="confirmMessage" class="text-gray-300 mb-4">Are you sure you want to proceed?</p>
-        <div id="confirmInputContainer" class="hidden mb-4">
-            <label for="confirmInput" class="block text-sm font-medium mb-1">Type <span id="confirmInputHint"
-                    class="font-mono text-red-300"></span> to continue</label>
-            <input id="confirmInput" type="text" class="input-field w-full px-3 py-2 rounded"
-                placeholder="Type the confirmation text" autocomplete="off">
-            <p id="confirmInputError" class="text-xs text-red-400 mt-1 hidden">Confirmation text does not match.</p>
-        </div>
-        <div class="flex justify-end space-x-3">
+        <div class="modal-footer">
             <button onclick="closeConfirmModal()" class="btn-secondary px-4 py-2 rounded">Cancel</button>
             <button id="confirmBtn" onclick="executeConfirmAction()"
                 class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded transition-colors">Confirm</button>
@@ -995,19 +1005,35 @@
 </div>
 
 <!-- Provider Modal -->
-<div id="providerModal"
-    class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 overflow-y-auto">
-    <div class="card w-3/4 max-w-5xl m-4 my-8 max-h-[90vh] flex flex-col">
-        <div class="flex items-center justify-between p-6 pb-0 flex-shrink-0">
-            <h3 id="providerModalTitle" class="text-lg font-semibold">Add LLM Provider</h3>
-            <button onclick="closeProviderModal()" class="text-gray-400 hover:text-white">
-                <i class="fas fa-times"></i>
+<div id="providerModal" class="modal-overlay">
+    <div class="modal-container" style="max-width: 860px; width: 92%; max-height: 90vh; display: flex; flex-direction: column;">
+        <div class="modal-header flex-shrink-0">
+            <h3 id="providerModalTitle" class="modal-title">Add LLM Provider</h3>
+            <button type="button" onclick="closeProviderModal()" class="modal-close-btn" aria-label="Close">
+                <i class="fas fa-times" style="font-size:14px;"></i>
             </button>
         </div>
 
         <form id="providerForm" class="flex-1 min-h-0 flex flex-col">
             <input type="hidden" id="providerId">
             <div class="flex-1 overflow-y-auto p-6 pt-4 space-y-4 custom-scrollbar">
+
+                <!-- Usage Type -->
+                <div>
+                    <label class="block text-sm font-medium mb-2">Usage Type *</label>
+                    <div class="flex gap-3">
+                        <label class="flex items-center gap-2 cursor-pointer px-4 py-2 rounded has-[:checked]:border-blue-500 has-[:checked]:bg-blue-500/10" style="border: 1px solid var(--border-color);">
+                            <input type="radio" id="usageTypeLlm" name="usageType" value="llm" checked onchange="onUsageTypeChange()">
+                            <span class="text-sm font-medium"><i class="fas fa-robot mr-1 text-blue-400"></i>LLM (Chat / Completion)</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer px-4 py-2 rounded has-[:checked]:border-purple-500 has-[:checked]:bg-purple-500/10" style="border: 1px solid var(--border-color);">
+                            <input type="radio" id="usageTypeEmbedding" name="usageType" value="embedding" onchange="onUsageTypeChange()">
+                            <span class="text-sm font-medium"><i class="fas fa-vector-square mr-1 text-purple-400"></i>Embedding (Vector Search)</span>
+                        </label>
+                    </div>
+                    <p id="usageTypeHint" class="text-xs mt-1" style="color: var(--text-muted);">LLM providers power chat and analysis. Only one embedding provider is needed for semantic search.</p>
+                </div>
+
                 <div class="grid md:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-medium mb-1">
@@ -1017,12 +1043,12 @@
                                 <span class="info-tooltip-text">A friendly name to identify this LLM provider.</span>
                             </span>
                         </label>
-                        <input type="text" id="providerName" class="input-field w-full px-3 py-2 rounded" required
+                    <input type="text" id="providerName" class="settings-input w-full" required
                             placeholder="e.g. Primary OpenAI">
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Provider Type</label>
-                        <select id="providerType" class="input-field w-full px-3 py-2 rounded"
+                        <select id="providerType" class="settings-input w-full"
                             onchange="updateModelSuggestions()">
                             <option value="anthropic">Anthropic</option>
                             <option value="openai">OpenAI</option>
@@ -1043,13 +1069,31 @@
                                     claude-3-opus).</span>
                             </span>
                         </label>
-                        <input type="text" id="providerModel" class="input-field w-full px-3 py-2 rounded" required
-                            placeholder="gpt-4">
+                        <!-- Free-text for LLM mode -->
+                        <input type="text" id="providerModel" class="settings-input w-full" placeholder="gpt-4">
+                        <!-- Dropdown for Embedding mode -->
+                        <select id="providerEmbeddingModel" class="settings-input w-full hidden"
+                            onchange="syncEmbeddingModelToInput()">
+                            <optgroup label="OpenAI">
+                                <option value="text-embedding-3-small">text-embedding-3-small (1536d, recommended)</option>
+                                <option value="text-embedding-3-large">text-embedding-3-large (3072d, high accuracy)</option>
+                                <option value="text-embedding-ada-002">text-embedding-ada-002 (1536d, legacy)</option>
+                            </optgroup>
+                            <optgroup label="Azure OpenAI">
+                                <option value="text-embedding-3-small">text-embedding-3-small</option>
+                                <option value="text-embedding-3-large">text-embedding-3-large</option>
+                                <option value="text-embedding-ada-002">text-embedding-ada-002</option>
+                            </optgroup>
+                            <optgroup label="Ollama (Local)">
+                                <option value="nomic-embed-text">nomic-embed-text</option>
+                                <option value="mxbai-embed-large">mxbai-embed-large</option>
+                                <option value="all-minilm">all-minilm</option>
+                            </optgroup>
+                        </select>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium mb-1">Base URL <span
-                                class="text-gray-400 text-xs">(Optional)</span></label>
-                        <input type="text" id="providerBaseUrl" class="input-field w-full px-3 py-2 rounded"
+                        <label class="block text-sm font-medium mb-1">Base URL <span class="text-xs" style="color: var(--text-muted);">(Optional)</span></label>
+                        <input type="text" id="providerBaseUrl" class="settings-input w-full"
                             placeholder="https://api.openai.com/v1">
                     </div>
                 </div>
@@ -1057,58 +1101,50 @@
                 <div>
                     <label class="block text-sm font-medium mb-1">API Key / Token</label>
                     <div class="relative">
-                        <input type="password" id="providerApiKey" class="input-field w-full px-3 py-2 rounded pr-10"
+                        <input type="password" id="providerApiKey" class="settings-input w-full pr-10"
                             placeholder="sk-..." data-has-key="false">
-                        <button type="button" class="absolute right-2 top-2 text-gray-400 hover:text-white"
-                            onclick="toggleSecretVisibility('providerApiKey', this)">Show</button>
+                        <button type="button" class="absolute right-2 top-2" style="color: var(--text-muted);" onclick="toggleSecretVisibility('providerApiKey', this)">Show</button>
                     </div>
-                    <p id="providerSecretMeta" class="text-xs text-gray-400 mt-1">Key is stored securely in the vault.
-                    </p>
+                    <p id="providerSecretMeta" class="text-xs mt-1" style="color: var(--text-muted);">Key is stored securely in the vault.</p>
                 </div>
 
                 <div class="grid md:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-medium mb-1">Max Tokens</label>
-                        <input type="number" id="providerMaxTokens" class="input-field w-full px-3 py-2 rounded"
-                            value="2000">
+                        <input type="number" id="providerMaxTokens" class="settings-input w-full" value="2000">
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Temperature (0.0 - 1.0)</label>
-                        <input type="number" id="providerTemp" class="input-field w-full px-3 py-2 rounded" step="0.1"
-                            min="0" max="1" value="0.3">
+                        <input type="number" id="providerTemp" class="settings-input w-full" step="0.1" min="0" max="1" value="0.3">
                     </div>
                 </div>
 
                 <div class="grid md:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-medium mb-1">Secret Storage</label>
-                        <select id="providerSecretStorage" class="input-field w-full px-3 py-2 rounded">
+                        <select id="providerSecretStorage" class="settings-input w-full">
                             <option value="vault">Encrypted Vault (Default)</option>
                             <option value="env">Environment Variable</option>
                         </select>
                     </div>
-                    <div id="providerAuditEntries" class="text-xs text-gray-500 pt-6"></div>
+                    <div id="providerAuditEntries" class="text-xs pt-6" style="color: var(--text-muted);"></div>
                 </div>
 
                 <div class="flex items-center space-x-6 pt-2">
                     <label class="flex items-center space-x-2 cursor-pointer">
-                        <input type="checkbox" id="providerEnabled"
-                            class="form-checkbox text-blue-500 rounded bg-gray-700 border-gray-600">
-                        <span class="text-sm">Enabled</span>
+                        <input type="checkbox" id="providerEnabled" class="form-checkbox">
+                        <span class="text-sm" style="color: var(--text-secondary);">Enabled</span>
                     </label>
                     <label class="flex items-center space-x-2 cursor-pointer">
-                        <input type="checkbox" id="providerDefault"
-                            class="form-checkbox text-blue-500 rounded bg-gray-700 border-gray-600">
-                        <span class="text-sm">Set as Default</span>
+                        <input type="checkbox" id="providerDefault" class="form-checkbox">
+                        <span class="text-sm" style="color: var(--text-secondary);">Set as Default</span>
                     </label>
-                    <div class="text-xs text-gray-400 ml-auto" id="providerLastRotated"></div>
+                    <div class="text-xs ml-auto" id="providerLastRotated" style="color: var(--text-muted);"></div>
                 </div>
             </div>
 
-            <div
-                class="flex justify-end space-x-2 p-6 border-t border-gray-700 flex-shrink-0 bg-gray-900 bg-opacity-95">
-                <button type="button" onclick="closeProviderModal()"
-                    class="btn-secondary px-4 py-2 rounded">Cancel</button>
+            <div class="modal-footer flex-shrink-0">
+                <button type="button" onclick="closeProviderModal()" class="btn-secondary px-4 py-2 rounded">Cancel</button>
                 <button type="submit" class="btn-primary px-4 py-2 rounded">Save Provider</button>
             </div>
         </form>
@@ -1117,7 +1153,7 @@
 
 <!-- Server Modal -->
 <div id="serverModal"
-    class="fixed inset-0 bg-black bg-opacity-50 hidden items-start justify-center z-50 overflow-y-auto pt-20 pb-8 px-4">
+    class="modal-overlay" style="align-items: flex-start; padding-top: 80px; padding-bottom: 32px;">
     <div class="server-modal-dialog card w-full max-w-5xl mx-auto max-h-[90vh] flex flex-col">
         <div class="flex items-center justify-between p-6 pb-0 flex-shrink-0">
             <div>
@@ -1330,79 +1366,74 @@
 </div>
 
 <!-- User Modal -->
-<div id="userModal"
-    class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 overflow-y-auto">
-    <div class="card w-full max-w-lg m-4 max-h-[90vh] flex flex-col">
-        <div class="flex items-center justify-between p-6 pb-0 flex-shrink-0">
-            <h3 id="userModalTitle" class="text-lg font-semibold">Add User</h3>
-            <button onclick="closeUserModal()" class="text-gray-400 hover:text-white">
-                <i class="fas fa-times"></i>
+<div id="userModal" class="modal-overlay">
+    <div class="modal-container" style="max-width: 520px; width: 92%;">
+        <div class="modal-header">
+            <h3 id="userModalTitle" class="modal-title">Add User</h3>
+            <button type="button" onclick="closeUserModal()" class="modal-close-btn" aria-label="Close">
+                <i class="fas fa-times" style="font-size:14px;"></i>
             </button>
         </div>
 
-        <form id="userForm" class="flex-1 min-h-0 flex flex-col">
+        <form id="userForm">
             <input type="hidden" id="userId">
-            <div class="flex-1 overflow-y-auto p-6 pt-4 space-y-4 custom-scrollbar">
+            <div class="modal-body space-y-4" style="max-height: 60vh; overflow-y: auto;">
                 <div>
-                    <label class="block text-sm font-medium mb-1">
+                    <label class="block text-sm font-medium mb-1" style="color: var(--text-secondary);">
                         Username *
                         <span class="info-tooltip info-tooltip-align-left info-tooltip-bottom">
                             <span class="info-tooltip-icon">?</span>
                             <span class="info-tooltip-text">Login username for the new user.</span>
                         </span>
                     </label>
-                    <input type="text" id="userUsername" class="input-field w-full px-3 py-2 rounded" required>
+                    <input type="text" id="userUsername" class="settings-input w-full" required>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium mb-1">Email</label>
-                    <input type="email" id="userEmail" class="input-field w-full px-3 py-2 rounded">
+                    <label class="block text-sm font-medium mb-1" style="color: var(--text-secondary);">Email</label>
+                    <input type="email" id="userEmail" class="settings-input w-full">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium mb-1">Full Name</label>
-                    <input type="text" id="userFullName" class="input-field w-full px-3 py-2 rounded">
+                    <label class="block text-sm font-medium mb-1" style="color: var(--text-secondary);">Full Name</label>
+                    <input type="text" id="userFullName" class="settings-input w-full">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium mb-1">
+                    <label class="block text-sm font-medium mb-1" style="color: var(--text-secondary);">
                         Role
                         <span class="info-tooltip info-tooltip-align-left">
                             <span class="info-tooltip-icon">?</span>
                             <span class="info-tooltip-text">Direct role assigned to the user.</span>
                         </span>
                     </label>
-                    <select id="userRole" class="input-field w-full px-3 py-2 rounded">
+                    <select id="userRole" class="settings-input w-full">
                         <option value="">Loading roles...</option>
                     </select>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium mb-1">
+                    <label class="block text-sm font-medium mb-1" style="color: var(--text-secondary);">
                         Groups
                         <span class="info-tooltip info-tooltip-align-left">
                             <span class="info-tooltip-icon">?</span>
-                            <span class="info-tooltip-text">Groups this user belongs to. User inherits permissions from
-                                group roles.</span>
+                            <span class="info-tooltip-text">Groups this user belongs to. User inherits permissions from group roles.</span>
                         </span>
                     </label>
-                    <div id="userGroupsContainer" class="space-y-2 max-h-32 overflow-y-auto p-2 bg-gray-800 rounded">
-                        <p class="text-gray-500 text-sm">Loading groups...</p>
+                    <div id="userGroupsContainer" class="space-y-2 max-h-32 overflow-y-auto p-2 rounded" style="background: var(--bg-elevated); border: 1px solid var(--border-color);">
+                        <p class="text-sm" style="color: var(--text-muted);">Loading groups...</p>
                     </div>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium mb-1">Password</label>
-                    <input type="password" id="userPassword" class="input-field w-full px-3 py-2 rounded">
-                    <p id="userPasswordHelp" class="text-xs text-gray-400 mt-1 hidden">Leave blank to keep current
-                        password.</p>
+                    <label class="block text-sm font-medium mb-1" style="color: var(--text-secondary);">Password</label>
+                    <input type="password" id="userPassword" class="settings-input w-full">
+                    <p id="userPasswordHelp" class="text-xs mt-1 hidden" style="color: var(--text-muted);">Leave blank to keep current password.</p>
                 </div>
-                <div class="pt-2">
+                <div class="pt-1">
                     <label class="flex items-center space-x-2 cursor-pointer">
-                        <input type="checkbox" id="userActive"
-                            class="form-checkbox text-blue-500 rounded bg-gray-700 border-gray-600" checked>
-                        <span class="text-sm">Active Account</span>
+                        <input type="checkbox" id="userActive" class="form-checkbox" checked>
+                        <span class="text-sm" style="color: var(--text-secondary);">Active Account</span>
                     </label>
                 </div>
             </div>
 
-            <div
-                class="flex justify-end space-x-2 p-6 border-t border-gray-700 flex-shrink-0 bg-gray-900 bg-opacity-95">
+            <div class="modal-footer">
                 <button type="button" onclick="closeUserModal()" class="btn-secondary px-4 py-2 rounded">Cancel</button>
                 <button type="submit" class="btn-primary px-4 py-2 rounded">Save User</button>
             </div>
@@ -1411,54 +1442,57 @@
 </div>
 
 <!-- Credential Modal -->
-<div id="credentialModal"
-    class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 overflow-y-auto">
-    <div class="card w-3/4 max-w-5xl m-4 max-h-[90vh] flex flex-col">
-        <div class="flex items-center justify-between p-6 pb-0 flex-shrink-0">
-            <h3 id="credentialModalTitle" class="text-lg font-semibold">New Credential Profile</h3>
-            <button onclick="closeCredentialModal()" class="text-gray-400 hover:text-white">
-                <i class="fas fa-times"></i>
+<div id="credentialModal" class="modal-overlay">
+    <div class="modal-container" style="max-width: 780px; width: 92%;">
+        <!-- Header -->
+        <div class="modal-header">
+            <h3 id="credentialModalTitle" class="modal-title">New Credential Profile</h3>
+            <button type="button" onclick="closeCredentialModal()" class="modal-close-btn" aria-label="Close">
+                <i class="fas fa-times" style="font-size:14px;"></i>
             </button>
         </div>
-        <form id="credentialForm" class="flex-1 min-h-0 flex flex-col">
-            <input type="hidden" id="credentialProfileEditingId">
-            <div class="flex-1 overflow-y-auto p-6 pt-4 space-y-4 custom-scrollbar">
-                <div class="grid md:grid-cols-2 gap-4">
+
+        <!-- Body - 2-column compact layout, no scroll -->
+        <div class="modal-body" style="padding: 20px 24px;">
+            <form id="credentialForm">
+                <input type="hidden" id="credentialProfileEditingId">
+
+                <!-- Row 1: Profile name + Scope -->
+                <div class="grid md:grid-cols-2 gap-4 mb-4">
                     <div>
-                        <label class="block text-sm font-medium mb-1">
-                            Profile name *
+                        <label class="block text-sm font-medium mb-1" style="color: var(--text-secondary);">Profile name
+                            <span class="text-red-500">*</span>
                             <span class="info-tooltip info-tooltip-align-left info-tooltip-bottom">
                                 <span class="info-tooltip-icon">?</span>
                                 <span class="info-tooltip-text">Unique name for this credential set.</span>
                             </span>
                         </label>
-                        <input type="text" id="credentialProfileName" class="input-field w-full px-3 py-2 rounded"
-                            required placeholder="Shared automation key">
+                        <input type="text" id="credentialProfileName" class="settings-input w-full"
+                            required placeholder="e.g. Shared automation key">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium mb-1">
-                            Scope
+                        <label class="block text-sm font-medium mb-1" style="color: var(--text-secondary);">Scope
                             <span class="info-tooltip info-tooltip-align-left">
                                 <span class="info-tooltip-icon">?</span>
                                 <span class="info-tooltip-text">Limit visibility to a specific server group.</span>
                             </span>
                         </label>
-                        <select id="credentialProfileGroup" class="input-field w-full px-3 py-2 rounded">
+                        <select id="credentialProfileGroup" class="settings-input w-full">
                             <option value="">All groups</option>
                         </select>
                     </div>
                 </div>
 
-                <div class="grid md:grid-cols-2 gap-4">
+                <!-- Row 2: Credential type + Backend -->
+                <div class="grid md:grid-cols-2 gap-4 mb-4">
                     <div>
-                        <label class="block text-sm font-medium mb-1">
-                            Credential type
+                        <label class="block text-sm font-medium mb-1" style="color: var(--text-secondary);">Credential type
                             <span class="info-tooltip info-tooltip-align-left">
                                 <span class="info-tooltip-icon">?</span>
                                 <span class="info-tooltip-text">Format of the stored secret.</span>
                             </span>
                         </label>
-                        <select id="credentialProfileType" class="input-field w-full px-3 py-2 rounded">
+                        <select id="credentialProfileType" class="settings-input w-full" onchange="toggleCredentialBackendFields()">
                             <option value="key">SSH Key</option>
                             <option value="password">Password</option>
                             <option value="vault">Vault</option>
@@ -1466,8 +1500,8 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium mb-1">Backend</label>
-                        <select id="credentialProfileBackend" class="input-field w-full px-3 py-2 rounded">
+                        <label class="block text-sm font-medium mb-1" style="color: var(--text-secondary);">Backend</label>
+                        <select id="credentialProfileBackend" class="settings-input w-full" onchange="toggleCredentialBackendFields()">
                             <option value="inline">Inline (encrypted)</option>
                             <option value="vault">HashiCorp Vault</option>
                             <option value="cyberark">CyberArk</option>
@@ -1475,57 +1509,59 @@
                     </div>
                 </div>
 
-                <div>
-                    <label class="block text-sm font-medium mb-1">Login username <span
-                            class="text-gray-400 text-xs">(required for password)</span></label>
-                    <input type="text" id="credentialProfileUsername" class="input-field w-full px-3 py-2 rounded"
-                        placeholder="svc_automation">
-                    <p class="text-xs text-gray-400 mt-1">Store the account name alongside the secret for reuse
-                        across
-                        servers and groups.</p>
+                <!-- Row 3: Login username + Description -->
+                <div class="grid md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1" style="color: var(--text-secondary);">Login username
+                            <span style="color:#94a3b8; font-size:11px;">(required for password)</span>
+                        </label>
+                        <input type="text" id="credentialProfileUsername" class="settings-input w-full"
+                            placeholder="svc_automation">
+                        <p class="text-xs mt-1" style="color:#94a3b8;">Account name reused across servers &amp; groups.</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1" style="color: var(--text-secondary);">Description</label>
+                        <textarea id="credentialProfileDescription" class="settings-input w-full font-mono text-xs"
+                            rows="3" placeholder="Usage notes, rotation owner, etc."></textarea>
+                    </div>
                 </div>
 
-                <div>
-                    <label class="block text-sm font-medium mb-1">Secret / reference</label>
-                    <textarea id="credentialProfileSecret"
-                        class="input-field w-full px-3 py-2 rounded h-20 font-mono text-xs"
-                        placeholder="Inline secret or vault path"></textarea>
-                    <p class="text-xs text-gray-400 mt-1">Store inline for single-use secrets or provide a
-                        vault/CyberArk reference path.</p>
+                <!-- Row 4: Secret + Metadata -->
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1" style="color: var(--text-secondary);">Secret / reference</label>
+                        <textarea id="credentialProfileSecret" class="settings-input w-full font-mono text-xs"
+                            rows="4" placeholder="Inline secret or vault path"></textarea>
+                        <p class="text-xs mt-1" style="color:#94a3b8;">Provide vault/CyberArk reference path or inline secret.</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1" style="color: var(--text-secondary);">Metadata (YAML/JSON)</label>
+                        <textarea id="credentialProfileMetadata" class="settings-input w-full font-mono text-xs"
+                            rows="4" placeholder="vault_path: secret/data/ssh/prod"></textarea>
+                    </div>
                 </div>
+            </form>
+        </div>
 
-                <div>
-                    <label class="block text-sm font-medium mb-1">Metadata (YAML/JSON)</label>
-                    <textarea id="credentialProfileMetadata"
-                        class="input-field w-full px-3 py-2 rounded h-24 font-mono text-xs"
-                        placeholder="vault_path: secret/data/ssh/prod"></textarea>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium mb-1">Description</label>
-                    <textarea id="credentialProfileDescription" class="input-field w-full px-3 py-2 rounded h-16"
-                        placeholder="Usage notes, rotation owner, etc."></textarea>
-                </div>
-            </div>
-
-            <div
-                class="flex justify-end space-x-2 p-6 border-t border-gray-700 flex-shrink-0 bg-gray-900 bg-opacity-95">
-                <button type="button" onclick="closeCredentialModal()"
-                    class="btn-secondary px-4 py-2 rounded">Cancel</button>
-                <button type="submit" class="btn-primary px-4 py-2 rounded">Save Credential</button>
-            </div>
-        </form>
+        <!-- Footer -->
+        <div class="modal-footer">
+            <button type="button" onclick="closeCredentialModal()" class="settings-btn-secondary">
+                <i class="fas fa-times"></i> Cancel
+            </button>
+            <button type="button" onclick="document.getElementById('credentialForm').requestSubmit()" class="settings-btn-primary">
+                <i class="fas fa-save"></i> Save Credential
+            </button>
+        </div>
     </div>
 </div>
 
 <!-- API Credential Modal (Ported) -->
-<div id="apiCredentialModal"
-    class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 overflow-y-auto">
-    <div class="card w-3/4 max-w-5xl m-4 max-h-[90vh] flex flex-col">
-        <div class="flex items-center justify-between p-6 pb-0 flex-shrink-0">
-            <h2 id="apiCredentialModalTitle" class="text-xl font-bold">Create API Credential Profile</h2>
-            <button onclick="closeApiCredentialModal()" class="text-gray-400 hover:text-white">
-                <i class="fas fa-times"></i>
+<div id="apiCredentialModal" class="modal-overlay">
+    <div class="modal-container" style="max-width: 720px; width: 92%; max-height: 90vh; display: flex; flex-direction: column;">
+        <div class="modal-header flex-shrink-0">
+            <h2 id="apiCredentialModalTitle" class="modal-title">Create API Credential Profile</h2>
+            <button type="button" onclick="closeApiCredentialModal()" class="modal-close-btn" aria-label="Close">
+                <i class="fas fa-times" style="font-size:14px;"></i>
             </button>
         </div>
 
@@ -1542,13 +1578,13 @@
                             <span class="info-tooltip-text">Unique identifier for this credential profile.</span>
                         </span>
                     </label>
-                    <input type="text" id="apiCredentialName" class="input-field w-full px-3 py-2 rounded"
+                    <input type="text" id="apiCredentialName" class="settings-input w-full"
                         placeholder="e.g., Production AWX" required>
                 </div>
 
                 <div>
                     <label class="block text-sm font-medium mb-1">Description</label>
-                    <textarea id="apiCredentialDescription" class="input-field w-full px-3 py-2 rounded" rows="2"
+                    <textarea id="apiCredentialDescription" class="settings-input w-full" rows="2"
                         placeholder="Optional description..."></textarea>
                 </div>
 
@@ -1557,10 +1593,9 @@
                     <label class="block text-sm font-medium mb-1">
                         Base URL <span class="text-red-400">*</span>
                     </label>
-                    <input type="url" id="apiCredentialBaseUrl" class="input-field w-full px-3 py-2 rounded"
+                    <input type="url" id="apiCredentialBaseUrl" class="settings-input w-full"
                         placeholder="https://api.example.com" required>
-                    <p class="text-xs text-gray-400 mt-1">Base URL for the API (e.g., https://awx.example.com/api/v2)
-                    </p>
+                    <p class="text-xs mt-1" style="color: var(--text-muted);">Base URL for the API (e.g., https://awx.example.com/api/v2)</p>
                 </div>
 
                 <!-- Authentication -->
@@ -1568,7 +1603,7 @@
                     <label class="block text-sm font-medium mb-1">
                         Authentication Type <span class="text-red-400">*</span>
                     </label>
-                    <select id="apiCredentialAuthType" class="input-field w-full px-3 py-2 rounded"
+                    <select id="apiCredentialAuthType" class="settings-input w-full"
                         onchange="toggleApiCredentialAuthFields()" required>
                         <option value="none">No Authentication</option>
                         <option value="api_key">API Key (Header)</option>
@@ -1581,30 +1616,28 @@
                 <!-- Auth Header (for api_key type) -->
                 <div id="apiCredentialAuthHeaderField" class="hidden">
                     <label class="block text-sm font-medium mb-1">Auth Header Name</label>
-                    <input type="text" id="apiCredentialAuthHeader" class="input-field w-full px-3 py-2 rounded"
+                    <input type="text" id="apiCredentialAuthHeader" class="settings-input w-full"
                         placeholder="e.g., X-API-Key">
-                    <p class="text-xs text-gray-400 mt-1">Header name for API key (default: Authorization)</p>
+                    <p class="text-xs mt-1" style="color: var(--text-muted);">Header name for API key (default: Authorization)</p>
                 </div>
 
                 <!-- Token/API Key (for api_key, bearer types) -->
                 <div id="apiCredentialTokenField" class="hidden">
                     <label class="block text-sm font-medium mb-1">Token / API Key</label>
-                    <input type="password" id="apiCredentialToken" class="input-field w-full px-3 py-2 rounded"
+                    <input type="password" id="apiCredentialToken" class="settings-input w-full"
                         placeholder="Enter token or API key">
-                    <p class="text-xs text-gray-400 mt-1">Will be encrypted before storage</p>
+                    <p class="text-xs mt-1" style="color: var(--text-muted);">Will be encrypted before storage</p>
                 </div>
 
                 <!-- Username/Password (for basic auth) -->
                 <div id="apiCredentialBasicAuthFields" class="hidden space-y-3">
                     <div>
                         <label class="block text-sm font-medium mb-1">Username</label>
-                        <input type="text" id="apiCredentialUsername" class="input-field w-full px-3 py-2 rounded"
-                            placeholder="Username">
+                        <input type="text" id="apiCredentialUsername" class="settings-input w-full" placeholder="Username">
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Password</label>
-                        <input type="password" id="apiCredentialPassword" class="input-field w-full px-3 py-2 rounded"
-                            placeholder="Password">
+                        <input type="password" id="apiCredentialPassword" class="settings-input w-full" placeholder="Password">
                     </div>
                 </div>
 
@@ -1612,48 +1645,45 @@
                 <div id="apiCredentialOAuthFields" class="hidden space-y-3">
                     <div>
                         <label class="block text-sm font-medium mb-1">OAuth Token URL</label>
-                        <input type="url" id="apiCredentialOAuthTokenUrl" class="input-field w-full px-3 py-2 rounded"
+                        <input type="url" id="apiCredentialOAuthTokenUrl" class="settings-input w-full"
                             placeholder="https://auth.example.com/oauth/token">
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Client ID</label>
-                        <input type="text" id="apiCredentialOAuthClientId" class="input-field w-full px-3 py-2 rounded"
-                            placeholder="Client ID">
+                        <input type="text" id="apiCredentialOAuthClientId" class="settings-input w-full" placeholder="Client ID">
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Client Secret</label>
                         <input type="password" id="apiCredentialOAuthClientSecret"
-                            class="input-field w-full px-3 py-2 rounded" placeholder="Client Secret">
+                            class="settings-input w-full" placeholder="Client Secret">
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Scope (Optional)</label>
-                        <input type="text" id="apiCredentialOAuthScope" class="input-field w-full px-3 py-2 rounded"
-                            placeholder="read write">
+                        <input type="text" id="apiCredentialOAuthScope" class="settings-input w-full" placeholder="read write">
                     </div>
                 </div>
 
                 <!-- Advanced Options -->
-                <div class="border-t border-gray-700 pt-4 space-y-3">
+                <div class="pt-4 space-y-3" style="border-top: 1px solid var(--border-color);">
                     <div class="flex items-center gap-3">
                         <input type="checkbox" id="apiCredentialVerifySSL" class="form-checkbox" checked>
-                        <label for="apiCredentialVerifySSL" class="text-sm">Verify SSL Certificate</label>
+                        <label for="apiCredentialVerifySSL" class="text-sm" style="color: var(--text-secondary);">Verify SSL Certificate</label>
                     </div>
 
                     <div>
                         <label class="block text-sm font-medium mb-1">Timeout (seconds)</label>
-                        <input type="number" id="apiCredentialTimeout" class="input-field w-full px-3 py-2 rounded"
-                            value="30" min="1" max="300">
+                        <input type="number" id="apiCredentialTimeout" class="settings-input w-full" value="30" min="1" max="300">
                     </div>
 
                     <div class="flex items-center gap-3">
                         <input type="checkbox" id="apiCredentialEnabled" class="form-checkbox" checked>
-                        <label for="apiCredentialEnabled" class="text-sm font-medium">Enable this profile</label>
+                        <label for="apiCredentialEnabled" class="text-sm font-medium" style="color: var(--text-secondary);">Enable this profile</label>
                     </div>
                 </div>
             </div>
 
             <!-- Action Buttons -->
-            <div class="flex justify-end gap-3 p-6 border-t border-gray-700 flex-shrink-0 bg-gray-900 bg-opacity-95">
+            <div class="modal-footer flex-shrink-0">
                 <button type="button" onclick="closeApiCredentialModal()" class="btn-secondary px-4 py-2 rounded">
                     Cancel
                 </button>
@@ -1670,13 +1700,12 @@
 </div>
 
 <!-- Role Modal -->
-<div id="roleModal"
-    class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 overflow-y-auto">
-    <div class="card w-3/4 max-w-5xl m-4 max-h-[90vh] flex flex-col">
-        <div class="flex items-center justify-between p-6 pb-0 flex-shrink-0">
-            <h3 id="roleModalTitle" class="text-lg font-semibold">New Role</h3>
-            <button onclick="closeRoleModal()" class="text-gray-400 hover:text-white">
-                <i class="fas fa-times"></i>
+<div id="roleModal" class="modal-overlay">
+    <div class="modal-container" style="max-width: 860px; width: 92%; max-height: 90vh; display: flex; flex-direction: column;">
+        <div class="modal-header flex-shrink-0">
+            <h3 id="roleModalTitle" class="modal-title">New Role</h3>
+            <button type="button" onclick="closeRoleModal()" class="modal-close-btn" aria-label="Close">
+                <i class="fas fa-times" style="font-size:14px;"></i>
             </button>
         </div>
 
@@ -1693,13 +1722,11 @@
                             <span class="info-tooltip-text">Unique identifier for the role.</span>
                         </span>
                     </label>
-                    <input type="text" id="roleName" class="input-field w-full px-3 py-2 rounded" required
-                        placeholder="e.g. Compliance Officer">
+                    <input type="text" id="roleName" class="settings-input w-full" required placeholder="e.g. Compliance Officer">
                 </div>
                 <div>
                     <label class="block text-sm font-medium mb-1">Description</label>
-                    <textarea id="roleDescription" class="input-field w-full px-3 py-2 rounded h-20"
-                        placeholder="Role responsibilities..."></textarea>
+                    <textarea id="roleDescription" class="settings-input w-full h-20" placeholder="Role responsibilities..."></textarea>
                 </div>
 
                 <div>
@@ -1716,8 +1743,7 @@
                 </div>
             </div>
 
-            <div
-                class="flex justify-end space-x-2 p-6 border-t border-gray-700 flex-shrink-0 bg-gray-900 bg-opacity-95">
+            <div class="modal-footer flex-shrink-0">
                 <button type="button" onclick="closeRoleModal()" class="btn-secondary px-4 py-2 rounded">Cancel</button>
                 <button type="submit" class="btn-primary px-4 py-2 rounded">Save Role</button>
             </div>
@@ -1726,13 +1752,12 @@
 </div>
 
 <!-- Group Modal -->
-<div id="groupModal"
-    class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 overflow-y-auto">
-    <div class="card w-full max-w-xl m-4 max-h-[90vh] flex flex-col">
-        <div class="flex items-center justify-between p-6 pb-0 flex-shrink-0">
-            <h3 id="groupModalTitle" class="text-lg font-semibold">Create Group</h3>
-            <button onclick="closeGroupModal()" class="text-gray-400 hover:text-white">
-                <i class="fas fa-times"></i>
+<div id="groupModal" class="modal-overlay">
+    <div class="modal-container" style="max-width: 560px; width: 92%; max-height: 90vh; display: flex; flex-direction: column;">
+        <div class="modal-header flex-shrink-0">
+            <h3 id="groupModalTitle" class="modal-title">Create Group</h3>
+            <button type="button" onclick="closeGroupModal()" class="modal-close-btn" aria-label="Close">
+                <i class="fas fa-times" style="font-size:14px;"></i>
             </button>
         </div>
 
@@ -1741,42 +1766,37 @@
             <div class="flex-1 overflow-y-auto p-6 pt-4 space-y-4 custom-scrollbar">
                 <div>
                     <label class="block text-sm font-medium mb-1">Group Name *</label>
-                    <input type="text" id="groupName" class="input-field w-full px-3 py-2 rounded" required
-                        placeholder="e.g. SRE-Team">
+                    <input type="text" id="groupName" class="settings-input w-full" required placeholder="e.g. SRE-Team">
                 </div>
                 <div>
                     <label class="block text-sm font-medium mb-1">Description</label>
-                    <textarea id="groupDescription" class="input-field w-full px-3 py-2 rounded h-20"
-                        placeholder="Group purpose and responsibilities..."></textarea>
+                    <textarea id="groupDescription" class="settings-input w-full h-20" placeholder="Group purpose and responsibilities..."></textarea>
                 </div>
                 <div>
                     <label class="block text-sm font-medium mb-1">Role</label>
-                    <select id="groupRole" class="input-field w-full px-3 py-2 rounded">
+                    <select id="groupRole" class="settings-input w-full">
                         <option value="">No role assigned</option>
                     </select>
-                    <p class="text-xs text-gray-400 mt-1">All group members will inherit this role's permissions.</p>
+                    <p class="text-xs mt-1" style="color: var(--text-muted);">All group members will inherit this role's permissions.</p>
                 </div>
 
                 <!-- AD Sync Configuration -->
-                <div class="border-t border-gray-700 pt-4 space-y-3">
+                <div class="pt-4 space-y-3" style="border-top: 1px solid var(--border-color);">
                     <div class="flex items-center gap-3">
                         <input type="checkbox" id="groupSyncEnabled" class="form-checkbox">
-                        <label for="groupSyncEnabled" class="text-sm">Enable AD Sync</label>
+                        <label for="groupSyncEnabled" class="text-sm" style="color: var(--text-secondary);">Enable AD Sync</label>
                     </div>
                     <div id="adGroupDnField" class="hidden">
-                        <label class="block text-sm font-medium mb-1">AD Group DN</label>
-                        <input type="text" id="groupAdGroupDn" class="input-field w-full px-3 py-2 rounded"
+                        <label class="block text-sm font-medium mb-1" style="color: var(--text-secondary);">AD Group DN</label>
+                        <input type="text" id="groupAdGroupDn" class="settings-input w-full"
                             placeholder="CN=SRE-Team,OU=Groups,DC=corp,DC=com">
-                        <p class="text-xs text-gray-400 mt-1">Distinguished Name of the Active Directory group to sync
-                            membership from.</p>
+                        <p class="text-xs mt-1" style="color: var(--text-muted);">Distinguished Name of the Active Directory group to sync membership from.</p>
                     </div>
                 </div>
             </div>
 
-            <div
-                class="flex justify-end space-x-2 p-6 border-t border-gray-700 flex-shrink-0 bg-gray-900 bg-opacity-95">
-                <button type="button" onclick="closeGroupModal()"
-                    class="btn-secondary px-4 py-2 rounded">Cancel</button>
+            <div class="modal-footer flex-shrink-0">
+                <button type="button" onclick="closeGroupModal()" class="btn-secondary px-4 py-2 rounded">Cancel</button>
                 <button type="submit" class="btn-primary px-4 py-2 rounded">Save Group</button>
             </div>
         </form>
@@ -1784,22 +1804,21 @@
 </div>
 
 <!-- Group Members Drawer -->
-<div id="groupMembersDrawer"
-    class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 overflow-y-auto">
-    <div class="card w-full max-w-2xl m-4 max-h-[80vh] flex flex-col">
-        <div class="flex items-center justify-between p-6 border-b border-gray-700">
+<div id="groupMembersDrawer" class="modal-overlay">
+    <div class="modal-container" style="max-width: 600px; width: 92%; max-height: 80vh; display: flex; flex-direction: column;">
+        <div class="modal-header flex-shrink-0">
             <div>
-                <h3 id="groupMembersTitle" class="text-lg font-semibold">Group Members</h3>
-                <p class="text-sm text-gray-400" id="groupMembersSubtitle"></p>
+                <h3 id="groupMembersTitle" class="modal-title">Group Members</h3>
+                <p class="text-sm" id="groupMembersSubtitle" style="color: var(--text-muted);"></p>
             </div>
-            <button onclick="closeGroupMembersDrawer()" class="text-gray-400 hover:text-white">
-                <i class="fas fa-times"></i>
+            <button type="button" onclick="closeGroupMembersDrawer()" class="modal-close-btn" aria-label="Close">
+                <i class="fas fa-times" style="font-size:14px;"></i>
             </button>
         </div>
         <div class="flex-1 overflow-y-auto p-4">
             <!-- Add Member -->
             <div class="flex gap-2 mb-4">
-                <select id="addMemberUserSelect" class="input-field flex-1 px-3 py-2 rounded">
+                <select id="addMemberUserSelect" class="settings-input flex-1">
                     <option value="">Select user to add...</option>
                 </select>
                 <button onclick="addGroupMember()" class="btn-primary px-4 py-2 rounded">
@@ -1808,7 +1827,7 @@
             </div>
             <!-- Members List -->
             <div id="groupMembersList" class="space-y-2">
-                <p class="text-gray-500 text-center py-4">Loading members...</p>
+                <p class="text-center py-4" style="color: var(--text-muted);">Loading members...</p>
             </div>
         </div>
     </div>
@@ -2015,8 +2034,7 @@
         document.getElementById('apiCredentialForm').reset();
         document.getElementById('apiCredentialModalTitle').textContent = 'Create API Credential Profile';
         document.getElementById('apiCredentialProfileId').value = '';
-        document.getElementById('apiCredentialModal').classList.remove('hidden');
-        document.getElementById('apiCredentialModal').classList.add('flex');
+        document.getElementById('apiCredentialModal').classList.add('active');
         toggleApiCredentialAuthFields();
     }
 
@@ -2039,13 +2057,11 @@
         document.getElementById('apiCredentialEnabled').checked = p.enabled;
 
         toggleApiCredentialAuthFields();
-        document.getElementById('apiCredentialModal').classList.remove('hidden');
-        document.getElementById('apiCredentialModal').classList.add('flex');
+        document.getElementById('apiCredentialModal').classList.add('active');
     }
 
     function closeApiCredentialModal() {
-        document.getElementById('apiCredentialModal').classList.add('hidden');
-        document.getElementById('apiCredentialModal').classList.remove('flex');
+        document.getElementById('apiCredentialModal').classList.remove('active');
     }
 
     function toggleApiCredentialAuthFields() {
@@ -2250,6 +2266,70 @@
         azure: 'gpt-4o'
     };
 
+    // Supported embedding models per provider
+    const embeddingProviderModels = {
+        openai: ['text-embedding-3-small', 'text-embedding-3-large', 'text-embedding-ada-002'],
+        azure: ['text-embedding-3-small', 'text-embedding-3-large', 'text-embedding-ada-002'],
+        ollama: ['nomic-embed-text', 'mxbai-embed-large', 'all-minilm']
+    };
+
+    function getSelectedUsageType() {
+        return document.querySelector('input[name="usageType"]:checked')?.value || 'llm';
+    }
+
+    function onUsageTypeChange() {
+        const usageType = getSelectedUsageType();
+        const isEmbedding = usageType === 'embedding';
+        const providerTypeSelect = document.getElementById('providerType');
+
+        // Repopulate provider type options based on usage type
+        if (isEmbedding) {
+            providerTypeSelect.innerHTML = `
+                <option value="openai">OpenAI</option>
+                <option value="azure">Azure OpenAI</option>
+                <option value="ollama">Ollama (Local)</option>
+            `;
+        } else {
+            providerTypeSelect.innerHTML = `
+                <option value="anthropic">Anthropic</option>
+                <option value="openai">OpenAI</option>
+                <option value="google">Google Gemini</option>
+                <option value="ollama">Ollama (Local)</option>
+                <option value="azure">Azure OpenAI</option>
+            `;
+        }
+
+        // Toggle model input vs dropdown
+        document.getElementById('providerModel').classList.toggle('hidden', isEmbedding);
+        document.getElementById('providerModel').required = !isEmbedding;
+        document.getElementById('providerEmbeddingModel').classList.toggle('hidden', !isEmbedding);
+
+        // Update hint
+        const hint = document.getElementById('usageTypeHint');
+        hint.textContent = isEmbedding
+            ? 'Only OpenAI, Azure and Ollama support the embedding API. The model dropdown shows only verified embedding models.'
+            : 'LLM providers power chat analysis, runbook AI, and alert correlation.';
+
+        updateModelSuggestions();
+    }
+
+    function syncEmbeddingModelToInput() {
+        const sel = document.getElementById('providerEmbeddingModel');
+        document.getElementById('providerModel').value = sel.value;
+    }
+
+    function updateModelSuggestions() {
+        const type = document.getElementById('providerType').value;
+        const usageType = getSelectedUsageType();
+        const input = document.getElementById('providerModel');
+        if (usageType === 'embedding') {
+            // Sync dropdown to text field
+            syncEmbeddingModelToInput();
+        } else if (input) {
+            input.placeholder = modelSuggestions[type] || '';
+        }
+    }
+
     const sectionActions = {
         'section-overview': 'Review usage stats and access posture at a glance.',
         'section-users': 'Invite admins, deactivate accounts, and adjust roles.',
@@ -2424,13 +2504,11 @@
             inputContainer.classList.add('hidden');
         }
 
-        document.getElementById('confirmModal').classList.remove('hidden');
-        document.getElementById('confirmModal').classList.add('flex');
+        document.getElementById('confirmModal').classList.add('active');
     }
 
     function closeConfirmModal() {
-        document.getElementById('confirmModal').classList.add('hidden');
-        document.getElementById('confirmModal').classList.remove('flex');
+        document.getElementById('confirmModal').classList.remove('active');
         confirmCallback = null;
         confirmRequirement = null;
         document.getElementById('confirmInput').value = '';
@@ -2473,14 +2551,6 @@
             return `${diffDays}d ago`;
         }
         return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    }
-
-    function updateModelSuggestions() {
-        const type = document.getElementById('providerType').value;
-        const input = document.getElementById('providerModel');
-        if (input) {
-            input.placeholder = modelSuggestions[type] || '';
-        }
     }
 
     function toggleSecretVisibility(inputId, trigger, isMultiline = false) {
@@ -2532,13 +2602,15 @@
     function filterProviders() {
         const search = document.getElementById('providerSearch')?.value.toLowerCase() || '';
         const typeFilter = document.getElementById('providerTypeFilter')?.value;
+        const usageFilter = document.getElementById('providerUsageFilter')?.value;
         const statusFilter = document.getElementById('providerStatusFilter')?.value;
 
         let filtered = providerCache.filter(provider => {
             const matchesType = !typeFilter || provider.provider_type === typeFilter;
+            const matchesUsage = !usageFilter || (provider.usage_type || 'llm') === usageFilter;
             const matchesStatus = !statusFilter || (statusFilter === 'enabled' ? provider.is_enabled : !provider.is_enabled);
             const matchesSearch = !search || `${provider.name} ${provider.model_id}`.toLowerCase().includes(search);
-            return matchesType && matchesStatus && matchesSearch;
+            return matchesType && matchesUsage && matchesStatus && matchesSearch;
         });
 
         providerFilteredTotal = filtered.length;
@@ -2613,6 +2685,12 @@
                     </td>
                     <td class="p-4">
                         <span class="capitalize" style="color:#334155">${provider.provider_type}</span>
+                        <div class="mt-1">
+                            ${(provider.usage_type || 'llm') === 'embedding'
+                                ? '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium" style="color:#7c3aed; background:#f5f3ff; border:1px solid #ddd6fe"><i class="fas fa-vector-square mr-1"></i>Embedding</span>'
+                                : '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium" style="color:#1d4ed8; background:#eff6ff; border:1px solid #bfdbfe"><i class="fas fa-robot mr-1"></i>LLM</span>'
+                            }
+                        </div>
                     </td>
                     <td class="p-4">
                         <code class="text-xs px-2 py-1 rounded" style="background:#f1f5f9; color:#334155">${provider.model_id}</code>
@@ -3083,15 +3161,16 @@
         document.getElementById('providerSecretStorage').value = 'vault';
         document.getElementById('providerLastRotated').textContent = 'Not set';
         document.getElementById('providerAuditEntries').innerHTML = '<div class="text-gray-400">No secret changes yet.</div>';
-        updateModelSuggestions();
 
-        document.getElementById('providerModal').classList.remove('hidden');
-        document.getElementById('providerModal').classList.add('flex');
+        // Reset to LLM mode
+        document.getElementById('usageTypeLlm').checked = true;
+        onUsageTypeChange();
+
+        document.getElementById('providerModal').classList.add('active');
     }
 
     function closeProviderModal() {
-        document.getElementById('providerModal').classList.add('hidden');
-        document.getElementById('providerModal').classList.remove('flex');
+        document.getElementById('providerModal').classList.remove('active');
         document.getElementById('providerForm').reset();
     }
 
@@ -3108,8 +3187,19 @@
             document.getElementById('providerModalTitle').textContent = 'Edit LLM Provider';
             document.getElementById('providerId').value = provider.id;
             document.getElementById('providerName').value = provider.name;
+
+            // Set usage type radio first, then update form accordingly
+            const usageType = provider.usage_type || 'llm';
+            document.getElementById(usageType === 'embedding' ? 'usageTypeEmbedding' : 'usageTypeLlm').checked = true;
+            onUsageTypeChange();
+
             document.getElementById('providerType').value = provider.provider_type;
-            document.getElementById('providerModel').value = provider.model_id;
+            if (usageType === 'embedding') {
+                document.getElementById('providerEmbeddingModel').value = provider.model_id;
+                syncEmbeddingModelToInput();
+            } else {
+                document.getElementById('providerModel').value = provider.model_id;
+            }
             document.getElementById('providerBaseUrl').value = provider.api_base_url || '';
             document.getElementById('providerDefault').checked = provider.is_default;
             document.getElementById('providerEnabled').checked = provider.is_enabled;
@@ -3132,10 +3222,7 @@
 
             document.getElementById('providerLastRotated').textContent = provider.has_api_key ? formatDate(provider.updated_at) : 'Not set';
 
-            updateModelSuggestions();
-
-            document.getElementById('providerModal').classList.remove('hidden');
-            document.getElementById('providerModal').classList.add('flex');
+            document.getElementById('providerModal').classList.add('active');
         } catch (error) {
             showToast('Failed to load provider: ' + error.message, 'error');
         }
@@ -3157,6 +3244,7 @@
             api_base_url: document.getElementById('providerBaseUrl').value || null,
             is_default: document.getElementById('providerDefault').checked,
             is_enabled: document.getElementById('providerEnabled').checked,
+            usage_type: getSelectedUsageType(),
             config_json: {
                 temperature: parseFloat(document.getElementById('providerTemp').value),
                 max_tokens: parseInt(document.getElementById('providerMaxTokens').value),
@@ -3484,8 +3572,7 @@
         document.getElementById('credentialForm').reset();
         document.getElementById('credentialModalTitle').textContent = 'New Credential Profile';
         document.getElementById('credentialProfileEditingId').value = '';
-        document.getElementById('credentialModal').classList.remove('hidden');
-        document.getElementById('credentialModal').classList.add('flex');
+        document.getElementById('credentialModal').classList.add('active');
         toggleCredentialBackendFields();
     }
 
@@ -3515,15 +3602,13 @@
 
         const modal = document.getElementById('credentialModal');
         if (modal) {
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
+            modal.classList.add('active');
         }
         toggleCredentialBackendFields();
     }
 
     function closeCredentialModal() {
-        document.getElementById('credentialModal').classList.add('hidden');
-        document.getElementById('credentialModal').classList.remove('flex');
+        document.getElementById('credentialModal').classList.remove('active');
     }
 
     function toggleCredentialBackendFields() {
@@ -4077,6 +4162,8 @@
 
     document.getElementById('providerSearch')?.addEventListener('input', () =>
         renderProvidersTable(filterProviders()));
+    document.getElementById('providerUsageFilter')?.addEventListener('change', () =>
+        renderProvidersTable(filterProviders()));
     document.getElementById('providerTypeFilter')?.addEventListener('change', () =>
         renderProvidersTable(filterProviders()));
     document.getElementById('providerStatusFilter')?.addEventListener('change', () =>
@@ -4311,13 +4398,13 @@
 
     async function populateUserGroupsCheckboxes(userGroups = []) {
         const container = document.getElementById('userGroupsContainer');
-        container.innerHTML = '<p class="text-gray-500 text-sm">Loading...</p>';
+        container.innerHTML = '<p class="text-sm" style="color: var(--text-muted);">Loading...</p>';
         try {
             const res = await fetch('/api/groups');
             if (res.ok) {
                 const groups = await res.json();
                 if (!groups.length) {
-                    container.innerHTML = '<p class="text-gray-500 text-sm">No groups available</p>';
+                    container.innerHTML = '<p class="text-sm" style="color: var(--text-muted);">No groups available</p>';
                     return;
                 }
                 let html = '';
@@ -4326,18 +4413,18 @@
                     html += `
                         <label class="flex items-center space-x-2 cursor-pointer">
                             <input type="checkbox" name="user_group" value="${g.id}" ${checked}
-                                class="form-checkbox text-blue-500 rounded bg-gray-700 border-gray-600">
-                            <span class="text-sm">${g.name}</span>
-                            ${g.role_name ? `<span class="text-xs text-gray-500">(${g.role_name})</span>` : ''}
+                                class="form-checkbox">
+                            <span class="text-sm" style="color: var(--text-primary);">${g.name}</span>
+                            ${g.role_name ? `<span class="text-xs" style="color: var(--text-muted);">(${g.role_name})</span>` : ''}
                         </label>
                     `;
                 }
                 container.innerHTML = html;
             } else {
-                container.innerHTML = '<p class="text-gray-500 text-sm">Error loading groups</p>';
+                container.innerHTML = '<p class="text-sm" style="color: var(--text-muted);">Error loading groups</p>';
             }
         } catch (e) {
-            container.innerHTML = '<p class="text-gray-500 text-sm">Error loading groups</p>';
+            container.innerHTML = '<p class="text-sm" style="color: var(--text-muted);">Error loading groups</p>';
         }
     }
 
@@ -4370,8 +4457,7 @@
         document.getElementById('userPasswordHelp').classList.add('hidden');
         await populateUserRoleDropdown('operator');
         await populateUserGroupsCheckboxes([]);
-        document.getElementById('userModal').classList.remove('hidden');
-        document.getElementById('userModal').classList.add('flex');
+        document.getElementById('userModal').classList.add('active');
     }
 
     async function editUser(userId) {
@@ -4399,16 +4485,14 @@
             const userGroups = await getUserGroups(userId);
             await populateUserGroupsCheckboxes(userGroups);
 
-            document.getElementById('userModal').classList.remove('hidden');
-            document.getElementById('userModal').classList.add('flex');
+            document.getElementById('userModal').classList.add('active');
         } catch (e) {
             showToast('Error loading user details', 'error');
         }
     }
 
     function closeUserModal() {
-        document.getElementById('userModal').classList.add('hidden');
-        document.getElementById('userModal').classList.remove('flex');
+        document.getElementById('userModal').classList.remove('active');
     }
 
     document.getElementById('userForm')?.addEventListener('submit', async (e) => {
@@ -4585,8 +4669,7 @@
     }
 
     function showCreateRoleModal() {
-        document.getElementById('roleModal').classList.remove('hidden');
-        document.getElementById('roleModal').classList.add('flex');
+        document.getElementById('roleModal').classList.add('active');
         document.getElementById('roleModalTitle').textContent = "New Role";
         document.getElementById('roleForm').reset();
         document.getElementById('roleEditingId').value = "";
@@ -4598,8 +4681,7 @@
         const role = rolesCache.find(r => r.id === roleId);
         if (!role) return;
 
-        document.getElementById('roleModal').classList.remove('hidden');
-        document.getElementById('roleModal').classList.add('flex');
+        document.getElementById('roleModal').classList.add('active');
         document.getElementById('roleModalTitle').textContent = `Edit Role: ${role.name}`;
 
         document.getElementById('roleEditingId').value = role.id;
@@ -4611,8 +4693,7 @@
     }
 
     function closeRoleModal() {
-        document.getElementById('roleModal').classList.add('hidden');
-        document.getElementById('roleModal').classList.remove('flex');
+        document.getElementById('roleModal').classList.remove('active');
     }
 
     function renderPermissionsCheckboxes(selectedPerms) {
@@ -4806,8 +4887,7 @@
         document.getElementById('adGroupDnField').classList.add('hidden');
         populateGroupRoleDropdown();
         document.getElementById('groupRole').value = '';
-        document.getElementById('groupModal').classList.remove('hidden');
-        document.getElementById('groupModal').classList.add('flex');
+        document.getElementById('groupModal').classList.add('active');
     }
 
     async function editGroup(groupId) {
@@ -4822,13 +4902,11 @@
         document.getElementById('adGroupDnField').classList.toggle('hidden', !group.sync_enabled);
         await populateGroupRoleDropdown();
         document.getElementById('groupRole').value = group.role_id || '';
-        document.getElementById('groupModal').classList.remove('hidden');
-        document.getElementById('groupModal').classList.add('flex');
+        document.getElementById('groupModal').classList.add('active');
     }
 
     function closeGroupModal() {
-        document.getElementById('groupModal').classList.add('hidden');
-        document.getElementById('groupModal').classList.remove('flex');
+        document.getElementById('groupModal').classList.remove('active');
     }
 
     if (document.getElementById('groupSyncEnabled')) {
@@ -4896,15 +4974,13 @@
         currentGroupId = groupId;
         document.getElementById('groupMembersTitle').textContent = `Members of ${groupName}`;
         document.getElementById('groupMembersSubtitle').textContent = 'Add or remove users from this group';
-        document.getElementById('groupMembersDrawer').classList.remove('hidden');
-        document.getElementById('groupMembersDrawer').classList.add('flex');
+        document.getElementById('groupMembersDrawer').classList.add('active');
         await loadGroupMembers(groupId);
         await populateMemberUserSelect(groupId);
     }
 
     function closeGroupMembersDrawer() {
-        document.getElementById('groupMembersDrawer').classList.add('hidden');
-        document.getElementById('groupMembersDrawer').classList.remove('flex');
+        document.getElementById('groupMembersDrawer').classList.remove('active');
         currentGroupId = null;
     }
 

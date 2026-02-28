@@ -24,21 +24,21 @@
 {% endblock %}
 
 {% block header_actions %}
-<div class="flex items-center bg-white bg-opacity-10 rounded-lg p-1 border border-white border-opacity-20 h-8">
+<div class="flex items-center rounded-lg p-1 h-8 time-range-picker">
     <div class="relative">
         <select id="timeRange"
-            class="appearance-none bg-transparent text-gray-200 text-xs pl-3 pr-7 py-1 focus:outline-none cursor-pointer hover:text-white transition-colors">
-            <option value="24h" class="text-gray-900">Last 24h</option>
-            <option value="7d" class="text-gray-900">Last 7d</option>
-            <option value="30d" class="text-gray-900">Last 30d</option>
+            class="time-range-select appearance-none bg-transparent text-xs pl-3 pr-7 py-1 focus:outline-none cursor-pointer transition-colors">
+            <option value="24h">Last 24h</option>
+            <option value="7d">Last 7d</option>
+            <option value="30d">Last 30d</option>
         </select>
-        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
+        <div class="time-range-icon pointer-events-none absolute inset-y-0 right-0 flex items-center px-2">
             <i class="fas fa-chevron-down text-[9px]"></i>
         </div>
     </div>
-    <div class="w-px h-4 bg-white bg-opacity-20 mx-1"></div>
+    <div class="time-range-divider w-px h-4 mx-1"></div>
     <button id="refresh-btn" onclick="refreshDashboard()"
-        class="toolbar-btn p-1 rounded hover:bg-white hover:bg-opacity-10 transition-colors text-gray-300 hover:text-white"
+        class="toolbar-btn time-range-refresh p-1 rounded transition-colors"
         title="Refresh Data">
         <i class="fas fa-sync-alt text-green-400 text-xs"></i>
     </button>

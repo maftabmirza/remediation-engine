@@ -653,8 +653,15 @@ async def test_server_on_demand(
                 server.ssh_key_encrypted = encrypt_value(payload.ssh_key)
 
         # Use the executor factory to test connection
+        # Wrap with a hard outer timeout so the API always returns,
+        # even if asyncssh hangs during handshake.
+        import asyncio as _asyncio
+        TEST_TIMEOUT = 20  # seconds
         try:
-            result = await ExecutorFactory.test_server_connection(server)
+            result = await _asyncio.wait_for(
+                ExecutorFactory.test_server_connection(server),
+                timeout=TEST_TIMEOUT
+            )
             
             status_code = "success" if result.success else "error"
             message = result.stdout if result.success else (result.error_message or result.stderr)
@@ -663,6 +670,11 @@ async def test_server_on_demand(
                 status=status_code,
                 message=message or "Connection successful",
                 latency_ms=result.duration_ms
+            )
+        except _asyncio.TimeoutError:
+            return ServerTestResponse(
+                status="error",
+                message=f"Connection test timed out after {TEST_TIMEOUT}s — host unreachable or port blocked"
             )
         except Exception as e:
             return ServerTestResponse(status="error", message=str(e))

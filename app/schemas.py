@@ -66,11 +66,13 @@ class UserResponse(UserBase):
 
 class LLMProviderBase(BaseModel):
     name: str
-    provider_type: str  # anthropic, openai, google, ollama
+    provider_type: str  # anthropic, openai, google, ollama, azure
     model_id: str
     api_base_url: Optional[str] = None
     is_default: bool = False
     is_enabled: bool = True
+    # 'llm' = general chat/completion, 'embedding' = vector embedding model
+    usage_type: str = 'llm'
     config_json: Dict[str, Any] = {"temperature": 0.3, "max_tokens": 2000}
 
     model_config = {
@@ -90,6 +92,7 @@ class LLMProviderUpdate(BaseModel):
     api_base_url: Optional[str] = None
     is_default: Optional[bool] = None
     is_enabled: Optional[bool] = None
+    usage_type: Optional[str] = None
     config_json: Optional[Dict[str, Any]] = None
 
     model_config = {
