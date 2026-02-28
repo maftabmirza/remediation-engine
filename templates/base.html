@@ -29,12 +29,14 @@
             try {
                 var theme = localStorage.getItem('aiops-theme') || 'light';
                 document.documentElement.setAttribute('data-theme', theme);
-                document.write('<link id="theme-css" href="/static/css/themes/' + theme + '.css?v=20260228b" rel="stylesheet">');
+                document.write('<link id="theme-css" href="/static/css/themes/' + theme + '.css?v=20260228d" rel="stylesheet">');
             } catch (e) {
-                document.write('<link id="theme-css" href="/static/css/themes/light.css?v=20260228b" rel="stylesheet">');
+                document.write('<link id="theme-css" href="/static/css/themes/light.css?v=20260228d" rel="stylesheet">');
             }
         })();
     </script>
+    <!-- Theme overrides — always loaded; rules activate via [data-theme] attribute -->
+    <link href="/static/css/themes/jackson_overrides.css?v=20260228d" rel="stylesheet">
     <link href="/static/css/responsive.css?v=20260216f" rel="stylesheet">
 
     <!-- ECharts -->
@@ -44,7 +46,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
 
     <!-- Theme Manager -->
-    <script src="/static/js/theme-manager.js?v=20260228c"></script>
+    <script src="/static/js/theme-manager.js?v=20260228d"></script>
 
     {% block head %}{% endblock %}
 </head>

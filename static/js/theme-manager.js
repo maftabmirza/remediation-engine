@@ -150,7 +150,7 @@ class ThemeManager {
         if (themeLink) {
             // Check if href needs update to avoid reload flash if same
             if (!themeLink.href.includes(`/${themeName}.css`)) {
-                themeLink.href = `/static/css/themes/${themeName}.css?v=20260219a`;
+                themeLink.href = `/static/css/themes/${themeName}.css?v=20260228d`;
             }
         }
 

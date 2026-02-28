@@ -1691,3 +1691,211 @@
 [data-theme="jackson"] .ribbon-divider {
     height: 24px !important;
 }
+
+/* ============================================================
+   Inquiry Page — Jackson (Dark) Theme Overrides
+   ============================================================ */
+
+/* Chat panel header */
+[data-theme="jackson"] .inq-chat-header {
+    background: #1e2433;
+    border-color: rgba(255, 255, 255, 0.08);
+}
+[data-theme="jackson"] .inq-session-label { color: #94a3b8; }
+[data-theme="jackson"] .inq-session-id { color: #60a5fa; }
+[data-theme="jackson"] .inq-icon-btn { color: #64748b; }
+[data-theme="jackson"] .inq-icon-btn:hover { color: #e2e8f0; background: rgba(255,255,255,0.07); }
+
+/* Empty state */
+[data-theme="jackson"] .inq-empty-hint { color: #4b5563; }
+[data-theme="jackson"] .inq-empty-icon { color: #374151; }
+
+/* Chat bubbles */
+[data-theme="jackson"] .inq-bubble-assistant {
+    background: #1e2433;
+    color: #e2e8f0;
+    border-color: rgba(255,255,255,0.08);
+}
+[data-theme="jackson"] .inq-bubble-error {
+    background: rgba(127,29,29,0.4);
+    color: #fca5a5;
+    border-color: rgba(239,68,68,0.3);
+}
+
+/* Chat input bar */
+[data-theme="jackson"] .inq-chat-input-bar {
+    background: #151b28;
+    border-color: rgba(255,255,255,0.08);
+}
+[data-theme="jackson"] .inq-chat-input {
+    background: #1e2433 !important;
+    border-color: rgba(255,255,255,0.12) !important;
+    color: #e2e8f0 !important;
+}
+
+/* Artifact panel header */
+[data-theme="jackson"] .inq-artifact-panel-header {
+    background: #151b28;
+    border-color: rgba(255,255,255,0.08);
+}
+[data-theme="jackson"] .inq-artifact-panel-title { color: #94a3b8; }
+[data-theme="jackson"] .inq-artifact-panel-title i { color: #60a5fa; }
+[data-theme="jackson"] .inq-artifact-count-label { color: #4b5563; }
+
+/* Artifact feed background */
+[data-theme="jackson"] .inq-artifact-feed { background: #0f1520; }
+
+/* Artifact card */
+[data-theme="jackson"] .inq-artifact-card {
+    background: #1a2234;
+    border-color: rgba(255,255,255,0.08);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+}
+[data-theme="jackson"] .inq-artifact-header {
+    background: #151b28;
+    border-color: rgba(255,255,255,0.08);
+}
+[data-theme="jackson"] .inq-artifact-seq { color: #60a5fa; }
+[data-theme="jackson"] .inq-artifact-query { color: #e2e8f0; }
+[data-theme="jackson"] .inq-artifact-time { color: #4b5563; }
+[data-theme="jackson"] .inq-spinner-color { color: #60a5fa; }
+
+/* Tools-used badges */
+[data-theme="jackson"] .inq-artifact-tools-row {
+    background: #151b28;
+    border-color: rgba(255,255,255,0.06);
+}
+[data-theme="jackson"] .inq-tool-badge {
+    background: rgba(30,58,138,0.3);
+    border-color: rgba(59,130,246,0.25);
+    color: #93c5fd;
+}
+
+/* Tool result rows */
+[data-theme="jackson"] .inq-result-row {
+    background: #1a2234;
+    border-color: rgba(255,255,255,0.05);
+}
+[data-theme="jackson"] .inq-result-idx { color: #4b5563; }
+[data-theme="jackson"] .inq-tool-name { color: #60a5fa; }
+[data-theme="jackson"] .inq-exec-time { color: #4b5563; }
+[data-theme="jackson"] .inq-args-text { color: #64748b; }
+
+/* Code box */
+[data-theme="jackson"] .inq-code-box {
+    background: #0f1520;
+    border-color: rgba(255,255,255,0.08);
+}
+[data-theme="jackson"] .inq-code-pre { color: #cbd5e1; }
+[data-theme="jackson"] .inq-bold { color: #f1f5f9; }
+
+/* Inline code */
+[data-theme="jackson"] .inq-inline-code {
+    background: rgba(30,58,138,0.25);
+    color: #93c5fd;
+    border-color: rgba(59,130,246,0.2);
+}
+
+/* Answer section */
+[data-theme="jackson"] .inq-artifact-answer {
+    background: rgba(6,78,59,0.2);
+    border-color: rgba(52,211,153,0.2);
+}
+[data-theme="jackson"] .inq-answer-label { color: #34d399; }
+[data-theme="jackson"] .inq-answer-text { color: #e2e8f0; }
+/* ── inquiry_chat.js Feed Card ── */
+[data-theme="jackson"] .inq-feed-card {
+    background: #1a2234;
+    border-color: rgba(255,255,255,0.08);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+}
+[data-theme="jackson"] .inq-feed-card:hover {
+    box-shadow: 0 3px 12px rgba(0,0,0,0.4);
+}
+[data-theme="jackson"] .inq-feed-card-header {
+    background: #141b2d;
+    border-color: rgba(255,255,255,0.07);
+}
+[data-theme="jackson"] .inq-feed-card-seq { color: #38bdf8; }
+[data-theme="jackson"] .inq-feed-card-type-icon { color: #94a3b8; }
+[data-theme="jackson"] .inq-feed-card-title { color: #e2e8f0; }
+[data-theme="jackson"] .inq-feed-card-type-badge {
+    background: rgba(255,255,255,0.06);
+    color: #94a3b8;
+    border-color: rgba(255,255,255,0.08);
+}
+[data-theme="jackson"] .inq-feed-card-time { color: #4b5563; }
+[data-theme="jackson"] .inq-feed-action-btn { color: #4b5563; }
+[data-theme="jackson"] .inq-feed-action-btn:hover {
+    color: #e2e8f0;
+    background: rgba(255,255,255,0.08);
+}
+[data-theme="jackson"] .inq-feed-card-content pre {
+    background: #0f1520;
+    border-color: rgba(255,255,255,0.07);
+    color: #cbd5e1;
+}
+
+/* ── AI streaming message ── */
+[data-theme="jackson"] .inq-ai-message {
+    background: rgba(30,42,64,0.8);
+    border-color: rgba(255,255,255,0.08);
+    color: #e2e8f0;
+}
+
+/* ── Markdown prose ── */
+[data-theme="jackson"] .inq-prose { color: #e2e8f0; }
+[data-theme="jackson"] .inq-prose p,
+[data-theme="jackson"] .inq-prose li,
+[data-theme="jackson"] .inq-prose td { color: #e2e8f0; }
+[data-theme="jackson"] .inq-prose h1,
+[data-theme="jackson"] .inq-prose h2,
+[data-theme="jackson"] .inq-prose h3 { color: #f1f5f9; }
+[data-theme="jackson"] .inq-prose code {
+    background: rgba(30,58,138,0.25);
+    color: #93c5fd;
+}
+[data-theme="jackson"] .inq-prose pre { background: #0f1520; }
+[data-theme="jackson"] .inq-prose th {
+    background: rgba(255,255,255,0.06);
+    color: #94a3b8;
+    border-color: rgba(255,255,255,0.08);
+}
+[data-theme="jackson"] .inq-prose td { border-color: rgba(255,255,255,0.05); }
+[data-theme="jackson"] .inq-prose tr:hover td { background: rgba(255,255,255,0.04); }
+
+/* ── Code block ── */
+[data-theme="jackson"] .inq-code-block { background: #0f1520; }
+[data-theme="jackson"] .inq-code-lang-badge {
+    background: rgba(255,255,255,0.06);
+    color: #94a3b8;
+}
+[data-theme="jackson"] .inq-code-text { color: #cbd5e1; }
+
+/* ── Chart container ── */
+[data-theme="jackson"] .inq-chart-container {
+    background: #1a2234;
+    border-color: rgba(255,255,255,0.08);
+}
+
+/* ── Artifact links ── */
+[data-theme="jackson"] .inq-artifact-links { border-color: rgba(255,255,255,0.08); }
+
+/* ── Reasoning panel ── */
+[data-theme="jackson"] .inq-reasoning-panel {
+    background: #141b2d;
+    border-color: rgba(255,255,255,0.07);
+}
+[data-theme="jackson"] .inq-reasoning-header { border-color: rgba(255,255,255,0.07); }
+[data-theme="jackson"] .inq-reasoning-title { color: #cbd5e1; }
+[data-theme="jackson"] .inq-reasoning-border { border-color: #374151; }
+[data-theme="jackson"] .inq-reasoning-item {
+    background: #1e2b42;
+    border-color: rgba(255,255,255,0.06);
+    color: #94a3b8;
+}
+
+/* ── Generic helpers ── */
+[data-theme="jackson"] .inq-subtext { color: #4b5563; }
+[data-theme="jackson"] .inq-body-text { color: #e2e8f0; }
+[data-theme="jackson"] .inq-doc-type-bg { background: #141b2d; }

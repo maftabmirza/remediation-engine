@@ -131,43 +131,9 @@
 
         <!-- Artifacts Content -->
         <div id="artifactsContainer" class="inq-artifacts-content">
-            <!-- Active/Recent Artifact (Large) -->
-            <div id="activeArtifact" class="hidden">
-                <div class="inq-artifact-card">
-                    <div class="inq-artifact-card-header">
-                        <div class="inq-artifact-card-title-group">
-                            <div class="inq-artifact-icon-wrap">
-                                <i id="activeArtifactIcon" class="fas fa-table"></i>
-                            </div>
-                            <div class="inq-artifact-title-info">
-                                <span id="activeArtifactTitle" class="inq-artifact-title-text">Artifact</span>
-                                <span id="activeArtifactType" class="inq-artifact-type-badge">Table</span>
-                            </div>
-                        </div>
-                        <div class="inq-artifact-card-actions">
-                            <button onclick="copyArtifact()" class="inq-action-btn" title="Copy">
-                                <i class="fas fa-copy"></i>
-                            </button>
-                            <button onclick="exportArtifact()" class="inq-action-btn" title="Export">
-                                <i class="fas fa-download"></i>
-                            </button>
-                            <button onclick="pinArtifact()" id="pinArtifactBtn" class="inq-action-btn" title="Pin">
-                                <i class="fas fa-thumbtack"></i>
-                            </button>
-                            <button onclick="minimizeArtifact()" class="inq-action-btn inq-action-expand" title="Minimize">
-                                <i class="fas fa-compress-alt"></i>
-                            </button>
-                        </div>
-                    </div>
-                    <div id="activeArtifactContent" class="inq-artifact-card-content">
-                        <!-- Rendered artifact content -->
-                    </div>
-                </div>
-            </div>
-
-            <!-- Artifact History Grid -->
-            <div id="artifactHistory" class="inq-artifact-history-grid">
-                <!-- Artifact thumbnails will be added here -->
+            <!-- Sequential Artifact Feed -->
+            <div id="artifactFeed" style="padding:8px;display:flex;flex-direction:column;gap:10px;">
+                <!-- full artifact cards appended in order -->
             </div>
 
             <!-- Empty State -->

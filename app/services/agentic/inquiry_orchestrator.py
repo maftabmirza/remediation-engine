@@ -162,7 +162,7 @@ class InquiryOrchestrator:
                 db=self.db,
                 provider=provider,
                 registry_factory=registry_factory,
-                max_iterations=5,
+                max_iterations=15,
                 initial_messages=initial_messages  # Pass history
             )
             
@@ -238,7 +238,7 @@ class InquiryOrchestrator:
             db=self.db,
             provider=provider,
             registry_factory=registry_factory,
-            max_iterations=5,
+            max_iterations=15,
             initial_messages=initial_messages
         )
         

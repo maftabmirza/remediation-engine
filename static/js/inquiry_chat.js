@@ -42,17 +42,17 @@ function initReasoningPanel() {
 
     const panel = document.createElement('div');
     panel.id = 'reasoningPanel';
-    panel.className = 'reasoning-panel hidden bg-gray-900 border border-gray-700 rounded-lg mb-4';
+    panel.className = 'reasoning-panel hidden inq-reasoning-panel rounded-lg mb-4';
     panel.innerHTML = `
-        <div class="reasoning-header flex justify-between items-center p-2 border-b border-gray-700 cursor-pointer" 
+        <div class="reasoning-header flex justify-between items-center p-2 inq-reasoning-header cursor-pointer" 
              onclick="toggleReasoningPanel()">
-            <span class="text-sm font-medium text-gray-300">
+            <span class="text-sm font-medium inq-reasoning-title">
                 <i class="fas fa-brain mr-2 text-purple-400"></i>AI Analysis
             </span>
-            <i class="fas fa-chevron-down text-gray-500" id="reasoningToggleIcon"></i>
+            <i class="fas fa-chevron-down inq-subtext" id="reasoningToggleIcon"></i>
         </div>
         <div class="reasoning-body p-3 max-h-64 overflow-y-auto" id="reasoningBody">
-            <div class="text-gray-500 text-sm">Waiting for analysis...</div>
+            <div class="inq-subtext text-sm">Waiting for analysis...</div>
         </div>
     `;
 
@@ -68,10 +68,10 @@ function toggleReasoningPanel() {
 
     if (reasoningPanelVisible) {
         panel.classList.remove('collapsed');
-        icon.className = 'fas fa-chevron-down text-gray-500';
+        icon.className = 'fas fa-chevron-down inq-subtext';
     } else {
         panel.classList.add('collapsed');
-        icon.className = 'fas fa-chevron-right text-gray-500';
+        icon.className = 'fas fa-chevron-right inq-subtext';
     }
 }
 
@@ -103,12 +103,12 @@ function renderReasoningSteps() {
         const icon = phaseIcons[step.phase] || '❓';
         // Only render known phases or generic info to avoid noise
         return `
-            <div class="reasoning-step mb-3 pl-4 border-l-2 border-gray-600">
+            <div class="reasoning-step mb-3 pl-4 border-l-2 inq-reasoning-border">
                 <div class="flex items-center text-xs font-medium mb-1">
                     <span class="mr-2">${icon}</span>
                     <span>${step.phase || 'Info'}</span>
                 </div>
-                ${step.thought ? `<div class="text-gray-400 text-xs italic mb-1">"${escapeHtml(step.thought)}"</div>` : ''}
+                ${step.thought ? `<div class="inq-subtext text-xs italic mb-1">"${escapeHtml(step.thought)}"</div>` : ''}
                 ${step.tool ? `
                     <div class="text-xs mt-1">
                         <span class="text-yellow-400">Tool:</span> <code class="text-green-400">${escapeHtml(step.tool)}</code>
@@ -125,7 +125,7 @@ function resetReasoningPanel() {
     reasoningHistory = [];
     const body = document.getElementById('reasoningBody');
     if (body) {
-        body.innerHTML = '<div class="text-gray-500 text-sm">Waiting for analysis...</div>';
+        body.innerHTML = '<div class="inq-subtext text-sm">Waiting for analysis...</div>';
     }
     const panel = document.getElementById('reasoningPanel');
     if (panel) {
@@ -491,10 +491,10 @@ function handleReasoningEvent(data) {
     }
 
     const item = document.createElement('div');
-    item.className = 'reasoning-item mb-2 p-2 bg-gray-800 rounded border border-gray-700 text-xs';
+    item.className = 'reasoning-item mb-2 p-2 inq-reasoning-item rounded text-xs';
 
     let icon = 'fa-cog';
-    let color = 'text-gray-400';
+    let color = 'text-slate-400';
 
     if (data.phase === 'plan') { icon = 'fa-map'; color = 'text-blue-400'; }
     else if (data.phase === 'act') { icon = 'fa-bolt'; color = 'text-yellow-400'; }
@@ -504,8 +504,8 @@ function handleReasoningEvent(data) {
         <div class="flex items-start">
             <i class="fas ${icon} ${color} mt-1 mr-2 width-4"></i>
             <div>
-                <div class="font-semibold text-gray-300">${data.tool || data.phase}</div>
-                <div class="text-gray-400">${escapeHtml(data.thought || '')}</div>
+                <div class="font-semibold inq-body-text">${data.tool || data.phase}</div>
+                <div class="inq-subtext">${escapeHtml(data.thought || '')}</div>
             </div>
         </div>
     `;
@@ -551,9 +551,9 @@ function appendStreamingChunk(chunk) {
                      <div class="w-6 h-6 rounded-full bg-gradient-to-r from-blue-600 to-cyan-600 flex items-center justify-center mr-2">
                         <i class="fas fa-search text-white text-xs"></i>
                     </div>
-                    <span class="text-xs text-gray-400">AI Analyst</span>
+                    <span class="text-xs inq-subtext">AI Analyst</span>
                 </div>
-                <div class="bg-gray-800/80 rounded-lg p-4 border border-gray-700 text-sm ai-message-content shadow-lg streaming-message" data-full-text=""></div>
+                <div class="inq-ai-message ai-message-content shadow-lg streaming-message" data-full-text=""></div>
             </div>
         `;
         container.appendChild(wrapper);
@@ -858,7 +858,7 @@ async function selectModel(providerId) {
             // Add system message to chat
             const container = document.getElementById('chatMessages');
             const msg = document.createElement('div');
-            msg.className = 'text-center text-xs text-gray-500 my-2 italic';
+            msg.className = 'text-center text-xs inq-subtext my-2 italic';
             msg.innerHTML = `<i class="fas fa-sync-alt mr-1"></i>Now using: ${result.provider_name} - ${result.model_name}`;
             container.appendChild(msg);
             container.scrollTop = container.scrollHeight;
@@ -959,7 +959,7 @@ const ARTIFACT_TYPES = {
     code: { icon: 'fa-code', color: 'text-green-400', bgColor: 'bg-green-900/30', label: 'Code' },
     json: { icon: 'fa-brackets-curly', color: 'text-yellow-400', bgColor: 'bg-yellow-900/30', label: 'JSON' },
     yaml: { icon: 'fa-file-code', color: 'text-purple-400', bgColor: 'bg-purple-900/30', label: 'YAML' },
-    markdown: { icon: 'fa-file-alt', color: 'text-gray-400', bgColor: 'bg-gray-800', label: 'Document' },
+    markdown: { icon: 'fa-file-alt', color: 'text-slate-400', bgColor: 'inq-doc-type-bg', label: 'Document' },
     list: { icon: 'fa-list', color: 'text-cyan-400', bgColor: 'bg-cyan-900/30', label: 'List' },
     alert: { icon: 'fa-bell', color: 'text-red-400', bgColor: 'bg-red-900/30', label: 'Alerts' },
     metrics: { icon: 'fa-chart-line', color: 'text-emerald-400', bgColor: 'bg-emerald-900/30', label: 'Metrics' }
@@ -1079,15 +1079,12 @@ function addArtifact(artifact) {
     // Update count
     updateArtifactCount();
     
-    // Hide empty state (use style.display to override .inq-empty-state display:flex)
+    // Hide empty state
     const emptyState = document.getElementById('artifactsEmpty');
     if (emptyState) emptyState.style.display = 'none';
     
-    // Set as active and render
-    setActiveArtifact(artifact.id);
-    
-    // Add to history grid
-    addArtifactToHistory(artifact);
+    // Append full rendered card to the sequential feed
+    appendArtifactToFeed(artifact);
     
     // Add link in chat
     addArtifactLinkToChat(artifact);
@@ -1099,56 +1096,72 @@ function updateArtifactCount() {
 }
 
 /**
- * Set active artifact (shows in large view)
+ * Scroll to artifact in the sequential feed and briefly highlight it
  */
 function setActiveArtifact(artifactId) {
-    const artifact = artifacts.find(a => a.id === artifactId);
-    if (!artifact) return;
-    
     activeArtifactId = artifactId;
-    
-    const container = document.getElementById('activeArtifact');
-    const titleEl = document.getElementById('activeArtifactTitle');
-    const typeEl = document.getElementById('activeArtifactType');
-    const iconEl = document.getElementById('activeArtifactIcon');
-    const contentEl = document.getElementById('activeArtifactContent');
-    const pinBtn = document.getElementById('pinArtifactBtn');
-    
-    if (!container) return;
-    
-    // Show container
-    container.classList.remove('hidden');
-    
-    // Update header
-    const typeInfo = ARTIFACT_TYPES[artifact.type] || ARTIFACT_TYPES.markdown;
-    titleEl.textContent = artifact.title;
-    typeEl.textContent = typeInfo.label;
-    typeEl.className = 'inq-artifact-type-badge';
-    
-    // Update icon wrap with type-specific color
-    const iconWrap = iconEl.closest('.inq-artifact-icon-wrap');
-    iconEl.className = `fas ${typeInfo.icon}`;
-    
-    // Update pin button state
-    if (pinBtn) {
-        pinBtn.classList.toggle('text-yellow-400', pinnedArtifacts.has(artifactId));
+    const el = document.getElementById('feed-' + artifactId);
+    if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        el.style.outline = '2px solid #3b82f6';
+        el.style.outlineOffset = '-2px';
+        setTimeout(() => { el.style.outline = ''; el.style.outlineOffset = ''; }, 1500);
     }
-    
-    // Render content based on type
-    contentEl.innerHTML = renderArtifactContent(artifact);
-    
-    // Highlight code if needed
+}
+
+/**
+ * Append a fully-rendered artifact card to the sequential feed
+ */
+function appendArtifactToFeed(artifact) {
+    const feed = document.getElementById('artifactFeed');
+    if (!feed) return;
+
+    const typeInfo = ARTIFACT_TYPES[artifact.type] || ARTIFACT_TYPES.markdown;
+    const time = new Date(artifact.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const seqNum = artifacts.length;
+
+    const card = document.createElement('div');
+    card.id = 'feed-' + artifact.id;
+    card.className = 'inq-feed-card';
+    card.dataset.artifactId = artifact.id;
+    card.dataset.pinned = 'false';
+
+    card.innerHTML = `
+        <div class="inq-feed-card-header">
+            <span class="inq-feed-card-seq">#${seqNum}</span>
+            <i class="fas ${typeInfo.icon} inq-feed-card-type-icon"></i>
+            <span class="inq-feed-card-title" title="${escapeHtml(artifact.title)}">${escapeHtml(artifact.title)}</span>
+            <span class="inq-feed-card-type-badge">${typeInfo.label}</span>
+            <span class="inq-feed-card-time">${time}</span>
+            <div class="inq-feed-card-actions">
+                <button class="inq-feed-action-btn" onclick="copyArtifact('${artifact.id}')" title="Copy to clipboard">
+                    <i class="fas fa-copy"></i>
+                </button>
+                <button class="inq-feed-action-btn" onclick="exportArtifact('${artifact.id}')" title="Export">
+                    <i class="fas fa-download"></i>
+                </button>
+                <button class="inq-feed-action-btn ${pinnedArtifacts.has(artifact.id) ? 'pinned' : ''}" id="pin-btn-${artifact.id}" onclick="pinArtifact('${artifact.id}')" title="Pin">
+                    <i class="fas fa-thumbtack"></i>
+                </button>
+            </div>
+        </div>
+        <div class="inq-feed-card-content">
+            ${renderArtifactContent(artifact)}
+        </div>
+    `;
+
+    feed.appendChild(card);
+
+    // Syntax highlight code blocks
     if (artifact.type === 'code' || artifact.type === 'json' || artifact.type === 'yaml') {
-        contentEl.querySelectorAll('pre code').forEach(block => {
+        card.querySelectorAll('pre code').forEach(block => {
             if (typeof hljs !== 'undefined') hljs.highlightElement(block);
         });
     }
-    
-    // Mark as active in history
-    document.querySelectorAll('.artifact-thumb').forEach(el => {
-        el.classList.toggle('ring-2', el.dataset.artifactId === artifactId);
-        el.classList.toggle('ring-blue-500', el.dataset.artifactId === artifactId);
-    });
+
+    // Scroll to new card
+    const container = document.getElementById('artifactsContainer');
+    if (container) container.scrollTop = container.scrollHeight;
 }
 
 /**
@@ -1174,7 +1187,7 @@ function renderArtifactContent(artifact) {
         case 'chart':
             return renderChartArtifact(artifact);
         default:
-            return `<div class="prose prose-invert max-w-none text-sm">${marked.parse(artifact.content)}</div>`;
+            return `<div class="inq-prose">${marked.parse(artifact.content)}</div>`;
     }
 }
 
@@ -1188,7 +1201,7 @@ function renderChartArtifact(artifact) {
     const chartMatch = content.match(/\[CHART\]([\s\S]*?)\[\/CHART\]/);
     if (!chartMatch) {
         // No chart data, render as markdown
-        return `<div class="prose prose-invert max-w-none text-sm">${marked.parse(content)}</div>`;
+        return `<div class="inq-prose">${marked.parse(content)}</div>`;
     }
     
     try {
@@ -1213,17 +1226,17 @@ function renderChartArtifact(artifact) {
                         maintainAspectRatio: false,
                         plugins: {
                             legend: {
-                                labels: { color: '#9ca3af' }
+                                labels: { color: getComputedStyle(document.documentElement).getPropertyValue('--chart-text-color').trim() || '#64748b' }
                             }
                         },
                         scales: chartData.type !== 'doughnut' && chartData.type !== 'pie' ? {
                             x: {
-                                ticks: { color: '#9ca3af' },
-                                grid: { color: '#374151' }
+                                ticks: { color: getComputedStyle(document.documentElement).getPropertyValue('--chart-text-color').trim() || '#64748b' },
+                                grid: { color: getComputedStyle(document.documentElement).getPropertyValue('--chart-grid-color').trim() || '#e2e8f0' }
                             },
                             y: {
-                                ticks: { color: '#9ca3af' },
-                                grid: { color: '#374151' },
+                                ticks: { color: getComputedStyle(document.documentElement).getPropertyValue('--chart-text-color').trim() || '#64748b' },
+                                grid: { color: getComputedStyle(document.documentElement).getPropertyValue('--chart-grid-color').trim() || '#e2e8f0' },
                                 beginAtZero: true
                             }
                         } : undefined
@@ -1234,15 +1247,15 @@ function renderChartArtifact(artifact) {
         
         return `
             <div class="space-y-4">
-                ${textContent ? `<div class="prose prose-invert max-w-none text-sm">${marked.parse(textContent)}</div>` : ''}
-                <div class="bg-gray-800 rounded-lg p-4" style="height: 300px;">
+                ${textContent ? `<div class="inq-prose">${marked.parse(textContent)}</div>` : ''}
+                <div class="inq-chart-container">
                     <canvas id="${chartId}"></canvas>
                 </div>
             </div>
         `;
     } catch (e) {
         console.error('Error rendering chart:', e);
-        return `<div class="prose prose-invert max-w-none text-sm">${marked.parse(content.replace(/\[CHART\][\s\S]*?\[\/CHART\]/, ''))}</div>`;
+        return `<div class="inq-prose">${marked.parse(content.replace(/\[CHART\][\s\S]*?\[\/CHART\]/, ''))}</div>`;
     }
 }
 
@@ -1330,9 +1343,9 @@ function renderTableArtifact(artifact) {
 function renderCodeArtifact(artifact) {
     const lang = artifact.language || 'text';
     return `
-        <div style="position:relative;">
-            <div style="position:absolute;top:8px;right:12px;font-size:10px;color:#94a3b8;background:#f1f5f9;padding:2px 8px;border-radius:4px;font-weight:600;text-transform:uppercase;letter-spacing:0.03em;">${lang}</div>
-            <pre style="background:#1e293b;padding:16px;margin:0;overflow-x:auto;"><code class="language-${lang}" style="font-size:12px;color:#e2e8f0;">${escapeHtml(artifact.content)}</code></pre>
+        <div class="inq-code-block-wrap">
+            <div class="inq-code-lang-badge">${lang}</div>
+            <pre class="inq-code-block"><code class="language-${lang} inq-code-text">${escapeHtml(artifact.content)}</code></pre>
         </div>
     `;
 }
@@ -1374,37 +1387,7 @@ function detectAlertSeverity(text) {
 }
 
 function renderListArtifact(artifact) {
-    return `<div style="padding:16px 18px;" class="prose max-w-none text-sm">${marked.parse(artifact.content)}</div>`;
-}
-
-/**
- * Add thumbnail to history grid
- */
-function addArtifactToHistory(artifact) {
-    const history = document.getElementById('artifactHistory');
-    if (!history) return;
-    
-    const typeInfo = ARTIFACT_TYPES[artifact.type] || ARTIFACT_TYPES.markdown;
-    
-    const thumb = document.createElement('div');
-    thumb.className = `artifact-thumb cursor-pointer p-3 bg-gray-800 rounded-lg border border-gray-700 hover:border-gray-500 transition-all ${artifact.id === activeArtifactId ? 'ring-2 ring-blue-500' : ''}`;
-    thumb.dataset.artifactId = artifact.id;
-    thumb.onclick = () => setActiveArtifact(artifact.id);
-    
-    thumb.innerHTML = `
-        <div class="flex items-center justify-between mb-2">
-            <div class="flex items-center">
-                <i class="fas ${typeInfo.icon} ${typeInfo.color} mr-2 text-sm"></i>
-                <span class="text-xs font-medium text-white truncate max-w-[120px]">${escapeHtml(artifact.title)}</span>
-            </div>
-            ${pinnedArtifacts.has(artifact.id) ? '<i class="fas fa-thumbtack text-yellow-400 text-xs"></i>' : ''}
-        </div>
-        <div class="text-[10px] text-gray-500">${new Date(artifact.timestamp).toLocaleTimeString()}</div>
-        <div class="mt-2 text-xs text-gray-400 line-clamp-2 h-8 overflow-hidden">${getArtifactPreview(artifact)}</div>
-    `;
-    
-    // Insert at beginning
-    history.insertBefore(thumb, history.firstChild);
+    return `<div class="inq-prose" style="padding:16px 18px;">${marked.parse(artifact.content)}</div>`;
 }
 
 function getArtifactPreview(artifact) {
@@ -1427,7 +1410,7 @@ function addArtifactLinkToChat(artifact) {
         let linkContainer = lastMessage.querySelector('.artifact-links');
         if (!linkContainer) {
             linkContainer = document.createElement('div');
-            linkContainer.className = 'artifact-links mt-3 pt-3 border-t border-gray-700 flex flex-wrap gap-2';
+            linkContainer.className = 'artifact-links mt-3 pt-3 inq-artifact-links flex flex-wrap gap-2';
             lastMessage.appendChild(linkContainer);
         }
         
@@ -1443,8 +1426,9 @@ function addArtifactLinkToChat(artifact) {
 /**
  * Artifact Actions
  */
-function copyArtifact() {
-    const artifact = artifacts.find(a => a.id === activeArtifactId);
+function copyArtifact(artifactId) {
+    const id = artifactId || activeArtifactId;
+    const artifact = artifacts.find(a => a.id === id);
     if (!artifact) return;
     
     navigator.clipboard.writeText(artifact.content).then(() => {
@@ -1454,8 +1438,9 @@ function copyArtifact() {
     });
 }
 
-function exportArtifact() {
-    const artifact = artifacts.find(a => a.id === activeArtifactId);
+function exportArtifact(artifactId) {
+    const id = artifactId || activeArtifactId;
+    const artifact = artifacts.find(a => a.id === id);
     if (!artifact) return;
     
     let filename, content, mimeType;
@@ -1510,45 +1495,33 @@ function downloadFile(content, filename, mimeType) {
     URL.revokeObjectURL(url);
 }
 
-function pinArtifact() {
-    if (!activeArtifactId) return;
+function pinArtifact(artifactId) {
+    const id = artifactId || activeArtifactId;
+    if (!id) return;
     
-    if (pinnedArtifacts.has(activeArtifactId)) {
-        pinnedArtifacts.delete(activeArtifactId);
+    if (pinnedArtifacts.has(id)) {
+        pinnedArtifacts.delete(id);
         showToast('Unpinned', 'info');
     } else {
-        pinnedArtifacts.add(activeArtifactId);
+        pinnedArtifacts.add(id);
         showToast('Pinned', 'success');
     }
     
-    // Update UI
-    const pinBtn = document.getElementById('pinArtifactBtn');
+    const isPinned = pinnedArtifacts.has(id);
+    
+    // Update pin button in feed card
+    const pinBtn = document.getElementById('pin-btn-' + id);
     if (pinBtn) {
-        pinBtn.classList.toggle('text-yellow-400', pinnedArtifacts.has(activeArtifactId));
+        pinBtn.classList.toggle('pinned', isPinned);
     }
     
-    // Update thumbnail
-    const thumb = document.querySelector(`.artifact-thumb[data-artifact-id="${activeArtifactId}"]`);
-    if (thumb) {
-        const pinIcon = thumb.querySelector('.fa-thumbtack');
-        if (pinnedArtifacts.has(activeArtifactId) && !pinIcon) {
-            const headerDiv = thumb.querySelector('.flex');
-            headerDiv.insertAdjacentHTML('beforeend', '<i class="fas fa-thumbtack text-yellow-400 text-xs"></i>');
-        } else if (!pinnedArtifacts.has(activeArtifactId) && pinIcon) {
-            pinIcon.remove();
-        }
-    }
+    // Update card pinned dataset for tab filtering
+    const card = document.getElementById('feed-' + id);
+    if (card) card.dataset.pinned = isPinned ? 'true' : 'false';
 }
 
 function minimizeArtifact() {
-    const container = document.getElementById('activeArtifact');
-    if (container) container.classList.add('hidden');
-    activeArtifactId = null;
-    
-    // Remove active ring from thumbnails
-    document.querySelectorAll('.artifact-thumb').forEach(el => {
-        el.classList.remove('ring-2', 'ring-blue-500');
-    });
+    // No-op in feed view — all artifacts are always visible
 }
 
 /**
@@ -1560,11 +1533,8 @@ function resetArtifactsPanel() {
     pinnedArtifacts.clear();
     activeArtifactId = null;
 
-    const history = document.getElementById('artifactHistory');
-    if (history) history.innerHTML = '';
-
-    const active = document.getElementById('activeArtifact');
-    if (active) active.classList.add('hidden');
+    const feed = document.getElementById('artifactFeed');
+    if (feed) feed.innerHTML = '';
 
     const empty = document.getElementById('artifactsEmpty');
     if (empty) empty.style.display = '';
@@ -1598,27 +1568,21 @@ function exportAllArtifacts() {
 function switchArtifactTab(tab) {
     currentArtifactTab = tab;
     
-    // Update tab styles using the new structure
-    document.querySelectorAll('.inq-artifact-tab').forEach(el => {
-        el.classList.remove('active');
-    });
-    
+    document.querySelectorAll('.inq-artifact-tab').forEach(el => el.classList.remove('active'));
     const activeTab = document.getElementById(`artifactTab${tab.charAt(0).toUpperCase() + tab.slice(1)}`);
-    if (activeTab) {
-        activeTab.classList.add('active');
-    }
+    if (activeTab) activeTab.classList.add('active');
     
-    // Filter displayed artifacts
-    const history = document.getElementById('artifactHistory');
-    if (!history) return;
+    // Filter feed cards
+    const feed = document.getElementById('artifactFeed');
+    if (!feed) return;
     
+    const cards = Array.from(feed.querySelectorAll('.inq-feed-card')).reverse(); // newest first
     if (tab === 'all') {
-        history.querySelectorAll('.artifact-thumb').forEach(el => el.style.display = '');
+        cards.forEach(el => el.style.display = '');
     } else {
-        // Show only recent (last 5) or pinned
-        const thumbs = history.querySelectorAll('.artifact-thumb');
-        thumbs.forEach((el, i) => {
-            const isPinned = pinnedArtifacts.has(el.dataset.artifactId);
+        // Recent: show last 5 + pinned
+        cards.forEach((el, i) => {
+            const isPinned = el.dataset.pinned === 'true';
             el.style.display = (i < 5 || isPinned) ? '' : 'none';
         });
     }

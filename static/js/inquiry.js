@@ -2,26 +2,30 @@
 // Inquiry Pillar JS
 
 let currentSessionId = null;
+let artifactSequence = 0;
 
 document.addEventListener('DOMContentLoaded', () => {
     createNewSession();
-    // Focus, etc
 });
 
 function createNewSession() {
     currentSessionId = crypto.randomUUID();
+    artifactSequence = 0;
     document.getElementById('sessionIdDisplay').textContent = currentSessionId.substring(0, 8);
     document.getElementById('chatMessages').innerHTML = `
-        <div class="text-center text-gray-500 mt-10">
-            <i class="fas fa-robot text-4xl mb-4 text-gray-700"></i>
+        <div class="text-center inq-empty-hint mt-10">
+            <i class="fas fa-robot text-4xl mb-4 inq-empty-icon"></i>
             <p>Ask me anything about your infrastructure, alerts, or logs.</p>
         </div>
     `;
-    document.getElementById('detailsPanel').innerHTML = `
-        <div class="flex flex-col items-center justify-center h-full text-gray-500">
-            <p>Select a message or run a query to see details here.</p>
+    const panel = document.getElementById('detailsPanel');
+    panel.innerHTML = `
+        <div id="artifactPlaceholder" class="flex flex-col items-center justify-center h-full inq-empty-hint">
+            <i class="fas fa-layer-group text-3xl mb-3 inq-empty-icon"></i>
+            <p class="text-sm">Artifacts will appear here as you run queries.</p>
         </div>
     `;
+    document.getElementById('artifactCount').textContent = '';
 }
 
 function clearChat() {
@@ -34,44 +38,40 @@ async function sendInquiry(event) {
     const query = input.value.trim();
     if (!query) return;
 
-    // Append User Message
     appendMessage('user', query);
     input.value = '';
 
-    // Show Loading
     const loadingId = appendLoadingMessage();
+    const artifactLoadingId = appendArtifactLoading(query);
 
     try {
         const response = await fetch('/api/v1/inquiry/query', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                query: query,
-                session_id: currentSessionId
-            })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: query, session_id: currentSessionId })
         });
 
         const data = await response.json();
         removeMessage(loadingId);
+        removeArtifactLoading(artifactLoadingId);
 
         if (response.ok) {
-            appendMessage('assistant', data.answer, data);
-            showDetails(data);
+            appendMessage('assistant', data.answer);
+            appendArtifact(data, query);
         } else {
             appendMessage('error', `Error: ${data.detail || 'Unknown error'}`);
+            removeArtifactLoading(artifactLoadingId);
         }
 
     } catch (error) {
         removeMessage(loadingId);
+        removeArtifactLoading(artifactLoadingId);
         appendMessage('error', `Network Error: ${error.message}`);
     }
 }
 
-function appendMessage(role, text, data = null) {
+function appendMessage(role, text) {
     const container = document.getElementById('chatMessages');
-    // Remove welcome message if exists
     if (container.querySelector('.text-center')) {
         container.innerHTML = '';
     }
@@ -80,35 +80,18 @@ function appendMessage(role, text, data = null) {
     div.className = `flex flex-col ${role === 'user' ? 'items-end' : 'items-start'}`;
 
     const bubble = document.createElement('div');
-    bubble.className = `max-w-[90%] rounded-lg px-4 py-2 mb-1 ${role === 'user'
-            ? 'bg-blue-600 text-white'
+    bubble.className = `max-w-[90%] rounded-lg px-4 py-2 mb-1 ${
+        role === 'user'
+            ? 'inq-bubble-user'
             : role === 'error'
-                ? 'bg-red-900/50 text-red-200 border border-red-700'
-                : 'bg-gray-700 text-gray-200 border border-gray-600'
+                ? 'inq-bubble-error'
+                : 'inq-bubble-assistant'
         }`;
-
-    // Markdown/HTML formatting (simple)
-    bubble.innerHTML = text.replace(/\n/g, '<br>');
-
+    bubble.innerHTML = formatMarkdown(text);
     div.appendChild(bubble);
-
-    if (data) {
-        const toolsUsed = data.tools_used || [];
-        if (toolsUsed.length > 0) {
-            const status = document.createElement('div');
-            status.className = 'text-[10px] text-gray-500 mb-2 px-1';
-            status.textContent = `Used tools: ${toolsUsed.join(', ')}`;
-            div.appendChild(status);
-        }
-
-        // Add click handler to show details again
-        bubble.classList.add('cursor-pointer', 'hover:opacity-90');
-        bubble.onclick = () => showDetails(data);
-    }
 
     container.appendChild(div);
     container.scrollTop = container.scrollHeight;
-
     return div.id = 'msg-' + Date.now();
 }
 
@@ -119,7 +102,7 @@ function appendLoadingMessage() {
     div.id = id;
     div.className = 'flex flex-col items-start';
     div.innerHTML = `
-        <div class="bg-gray-700/50 text-gray-400 rounded-lg px-4 py-2 mb-2 border border-gray-700">
+        <div class="inq-bubble-assistant rounded-lg px-4 py-2 mb-2">
             <i class="fas fa-circle-notch fa-spin mr-2"></i> Thinking...
         </div>
     `;
@@ -133,84 +116,159 @@ function removeMessage(id) {
     if (el) el.remove();
 }
 
-function showDetails(data) {
+// ─── Artifact Feed ────────────────────────────────────────────────────────────
+
+function appendArtifactLoading(query) {
+    const panel = document.getElementById('detailsPanel');
+    // Remove placeholder if present
+    const placeholder = panel.querySelector('#artifactPlaceholder');
+    if (placeholder) placeholder.remove();
+
+    artifactSequence++;
+    const id = 'artifact-loading-' + Date.now();
+    const el = document.createElement('div');
+    el.id = id;
+    el.className = 'inq-artifact-card animate-pulse';
+    el.innerHTML = `
+        <div class="inq-artifact-header">
+            <span class="inq-artifact-seq">#${artifactSequence}</span>
+            <span class="inq-artifact-query truncate">${escapeHtml(query)}</span>
+            <span class="ml-auto"><i class="fas fa-circle-notch fa-spin inq-spinner-color text-xs"></i></span>
+        </div>
+    `;
+    panel.appendChild(el);
+    panel.scrollTop = panel.scrollHeight;
+    updateArtifactCount();
+    return id;
+}
+
+function removeArtifactLoading(id) {
+    const el = document.getElementById(id);
+    if (el) el.remove();
+    // Decrement so appendArtifact uses the same seq number
+    artifactSequence--;
+}
+
+function appendArtifact(data, userQuery) {
     const panel = document.getElementById('detailsPanel');
     if (!data) return;
 
-    let html = `<div class="space-y-4">`;
+    // Remove placeholder
+    const placeholder = panel.querySelector('#artifactPlaceholder');
+    if (placeholder) placeholder.remove();
 
-    // Summary
-    html += `
-        <div class="bg-gray-800 p-3 rounded border border-gray-700">
-            <h4 class="text-xs font-semibold text-gray-400 uppercase mb-2">Result Summary</h4>
-            <div class="text-sm text-gray-300">${data.answer.replace(/\n/g, '<br>')}</div>
+    artifactSequence++;
+    const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const artifactId = 'artifact-' + Date.now();
+
+    const toolsUsed = data.tools_used || [];
+    const toolResults = data.tool_results || [];
+
+    // ── Header ──
+    let html = `
+    <div id="${artifactId}" class="inq-artifact-card">
+
+        <!-- Artifact header -->
+        <div class="inq-artifact-header">
+            <span class="inq-artifact-seq">#${artifactSequence}</span>
+            <span class="inq-artifact-query flex-1">${escapeHtml(userQuery)}</span>
+            <span class="inq-artifact-time">${now}</span>
         </div>
     `;
 
-    // Tools Used
-    if (data.tools_used && data.tools_used.length > 0) {
+    // ── Tools Used badges ──
+    if (toolsUsed.length > 0) {
         html += `
-            <div class="bg-gray-800 p-3 rounded border border-gray-700">
-               <h4 class="text-xs font-semibold text-gray-400 uppercase mb-2">Tools Executed</h4>
-               <ul class="list-disc list-inside text-sm text-blue-300">
-                  ${data.tools_used.map(t => `<li>${t}</li>`).join('')}
-               </ul>
-            </div>
+        <div class="inq-artifact-tools-row">
+            ${toolsUsed.map(t => `
+                <span class="inq-tool-badge">
+                    <i class="fas fa-wrench mr-1"></i>${escapeHtml(t)}
+                </span>`).join('')}
+        </div>
         `;
     }
 
-    // Tool Results - Detailed output from each tool
-    if (data.tool_results && data.tool_results.length > 0) {
-        html += `
-            <div class="bg-gray-800 p-3 rounded border border-gray-700">
-                <h4 class="text-xs font-semibold text-gray-400 uppercase mb-2">Detailed Tool Output</h4>
-                <div class="space-y-3">
-        `;
-        
-        for (const tr of data.tool_results) {
-            const executionTime = tr.execution_time_ms ? `<span class="text-gray-500 text-xs ml-2">(${tr.execution_time_ms}ms)</span>` : '';
-            
-            html += `
-                <div class="bg-gray-900 p-2 rounded border border-gray-600">
-                    <div class="flex items-center justify-between mb-1">
-                        <span class="text-sm font-medium text-blue-400">
-                            <i class="fas fa-wrench mr-1"></i>${tr.tool_name}${executionTime}
-                        </span>
-                    </div>
-            `;
-            
-            // Show arguments if any
-            if (tr.arguments && Object.keys(tr.arguments).length > 0) {
-                html += `
-                    <div class="text-xs text-gray-500 mb-2">
-                        Arguments: ${JSON.stringify(tr.arguments)}
-                    </div>
-                `;
-            }
-            
-            // Show result - format as pre for better readability
+    // ── Tool Results (sequential) ──
+    if (toolResults.length > 0) {
+        html += `<div class="inq-artifact-results">`;
+        toolResults.forEach((tr, idx) => {
+            const execTime = tr.execution_time_ms
+                ? `<span class="inq-exec-time">${tr.execution_time_ms}ms</span>`
+                : '';
+            const argsStr = (tr.arguments && Object.keys(tr.arguments).length > 0)
+                ? `<div class="inq-args-text truncate" title="${escapeHtml(JSON.stringify(tr.arguments))}">↳ ${escapeHtml(JSON.stringify(tr.arguments))}</div>`
+                : '';
+
+            let resultHtml = '';
             if (tr.result) {
-                // Escape HTML and format the result
-                const escapedResult = tr.result
-                    .replace(/&/g, '&amp;')
-                    .replace(/</g, '&lt;')
-                    .replace(/>/g, '&gt;')
-                    .replace(/\n/g, '<br>')
-                    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>'); // Bold markdown
-                    
-                html += `
-                    <div class="bg-gray-950 p-2 rounded max-h-64 overflow-y-auto">
-                        <div class="text-xs text-gray-300 font-mono whitespace-pre-wrap">${escapedResult}</div>
+                const formatted = escapeHtml(tr.result)
+                    .replace(/\*\*([^*]+)\*\*/g, '<strong class="inq-bold">$1</strong>')
+                    .replace(/\n/g, '<br>');
+                resultHtml = `
+                    <div class="inq-code-box">
+                        <pre class="inq-code-pre">${formatted}</pre>
                     </div>
                 `;
             }
-            
-            html += `</div>`;
-        }
-        
-        html += `</div></div>`;
+
+            html += `
+            <div class="inq-result-row">
+                <div class="inq-result-title">
+                    <span class="inq-result-idx">${idx + 1}.</span>
+                    <span class="inq-tool-name">${escapeHtml(tr.tool_name)}</span>
+                    ${execTime}
+                </div>
+                ${argsStr ? `<div class="inq-args">${argsStr}</div>` : ''}
+                ${resultHtml}
+            </div>
+            `;
+        });
+        html += `</div>`;
     }
 
-    html += `</div>`;
-    panel.innerHTML = html;
+    // ── Answer / Summary ──
+    if (data.answer) {
+        html += `
+        <div class="inq-artifact-answer">
+            <div class="inq-answer-label">
+                <i class="fas fa-check-circle mr-1"></i>Answer
+            </div>
+            <div class="inq-answer-text">${formatMarkdown(data.answer)}</div>
+        </div>
+        `;
+    }
+
+    html += `</div>`; // close artifact card
+
+    const el = document.createElement('div');
+    el.innerHTML = html;
+    panel.appendChild(el.firstElementChild);
+    panel.scrollTop = panel.scrollHeight;
+    updateArtifactCount();
+}
+
+function updateArtifactCount() {
+    const cnt = document.getElementById('artifactCount');
+    if (cnt && artifactSequence > 0) {
+        cnt.textContent = `${artifactSequence} artifact${artifactSequence !== 1 ? 's' : ''}`;
+    }
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function escapeHtml(str) {
+    if (typeof str !== 'string') str = String(str);
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+function formatMarkdown(text) {
+    if (!text) return '';
+    return escapeHtml(text)
+        .replace(/\*\*([^*]+)\*\*/g, '<strong class="inq-bold font-semibold">$1</strong>')
+        .replace(/`([^`]+)`/g, '<code class="inq-inline-code">$1</code>')
+        .replace(/\n/g, '<br>');
 }

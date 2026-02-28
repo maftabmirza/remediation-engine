@@ -20,33 +20,31 @@
 
         <!-- Left Pane: Chat Interface (5 cols) -->
         <div class="lg:col-span-5 flex flex-col card h-full min-h-0 overflow-hidden">
-            <div class="px-3 py-2 border-b border-gray-700 flex justify-between items-center flex-shrink-0">
+            <div class="inq-chat-header flex-shrink-0">
                 <div class="flex items-center">
-                    <span class="text-xs font-medium text-gray-300 mr-2">Session:</span>
-                    <span id="sessionIdDisplay" class="text-xs text-blue-400 font-mono">New Session</span>
+                    <span class="inq-session-label">Session:</span>
+                    <span id="sessionIdDisplay" class="inq-session-id">New Session</span>
                 </div>
                 <div class="flex space-x-1">
-                    <button onclick="createNewSession()"
-                        class="text-gray-400 hover:text-white p-1.5 rounded transition-colors" title="New Session">
+                    <button onclick="createNewSession()" class="inq-icon-btn" title="New Session">
                         <i class="fas fa-plus text-sm"></i>
                     </button>
-                    <button onclick="clearChat()" class="text-gray-400 hover:text-white p-1.5 rounded transition-colors"
-                        title="Clear Chat">
+                    <button onclick="clearChat()" class="inq-icon-btn" title="Clear Chat">
                         <i class="fas fa-eraser text-sm"></i>
                     </button>
                 </div>
             </div>
 
-            <div id="chatMessages" class="flex-grow overflow-y-auto p-4 space-y-4 min-h-0 text-sm">
-                <div class="text-center text-gray-500 mt-10">
-                    <i class="fas fa-robot text-4xl mb-4 text-gray-700"></i>
+            <div id="chatMessages" class="inq-chat-messages flex-grow overflow-y-auto p-4 space-y-4 min-h-0 text-sm">
+                <div class="text-center inq-empty-hint mt-10">
+                    <i class="fas fa-robot text-4xl mb-4 inq-empty-icon"></i>
                     <p>Ask me anything about your infrastructure, alerts, or logs.</p>
                 </div>
             </div>
 
-            <div class="p-3 border-t border-gray-700 flex-shrink-0 bg-gray-800 z-10">
+            <div class="inq-chat-input-bar flex-shrink-0 z-10">
                 <form id="inquiryForm" onsubmit="sendInquiry(event)" class="flex space-x-2">
-                    <textarea id="inquiryInput" class="input-field flex-grow px-3 py-2 rounded resize-none h-12"
+                    <textarea id="inquiryInput" class="inq-chat-input flex-grow px-3 py-2 rounded resize-none h-12"
                         placeholder="e.g., Show me critical alerts from last hour..." autocomplete="off"></textarea>
                     <button type="submit" class="btn-primary px-4 py-2 rounded h-12" title="Send Inquiry">
                         <i class="fas fa-paper-plane"></i>
@@ -57,12 +55,16 @@
 
         <!-- Right Pane: Details / Tools (7 cols) -->
         <div class="lg:col-span-7 flex flex-col card h-full overflow-hidden">
-            <div class="p-2 border-b border-gray-800 flex justify-between items-center bg-gray-900 flex-shrink-0">
-                <h3 class="text-xs font-semibold text-gray-300 uppercase tracking-wider">Analysis Details</h3>
+            <div class="inq-artifact-panel-header flex-shrink-0">
+                <h3 class="inq-artifact-panel-title">
+                    <i class="fas fa-layer-group mr-1"></i>Artifacts
+                </h3>
+                <span id="artifactCount" class="inq-artifact-count-label"></span>
             </div>
-            <div class="flex-grow p-4 overflow-y-auto bg-gray-900" id="detailsPanel">
-                <div class="flex flex-col items-center justify-center h-full text-gray-500">
-                    <p>Select a message or run a query to see details here.</p>
+            <div class="inq-artifact-feed flex-grow p-3 overflow-y-auto space-y-3" id="detailsPanel">
+                <div id="artifactPlaceholder" class="flex flex-col items-center justify-center h-full inq-empty-hint">
+                    <i class="fas fa-layer-group text-3xl mb-3 inq-empty-icon"></i>
+                    <p class="text-sm">Artifacts will appear here as you run queries.</p>
                 </div>
             </div>
         </div>
@@ -72,5 +74,5 @@
 
 {% block scripts %}
 {{ super() }}
-<script src="/static/js/inquiry.js"></script>
+<script src="/static/js/inquiry.js?v=20260228c"></script>
 {% endblock %}
