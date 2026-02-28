@@ -8,11 +8,11 @@
 
 .app-container #agent-widget {
     grid-column: 3;
-    grid-row: 1 / -1;
+    grid-row: 2 / -1;
     height: 100%;
     width: 100%;
     position: relative;
-    z-index: 300;
+    z-index: 100;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     pointer-events: auto;
     overflow: hidden;
