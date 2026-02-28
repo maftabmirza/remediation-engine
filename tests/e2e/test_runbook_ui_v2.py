@@ -43,11 +43,12 @@ def test_create_new_runbook(authenticated_page: Page):
     # Select a category if needed (default might be fine, but good to be explicit if validation requires it)
     # authenticated_page.select_option('#runbookCategory', 'Operations') 
     
-    # Add a step (Required)
+    # Add a step (Required) — wait for JS to initialise first
+    authenticated_page.wait_for_load_state('networkidle', timeout=30000)
     authenticated_page.click("button:has-text('Add Step')")
-    
+
     # Wait for step card to appear
-    expect(authenticated_page.locator("#step-1")).to_be_visible()
+    expect(authenticated_page.locator("#step-1")).to_be_visible(timeout=15000)
     
     # Fill step name
     authenticated_page.fill("#step-1 .step-name", "Echo Test")

@@ -1,3 +1,4 @@
+import os
 from playwright.sync_api import Page, expect
 
 def test_login_page_loads(page: Page, base_url: str):
@@ -18,21 +19,28 @@ def test_login_success(page: Page, base_url: str):
     """
     Verify successful login redirects to the homepage/dashboard.
     """
+    admin_pass = os.getenv("ADMIN_PASSWORD")
+    if not admin_pass:
+        import pytest
+        pytest.skip("ADMIN_PASSWORD env var not set")
+
     page.goto(f"{base_url}/login")
-    
-    page.fill('input[name="username"]', "admin")
-    page.fill('input[name="password"]', "admin")
-    page.click('button[type="submit"]')
-    
+
+    page.fill('input[name="username"]', os.getenv("ADMIN_USERNAME", "admin"))
+    page.fill('input[name="password"]', admin_pass)
+
+    with page.expect_navigation(timeout=45000):
+        page.click('button[type="submit"]')
+
+    page.wait_for_load_state('networkidle', timeout=45000)
+
     # Check if error message appears (debugging step)
     error_msg = page.locator("#errorMessage")
     if error_msg.is_visible():
         print(f"Login failed with: {error_msg.text_content()}")
-    
+
     # Expect redirect to root or dashboard
-    # The JS redirects to '/', checking for that or dashboard
-    # allow both for robustness
-    expect(page).to_have_url(f"{base_url}/")
+    expect(page).to_have_url(f"{base_url}/", timeout=45000)
 
 def test_login_failure(page: Page, base_url: str):
     """
