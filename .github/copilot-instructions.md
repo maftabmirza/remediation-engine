@@ -246,6 +246,65 @@ docker compose up -d --build remediation-engine
 
 ---
 
+## Mandatory Checklist — Every Code Change
+
+**CRITICAL**: These rules ensure consistent, complete output. Never skip them.
+
+### 1. ALWAYS Write Tests
+
+Every code change **must** include corresponding test cases. No exceptions.
+
+| Change type | Test location | Marker |
+|---|---|---|
+| Service (`app/services/`) | `tests/unit/services/test_<name>.py` | `@pytest.mark.unit` |
+| Agentic service (`app/services/agentic/`) | `tests/unit/services/agentic/test_<name>.py` | `@pytest.mark.unit` |
+| Router / API (`app/routers/`) | `tests/integration/test_<name>.py` | `@pytest.mark.integration` |
+| Model (`app/models*.py`) | `tests/unit/models/test_<name>.py` | `@pytest.mark.unit` |
+| Utility (`app/utils/`) | `tests/unit/utils/test_<name>.py` | `@pytest.mark.unit` |
+| UI / workflow | `tests/e2e/test_<feature>_ui.py` | `@pytest.mark.e2e` |
+
+**Requirements**:
+- Minimum **3 test cases** per function/endpoint: happy path, error case, edge case
+- Use `@pytest.mark.asyncio` for all async test functions
+- Use `AsyncMock` for async mocking, `MagicMock` for sync
+- Use fixtures from `tests/conftest.py`: `async_client`, `admin_auth_headers`, `sample_alert_payload`, `mock_llm_service`, etc.
+
+### 2. ALWAYS Create Atlas Migrations for Schema Changes
+
+If you add/remove/modify any database column, table, index, or constraint:
+
+1. Update `schema/schema.sql` (canonical source of truth)
+2. Create `atlas/migrations/YYYYMMDDHHMMSS_description.sql`
+3. Update the SQLAlchemy model in `app/models*.py`
+4. Update the Pydantic schema in `app/schemas*.py` if API-visible
+5. **Never** run raw DDL directly against the database
+
+### 3. Review LLM Interaction Impact
+
+5 independent LLM interaction points exist. When modifying shared code (`llm_service.py`, `prompt_service.py`, `context_variables.py`), check impact on all:
+
+1. **RE-VIVE (App)** — `app/services/revive/`, `app/routers/revive.py`, `app/routers/revive_app.py`
+2. **RE-VIVE (Grafana)** — `app/routers/revive_grafana.py`, `app/services/mcp/`
+3. **/troubleshoot** — `app/services/agentic/ai_troubleshoot_agent.py`, `app/routers/troubleshoot_api.py`
+4. **/inquiry** — `app/services/agentic/ai_inquiry_agent.py`, `app/routers/inquiry.py`
+5. **/alerts help** — `app/services/agentic/ai_alert_help_agent.py`, `app/routers/alerts_chat_api.py`
+
+RE-VIVE files **must** have the `revive` prefix.
+
+### Quick Reference
+
+| You changed... | You MUST also... |
+|---|---|
+| A service in `app/services/` | Write unit test in `tests/unit/services/` |
+| A router in `app/routers/` | Write integration test in `tests/integration/` |
+| A model in `app/models*.py` | Create Atlas migration + update `schema/schema.sql` + write test |
+| A schema in `app/schemas*.py` | Write test for validation |
+| Shared LLM code | Test ALL 5 LLM interaction points |
+| A template in `templates/` | Write E2E test in `tests/e2e/` |
+| `config.py` | Update `.env.example` |
+
+---
+
 ## Where to find more details
 
 - Developer guide: `DEVELOPER_GUIDE.md`
@@ -373,4 +432,63 @@ docker compose up -d --build remediation-engine
 | One logical change per migration file | Easier rollback and review |
 | `schema/schema.sql` must stay in sync | It is the reference for human review; keep it updated alongside each migration |
 | `DATABASE_URL` env var is set inside the container | Use it directly: `--url "$DATABASE_URL"` when exec-ing into the container |
+
+---
+
+## Mandatory Checklist — Every Code Change
+
+**CRITICAL**: These rules ensure consistent, complete output. Never skip them.
+
+### 1. ALWAYS Write Tests
+
+Every code change **must** include corresponding test cases. No exceptions.
+
+| Change type | Test location | Marker |
+|---|---|---|
+| Service (`app/services/`) | `tests/unit/services/test_<name>.py` | `@pytest.mark.unit` |
+| Agentic service (`app/services/agentic/`) | `tests/unit/services/agentic/test_<name>.py` | `@pytest.mark.unit` |
+| Router / API (`app/routers/`) | `tests/integration/test_<name>.py` | `@pytest.mark.integration` |
+| Model (`app/models*.py`) | `tests/unit/models/test_<name>.py` | `@pytest.mark.unit` |
+| Utility (`app/utils/`) | `tests/unit/utils/test_<name>.py` | `@pytest.mark.unit` |
+| UI / workflow | `tests/e2e/test_<feature>_ui.py` | `@pytest.mark.e2e` |
+
+**Requirements**:
+- Minimum **3 test cases** per function/endpoint: happy path, error case, edge case
+- Use `@pytest.mark.asyncio` for all async test functions
+- Use `AsyncMock` for async mocking, `MagicMock` for sync
+- Use fixtures from `tests/conftest.py`: `async_client`, `admin_auth_headers`, `sample_alert_payload`, `mock_llm_service`, etc.
+
+### 2. ALWAYS Create Atlas Migrations for Schema Changes
+
+If you add/remove/modify any database column, table, index, or constraint:
+
+1. Update `schema/schema.sql` (canonical source of truth)
+2. Create `atlas/migrations/YYYYMMDDHHMMSS_description.sql`
+3. Update the SQLAlchemy model in `app/models*.py`
+4. Update the Pydantic schema in `app/schemas*.py` if API-visible
+5. **Never** run raw DDL directly against the database
+
+### 3. Review LLM Interaction Impact
+
+5 independent LLM interaction points exist. When modifying shared code (`llm_service.py`, `prompt_service.py`, `context_variables.py`), check impact on all:
+
+1. **RE-VIVE (App)** — `app/services/revive/`, `app/routers/revive.py`, `app/routers/revive_app.py`
+2. **RE-VIVE (Grafana)** — `app/routers/revive_grafana.py`, `app/services/mcp/`
+3. **/troubleshoot** — `app/services/agentic/ai_troubleshoot_agent.py`, `app/routers/troubleshoot_api.py`
+4. **/inquiry** — `app/services/agentic/ai_inquiry_agent.py`, `app/routers/inquiry.py`
+5. **/alerts help** — `app/services/agentic/ai_alert_help_agent.py`, `app/routers/alerts_chat_api.py`
+
+RE-VIVE files **must** have the `revive` prefix.
+
+### Quick Reference
+
+| You changed... | You MUST also... |
+|---|---|
+| A service in `app/services/` | Write unit test in `tests/unit/services/` |
+| A router in `app/routers/` | Write integration test in `tests/integration/` |
+| A model in `app/models*.py` | Create Atlas migration + update `schema/schema.sql` + write test |
+| A schema in `app/schemas*.py` | Write test for validation |
+| Shared LLM code | Test ALL 5 LLM interaction points |
+| A template in `templates/` | Write E2E test in `tests/e2e/` |
+| `config.py` | Update `.env.example` |
 
