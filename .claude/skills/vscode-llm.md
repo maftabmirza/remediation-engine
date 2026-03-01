@@ -857,6 +857,444 @@ async def chat_stream(
 
 ---
 
+## Frontend / UI Standards
+
+These standards ensure consistent UI behavior across all 60+ Jinja2 templates. The project uses **Tailwind CSS + custom CSS variables** (NO Bootstrap). Every UI change must follow these rules.
+
+### 5.1 Theming — ALWAYS Use CSS Variables
+
+The project supports two themes: **Light** (ocean blue) and **Jackson** (maroon). All colors in new UI code **must** use CSS variables so both themes work automatically.
+
+```html
+<!-- CORRECT — uses CSS variables, works with both themes -->
+<div style="background: var(--bg-surface); color: var(--text-primary); border: 1px solid var(--border-color);">
+    <h3 style="color: var(--text-primary);">Title</h3>
+    <p style="color: var(--text-secondary);">Description</p>
+</div>
+
+<!-- WRONG — hardcoded colors, breaks Jackson theme -->
+<div style="background: #ffffff; color: #1e293b; border: 1px solid #e2e8f0;">
+    <h3 style="color: #0f172a;">Title</h3>
+    <p style="color: #64748b;">Description</p>
+</div>
+
+<!-- WRONG — Tailwind arbitrary values, not theme-aware -->
+<div class="bg-white text-[#1e293b] border border-[#e2e8f0]">
+```
+
+**Available CSS variables** (defined in `static/css/style.css` `:root`):
+
+| Variable | Purpose | Light Value |
+|---|---|---|
+| `--bg-app` | Page background | `#e8ecf2` |
+| `--bg-sidebar` | Sidebar background | `#0f0e47` |
+| `--bg-header` | Header background | `#0f0e47` |
+| `--bg-panel` | Card/panel background | `rgba(255,255,255,0.82)` |
+| `--bg-surface` | Surface elements | `#f6f7fa` |
+| `--bg-surface-raised` | Elevated surfaces | `#ffffff` |
+| `--text-primary` | Main text | `#1e293b` |
+| `--text-secondary` | Secondary text | `#64748b` |
+| `--text-on-dark` | Text on dark backgrounds | `#f1f5f9` |
+| `--text-muted-dark` | Muted text on dark | `#94a3b8` |
+| `--accent-blue` | Primary accent | `#3b82f6` |
+| `--accent-purple` | Secondary accent | `#8b5cf6` |
+| `--accent-cyan` | Tertiary accent | `#06b6d4` |
+| `--accent-selected-bg` | Selected item background | `rgba(59,130,246,0.08)` |
+| `--status-success` | Success state | `#059669` |
+| `--status-warning` | Warning state | `#D97706` |
+| `--status-error` | Error state | `#DC2626` |
+| `--border-color` | Standard border | varies by theme |
+| `--shadow-card` | Card shadow | subtle |
+| `--shadow-hover` | Hover shadow | medium |
+| `--radius-sm` / `--radius-md` / `--radius-lg` | Border radius | `8px` / `12px` / `16px` |
+
+**Rules:**
+- **Never** use hardcoded hex colors in inline styles or Tailwind arbitrary values (`text-[#xxx]`)
+- **Always** use `var(--variable-name)` for any color, background, border, or shadow
+- Use standard Tailwind utilities for layout (`flex`, `grid`, `gap-4`, `p-6`) — those are theme-safe
+- For status colors (success/warning/error), use `var(--status-success)`, `var(--status-warning)`, `var(--status-error)`
+- The Jackson theme automatically overrides these variables, so theme-variable code works for both themes
+
+### 5.2 Modal / Dialog — NEVER Use Browser Native Dialogs
+
+**NEVER** use `confirm()`, `alert()`, or `prompt()`. These are unstyled browser dialogs that break the theme, look unprofessional, and cannot be customized.
+
+#### Use the standard modal system instead
+
+The project has a standard modal CSS framework defined in `static/css/themes/light.css` and `static/css/themes/jackson.css`. **Always** use it.
+
+**Confirmation dialog (replaces `confirm()`):**
+```html
+<!-- Themed confirmation modal — put this in your template -->
+<div id="confirmModal" class="modal-overlay">
+    <div class="modal-container" style="max-width: 440px; width: 92%;">
+        <div class="modal-header">
+            <h2 class="modal-title" id="confirmTitle">Confirm Action</h2>
+            <button type="button" onclick="closeConfirmModal()" class="modal-close-btn">
+                <i class="fas fa-times" style="font-size: 14px;"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <p id="confirmMessage" style="color: var(--text-secondary); margin: 0;"></p>
+        </div>
+        <div class="modal-footer">
+            <button type="button" onclick="closeConfirmModal()"
+                    class="px-4 py-2 rounded-lg text-sm font-medium"
+                    style="color: var(--text-secondary); background: var(--bg-surface);">
+                Cancel
+            </button>
+            <button type="button" id="confirmAction"
+                    class="px-4 py-2 rounded-lg text-sm font-medium text-white"
+                    style="background: var(--status-error);">
+                Delete
+            </button>
+        </div>
+    </div>
+</div>
+```
+
+**JavaScript for confirmation modal:**
+```javascript
+let _confirmResolve = null;
+
+function showConfirmModal(title, message, actionLabel = 'Delete', actionColor = null) {
+    document.getElementById('confirmTitle').textContent = title;
+    document.getElementById('confirmMessage').textContent = message;
+    const actionBtn = document.getElementById('confirmAction');
+    actionBtn.textContent = actionLabel;
+    actionBtn.style.background = actionColor || 'var(--status-error)';
+
+    const modal = document.getElementById('confirmModal');
+    modal.classList.add('active');
+
+    return new Promise(resolve => {
+        _confirmResolve = resolve;
+        actionBtn.onclick = () => { closeConfirmModal(); resolve(true); };
+    });
+}
+
+function closeConfirmModal() {
+    document.getElementById('confirmModal').classList.remove('active');
+    if (_confirmResolve) { _confirmResolve(false); _confirmResolve = null; }
+}
+
+// Usage (replaces: if (!confirm('Delete this item?')) return;)
+async function deleteItem(id) {
+    const confirmed = await showConfirmModal(
+        'Confirm Deletion',
+        'Are you sure you want to delete this item? This action cannot be undone.',
+        'Delete',
+        'var(--status-error)'
+    );
+    if (!confirmed) return;
+    // ... proceed with deletion
+}
+```
+
+**Full-featured form modal (replaces inline forms):**
+```html
+<div id="myFormModal" class="modal-overlay">
+    <div class="modal-container" style="max-width: 720px; width: 92%; max-height: 90vh; display: flex; flex-direction: column;">
+        <div class="modal-header" style="flex-shrink: 0;">
+            <h2 id="formModalTitle" class="modal-title">Create Item</h2>
+            <button type="button" onclick="closeFormModal()" class="modal-close-btn">
+                <i class="fas fa-times" style="font-size: 14px;"></i>
+            </button>
+        </div>
+        <form id="myForm" class="flex-1 min-h-0 flex flex-col">
+            <div class="modal-body flex-1 overflow-y-auto" style="scrollbar-width: thin;">
+                <!-- Form fields go here -->
+                <div class="mb-4">
+                    <label class="block text-sm font-medium mb-1" style="color: var(--text-primary);">Name</label>
+                    <input type="text" name="name" required
+                           class="w-full px-3 py-2 rounded-lg text-sm"
+                           style="background: var(--bg-surface); border: 1px solid var(--border-color); color: var(--text-primary);">
+                </div>
+            </div>
+            <div class="modal-footer" style="flex-shrink: 0;">
+                <button type="button" onclick="closeFormModal()"
+                        class="px-4 py-2 rounded-lg text-sm font-medium"
+                        style="color: var(--text-secondary); background: var(--bg-surface);">
+                    Cancel
+                </button>
+                <button type="submit"
+                        class="px-4 py-2 rounded-lg text-sm font-medium text-white"
+                        style="background: var(--accent-blue);">
+                    Save
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+```
+
+**Modal open/close pattern:**
+```javascript
+// Open modal
+function openFormModal() {
+    document.getElementById('myFormModal').classList.add('active');
+}
+
+// Close modal
+function closeFormModal() {
+    document.getElementById('myFormModal').classList.remove('active');
+}
+
+// Close on overlay click
+document.getElementById('myFormModal').addEventListener('click', function(e) {
+    if (e.target === this) closeFormModal();
+});
+
+// Close on Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeFormModal();
+});
+```
+
+**Modal CSS classes reference** (defined in theme CSS files):
+
+| Class | Purpose |
+|---|---|
+| `.modal-overlay` | Fixed overlay, `display: none`, becomes `display: flex` when `.active` |
+| `.modal-overlay.active` | Shows the modal |
+| `.modal-container` | White box, `border-radius: 16px`, `max-width: 600px` default |
+| `.modal-container.large` | Wider modal, `max-width: 800px` |
+| `.modal-header` | Top section with title + close button, bottom border |
+| `.modal-title` | `18px` bold title |
+| `.modal-close-btn` | `32x32px` close button with hover effect |
+| `.modal-body` | `24px` padding content area |
+| `.modal-footer` | Bottom section with action buttons, top border, right-aligned |
+
+**Rules:**
+- **NEVER** use `confirm()` — always use the themed confirmation modal
+- **NEVER** use `alert()` — use `window.showToast(message, type)` instead (defined in `base.html`)
+- **NEVER** use `prompt()` — use a form modal with an input field
+- All modal colors must use CSS variables (never hardcoded hex)
+- Modals must be closable via: close button, overlay click, Escape key
+- Use `z-index: 1000` (inherited from `.modal-overlay` CSS)
+- Use `.active` class to show/hide (not `hidden`/`flex` Tailwind toggling)
+
+### 5.3 Toast Notifications — Replace `alert()` Calls
+
+The project has a `showToast()` function defined in `base.html`. Use it instead of `alert()`.
+
+```javascript
+// CORRECT — themed toast notification
+window.showToast('Profile saved successfully!', 'success');
+window.showToast('Failed to delete item', 'error');
+window.showToast('Processing your request...', 'info');
+window.showToast('Connection unstable', 'warning');
+
+// WRONG — browser native alert
+alert('Profile saved successfully!');
+alert('Error: ' + e.message);
+```
+
+**Available toast types:** `success` (green), `error` (red), `warning` (amber), `info` (blue)
+
+### 5.4 Scrolling — Always Handle Overflow in Containers
+
+Every scrollable container **must** have explicit overflow handling and styled scrollbars.
+
+```html
+<!-- CORRECT — scrollable modal body with styled scrollbar -->
+<div class="modal-body flex-1 overflow-y-auto" style="scrollbar-width: thin; scrollbar-color: rgba(148,163,184,0.35) transparent;">
+    <!-- Long content -->
+</div>
+
+<!-- CORRECT — scrollable list/table container -->
+<div class="overflow-y-auto" style="max-height: calc(100vh - 200px); scrollbar-width: thin; scrollbar-color: rgba(148,163,184,0.35) transparent;">
+    <table>...</table>
+</div>
+
+<!-- WRONG — no max-height, content overflows the page -->
+<div>
+    <table><!-- 200 rows --></table>
+</div>
+
+<!-- WRONG — scroll exists but no styled scrollbar -->
+<div class="overflow-y-auto" style="max-height: 500px;">
+    <!-- Default ugly scrollbar -->
+</div>
+```
+
+**Scrollbar styling pattern** (cross-browser):
+```css
+/* Apply to any scrollable container */
+.my-scroll-container {
+    overflow-y: auto;
+    max-height: 90vh; /* or calc-based */
+
+    /* Firefox */
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.35) transparent;
+}
+
+/* Webkit (Chrome, Safari, Edge) */
+.my-scroll-container::-webkit-scrollbar {
+    width: 6px;
+}
+.my-scroll-container::-webkit-scrollbar-track {
+    background: transparent;
+}
+.my-scroll-container::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.35);
+    border-radius: 3px;
+}
+.my-scroll-container::-webkit-scrollbar-thumb:hover {
+    background: rgba(148, 163, 184, 0.55);
+}
+```
+
+**Scrolling rules:**
+- **Every** container with dynamic/long content must have `overflow-y: auto` + `max-height`
+- Modal bodies: use `max-height: 90vh` on the container, flex layout inside
+- Tables/lists: use `max-height: calc(100vh - <header+footer height>)`
+- Always style scrollbars: use `scrollbar-width: thin` (Firefox) + `::-webkit-scrollbar` (Chrome)
+- For inline scrollable areas, add `scrollbar-width: thin; scrollbar-color: rgba(148,163,184,0.35) transparent;` as inline styles
+
+### 5.5 Template Structure — Jinja2 Conventions
+
+```html
+{% extends "base.html" %}
+
+{% block title %}My Page{% endblock %}
+
+{% block content %}
+<div class="p-6">
+    <!-- Page header -->
+    <div class="flex items-center justify-between mb-6">
+        <h1 class="text-xl font-bold" style="color: var(--text-primary);">Page Title</h1>
+        <button onclick="openFormModal()"
+                class="px-4 py-2 rounded-lg text-sm font-medium text-white"
+                style="background: var(--accent-blue);">
+            <i data-feather="plus" class="inline w-4 h-4 mr-1"></i> Add Item
+        </button>
+    </div>
+
+    <!-- Content card -->
+    <div class="rounded-xl p-6" style="background: var(--bg-panel); box-shadow: var(--shadow-card);">
+        <!-- Card content -->
+    </div>
+</div>
+
+<!-- Modals (at bottom of content block) -->
+<div id="myModal" class="modal-overlay">
+    <!-- ... modal structure ... -->
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Page-specific JavaScript
+    document.addEventListener('DOMContentLoaded', function() {
+        feather.replace();
+        loadData();
+    });
+</script>
+{% endblock %}
+```
+
+**Template rules:**
+- Always extend `base.html` (provides sidebar, header, theme, `showToast`)
+- Use `{% block content %}` for page content, `{% block scripts %}` for JS
+- Call `feather.replace()` in DOMContentLoaded to initialize icons
+- Place modals at the bottom of `{% block content %}`, before `{% endblock %}`
+- Use Feather icons: `<i data-feather="icon-name"></i>` (primary) or Font Awesome `<i class="fas fa-icon"></i>` (fallback)
+
+### 5.6 Form Input Styling
+
+All form inputs must be themed and consistent:
+
+```html
+<!-- Text input -->
+<input type="text" name="field"
+       class="w-full px-3 py-2 rounded-lg text-sm"
+       style="background: var(--bg-surface); border: 1px solid var(--border-color); color: var(--text-primary);"
+       placeholder="Enter value...">
+
+<!-- Select dropdown -->
+<select name="field"
+        class="w-full px-3 py-2 rounded-lg text-sm"
+        style="background: var(--bg-surface); border: 1px solid var(--border-color); color: var(--text-primary);">
+    <option value="">Select...</option>
+    <option value="opt1">Option 1</option>
+</select>
+
+<!-- Textarea -->
+<textarea name="field" rows="4"
+          class="w-full px-3 py-2 rounded-lg text-sm"
+          style="background: var(--bg-surface); border: 1px solid var(--border-color); color: var(--text-primary); resize: vertical;">
+</textarea>
+
+<!-- Label -->
+<label class="block text-sm font-medium mb-1" style="color: var(--text-primary);">Field Label</label>
+
+<!-- Help text -->
+<span class="text-xs mt-1 block" style="color: var(--text-secondary);">Optional helper text</span>
+```
+
+### 5.7 Button Patterns
+
+```html
+<!-- Primary action button -->
+<button class="px-4 py-2 rounded-lg text-sm font-medium text-white"
+        style="background: var(--accent-blue);">
+    Save
+</button>
+
+<!-- Danger/destructive button -->
+<button class="px-4 py-2 rounded-lg text-sm font-medium text-white"
+        style="background: var(--status-error);">
+    Delete
+</button>
+
+<!-- Secondary/cancel button -->
+<button class="px-4 py-2 rounded-lg text-sm font-medium"
+        style="color: var(--text-secondary); background: var(--bg-surface); border: 1px solid var(--border-color);">
+    Cancel
+</button>
+
+<!-- Icon button (small, transparent) -->
+<button class="p-1 rounded-lg" style="color: var(--text-secondary);"
+        onmouseover="this.style.background='var(--accent-selected-bg)'"
+        onmouseout="this.style.background='transparent'">
+    <i data-feather="edit-2" class="w-4 h-4"></i>
+</button>
+```
+
+### 5.8 Table / Data List Styling
+
+```html
+<div class="overflow-x-auto rounded-xl" style="background: var(--bg-panel); box-shadow: var(--shadow-card);">
+    <table class="w-full text-sm">
+        <thead>
+            <tr style="border-bottom: 1px solid var(--border-color);">
+                <th class="text-left px-4 py-3 font-semibold" style="color: var(--text-primary);">Name</th>
+                <th class="text-left px-4 py-3 font-semibold" style="color: var(--text-primary);">Status</th>
+                <th class="text-right px-4 py-3 font-semibold" style="color: var(--text-primary);">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr style="border-bottom: 1px solid var(--border-color);">
+                <td class="px-4 py-3" style="color: var(--text-primary);">Item name</td>
+                <td class="px-4 py-3">
+                    <span class="px-2 py-0.5 rounded-full text-xs font-medium text-white"
+                          style="background: var(--status-success);">Active</span>
+                </td>
+                <td class="px-4 py-3 text-right">
+                    <button class="p-1 rounded" style="color: var(--text-secondary);">
+                        <i data-feather="edit-2" class="w-4 h-4"></i>
+                    </button>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+```
+
+---
+
 ## File Organization
 
 ```
@@ -943,3 +1381,9 @@ Before committing, verify:
 | `config.py` | Verify `.env.example` is updated |
 | Middleware in `app/middleware/` | Unit test + verify middleware registration order in `main.py` |
 | A new API endpoint | Auth (get_current_user/require_admin) + pagination + tests |
+| A template in `templates/` | Theme variables (no hardcoded colors) + themed modals + scroll handling + E2E test |
+| A modal/dialog | Use `.modal-overlay`/`.modal-container` classes (never `confirm()`/`alert()`) |
+| A delete/destructive action | Themed confirmation modal (never browser `confirm()`) |
+| A success/error notification | `window.showToast(msg, type)` (never browser `alert()`) |
+| A scrollable container | `overflow-y: auto` + `max-height` + styled scrollbar (`scrollbar-width: thin`) |
+| CSS/styling changes | CSS variables only (test with both Light and Jackson themes) |

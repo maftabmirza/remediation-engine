@@ -63,6 +63,16 @@ RE-VIVE files must have the `revive` prefix in their filename.
 - **Pagination**: `page`/`page_size` (max 100) with `total` in response
 - **Auth on every endpoint**: `Depends(get_current_user)` for read, `Depends(require_admin)` or `Depends(require_role([...]))` for write
 
+### 5. Frontend / UI standards
+
+- **Theming**: ALWAYS use CSS variables (`var(--bg-surface)`, `var(--text-primary)`, etc.) — never hardcoded hex colors
+- **Modals**: ALWAYS use `.modal-overlay` / `.modal-container` CSS classes — NEVER use browser `confirm()` or `prompt()`
+- **Notifications**: ALWAYS use `window.showToast(message, type)` — NEVER use browser `alert()`
+- **Scrolling**: Every scrollable container must have `overflow-y: auto` + `max-height` + styled scrollbar (`scrollbar-width: thin`)
+- **CSS framework**: Tailwind CSS + custom CSS variables (NO Bootstrap)
+- **Icons**: Feather (`<i data-feather="name">`) primary, Font Awesome fallback
+- **Templates**: Extend `base.html`, call `feather.replace()` on DOMContentLoaded
+
 For comprehensive coding standards, patterns, examples, and best practices, see: **`.claude/skills/vscode-llm.md`**
 
 ## Test Commands
