@@ -50,10 +50,20 @@ RE-VIVE files must have the `revive` prefix in their filename.
 
 ### 4. Coding standards
 
-- PEP 8, type hints on all functions
-- Async-first for I/O operations
-- No secrets in code — use `app/config.py` (`get_settings()`)
-- Import order: stdlib → third-party → local
+- **PEP 8** compliance, `black` formatter, `ruff` linter
+- **Type hints** on ALL function arguments AND return values — no exceptions
+- **Async-first** for I/O operations (`async def` + `await`)
+- **Import order**: stdlib → third-party → local (`app.*`), separated by blank lines
+- **Logging**: `logger = logging.getLogger(__name__)` per module, f-strings, appropriate levels
+- **Docstrings**: Google-style with `Args:`, `Returns:`, `Raises:` sections
+- **Error handling**: Specific exceptions first, log with `exc_info=True`, never bare `except:`
+- **No secrets in code** — use `app/config.py` (`get_settings()`)
+- **SQL safety**: Always use `like_escape()` for LIKE queries, parameter binding for raw SQL
+- **Router pattern**: `/api/<feature>` prefix, `response_model`, `status.HTTP_201_CREATED` for POST
+- **Pagination**: `page`/`page_size` (max 100) with `total` in response
+- **Auth on every endpoint**: `Depends(get_current_user)` for read, `Depends(require_admin)` or `Depends(require_role([...]))` for write
+
+For comprehensive coding standards, patterns, examples, and best practices, see: **`.claude/skills/vscode-llm.md`**
 
 ## Test Commands
 
