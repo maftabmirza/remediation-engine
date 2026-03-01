@@ -30,8 +30,11 @@
             data-section="section-groups">
             <i data-feather="folder"></i>
             <span>Groups</span>
-        </a>
-        {% endif %}
+        </a>        <a href="/settings#section-password-policy" class="dropdown-item {{ 'active' if active_section == 'section-password-policy' }}"
+                data-section="section-password-policy">
+            <i data-feather="lock"></i>
+            <span>Password Policy</span>
+        </a>        {% endif %}
         <a href="/settings#section-providers"
             class="dropdown-item {{ 'active' if active_section == 'section-providers' }}"
             data-section="section-providers">

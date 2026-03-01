@@ -291,6 +291,161 @@
         </section>
         {% endif %}
 
+        {% if 'manage_users' in permissions %}
+        <!-- ======================================================= -->
+        <!-- Password Policy Section                                   -->
+        <!-- ======================================================= -->
+        <section id="section-password-policy" class="settings-section space-y-4">
+            <!-- Toolbar -->
+            <div class="settings-toolbar">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div class="flex flex-col min-w-0">
+                        <h1 class="toolbar-title">Password Policy</h1>
+                        <p class="toolbar-subtitle">Configure complexity requirements, account lockout and password expiry for all local accounts</p>
+                    </div>
+                    <div class="flex gap-2 flex-wrap">
+                        <button type="button" class="settings-btn-secondary" onclick="applyPasswordPolicyPreset('nist')">
+                            <i data-feather="shield"></i> NIST 2024
+                        </button>
+                        <button type="button" class="settings-btn-secondary" onclick="applyPasswordPolicyPreset('cis')">
+                            <i data-feather="check-circle"></i> CIS Level 1
+                        </button>
+                        <button type="button" class="settings-btn-secondary" onclick="applyPasswordPolicyPreset('pci')">
+                            <i data-feather="credit-card"></i> PCI DSS
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="passwordPolicySaveStatus" class="hidden mb-2"></div>
+
+            <form id="passwordPolicyForm" class="space-y-6" onsubmit="savePasswordPolicy(event)">
+
+                <!-- Complexity Card -->
+                <div class="settings-form-card">
+                    <h3 class="text-base font-semibold mb-4" style="color:var(--text-primary)">
+                        <i data-feather="key" style="width:16px;height:16px;display:inline;margin-right:6px;"></i>
+                        Password Complexity
+                    </h3>
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="label-with-tooltip block text-sm font-medium mb-1">
+                                Minimum Length
+                                <span class="info-tooltip info-tooltip-align-left">
+                                    <span class="info-tooltip-icon">?</span>
+                                    <span class="info-tooltip-text">Minimum number of characters required. NIST recommends at least 8; PCI DSS requires at least 12.</span>
+                                </span>
+                            </label>
+                            <input type="number" id="pp_min_length" class="settings-input w-full" min="1" max="256" value="8">
+                        </div>
+                        <div>
+                            <label class="label-with-tooltip block text-sm font-medium mb-1">
+                                Maximum Length
+                                <span class="info-tooltip info-tooltip-align-left">
+                                    <span class="info-tooltip-icon">?</span>
+                                    <span class="info-tooltip-text">Maximum allowed password length. Set to 0 for no upper limit. NIST recommends allowing up to 64+ characters.</span>
+                                </span>
+                            </label>
+                            <input type="number" id="pp_max_length" class="settings-input w-full" min="0" max="1024" value="128">
+                            <p class="text-xs mt-1" style="color:#94a3b8;">0 = no limit</p>
+                        </div>
+                    </div>
+
+                    <div class="grid md:grid-cols-2 gap-4 mt-4">
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" id="pp_require_uppercase" class="w-4 h-4 rounded">
+                            <span class="text-sm">Require uppercase letter (A-Z)</span>
+                        </label>
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" id="pp_require_lowercase" class="w-4 h-4 rounded">
+                            <span class="text-sm">Require lowercase letter (a-z)</span>
+                        </label>
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" id="pp_require_numbers" class="w-4 h-4 rounded">
+                            <span class="text-sm">Require digit (0-9)</span>
+                        </label>
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" id="pp_require_special_chars" class="w-4 h-4 rounded">
+                            <span class="text-sm">Require special character (!@#$%^&amp;*…)</span>
+                        </label>
+                    </div>
+
+                    <!-- Live preview -->
+                    <div class="mt-4 p-3 rounded-lg" style="background:var(--bg-secondary,#f8fafc);border:1px solid var(--border-color,#e2e8f0)">
+                        <p class="text-xs font-medium mb-2" style="color:#64748b">Current requirement preview:</p>
+                        <p id="pp_preview" class="text-sm font-mono" style="color:var(--text-primary)">—</p>
+                    </div>
+                </div>
+
+                <!-- Account Lockout Card -->
+                <div class="settings-form-card">
+                    <h3 class="text-base font-semibold mb-4" style="color:var(--text-primary)">
+                        <i data-feather="alert-octagon" style="width:16px;height:16px;display:inline;margin-right:6px;"></i>
+                        Account Lockout
+                    </h3>
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="label-with-tooltip block text-sm font-medium mb-1">
+                                Max Failed Login Attempts
+                                <span class="info-tooltip info-tooltip-align-left">
+                                    <span class="info-tooltip-icon">?</span>
+                                    <span class="info-tooltip-text">Number of consecutive failed logins before the account is temporarily locked. Set to 0 to disable lockout.</span>
+                                </span>
+                            </label>
+                            <input type="number" id="pp_max_login_attempts" class="settings-input w-full" min="0" max="100" value="0">
+                            <p class="text-xs mt-1" style="color:#94a3b8;">0 = disabled</p>
+                        </div>
+                        <div>
+                            <label class="label-with-tooltip block text-sm font-medium mb-1">
+                                Lockout Duration (minutes)
+                                <span class="info-tooltip info-tooltip-align-left">
+                                    <span class="info-tooltip-icon">?</span>
+                                    <span class="info-tooltip-text">How many minutes the account remains locked after too many failed attempts. Minimum 1.</span>
+                                </span>
+                            </label>
+                            <input type="number" id="pp_lockout_duration_mins" class="settings-input w-full" min="1" max="1440" value="30">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Password Expiry Card -->
+                <div class="settings-form-card">
+                    <h3 class="text-base font-semibold mb-4" style="color:var(--text-primary)">
+                        <i data-feather="clock" style="width:16px;height:16px;display:inline;margin-right:6px;"></i>
+                        Password Expiry
+                    </h3>
+                    <div class="max-w-xs">
+                        <label class="label-with-tooltip block text-sm font-medium mb-1">
+                            Expiry Period (days)
+                            <span class="info-tooltip info-tooltip-align-left">
+                                <span class="info-tooltip-icon">?</span>
+                                <span class="info-tooltip-text">Days until a password must be changed. Set to 0 to never expire passwords. PCI DSS requires 90 days.</span>
+                            </span>
+                        </label>
+                        <input type="number" id="pp_password_expiry_days" class="settings-input w-full" min="0" max="3650" value="0">
+                        <p class="text-xs mt-1" style="color:#94a3b8;">0 = never expires</p>
+                    </div>
+                    <div class="mt-3 p-3 rounded-lg" style="background:#fffbeb;border:1px solid #fde68a;">
+                        <p class="text-xs" style="color:#92400e;">
+                            <i data-feather="info" style="width:12px;height:12px;display:inline;margin-right:4px;"></i>
+                            Expiry is enforced at login — users will see a warning banner when their password is expired and be prompted to change it.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Save Button -->
+                <div class="flex items-center gap-4">
+                    <button type="submit" class="settings-btn-primary" id="pp_saveBtn">
+                        <i data-feather="save"></i> Save Password Policy
+                    </button>
+                    <button type="button" class="settings-btn-secondary" onclick="loadPasswordPolicy()">
+                        <i data-feather="refresh-cw"></i> Reset
+                    </button>
+                </div>
+            </form>
+        </section>
+        {% endif %}
+
 
         <section id="section-providers" class="settings-section space-y-4">
             <!-- Enterprise Standard Toolbar (Providers) -->
@@ -2342,7 +2497,8 @@
         'section-api-credentials': 'Manage reusable API credentials for runbook automation.',
         'section-credentials': 'Centralize credentials for reuse across server groups.',
         'section-auth': 'Upload LDAP/SAML metadata and run readiness checks.',
-        'section-roles': 'Define granular access control policies and custom roles.'
+        'section-roles': 'Define granular access control policies and custom roles.',
+        'section-password-policy': 'Set complexity rules, account lockout, and password expiry for local accounts.'
     };
 
     // Section name mapping for dropdown label
@@ -2351,6 +2507,7 @@
         'section-users': 'Users',
         'section-roles': 'Roles (RBAC)',
         'section-groups': 'Groups',
+        'section-password-policy': 'Password Policy',
         'section-providers': 'LLM Providers',
         'section-servers': 'Servers',
         'section-api-credentials': 'API Credentials',
@@ -4808,6 +4965,9 @@
         if (targetId === 'section-design') {
             loadDesignSettings();
         }
+        if (targetId === 'section-password-policy') {
+            loadPasswordPolicy();
+        }
     };
 
     // ==================== GROUPS ====================
@@ -5211,5 +5371,125 @@
 
     // Initialize when script loads
     initSectionNavigation();
+
+    // ==================== PASSWORD POLICY ====================
+
+    // Compliance presets
+    const PASSWORD_POLICY_PRESETS = {
+        nist: {
+            min_length: 8, max_length: 64,
+            require_uppercase: false, require_lowercase: false,
+            require_numbers: false, require_special_chars: false,
+            password_expiry_days: 0, max_login_attempts: 0, lockout_duration_mins: 30,
+            _label: 'NIST SP 800-63B (2024)'
+        },
+        cis: {
+            min_length: 14, max_length: 128,
+            require_uppercase: true, require_lowercase: true,
+            require_numbers: true, require_special_chars: true,
+            password_expiry_days: 365, max_login_attempts: 5, lockout_duration_mins: 30,
+            _label: 'CIS Benchmark Level 1'
+        },
+        pci: {
+            min_length: 12, max_length: 128,
+            require_uppercase: true, require_lowercase: true,
+            require_numbers: true, require_special_chars: true,
+            password_expiry_days: 90, max_login_attempts: 6, lockout_duration_mins: 30,
+            _label: 'PCI DSS v4.0'
+        }
+    };
+
+    function applyPasswordPolicyPreset(preset) {
+        const p = PASSWORD_POLICY_PRESETS[preset];
+        if (!p) return;
+        document.getElementById('pp_min_length').value = p.min_length;
+        document.getElementById('pp_max_length').value = p.max_length;
+        document.getElementById('pp_require_uppercase').checked = p.require_uppercase;
+        document.getElementById('pp_require_lowercase').checked = p.require_lowercase;
+        document.getElementById('pp_require_numbers').checked = p.require_numbers;
+        document.getElementById('pp_require_special_chars').checked = p.require_special_chars;
+        document.getElementById('pp_password_expiry_days').value = p.password_expiry_days;
+        document.getElementById('pp_max_login_attempts').value = p.max_login_attempts;
+        document.getElementById('pp_lockout_duration_mins').value = p.lockout_duration_mins;
+        updatePasswordPolicyPreview();
+        showToast(`Applied ${p._label} preset`, 'success');
+    }
+
+    function updatePasswordPolicyPreview() {
+        const minLen = document.getElementById('pp_min_length')?.value || 8;
+        const maxLen = document.getElementById('pp_max_length')?.value || 128;
+        const parts = [`At least ${minLen} characters`];
+        if (parseInt(maxLen) > 0) parts.push(`max ${maxLen} characters`);
+        if (document.getElementById('pp_require_uppercase')?.checked) parts.push('uppercase (A-Z)');
+        if (document.getElementById('pp_require_lowercase')?.checked) parts.push('lowercase (a-z)');
+        if (document.getElementById('pp_require_numbers')?.checked) parts.push('digit (0-9)');
+        if (document.getElementById('pp_require_special_chars')?.checked) parts.push('special character');
+        const preview = document.getElementById('pp_preview');
+        if (preview) preview.textContent = parts.join(' · ');
+    }
+
+    async function loadPasswordPolicy() {
+        try {
+            const res = await fetch('/api/settings/password-policy');
+            if (!res.ok) { showToast('Failed to load password policy', 'error'); return; }
+            const p = await res.json();
+            document.getElementById('pp_min_length').value = p.min_length ?? 8;
+            document.getElementById('pp_max_length').value = p.max_length ?? 128;
+            document.getElementById('pp_require_uppercase').checked = !!p.require_uppercase;
+            document.getElementById('pp_require_lowercase').checked = !!p.require_lowercase;
+            document.getElementById('pp_require_numbers').checked = !!p.require_numbers;
+            document.getElementById('pp_require_special_chars').checked = !!p.require_special_chars;
+            document.getElementById('pp_password_expiry_days').value = p.password_expiry_days ?? 0;
+            document.getElementById('pp_max_login_attempts').value = p.max_login_attempts ?? 0;
+            document.getElementById('pp_lockout_duration_mins').value = p.lockout_duration_mins ?? 30;
+            updatePasswordPolicyPreview();
+        } catch (e) {
+            showToast('Error loading password policy', 'error');
+        }
+    }
+
+    async function savePasswordPolicy(event) {
+        event.preventDefault();
+        const btn = document.getElementById('pp_saveBtn');
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i data-feather="loader"></i> Saving…'; feather.replace(); }
+
+        const payload = {
+            min_length: parseInt(document.getElementById('pp_min_length').value),
+            max_length: parseInt(document.getElementById('pp_max_length').value),
+            require_uppercase: document.getElementById('pp_require_uppercase').checked,
+            require_lowercase: document.getElementById('pp_require_lowercase').checked,
+            require_numbers: document.getElementById('pp_require_numbers').checked,
+            require_special_chars: document.getElementById('pp_require_special_chars').checked,
+            password_expiry_days: parseInt(document.getElementById('pp_password_expiry_days').value),
+            max_login_attempts: parseInt(document.getElementById('pp_max_login_attempts').value),
+            lockout_duration_mins: parseInt(document.getElementById('pp_lockout_duration_mins').value),
+        };
+
+        try {
+            const res = await fetch('/api/settings/password-policy', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                showToast(data.detail || 'Failed to save policy', 'error');
+            } else {
+                showToast('Password policy saved successfully', 'success');
+                updatePasswordPolicyPreview();
+            }
+        } catch (e) {
+            showToast('Error saving password policy', 'error');
+        } finally {
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i data-feather="save"></i> Save Password Policy'; feather.replace(); }
+        }
+    }
+
+    // Wire up live preview updates
+    ['pp_min_length','pp_max_length','pp_require_uppercase','pp_require_lowercase',
+     'pp_require_numbers','pp_require_special_chars'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('change', updatePasswordPolicyPreview);
+    });
 </script>
 {% endblock %}

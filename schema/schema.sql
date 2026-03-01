@@ -1964,7 +1964,10 @@ CREATE TABLE public.users (
     last_login timestamp with time zone,
     ai_preferences json,
     sso_subject character varying(255),
-    auth_provider character varying(50) DEFAULT 'local'
+    auth_provider character varying(50) DEFAULT 'local',
+    failed_login_attempts integer NOT NULL DEFAULT 0,
+    locked_until timestamp with time zone,
+    password_changed_at timestamp with time zone
 );
 
 
@@ -3809,6 +3812,13 @@ CREATE UNIQUE INDEX uq_users_sso_subject ON public.users USING btree (sso_subjec
 --
 
 CREATE INDEX ix_users_auth_provider ON public.users USING btree (auth_provider);
+
+
+--
+-- Name: ix_users_locked_until; Type: INDEX; Schema: public; Owner: aiops
+--
+
+CREATE INDEX ix_users_locked_until ON public.users USING btree (locked_until);
 
 
 --

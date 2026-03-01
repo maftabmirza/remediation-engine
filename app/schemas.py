@@ -18,6 +18,7 @@ class LoginResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: "UserResponse"
+    password_expired: bool = False
 
 
 class TokenData(BaseModel):
@@ -58,6 +59,9 @@ class UserResponse(UserBase):
     created_at: datetime
     last_login: Optional[datetime] = None
     permissions: List[str] = []
+    failed_login_attempts: int = 0
+    locked_until: Optional[datetime] = None
+    password_changed_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -478,4 +482,36 @@ class RegressionAlert(BaseModel):
 
 # Update forward references
 LoginResponse.model_rebuild()
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+#  Password Policy schemas
+# ──────────────────────────────────────────────────────────────────────────────
+
+class PasswordPolicySchema(BaseModel):
+    """Current password policy configuration (GET response)."""
+    min_length: int = Field(default=8, ge=1, le=256, description="Minimum password length")
+    max_length: int = Field(default=128, ge=0, le=1024, description="Maximum password length (0 = no limit)")
+    require_uppercase: bool = Field(default=False, description="Require at least one uppercase letter")
+    require_lowercase: bool = Field(default=False, description="Require at least one lowercase letter")
+    require_numbers: bool = Field(default=False, description="Require at least one digit")
+    require_special_chars: bool = Field(default=False, description="Require at least one special character")
+    password_expiry_days: int = Field(default=0, ge=0, description="Days before password expires (0 = never)")
+    max_login_attempts: int = Field(default=0, ge=0, description="Failed attempts before lockout (0 = disabled)")
+    lockout_duration_mins: int = Field(default=30, ge=1, description="Minutes account stays locked after too many failures")
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PasswordPolicyUpdate(BaseModel):
+    """Payload for updating the password policy (PUT request). All fields optional."""
+    min_length: Optional[int] = Field(default=None, ge=1, le=256)
+    max_length: Optional[int] = Field(default=None, ge=0, le=1024)
+    require_uppercase: Optional[bool] = None
+    require_lowercase: Optional[bool] = None
+    require_numbers: Optional[bool] = None
+    require_special_chars: Optional[bool] = None
+    password_expiry_days: Optional[int] = Field(default=None, ge=0)
+    max_login_attempts: Optional[int] = Field(default=None, ge=0)
+    lockout_duration_mins: Optional[int] = Field(default=None, ge=1)
 

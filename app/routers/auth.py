@@ -36,6 +36,7 @@ from app.services.saml_service import (
     generate_sp_metadata,
 )
 from app.metrics import AUTH_ATTEMPTS
+from app.services.password_policy_service import get_password_policy, enforce_password_policy
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from app.config import get_settings
@@ -60,6 +61,18 @@ async def login(
     user = authenticate_user(db, login_data.username, login_data.password)
     
     if not user:
+        # Increment failed attempt counter on the account if the username exists
+        bad_user = db.query(User).filter(User.username == login_data.username).first()
+        if bad_user:
+            policy = get_password_policy(db)
+            max_attempts = int(policy.get("max_login_attempts", 0))
+            if max_attempts > 0:
+                bad_user.failed_login_attempts = (bad_user.failed_login_attempts or 0) + 1
+                if bad_user.failed_login_attempts >= max_attempts:
+                    lockout_mins = int(policy.get("lockout_duration_mins", 30))
+                    from datetime import timedelta
+                    bad_user.locked_until = datetime.now(timezone.utc) + timedelta(minutes=lockout_mins)
+                db.commit()
         AUTH_ATTEMPTS.labels(status="failed").inc()
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -73,9 +86,20 @@ async def login(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User account is disabled"
         )
+
+    # Account lockout check
+    if user.locked_until and user.locked_until > datetime.now(timezone.utc):
+        remaining = int((user.locked_until - datetime.now(timezone.utc)).total_seconds() / 60) + 1
+        AUTH_ATTEMPTS.labels(status="locked").inc()
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Account is temporarily locked. Try again in {remaining} minute(s).",
+        )
     
-    # Record successful login
+    # Record successful login — reset failed attempts and lockout
     AUTH_ATTEMPTS.labels(status="success").inc()
+    user.failed_login_attempts = 0
+    user.locked_until = None
     
     # Create token
     access_token = create_access_token(data={"sub": str(user.id), "username": user.username})
@@ -95,6 +119,15 @@ async def login(
     db.add(audit)
     db.commit()
     
+    # Password expiry check (emit warning in response; does not block login)
+    policy = get_password_policy(db)
+    expiry_days = int(policy.get("password_expiry_days", 0))
+    password_expired = False
+    if expiry_days > 0 and user.password_changed_at:
+        from datetime import timedelta
+        expiry_date = user.password_changed_at + timedelta(days=expiry_days)
+        password_expired = datetime.now(timezone.utc) > expiry_date
+
     # Set cookie for web UI
     response.set_cookie(
         key="access_token",
@@ -110,7 +143,8 @@ async def login(
     return LoginResponse(
         access_token=access_token,
         token_type="bearer",
-        user=user_payload
+        user=user_payload,
+        password_expired=password_expired,
     )
 
 
@@ -379,9 +413,19 @@ async def change_password(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Current password is incorrect"
         )
-    
+
+    # Enforce password policy on the new password
+    try:
+        enforce_password_policy(password_data.new_password, db)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+
     # Update password
     current_user.password_hash = get_password_hash(password_data.new_password)
+    current_user.password_changed_at = datetime.now(timezone.utc)
+    # Clear any lockout on a self-service password change
+    current_user.failed_login_attempts = 0
+    current_user.locked_until = None
     db.commit()
     
     # Log the password change
