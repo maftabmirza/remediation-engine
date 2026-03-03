@@ -452,13 +452,15 @@ CREATE TABLE public.alert_clusters (
 
 CREATE TABLE public.alert_correlations (
     id uuid NOT NULL,
-    related_alert_id uuid NOT NULL,
-    correlation_type character varying(50) NOT NULL,
-    correlation_score double precision NOT NULL,
+    related_alert_id uuid,
+    correlation_type character varying(50) DEFAULT 'automatic'::character varying,
+    correlation_score double precision,
     status character varying(50) NOT NULL,
     created_at timestamp with time zone,
     updated_at timestamp with time zone,
-    summary character varying(255) DEFAULT 'Auto Correlation'::character varying NOT NULL
+    summary character varying(255) DEFAULT 'Auto Correlation'::character varying NOT NULL,
+    root_cause_analysis text,
+    confidence_score double precision
 );
 
 
@@ -1781,6 +1783,8 @@ CREATE TABLE public.scheduled_jobs (
     end_date timestamp with time zone,
     timezone character varying(50),
     target_server_id uuid,
+    target_server_ids jsonb DEFAULT '[]'::jsonb,
+    target_server_group_ids jsonb DEFAULT '[]'::jsonb,
     execution_params json,
     max_instances integer,
     misfire_grace_time integer,
@@ -1964,7 +1968,10 @@ CREATE TABLE public.users (
     last_login timestamp with time zone,
     ai_preferences json,
     sso_subject character varying(255),
-    auth_provider character varying(50) DEFAULT 'local'
+    auth_provider character varying(50) DEFAULT 'local',
+    failed_login_attempts integer NOT NULL DEFAULT 0,
+    locked_until timestamp with time zone,
+    password_changed_at timestamp with time zone
 );
 
 
@@ -3812,6 +3819,13 @@ CREATE INDEX ix_users_auth_provider ON public.users USING btree (auth_provider);
 
 
 --
+-- Name: ix_users_locked_until; Type: INDEX; Schema: public; Owner: aiops
+--
+
+CREATE INDEX ix_users_locked_until ON public.users USING btree (locked_until);
+
+
+--
 -- Name: action_proposals action_proposals_approved_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: aiops
 --
 
@@ -5022,3 +5036,50 @@ CREATE INDEX idx_pii_feedback_whitelist_lookup ON public.pii_false_positive_feed
 
 
 
+
+--
+-- Name: runbook_git_sync_configs; Type: TABLE; Schema: public; Owner: aiops
+--
+
+CREATE TABLE public.runbook_git_sync_configs (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    name character varying(100) NOT NULL,
+    repo_url character varying(500) NOT NULL,
+    branch character varying(100) NOT NULL DEFAULT 'main',
+    path_prefix character varying(255),
+    auth_type character varying(20) NOT NULL DEFAULT 'none',
+    token_encrypted text,
+    username character varying(255),
+    password_encrypted text,
+    ssh_key_encrypted text,
+    enabled boolean NOT NULL DEFAULT true,
+    sync_interval_minutes integer NOT NULL DEFAULT 60,
+    overwrite_existing boolean NOT NULL DEFAULT true,
+    last_sync_at timestamp with time zone,
+    last_sync_status character varying(20) NOT NULL DEFAULT 'never',
+    last_sync_message text,
+    runbooks_synced integer NOT NULL DEFAULT 0,
+    created_by uuid,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+ALTER TABLE ONLY public.runbook_git_sync_configs
+    ADD CONSTRAINT runbook_git_sync_configs_pkey PRIMARY KEY (id);
+
+ALTER TABLE ONLY public.runbook_git_sync_configs
+    ADD CONSTRAINT runbook_git_sync_configs_auth_type_check CHECK (
+        auth_type IN ('none', 'token', 'ssh', 'basic')
+    );
+
+ALTER TABLE ONLY public.runbook_git_sync_configs
+    ADD CONSTRAINT runbook_git_sync_configs_status_check CHECK (
+        last_sync_status IN ('never', 'pending', 'running', 'success', 'error')
+    );
+
+ALTER TABLE ONLY public.runbook_git_sync_configs
+    ADD CONSTRAINT fk_runbook_git_sync_created_by FOREIGN KEY (created_by)
+        REFERENCES public.users(id) ON DELETE SET NULL;
+
+CREATE INDEX ix_runbook_git_sync_configs_enabled ON public.runbook_git_sync_configs USING btree (enabled);
+CREATE INDEX ix_runbook_git_sync_configs_last_sync_at ON public.runbook_git_sync_configs USING btree (last_sync_at);

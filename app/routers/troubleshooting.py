@@ -107,9 +107,9 @@ async def analyze_root_cause(
         db.rollback()
     
     return RootCauseAnalysis(
-        root_cause=f"Analysis unavailable (schema upgrade may be needed for {alert.alert_name})",
+        root_cause=f"Root cause analysis unavailable for {alert.alert_name}",
         confidence=0.0,
-        reasoning=["Correlation database schema may be incompatible. Run: python fix_db_schema.py or alembic upgrade head"],
+        reasoning=["The LLM analysis did not complete. Check that an LLM provider is configured and the service logs for details."],
         related_alerts=[alert_id],
         recommended_actions=[]
     )

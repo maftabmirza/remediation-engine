@@ -54,6 +54,9 @@ COPY static/ ./static/
 COPY templates/ ./templates/
 COPY alembic.ini .
 
+# Create required runtime directories (storage expected by StaticFiles mount)
+RUN mkdir -p storage/design/images storage/uploads
+
 # Set environment for tests
 ENV PYTHONPATH=/app
 ENV POSTGRES_HOST=postgres-test

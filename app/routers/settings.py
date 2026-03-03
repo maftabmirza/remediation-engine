@@ -10,9 +10,14 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import LLMProvider, User, AuditLog
 from app.schemas import (
-    LLMProviderCreate, LLMProviderUpdate, LLMProviderResponse
+    LLMProviderCreate, LLMProviderUpdate, LLMProviderResponse,
+    PasswordPolicySchema, PasswordPolicyUpdate,
 )
 from app.services.auth_service import get_current_user, require_permission
+from app.services.password_policy_service import (
+    get_password_policy,
+    save_password_policy,
+)
 from app.utils.crypto import encrypt_value
 from app.services.llm_service import get_api_key_for_provider
 from litellm import completion, embedding as litellm_embedding
@@ -418,3 +423,54 @@ async def toggle_provider(
     db.commit()
     
     return {"message": f"Provider {'enabled' if provider.is_enabled else 'disabled'}", "enabled": provider.is_enabled}
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+#  Password Policy endpoints
+# ──────────────────────────────────────────────────────────────────────────────
+
+@router.get("/password-policy", response_model=PasswordPolicySchema)
+async def get_password_policy_config(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Return the current password policy.
+    All authenticated users can read this so that the UI can show
+    requirements during password creation / change.
+    """
+    policy = get_password_policy(db)
+    return PasswordPolicySchema(**policy)
+
+
+@router.put("/password-policy", response_model=PasswordPolicySchema)
+async def update_password_policy_config(
+    request: Request,
+    payload: PasswordPolicyUpdate,
+    current_user: User = Depends(require_permission(["manage_users"])),
+    db: Session = Depends(get_db),
+):
+    """
+    Update the password policy. Requires manage_users permission (admin).
+    Only the supplied fields are updated; the rest keep their current values.
+    """
+    current = get_password_policy(db)
+
+    # Merge only the explicitly-provided keys
+    updates = payload.model_dump(exclude_unset=True)
+    merged = {**current, **updates}
+
+    saved = save_password_policy(db, merged, user_id=current_user.id)
+
+    # Audit log
+    audit = AuditLog(
+        user_id=current_user.id,
+        action="update_password_policy",
+        resource_type="system_config",
+        details_json={"changes": updates},
+        ip_address=request.client.host if request.client else None,
+    )
+    db.add(audit)
+    db.commit()
+
+    return PasswordPolicySchema(**saved)

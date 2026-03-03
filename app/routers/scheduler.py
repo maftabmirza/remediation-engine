@@ -70,6 +70,8 @@ async def create_schedule(
         end_date=schedule_data.end_date,
         timezone=schedule_data.timezone,
         target_server_id=schedule_data.target_server_id,
+        target_server_ids=schedule_data.target_server_ids or [],
+        target_server_group_ids=schedule_data.target_server_group_ids or [],
         execution_params=schedule_data.execution_params,
         max_instances=schedule_data.max_instances,
         misfire_grace_time=schedule_data.misfire_grace_time,
@@ -321,17 +323,48 @@ async def trigger_schedule_now(
     # Import the callback function
     from ..services.scheduler_service import _execute_scheduled_runbook
     
+    # Collect all target server IDs (multi-server + legacy single-server)
+    server_ids: list = list(schedule.target_server_ids or [])
+    group_ids: list = list(schedule.target_server_group_ids or [])
+    
+    # Resolve group IDs to server IDs
+    if group_ids:
+        from ..models import ServerCredential
+        for gid in group_ids:
+            members_result = await db.execute(
+                select(ServerCredential.id).where(
+                    ServerCredential.group_id == gid
+                )
+            )
+            group_server_ids = [str(r) for r in members_result.scalars().all()]
+            server_ids.extend(group_server_ids)
+    
+    # Deduplicate while preserving order
+    seen: set = set()
+    unique_server_ids: list = []
+    for sid in server_ids:
+        if sid not in seen:
+            seen.add(sid)
+            unique_server_ids.append(sid)
+    
+    # Fall back to legacy single-server or None (runbook default)
+    if not unique_server_ids:
+        if schedule.target_server_id:
+            unique_server_ids = [str(schedule.target_server_id)]
+        else:
+            unique_server_ids = [None]
+    
     # Manually invoke the execution
     try:
-        # Execute immediately
-        await _execute_scheduled_runbook(
-            scheduled_job_id=str(schedule.id),
-            runbook_id=str(schedule.runbook_id),
-            server_id=str(schedule.target_server_id) if schedule.target_server_id else None,
-            params=schedule.execution_params
-        )
+        for sid in unique_server_ids:
+            await _execute_scheduled_runbook(
+                scheduled_job_id=str(schedule.id),
+                runbook_id=str(schedule.runbook_id),
+                server_id=sid,
+                params=schedule.execution_params
+            )
         
-        return {"message": "Schedule triggered successfully", "schedule_id": schedule_id}
+        return {"message": f"Schedule triggered on {len(unique_server_ids)} target(s)", "schedule_id": schedule_id}
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -463,6 +496,8 @@ async def _build_schedule_response(db: AsyncSession, schedule: ScheduledJob) -> 
         end_date=schedule.end_date,
         timezone=schedule.timezone,
         target_server_id=schedule.target_server_id,
+        target_server_ids=list(schedule.target_server_ids or []),
+        target_server_group_ids=list(schedule.target_server_group_ids or []),
         server_hostname=server_hostname,
         execution_params=schedule.execution_params,
         max_instances=schedule.max_instances,

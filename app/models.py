@@ -43,6 +43,11 @@ class User(Base):
     sso_subject = Column(String(255), nullable=True, unique=True, index=True)
     auth_provider = Column(String(50), nullable=True, default="local")  # "local" | "cyberark"
 
+    # Password policy enforcement fields
+    failed_login_attempts = Column(Integer, default=0, nullable=False)
+    locked_until = Column(DateTime(timezone=True), nullable=True, index=True)
+    password_changed_at = Column(DateTime(timezone=True), nullable=True)
+
     # Relationships
     default_llm_provider = relationship("LLMProvider", foreign_keys=[default_llm_provider_id])
     rules_created = relationship("AutoAnalyzeRule", back_populates="created_by_user")

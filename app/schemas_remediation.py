@@ -632,3 +632,100 @@ class ExportRunbooksRequest(BaseModel):
     runbook_ids: Optional[List[UUID]] = None  # None = export all
     format: str = "yaml"  # yaml, json
     include_disabled: bool = False
+
+
+# =============================================================================
+# GIT SYNC SCHEMAS
+# =============================================================================
+
+class GitSyncConfigCreate(BaseModel):
+    """Schema for creating a git sync config."""
+    name: str = Field(..., min_length=1, max_length=100)
+    repo_url: str = Field(..., min_length=1, max_length=500)
+    branch: str = Field(default="main", min_length=1, max_length=100)
+    path_prefix: Optional[str] = Field(default=None, max_length=255)
+    auth_type: str = Field(default="none")
+    # Plaintext credentials — encrypted at write time
+    token: Optional[str] = None
+    username: Optional[str] = Field(default=None, max_length=255)
+    password: Optional[str] = None
+    ssh_key: Optional[str] = None
+    enabled: bool = True
+    sync_interval_minutes: int = Field(default=60, ge=5, le=1440)
+    overwrite_existing: bool = True
+
+    @field_validator("auth_type")
+    @classmethod
+    def validate_auth_type(cls, v: str) -> str:
+        if v not in ("none", "token", "ssh", "basic"):
+            raise ValueError("auth_type must be one of: none, token, ssh, basic")
+        return v
+
+    @field_validator("repo_url")
+    @classmethod
+    def validate_repo_url(cls, v: str) -> str:
+        if not (v.startswith("https://") or v.startswith("git@") or v.startswith("ssh://")):
+            raise ValueError("repo_url must start with https://, git@, or ssh://")
+        return v
+
+
+class GitSyncConfigUpdate(BaseModel):
+    """Schema for updating a git sync config (all fields optional)."""
+    name: Optional[str] = Field(default=None, min_length=1, max_length=100)
+    repo_url: Optional[str] = Field(default=None, min_length=1, max_length=500)
+    branch: Optional[str] = Field(default=None, min_length=1, max_length=100)
+    path_prefix: Optional[str] = Field(default=None, max_length=255)
+    auth_type: Optional[str] = None
+    token: Optional[str] = None
+    username: Optional[str] = Field(default=None, max_length=255)
+    password: Optional[str] = None
+    ssh_key: Optional[str] = None
+    enabled: Optional[bool] = None
+    sync_interval_minutes: Optional[int] = Field(default=None, ge=5, le=1440)
+    overwrite_existing: Optional[bool] = None
+
+    @field_validator("auth_type")
+    @classmethod
+    def validate_auth_type(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and v not in ("none", "token", "ssh", "basic"):
+            raise ValueError("auth_type must be one of: none, token, ssh, basic")
+        return v
+
+
+class GitSyncConfigResponse(BaseModel):
+    """Schema for git sync config responses (credentials never returned)."""
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    name: str
+    repo_url: str
+    branch: str
+    path_prefix: Optional[str]
+    auth_type: str
+    has_token: bool = False
+    has_password: bool = False
+    has_ssh_key: bool = False
+    username: Optional[str]
+    enabled: bool
+    sync_interval_minutes: int
+    overwrite_existing: bool
+    last_sync_at: Optional[datetime]
+    last_sync_status: str
+    last_sync_message: Optional[str]
+    runbooks_synced: int
+    created_by: Optional[UUID]
+    created_at: datetime
+    updated_at: datetime
+
+
+class GitSyncTriggerResponse(BaseModel):
+    """Response returned when a manual sync is triggered."""
+    config_id: UUID
+    config_name: str
+    runbooks_synced: int
+    runbooks_created: int
+    runbooks_updated: int
+    runbooks_skipped: int
+    errors: List[str] = []
+    synced_at: datetime
+

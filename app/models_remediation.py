@@ -533,3 +533,57 @@ class CommandAllowlist(Base):
     __table_args__ = (
         Index("idx_allowlist_enabled_os", "enabled", "os_type"),
     )
+
+
+# =============================================================================
+# GIT SYNC CONFIGURATION
+# =============================================================================
+
+class RunbookGitSyncConfig(Base):
+    """
+    Git repository configuration for automatic runbook synchronisation.
+
+    Runbooks stored as YAML files in a git repo are cloned/pulled on each
+    sync cycle and imported (or updated) into the database via the same logic
+    used by the manual YAML import endpoint.
+    """
+    __tablename__ = "runbook_git_sync_configs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+
+    # Identity
+    name = Column(String(100), nullable=False)
+    repo_url = Column(String(500), nullable=False)
+    branch = Column(String(100), nullable=False, default="main")
+    path_prefix = Column(String(255), nullable=True)  # Optional sub-directory, e.g. "runbooks/"
+
+    # Authentication  ("none" | "token" | "ssh" | "basic")
+    auth_type = Column(String(20), nullable=False, default="none")
+    token_encrypted = Column(Text, nullable=True)       # PAT / OAuth token
+    username = Column(String(255), nullable=True)       # For basic auth
+    password_encrypted = Column(Text, nullable=True)    # For basic auth
+    ssh_key_encrypted = Column(Text, nullable=True)     # PEM private key
+
+    # Behaviour
+    enabled = Column(Boolean, default=True, nullable=False)
+    sync_interval_minutes = Column(Integer, default=60, nullable=False)
+    overwrite_existing = Column(Boolean, default=True, nullable=False)
+
+    # Sync State
+    last_sync_at = Column(DateTime(timezone=True), nullable=True)
+    last_sync_status = Column(String(20), nullable=False, default="never")  # never|pending|running|success|error
+    last_sync_message = Column(Text, nullable=True)
+    runbooks_synced = Column(Integer, default=0, nullable=False)
+
+    # Audit
+    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False)
+
+    # Relationships
+    created_by_user = relationship("User")
+
+    __table_args__ = (
+        Index("ix_runbook_git_sync_configs_enabled", "enabled"),
+        Index("ix_runbook_git_sync_configs_last_sync_at", "last_sync_at"),
+    )

@@ -4,7 +4,7 @@ Models for alert correlation, root cause analysis, and failure patterns.
 """
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, Boolean, Integer, Text, Float, ForeignKey, DateTime, Index
+from sqlalchemy import Column, String, Boolean, Integer, Text, Float, DateTime, Index
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
@@ -27,12 +27,18 @@ class AlertCorrelation(Base):
     root_cause_analysis = Column(Text, nullable=True)
     status = Column(String(50), default='active', nullable=False)  # active, resolved, false_positive
     confidence_score = Column(Float, nullable=True)
-    
+
+    # Legacy columns from original link-table design (kept for backwards compatibility)
+    # related_alert_id is stored as a plain UUID – no ORM FK to avoid ambiguous join paths
+    related_alert_id = Column(UUID(as_uuid=True), nullable=True)
+    correlation_type = Column(String(50), default='automatic', nullable=True)
+    correlation_score = Column(Float, nullable=True)
+
     created_at = Column(DateTime(timezone=True), default=utc_now, index=True)
     updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
 
     # Relationships
-    alerts = relationship("Alert", back_populates="correlation")
+    alerts = relationship("Alert", back_populates="correlation", foreign_keys="[Alert.correlation_id]")
 
 
 class FailurePattern(Base):

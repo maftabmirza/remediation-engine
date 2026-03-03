@@ -393,7 +393,7 @@ async def get_knowledge_stats(
 # Git Sync Endpoints
 # ============================================================================
 
-from app.services.git_sync_service import GitSyncService
+from app.services.git_sync_service import GitSyncService, GitCredentials
 from pydantic import BaseModel
 
 class GitSyncRequest(BaseModel):
@@ -401,6 +401,12 @@ class GitSyncRequest(BaseModel):
     branch: str = "main"
     app_id: Optional[UUID] = None
     sync_code: bool = False
+    # Authentication
+    auth_type: str = "none"       # "none" | "token" | "basic" | "ssh"
+    token: Optional[str] = None
+    username: Optional[str] = None
+    password: Optional[str] = None
+    ssh_key: Optional[str] = None
 
 @router.post("/sync/git", status_code=status.HTTP_200_OK)
 async def sync_git_repository(
@@ -415,12 +421,20 @@ async def sync_git_repository(
     from app.services.git_sync_service import GitSyncConfig
     sync_service = GitSyncService(db)
     try:
+        credentials = GitCredentials(
+            auth_type=sync_req.auth_type,
+            token=sync_req.token,
+            username=sync_req.username,
+            password=sync_req.password,
+            ssh_key=sync_req.ssh_key,
+        )
         config = GitSyncConfig(sync_docs=True, sync_code=sync_req.sync_code)
         stats = sync_service.sync_repository(
             repo_url=sync_req.repo_url,
             app_id=sync_req.app_id,
             branch=sync_req.branch,
             user_id=current_user.id,
+            credentials=credentials,
             config=config
         )
         return {

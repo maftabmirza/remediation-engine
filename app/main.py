@@ -288,6 +288,12 @@ async def lifespan(app: FastAPI):
         from app.services.itsm_sync_worker import start_itsm_sync_jobs
         start_itsm_sync_jobs(scheduler._scheduler)  # Pass APScheduler instance
         logger.info("✅ ITSM sync jobs started")
+
+        # Start Runbook Git Sync poller
+        logger.info("Starting Runbook Git Sync poller...")
+        from app.services.runbook_git_sync_service import start_git_sync_jobs
+        start_git_sync_jobs(scheduler._scheduler)
+        logger.info("✅ Runbook Git Sync poller started")
         
         # Initialize PII service factory for LLM scanning
         logger.info("Initializing PII detection for LLM scanning...")

@@ -18,6 +18,7 @@ from app.services.auth_service import (
     VALID_ROLES,
     normalize_role,
 )
+from app.services.password_policy_service import enforce_password_policy
 
 router = APIRouter(prefix="/api/users", tags=["Users"])
 
@@ -50,13 +51,21 @@ async def create_user(
     if normalized_role not in VALID_ROLES:
         raise HTTPException(status_code=400, detail="Invalid role selection")
 
+    # Enforce password policy
+    try:
+        enforce_password_policy(data.password, db)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    from datetime import datetime, timezone
     user = User(
         username=data.username,
         email=data.email,
         full_name=data.full_name,
         password_hash=get_password_hash(data.password),
         role=normalized_role,
-        is_active=data.is_active
+        is_active=data.is_active,
+        password_changed_at=datetime.now(timezone.utc),
     )
     db.add(user)
     db.commit()
@@ -88,7 +97,17 @@ async def update_user(
         raise HTTPException(status_code=404, detail="User not found")
     
     if data.password:
+        # Enforce password policy before accepting the new password
+        try:
+            enforce_password_policy(data.password, db)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+        from datetime import datetime, timezone
         user.password_hash = get_password_hash(data.password)
+        user.password_changed_at = datetime.now(timezone.utc)
+        # Reset any lockout when admin explicitly sets a new password
+        user.failed_login_attempts = 0
+        user.locked_until = None
     if data.role:
         normalized_role = normalize_role(data.role)
         if normalized_role not in VALID_ROLES:
