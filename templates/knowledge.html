@@ -270,10 +270,10 @@
 
 <!-- Git Sync Modal -->
 <div id="gitSyncModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-    <div class="card p-6 w-full max-w-lg m-4 shadow-2xl border border-slate-200 bg-white">
+    <div class="card p-6 w-full max-w-2xl m-4 shadow-2xl border border-slate-200 bg-white max-h-[90vh] overflow-y-auto">
         <div class="flex items-center justify-between mb-4">
             <h3 class="text-lg font-bold flex items-center gap-2 text-slate-800">
-                <i class="fab fa-git-alt text-orange-500"></i> Sync Git Repository
+                <i class="fas fa-code-branch text-orange-500"></i> Sync Git Repository
             </h3>
             <button onclick="closeGitSyncModal()" class="text-slate-400 hover:text-slate-600">
                 <i class="fas fa-times"></i>
@@ -302,6 +302,48 @@
                     <input type="text" name="branch" value="main"
                         class="input-field w-full px-3 py-2 rounded border border-slate-200" placeholder="main">
                 </div>
+            </div>
+
+            <!-- Authentication -->
+            <div>
+                <label class="block text-sm text-slate-500 mb-1">Authentication</label>
+                <select name="auth_type" id="ksAuthType" onchange="toggleKnowledgeAuthFields()"
+                    class="input-field w-full px-3 py-2 rounded border border-slate-200 bg-white">
+                    <option value="none">None (public repo)</option>
+                    <option value="token">Token (GitHub / GitLab PAT)</option>
+                    <option value="basic">Basic (username + password)</option>
+                    <option value="ssh">SSH key</option>
+                </select>
+            </div>
+
+            <div id="ksAuthToken" class="hidden">
+                <label class="block text-sm text-slate-500 mb-1">Personal Access Token</label>
+                <input type="password" name="token" placeholder="ghp_..." autocomplete="new-password"
+                    class="input-field w-full px-3 py-2 rounded border border-slate-200">
+                <p class="text-xs text-slate-400 mt-1">Required for private repositories on GitHub/GitLab.</p>
+            </div>
+
+            <div id="ksAuthBasic" class="hidden">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm text-slate-500 mb-1">Username</label>
+                        <input type="text" name="username" autocomplete="username"
+                            class="input-field w-full px-3 py-2 rounded border border-slate-200">
+                    </div>
+                    <div>
+                        <label class="block text-sm text-slate-500 mb-1">Password</label>
+                        <input type="password" name="password" autocomplete="new-password"
+                            class="input-field w-full px-3 py-2 rounded border border-slate-200">
+                    </div>
+                </div>
+            </div>
+
+            <div id="ksAuthSsh" class="hidden">
+                <label class="block text-sm text-slate-500 mb-1">SSH Private Key (PEM)</label>
+                <textarea name="ssh_key" rows="4"
+                    placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----"
+                    class="input-field w-full px-3 py-2 rounded border border-slate-200 font-mono text-xs resize-vertical"></textarea>
+                <p class="text-xs text-slate-400 mt-1">Leave blank to keep existing key.</p>
             </div>
 
             <div class="p-4 bg-slate-50 rounded border border-slate-200">
@@ -943,6 +985,12 @@
         document.getElementById('gitSyncModal').classList.add('hidden');
         document.getElementById('gitSyncModal').classList.remove('flex');
     }
+    function toggleKnowledgeAuthFields() {
+        const authType = document.getElementById('ksAuthType').value;
+        document.getElementById('ksAuthToken').classList.toggle('hidden', authType !== 'token');
+        document.getElementById('ksAuthBasic').classList.toggle('hidden', authType !== 'basic');
+        document.getElementById('ksAuthSsh').classList.toggle('hidden', authType !== 'ssh');
+    }
     function closeViewModal() {
         document.getElementById('viewModal').classList.add('hidden');
         document.getElementById('viewModal').classList.remove('flex');
@@ -1012,6 +1060,10 @@
         const data = Object.fromEntries(new FormData(e.target));
         data.sync_docs = data.sync_docs === 'on';
         data.sync_code = data.sync_code === 'on';
+        // Strip empty auth fields so they don't override empty strings
+        ['token', 'username', 'password', 'ssh_key'].forEach(k => {
+            if (!data[k]) delete data[k];
+        });
 
         const btn = e.target.querySelector('button[type="submit"]');
         const oldHtml = btn.innerHTML;

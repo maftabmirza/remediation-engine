@@ -373,6 +373,168 @@
 
     .input-field {
         border-radius: 5px !important;
+        background: var(--bg-surface, #ffffff);
+        border: 1px solid var(--border-color, #e2e8f0);
+        color: var(--text-primary, #1e293b);
+        font-size: 13px;
+        width: 100%;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        outline: none;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    }
+    .input-field:hover {
+        border-color: var(--border-color-hover, #cbd5e1);
+    }
+    .input-field:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+    }
+    .input-field::placeholder {
+        color: var(--text-muted, #94a3b8);
+    }
+    select.input-field {
+        cursor: pointer;
+        appearance: auto;
+    }
+    textarea.input-field {
+        resize: vertical;
+        min-height: 80px;
+    }
+
+    /* ── Server Picker Widget ─────────────────────────────────────────── */
+    .server-picker-widget {
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        background: var(--bg-surface);
+        padding: 4px 6px;
+        position: relative;
+        cursor: text;
+    }
+    .server-picker-widget:focus-within {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 2px rgba(59,130,246,0.15);
+    }
+    .server-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        margin-bottom: 2px;
+    }
+    .server-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 12px;
+        background: #2563eb;
+        color: #fff;
+        white-space: nowrap;
+        max-width: 230px;
+    }
+    .server-chip.is-group { background: #7c3aed; }
+    .server-chip-name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .server-chip-remove {
+        cursor: pointer;
+        opacity: 0.75;
+        flex-shrink: 0;
+    }
+    .server-chip-remove:hover { opacity: 1; }
+    .server-picker-input-row {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 2px;
+    }
+    .server-picker-input-row input {
+        flex: 1;
+        border: none;
+        background: transparent;
+        outline: none;
+        padding: 4px 4px;
+        font-size: 13px;
+        color: var(--text-primary);
+        min-width: 120px;
+    }
+    .server-picker-clear {
+        cursor: pointer;
+        color: var(--text-secondary);
+        font-size: 14px;
+        padding: 2px;
+    }
+    .server-picker-clear:hover { color: var(--text-primary); }
+    .server-picker-dropdown {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: calc(100% + 4px);
+        background: var(--bg-surface);
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.18);
+        z-index: 9999;
+        max-height: 272px;
+        overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(148,163,184,0.35) transparent;
+    }
+    .server-picker-section-label {
+        padding: 6px 12px 3px;
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--text-secondary);
+        border-bottom: 1px solid var(--border-color);
+    }
+    .server-picker-option {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 12px;
+        cursor: pointer;
+        font-size: 13px;
+        color: var(--text-primary);
+        transition: background 0.1s;
+    }
+    .server-picker-option:hover { background: rgba(59,130,246,0.08); }
+    .server-picker-option.already-selected {
+        opacity: 0.4;
+        pointer-events: none;
+    }
+    .server-picker-opt-icon { width: 18px; text-align: center; flex-shrink: 0; }
+    .server-picker-opt-main { flex: 1; overflow: hidden; }
+    .server-picker-opt-name {
+        font-weight: 500;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .server-picker-opt-sub {
+        font-size: 11px;
+        color: var(--text-secondary);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .server-picker-badge {
+        font-size: 10px;
+        font-weight: 600;
+        padding: 1px 6px;
+        border-radius: 8px;
+        flex-shrink: 0;
+    }
+    .badge-group-pill { background: rgba(124,58,237,0.14); color: #7c3aed; }
+    .badge-server-pill { background: rgba(59,130,246,0.12); color: #2563eb; }
+    .server-picker-info {
+        padding: 10px 12px;
+        text-align: center;
+        color: var(--text-secondary);
+        font-size: 13px;
     }
 </style>
 {% endblock %}
@@ -551,6 +713,23 @@
     <div id="runbooksGrid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
     </div>
 
+    <!-- Tab Navigation -->
+    <div class="border-b border-gray-200" style="border-color: var(--border-color, #e2e8f0); margin-bottom: -1px;">
+        <nav class="flex gap-0">
+            <button id="tab-runbooks" onclick="switchMainTab('runbooks')"
+                class="main-tab-btn px-5 py-2.5 text-sm font-semibold border-b-2 border-blue-500 text-blue-600 bg-transparent cursor-pointer -mb-px transition-colors">
+                <i class="fas fa-book mr-2"></i>Runbooks
+            </button>
+            <button id="tab-git-sync" onclick="switchMainTab('git-sync')"
+                class="main-tab-btn px-5 py-2.5 text-sm font-semibold border-b-2 border-transparent text-secondary hover:text-primary bg-transparent cursor-pointer -mb-px transition-colors">
+                <i class="fas fa-code-branch mr-2"></i>Git Sync
+            </button>
+        </nav>
+    </div>
+
+    <!-- ===================== RUNBOOKS PANEL ===================== -->
+    <div id="panel-runbooks" class="space-y-4">
+
     <!-- Stats Cards -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div class="card p-4" style="border-left: 3px solid #3b82f6;">
@@ -676,6 +855,41 @@
             <i class="fas fa-plus mr-2"></i>Create Runbook
         </a>
     </div>
+
+    </div><!-- end #panel-runbooks -->
+
+    <!-- ===================== GIT SYNC PANEL ===================== -->
+    <div id="panel-git-sync" class="hidden space-y-4">
+
+        <!-- Header row -->
+        <div class="flex items-center justify-between">
+            <div>
+                <h2 class="text-base font-semibold text-primary">Git Sync Configurations</h2>
+                <p class="text-secondary text-sm mt-0.5">Automatically import runbooks from YAML files in a git repository.</p>
+            </div>
+            <button onclick="openGitSyncModal()" class="runbook-action-btn runbook-action-primary">
+                <i class="fas fa-plus"></i>
+                <span>Add Repository</span>
+            </button>
+        </div>
+
+        <!-- Configs list -->
+        <div id="gitSyncList" class="space-y-3">
+            <!-- Populated by JS -->
+        </div>
+
+        <!-- Empty state -->
+        <div id="gitSyncEmpty" class="card p-12 text-center hidden">
+            <i class="fab fa-git-alt text-4xl text-secondary mb-4"></i>
+            <h3 class="text-lg font-medium text-primary mb-2">No Git Repositories Configured</h3>
+            <p class="text-secondary mb-4">Connect a git repository to automatically import and keep runbooks up to date.</p>
+            <button onclick="openGitSyncModal()" class="btn-primary px-4 py-2 rounded-lg">
+                <i class="fas fa-plus mr-2"></i>Add Repository
+            </button>
+        </div>
+
+    </div><!-- end #panel-git-sync -->
+
 </div>
 
 <!-- Create/Edit Runbook Modal -->
@@ -861,7 +1075,7 @@
 <!-- Execute Runbook Modal -->
 <div id="executeModal"
     class="fixed inset-0 bg-black bg-opacity-50 hidden rb-modal-overlay flex items-center justify-center p-4">
-    <div class="card p-6 w-full max-w-md">
+    <div class="card p-6 w-full max-w-lg">
         <div class="flex items-center justify-between mb-6">
             <h2 class="text-xl font-bold text-primary">Execute Runbook</h2>
             <button onclick="closeExecuteModal()" class="text-secondary hover:text-primary">
@@ -872,24 +1086,36 @@
             <input type="hidden" id="executeRunbookId">
             <p class="text-secondary mb-4" id="executeMessage">Are you sure you want to execute this runbook?</p>
 
+            <!-- Target Server / Group multi-select picker -->
             <div class="mb-4">
                 <label class="label-with-tooltip block text-secondary text-sm mb-1">
-                    Server Credential
+                    Target Servers
                     <span class="info-tooltip">
                         <span class="info-tooltip-icon">?</span>
-                        <span class="info-tooltip-text">Choose a stored server credential for this execution. Leave
-                            blank to use the runbook default server or alert-derived target.</span>
+                        <span class="info-tooltip-text">Search and select one or more servers or server groups. Selecting a group queues an execution on every server in that group. Leave empty to use the runbook default or alert-derived target.</span>
                     </span>
                 </label>
-                <select id="executeServerId" class="input-field w-full px-3 py-2 rounded">
-                    <option value="">Use runbook default / alert context</option>
-                </select>
+                <div id="serverPickerWidget" class="server-picker-widget" onclick="document.getElementById('serverSearchInput').focus()">
+                    <div id="serverChips" class="server-chips"></div>
+                    <div class="server-picker-input-row">
+                        <input type="text" id="serverSearchInput"
+                            placeholder="Search servers or groups…"
+                            oninput="onServerSearchInput()"
+                            onfocus="showServerDropdown()"
+                            onblur="hideServerDropdown()"
+                            autocomplete="off">
+                        <span id="serverPickerClearBtn" class="server-picker-clear hidden" onclick="clearAllServers()" title="Clear all">
+                            <i class="fas fa-times-circle"></i>
+                        </span>
+                    </div>
+                    <div id="serverDropdown" class="server-picker-dropdown hidden"></div>
+                </div>
+                <div id="serverSummary" class="text-xs mt-1" style="color:var(--text-secondary)"></div>
             </div>
 
             <div class="mb-4 flex items-center gap-2">
                 <input type="checkbox" id="executeDryRun" class="h-4 w-4">
-                <label for="executeDryRun" class="text-sm text-secondary">Dry run (validate only, do not execute
-                    commands)</label>
+                <label for="executeDryRun" class="text-sm text-secondary">Dry run (validate only, do not execute commands)</label>
             </div>
 
             <div class="mb-4">
@@ -910,8 +1136,8 @@
                 <button type="button" onclick="closeExecuteModal()" class="btn-secondary px-4 py-2 rounded-lg">
                     Cancel
                 </button>
-                <button type="submit" class="btn-primary px-4 py-2 rounded-lg">
-                    <i class="fas fa-play mr-2"></i>Execute
+                <button type="submit" id="executeSubmitBtn" class="btn-primary px-4 py-2 rounded-lg">
+                    <i class="fas fa-play mr-2"></i><span id="executeSubmitLabel">Execute</span>
                 </button>
             </div>
         </form>
@@ -938,8 +1164,9 @@
 
 <!-- Import YAML Modal -->
 <div id="importModal"
-    class="fixed inset-0 bg-black bg-opacity-50 hidden rb-modal-overlay flex items-center justify-center p-4">
-    <div class="card p-6 w-full max-w-2xl">
+    class="fixed inset-0 bg-black bg-opacity-50 hidden rb-modal-overlay flex items-center justify-center p-4"
+    onclick="closeImportModal()">
+    <div class="card p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
         <div class="flex items-center justify-between mb-6">
             <h2 class="text-xl font-bold text-primary">Import Runbook from YAML</h2>
             <button onclick="closeImportModal()" class="text-secondary hover:text-primary">
@@ -968,8 +1195,126 @@
                 <button type="button" onclick="closeImportModal()" class="btn-secondary px-4 py-2 rounded-lg">
                     Cancel
                 </button>
-                <button type="submit" class="btn-primary px-4 py-2 rounded-lg">
+                <button type="submit" id="importSubmitBtn" class="btn-primary px-4 py-2 rounded-lg">
                     <i class="fas fa-file-import mr-2"></i>Import
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ==================== GIT SYNC MODAL ==================== -->
+<div id="gitSyncModal"
+    class="fixed inset-0 bg-black bg-opacity-50 hidden rb-modal-overlay flex items-center justify-center p-4"
+    onclick="closeGitSyncModal()">
+    <div class="card p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-xl font-bold text-primary" id="gitSyncModalTitle">Add Git Repository</h2>
+            <button onclick="closeGitSyncModal()" class="text-secondary hover:text-primary">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <form id="gitSyncForm" onsubmit="saveGitSyncConfig(event)">
+            <input type="hidden" id="gitSyncConfigId">
+
+            <!-- Basic Info -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-secondary text-sm mb-1">Name *</label>
+                    <input type="text" id="gsName" required placeholder="e.g. Production Runbooks"
+                        class="input-field w-full px-3 py-2 rounded">
+                </div>
+                <div>
+                    <label class="block text-secondary text-sm mb-1">Branch</label>
+                    <input type="text" id="gsBranch" value="main" placeholder="main"
+                        class="input-field w-full px-3 py-2 rounded">
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-secondary text-sm mb-1">Repository URL *</label>
+                <input type="text" id="gsRepoUrl" required
+                    placeholder="https://github.com/org/repo.git"
+                    class="input-field w-full px-3 py-2 rounded">
+                <p class="text-xs text-secondary mt-1">Supports HTTPS and SSH URLs.</p>
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-secondary text-sm mb-1">Path Prefix
+                    <span class="text-secondary font-normal">(optional — sub-directory containing runbooks)</span>
+                </label>
+                <input type="text" id="gsPathPrefix" placeholder="runbooks/"
+                    class="input-field w-full px-3 py-2 rounded">
+            </div>
+
+            <!-- Auth -->
+            <div class="mb-4">
+                <label class="block text-secondary text-sm mb-1">Authentication</label>
+                <select id="gsAuthType" onchange="toggleGitAuthFields()" class="input-field w-full px-3 py-2 rounded">
+                    <option value="none">None (public repo)</option>
+                    <option value="token">Token (GitHub / GitLab PAT)</option>
+                    <option value="basic">Basic (username + password)</option>
+                    <option value="ssh">SSH key</option>
+                </select>
+            </div>
+
+            <div id="gsAuthToken" class="mb-4 hidden">
+                <label class="block text-secondary text-sm mb-1">Personal Access Token</label>
+                <input type="password" id="gsToken" placeholder="ghp_..." autocomplete="new-password"
+                    class="input-field w-full px-3 py-2 rounded">
+                <p class="text-xs text-secondary mt-1">Leave blank to keep the existing token.</p>
+            </div>
+
+            <div id="gsAuthBasic" class="hidden">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-secondary text-sm mb-1">Username</label>
+                        <input type="text" id="gsUsername" autocomplete="username"
+                            class="input-field w-full px-3 py-2 rounded">
+                    </div>
+                    <div>
+                        <label class="block text-secondary text-sm mb-1">Password</label>
+                        <input type="password" id="gsPassword" autocomplete="new-password"
+                            class="input-field w-full px-3 py-2 rounded">
+                        <p class="text-xs text-secondary mt-1">Leave blank to keep existing.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="gsAuthSsh" class="mb-4 hidden">
+                <label class="block text-secondary text-sm mb-1">SSH Private Key (PEM)</label>
+                <textarea id="gsSshKey" rows="5"
+                    placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----"
+                    class="input-field w-full px-3 py-2 rounded font-mono text-xs"></textarea>
+                <p class="text-xs text-secondary mt-1">Leave blank to keep existing key.</p>
+            </div>
+
+            <!-- Behaviour -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-secondary text-sm mb-1">Sync Interval (minutes)</label>
+                    <input type="number" id="gsSyncInterval" value="60" min="5" max="1440"
+                        class="input-field w-full px-3 py-2 rounded">
+                </div>
+                <div class="flex items-end pb-2">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" id="gsOverwrite" checked class="h-4 w-4 rounded">
+                        <span class="text-sm text-secondary">Overwrite existing runbooks</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="mb-6 flex items-center gap-2">
+                <input type="checkbox" id="gsEnabled" checked class="h-4 w-4 rounded">
+                <label for="gsEnabled" class="text-sm text-secondary">Enable this sync configuration</label>
+            </div>
+
+            <div class="flex justify-end gap-3">
+                <button type="button" onclick="closeGitSyncModal()" class="btn-secondary px-4 py-2 rounded-lg">
+                    Cancel
+                </button>
+                <button type="submit" id="gitSyncSubmitBtn" class="btn-primary px-4 py-2 rounded-lg">
+                    <i class="fas fa-save mr-2"></i>Save
                 </button>
             </div>
         </form>
@@ -1042,7 +1387,9 @@
     // Runbooks Data & Logic
     // ========================================================================
     let runbooks = [];
-    let servers = [];
+    let serverGroups = [];
+    let selectedServerItems = []; // [{type:'server'|'group', id, name, hostname?, serverCount?}]
+    let serverSearchTimer = null;
     let filteredRunbooks = [];
     let stepCount = 0;
     let triggerCount = 0;
@@ -1055,7 +1402,7 @@
     // Load runbooks on page load
     document.addEventListener('DOMContentLoaded', function () {
         loadRunbooks();
-        loadServers();
+        initServerPicker();
     });
 
     async function loadRunbooks() {
@@ -1074,18 +1421,175 @@
         }
     }
 
-    async function loadServers() {
+    async function initServerPicker() {
         try {
-            const response = await fetch('/api/servers');
-            if (response.ok) {
-                servers = await response.json();
-            } else {
-                servers = [];
-            }
-            populateServerOptions();
-        } catch (error) {
-            console.error('Error loading servers:', error);
-            servers = [];
+            const resp = await fetch('/api/servers/groups');
+            if (resp.ok) serverGroups = await resp.json();
+        } catch (e) {
+            serverGroups = [];
+        }
+        updateServerSummary();
+    }
+
+    function onServerSearchInput() {
+        clearTimeout(serverSearchTimer);
+        serverSearchTimer = setTimeout(performServerSearch, 260);
+    }
+
+    async function performServerSearch() {
+        const q = document.getElementById('serverSearchInput').value.trim();
+        const dropdown = document.getElementById('serverDropdown');
+        dropdown.innerHTML = '<div class="server-picker-info"><i class="fas fa-spinner fa-spin mr-1"></i>Searching…</div>';
+        dropdown.classList.remove('hidden');
+        try {
+            const url = '/api/servers?limit=30' + (q ? '&search=' + encodeURIComponent(q) : '');
+            const resp = await fetch(url);
+            const serverResults = resp.ok ? await resp.json() : [];
+            const groupResults = q
+                ? serverGroups.filter(g => g.name.toLowerCase().includes(q.toLowerCase()) || (g.description||'').toLowerCase().includes(q.toLowerCase()))
+                : serverGroups;
+            renderServerDropdown(groupResults, serverResults);
+        } catch (e) {
+            dropdown.innerHTML = '<div class="server-picker-info">Failed to load servers</div>';
+        }
+    }
+
+    function renderServerDropdown(groups, serverList) {
+        const dropdown = document.getElementById('serverDropdown');
+        const selGroupIds = new Set(selectedServerItems.filter(i => i.type === 'group').map(i => i.id));
+        const selServerIds = new Set(selectedServerItems.filter(i => i.type === 'server').map(i => i.id));
+        let html = '';
+        let hasAny = false;
+
+        if (groups.length > 0) {
+            hasAny = true;
+            html += `<div class="server-picker-section-label"><i class="fas fa-layer-group mr-1"></i>Server Groups</div>`;
+            groups.forEach(g => {
+                const sel = selGroupIds.has(String(g.id));
+                const cnt = g.server_count || 0;
+                html += `<div class="server-picker-option${sel ? ' already-selected' : ''}" onmousedown="event.preventDefault();selectServerGroup('${escapeHtml(String(g.id))}','${escapeHtml(g.name)}',${cnt})">
+                    <span class="server-picker-opt-icon" style="color:#7c3aed"><i class="fas fa-layer-group"></i></span>
+                    <span class="server-picker-opt-main">
+                        <div class="server-picker-opt-name">${escapeHtml(g.name)}</div>
+                        ${g.description ? `<div class="server-picker-opt-sub">${escapeHtml(g.description)}</div>` : ''}
+                    </span>
+                    <span class="server-picker-badge badge-group-pill">${cnt} server${cnt !== 1 ? 's' : ''}</span>
+                </div>`;
+            });
+        }
+
+        if (serverList.length > 0) {
+            hasAny = true;
+            html += `<div class="server-picker-section-label"><i class="fas fa-server mr-1"></i>Servers</div>`;
+            serverList.forEach(s => {
+                const sel = selServerIds.has(String(s.id));
+                const subLine = [s.hostname, s.environment].filter(Boolean).join(' · ');
+                html += `<div class="server-picker-option${sel ? ' already-selected' : ''}" onmousedown="event.preventDefault();selectServer('${escapeHtml(String(s.id))}','${escapeHtml(s.name)}','${escapeHtml(s.hostname||'')}')">
+                    <span class="server-picker-opt-icon" style="color:#2563eb"><i class="fas fa-server"></i></span>
+                    <span class="server-picker-opt-main">
+                        <div class="server-picker-opt-name">${escapeHtml(s.name)}</div>
+                        ${subLine ? `<div class="server-picker-opt-sub">${escapeHtml(subLine)}</div>` : ''}
+                    </span>
+                    <span class="server-picker-badge badge-server-pill">${escapeHtml(s.os_type || 'server')}</span>
+                </div>`;
+            });
+        }
+
+        if (!hasAny) {
+            html = '<div class="server-picker-info">No servers or groups found</div>';
+        }
+        dropdown.innerHTML = html;
+        dropdown.classList.remove('hidden');
+    }
+
+    function showServerDropdown() {
+        performServerSearch();
+    }
+
+    function hideServerDropdown() {
+        setTimeout(() => document.getElementById('serverDropdown').classList.add('hidden'), 160);
+    }
+
+    function selectServer(id, name, hostname) {
+        if (selectedServerItems.some(i => i.type === 'server' && i.id === id)) return;
+        selectedServerItems.push({ type: 'server', id, name, hostname });
+        renderServerChips();
+        document.getElementById('serverSearchInput').value = '';
+        document.getElementById('serverDropdown').classList.add('hidden');
+        updateServerSummary();
+        updateExecuteButtonLabel();
+    }
+
+    function selectServerGroup(id, name, serverCount) {
+        if (selectedServerItems.some(i => i.type === 'group' && i.id === id)) return;
+        selectedServerItems.push({ type: 'group', id, name, serverCount });
+        renderServerChips();
+        document.getElementById('serverSearchInput').value = '';
+        document.getElementById('serverDropdown').classList.add('hidden');
+        updateServerSummary();
+        updateExecuteButtonLabel();
+    }
+
+    function removeSelectedItem(idx) {
+        selectedServerItems.splice(idx, 1);
+        renderServerChips();
+        updateServerSummary();
+        updateExecuteButtonLabel();
+    }
+
+    function clearAllServers() {
+        selectedServerItems = [];
+        renderServerChips();
+        updateServerSummary();
+        updateExecuteButtonLabel();
+    }
+
+    function renderServerChips() {
+        const container = document.getElementById('serverChips');
+        if (!container) return;
+        const clearBtn = document.getElementById('serverPickerClearBtn');
+        container.innerHTML = selectedServerItems.map((item, idx) => {
+            const isGroup = item.type === 'group';
+            const icon = isGroup ? 'fa-layer-group' : 'fa-server';
+            const label = isGroup
+                ? escapeHtml(item.name) + ' <span style="opacity:.75">(' + (item.serverCount || 0) + ')</span>'
+                : escapeHtml(item.name);
+            return `<span class="server-chip${isGroup ? ' is-group' : ''}">
+                <i class="fas ${icon}" style="font-size:10px;opacity:.85"></i>
+                <span class="server-chip-name">${label}</span>
+                <span class="server-chip-remove" onmousedown="event.preventDefault();removeSelectedItem(${idx})" title="Remove"><i class="fas fa-times"></i></span>
+            </span>`;
+        }).join('');
+        if (clearBtn) clearBtn.classList.toggle('hidden', selectedServerItems.length === 0);
+    }
+
+    function updateServerSummary() {
+        const el = document.getElementById('serverSummary');
+        if (!el) return;
+        const groups = selectedServerItems.filter(i => i.type === 'group');
+        const servers = selectedServerItems.filter(i => i.type === 'server');
+        const groupServerCount = groups.reduce((s, g) => s + (g.serverCount || 0), 0);
+        const totalApprox = servers.length + groupServerCount;
+        if (selectedServerItems.length === 0) {
+            el.textContent = 'No target selected — will use runbook default or alert-derived target.';
+        } else {
+            const parts = [];
+            if (servers.length > 0) parts.push(servers.length + ' server' + (servers.length !== 1 ? 's' : ''));
+            if (groups.length > 0) parts.push(groups.length + ' group' + (groups.length !== 1 ? 's' : '') + ' (~' + groupServerCount + ' servers)');
+            el.textContent = 'Will execute on: ' + parts.join(', ') + ' — ' + totalApprox + ' execution' + (totalApprox !== 1 ? 's' : '') + ' queued.';
+        }
+    }
+
+    function updateExecuteButtonLabel() {
+        const label = document.getElementById('executeSubmitLabel');
+        if (!label) return;
+        const groups = selectedServerItems.filter(i => i.type === 'group');
+        const servers = selectedServerItems.filter(i => i.type === 'server');
+        if (selectedServerItems.length === 0) {
+            label.textContent = 'Execute';
+        } else {
+            const total = servers.length + groups.reduce((s, g) => s + (g.serverCount || 0), 0);
+            label.textContent = 'Execute on ~' + total + ' target' + (total !== 1 ? 's' : '');
         }
     }
 
@@ -1156,11 +1660,11 @@
                 <td class="px-4 py-3">
                     <div class="flex items-center gap-2">
                         <i class="fas ${icon.icon}" style="color: ${icon.color}"></i>
-                        <div class="font-medium text-[#1e40af] cursor-pointer hover:text-blue-500 hover:underline" onclick='viewRunbook(${JSON.stringify(rb.id)})'>
+                        <div class="font-medium text-blue-600 cursor-pointer hover:text-blue-500 hover:underline" onclick='viewRunbook(${JSON.stringify(rb.id)})'>
                             ${escapeHtml(runbookName)}
                         </div>
                     </div>
-                    ${rb.description ? `<div class="text-xs text-[#94a3b8] mt-0.5 truncate max-w-xs pl-6">${escapeHtml(rb.description)}</div>` : ''}
+                    ${rb.description ? `<div class="text-xs text-secondary mt-0.5 truncate max-w-xs pl-6">${escapeHtml(rb.description)}</div>` : ''}
                 </td>
                 <td class="px-4 py-3">
                     <span class="badge ${badgeClass}">${runbookStatus.toUpperCase()}</span>
@@ -1588,98 +2092,125 @@
         document.getElementById('viewModal').classList.add('hidden');
     }
 
-    function populateServerOptions(selectedId = '') {
-        const select = document.getElementById('executeServerId');
-        if (!select) return;
-        const options = [
-            '<option value="">Use runbook default / alert context</option>'
-        ];
-        servers.forEach(server => {
-            options.push(`<option value="${server.id}">${escapeHtml(server.name)} (${escapeHtml(server.hostname)})</option>`);
-        });
-        select.innerHTML = options.join('');
-        if (selectedId) {
-            select.value = selectedId;
-        }
-    }
-
     function openExecuteModal(id, name) {
         document.getElementById('executeRunbookId').value = id;
         document.getElementById('executeMessage').textContent = `Execute runbook: ${name}`;
-        document.getElementById('executeServerId').value = '';
         document.getElementById('executeDryRun').checked = false;
         document.getElementById('executeParams').value = '';
-        populateServerOptions();
+        // Reset server picker
+        selectedServerItems = [];
+        renderServerChips();
+        updateServerSummary();
+        updateExecuteButtonLabel();
+        document.getElementById('serverSearchInput').value = '';
+        document.getElementById('serverDropdown').classList.add('hidden');
         document.getElementById('executeModal').classList.remove('hidden');
 
-        // Fetch runbook details to detect default server selection (best effort)
+        // Pre-select default server if the runbook has one
         fetch(`/api/remediation/runbooks/${id}`)
             .then(resp => resp.ok ? resp.json() : null)
             .then(rb => {
                 if (rb && rb.default_server_id) {
-                    populateServerOptions(rb.default_server_id);
+                    return fetch(`/api/servers?limit=500`).then(r => r.ok ? r.json() : []).then(all => {
+                        const s = all.find(sv => String(sv.id) === String(rb.default_server_id));
+                        if (s) selectServer(String(s.id), s.name, s.hostname || '');
+                    });
                 }
             })
-            .catch(() => {
-                // Ignore—server dropdown stays on manual selection
-            });
+            .catch(() => {});
     }
 
     function closeExecuteModal() {
         document.getElementById('executeModal').classList.add('hidden');
+        document.getElementById('serverDropdown').classList.add('hidden');
     }
 
     async function executeRunbook(event) {
         event.preventDefault();
 
         const id = document.getElementById('executeRunbookId').value;
-        const serverId = document.getElementById('executeServerId').value;
         const dryRun = document.getElementById('executeDryRun').checked;
         let params = {};
 
         try {
             const paramsText = document.getElementById('executeParams').value;
-            if (paramsText.trim()) {
-                params = JSON.parse(paramsText);
-            }
+            if (paramsText.trim()) params = JSON.parse(paramsText);
         } catch (e) {
             showToast('Invalid JSON in parameters', 'error');
             return;
         }
 
-        try {
-            const response = await fetch(`/api/remediation/executions?runbook_id=${id}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    server_id: serverId || null,
-                    alert_id: null,
-                    dry_run: dryRun,
-                    variables: params,
-                    bypass_cooldown: false,
-                    bypass_blackout: false
-                })
-            });
-
-            if (response.ok) {
-                const result = await response.json();
-                closeExecuteModal();
-                // Redirect to executions page to see status/approval
-                window.location.href = '/executions';
-            } else {
-                let errorDetail = 'Failed to execute runbook';
-                try {
-                    const error = await response.json();
-                    errorDetail = error.detail || error.message || errorDetail;
-                } catch (err) {
-                    // ignore parse errors
+        // Expand groups → individual server IDs
+        const serverIds = [];
+        for (const item of selectedServerItems.filter(i => i.type === 'group')) {
+            try {
+                const resp = await fetch(`/api/servers/by-group/${item.id}`);
+                if (resp.ok) {
+                    const gs = await resp.json();
+                    gs.forEach(s => { if (!serverIds.includes(s.id)) serverIds.push(s.id); });
+                } else {
+                    showToast(`Could not expand group "${item.name}"`, 'error');
+                    return;
                 }
-                showToast(errorDetail, 'error');
+            } catch (e) {
+                showToast(`Error expanding group "${item.name}"`, 'error');
+                return;
             }
-        } catch (error) {
-            console.error('Error executing runbook:', error);
-            showToast('Error executing runbook', 'error');
         }
+        for (const item of selectedServerItems.filter(i => i.type === 'server')) {
+            if (!serverIds.includes(item.id)) serverIds.push(item.id);
+        }
+
+        // No selection → single execution with null server (use runbook default)
+        if (serverIds.length === 0) serverIds.push(null);
+
+        const submitBtn = document.getElementById('executeSubmitBtn');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Queueing…';
+
+        let successCount = 0;
+        let failCount = 0;
+        const errors = [];
+
+        for (const serverId of serverIds) {
+            try {
+                const response = await fetch(`/api/remediation/executions?runbook_id=${id}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        server_id: serverId,
+                        alert_id: null,
+                        dry_run: dryRun,
+                        variables: params,
+                        bypass_cooldown: false,
+                        bypass_blackout: false
+                    })
+                });
+                if (response.ok) {
+                    successCount++;
+                } else {
+                    failCount++;
+                    const err = await response.json().catch(() => ({}));
+                    errors.push(err.detail || err.message || 'Unknown error');
+                }
+            } catch (e) {
+                failCount++;
+                errors.push(e.message || 'Network error');
+            }
+        }
+
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fas fa-play mr-2"></i><span id="executeSubmitLabel">Execute</span>';
+        closeExecuteModal();
+
+        if (failCount === 0) {
+            showToast(`${successCount} execution${successCount !== 1 ? 's' : ''} queued successfully`, 'success');
+        } else if (successCount > 0) {
+            showToast(`${successCount} queued, ${failCount} failed: ${errors.slice(0,2).join('; ')}`, 'warning');
+        } else {
+            showToast('Execution failed: ' + (errors[0] || 'Unknown error'), 'error');
+        }
+        if (successCount > 0) window.location.href = '/executions';
     }
 
     // Custom confirmation modal
@@ -1843,6 +2374,244 @@
     }
 
     // ============================================================================
+    // TAB NAVIGATION
+    // ============================================================================
+    function switchMainTab(tab) {
+        ['runbooks', 'git-sync'].forEach(t => {
+            const btn = document.getElementById('tab-' + t);
+            const panel = document.getElementById('panel-' + t);
+            if (t === tab) {
+                btn.classList.add('border-blue-500', 'text-blue-600');
+                btn.classList.remove('border-transparent', 'text-secondary');
+                panel.classList.remove('hidden');
+            } else {
+                btn.classList.remove('border-blue-500', 'text-blue-600');
+                btn.classList.add('border-transparent', 'text-secondary');
+                panel.classList.add('hidden');
+            }
+        });
+        if (tab === 'git-sync') loadGitSyncConfigs();
+    }
+
+    // ============================================================================
+    // GIT SYNC
+    // ============================================================================
+    let editingGitSyncId = null;
+
+    function openGitSyncModal(cfg) {
+        editingGitSyncId = cfg ? cfg.id : null;
+        document.getElementById('gitSyncModalTitle').textContent = cfg ? 'Edit Repository' : 'Add Git Repository';
+        document.getElementById('gitSyncConfigId').value = cfg ? cfg.id : '';
+        document.getElementById('gsName').value = cfg ? cfg.name : '';
+        document.getElementById('gsRepoUrl').value = cfg ? cfg.repo_url : '';
+        document.getElementById('gsBranch').value = cfg ? cfg.branch : 'main';
+        document.getElementById('gsPathPrefix').value = cfg ? (cfg.path_prefix || '') : '';
+        document.getElementById('gsAuthType').value = cfg ? cfg.auth_type : 'none';
+        document.getElementById('gsToken').value = '';
+        document.getElementById('gsUsername').value = cfg ? (cfg.username || '') : '';
+        document.getElementById('gsPassword').value = '';
+        document.getElementById('gsSshKey').value = '';
+        document.getElementById('gsSyncInterval').value = cfg ? cfg.sync_interval_minutes : 60;
+        document.getElementById('gsOverwrite').checked = cfg ? cfg.overwrite_existing : true;
+        document.getElementById('gsEnabled').checked = cfg ? cfg.enabled : true;
+        toggleGitAuthFields();
+        document.getElementById('gitSyncModal').classList.remove('hidden');
+    }
+
+    function closeGitSyncModal() {
+        document.getElementById('gitSyncModal').classList.add('hidden');
+        editingGitSyncId = null;
+    }
+
+    // Escape closes the git sync modal
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+            const m = document.getElementById('gitSyncModal');
+            if (m && !m.classList.contains('hidden')) { closeGitSyncModal(); return; }
+        }
+    });
+
+    function toggleGitAuthFields() {
+        const t = document.getElementById('gsAuthType').value;
+        document.getElementById('gsAuthToken').classList.toggle('hidden', t !== 'token');
+        document.getElementById('gsAuthBasic').classList.toggle('hidden', t !== 'basic');
+        document.getElementById('gsAuthSsh').classList.toggle('hidden', t !== 'ssh');
+    }
+
+    async function loadGitSyncConfigs() {
+        try {
+            const res = await fetch('/api/remediation/git-sync');
+            if (!res.ok) throw new Error('Failed to load');
+            const configs = await res.json();
+            renderGitSyncConfigs(configs);
+        } catch (e) {
+            console.error('Git sync load error:', e);
+            showToast('Failed to load git sync configs', 'error');
+        }
+    }
+
+    function gitSyncStatusBadge(status) {
+        const map = {
+            never:   ['bg-gray-100 text-gray-600',   'Never synced'],
+            pending: ['bg-yellow-100 text-yellow-700','Pending'],
+            running: ['bg-blue-100 text-blue-700',   '⏳ Running'],
+            success: ['bg-green-100 text-green-700',  '✓ Success'],
+            error:   ['bg-red-100 text-red-700',      '✗ Error'],
+        };
+        const [cls, label] = map[status] || ['bg-gray-100 text-gray-500', status];
+        return `<span class="px-2 py-0.5 rounded text-xs font-medium ${cls}">${label}</span>`;
+    }
+
+    function renderGitSyncConfigs(configs) {
+        const list  = document.getElementById('gitSyncList');
+        const empty = document.getElementById('gitSyncEmpty');
+        if (!configs.length) { list.innerHTML = ''; empty.classList.remove('hidden'); return; }
+        empty.classList.add('hidden');
+        list.innerHTML = configs.map(cfg => {
+            const authLabel = {none:'Public', token:'Token', basic:'Basic', ssh:'SSH'}[cfg.auth_type] || cfg.auth_type;
+            const lastSync  = cfg.last_sync_at ? new Date(cfg.last_sync_at).toLocaleString() : 'Never';
+            const enabledBadge = cfg.enabled
+                ? '<span class="px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">Enabled</span>'
+                : '<span class="px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-500">Disabled</span>';
+            return `
+            <div class="card p-4" id="gs-card-${cfg.id}">
+                <div class="flex items-start justify-between gap-4 flex-wrap">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 flex-wrap mb-1">
+                            <span class="font-semibold text-primary">${escapeHtml(cfg.name)}</span>
+                            ${enabledBadge}
+                            ${gitSyncStatusBadge(cfg.last_sync_status)}
+                        </div>
+                        <div class="text-sm text-secondary font-mono truncate" title="${escapeHtml(cfg.repo_url)}">
+                            <i class="fab fa-git-alt mr-1"></i>${escapeHtml(cfg.repo_url)}
+                        </div>
+                        <div class="flex flex-wrap gap-4 mt-2 text-xs text-secondary">
+                            <span><i class="fas fa-code-branch mr-1"></i>${escapeHtml(cfg.branch)}</span>
+                            ${cfg.path_prefix ? `<span><i class="fas fa-folder mr-1"></i>${escapeHtml(cfg.path_prefix)}</span>` : ''}
+                            <span><i class="fas fa-key mr-1"></i>${authLabel}</span>
+                            <span><i class="fas fa-clock mr-1"></i>Every ${cfg.sync_interval_minutes} min</span>
+                            <span><i class="fas fa-history mr-1"></i>Last: ${lastSync}</span>
+                            ${cfg.runbooks_synced ? `<span><i class="fas fa-book mr-1"></i>${cfg.runbooks_synced} synced</span>` : ''}
+                        </div>
+                        ${cfg.last_sync_message ? `<div class="mt-1 text-xs ${cfg.last_sync_status === 'error' ? 'text-red-500' : 'text-secondary'}">${escapeHtml(cfg.last_sync_message)}</div>` : ''}
+                    </div>
+                    <div class="flex items-center gap-2 flex-shrink-0">
+                        <button onclick='triggerGitSync("${cfg.id}", "${escapeHtml(cfg.name)}")'
+                            id="sync-btn-${cfg.id}"
+                            class="runbook-action-btn runbook-action-secondary px-3 py-1.5 text-xs" title="Sync now">
+                            <i class="fas fa-sync"></i><span class="hidden sm:inline ml-1">Sync Now</span>
+                        </button>
+                        <button onclick='openGitSyncModal(${JSON.stringify(cfg).replace(/'/g, "\\'")})'
+                            class="runbook-action-btn runbook-action-secondary px-3 py-1.5 text-xs" title="Edit">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button onclick='deleteGitSyncConfig("${cfg.id}", "${escapeHtml(cfg.name)}")'
+                            class="runbook-action-btn runbook-action-secondary px-3 py-1.5 text-xs text-red-400 hover:text-red-500 hover:border-red-400" title="Delete">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    async function saveGitSyncConfig(event) {
+        event.preventDefault();
+        const id = document.getElementById('gitSyncConfigId').value;
+        const isEdit = !!id;
+
+        const payload = {
+            name: document.getElementById('gsName').value.trim(),
+            repo_url: document.getElementById('gsRepoUrl').value.trim(),
+            branch: document.getElementById('gsBranch').value.trim() || 'main',
+            path_prefix: document.getElementById('gsPathPrefix').value.trim() || null,
+            auth_type: document.getElementById('gsAuthType').value,
+            sync_interval_minutes: parseInt(document.getElementById('gsSyncInterval').value, 10),
+            overwrite_existing: document.getElementById('gsOverwrite').checked,
+            enabled: document.getElementById('gsEnabled').checked,
+        };
+
+        const token    = document.getElementById('gsToken').value;
+        const password = document.getElementById('gsPassword').value;
+        const sshKey   = document.getElementById('gsSshKey').value;
+        const username = document.getElementById('gsUsername').value.trim();
+
+        if (payload.auth_type === 'token'  && token)   payload.token    = token;
+        if (payload.auth_type === 'basic') {
+            if (username)  payload.username = username;
+            if (password)  payload.password = password;
+        }
+        if (payload.auth_type === 'ssh' && sshKey) payload.ssh_key = sshKey;
+
+        const btn = document.getElementById('gitSyncSubmitBtn');
+        const orig = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Saving...';
+
+        try {
+            const url    = isEdit ? `/api/remediation/git-sync/${id}` : '/api/remediation/git-sync';
+            const method = isEdit ? 'PUT' : 'POST';
+            const res    = await fetch(url, {method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)});
+            if (res.ok) {
+                showToast(isEdit ? 'Repository updated' : 'Repository added', 'success');
+                closeGitSyncModal();
+                loadGitSyncConfigs();
+            } else {
+                let detail = 'Failed to save';
+                try { const err = await res.json(); detail = err.detail || detail; } catch (_) {}
+                showToast(detail, 'error');
+            }
+        } catch (e) {
+            console.error('Save git sync error:', e);
+            showToast('Error saving configuration', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = orig;
+        }
+    }
+
+    async function triggerGitSync(id, name) {
+        const btn = document.getElementById('sync-btn-' + id);
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span class="hidden sm:inline ml-1">Syncing...</span>'; }
+        try {
+            const res = await fetch(`/api/remediation/git-sync/${id}/sync`, {method: 'POST'});
+            if (res.ok) {
+                const result = await res.json();
+                const msg = result.errors.length
+                    ? `Sync errors: ${result.errors[0]}`
+                    : `Synced ${result.runbooks_synced} runbook(s) (${result.runbooks_created} new, ${result.runbooks_updated} updated)`;
+                showToast(msg, result.errors.length ? 'error' : 'success');
+                loadGitSyncConfigs();
+            } else {
+                let detail = 'Sync failed';
+                try { const err = await res.json(); detail = err.detail || detail; } catch (_) {}
+                showToast(detail, 'error');
+                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-sync"></i><span class="hidden sm:inline ml-1">Sync Now</span>'; }
+            }
+        } catch (e) {
+            console.error('Trigger sync error:', e);
+            showToast('Error triggering sync', 'error');
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-sync"></i><span class="hidden sm:inline ml-1">Sync Now</span>'; }
+        }
+    }
+
+    function deleteGitSyncConfig(id, name) {
+        showConfirmModal(
+            'Delete Git Sync Config',
+            `Remove the repository "${name}"? This will not delete any already-imported runbooks.`,
+            'Delete',
+            'bg-red-600 hover:bg-red-700 text-white',
+            async () => {
+                try {
+                    const res = await fetch(`/api/remediation/git-sync/${id}`, {method: 'DELETE'});
+                    if (res.ok) { showToast('Repository removed', 'success'); loadGitSyncConfigs(); }
+                    else showToast('Failed to delete', 'error');
+                } catch (e) { showToast('Error deleting', 'error'); }
+            }
+        );
+    }
+
+    // ============================================================================
     // IMPORT/EXPORT YAML
     // ============================================================================
     function openImportModal() {
@@ -1855,6 +2624,16 @@
     function closeImportModal() {
         document.getElementById('importModal').classList.add('hidden');
     }
+
+    // Close import modal on Escape key
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+            const importModal = document.getElementById('importModal');
+            if (!importModal.classList.contains('hidden')) {
+                closeImportModal();
+            }
+        }
+    });
 
     function handleFileUpload(event) {
         const file = event.target.files[0];
@@ -1878,6 +2657,11 @@
             return;
         }
 
+        const submitBtn = document.getElementById('importSubmitBtn');
+        const originalHtml = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Importing...';
+
         try {
             const response = await fetch('/api/remediation/runbooks/import', {
                 method: 'POST',
@@ -1899,12 +2683,19 @@
                     showToast(result.errors.join(', ') || 'Import failed', 'error');
                 }
             } else {
-                const error = await response.json();
-                showToast(error.detail || 'Failed to import runbook', 'error');
+                let detail = 'Failed to import runbook';
+                try {
+                    const err = await response.json();
+                    detail = err.detail || detail;
+                } catch (_) { /* non-JSON error body */ }
+                showToast(detail, 'error');
             }
         } catch (error) {
             console.error('Import error:', error);
             showToast('Error importing runbook', 'error');
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalHtml;
         }
     }
 

@@ -13,6 +13,68 @@
 <span class="text-gray-200">Schedules</span>
 {% endblock %}
 
+{% block head %}
+<style>
+    /* ── Server Picker Widget ────────────────────────────────────── */
+    .server-picker-widget {
+        position: relative;
+        min-height: 38px;
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        background: var(--bg-input, var(--bg-surface));
+        padding: 4px 8px;
+        cursor: text;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+    .server-picker-widget:focus-within { border-color: var(--color-primary, #3b82f6); box-shadow: 0 0 0 2px rgba(59,130,246,0.18); }
+    .server-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+    .server-chip {
+        display: inline-flex; align-items: center; gap: 4px;
+        background: rgba(59,130,246,0.13); border: 1px solid rgba(59,130,246,0.3);
+        border-radius: 4px; padding: 2px 6px; font-size: 12px; color: var(--text-primary);
+    }
+    .server-chip.is-group { background: rgba(124,58,237,0.12); border-color: rgba(124,58,237,0.3); }
+    .server-chip-name { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .server-chip-remove { cursor: pointer; opacity: .6; font-size: 10px; padding: 0 1px; }
+    .server-chip-remove:hover { opacity: 1; }
+    .server-picker-input-row { display: flex; align-items: center; gap: 4px; padding: 2px 2px; }
+    .server-picker-input-row input {
+        flex: 1; border: none; background: transparent; outline: none;
+        padding: 4px 4px; font-size: 13px; color: var(--text-primary); min-width: 120px;
+    }
+    .server-picker-clear { cursor: pointer; color: var(--text-secondary); font-size: 14px; padding: 2px; }
+    .server-picker-clear:hover { color: var(--text-primary); }
+    .server-picker-dropdown {
+        position: absolute; left: 0; right: 0; top: calc(100% + 4px);
+        background: var(--bg-surface); border: 1px solid var(--border-color);
+        border-radius: 6px; box-shadow: 0 4px 20px rgba(0,0,0,0.18);
+        z-index: 9999; max-height: 272px; overflow-y: auto;
+        scrollbar-width: thin; scrollbar-color: rgba(148,163,184,0.35) transparent;
+    }
+    .server-picker-section-label {
+        padding: 6px 12px 3px; font-size: 10px; font-weight: 700;
+        text-transform: uppercase; letter-spacing: 0.06em;
+        color: var(--text-secondary); border-bottom: 1px solid var(--border-color);
+    }
+    .server-picker-option {
+        display: flex; align-items: center; gap: 8px; padding: 7px 12px;
+        cursor: pointer; font-size: 13px; color: var(--text-primary); transition: background 0.1s;
+    }
+    .server-picker-option:hover { background: rgba(59,130,246,0.08); }
+    .server-picker-option.already-selected { opacity: 0.4; pointer-events: none; }
+    .server-picker-opt-icon { width: 18px; text-align: center; flex-shrink: 0; }
+    .server-picker-opt-main { flex: 1; overflow: hidden; }
+    .server-picker-opt-name { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .server-picker-opt-sub { font-size: 11px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .server-picker-badge { font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 8px; flex-shrink: 0; }
+    .badge-group-pill { background: rgba(124,58,237,0.13); color: #7c3aed; }
+    .badge-server-pill { background: rgba(37,99,235,0.13); color: #2563eb; }
+    .server-picker-info { padding: 10px 14px; font-size: 13px; color: var(--text-secondary); }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="space-y-4">
     <!-- Toolbar with Search, Filters and Refresh -->
@@ -112,192 +174,212 @@
 </div>
 
 <!-- Create/Edit Schedule Modal -->
-<div id="scheduleModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
-    <div class="card p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div class="flex items-center justify-between mb-6">
-            <h2 class="text-xl font-bold text-primary" id="modalTitle">Create Schedule</h2>
-            <button onclick="closeScheduleModal()" class="text-secondary hover:text-primary">
-                <i class="fas fa-times text-xl"></i>
+<div id="scheduleModal" class="modal-overlay" onclick="handleScheduleOverlayClick(event)">
+    <div class="modal-container" style="max-width:680px;width:92%;max-height:90vh;display:flex;flex-direction:column;">
+        <div class="modal-header flex-shrink-0">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-lg flex items-center justify-center" style="background:rgba(59,130,246,0.12);">
+                    <i class="fas fa-calendar-alt" style="color:var(--color-info,#3b82f6);font-size:15px;"></i>
+                </div>
+                <h3 id="modalTitle" class="modal-title">Create Schedule</h3>
+            </div>
+            <button type="button" onclick="closeScheduleModal()" class="modal-close-btn" aria-label="Close">
+                <i class="fas fa-times" style="font-size:14px;"></i>
             </button>
         </div>
 
-        <form id="scheduleForm" onsubmit="saveSchedule(event)">
+        <form id="scheduleForm" onsubmit="saveSchedule(event)" class="flex-1 min-h-0 flex flex-col">
             <input type="hidden" id="scheduleId">
 
-            <!-- Runbook Selection -->
-            <div class="mb-4">
-                <label class="block text-secondary text-sm mb-1">
-                    Runbook *
-                    <span class="info-tooltip info-tooltip-align-left info-tooltip-bottom">
-                        <span class="info-tooltip-icon">?</span>
-                        <span class="info-tooltip-text">The runbook to execute on this schedule.</span>
-                    </span>
-                </label>
-                <select id="runbookId" required class="input-field w-full px-3 py-2 rounded">
-                    <option value="">Select a runbook...</option>
-                </select>
-            </div>
+            <div class="modal-body flex-1 overflow-y-auto" style="scrollbar-width:thin;scrollbar-color:rgba(148,163,184,0.35) transparent;">
 
-            <!-- Schedule Name -->
-            <div class="mb-4">
-                <label class="block text-secondary text-sm mb-1">
-                    Schedule Name *
-                    <span class="info-tooltip info-tooltip-align-left">
-                        <span class="info-tooltip-icon">?</span>
-                        <span class="info-tooltip-text">A descriptive name for this schedule.</span>
-                    </span>
-                </label>
-                <input type="text" id="scheduleName" required class="input-field w-full px-3 py-2 rounded"
-                    placeholder="e.g., Daily Database Cleanup">
-            </div>
-
-            <!-- Description -->
-            <div class="mb-4">
-                <label class="block text-secondary text-sm mb-1">
-                    Description
-                    <span class="info-tooltip info-tooltip-align-left">
-                        <span class="info-tooltip-icon">?</span>
-                        <span class="info-tooltip-text">Optional details about this schedule.</span>
-                    </span>
-                </label>
-                <textarea id="scheduleDescription" rows="2" class="input-field w-full px-3 py-2 rounded"
-                    placeholder="Optional description"></textarea>
-            </div>
-
-            <!-- Schedule Type -->
-            <div class="mb-4">
-                <label class="block text-secondary text-sm mb-1">
-                    Schedule Type *
-                    <span class="info-tooltip info-tooltip-align-left">
-                        <span class="info-tooltip-icon">?</span>
-                        <span class="info-tooltip-text"><strong>Cron:</strong> Complex
-                            recurrence.<br><strong>Interval:</strong> Fixed frequency.<br><strong>One-time:</strong>
-                            Single execution.</span>
-                    </span>
-                </label>
-                <div class="grid grid-cols-3 gap-2">
-                    <button type="button" onclick="setScheduleType('cron')"
-                        class="schedule-type-btn p-3 rounded transition" style="border: 1px solid var(--border-color);"
-                        data-type="cron">
-                        <i class="fas fa-clock block text-2xl mb-1"></i>
-                        <span class="text-sm">Cron</span>
-                    </button>
-                    <button type="button" onclick="setScheduleType('interval')"
-                        class="schedule-type-btn p-3 rounded transition" style="border: 1px solid var(--border-color);"
-                        data-type="interval">
-                        <i class="fas fa-sync block text-2xl mb-1"></i>
-                        <span class="text-sm">Interval</span>
-                    </button>
-                    <button type="button" onclick="setScheduleType('date')"
-                        class="schedule-type-btn p-3 rounded transition" style="border: 1px solid var(--border-color);"
-                        data-type="date">
-                        <i class="fas fa-calendar-day block text-2xl mb-1"></i>
-                        <span class="text-sm">One-time</span>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Cron Configuration -->
-            <div id="cronConfig" class="hidden mb-4">
-                <label class="block text-secondary text-sm mb-2">
-                    Cron Expression *
-                    <span class="info-tooltip info-tooltip-align-left">
-                        <span class="info-tooltip-icon">?</span>
-                        <span class="info-tooltip-text">Standard cron format (min hour day month wday).</span>
-                    </span>
-                </label>
-                <input type="text" id="cronExpression"
-                    class="input-field w-full px-3 py-2 rounded font-mono text-sm mb-2" placeholder="0 2 * * *">
-                <div class="grid grid-cols-2 gap-2 mb-2">
-                    <button type="button" onclick="setCronPreset('0 * * * *')"
-                        class="btn-secondary px-2 py-1 text-xs rounded">Every Hour</button>
-                    <button type="button" onclick="setCronPreset('0 */6 * * *')"
-                        class="btn-secondary px-2 py-1 text-xs rounded">Every 6 Hours</button>
-                    <button type="button" onclick="setCronPreset('0 2 * * *')"
-                        class="btn-secondary px-2 py-1 text-xs rounded">Daily at 2 AM</button>
-                    <button type="button" onclick="setCronPreset('0 0 * * 0')"
-                        class="btn-secondary px-2 py-1 text-xs rounded">Weekly (Sunday)</button>
-                </div>
-                <p class="text-xs text-secondary" id="cronDescription">-</p>
-            </div>
-
-            <!-- Interval Configuration -->
-            <div id="intervalConfig" class="hidden mb-4">
-                <label class="block text-secondary text-sm mb-1">
-                    Run Every *
-                    <span class="info-tooltip info-tooltip-align-left">
-                        <span class="info-tooltip-icon">?</span>
-                        <span class="info-tooltip-text">Frequency of execution (e.g., every 5 minutes).</span>
-                    </span>
-                </label>
-                <div class="grid grid-cols-2 gap-2">
-                    <input type="number" id="intervalValue" min="1" class="input-field px-3 py-2 rounded"
-                        placeholder="5">
-                    <select id="intervalUnit" class="input-field px-3 py-2 rounded">
-                        <option value="60">Minutes</option>
-                        <option value="3600">Hours</option>
-                        <option value="86400">Days</option>
+                <!-- Runbook Selection -->
+                <div class="mb-4">
+                    <label class="block text-sm font-medium mb-1" style="color:var(--text-secondary);">
+                        Runbook *
+                        <span class="info-tooltip info-tooltip-align-left info-tooltip-bottom">
+                            <span class="info-tooltip-icon">?</span>
+                            <span class="info-tooltip-text">The runbook to execute on this schedule.</span>
+                        </span>
+                    </label>
+                    <select id="runbookId" required class="settings-input w-full">
+                        <option value="">Select a runbook...</option>
                     </select>
                 </div>
-            </div>
 
-            <!-- Date Configuration -->
-            <div id="dateConfig" class="hidden mb-4">
-                <label class="block text-secondary text-sm mb-1">
-                    Run At *
-                    <span class="info-tooltip info-tooltip-align-left">
-                        <span class="info-tooltip-icon">?</span>
-                        <span class="info-tooltip-text">Specific date and time for a one-time execution.</span>
-                    </span>
-                </label>
-                <input type="datetime-local" id="runDate" class="input-field w-full px-3 py-2 rounded">
-            </div>
+                <!-- Schedule Name -->
+                <div class="mb-4">
+                    <label class="block text-sm font-medium mb-1" style="color:var(--text-secondary);">
+                        Schedule Name *
+                        <span class="info-tooltip info-tooltip-align-left">
+                            <span class="info-tooltip-icon">?</span>
+                            <span class="info-tooltip-text">A descriptive name for this schedule.</span>
+                        </span>
+                    </label>
+                    <input type="text" id="scheduleName" required class="settings-input w-full"
+                        placeholder="e.g., Daily Database Cleanup">
+                </div>
 
-            <!-- Timezone -->
-            <div class="mb-4">
-                <label class="block text-secondary text-sm mb-1">
-                    Timezone
-                    <span class="info-tooltip info-tooltip-align-left">
-                        <span class="info-tooltip-icon">?</span>
-                        <span class="info-tooltip-text">Timezone for the schedule execution time.</span>
-                    </span>
-                </label>
-                <select id="timezone" class="input-field w-full px-3 py-2 rounded">
-                    <option value="UTC">UTC</option>
-                    <option value="America/New_York">America/New_York (EST/EDT)</option>
-                    <option value="America/Chicago">America/Chicago (CST/CDT)</option>
-                    <option value="America/Denver">America/Denver (MST/MDT)</option>
-                    <option value="America/Los_Angeles">America/Los_Angeles (PST/PDT)</option>
-                    <option value="Europe/London">Europe/London (GMT/BST)</option>
-                    <option value="Asia/Tokyo">Asia/Tokyo (JST)</option>
-                </select>
-            </div>
+                <!-- Description -->
+                <div class="mb-4">
+                    <label class="block text-sm font-medium mb-1" style="color:var(--text-secondary);">
+                        Description
+                        <span class="info-tooltip info-tooltip-align-left">
+                            <span class="info-tooltip-icon">?</span>
+                            <span class="info-tooltip-text">Optional details about this schedule.</span>
+                        </span>
+                    </label>
+                    <textarea id="scheduleDescription" rows="2" class="settings-input w-full"
+                        placeholder="Optional description"></textarea>
+                </div>
 
-            <!-- Server Override -->
-            <div class="mb-4">
-                <label class="block text-secondary text-sm mb-1">
-                    Target Server (Optional)
-                    <span class="info-tooltip info-tooltip-align-left">
-                        <span class="info-tooltip-icon">?</span>
-                        <span class="info-tooltip-text">Override the runbook's default target server.</span>
-                    </span>
-                </label>
-                <select id="targetServer" class="input-field w-full px-3 py-2 rounded">
-                    <option value="">Use runbook default</option>
-                </select>
-            </div>
+                <!-- Schedule Type -->
+                <div class="mb-4">
+                    <label class="block text-sm font-medium mb-2" style="color:var(--text-secondary);">
+                        Schedule Type *
+                        <span class="info-tooltip info-tooltip-align-left">
+                            <span class="info-tooltip-icon">?</span>
+                            <span class="info-tooltip-text"><strong>Cron:</strong> Complex recurrence.<br><strong>Interval:</strong> Fixed frequency.<br><strong>One-time:</strong> Single execution.</span>
+                        </span>
+                    </label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button type="button" onclick="setScheduleType('cron')"
+                            class="schedule-type-btn p-3 rounded transition text-center" style="border:1px solid var(--border-color);"
+                            data-type="cron">
+                            <i class="fas fa-clock block text-xl mb-1"></i>
+                            <span class="text-sm font-medium">Cron</span>
+                        </button>
+                        <button type="button" onclick="setScheduleType('interval')"
+                            class="schedule-type-btn p-3 rounded transition text-center" style="border:1px solid var(--border-color);"
+                            data-type="interval">
+                            <i class="fas fa-sync block text-xl mb-1"></i>
+                            <span class="text-sm font-medium">Interval</span>
+                        </button>
+                        <button type="button" onclick="setScheduleType('date')"
+                            class="schedule-type-btn p-3 rounded transition text-center" style="border:1px solid var(--border-color);"
+                            data-type="date">
+                            <i class="fas fa-calendar-day block text-xl mb-1"></i>
+                            <span class="text-sm font-medium">One-time</span>
+                        </button>
+                    </div>
+                </div>
 
-            <!-- Enabled -->
-            <div class="mb-6 flex items-center gap-2">
-                <input type="checkbox" id="scheduleEnabled" checked class="h-4 w-4">
-                <label for="scheduleEnabled" class="text-sm text-secondary">Enable schedule immediately</label>
-            </div>
+                <!-- Cron Configuration -->
+                <div id="cronConfig" class="hidden mb-4">
+                    <label class="block text-sm font-medium mb-2" style="color:var(--text-secondary);">
+                        Cron Expression *
+                        <span class="info-tooltip info-tooltip-align-left">
+                            <span class="info-tooltip-icon">?</span>
+                            <span class="info-tooltip-text">Standard cron format (min hour day month wday).</span>
+                        </span>
+                    </label>
+                    <input type="text" id="cronExpression"
+                        class="settings-input w-full font-mono mb-2" placeholder="0 2 * * *"
+                        oninput="updateCronDescription()">
+                    <div class="grid grid-cols-2 gap-2 mb-2">
+                        <button type="button" onclick="setCronPreset('0 * * * *')"
+                            class="btn-secondary px-2 py-1 text-xs rounded">Every Hour</button>
+                        <button type="button" onclick="setCronPreset('0 */6 * * *')"
+                            class="btn-secondary px-2 py-1 text-xs rounded">Every 6 Hours</button>
+                        <button type="button" onclick="setCronPreset('0 2 * * *')"
+                            class="btn-secondary px-2 py-1 text-xs rounded">Daily at 2 AM</button>
+                        <button type="button" onclick="setCronPreset('0 0 * * 0')"
+                            class="btn-secondary px-2 py-1 text-xs rounded">Weekly (Sunday)</button>
+                    </div>
+                    <p class="text-xs" style="color:var(--text-muted,var(--text-secondary));" id="cronDescription">-</p>
+                </div>
 
-            <div class="flex justify-end gap-3">
-                <button type="button" onclick="closeScheduleModal()" class="btn-secondary px-4 py-2 rounded-lg">
-                    Cancel
-                </button>
-                <button type="submit" class="btn-primary px-4 py-2 rounded-lg">
+                <!-- Interval Configuration -->
+                <div id="intervalConfig" class="hidden mb-4">
+                    <label class="block text-sm font-medium mb-1" style="color:var(--text-secondary);">
+                        Run Every *
+                        <span class="info-tooltip info-tooltip-align-left">
+                            <span class="info-tooltip-icon">?</span>
+                            <span class="info-tooltip-text">Frequency of execution (e.g., every 5 minutes).</span>
+                        </span>
+                    </label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <input type="number" id="intervalValue" min="1" class="settings-input"
+                            placeholder="5">
+                        <select id="intervalUnit" class="settings-input">
+                            <option value="60">Minutes</option>
+                            <option value="3600">Hours</option>
+                            <option value="86400">Days</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Date Configuration -->
+                <div id="dateConfig" class="hidden mb-4">
+                    <label class="block text-sm font-medium mb-1" style="color:var(--text-secondary);">
+                        Run At *
+                        <span class="info-tooltip info-tooltip-align-left">
+                            <span class="info-tooltip-icon">?</span>
+                            <span class="info-tooltip-text">Specific date and time for a one-time execution.</span>
+                        </span>
+                    </label>
+                    <input type="datetime-local" id="runDate" class="settings-input w-full">
+                </div>
+
+                <!-- Timezone -->
+                <div class="mb-4">
+                    <label class="block text-sm font-medium mb-1" style="color:var(--text-secondary);">
+                        Timezone
+                        <span class="info-tooltip info-tooltip-align-left">
+                            <span class="info-tooltip-icon">?</span>
+                            <span class="info-tooltip-text">Timezone for the schedule execution time.</span>
+                        </span>
+                    </label>
+                    <select id="timezone" class="settings-input w-full">
+                        <option value="UTC">UTC</option>
+                        <option value="America/New_York">America/New_York (EST/EDT)</option>
+                        <option value="America/Chicago">America/Chicago (CST/CDT)</option>
+                        <option value="America/Denver">America/Denver (MST/MDT)</option>
+                        <option value="America/Los_Angeles">America/Los_Angeles (PST/PDT)</option>
+                        <option value="Europe/London">Europe/London (GMT/BST)</option>
+                        <option value="Asia/Tokyo">Asia/Tokyo (JST)</option>
+                    </select>
+                </div>
+
+                <!-- Server Override -->
+                <div class="mb-4">
+                    <label class="block text-sm font-medium mb-1" style="color:var(--text-secondary);">
+                        Target Servers
+                        <span class="text-xs" style="color:var(--text-muted,var(--text-secondary));">(Optional)</span>
+                        <span class="info-tooltip info-tooltip-align-left">
+                            <span class="info-tooltip-icon">?</span>
+                            <span class="info-tooltip-text">Search and select one or more servers or server groups. Leave empty to use the runbook's default target.</span>
+                        </span>
+                    </label>
+                    <div id="schedServerPickerWidget" class="server-picker-widget" onclick="document.getElementById('schedServerSearchInput').focus()">
+                        <div id="schedServerChips" class="server-chips"></div>
+                        <div class="server-picker-input-row">
+                            <input type="text" id="schedServerSearchInput"
+                                placeholder="Search servers or groups…"
+                                oninput="onSchedServerSearchInput()"
+                                onfocus="showSchedServerDropdown()"
+                                onblur="hideSchedServerDropdown()"
+                                autocomplete="off">
+                            <span id="schedServerPickerClearBtn" class="server-picker-clear hidden" onclick="clearAllSchedServers()" title="Clear all">
+                                <i class="fas fa-times-circle"></i>
+                            </span>
+                        </div>
+                        <div id="schedServerDropdown" class="server-picker-dropdown hidden"></div>
+                    </div>
+                    <div id="schedServerSummary" class="text-xs mt-1" style="color:var(--text-secondary)"></div>
+                </div>
+
+                <!-- Enabled -->
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" id="scheduleEnabled" checked class="h-4 w-4" style="accent-color:var(--color-primary,#3b82f6);">
+                    <label for="scheduleEnabled" class="text-sm" style="color:var(--text-secondary);">Enable schedule immediately</label>
+                </div>
+
+            </div><!-- /modal-body -->
+
+            <div class="modal-footer flex-shrink-0">
+                <button type="button" onclick="closeScheduleModal()" class="btn-secondary px-4 py-2 rounded">Cancel</button>
+                <button type="submit" class="btn-primary px-4 py-2 rounded">
                     <i class="fas fa-save mr-2"></i>Save Schedule
                 </button>
             </div>
@@ -306,36 +388,46 @@
 </div>
 
 <!-- History Modal -->
-<div id="historyModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
-    <div class="card p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto">
-        <div class="flex items-center justify-between mb-6">
-            <h2 class="text-xl font-bold text-primary">Execution History</h2>
-            <button onclick="closeHistoryModal()" class="text-secondary hover:text-primary">
-                <i class="fas fa-times text-xl"></i>
+<div id="historyModal" class="modal-overlay" onclick="handleHistoryOverlayClick(event)">
+    <div class="modal-container" style="max-width:720px;width:92%;max-height:90vh;display:flex;flex-direction:column;">
+        <div class="modal-header">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-lg flex items-center justify-center" style="background:rgba(168,85,247,0.12);">
+                    <i class="fas fa-history" style="color:var(--color-purple,#a855f7);font-size:15px;"></i>
+                </div>
+                <h3 class="modal-title">Execution History</h3>
+            </div>
+            <button type="button" onclick="closeHistoryModal()" class="modal-close-btn" aria-label="Close">
+                <i class="fas fa-times" style="font-size:14px;"></i>
             </button>
         </div>
-        <div id="historyContent"></div>
+        <div class="modal-body flex-1 overflow-y-auto" style="scrollbar-width:thin;scrollbar-color:rgba(148,163,184,0.35) transparent;">
+            <div id="historyContent"></div>
+        </div>
     </div>
-</div>
 </div>
 
 <!-- Confirmation Modal -->
-<div id="confirmModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
-    <div class="card p-6 w-full max-w-md">
-        <div class="flex items-center justify-between mb-4">
-            <h2 class="text-xl font-bold text-primary flex items-center gap-2" id="confirmModalTitle">
-                <i class="fas fa-exclamation-triangle text-yellow-400"></i>
-                Confirm Action
-            </h2>
-            <button onclick="closeConfirmModal()" class="text-secondary hover:text-primary">
-                <i class="fas fa-times text-xl"></i>
+<div id="confirmModal" class="modal-overlay" onclick="handleConfirmOverlayClick(event)">
+    <div class="modal-container" style="max-width:460px;width:92%;">
+        <div class="modal-header">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-full flex items-center justify-center" style="background:rgba(234,179,8,0.12);">
+                    <i class="fas fa-exclamation-triangle" style="color:#eab308;font-size:14px;"></i>
+                </div>
+                <h3 id="confirmModalTitle" class="modal-title">Confirm Action</h3>
+            </div>
+            <button type="button" onclick="closeConfirmModal()" class="modal-close-btn" aria-label="Close">
+                <i class="fas fa-times" style="font-size:14px;"></i>
             </button>
         </div>
-        <p class="text-secondary mb-6" id="confirmModalMessage">Are you sure?</p>
-        <div class="flex justify-end gap-3">
-            <button onclick="closeConfirmModal()" class="btn-secondary px-4 py-2 rounded-lg">Cancel</button>
-            <button id="confirmModalBtn"
-                class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg">Confirm</button>
+        <div class="modal-body">
+            <p id="confirmModalMessage" style="color:var(--text-secondary);">Are you sure?</p>
+        </div>
+        <div class="modal-footer">
+            <button type="button" onclick="closeConfirmModal()" class="btn-secondary px-4 py-2 rounded">Cancel</button>
+            <button id="confirmModalBtn" type="button"
+                class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded transition-colors">Confirm</button>
         </div>
     </div>
 </div>
@@ -346,13 +438,24 @@
     let schedules = [];
     let runbooks = [];
     let servers = [];
+    let schedServerGroups = [];
+    let selectedSchedServerItems = []; // [{type:'server'|'group', id, name, hostname?, serverCount?}]
+    let schedServerSearchTimer = null;
     let currentScheduleType = 'cron';
 
     document.addEventListener('DOMContentLoaded', function () {
         loadSchedules();
         loadRunbooks();
-        loadServers();
+        loadServersAndGroups();
         loadStats();
+    });
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+            if (document.getElementById('scheduleModal').classList.contains('active')) closeScheduleModal();
+            else if (document.getElementById('historyModal').classList.contains('active')) closeHistoryModal();
+            else if (document.getElementById('confirmModal').classList.contains('active')) closeConfirmModal();
+        }
     });
 
     async function loadSchedules() {
@@ -382,15 +485,17 @@
         }
     }
 
-    async function loadServers() {
+    async function loadServersAndGroups() {
         try {
-            const response = await fetch('/api/servers');
-            if (response.ok) {
-                servers = await response.json();
-                populateServerOptions();
-            }
+            const [sResp, gResp] = await Promise.all([
+                fetch('/api/servers?limit=500'),
+                fetch('/api/servers/groups')
+            ]);
+            if (sResp.ok) servers = await sResp.json();
+            if (gResp.ok) schedServerGroups = await gResp.json();
+            updateSchedServerSummary();
         } catch (error) {
-            console.error('Error loading servers:', error);
+            console.error('Error loading servers/groups:', error);
         }
     }
 
@@ -502,22 +607,162 @@
             runbooks.map(r => `<option value="${r.id}">${escapeHtml(r.name)}</option>`).join('');
     }
 
-    function populateServerOptions() {
-        const select = document.getElementById('targetServer');
-        select.innerHTML = '<option value="">Use runbook default</option>' +
-            servers.map(s => `<option value="${s.id}">${escapeHtml(s.hostname)}</option>`).join('');
+    // ── Sched Server Picker ──────────────────────────────────────────
+    function onSchedServerSearchInput() {
+        clearTimeout(schedServerSearchTimer);
+        schedServerSearchTimer = setTimeout(performSchedServerSearch, 260);
+    }
+
+    async function performSchedServerSearch() {
+        const q = document.getElementById('schedServerSearchInput').value.trim();
+        const dropdown = document.getElementById('schedServerDropdown');
+        dropdown.innerHTML = '<div class="server-picker-info"><i class="fas fa-spinner fa-spin mr-1"></i>Searching…</div>';
+        dropdown.classList.remove('hidden');
+        try {
+            const url = '/api/servers?limit=30' + (q ? '&search=' + encodeURIComponent(q) : '');
+            const resp = await fetch(url);
+            const serverResults = resp.ok ? await resp.json() : [];
+            const groupResults = q
+                ? schedServerGroups.filter(g => g.name.toLowerCase().includes(q.toLowerCase()) || (g.description||'').toLowerCase().includes(q.toLowerCase()))
+                : schedServerGroups;
+            renderSchedServerDropdown(groupResults, serverResults);
+        } catch (e) {
+            dropdown.innerHTML = '<div class="server-picker-info">Failed to load servers</div>';
+        }
+    }
+
+    function renderSchedServerDropdown(groups, serverList) {
+        const dropdown = document.getElementById('schedServerDropdown');
+        const selGroupIds = new Set(selectedSchedServerItems.filter(i => i.type === 'group').map(i => i.id));
+        const selServerIds = new Set(selectedSchedServerItems.filter(i => i.type === 'server').map(i => i.id));
+        let html = '';
+        let hasAny = false;
+
+        if (groups.length > 0) {
+            hasAny = true;
+            html += `<div class="server-picker-section-label"><i class="fas fa-layer-group mr-1"></i>Server Groups</div>`;
+            groups.forEach(g => {
+                const sel = selGroupIds.has(String(g.id));
+                const cnt = g.server_count || 0;
+                html += `<div class="server-picker-option${sel ? ' already-selected' : ''}" onmousedown="event.preventDefault();selectSchedServerGroup('${escapeHtml(String(g.id))}','${escapeHtml(g.name)}',${cnt})">
+                    <span class="server-picker-opt-icon" style="color:#7c3aed"><i class="fas fa-layer-group"></i></span>
+                    <span class="server-picker-opt-main">
+                        <div class="server-picker-opt-name">${escapeHtml(g.name)}</div>
+                        ${g.description ? `<div class="server-picker-opt-sub">${escapeHtml(g.description)}</div>` : ''}
+                    </span>
+                    <span class="server-picker-badge badge-group-pill">${cnt} server${cnt !== 1 ? 's' : ''}</span>
+                </div>`;
+            });
+        }
+
+        if (serverList.length > 0) {
+            hasAny = true;
+            html += `<div class="server-picker-section-label"><i class="fas fa-server mr-1"></i>Servers</div>`;
+            serverList.forEach(s => {
+                const sel = selServerIds.has(String(s.id));
+                const subLine = [s.hostname, s.environment].filter(Boolean).join(' · ');
+                html += `<div class="server-picker-option${sel ? ' already-selected' : ''}" onmousedown="event.preventDefault();selectSchedServer('${escapeHtml(String(s.id))}','${escapeHtml(s.name||s.hostname||'Server')}','${escapeHtml(s.hostname||'')}')">
+                    <span class="server-picker-opt-icon" style="color:#2563eb"><i class="fas fa-server"></i></span>
+                    <span class="server-picker-opt-main">
+                        <div class="server-picker-opt-name">${escapeHtml(s.name||s.hostname||'Server')}</div>
+                        ${subLine ? `<div class="server-picker-opt-sub">${escapeHtml(subLine)}</div>` : ''}
+                    </span>
+                    <span class="server-picker-badge badge-server-pill">${escapeHtml(s.os_type || 'server')}</span>
+                </div>`;
+            });
+        }
+
+        if (!hasAny) html = '<div class="server-picker-info">No servers or groups found</div>';
+        dropdown.innerHTML = html;
+        dropdown.classList.remove('hidden');
+    }
+
+    function showSchedServerDropdown() { performSchedServerSearch(); }
+    function hideSchedServerDropdown() { setTimeout(() => document.getElementById('schedServerDropdown').classList.add('hidden'), 160); }
+
+    function selectSchedServer(id, name, hostname) {
+        if (selectedSchedServerItems.some(i => i.type === 'server' && i.id === id)) return;
+        selectedSchedServerItems.push({ type: 'server', id, name, hostname });
+        renderSchedServerChips();
+        document.getElementById('schedServerSearchInput').value = '';
+        document.getElementById('schedServerDropdown').classList.add('hidden');
+        updateSchedServerSummary();
+    }
+
+    function selectSchedServerGroup(id, name, serverCount) {
+        if (selectedSchedServerItems.some(i => i.type === 'group' && i.id === id)) return;
+        selectedSchedServerItems.push({ type: 'group', id, name, serverCount });
+        renderSchedServerChips();
+        document.getElementById('schedServerSearchInput').value = '';
+        document.getElementById('schedServerDropdown').classList.add('hidden');
+        updateSchedServerSummary();
+    }
+
+    function removeSchedSelectedItem(idx) {
+        selectedSchedServerItems.splice(idx, 1);
+        renderSchedServerChips();
+        updateSchedServerSummary();
+    }
+
+    function clearAllSchedServers() {
+        selectedSchedServerItems = [];
+        renderSchedServerChips();
+        updateSchedServerSummary();
+    }
+
+    function renderSchedServerChips() {
+        const container = document.getElementById('schedServerChips');
+        if (!container) return;
+        const clearBtn = document.getElementById('schedServerPickerClearBtn');
+        container.innerHTML = selectedSchedServerItems.map((item, idx) => {
+            const isGroup = item.type === 'group';
+            const icon = isGroup ? 'fa-layer-group' : 'fa-server';
+            const label = isGroup
+                ? escapeHtml(item.name) + ' <span style="opacity:.75">('+  (item.serverCount || 0) + ')</span>'
+                : escapeHtml(item.name);
+            return `<span class="server-chip${isGroup ? ' is-group' : ''}">
+                <i class="fas ${icon}" style="font-size:10px;opacity:.85"></i>
+                <span class="server-chip-name">${label}</span>
+                <span class="server-chip-remove" onmousedown="event.preventDefault();removeSchedSelectedItem(${idx})" title="Remove"><i class="fas fa-times"></i></span>
+            </span>`;
+        }).join('');
+        if (clearBtn) clearBtn.classList.toggle('hidden', selectedSchedServerItems.length === 0);
+    }
+
+    function updateSchedServerSummary() {
+        const el = document.getElementById('schedServerSummary');
+        if (!el) return;
+        const groups = selectedSchedServerItems.filter(i => i.type === 'group');
+        const srvs = selectedSchedServerItems.filter(i => i.type === 'server');
+        const groupServerCount = groups.reduce((s, g) => s + (g.serverCount || 0), 0);
+        const totalApprox = srvs.length + groupServerCount;
+        if (selectedSchedServerItems.length === 0) {
+            el.textContent = 'No target selected — will use runbook default.';
+        } else {
+            const parts = [];
+            if (srvs.length > 0) parts.push(srvs.length + ' server' + (srvs.length !== 1 ? 's' : ''));
+            if (groups.length > 0) parts.push(groups.length + ' group' + (groups.length !== 1 ? 's' : '') + ' (~' + groupServerCount + ' servers)');
+            el.textContent = 'Will run on: ' + parts.join(', ') + ' — ' + totalApprox + ' execution' + (totalApprox !== 1 ? 's' : '') + ' per trigger.';
+        }
     }
 
     function openCreateScheduleModal() {
         document.getElementById('modalTitle').textContent = 'Create Schedule';
         document.getElementById('scheduleForm').reset();
         document.getElementById('scheduleId').value = '';
+        selectedSchedServerItems = [];
+        renderSchedServerChips();
+        updateSchedServerSummary();
         setScheduleType('cron');
-        document.getElementById('scheduleModal').classList.remove('hidden');
+        document.getElementById('scheduleModal').classList.add('active');
     }
 
     function closeScheduleModal() {
-        document.getElementById('scheduleModal').classList.add('hidden');
+        document.getElementById('scheduleModal').classList.remove('active');
+    }
+
+    function handleScheduleOverlayClick(e) {
+        if (e.target === document.getElementById('scheduleModal')) closeScheduleModal();
     }
 
     function setScheduleType(type) {
@@ -575,10 +820,10 @@
             data.start_date = document.getElementById('runDate').value;
         }
 
-        const targetServer = document.getElementById('targetServer').value;
-        if (targetServer) {
-            data.target_server_id = targetServer;
-        }
+        const targetServerIds = selectedSchedServerItems.filter(i => i.type === 'server').map(i => i.id);
+        const targetGroupIds = selectedSchedServerItems.filter(i => i.type === 'group').map(i => i.id);
+        if (targetServerIds.length > 0) data.target_server_ids = targetServerIds;
+        if (targetGroupIds.length > 0) data.target_server_group_ids = targetGroupIds;
 
         const scheduleId = document.getElementById('scheduleId').value;
         const url = scheduleId ? `/api/schedules/${scheduleId}` : '/api/schedules';
@@ -618,9 +863,22 @@
         document.getElementById('timezone').value = schedule.timezone;
         document.getElementById('scheduleEnabled').checked = schedule.enabled;
 
-        if (schedule.target_server_id) {
-            document.getElementById('targetServer').value = schedule.target_server_id;
-        }
+        // Pre-populate server picker
+        selectedSchedServerItems = [];
+        const savedServerIds = schedule.target_server_ids || [];
+        const savedGroupIds = schedule.target_server_group_ids || [];
+        savedServerIds.forEach(sid => {
+            const srv = servers.find(s => String(s.id) === String(sid));
+            if (srv) selectedSchedServerItems.push({ type: 'server', id: String(sid), name: srv.name || srv.hostname || 'Server', hostname: srv.hostname || '' });
+            else selectedSchedServerItems.push({ type: 'server', id: String(sid), name: String(sid).slice(0,8) + '…', hostname: '' });
+        });
+        savedGroupIds.forEach(gid => {
+            const grp = schedServerGroups.find(g => String(g.id) === String(gid));
+            if (grp) selectedSchedServerItems.push({ type: 'group', id: String(gid), name: grp.name, serverCount: grp.server_count || 0 });
+            else selectedSchedServerItems.push({ type: 'group', id: String(gid), name: 'Group ' + String(gid).slice(0,8), serverCount: 0 });
+        });
+        renderSchedServerChips();
+        updateSchedServerSummary();
 
         setScheduleType(schedule.schedule_type);
 
@@ -643,7 +901,7 @@
             document.getElementById('runDate').value = schedule.start_date ? getLocalDateTimeString(new Date(schedule.start_date)) : '';
         }
 
-        document.getElementById('scheduleModal').classList.remove('hidden');
+        document.getElementById('scheduleModal').classList.add('active');
     }
 
     async function deleteSchedule(id) {
@@ -674,16 +932,20 @@
 
     function showConfirmModal(title, message, btnText, action) {
         pendingConfirmAction = action;
-        document.getElementById('confirmModalTitle').innerHTML = `<i class="fas fa-exclamation-triangle text-yellow-400 mr-2"></i>${title}`;
+        document.getElementById('confirmModalTitle').textContent = title;
         document.getElementById('confirmModalMessage').textContent = message;
         document.getElementById('confirmModalBtn').textContent = btnText;
         document.getElementById('confirmModalBtn').onclick = executeConfirmAction;
-        document.getElementById('confirmModal').classList.remove('hidden');
+        document.getElementById('confirmModal').classList.add('active');
     }
 
     function closeConfirmModal() {
-        document.getElementById('confirmModal').classList.add('hidden');
+        document.getElementById('confirmModal').classList.remove('active');
         pendingConfirmAction = null;
+    }
+
+    function handleConfirmOverlayClick(e) {
+        if (e.target === document.getElementById('confirmModal')) closeConfirmModal();
     }
 
     function executeConfirmAction() {
@@ -767,7 +1029,7 @@
                 `).join('');
                 }
 
-                document.getElementById('historyModal').classList.remove('hidden');
+                document.getElementById('historyModal').classList.add('active');
             }
         } catch (error) {
             console.error('Error loading history:', error);
@@ -775,7 +1037,11 @@
     }
 
     function closeHistoryModal() {
-        document.getElementById('historyModal').classList.add('hidden');
+        document.getElementById('historyModal').classList.remove('active');
+    }
+
+    function handleHistoryOverlayClick(e) {
+        if (e.target === document.getElementById('historyModal')) closeHistoryModal();
     }
 
     function filterSchedules() {

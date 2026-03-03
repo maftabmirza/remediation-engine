@@ -119,6 +119,8 @@ class SchedulerService:
                     'scheduled_job_id': job_id,
                     'runbook_id': str(scheduled_job.runbook_id),
                     'server_id': str(scheduled_job.target_server_id) if scheduled_job.target_server_id else None,
+                    'server_ids': list(scheduled_job.target_server_ids or []),
+                    'group_ids': list(scheduled_job.target_server_group_ids or []),
                     'params': scheduled_job.execution_params
                 }
             )
@@ -225,39 +227,70 @@ async def _execute_scheduled_runbook(
     scheduled_job_id: str,
     runbook_id: str,
     server_id: Optional[str] = None,
+    server_ids: Optional[list] = None,
+    group_ids: Optional[list] = None,
     params: Optional[dict] = None
 ):
     """
     Execute a runbook as part of a scheduled job.
     This is the callback function invoked by APScheduler.
     Must be a module-level function to be serializable.
+    Supports multi-server execution via server_ids / group_ids.
     """
     execution_start = datetime.utcnow()
-    runbook_execution_id = None
-    status = "failed"
+    overall_status = "failed"
     error_message = None
-    
+
     try:
         logger.info(f"🚀 Executing scheduled runbook: {runbook_id} (Schedule: {scheduled_job_id})")
-        
+
         # Import here to avoid circular dependencies
         from ..models_remediation import Runbook
         from uuid import uuid4
-        
-        # Get database session
+
+        # Resolve target server list
         async for db in get_async_db():
             from sqlalchemy.orm import selectinload
-            
+
+            # Collect servers from multi-server fields
+            resolved_ids: list = list(server_ids or [])
+
+            # Expand group IDs into server IDs
+            if group_ids:
+                from ..models import ServerCredential
+                for gid in group_ids:
+                    try:
+                        members_result = await db.execute(
+                            select(ServerCredential.id).where(
+                                ServerCredential.group_id == gid
+                            )
+                        )
+                        resolved_ids.extend([str(r) for r in members_result.scalars().all()])
+                    except Exception as ge:
+                        logger.warning(f"Failed to resolve group {gid}: {ge}")
+
+            # Deduplicate while preserving order
+            seen: set = set()
+            unique_ids: list = []
+            for sid in resolved_ids:
+                if sid not in seen:
+                    seen.add(sid)
+                    unique_ids.append(sid)
+
+            # Fall back to legacy single server_id or None (runbook default)
+            if not unique_ids:
+                unique_ids = [server_id] if server_id else [None]
+
             runbook = await db.execute(
                 select(Runbook)
                 .options(selectinload(Runbook.steps))
                 .where(Runbook.id == UUID(runbook_id))
             )
             runbook = runbook.scalar_one_or_none()
-            
+
             if not runbook:
                 raise ValueError(f"Runbook {runbook_id} not found")
-            
+
             # Determine initial status based on approval requirements
             if runbook.approval_required:
                 initial_status = "pending"
@@ -267,68 +300,71 @@ async def _execute_scheduled_runbook(
             else:
                 initial_status = "running"
                 approval_expires = None
-            
-            # Create execution record
+
             from datetime import timezone
             now_utc = datetime.now(timezone.utc)
-            
-            execution = RunbookExecution(
-                id=uuid4(),
-                runbook_id=UUID(runbook_id),
-                runbook_version=runbook.version,
-                execution_mode="auto",
-                status=initial_status,
-                triggered_by_system=True,
-                server_id=UUID(server_id) if server_id else runbook.default_server_id,
-                dry_run=False,
-                variables_json=params,
-                approval_required=runbook.approval_required,
-                approval_token=str(uuid4()) if runbook.approval_required else None,
-                approval_requested_at=now_utc if runbook.approval_required else None,
-                approval_expires_at=approval_expires,
-                started_at=now_utc if initial_status == "running" else None,
-                steps_total=len(runbook.steps) if runbook.steps else 0,
-                queued_at=now_utc
-            )
-            db.add(execution)
+
+            # Create one execution per target server
+            execution_ids = []
+            for target_sid in unique_ids:
+                execution = RunbookExecution(
+                    id=uuid4(),
+                    runbook_id=UUID(runbook_id),
+                    runbook_version=runbook.version,
+                    execution_mode="auto",
+                    status=initial_status,
+                    triggered_by_system=True,
+                    server_id=UUID(target_sid) if target_sid else runbook.default_server_id,
+                    dry_run=False,
+                    variables_json=params,
+                    approval_required=runbook.approval_required,
+                    approval_token=str(uuid4()) if runbook.approval_required else None,
+                    approval_requested_at=now_utc if runbook.approval_required else None,
+                    approval_expires_at=approval_expires,
+                    started_at=now_utc if initial_status == "running" else None,
+                    steps_total=len(runbook.steps) if runbook.steps else 0,
+                    queued_at=now_utc
+                )
+                db.add(execution)
+                await db.flush()
+                execution_ids.append(execution.id)
+
             await db.commit()
-            await db.refresh(execution)
-            
-            runbook_execution_id = execution.id
-            status = "success"
-            logger.info(f"✅ Scheduled runbook queued for execution: {runbook_execution_id}")
-            
+            overall_status = "success"
+            logger.info(f"✅ Scheduled runbook queued on {len(unique_ids)} target(s): {execution_ids}")
+
             # Update scheduled job statistics
             await db.execute(
                 update(ScheduledJob)
                 .where(ScheduledJob.id == UUID(scheduled_job_id))
                 .values(
                     last_run_at=execution_start,
-                    last_run_status=status,
-                    run_count=ScheduledJob.run_count + 1
+                    last_run_status=overall_status,
+                    run_count=ScheduledJob.run_count + len(unique_ids)
                 )
             )
-            
-            # Record execution in history
-            history = ScheduleExecutionHistory(
-                scheduled_job_id=UUID(scheduled_job_id),
-                runbook_execution_id=runbook_execution_id,
-                scheduled_at=execution_start,
-                executed_at=execution_start,
-                completed_at=datetime.utcnow(),
-                status=status,
-                error_message=error_message,
-                duration_ms=int((datetime.utcnow() - execution_start).total_seconds() * 1000)
-            )
-            db.add(history)
+
+            # Record execution in history (one entry per execution)
+            for exec_id in execution_ids:
+                history = ScheduleExecutionHistory(
+                    scheduled_job_id=UUID(scheduled_job_id),
+                    runbook_execution_id=exec_id,
+                    scheduled_at=execution_start,
+                    executed_at=execution_start,
+                    completed_at=datetime.utcnow(),
+                    status=overall_status,
+                    error_message=error_message,
+                    duration_ms=int((datetime.utcnow() - execution_start).total_seconds() * 1000)
+                )
+                db.add(history)
+
             await db.commit()
-            
             break  # Exit the async for loop
             
     except Exception as e:
         logger.error(f"❌ Scheduled runbook execution failed: {e}", exc_info=True)
         error_message = str(e)
-        status = "failed"
+        overall_status = "failed"
         
         # Still record the failure in history
         async for db in get_async_db():

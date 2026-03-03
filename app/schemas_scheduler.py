@@ -27,6 +27,8 @@ class ScheduledJobCreate(BaseModel):
     
     # Execution Configuration
     target_server_id: Optional[UUID] = None
+    target_server_ids: Optional[List[str]] = Field(default_factory=list, description="List of server credential UUIDs")
+    target_server_group_ids: Optional[List[str]] = Field(default_factory=list, description="List of server group IDs")
     execution_params: Optional[Dict[str, Any]] = None
     max_instances: int = Field(default=1, ge=1, le=10)
     misfire_grace_time: int = Field(default=300, ge=0, le=3600)
@@ -80,6 +82,8 @@ class ScheduledJobUpdate(BaseModel):
     timezone: Optional[str] = None
     
     target_server_id: Optional[UUID] = None
+    target_server_ids: Optional[List[str]] = None
+    target_server_group_ids: Optional[List[str]] = None
     execution_params: Optional[Dict[str, Any]] = None
     max_instances: Optional[int] = Field(None, ge=1, le=10)
     misfire_grace_time: Optional[int] = Field(None, ge=0, le=3600)
@@ -103,6 +107,8 @@ class ScheduledJobResponse(BaseModel):
     timezone: str
     
     target_server_id: Optional[UUID]
+    target_server_ids: Optional[List[str]] = None
+    target_server_group_ids: Optional[List[str]] = None
     server_hostname: Optional[str] = None
     execution_params: Optional[Dict[str, Any]]
     max_instances: int

@@ -20,7 +20,8 @@ from ..database import get_async_db
 from ..models import User, ServerCredential
 from ..models_remediation import (
     Runbook, RunbookStep, RunbookTrigger,
-    RunbookExecution, StepExecution, CircuitBreaker, BlackoutWindow
+    RunbookExecution, StepExecution, CircuitBreaker, BlackoutWindow,
+    RunbookGitSyncConfig,
 )
 from ..schemas_remediation import (
     RunbookCreate, RunbookUpdate, RunbookResponse, RunbookListResponse,
@@ -31,7 +32,9 @@ from ..schemas_remediation import (
     BlackoutWindowCreate, BlackoutWindowUpdate, BlackoutWindowResponse,
     CircuitBreakerResponse, CircuitBreakerOverride,
     ImportRunbookRequest, ImportRunbookResponse,
-    RunbookYAML
+    RunbookYAML,
+    GitSyncConfigCreate, GitSyncConfigUpdate, GitSyncConfigResponse,
+    GitSyncTriggerResponse,
 )
 from ..services.auth_service import get_current_user, require_role
 from ..services.runbook_knowledge_service import RunbookKnowledgeService
@@ -2283,3 +2286,202 @@ async def create_runbook_from_template(
         .where(Runbook.id == runbook.id)
     )
     return result.scalar_one()
+
+
+# ============================================================================
+# RUNBOOK GIT SYNC
+# ============================================================================
+
+
+def _build_git_sync_response(cfg: RunbookGitSyncConfig) -> GitSyncConfigResponse:
+    """Map ORM model to response schema, masking encrypted fields."""
+    return GitSyncConfigResponse(
+        id=cfg.id,
+        name=cfg.name,
+        repo_url=cfg.repo_url,
+        branch=cfg.branch,
+        path_prefix=cfg.path_prefix,
+        auth_type=cfg.auth_type,
+        has_token=bool(cfg.token_encrypted),
+        has_password=bool(cfg.password_encrypted),
+        has_ssh_key=bool(cfg.ssh_key_encrypted),
+        username=cfg.username,
+        enabled=cfg.enabled,
+        sync_interval_minutes=cfg.sync_interval_minutes,
+        overwrite_existing=cfg.overwrite_existing,
+        last_sync_at=cfg.last_sync_at,
+        last_sync_status=cfg.last_sync_status,
+        last_sync_message=cfg.last_sync_message,
+        runbooks_synced=cfg.runbooks_synced,
+        created_by=cfg.created_by,
+        created_at=cfg.created_at,
+        updated_at=cfg.updated_at,
+    )
+
+
+@router.get("/git-sync", response_model=List[GitSyncConfigResponse])
+async def list_git_sync_configs(
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(require_role(["admin", "engineer"])),
+) -> List[GitSyncConfigResponse]:
+    """List all git sync configurations."""
+    result = await db.execute(
+        select(RunbookGitSyncConfig).order_by(RunbookGitSyncConfig.created_at.desc())
+    )
+    configs = result.scalars().all()
+    return [_build_git_sync_response(c) for c in configs]
+
+
+@router.post("/git-sync", response_model=GitSyncConfigResponse, status_code=status.HTTP_201_CREATED)
+async def create_git_sync_config(
+    data: GitSyncConfigCreate,
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(require_role(["admin"])),
+) -> GitSyncConfigResponse:
+    """Create a new git sync configuration."""
+    from ..utils.crypto import encrypt_value
+
+    cfg = RunbookGitSyncConfig(
+        name=data.name,
+        repo_url=data.repo_url,
+        branch=data.branch,
+        path_prefix=data.path_prefix,
+        auth_type=data.auth_type,
+        token_encrypted=encrypt_value(data.token) if data.token else None,
+        username=data.username,
+        password_encrypted=encrypt_value(data.password) if data.password else None,
+        ssh_key_encrypted=encrypt_value(data.ssh_key) if data.ssh_key else None,
+        enabled=data.enabled,
+        sync_interval_minutes=data.sync_interval_minutes,
+        overwrite_existing=data.overwrite_existing,
+        created_by=current_user.id,
+    )
+    db.add(cfg)
+    await db.commit()
+    await db.refresh(cfg)
+    return _build_git_sync_response(cfg)
+
+
+@router.get("/git-sync/{config_id}", response_model=GitSyncConfigResponse)
+async def get_git_sync_config(
+    config_id: UUID,
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(require_role(["admin", "engineer"])),
+) -> GitSyncConfigResponse:
+    """Get a single git sync configuration."""
+    result = await db.execute(
+        select(RunbookGitSyncConfig).where(RunbookGitSyncConfig.id == config_id)
+    )
+    cfg = result.scalar_one_or_none()
+    if not cfg:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Git sync config not found")
+    return _build_git_sync_response(cfg)
+
+
+@router.put("/git-sync/{config_id}", response_model=GitSyncConfigResponse)
+async def update_git_sync_config(
+    config_id: UUID,
+    data: GitSyncConfigUpdate,
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(require_role(["admin"])),
+) -> GitSyncConfigResponse:
+    """Update an existing git sync configuration."""
+    from ..utils.crypto import encrypt_value
+
+    result = await db.execute(
+        select(RunbookGitSyncConfig).where(RunbookGitSyncConfig.id == config_id)
+    )
+    cfg = result.scalar_one_or_none()
+    if not cfg:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Git sync config not found")
+
+    update_data = data.model_dump(exclude_unset=True)
+
+    # Handle credential fields separately (encrypt plaintext → encrypted column)
+    if "token" in update_data:
+        cfg.token_encrypted = encrypt_value(update_data.pop("token")) if update_data["token"] else None
+    else:
+        update_data.pop("token", None)
+
+    if "password" in update_data:
+        cfg.password_encrypted = encrypt_value(update_data.pop("password")) if update_data["password"] else None
+    else:
+        update_data.pop("password", None)
+
+    if "ssh_key" in update_data:
+        cfg.ssh_key_encrypted = encrypt_value(update_data.pop("ssh_key")) if update_data["ssh_key"] else None
+    else:
+        update_data.pop("ssh_key", None)
+
+    for field, value in update_data.items():
+        setattr(cfg, field, value)
+
+    await db.commit()
+    await db.refresh(cfg)
+    return _build_git_sync_response(cfg)
+
+
+@router.delete("/git-sync/{config_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_git_sync_config(
+    config_id: UUID,
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(require_role(["admin"])),
+) -> None:
+    """Delete a git sync configuration."""
+    result = await db.execute(
+        select(RunbookGitSyncConfig).where(RunbookGitSyncConfig.id == config_id)
+    )
+    cfg = result.scalar_one_or_none()
+    if not cfg:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Git sync config not found")
+    await db.delete(cfg)
+    await db.commit()
+
+
+@router.post("/git-sync/{config_id}/sync", response_model=GitSyncTriggerResponse)
+async def trigger_git_sync(
+    config_id: UUID,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(require_role(["admin", "engineer"])),
+) -> GitSyncTriggerResponse:
+    """Manually trigger an immediate git sync for one configuration."""
+    import logging as _logging
+    from ..services.runbook_git_sync_service import sync_git_config
+
+    result = await db.execute(
+        select(RunbookGitSyncConfig).where(RunbookGitSyncConfig.id == config_id)
+    )
+    cfg = result.scalar_one_or_none()
+    if not cfg:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Git sync config not found")
+
+    # Mark as running immediately
+    cfg.last_sync_status = "running"
+    cfg.last_sync_at = utc_now()
+    await db.commit()
+
+    # Run sync inline (fast enough for manual trigger; use BackgroundTasks for long repos)
+    stats = await sync_git_config(db, cfg)
+
+    now = utc_now()
+    cfg.last_sync_status = "error" if stats["errors"] else "success"
+    cfg.last_sync_message = (
+        "; ".join(stats["errors"][:3]) if stats["errors"] else
+        f"Synced {stats['synced']} runbook(s) ({stats['created']} new, "
+        f"{stats['updated']} updated, {stats['skipped']} unchanged)"
+    )
+    cfg.last_sync_at = now
+    cfg.runbooks_synced = stats["synced"]
+    await db.commit()
+
+    return GitSyncTriggerResponse(
+        config_id=cfg.id,
+        config_name=cfg.name,
+        runbooks_synced=stats["synced"],
+        runbooks_created=stats["created"],
+        runbooks_updated=stats["updated"],
+        runbooks_skipped=stats["skipped"],
+        errors=stats["errors"],
+        synced_at=now,
+    )

@@ -230,6 +230,7 @@ class ServerGroupResponse(BaseModel):
     description: Optional[str]
     parent_id: Optional[UUID]
     path: Optional[str]
+    server_count: int = 0
     created_at: datetime
 
     class Config:
@@ -292,8 +293,29 @@ async def list_server_groups(
     db: Session = Depends(get_db)
 ):
     """Return available server groups for assignment and navigation."""
+    from sqlalchemy import func
     groups = db.query(ServerGroup).all()
-    return groups
+    # Build a server_count map using a single aggregate query
+    counts_raw = (
+        db.query(ServerCredential.group_id, func.count(ServerCredential.id))
+        .filter(ServerCredential.group_id.isnot(None))
+        .group_by(ServerCredential.group_id)
+        .all()
+    )
+    counts = {str(gid): cnt for gid, cnt in counts_raw}
+    result = []
+    for g in groups:
+        resp = ServerGroupResponse(
+            id=g.id,
+            name=g.name,
+            description=g.description,
+            parent_id=g.parent_id,
+            path=g.path,
+            server_count=counts.get(str(g.id), 0),
+            created_at=g.created_at,
+        )
+        result.append(resp)
+    return result
 
 
 @router.post("/groups", response_model=ServerGroupResponse, status_code=status.HTTP_201_CREATED)
@@ -474,13 +496,44 @@ async def delete_credential_profile(
 
     return {"message": "Credential profile deleted"}
 
-@router.get("", response_model=List[ServerResponse])
-async def list_servers(
+@router.get("/by-group/{group_id}", response_model=List[ServerResponse])
+async def list_servers_by_group(
+    group_id: UUID,
     current_user: User = Depends(require_permission(["read"])),
     db: Session = Depends(get_db)
 ):
-    """List available servers. All authenticated users can view servers."""
-    servers = db.query(ServerCredential).all()
+    """Return all servers that belong to a specific server group."""
+    group = db.query(ServerGroup).filter(ServerGroup.id == group_id).first()
+    if not group:
+        raise HTTPException(status_code=404, detail="Server group not found")
+    servers = db.query(ServerCredential).filter(
+        ServerCredential.group_id == group_id
+    ).order_by(ServerCredential.name).all()
+    return [serialize_server(s) for s in servers]
+
+
+@router.get("", response_model=List[ServerResponse])
+async def list_servers(
+    search: Optional[str] = None,
+    limit: Optional[int] = None,
+    group_id: Optional[UUID] = None,
+    current_user: User = Depends(require_permission(["read"])),
+    db: Session = Depends(get_db)
+):
+    """List available servers. Supports optional search, group filter and result limit."""
+    query = db.query(ServerCredential)
+    if group_id:
+        query = query.filter(ServerCredential.group_id == group_id)
+    if search:
+        like = f"%{search.replace('%', '').replace('_', '')[:100]}%"
+        query = query.filter(
+            ServerCredential.name.ilike(like)
+            | ServerCredential.hostname.ilike(like)
+        )
+    query = query.order_by(ServerCredential.name)
+    if limit and limit > 0:
+        query = query.limit(min(limit, 500))
+    servers = query.all()
     return [serialize_server(s) for s in servers]
 
 @router.post("", response_model=ServerResponse)

@@ -5,7 +5,7 @@ Database models for scheduled runbook execution.
 """
 
 from sqlalchemy import Column, String, Integer, Boolean, DateTime, ForeignKey, JSON, CheckConstraint, Text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 import uuid
 from datetime import datetime, timezone
@@ -35,6 +35,8 @@ class ScheduledJob(Base):
     
     # Execution Configuration  
     target_server_id = Column(UUID(as_uuid=True), ForeignKey("server_credentials.id"))
+    target_server_ids = Column(JSONB, default=list)  # Multiple individual servers
+    target_server_group_ids = Column(JSONB, default=list)  # Multiple server groups
     execution_params = Column(JSON)  # Override runbook parameters
     max_instances = Column(Integer, default=1)  # Prevent overlapping executions
     misfire_grace_time = Column(Integer, default=300)  # Seconds to allow late execution
