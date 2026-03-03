@@ -5,7 +5,9 @@ Git subprocess calls are fully mocked so no real network or git binary is needed
 All SQLAlchemy model modules are imported upfront so mapper relationships resolve.
 """
 import hashlib
+import os
 from pathlib import Path
+import tempfile
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -37,6 +39,7 @@ from sqlalchemy.orm import configure_mappers
 configure_mappers()
 
 from app.services.runbook_git_sync_service import (
+    _build_git_env,
     _build_clone_url,
     import_runbook_from_dict,
     sync_git_config,
@@ -161,6 +164,46 @@ class TestBuildCloneUrl:
         cfg = _make_config(auth_type="ssh", ssh_key_encrypted="enc_key")
         result = _build_clone_url(cfg)
         assert result == cfg.repo_url
+
+
+# ---------------------------------------------------------------------------
+# Tests: _build_git_env
+# ---------------------------------------------------------------------------
+
+class TestBuildGitEnv:
+    """Tests for _build_git_env helper function."""
+
+    def test_build_git_env_without_ssh_returns_no_key_path(self):
+        """Happy path: non-SSH auth returns env and no temp key file."""
+        cfg = _make_config(auth_type="none")
+        env, ssh_key_path = _build_git_env(cfg)
+
+        assert env["GIT_TERMINAL_PROMPT"] == "0"
+        assert ssh_key_path is None
+        assert "GIT_SSH_COMMAND" not in env
+
+    def test_build_git_env_ssh_creates_temp_key_file(self):
+        """Happy path: SSH auth creates a temp key file and command."""
+        cfg = _make_config(auth_type="ssh", ssh_key_encrypted="enc_key")
+        with patch(
+            "app.services.runbook_git_sync_service.decrypt_value",
+            return_value="FAKE_PRIVATE_KEY",
+        ):
+            env, ssh_key_path = _build_git_env(cfg)
+
+        assert ssh_key_path is not None
+        assert os.path.exists(ssh_key_path)
+        assert ssh_key_path in env["GIT_SSH_COMMAND"]
+
+        os.remove(ssh_key_path)
+
+    def test_build_git_env_non_ssh_ignores_encrypted_key(self):
+        """Edge case: encrypted key is ignored when auth_type is not ssh."""
+        cfg = _make_config(auth_type="token", ssh_key_encrypted="enc_key")
+        env, ssh_key_path = _build_git_env(cfg)
+
+        assert ssh_key_path is None
+        assert "GIT_SSH_COMMAND" not in env
 
 
 # ---------------------------------------------------------------------------
@@ -376,3 +419,94 @@ class TestSyncGitConfig:
 
         assert len(result["errors"]) > 0
         assert result["synced"] == 0
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_sync_removes_temporary_ssh_key_file(self):
+        """Happy path: temp SSH key file is deleted in finally cleanup."""
+        cfg = _make_config(auth_type="ssh", ssh_key_encrypted="enc_key")
+
+        db = AsyncMock()
+        db.commit = AsyncMock()
+        db.rollback = AsyncMock()
+
+        with tempfile.NamedTemporaryFile(mode="w", delete=False) as tmp_key:
+            tmp_key.write("FAKE_PRIVATE_KEY")
+            key_path = tmp_key.name
+
+        with (
+            patch(
+                "app.services.runbook_git_sync_service.tempfile.mkdtemp",
+                return_value="/tmp/fake_repo",
+            ),
+            patch(
+                "app.services.runbook_git_sync_service._build_git_env",
+                return_value=({"GIT_TERMINAL_PROMPT": "0"}, key_path),
+            ),
+            patch(
+                "app.services.runbook_git_sync_service.subprocess.run",
+                return_value=MagicMock(returncode=1, stderr="fatal: clone failed"),
+            ),
+            patch("app.services.runbook_git_sync_service.shutil.rmtree"),
+        ):
+            await sync_git_config(db=db, config=cfg)
+
+        assert not os.path.exists(key_path)
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_sync_commits_each_successful_import_before_later_failure(self):
+        """Error case: successful imports are committed even if a later file fails."""
+        cfg = _make_config()
+        db = AsyncMock()
+        db.commit = AsyncMock()
+        db.rollback = AsyncMock()
+
+        yaml_a = MagicMock(spec=Path)
+        yaml_a.relative_to.return_value = Path("a.yaml")
+        yaml_a.read_text.return_value = yaml.dump(_valid_runbook_dict("A"))
+        yaml_a.resolve.return_value = Path("/tmp/repo/a.yaml")
+
+        yaml_b = MagicMock(spec=Path)
+        yaml_b.relative_to.return_value = Path("b.yaml")
+        yaml_b.read_text.return_value = yaml.dump(_valid_runbook_dict("B"))
+        yaml_b.resolve.return_value = Path("/tmp/repo/b.yaml")
+
+        yaml_c = MagicMock(spec=Path)
+        yaml_c.relative_to.return_value = Path("c.yaml")
+        yaml_c.read_text.return_value = yaml.dump(_valid_runbook_dict("C"))
+        yaml_c.resolve.return_value = Path("/tmp/repo/c.yaml")
+
+        with (
+            patch(
+                "app.services.runbook_git_sync_service.subprocess.run",
+                return_value=MagicMock(returncode=0, stderr=""),
+            ),
+            patch(
+                "app.services.runbook_git_sync_service.tempfile.mkdtemp",
+                return_value="/tmp/fake_repo",
+            ),
+            patch(
+                "app.services.runbook_git_sync_service.shutil.rmtree"
+            ),
+            patch(
+                "app.services.runbook_git_sync_service.Path",
+                side_effect=lambda *a, **kw: _make_fake_path(*a, files=[yaml_a, yaml_b, yaml_c]),
+            ),
+            patch(
+                "app.services.runbook_git_sync_service.import_runbook_from_dict",
+                side_effect=[
+                    {"action": "created", "name": "A", "error": None},
+                    RuntimeError("boom"),
+                    {"action": "updated", "name": "C", "error": None},
+                ],
+            ),
+        ):
+            result = await sync_git_config(db=db, config=cfg)
+
+        # One commit per successful create/update plus a final no-op commit.
+        assert db.commit.await_count >= 3
+        assert db.rollback.await_count == 1
+        assert result["created"] == 1
+        assert result["updated"] == 1
+        assert result["synced"] == 2

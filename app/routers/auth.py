@@ -58,11 +58,23 @@ async def login(
     Authenticate user and return JWT token.
     Also sets token as HTTP-only cookie for web UI.
     """
+    candidate_user = db.query(User).filter(User.username == login_data.username).first()
+
+    # Account lockout check (before password verification to avoid timing side-channels)
+    now = datetime.now(timezone.utc)
+    if candidate_user and candidate_user.locked_until and candidate_user.locked_until > now:
+        remaining = int((candidate_user.locked_until - now).total_seconds() / 60) + 1
+        AUTH_ATTEMPTS.labels(status="locked").inc()
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Account is temporarily locked. Try again in {remaining} minute(s).",
+        )
+
     user = authenticate_user(db, login_data.username, login_data.password)
     
     if not user:
         # Increment failed attempt counter on the account if the username exists
-        bad_user = db.query(User).filter(User.username == login_data.username).first()
+        bad_user = candidate_user
         if bad_user:
             policy = get_password_policy(db)
             max_attempts = int(policy.get("max_login_attempts", 0))
@@ -87,15 +99,6 @@ async def login(
             detail="User account is disabled"
         )
 
-    # Account lockout check
-    if user.locked_until and user.locked_until > datetime.now(timezone.utc):
-        remaining = int((user.locked_until - datetime.now(timezone.utc)).total_seconds() / 60) + 1
-        AUTH_ATTEMPTS.labels(status="locked").inc()
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Account is temporarily locked. Try again in {remaining} minute(s).",
-        )
-    
     # Record successful login — reset failed attempts and lockout
     AUTH_ATTEMPTS.labels(status="success").inc()
     user.failed_login_attempts = 0
@@ -123,10 +126,13 @@ async def login(
     policy = get_password_policy(db)
     expiry_days = int(policy.get("password_expiry_days", 0))
     password_expired = False
-    if expiry_days > 0 and user.password_changed_at:
-        from datetime import timedelta
-        expiry_date = user.password_changed_at + timedelta(days=expiry_days)
-        password_expired = datetime.now(timezone.utc) > expiry_date
+    if expiry_days > 0:
+        if user.password_changed_at is None:
+            password_expired = True
+        else:
+            from datetime import timedelta
+            expiry_date = user.password_changed_at + timedelta(days=expiry_days)
+            password_expired = datetime.now(timezone.utc) > expiry_date
 
     # Set cookie for web UI
     response.set_cookie(
@@ -242,6 +248,14 @@ async def saml_acs(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User account is disabled.",
+        )
+
+    if user.locked_until and user.locked_until > datetime.now(timezone.utc):
+        remaining = int((user.locked_until - datetime.now(timezone.utc)).total_seconds() / 60) + 1
+        AUTH_ATTEMPTS.labels(status="locked").inc()
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Account is temporarily locked. Try again in {remaining} minute(s).",
         )
 
     AUTH_ATTEMPTS.labels(status="sso_success").inc()

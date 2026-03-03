@@ -19,6 +19,7 @@ from app.models import ServerCredential, User, AuditLog, ServerGroup, Credential
 from app.services.auth_service import require_permission
 from app.services.executor_factory import ExecutorFactory
 from app.utils.crypto import encrypt_value, decrypt_value
+from app.utils.search import like_escape
 
 router = APIRouter(prefix="/api/servers", tags=["Servers"])
 
@@ -525,10 +526,10 @@ async def list_servers(
     if group_id:
         query = query.filter(ServerCredential.group_id == group_id)
     if search:
-        like = f"%{search.replace('%', '').replace('_', '')[:100]}%"
+        like = f"%{like_escape(search[:100])}%"
         query = query.filter(
-            ServerCredential.name.ilike(like)
-            | ServerCredential.hostname.ilike(like)
+            ServerCredential.name.ilike(like, escape="\\")
+            | ServerCredential.hostname.ilike(like, escape="\\")
         )
     query = query.order_by(ServerCredential.name)
     if limit and limit > 0:

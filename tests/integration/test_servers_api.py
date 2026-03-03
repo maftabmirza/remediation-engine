@@ -165,6 +165,55 @@ class TestListServers:
                 f"Got unexpected status {response.status_code} for search={evil!r}"
             )
 
+    def test_search_treats_underscore_as_literal(
+        self, test_client: TestClient, admin_auth_headers, test_db_session
+    ):
+        """TC-SRV-08A: underscore in search matches literal underscore."""
+        _make_server(test_db_session, "db_server_01", "db_server_01.local")
+        _make_server(test_db_session, "dbXserverY01", "dbxservery01.local")
+
+        response = test_client.get(
+            "/api/servers",
+            params={"search": "db_server_01"},
+            headers=admin_auth_headers,
+        )
+        assert response.status_code == 200
+        names = [s["name"] for s in response.json()]
+        assert "db_server_01" in names
+        assert "dbXserverY01" not in names
+
+    def test_search_treats_percent_as_literal(
+        self, test_client: TestClient, admin_auth_headers, test_db_session
+    ):
+        """TC-SRV-08B: percent in search matches literal percent sign."""
+        _make_server(test_db_session, "api%gateway", "api-percent.local")
+        _make_server(test_db_session, "apigateway", "api-plain.local")
+
+        response = test_client.get(
+            "/api/servers",
+            params={"search": "api%gateway"},
+            headers=admin_auth_headers,
+        )
+        assert response.status_code == 200
+        names = [s["name"] for s in response.json()]
+        assert "api%gateway" in names
+        assert "apigateway" not in names
+
+    def test_search_treats_backslash_as_literal(
+        self, test_client: TestClient, admin_auth_headers, test_db_session
+    ):
+        """TC-SRV-08C: backslash in search is escaped safely."""
+        _make_server(test_db_session, r"path\server", "pathslash.local")
+
+        response = test_client.get(
+            "/api/servers",
+            params={"search": r"path\server"},
+            headers=admin_auth_headers,
+        )
+        assert response.status_code == 200
+        names = [s["name"] for s in response.json()]
+        assert r"path\server" in names
+
     # --- limit param ---
 
     def test_limit_restricts_result_count(

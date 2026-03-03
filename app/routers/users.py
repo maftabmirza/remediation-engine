@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import User, AuditLog, Alert, AutoAnalyzeRule, ServerCredential, SystemConfig, TerminalSession
 
-from app.schemas import UserCreate, UserUpdate, UserResponse
+from app.schemas import UserCreate, UserUpdate, AdminUserResponse
 from app.services.auth_service import (
     require_permission,
     get_password_hash,
@@ -23,12 +23,12 @@ from app.services.password_policy_service import enforce_password_policy
 router = APIRouter(prefix="/api/users", tags=["Users"])
 
 
-def serialize_user(user: User, db: Session) -> UserResponse:
-    payload = UserResponse.model_validate(user)
+def serialize_user(user: User, db: Session) -> AdminUserResponse:
+    payload = AdminUserResponse.model_validate(user)
     payload.permissions = list(get_permissions_for_role(db, user.role))
     return payload
 
-@router.get("", response_model=List[UserResponse])
+@router.get("", response_model=List[AdminUserResponse])
 async def list_users(
     current_user: User = Depends(require_permission(["manage_users"])),
     db: Session = Depends(get_db)
@@ -37,7 +37,7 @@ async def list_users(
     users = db.query(User).all()
     return [serialize_user(u, db) for u in users]
 
-@router.post("", response_model=UserResponse)
+@router.post("", response_model=AdminUserResponse)
 async def create_user(
     data: UserCreate,
     current_user: User = Depends(require_permission(["manage_users"])),
@@ -84,7 +84,7 @@ async def create_user(
     
     return serialize_user(user, db)
 
-@router.put("/{user_id}", response_model=UserResponse)
+@router.put("/{user_id}", response_model=AdminUserResponse)
 async def update_user(
     user_id: UUID,
     data: UserUpdate,

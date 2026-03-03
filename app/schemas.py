@@ -59,11 +59,14 @@ class UserResponse(UserBase):
     created_at: datetime
     last_login: Optional[datetime] = None
     permissions: List[str] = []
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AdminUserResponse(UserResponse):
     failed_login_attempts: int = 0
     locked_until: Optional[datetime] = None
     password_changed_at: Optional[datetime] = None
-
-    model_config = ConfigDict(from_attributes=True)
 
 
 # ============== LLM Provider Schemas ==============

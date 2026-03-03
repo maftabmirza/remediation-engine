@@ -2399,17 +2399,20 @@ async def update_git_sync_config(
 
     # Handle credential fields separately (encrypt plaintext → encrypted column)
     if "token" in update_data:
-        cfg.token_encrypted = encrypt_value(update_data.pop("token")) if update_data["token"] else None
+        token = update_data.pop("token")
+        cfg.token_encrypted = encrypt_value(token) if token else None
     else:
         update_data.pop("token", None)
 
     if "password" in update_data:
-        cfg.password_encrypted = encrypt_value(update_data.pop("password")) if update_data["password"] else None
+        password = update_data.pop("password")
+        cfg.password_encrypted = encrypt_value(password) if password else None
     else:
         update_data.pop("password", None)
 
     if "ssh_key" in update_data:
-        cfg.ssh_key_encrypted = encrypt_value(update_data.pop("ssh_key")) if update_data["ssh_key"] else None
+        ssh_key = update_data.pop("ssh_key")
+        cfg.ssh_key_encrypted = encrypt_value(ssh_key) if ssh_key else None
     else:
         update_data.pop("ssh_key", None)
 

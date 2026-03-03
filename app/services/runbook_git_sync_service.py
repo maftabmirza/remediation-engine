@@ -21,7 +21,7 @@ import subprocess
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from uuid import UUID
 
 import yaml
@@ -63,12 +63,13 @@ def _build_clone_url(config: RunbookGitSyncConfig) -> str:
     return url
 
 
-def _build_git_env(config: RunbookGitSyncConfig) -> Dict[str, str]:
-    """Return environment variables for the git subprocess."""
+def _build_git_env(config: RunbookGitSyncConfig) -> Tuple[Dict[str, str], Optional[str]]:
+    """Return git subprocess environment and optional temporary SSH key path."""
     env = os.environ.copy()
     env["GIT_TERMINAL_PROMPT"] = "0"
     env["GIT_ASKPASS"] = "echo"
     env["SSH_ASKPASS"] = "false"
+    ssh_key_path: Optional[str] = None
 
     if config.auth_type == "ssh" and config.ssh_key_encrypted:
         ssh_key = decrypt_value(config.ssh_key_encrypted)
@@ -76,9 +77,10 @@ def _build_git_env(config: RunbookGitSyncConfig) -> Dict[str, str]:
         tmp.write(ssh_key)
         tmp.close()
         os.chmod(tmp.name, 0o600)
+        ssh_key_path = tmp.name
         env["GIT_SSH_COMMAND"] = f"ssh -i {tmp.name} -o StrictHostKeyChecking=no"
 
-    return env
+    return env, ssh_key_path
 
 
 # ---------------------------------------------------------------------------
@@ -253,9 +255,10 @@ async def sync_git_config(
     }
 
     temp_dir = tempfile.mkdtemp(prefix="rb_git_sync_")
+    ssh_key_path: Optional[str] = None
     try:
         clone_url = _build_clone_url(config)
-        env = _build_git_env(config)
+        env, ssh_key_path = _build_git_env(config)
 
         logger.info(
             "Git sync starting: config=%s repo=%s branch=%s",
@@ -336,6 +339,8 @@ async def sync_git_config(
                     source_path=f"{config.repo_url}/blob/{config.branch}/{rel_path}",
                     created_by=config.created_by,
                 )
+                if outcome["action"] in {"created", "updated"}:
+                    await db.commit()
             except Exception as exc:
                 logger.error("Failed to import %s: %s", rel_path, exc, exc_info=True)
                 stats["errors"].append(f"{rel_path}: {exc}")
@@ -371,6 +376,11 @@ async def sync_git_config(
             pass
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
+        if ssh_key_path and os.path.exists(ssh_key_path):
+            try:
+                os.remove(ssh_key_path)
+            except Exception:
+                logger.warning("Failed to remove temporary SSH key file: %s", ssh_key_path)
 
     return stats
 
