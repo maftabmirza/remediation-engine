@@ -1,4 +1,4 @@
-h1:JdxczNOsr9Jnlm4hL6OqYPJ1WT3YYO+IJZM8EHuFM3c=
+h1:il+6kUnibw8ilXyORsrFfMq/9f6QRsYMG5xnfq1TdOI=
 20260126000000_initial_schema.sql h1:BSAXiYDSX3UpJAGtIbVmzhfrkvXPcHp0m9fTZ3yaUt0=
 20260127000000_add_pii_detection_tables.sql h1:oAbBJNKXEgD3x6H4LFmml2jb52SmUz2kMtiY38uwuW4=
 20260131000000_add_pii_mapping_to_sessions.sql h1:fiERzU0U11Q5je2BDVePJPy4wj8UHR2OAysF/KGojgA=
@@ -14,3 +14,4 @@ h1:JdxczNOsr9Jnlm4hL6OqYPJ1WT3YYO+IJZM8EHuFM3c=
 20260302000000_add_schedule_multi_server.sql h1:rxJBmil6MTdE1zFLjjrIjEXuv173i+id2YpzByH08fU=
 20260302000001_fix_alert_correlations_schema.sql h1:2uvj0ojlx84q+ftYdNEyysIk4sZIWZxp+w/UGdwB+7M=
 20260302000002_nullable_correlation_score.sql h1:zjpmrAI6+HYr4tt1immQ6CgiCvhYwVFDBd8MJREYGrs=
+20260303120000_add_notification_tables.sql h1:W52eTqsGXwzrY60cajD+gbC3/q8XtfOuZJnwj+flu3Y=

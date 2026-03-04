@@ -31,6 +31,35 @@ router = APIRouter(prefix="/webhook", tags=["Webhook"])
 _pii_service = None
 
 
+def _notify_alert(alert_name: str, severity: str, alert_id, source: str = "") -> None:
+    """Fire-and-forget notification for alert.firing events."""
+    import asyncio  # noqa: PLC0415
+
+    async def _run():
+        try:
+            from app.database import async_session_factory  # noqa: PLC0415
+            from app.services.notification.service import NotificationService  # noqa: PLC0415
+            async with async_session_factory() as _db:
+                svc = NotificationService(_db)
+                await svc.notify(
+                    "alert.firing",
+                    {
+                        "alert_name": alert_name,
+                        "severity": severity,
+                        "source": source,
+                        "description": "",
+                    },
+                    event_id=alert_id,
+                )
+        except Exception:
+            logger.exception("Background alert notification failed")
+
+    try:
+        asyncio.ensure_future(_run())
+    except RuntimeError:
+        pass
+
+
 def set_pii_service(pii_service):
     """Set the PII service instance for alert data scanning."""
     global _pii_service
@@ -301,6 +330,9 @@ async def receive_alertmanager_webhook(
             db.commit()  # Single commit for both alert and metric
             
             logger.info(f"Stored alert: {alert_name} (action: {action})")
+
+            # Fire alert.firing notification
+            _notify_alert(alert_name, severity, alert.id, source=job or instance)
             
             # Queue auto-analysis if needed
             if action == "auto_analyze":

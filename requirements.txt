@@ -80,3 +80,6 @@ scipy>=1.10.1
 # ITSM Integration (Week 5-6: Change Correlation)
 jsonpath-ng>=1.6.1
 python-dateutil>=2.8.2
+
+# Notification System — async SMTP delivery
+aiosmtplib>=2.0,<3.0
