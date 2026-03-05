@@ -96,6 +96,8 @@ from app.routers import (
     design,  # Design Settings (logo/icon uploads)
     suppression_rules,  # Feature A6: Alert Suppression Rules
     postmortem_api,  # Phase 2: Post-Incident Postmortem Generation
+    runbook_generation_api,  # Phase 3: Runbook Auto-Generation (B2)
+    service_health_api,  # Phase 3: Service Health Score & Topology (A2)
 )
 from app import api_credential_profiles
 from app.services.execution_worker import start_execution_worker, stop_execution_worker
@@ -522,6 +524,8 @@ app.include_router(notification.router)      # Notification Channels & Policies
 app.include_router(design.router)            # Design Settings (logo/icon uploads)
 app.include_router(suppression_rules.router) # Feature A6: Alert Suppression Rules
 app.include_router(postmortem_api.router)    # Phase 2: Post-Incident Postmortem Generation
+app.include_router(runbook_generation_api.router)  # Phase 3: Runbook Auto-Generation (B2)
+app.include_router(service_health_api.router)      # Phase 3: Service Health Score & Topology (A2)
 
 
 # Mock OFREP endpoint for Grafana OpenFeature - returns valid empty response to prevent 404 errors
