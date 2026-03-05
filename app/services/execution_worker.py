@@ -23,6 +23,26 @@ logger = logging.getLogger(__name__)
 settings = get_settings()
 
 
+def _notify_bg(event_type: str, event_data: dict, event_id=None):
+    """Fire-and-forget helper so notify() never blocks the execution worker."""
+    import asyncio  # noqa: PLC0415
+
+    async def _run():
+        try:
+            from app.database import async_session_factory as _sf  # noqa: PLC0415
+            from app.services.notification.service import NotificationService  # noqa: PLC0415
+            async with _sf() as _db:
+                svc = NotificationService(_db)
+                await svc.notify(event_type, event_data, event_id=event_id)
+        except Exception:
+            logger.exception("Background notification failed for event_type=%s", event_type)
+
+    try:
+        asyncio.ensure_future(_run())
+    except RuntimeError:
+        pass  # No running event loop (e.g. tests)
+
+
 class ExecutionWorker:
     """
     Background worker that polls for and executes pending/approved runbook executions.
@@ -122,6 +142,16 @@ class ExecutionWorker:
             execution.status = "running"
             execution.started_at = datetime.now(timezone.utc)
             await db.commit()
+
+            _notify_bg(
+                "execution.started",
+                {
+                    "runbook_name": execution.runbook.name if execution.runbook else "",
+                    "execution_id": str(execution.id),
+                    "target_host": str(execution.server_id or ""),
+                },
+                event_id=execution.id,
+            )
             
             # Check if we have required data
             if not execution.runbook:
@@ -129,6 +159,15 @@ class ExecutionWorker:
                 execution.error_message = "Runbook not found"
                 execution.completed_at = datetime.now(timezone.utc)
                 await db.commit()
+                _notify_bg(
+                    "execution.failed",
+                    {
+                        "runbook_name": "",
+                        "execution_id": str(execution.id),
+                        "error_message": "Runbook not found",
+                    },
+                    event_id=execution.id,
+                )
                 return
             
             if not execution.server_id:
@@ -136,6 +175,15 @@ class ExecutionWorker:
                 execution.error_message = "No target server specified"
                 execution.completed_at = datetime.now(timezone.utc)
                 await db.commit()
+                _notify_bg(
+                    "execution.failed",
+                    {
+                        "runbook_name": execution.runbook.name if execution.runbook else "",
+                        "execution_id": str(execution.id),
+                        "error_message": "No target server specified",
+                    },
+                    event_id=execution.id,
+                )
                 return
             
             # Create executor and run
@@ -161,13 +209,33 @@ class ExecutionWorker:
             )
             
             logger.info(f"Execution {execution.id} completed with status: {result.status}")
-            
+
+            _notify_bg(
+                "execution.completed" if result.status == "success" else "execution.failed",
+                {
+                    "runbook_name": execution.runbook.name if execution.runbook else "",
+                    "execution_id": str(execution.id),
+                    "target_host": str(execution.server_id or ""),
+                    "error_message": execution.error_message or "",
+                },
+                event_id=execution.id,
+            )
         except Exception as e:
             logger.exception(f"Error executing runbook {execution.id}: {e}")
             execution.status = "failed"
             execution.error_message = f"Execution error: {str(e)}"
             execution.completed_at = datetime.now(timezone.utc)
             await db.commit()
+
+            _notify_bg(
+                "execution.failed",
+                {
+                    "runbook_name": execution.runbook.name if execution.runbook else "",
+                    "execution_id": str(execution.id),
+                    "error_message": str(e),
+                },
+                event_id=execution.id,
+            )
     
     async def _check_approval_timeouts(self):
         """Check for and timeout expired pending approvals."""
@@ -193,6 +261,15 @@ class ExecutionWorker:
                     execution.status = "timeout"
                     execution.completed_at = now
                     execution.error_message = "Approval timeout - no response within allowed window"
+
+                    _notify_bg(
+                        "approval.expired",
+                        {
+                            "runbook_name": execution.runbook.name if execution.runbook else "",
+                            "execution_id": str(execution.id),
+                        },
+                        event_id=execution.id,
+                    )
                 
                 if expired_executions:
                     await db.commit()

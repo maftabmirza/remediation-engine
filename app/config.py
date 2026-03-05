@@ -89,6 +89,11 @@ class Settings(BaseSettings):
     prometheus_max_retries: int = 3
     prometheus_retry_delay: int = 2  # seconds
 
+    # Notification System
+    notification_worker_enabled: bool = True
+    notification_retry_max: int = 3
+    notification_retry_delay_seconds: int = 30
+
     @property
     def database_url(self) -> str:
         return f"postgresql://{self.postgres_user}:{self.postgres_password}@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"

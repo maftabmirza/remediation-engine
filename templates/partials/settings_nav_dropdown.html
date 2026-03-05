@@ -67,6 +67,12 @@
             <span>Authentication</span>
         </a>
         {% endif %}
+        <a href="/settings#section-notifications"
+            class="dropdown-item {{ 'active' if active_section == 'section-notifications' }}"
+            data-section="section-notifications">
+            <i data-feather="bell"></i>
+            <span>Notifications</span>
+        </a>
         <a href="/pii-detection" class="dropdown-item {{ 'active' if active_section == 'pii-detection' }}">
             <i data-feather="alert-triangle"></i>
             <span>PII Detection</span>

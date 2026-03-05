@@ -6,6 +6,7 @@ Handles trigger conditions, execution mode selection, and runbook invocation.
 """
 
 import re
+import asyncio
 import logging
 from typing import List, Optional, Dict, Any, Tuple
 from dataclasses import dataclass
@@ -28,6 +29,56 @@ from ..models_remediation import (
 from ..models import ServerCredential
 
 logger = logging.getLogger(__name__)
+
+
+def _notify_bg(event_type: str, event_data: dict, event_id=None):
+    """Fire-and-forget notification helper."""
+    import asyncio  # noqa: PLC0415
+
+    async def _run():
+        try:
+            from app.database import async_session_factory as _sf  # noqa: PLC0415
+            from app.services.notification.service import NotificationService  # noqa: PLC0415
+            async with _sf() as _db:
+                svc = NotificationService(_db)
+                await svc.notify(event_type, event_data, event_id=event_id)
+        except Exception:
+            logger.exception("Background notification failed for event_type=%s", event_type)
+
+    try:
+        asyncio.ensure_future(_run())
+    except RuntimeError:
+        pass  # No running event loop (e.g. tests)
+
+
+def _send_approval_notification(execution) -> None:  # type: ignore[type-arg]
+    """Fire-and-forget immediate notification for approval.requested events."""
+    import asyncio  # noqa: PLC0415
+
+    async def _run():
+        try:
+            from app.database import async_session_factory as _sf  # noqa: PLC0415
+            from app.services.notification.service import NotificationService  # noqa: PLC0415
+            from app.schemas_notification import NotificationMessage  # noqa: PLC0415
+
+            event_data = {
+                "runbook_name": execution.runbook.name if execution.runbook else str(execution.runbook_id),
+                "alert_name": "",
+                "execution_id": str(execution.id),
+                "requested_by": "auto-trigger",
+                "expires_at": str(execution.approval_expires_at) if execution.approval_expires_at else "",
+                "approval_url": f"/executions/{execution.id}",
+            }
+            async with _sf() as _db:
+                svc = NotificationService(_db)
+                await svc.notify("approval.requested", event_data, event_id=execution.id)
+        except Exception:
+            logger.exception("Failed to send approval.requested notification for execution %s", execution.id)
+
+    try:
+        asyncio.ensure_future(_run())
+    except RuntimeError:
+        pass  # No running event loop (e.g. tests)
 
 
 @dataclass
@@ -402,6 +453,17 @@ class AlertTriggerMatcher:
                             "execution_id": execution.id if execution else None,
                             "trigger_id": match.trigger.id
                         })
+
+                        _notify_bg(
+                            "execution.triggered",
+                            {
+                                "runbook_name": match.runbook.name,
+                                "alert_name": alert.alert_name,
+                                "severity": alert.severity or "",
+                                "execution_id": str(execution.id) if execution else "",
+                            },
+                            event_id=execution.id if execution else None,
+                        )
                     except Exception as e:
                         logger.error(f"Failed to auto-execute runbook {match.runbook.id}: {e}")
                         result["blocked"].append({
@@ -428,6 +490,18 @@ class AlertTriggerMatcher:
                     "trigger_id": match.trigger.id,
                     "variables": match.match_details.get("extracted_variables", {})
                 })
+
+                _notify_bg(
+                    "approval.requested",
+                    {
+                        "runbook_name": match.runbook.name,
+                        "alert_name": alert.alert_name,
+                        "severity": alert.severity or "",
+                        "requested_by": "system",
+                        "execution_id": str(approval.id) if approval else "",
+                    },
+                    event_id=approval.id if approval else None,
+                )
             
             # Report blocked matches
             for match, reason in match_result.blocked:
@@ -606,8 +680,8 @@ class AlertTriggerMatcher:
             f"for runbook {match.runbook.name}"
         )
         
-        # TODO: Send notification for approval
-        # await notification_service.send_approval_request(execution)
+        # Send approval-requested notification (immediate — bypass queue)
+        asyncio.ensure_future(_send_approval_notification(execution))
         
         return execution
 

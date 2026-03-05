@@ -24,6 +24,7 @@ import app.models_learning  # noqa: F401 - Phase 3: Learning System
 import app.models_dashboards  # noqa: F401 - Prometheus Dashboard Builder
 import app.models_agent  # noqa: F401 - Agent Mode
 import app.models_changeset  # noqa: F401 - File ops / change sets
+import app.models_notification  # noqa: F401 - Notification System
 from app.services.auth_service import (
     get_current_user_optional,
     create_user,
@@ -36,6 +37,7 @@ from app.routers import (
     alerts,
     rules,
     webhook,
+    notification,
     settings as settings_router_module,
     servers,
     users,
@@ -94,6 +96,7 @@ from app.routers import (
 )
 from app import api_credential_profiles
 from app.services.execution_worker import start_execution_worker, stop_execution_worker
+from app.services.notification.dispatcher import start_notification_dispatcher, stop_notification_dispatcher
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -247,6 +250,11 @@ async def lifespan(app: FastAPI):
         logger.info("Starting execution worker...")
         await start_execution_worker()
         
+        # Start notification dispatcher
+        logger.info("Starting notification dispatcher...")
+        await start_notification_dispatcher()
+        logger.info("✅ Notification dispatcher started")
+        
         # Start scheduler
         logger.info("Starting scheduler...")
         from app.services.scheduler_service import get_scheduler
@@ -354,6 +362,10 @@ async def lifespan(app: FastAPI):
         # Stop execution worker gracefully
         logger.info("Stopping execution worker...")
         await stop_execution_worker()
+        
+        # Stop notification dispatcher
+        logger.info("Stopping notification dispatcher...")
+        await stop_notification_dispatcher()
     
     logger.info("AIOps Platform shutdown complete")
 
@@ -503,6 +515,7 @@ app.include_router(pii.router)               # PII & Secret Detection
 app.include_router(pii_logs.router)          # PII Detection Logs
 app.include_router(pii_feedback.router)      # PII False Positive Feedback
 app.include_router(incidents.router)         # Incidents Management
+app.include_router(notification.router)      # Notification Channels & Policies
 app.include_router(design.router)            # Design Settings (logo/icon uploads)
 
 
@@ -702,6 +715,23 @@ async def incident_detail_page(
         "request": request,
         "user": current_user,
         "incident": incident
+    })
+
+
+@app.get("/notifications", response_class=HTMLResponse)
+async def notifications_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    Notification channels, policies and delivery log settings page.
+    """
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    return templates.TemplateResponse("notifications.html", {
+        "request": request,
+        "user": current_user,
     })
 
 

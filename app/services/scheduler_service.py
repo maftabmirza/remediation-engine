@@ -393,6 +393,28 @@ async def _execute_scheduled_runbook(
             await db.commit()
             break
 
+        # Notify schedule failure
+        try:
+            import asyncio as _asyncio  # noqa: PLC0415
+            from app.database import async_session_factory as _sf  # noqa: PLC0415
+            from app.services.notification.service import NotificationService  # noqa: PLC0415
+
+            async def _notify():
+                async with _sf() as _db:
+                    svc = NotificationService(_db)
+                    await svc.notify(
+                        "schedule.failed",
+                        {
+                            "job_name": scheduled_job_id,
+                            "error_message": error_message,
+                            "next_run": "",
+                        },
+                    )
+
+            _asyncio.ensure_future(_notify())
+        except Exception:
+            logger.exception("Failed to send schedule.failed notification")
+
 
 # Global scheduler instance
 _scheduler_service: Optional[SchedulerService] = None
