@@ -399,6 +399,9 @@ class RunbookExecutionResponse(BaseModel):
     # Include step executions
     step_executions: List[StepExecutionResponse] = []
 
+    # Confidence score (populated when alert_id is provided)
+    confidence: Optional[Any] = None
+
     model_config = ConfigDict(from_attributes=True)
 
 

@@ -1262,7 +1262,21 @@ async def execute_runbook(
         .where(RunbookExecution.id == execution.id)
     )
     execution_with_steps = result.scalar_one()
-    
+
+    # Attach confidence score when an alert context is available
+    if exec_request.alert_id:
+        try:
+            from ..services.confidence_score_service import ConfidenceScoreService
+            confidence_svc = ConfidenceScoreService(db)
+            execution_with_steps.confidence = await confidence_svc.calculate(
+                exec_request.alert_id, runbook_id
+            )
+        except Exception:
+            import logging as _logging
+            _logging.getLogger(__name__).exception(
+                "Failed to compute confidence score for execution %s", execution.id
+            )
+
     # The background ExecutionWorker will pick up and process executions
     # with status "running" or "approved" automatically
     

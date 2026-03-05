@@ -26,6 +26,7 @@ import app.models_agent  # noqa: F401 - Agent Mode
 import app.models_changeset  # noqa: F401 - File ops / change sets
 import app.models_notification  # noqa: F401 - Notification System
 import app.models_suppression  # noqa: F401 - Alert Suppression Rules
+import app.models_postmortem  # noqa: F401 - Post-Incident Postmortem Reports
 from app.services.auth_service import (
     get_current_user_optional,
     create_user,
@@ -95,6 +96,7 @@ from app.routers import (
     incidents,  # Incidents Management
     design,  # Design Settings (logo/icon uploads)
     alert_suppression_api,  # Phase 1: Alert Suppression Rules
+    postmortem_api,  # Phase 2: Post-Incident Postmortem Generation
 )
 from app import api_credential_profiles
 from app.services.execution_worker import start_execution_worker, stop_execution_worker
@@ -520,6 +522,7 @@ app.include_router(incidents.router)         # Incidents Management
 app.include_router(notification.router)      # Notification Channels & Policies
 app.include_router(design.router)            # Design Settings (logo/icon uploads)
 app.include_router(alert_suppression_api.router)  # Phase 1: Alert Suppression Rules
+app.include_router(postmortem_api.router)           # Phase 2: Post-Incident Postmortem Generation
 
 
 # Mock OFREP endpoint for Grafana OpenFeature - returns valid empty response to prevent 404 errors
