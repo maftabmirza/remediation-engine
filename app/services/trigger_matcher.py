@@ -18,6 +18,7 @@ from sqlalchemy import select, and_
 from sqlalchemy.orm import selectinload
 
 from ..models import Alert, User
+from ..schemas_confidence import ConfidenceScore
 from ..models_remediation import (
     Runbook,
     RunbookTrigger,
@@ -90,6 +91,7 @@ class TriggerMatch:
     execution_mode: str
     can_execute: bool
     block_reason: Optional[str] = None
+    confidence: Optional[ConfidenceScore] = None
 
 
 @dataclass
@@ -183,6 +185,18 @@ class AlertTriggerMatcher:
                     unique_matches[rb_id] = m
         
         matches = list(unique_matches.values())
+
+        # Attach confidence scores for all unique matches
+        if matches:
+            try:
+                from ..services.confidence_score_service import ConfidenceScoreService
+                confidence_svc = ConfidenceScoreService(self.db)
+                runbook_ids = [m.runbook.id for m in matches]
+                confidence_map = await confidence_svc.bulk_calculate(alert.id, runbook_ids)
+                for m in matches:
+                    m.confidence = confidence_map.get(m.runbook.id)
+            except Exception:
+                logger.exception("ConfidenceScoreService failed to compute confidence scores for alert %s", alert.id)
 
         # Categorize matches
         auto_execute = [
