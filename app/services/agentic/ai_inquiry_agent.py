@@ -71,4 +71,28 @@ If you use any banned phrase, you have FAILED.
         if self.alert:
              base_prompt += f"\nContext: User is asking about alert: {self.alert.alert_name}\n"
 
+        # Inject RAG knowledge context when available
+        knowledge_context = self._load_knowledge_context()
+        if knowledge_context:
+            base_prompt += f"\n---\n\n## Knowledge Base Context (RAG)\n{knowledge_context}\n"
+
         return base_prompt
+
+    def _load_knowledge_context(self) -> str:
+        """Load knowledge context for the current alert using RAG enrichment.
+
+        Returns:
+            Formatted knowledge context string or empty string.
+        """
+        if not self.alert:
+            return ""
+        try:
+            from app.services.knowledge_enrichment_service import KnowledgeEnrichmentService
+            svc = KnowledgeEnrichmentService(self.db)
+            return svc.get_context_for_alert(self.alert) or ""
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).warning(
+                "Failed to load knowledge context for inquiry agent: %s", exc
+            )
+            return ""

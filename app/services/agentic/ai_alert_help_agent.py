@@ -167,7 +167,28 @@ Rules:
         else:
             base_prompt += "\n## No specific alert context provided. Perform general troubleshooting.\n"
 
+        # Inject RAG knowledge context when available
+        knowledge_context = self._load_knowledge_context()
+        if knowledge_context:
+            base_prompt += f"\n---\n\n## Knowledge Base Context (RAG)\n{knowledge_context}\n"
+
         return base_prompt
+
+    def _load_knowledge_context(self) -> str:
+        """Load knowledge context for the current alert using RAG enrichment.
+
+        Returns:
+            Formatted knowledge context string or empty string.
+        """
+        if not self.alert:
+            return ""
+        try:
+            from app.services.knowledge_enrichment_service import KnowledgeEnrichmentService
+            svc = KnowledgeEnrichmentService(self.db)
+            return svc.get_context_for_alert(self.alert) or ""
+        except Exception as exc:
+            logger.warning("Failed to load knowledge context for alert help agent: %s", exc)
+            return ""
 
     # ... (Rest of the class methods can be reused from Native/Troubleshoot agent)
     # For brevity, I will copy the essential methods from AiTroubleshootAgent logic

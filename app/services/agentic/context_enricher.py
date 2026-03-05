@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional, List, Dict, Any
 from uuid import UUID
 from datetime import datetime
@@ -22,6 +22,7 @@ class EnrichedContext:
     similar_incidents: List[str]
     runbook_recommendation: Optional[str]
     alert_summary: str
+    knowledge_context: Optional[str] = field(default=None)
 
 class TroubleshootingContextEnricher:
     """
@@ -76,6 +77,9 @@ class TroubleshootingContextEnricher:
         # 4. Runbook Recommendation (Internal)
         tasks.append(self._find_runbook(alert))
 
+        # 5. Knowledge context (Internal)
+        tasks.append(self._get_knowledge_context(alert))
+
         # Execute parallel
         results = await asyncio.gather(*tasks)
         
@@ -84,7 +88,8 @@ class TroubleshootingContextEnricher:
             oncall_info=results[1],
             similar_incidents=results[2] or [],
             runbook_recommendation=results[3],
-            alert_summary=alert_summary
+            alert_summary=alert_summary,
+            knowledge_context=results[4],
         )
 
     async def _safely_get_sift(self, alert: Alert) -> Optional[str]:
@@ -139,4 +144,22 @@ class TroubleshootingContextEnricher:
             return None
         except Exception as e:
             logger.warning(f"Failed to find runbook: {e}")
+            return None
+
+    async def _get_knowledge_context(self, alert: Alert) -> Optional[str]:
+        """Fetch RAG knowledge context for the alert from the knowledge base.
+
+        Args:
+            alert: The alert to enrich with knowledge context.
+
+        Returns:
+            Formatted knowledge context string or None.
+        """
+        try:
+            from app.services.knowledge_enrichment_service import KnowledgeEnrichmentService
+            service = KnowledgeEnrichmentService(self.db)
+            context = service.get_context_for_alert(alert)
+            return context if context else None
+        except Exception as e:
+            logger.warning(f"Failed to get knowledge context: {e}")
             return None

@@ -99,6 +99,9 @@ class AiTroubleshootAgent:
         self.messages: List[Dict[str, Any]] = initial_messages if initial_messages else []
         self.tool_calls_made: List[str] = []
 
+        # Pre-fetch knowledge context for the alert (RAG enrichment)
+        self._knowledge_context: Optional[str] = self._load_knowledge_context()
+
     @classmethod
     def supports_provider(cls, provider_type: str) -> bool:
         """Check if this agent supports the given provider type"""
@@ -366,7 +369,28 @@ You MUST call at least 2 tools to gather evidence before suggesting any command.
 Tools called so far will be tracked. If you try to suggest a command without sufficient evidence, you will be asked to continue investigating.
 """
 
+        # Inject RAG knowledge context when available
+        if self._knowledge_context:
+            base_prompt += f"\n---\n\n## Knowledge Base Context (RAG)\n{self._knowledge_context}\n"
+
         return base_prompt
+
+    def _load_knowledge_context(self) -> Optional[str]:
+        """Load knowledge context for the current alert using RAG enrichment.
+
+        Returns:
+            Formatted knowledge context string or None.
+        """
+        if not self.alert:
+            return None
+        try:
+            from app.services.knowledge_enrichment_service import KnowledgeEnrichmentService
+            svc = KnowledgeEnrichmentService(self.db)
+            ctx = svc.get_context_for_alert(self.alert)
+            return ctx if ctx else None
+        except Exception as exc:
+            logger.warning("Failed to load knowledge context for troubleshoot agent: %s", exc)
+            return None
 
     def _extract_runbook_view_links(self) -> List[str]:
         """Extract unique runbook view URLs from tool outputs."""
