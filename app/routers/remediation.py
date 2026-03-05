@@ -5,6 +5,7 @@ Provides CRUD operations for runbooks, triggers, executions, and safety controls
 Supports IaC import/export via YAML format.
 """
 
+import logging
 from datetime import datetime, timezone, timedelta
 from typing import List, Optional, Dict, Any
 from uuid import UUID, uuid4
@@ -41,6 +42,7 @@ from ..services.runbook_knowledge_service import RunbookKnowledgeService
 from ..utils.search import like_escape
 
 router = APIRouter(prefix="/api/remediation", tags=["Auto-Remediation"])
+logger = logging.getLogger(__name__)
 
 
 def utc_now():
@@ -1272,8 +1274,7 @@ async def execute_runbook(
                 exec_request.alert_id, runbook_id
             )
         except Exception:
-            import logging as _logging
-            _logging.getLogger(__name__).exception(
+            logger.exception(
                 "Failed to compute confidence score for execution %s", execution.id
             )
 

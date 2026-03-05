@@ -25,6 +25,10 @@ from app.schemas_postmortem import (
 
 logger = logging.getLogger(__name__)
 
+# Maximum characters to retain from a raw LLM response when JSON parsing fails.
+# Keeps the fallback impact_summary reasonably sized without truncating structured data.
+_MAX_FALLBACK_TEXT_LENGTH = 1000
+
 
 def _utc_now() -> datetime:
     return datetime.now(timezone.utc)
@@ -648,8 +652,8 @@ class PostmortemService:
 
         try:
             # generate_completion uses a sync Session internally
-            async with async_session_factory() as sync_db:
-                text, _ = await generate_completion(sync_db, full_prompt, json_mode=True)
+            async with async_session_factory() as llm_db:
+                text, _ = await generate_completion(llm_db, full_prompt, json_mode=True)
         except Exception as exc:
             logger.error("LLM call failed during postmortem generation: %s", exc)
             raise HTTPException(
@@ -680,7 +684,7 @@ class PostmortemService:
         except (json.JSONDecodeError, ValueError):
             logger.warning("Could not parse LLM JSON response; returning raw text as impact_summary")
             return {
-                "impact_summary": text[:1000],
+                "impact_summary": text[:_MAX_FALLBACK_TEXT_LENGTH],
                 "root_cause": "",
                 "contributing_factors": [],
                 "lessons_learned": "",

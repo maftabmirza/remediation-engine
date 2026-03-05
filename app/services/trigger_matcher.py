@@ -196,7 +196,7 @@ class AlertTriggerMatcher:
                 for m in matches:
                     m.confidence = confidence_map.get(m.runbook.id)
             except Exception:
-                logger.exception("Failed to compute confidence scores for alert %s", alert.id)
+                logger.exception("ConfidenceScoreService failed to compute confidence scores for alert %s", alert.id)
 
         # Categorize matches
         auto_execute = [

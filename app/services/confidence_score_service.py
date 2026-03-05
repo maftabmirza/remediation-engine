@@ -298,19 +298,11 @@ class ConfidenceScoreService:
 
     async def _get_prior(self, runbook_id: UUID) -> Optional[float]:
         """
-        Retrieve overall effectiveness score (0.0–1.0) from EffectivenessService
-        as a Bayesian prior.
+        Compute an overall success-rate prior (0.0–1.0) for *runbook_id* using all
+        available ExecutionOutcome records.  Used as a Bayesian blend when
+        similar-alert history is sparse (< _BLEND_THRESHOLD matches).
         """
         try:
-            from app.services.effectiveness_service import EffectivenessService
-            from app.database import async_session_factory
-
-            # EffectivenessService uses a sync Session; create one via the factory
-            async with async_session_factory() as sync_wrapper:
-                # We need a sync session — fall back to direct query here
-                pass
-
-            # Direct async approach: replicate the success_rate calculation
             result = await self.db.execute(
                 select(
                     ExecutionOutcome.resolution_type,
@@ -326,9 +318,7 @@ class ConfidenceScoreService:
             if not rows:
                 return None
 
-            successes = sum(
-                1 for r in rows if r.resolution_type == "full"
-            )
+            successes = sum(1 for r in rows if r.resolution_type == "full")
             return successes / len(rows)
         except Exception as exc:
             logger.warning("Could not compute prior for runbook %s: %s", runbook_id, exc)
