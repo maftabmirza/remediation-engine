@@ -10,6 +10,8 @@ from uuid import UUID
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 import re
 
+from app.schemas_confidence import ConfidenceScore  # noqa: E402
+
 
 # =============================================================================
 # ENUMS AS LITERALS
@@ -398,6 +400,9 @@ class RunbookExecutionResponse(BaseModel):
     
     # Include step executions
     step_executions: List[StepExecutionResponse] = []
+
+    # Confidence score — populated when an alert_id was provided at execution time
+    confidence: Optional[ConfidenceScore] = None
 
     model_config = ConfigDict(from_attributes=True)
 

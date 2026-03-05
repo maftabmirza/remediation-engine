@@ -90,6 +90,7 @@ class TriggerMatch:
     execution_mode: str
     can_execute: bool
     block_reason: Optional[str] = None
+    confidence: Optional[Any] = None  # Optional[ConfidenceScore] — avoids circular import
 
 
 @dataclass
@@ -183,6 +184,19 @@ class AlertTriggerMatcher:
                     unique_matches[rb_id] = m
         
         matches = list(unique_matches.values())
+
+        # Attach confidence scores to each match (best-effort; failures are non-fatal)
+        if matches:
+            try:
+                from app.services.confidence_score_service import ConfidenceScoreService  # noqa: PLC0415
+
+                confidence_svc = ConfidenceScoreService(self.db)
+                runbook_ids = [m.runbook.id for m in matches]
+                scores = await confidence_svc.bulk_calculate(alert.id, runbook_ids)
+                for m in matches:
+                    m.confidence = scores.get(m.runbook.id)
+            except Exception as _exc:  # pragma: no cover
+                logger.warning("Could not compute confidence scores: %s", _exc)
 
         # Categorize matches
         auto_execute = [
