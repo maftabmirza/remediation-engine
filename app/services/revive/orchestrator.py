@@ -230,6 +230,11 @@ class ReviveOrchestrator:
         # Append shared formatting instructions to all modes
         content += FORMATTING_INSTRUCTIONS
 
+        # Inject RAG knowledge context if an alert is bound
+        knowledge_context = self._get_knowledge_context()
+        if knowledge_context:
+            content += f"\n\n---\n\n## Knowledge Base Context (RAG)\n{knowledge_context}\n"
+
         # Add Page Context if available
         if page_context:
             context_summary = f"\n\n[Current Context]\nUser is viewing: {page_context.get('title', 'Unknown Page')}"
@@ -300,3 +305,19 @@ class ReviveOrchestrator:
             content += context_summary
             
         return {"role": "system", "content": content}
+
+    def _get_knowledge_context(self) -> str:
+        """Fetch RAG knowledge context for the current alert (if any).
+
+        Returns:
+            Formatted knowledge context string or empty string.
+        """
+        if not self.alert_id:
+            return ""
+        try:
+            from app.services.knowledge_enrichment_service import KnowledgeEnrichmentService
+            svc = KnowledgeEnrichmentService(self.db)
+            return svc.get_context_for_alert_id(self.alert_id) or ""
+        except Exception as exc:
+            logger.warning("Failed to load knowledge context for RE-VIVE: %s", exc)
+            return ""

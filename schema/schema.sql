@@ -467,6 +467,34 @@ CREATE TABLE public.alert_correlations (
 
 
 --
+-- Name: alert_suppression_rules; Type: TABLE; Schema: public; Owner: aiops
+--
+
+CREATE TABLE public.alert_suppression_rules (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    name character varying(200) NOT NULL,
+    rule_type character varying(20) NOT NULL,
+    matchers jsonb,
+    app_id uuid,
+    starts_at timestamp with time zone NOT NULL,
+    ends_at timestamp with time zone,
+    grace_period_minutes integer DEFAULT 5 NOT NULL,
+    is_active boolean DEFAULT true NOT NULL,
+    created_by uuid,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT alert_suppression_rules_pkey PRIMARY KEY (id),
+    CONSTRAINT alert_suppression_rules_app_id_fkey FOREIGN KEY (app_id) REFERENCES public.applications(id) ON DELETE CASCADE,
+    CONSTRAINT alert_suppression_rules_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id) ON DELETE SET NULL
+);
+
+CREATE INDEX ix_alert_suppression_rules_app_id ON public.alert_suppression_rules USING btree (app_id);
+CREATE INDEX ix_alert_suppression_rules_is_active ON public.alert_suppression_rules USING btree (is_active);
+
+
+
+
+--
 -- Name: alerts; Type: TABLE; Schema: public; Owner: aiops
 --
 
@@ -651,6 +679,7 @@ CREATE TABLE public.applications (
     alert_label_matchers json,
     created_at timestamp with time zone,
     updated_at timestamp with time zone,
+    maintenance_mode boolean DEFAULT false,
     CONSTRAINT ck_applications_criticality CHECK (((criticality)::text = ANY ((ARRAY['critical'::character varying, 'high'::character varying, 'medium'::character varying, 'low'::character varying])::text[])))
 );
 

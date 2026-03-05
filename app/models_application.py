@@ -35,6 +35,7 @@ class Application(Base):
     alert_label_matchers = Column(JSON, default={})  # How to match alerts to this  app
     created_at = Column(DateTime(timezone=True), default=utc_now)
     updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+    maintenance_mode = Column(Boolean, default=False, nullable=False)
 
     # Relationships
     components = relationship("ApplicationComponent", back_populates="application", cascade="all, delete-orphan")

@@ -331,6 +331,33 @@ async def receive_alertmanager_webhook(
             
             logger.info(f"Stored alert: {alert_name} (action: {action})")
 
+            # ----------------------------------------------------------------
+            # Suppression check — after alert is persisted, before analysis
+            # ----------------------------------------------------------------
+            try:
+                from app.services.alert_suppression_service import AlertSuppressionService
+                suppression_svc = AlertSuppressionService(db)
+                suppression = suppression_svc.check_suppression(
+                    alert_labels=labels,
+                    app_id=alert.app_id,
+                )
+                if suppression:
+                    alert.status = "suppressed"
+                    db.commit()
+                    logger.info(
+                        f"Alert {alert.id} suppressed by rule "
+                        f"'{suppression.name}'"
+                    )
+                    ALERTS_PROCESSED.labels(action="suppressed").inc()
+                    processed.append({
+                        "alert_name": alert_name,
+                        "action": "suppressed",
+                        "id": str(alert.id),
+                    })
+                    continue
+            except Exception as sup_exc:
+                logger.warning(f"Suppression check failed for {alert_name}: {sup_exc}")
+
             # Fire alert.firing notification
             _notify_alert(alert_name, severity, alert.id, source=job or instance)
             
