@@ -25,6 +25,13 @@ _BLEND_THRESHOLD = 3
 _PRIOR_WEIGHT = 0.6
 _COMPUTED_WEIGHT = 0.4
 
+# Weight for each outcome type in the confidence calculation.
+_OUTCOME_WEIGHTS: Dict[str, float] = {
+    "success": 1.0,
+    "partial": 0.5,
+    "failure": 0.0,
+}
+
 
 def _confidence_level(score: float) -> str:
     """Map a numeric score to a named confidence level."""
@@ -98,12 +105,7 @@ class ConfidenceScoreService:
         for sim_alert_id, similarity in similar_incidents:
             outcomes = await self._get_outcomes_for_alert_runbook(sim_alert_id, runbook_id)
             for outcome_type, resolution_minutes in outcomes:
-                if outcome_type == "success":
-                    weight = 1.0
-                elif outcome_type == "partial":
-                    weight = 0.5
-                else:
-                    weight = 0.0
+                weight = _OUTCOME_WEIGHTS.get(outcome_type, 0.0)
 
                 weighted_successes += similarity * weight
                 weighted_total += similarity

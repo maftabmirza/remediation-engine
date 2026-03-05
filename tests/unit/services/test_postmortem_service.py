@@ -122,18 +122,7 @@ async def test_generate_with_full_data_populates_all_sections():
         ],
     }
 
-    captured_report = {}
-
-    async def _fake_add(report):
-        captured_report["report"] = report
-
-    async def _fake_commit():
-        pass
-
-    async def _fake_refresh(report):
-        pass
-
-    svc.db.add = MagicMock(side_effect=lambda r: captured_report.update({"report": r}))
+    svc.db.add = MagicMock()
     svc.db.commit = AsyncMock()
     svc.db.refresh = AsyncMock()
 

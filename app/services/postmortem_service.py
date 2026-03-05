@@ -284,7 +284,13 @@ class PostmortemService:
         return report
 
     async def delete(self, postmortem_id: UUID) -> None:
-        """Delete a draft postmortem.  Only drafts may be deleted."""
+        """
+        Delete a draft postmortem.  Only drafts may be deleted.
+
+        Note: Role-based authorization (admin only) is enforced at the router
+        layer via ``require_role(['admin'])``.  This service method enforces
+        only the *status* constraint.
+        """
         report = await self.get(postmortem_id)
         if report.status != "draft":
             raise HTTPException(
@@ -449,8 +455,7 @@ class PostmortemService:
 
         try:
             def _sync_call():
-                import asyncio as _asyncio  # noqa: PLC0415
-                loop = _asyncio.new_event_loop()
+                loop = asyncio.new_event_loop()
                 try:
                     with SessionLocal() as sync_db:
                         result = loop.run_until_complete(
