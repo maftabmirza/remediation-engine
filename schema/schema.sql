@@ -5164,3 +5164,32 @@ CREATE INDEX idx_notification_log_status ON public.notification_log USING btree 
 CREATE INDEX idx_notification_log_event ON public.notification_log USING btree (event_type, event_id);
 CREATE INDEX idx_notification_log_created ON public.notification_log USING btree (created_at);
 CREATE INDEX idx_notification_log_next_retry ON public.notification_log USING btree (next_retry_at) WHERE status = 'retrying';
+
+
+-- ============================================================================
+-- Alert Suppression Rules (Feature A6 — migration 20260305000000)
+-- ============================================================================
+
+CREATE TABLE public.alert_suppression_rules (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    name character varying(100) NOT NULL,
+    description text,
+    alert_name_pattern character varying(255) NOT NULL DEFAULT '*',
+    severity_pattern character varying(50) NOT NULL DEFAULT '*',
+    instance_pattern character varying(255) NOT NULL DEFAULT '*',
+    job_pattern character varying(255) NOT NULL DEFAULT '*',
+    starts_at timestamp with time zone,
+    ends_at timestamp with time zone,
+    is_active boolean NOT NULL DEFAULT true,
+    reason character varying(500),
+    created_by uuid,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT alert_suppression_rules_pkey PRIMARY KEY (id)
+);
+
+ALTER TABLE ONLY public.alert_suppression_rules
+    ADD CONSTRAINT fk_alert_suppression_rules_created_by FOREIGN KEY (created_by)
+        REFERENCES public.users(id) ON DELETE SET NULL;
+
+CREATE INDEX ix_alert_suppression_rules_is_active ON public.alert_suppression_rules USING btree (is_active);

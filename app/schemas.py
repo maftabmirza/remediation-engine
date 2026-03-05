@@ -515,3 +515,108 @@ class PasswordPolicyUpdate(BaseModel):
     max_login_attempts: Optional[int] = Field(default=None, ge=0)
     lockout_duration_mins: Optional[int] = Field(default=None, ge=1)
 
+
+# ──────────────────────────────────────────────────────────────────────────────
+#  Alert Suppression Rules schemas  (Feature A6)
+# ──────────────────────────────────────────────────────────────────────────────
+
+class SuppressionRuleBase(BaseModel):
+    """Shared fields for suppression rule create / update."""
+    name: str = Field(..., min_length=1, max_length=100)
+    description: Optional[str] = None
+    alert_name_pattern: str = Field(default="*", max_length=255)
+    severity_pattern: str = Field(default="*", max_length=50)
+    instance_pattern: str = Field(default="*", max_length=255)
+    job_pattern: str = Field(default="*", max_length=255)
+    starts_at: Optional[datetime] = None
+    ends_at: Optional[datetime] = None
+    is_active: bool = True
+    reason: Optional[str] = Field(default=None, max_length=500)
+
+
+class SuppressionRuleCreate(SuppressionRuleBase):
+    """Request body for creating a suppression rule."""
+    pass
+
+
+class SuppressionRuleUpdate(BaseModel):
+    """Request body for updating a suppression rule (all fields optional)."""
+    name: Optional[str] = Field(default=None, min_length=1, max_length=100)
+    description: Optional[str] = None
+    alert_name_pattern: Optional[str] = Field(default=None, max_length=255)
+    severity_pattern: Optional[str] = Field(default=None, max_length=50)
+    instance_pattern: Optional[str] = Field(default=None, max_length=255)
+    job_pattern: Optional[str] = Field(default=None, max_length=255)
+    starts_at: Optional[datetime] = None
+    ends_at: Optional[datetime] = None
+    is_active: Optional[bool] = None
+    reason: Optional[str] = Field(default=None, max_length=500)
+
+
+class SuppressionRuleResponse(SuppressionRuleBase):
+    """Response schema for a suppression rule."""
+    id: UUID
+    created_by: Optional[UUID] = None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SuppressionRuleListResponse(BaseModel):
+    """Paginated list of suppression rules."""
+    rules: List[SuppressionRuleResponse]
+    total: int
+    page: int
+    page_size: int
+
+
+class SuppressionCheckResult(BaseModel):
+    """Result of checking whether an alert should be suppressed."""
+    suppressed: bool
+    rule_id: Optional[UUID] = None
+    rule_name: Optional[str] = None
+    reason: Optional[str] = None
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+#  RAG-Enhanced Alert Diagnosis schemas  (Feature B7)
+# ──────────────────────────────────────────────────────────────────────────────
+
+class RAGSimilarIncident(BaseModel):
+    """A similar historical incident retrieved by vector search."""
+    alert_id: UUID
+    alert_name: str
+    similarity_score: float
+    occurred_at: datetime
+    severity: Optional[str] = None
+    instance: Optional[str] = None
+    ai_analysis_excerpt: Optional[str] = None
+
+
+class RAGKnowledgeChunk(BaseModel):
+    """A relevant knowledge-base chunk retrieved by semantic search."""
+    chunk_id: UUID
+    document_title: str
+    content_excerpt: str
+    similarity_score: float
+    doc_type: Optional[str] = None
+
+
+class RAGDiagnosisContext(BaseModel):
+    """Retrieved context used to augment alert diagnosis."""
+    similar_incidents: List[RAGSimilarIncident] = []
+    knowledge_chunks: List[RAGKnowledgeChunk] = []
+    context_text: str = ""
+
+
+class RAGDiagnosisResponse(BaseModel):
+    """Response from the RAG-enhanced alert diagnosis endpoint."""
+    alert_id: UUID
+    analysis: str
+    recommendations: List[str]
+    llm_provider: str
+    analyzed_at: datetime
+    analysis_count: int
+    rag_context: RAGDiagnosisContext
+

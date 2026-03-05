@@ -297,6 +297,42 @@ async def analyze_alert(
     return analysis, recommendations, provider_used
 
 
+async def analyze_alert_with_rag(
+    db: Session,
+    alert: Alert,
+    rag_context_text: str,
+    provider: Optional[LLMProvider] = None,
+) -> Tuple[str, List[str], LLMProvider]:
+    """
+    Analyze an alert using the LLM, augmented with RAG-retrieved context.
+
+    The ``rag_context_text`` is prepended to the standard analysis prompt so
+    the model can reference historical incidents and knowledge-base documents
+    when forming its diagnosis.
+
+    Args:
+        db:               Database session.
+        alert:            The alert to diagnose.
+        rag_context_text: Pre-formatted RAG context (from
+                          ``RagAlertDiagnosisService.build_rag_prompt_section``).
+                          Pass an empty string to skip RAG augmentation.
+        provider:         Optional specific LLM provider to use.
+
+    Returns:
+        Tuple of (analysis_text, recommendations, provider_used).
+    """
+    base_prompt = build_analysis_prompt(alert)
+
+    if rag_context_text:
+        prompt = f"{rag_context_text}\n\n---\n\n{base_prompt}"
+    else:
+        prompt = base_prompt
+
+    analysis, provider_used = await generate_completion(db, prompt, provider)
+    recommendations = parse_recommendations(analysis)
+    return analysis, recommendations, provider_used
+
+
 def get_available_providers(db: Session) -> List[LLMProvider]:
     """Get all enabled LLM providers."""
     return db.query(LLMProvider).filter(

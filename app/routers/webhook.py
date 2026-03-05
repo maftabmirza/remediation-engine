@@ -18,6 +18,7 @@ from app.models import Alert, LLMProvider, IncidentMetrics
 from app.schemas import AlertmanagerWebhook
 from app.services.rules_engine import find_matching_rule
 from app.services.llm_service import analyze_alert
+from app.services.alert_suppression_service import AlertSuppressionService
 from app.metrics import (
     ALERTS_RECEIVED, ALERTS_PROCESSED, ALERTS_ANALYZED,
     WEBHOOK_REQUESTS, WEBHOOK_DURATION
@@ -229,7 +230,25 @@ async def receive_alertmanager_webhook(
             
             # Find matching rule
             matched_rule, action = find_matching_rule(db, alert_name, severity, instance, job)
-            
+
+            # Check suppression rules before further processing
+            suppression_svc = AlertSuppressionService(db)
+            suppressed, suppression_rule = suppression_svc.check_suppressed(
+                alert_name, severity, instance, job
+            )
+            if suppressed:
+                logger.info(
+                    f"Suppressing alert: {alert_name} "
+                    f"(rule: {suppression_rule.name if suppression_rule else 'unknown'})"
+                )
+                ALERTS_PROCESSED.labels(action="suppressed").inc()
+                processed.append({
+                    "alert_name": alert_name,
+                    "action": "suppressed",
+                    "suppressed_by": suppression_rule.name if suppression_rule else None,
+                })
+                continue
+
             # Handle ignored alerts
             if action == "ignore":
                 logger.info(f"Ignoring alert: {alert_name} (matched rule: {matched_rule.name if matched_rule else 'none'})")

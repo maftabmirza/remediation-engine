@@ -93,6 +93,7 @@ from app.routers import (
     pii_feedback,  # PII False Positive Feedback
     incidents,  # Incidents Management
     design,  # Design Settings (logo/icon uploads)
+    suppression_rules,  # Feature A6: Alert Suppression Rules
 )
 from app import api_credential_profiles
 from app.services.execution_worker import start_execution_worker, stop_execution_worker
@@ -517,6 +518,7 @@ app.include_router(pii_feedback.router)      # PII False Positive Feedback
 app.include_router(incidents.router)         # Incidents Management
 app.include_router(notification.router)      # Notification Channels & Policies
 app.include_router(design.router)            # Design Settings (logo/icon uploads)
+app.include_router(suppression_rules.router) # Feature A6: Alert Suppression Rules
 
 
 # Mock OFREP endpoint for Grafana OpenFeature - returns valid empty response to prevent 404 errors
