@@ -5,6 +5,7 @@ Provides CRUD operations for runbooks, triggers, executions, and safety controls
 Supports IaC import/export via YAML format.
 """
 
+import logging
 from datetime import datetime, timezone, timedelta
 from typing import List, Optional, Dict, Any
 from uuid import UUID, uuid4
@@ -41,6 +42,8 @@ from ..services.runbook_knowledge_service import RunbookKnowledgeService
 from ..utils.search import like_escape
 
 router = APIRouter(prefix="/api/remediation", tags=["Auto-Remediation"])
+
+logger = logging.getLogger(__name__)
 
 
 def utc_now():
@@ -397,8 +400,6 @@ async def update_runbook(
     except Exception as e:
         # Catch all other exceptions and return proper JSON error
         await db.rollback()
-        import logging
-        logger = logging.getLogger(__name__)
         logger.exception(f"Unexpected error updating runbook {runbook_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -1142,6 +1143,36 @@ async def list_executions(
     return response
 
 
+@router.get("/runbooks/{runbook_id}/confidence")
+async def get_runbook_confidence(
+    runbook_id: UUID,
+    alert_id: UUID = Query(..., description="Alert ID to compute confidence against"),
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Return the confidence score for executing *runbook_id* in the context of *alert_id*.
+
+    The score (0-100) reflects how well this runbook has historically resolved
+    similar alerts.  A human-readable explanation is included.
+    """
+    from ..services.confidence_score_service import ConfidenceScoreService  # noqa: PLC0415
+    from ..schemas_confidence import ConfidenceScore  # noqa: PLC0415
+
+    # Ensure runbook exists
+    result = await db.execute(select(Runbook).where(Runbook.id == runbook_id))
+    runbook = result.scalar_one_or_none()
+    if not runbook:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Runbook {runbook_id} not found",
+        )
+
+    confidence_svc = ConfidenceScoreService(db)
+    confidence: ConfidenceScore = await confidence_svc.calculate(alert_id, runbook_id)
+    return confidence
+
+
 @router.post("/executions", response_model=RunbookExecutionResponse, status_code=status.HTTP_201_CREATED)
 async def execute_runbook(
     exec_request: ExecuteRunbookRequest,
@@ -1265,8 +1296,24 @@ async def execute_runbook(
     
     # The background ExecutionWorker will pick up and process executions
     # with status "running" or "approved" automatically
-    
-    return execution_with_steps
+
+    # Attach confidence score when an alert was linked (best-effort)
+    confidence = None
+    if exec_request.alert_id:
+        try:
+            from ..services.confidence_score_service import ConfidenceScoreService  # noqa: PLC0415
+
+            confidence_svc = ConfidenceScoreService(db)
+            confidence = await confidence_svc.calculate(exec_request.alert_id, runbook_id)
+        except Exception as _exc:
+            logger.warning("Could not compute confidence score for execution: %s", _exc)
+
+    # Build a response dict so we can attach the (non-ORM) confidence field.
+    from ..schemas_remediation import RunbookExecutionResponse  # noqa: PLC0415
+
+    response_data = RunbookExecutionResponse.model_validate(execution_with_steps)
+    response_data.confidence = confidence
+    return response_data
 
 
 @router.get("/executions/{execution_id}", response_model=RunbookExecutionResponse)
