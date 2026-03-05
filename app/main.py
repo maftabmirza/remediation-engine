@@ -26,6 +26,7 @@ import app.models_agent  # noqa: F401 - Agent Mode
 import app.models_changeset  # noqa: F401 - File ops / change sets
 import app.models_notification  # noqa: F401 - Notification System
 import app.models_postmortem  # noqa: F401 - Phase 2: Post-Incident Postmortem
+import app.models_oncall  # noqa: F401 - Feature A1: On-Call Scheduling & Escalation
 from app.services.auth_service import (
     get_current_user_optional,
     create_user,
@@ -98,6 +99,7 @@ from app.routers import (
     postmortem_api,  # Phase 2: Post-Incident Postmortem Generation
     runbook_generation_api,  # Phase 3: Runbook Auto-Generation (B2)
     service_health_api,  # Phase 3: Service Health Score & Topology (A2)
+    oncall_api,  # Feature A1: On-Call Scheduling & Escalation
 )
 from app import api_credential_profiles
 from app.services.execution_worker import start_execution_worker, stop_execution_worker
@@ -526,6 +528,7 @@ app.include_router(suppression_rules.router) # Feature A6: Alert Suppression Rul
 app.include_router(postmortem_api.router)    # Phase 2: Post-Incident Postmortem Generation
 app.include_router(runbook_generation_api.router)  # Phase 3: Runbook Auto-Generation (B2)
 app.include_router(service_health_api.router)      # Phase 3: Service Health Score & Topology (A2)
+app.include_router(oncall_api.router)              # Feature A1: On-Call Scheduling & Escalation
 
 
 # Mock OFREP endpoint for Grafana OpenFeature - returns valid empty response to prevent 404 errors

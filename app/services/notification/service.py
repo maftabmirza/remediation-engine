@@ -221,6 +221,44 @@ class NotificationService:
 
         return result
 
+    async def notify_oncall(
+        self,
+        app_id: UUID,
+        alert,
+    ) -> bool:
+        """
+        Resolve on-call for an application and send an immediate notification.
+
+        Args:
+            app_id: UUID of the application whose escalation policy to use.
+            alert: Alert ORM object (must have ``id``, ``name``, ``severity``).
+
+        Returns:
+            True if a notification was sent, False if no policy / no on-call.
+        """
+        from app.services.oncall_service import OnCallService  # noqa: PLC0415
+
+        svc = OnCallService(self.db)
+        contacts = await svc.resolve_for_app(app_id)
+        if not contacts:
+            logger.debug("No escalation contacts for app_id=%s", app_id)
+            return False
+
+        level_1 = contacts[0]
+        log_ids = await self.notify(
+            "alert.firing",
+            {
+                "alert_id": str(alert.id),
+                "alert_name": getattr(alert, "name", ""),
+                "severity": getattr(alert, "severity", ""),
+                "oncall_user": level_1.user.user_name,
+                "oncall_email": level_1.user.user_email,
+                "escalation_level": level_1.level,
+            },
+            event_id=alert.id,
+        )
+        return len(log_ids) > 0
+
     async def test_channel(self, channel_id: UUID) -> ProviderResult:
         """
         Send a test notification to verify channel configuration.
