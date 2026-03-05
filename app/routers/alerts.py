@@ -13,10 +13,12 @@ from app.models import Alert, User, LLMProvider, AuditLog, IncidentMetrics
 from app.models_remediation import RunbookExecution
 from app.schemas import (
     AlertResponse, AlertListResponse, AnalyzeRequest, 
-    AnalysisResponse, StatsResponse
+    AnalysisResponse, StatsResponse,
+    RAGDiagnosisResponse, RAGDiagnosisContext,
 )
 from app.services.auth_service import get_current_user
-from app.services.llm_service import analyze_alert
+from app.services.llm_service import analyze_alert, analyze_alert_with_rag
+from app.services.rag_alert_diagnosis_service import RagAlertDiagnosisService
 from app.utils.search import like_escape
 
 router = APIRouter(prefix="/api/alerts", tags=["Alerts"])
@@ -351,6 +353,115 @@ async def analyze_alert_endpoint(
         llm_provider=used_provider.name,
         analyzed_at=alert.analyzed_at,
         analysis_count=alert.analysis_count
+    )
+
+
+@router.post("/{alert_id}/analyze/rag", response_model=RAGDiagnosisResponse)
+async def rag_analyze_alert_endpoint(
+    alert_id: UUID,
+    request: Request,
+    analyze_request: AnalyzeRequest = AnalyzeRequest(),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Analyze an alert using RAG-enhanced AI diagnosis (Feature B7).
+
+    Retrieves semantically similar historical alerts and relevant knowledge-base
+    documents, then uses them as additional context for the LLM analysis.
+    The response includes both the analysis text and the retrieved RAG context
+    so the caller can inspect what the model was given.
+
+    - If the alert is already analyzed and ``force`` is False, returns the cached
+      analysis enriched with freshly retrieved RAG context.
+    - Use ``force=true`` to force a new LLM call even if the alert was already
+      analyzed.
+    """
+    alert = db.query(Alert).filter(Alert.id == alert_id).first()
+    if not alert:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Alert not found")
+
+    # Build RAG context (works even when embedding service is not configured —
+    # returns empty lists gracefully)
+    rag_svc = RagAlertDiagnosisService(db)
+    rag_context = rag_svc.get_context(alert)
+    rag_section = rag_svc.build_rag_prompt_section(rag_context)
+
+    # Return cached result if already analyzed and not forcing re-analysis
+    if alert.analyzed and not analyze_request.force:
+        return RAGDiagnosisResponse(
+            alert_id=alert.id,
+            analysis=alert.ai_analysis or "",
+            recommendations=alert.recommendations_json or [],
+            llm_provider=alert.llm_provider.name if alert.llm_provider else "Unknown",
+            analyzed_at=alert.analyzed_at or datetime.now(timezone.utc),
+            analysis_count=alert.analysis_count or 0,
+            rag_context=rag_context,
+        )
+
+    # Resolve provider
+    provider = None
+    if analyze_request.llm_provider_id:
+        provider = db.query(LLMProvider).filter(
+            LLMProvider.id == analyze_request.llm_provider_id,
+            LLMProvider.is_enabled.is_(True),
+        ).first()
+        if not provider:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Specified LLM provider not found or not enabled",
+            )
+
+    # Perform RAG-augmented analysis
+    try:
+        analysis, recommendations, used_provider = await analyze_alert_with_rag(
+            db, alert, rag_section, provider
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+    except RuntimeError as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc))
+
+    # Persist analysis
+    now = datetime.now(timezone.utc)
+    alert.analyzed = True
+    alert.analyzed_at = now
+    alert.analyzed_by = current_user.id
+    alert.llm_provider_id = used_provider.id
+    alert.ai_analysis = analysis
+    alert.recommendations_json = recommendations
+    alert.analysis_count = (alert.analysis_count or 0) + 1
+    if not alert.action_taken or alert.action_taken == "pending":
+        alert.action_taken = "manual"
+    db.commit()
+    db.refresh(alert)
+
+    # Audit log
+    audit = AuditLog(
+        user_id=current_user.id,
+        action="rag_analyze_alert",
+        resource_type="alert",
+        resource_id=alert.id,
+        details_json={
+            "alert_name": alert.alert_name,
+            "provider": used_provider.name,
+            "similar_incidents_retrieved": len(rag_context.similar_incidents),
+            "knowledge_chunks_retrieved": len(rag_context.knowledge_chunks),
+            "force": analyze_request.force,
+        },
+        ip_address=request.client.host if request.client else None,
+    )
+    db.add(audit)
+    db.commit()
+
+    return RAGDiagnosisResponse(
+        alert_id=alert.id,
+        analysis=alert.ai_analysis,
+        recommendations=alert.recommendations_json or [],
+        llm_provider=used_provider.name,
+        analyzed_at=alert.analyzed_at,
+        analysis_count=alert.analysis_count,
+        rag_context=rag_context,
     )
 
 

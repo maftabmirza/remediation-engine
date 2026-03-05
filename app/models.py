@@ -144,6 +144,47 @@ class AutoAnalyzeRule(Base):
     matched_alerts = relationship("Alert", back_populates="matched_rule")
 
 
+class AlertSuppressionRule(Base):
+    """
+    Alert suppression rules for silencing known/expected alerts.
+
+    Suppressed alerts are still stored in the database but are marked
+    as suppressed and skipped for analysis and remediation.
+    """
+    __tablename__ = "alert_suppression_rules"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String(100), nullable=False)
+    description = Column(Text, nullable=True)
+
+    # Pattern matching (same wildcards as AutoAnalyzeRule)
+    alert_name_pattern = Column(String(255), default="*")
+    severity_pattern = Column(String(50), default="*")
+    instance_pattern = Column(String(255), default="*")
+    job_pattern = Column(String(255), default="*")
+
+    # Optional time window — null means "no limit"
+    starts_at = Column(DateTime(timezone=True), nullable=True)
+    ends_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Status and reason (e.g. "planned maintenance", "known false-positive")
+    is_active = Column(Boolean, default=True, index=True)
+    reason = Column(String(500), nullable=True)
+
+    # Audit
+    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=utc_now)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+
+    # Composite index: suppression check queries active=True on every incoming alert
+    __table_args__ = (
+        Index('ix_alert_suppression_rules_is_active', 'is_active'),
+    )
+
+    # Relationships
+    created_by_user = relationship("User", foreign_keys=[created_by])
+
+
 class AlertCluster(Base):
     """Alert cluster for grouping related alerts"""
     __tablename__ = "alert_clusters"
