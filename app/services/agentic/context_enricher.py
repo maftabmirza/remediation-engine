@@ -41,7 +41,8 @@ class TroubleshootingContextEnricher:
         
         self.mcp_adapter = MCPToolAdapter(mcp_client) if mcp_client else None
         self.sift_adapter = SiftAdapter(self.mcp_adapter) if self.mcp_adapter else None
-        self.oncall_adapter = OnCallAdapter(self.mcp_adapter) if self.mcp_adapter else None
+        # OnCallAdapter now uses the local DB directly (not MCP)
+        self.oncall_adapter = OnCallAdapter(db=self.db)
 
     async def enrich(self) -> EnrichedContext:
         """
@@ -64,11 +65,8 @@ class TroubleshootingContextEnricher:
         else:
             tasks.append(asyncio.sleep(0, result=None)) # Placeholder
 
-        # 2. OnCall Info (if available)
-        if self.oncall_adapter:
-            tasks.append(self._safely_get_oncall())
-        else:
-            tasks.append(asyncio.sleep(0, result=None))
+        # 2. OnCall Info — always attempt (uses native on-call service)
+        tasks.append(self._safely_get_oncall(alert))
 
         # 3. Similar Incidents (Internal)
         tasks.append(self._get_similar_incidents())
@@ -101,9 +99,35 @@ class TroubleshootingContextEnricher:
             logger.warning(f"Failed to get Sift analysis: {e}")
             return None
 
-    async def _safely_get_oncall(self) -> Optional[str]:
+    async def _safely_get_oncall(self, alert: Optional[Alert] = None) -> Optional[str]:
+        """
+        Fetch on-call information using the native OnCallService.
+
+        Tries to resolve on-call for the alert's application first; falls back
+        to a global query.  Returns a human-readable context string suitable
+        for injection into the AI prompt.
+        """
         try:
-            return await self.oncall_adapter.get_schedule()
+            app_id_str = None
+            if alert is not None and getattr(alert, "app_id", None):
+                app_id_str = str(alert.app_id)
+
+            result = await self.oncall_adapter.get_current_oncall(app_id=app_id_str)
+            contacts = result.get("oncall", [])
+            if not contacts:
+                return None
+
+            lines = []
+            for c in contacts:
+                escalation_note = (
+                    f", escalates in {c['escalates_in_minutes']}min if no acknowledgement"
+                    if c.get("escalates_in_minutes")
+                    else ""
+                )
+                lines.append(
+                    f"On-call: @{c['name']} (Level {c['level']}{escalation_note})"
+                )
+            return "\n".join(lines)
         except Exception as e:
             logger.warning(f"Failed to get OnCall info: {e}")
             return None

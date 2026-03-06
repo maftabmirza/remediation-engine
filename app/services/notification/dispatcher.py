@@ -4,6 +4,11 @@ NotificationDispatcher — async background worker.
 Polls the notification_log table for ``pending`` and ``retrying`` rows and
 sends them via the appropriate provider.  Follows the same pattern as
 :class:`~app.services.execution_worker.ExecutionWorker`.
+
+On-Call integration: when routing a firing alert that belongs to an application
+with an escalation policy, the dispatcher resolves the on-call contact and
+sends an immediate notification to level-1, then schedules an escalation
+timeout via APScheduler.
 """
 
 from __future__ import annotations
@@ -12,6 +17,7 @@ import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+from uuid import UUID
 
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -237,6 +243,92 @@ class NotificationDispatcher:
                     entry.attempt_count,
                     result_error,
                 )
+
+
+# ---------------------------------------------------------------------------
+# On-call aware alert routing
+# ---------------------------------------------------------------------------
+
+
+async def route_alert(alert, db: AsyncSession) -> bool:
+    """
+    Route a firing alert through the on-call escalation chain.
+
+    Checks whether the alert's application has an escalation policy.
+    If so, sends to the level-1 on-call contact immediately and schedules
+    the escalation timeout job.
+
+    Args:
+        alert: Alert ORM object with ``id``, ``app_id`` and metadata fields.
+        db: Open async database session.
+
+    Returns:
+        True if alert was routed via on-call policy, False if no policy found
+        (caller should fall back to standard channel routing).
+    """
+    if not getattr(alert, "app_id", None):
+        return False
+
+    try:
+        from app.services.oncall_service import OnCallService  # noqa: PLC0415
+
+        svc = OnCallService(db)
+        contacts = await svc.resolve_for_app(UUID(str(alert.app_id)))
+        if not contacts:
+            return False
+
+        level_1 = contacts[0]
+        from app.services.notification.service import NotificationService  # noqa: PLC0415
+
+        notification_svc = NotificationService(db)
+        await notification_svc.notify(
+            "alert.firing",
+            {
+                "alert_id": str(alert.id),
+                "alert_name": getattr(alert, "name", ""),
+                "severity": getattr(alert, "severity", ""),
+                "oncall_user": level_1.user.user_name,
+                "oncall_email": level_1.user.user_email,
+                "escalation_level": level_1.level,
+            },
+            event_id=alert.id,
+        )
+
+        # Schedule escalation timeout
+        try:
+            from apscheduler.triggers.date import DateTrigger  # noqa: PLC0415
+
+            from app.services.oncall_service import _run_escalation  # noqa: PLC0415
+            from app.services.scheduler_service import get_scheduler  # noqa: PLC0415
+
+            scheduler = get_scheduler()
+            run_at = _utc_now() + timedelta(minutes=level_1.timeout_minutes)
+            job_id = f"escalation_{alert.id}_1"
+            scheduler._scheduler.add_job(
+                func=_run_escalation,
+                trigger=DateTrigger(run_date=run_at),
+                id=job_id,
+                replace_existing=True,
+                kwargs={
+                    "alert_id": str(alert.id),
+                    "current_level": 1,
+                    "policy_id": str(level_1.policy_id),
+                },
+            )
+            logger.info(
+                "Scheduled escalation job %s for alert %s at %s",
+                job_id,
+                alert.id,
+                run_at,
+            )
+        except Exception as exc:
+            logger.warning("Failed to schedule escalation for alert %s: %s", alert.id, exc)
+
+        return True
+
+    except Exception as exc:
+        logger.exception("on-call route_alert failed for alert %s: %s", alert.id, exc)
+        return False
 
 
 # ---------------------------------------------------------------------------

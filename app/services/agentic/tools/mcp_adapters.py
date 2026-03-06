@@ -103,16 +103,86 @@ class SiftAdapter:
 
 class OnCallAdapter:
     """
-    Specialized adapter logic for OnCall information using MCP.
+    On-call adapter for AI agents.
+
+    Provides a ``get_current_oncall`` method that AI agents can call to find
+    out who is on-call for a given application or group.  Uses the native
+    :class:`~app.services.oncall_service.OnCallService` (not an external MCP
+    tool) because on-call data lives in the local database.
     """
-    def __init__(self, mcp_adapter: MCPToolAdapter):
-        self.mcp_adapter = mcp_adapter
+
+    def __init__(self, db, oncall_service=None):
+        """
+        Args:
+            db: AsyncSession (or sync Session) for database access.
+            oncall_service: Optional pre-built OnCallService instance.
+        """
+        self.db = db
+        self._oncall_service = oncall_service
+
+    def _get_service(self):
+        if self._oncall_service is not None:
+            return self._oncall_service
+        from app.services.oncall_service import OnCallService  # noqa: PLC0415
+
+        return OnCallService(self.db)
+
+    async def get_current_oncall(
+        self,
+        app_id: Optional[str] = None,
+        group_id: Optional[str] = None,
+    ) -> dict:
+        """
+        Tool callable by AI agents: 'Who is on-call for this service?'
+
+        Args:
+            app_id: Optional application UUID string.
+            group_id: Optional group UUID string.
+
+        Returns:
+            Dict with ``oncall`` list of contact dicts.
+        """
+        from uuid import UUID as _UUID  # noqa: PLC0415
+
+        svc = self._get_service()
+        result = await svc.get_current_oncall(
+            group_id=_UUID(group_id) if group_id else None,
+            app_id=_UUID(app_id) if app_id else None,
+        )
+        return {
+            "oncall": [
+                {
+                    "name": c.user_name,
+                    "email": c.user_email,
+                    "role": c.role,
+                    "level": c.escalation_level,
+                    "escalates_in_minutes": c.escalates_in_minutes,
+                    "schedule_name": c.schedule_name,
+                    "is_override": c.is_override,
+                }
+                for c in result
+            ]
+        }
 
     async def get_schedule(self, team: Optional[str] = None) -> str:
         """
-        Uses 'get_oncall_schedule' tool.
+        Legacy compatibility shim.  Returns a human-readable summary of the
+        current on-call schedule.
+
+        Args:
+            team: Ignored (kept for backward compatibility).
+
+        Returns:
+            Human-readable on-call summary string.
         """
-        args = {}
-        if team:
-            args["team"] = team
-        return await self.mcp_adapter.execute("get_oncall_schedule", args)
+        result = await self.get_current_oncall()
+        contacts = result.get("oncall", [])
+        if not contacts:
+            return "No on-call schedule found."
+        lines = []
+        for c in contacts:
+            lines.append(
+                f"Level {c['level']}: {c['name']} ({c['email']}) — role: {c['role']}"
+                + (f", escalates in {c['escalates_in_minutes']}min" if c.get("escalates_in_minutes") else "")
+            )
+        return "\n".join(lines)
