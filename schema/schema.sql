@@ -5196,12 +5196,50 @@ CREATE INDEX ix_alert_suppression_rules_is_active ON public.alert_suppression_ru
 
 
 -- ============================================================================
+-- Incident-First Postmortems: Native Incident Aggregate (migration 20260307000000)
+-- ============================================================================
+
+CREATE TABLE public.incidents (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    title character varying(500) NOT NULL,
+    status character varying(50) DEFAULT 'open' NOT NULL,
+    severity character varying(20),
+    correlation_id uuid,
+    cluster_id uuid,
+    itsm_event_id uuid,
+    started_at timestamp with time zone NOT NULL,
+    resolved_at timestamp with time zone,
+    grace_period_ends_at timestamp with time zone,
+    is_eligible_for_postmortem boolean DEFAULT false NOT NULL,
+    affected_services jsonb DEFAULT '[]'::jsonb NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT incidents_pkey PRIMARY KEY (id),
+    CONSTRAINT incidents_correlation_id_fkey FOREIGN KEY (correlation_id)
+        REFERENCES public.alert_correlations(id) ON DELETE SET NULL,
+    CONSTRAINT incidents_cluster_id_fkey FOREIGN KEY (cluster_id)
+        REFERENCES public.alert_clusters(id) ON DELETE SET NULL,
+    CONSTRAINT incidents_itsm_event_id_fkey FOREIGN KEY (itsm_event_id)
+        REFERENCES public.incident_events(id) ON DELETE SET NULL
+);
+
+CREATE INDEX ix_incidents_status           ON public.incidents USING btree (status);
+CREATE INDEX ix_incidents_severity         ON public.incidents USING btree (severity);
+CREATE INDEX ix_incidents_correlation_id   ON public.incidents USING btree (correlation_id);
+CREATE INDEX ix_incidents_cluster_id       ON public.incidents USING btree (cluster_id);
+CREATE INDEX ix_incidents_resolved_at      ON public.incidents USING btree (resolved_at);
+CREATE INDEX ix_incidents_eligible         ON public.incidents USING btree (is_eligible_for_postmortem);
+CREATE INDEX ix_incidents_started_at       ON public.incidents USING btree (started_at);
+
+-- ============================================================================
 -- Post-Incident Postmortem Reports (Phase 2 — migration 20260304130000)
+-- Updated: add incident_id (migration 20260307000000)
 -- ============================================================================
 
 CREATE TABLE public.postmortem_reports (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     title character varying(500) NOT NULL,
+    incident_id uuid,
     alert_id uuid,
     app_id uuid,
     status character varying(20) DEFAULT 'draft' NOT NULL,
@@ -5223,12 +5261,14 @@ CREATE TABLE public.postmortem_reports (
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
     CONSTRAINT postmortem_reports_pkey PRIMARY KEY (id),
+    CONSTRAINT postmortem_reports_incident_id_fkey FOREIGN KEY (incident_id) REFERENCES public.incidents(id) ON DELETE SET NULL,
     CONSTRAINT postmortem_reports_alert_id_fkey FOREIGN KEY (alert_id) REFERENCES public.alerts(id) ON DELETE SET NULL,
     CONSTRAINT postmortem_reports_app_id_fkey FOREIGN KEY (app_id) REFERENCES public.applications(id) ON DELETE SET NULL,
     CONSTRAINT postmortem_reports_reviewed_by_fkey FOREIGN KEY (reviewed_by) REFERENCES public.users(id) ON DELETE SET NULL,
     CONSTRAINT postmortem_reports_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id) ON DELETE SET NULL
 );
 
+CREATE INDEX ix_postmortem_reports_incident_id ON public.postmortem_reports USING btree (incident_id);
 CREATE INDEX ix_postmortem_reports_alert_id ON public.postmortem_reports USING btree (alert_id);
 CREATE INDEX ix_postmortem_reports_app_id ON public.postmortem_reports USING btree (app_id);
 CREATE INDEX ix_postmortem_reports_status ON public.postmortem_reports USING btree (status);

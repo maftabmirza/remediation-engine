@@ -12,6 +12,14 @@ Data sources gathered during generation:
   - AnalysisFeedback (helpfulness/accuracy rating + what-actually-worked text)
   - SolutionOutcome  (knowledge / command solutions that succeeded)
   - AgentSession + AgentStep (AI troubleshooting commands run during incident)
+
+Incident-first generation:
+  - Primary path: ``generate_by_incident(incident_id, created_by)``
+    Gathers the full incident evidence bundle via IncidentService and drives
+    a richer LLM prompt with multi-alert context, change events, and ITSM data.
+  - Compatibility path: ``generate(alert_id, created_by)``
+    Resolves or creates an Incident for the alert first, then falls through to
+    ``generate_by_incident()``.
 """
 import json
 import logging
@@ -60,11 +68,16 @@ class PostmortemService:
     """
     Service for generating and managing post-incident postmortem reports.
 
-    Typical workflow:
-        1. ``generate(alert_id, created_by)`` — AI builds draft from incident data.
+    Typical workflow (incident-first):
+        1. ``generate_by_incident(incident_id, created_by)`` — AI builds draft
+           from the full incident evidence bundle.
         2. Engineer reviews/edits via ``update()``.
         3. Add context via ``add_out_of_band_context()``.
         4. ``publish(postmortem_id, reviewed_by)`` — marks report as published.
+
+    Alert compatibility path:
+        ``generate(alert_id, created_by)`` resolves or creates an Incident for
+        the alert first, then delegates to ``generate_by_incident()``.
     """
 
     def __init__(self, db: AsyncSession) -> None:
@@ -74,6 +87,68 @@ class PostmortemService:
     # Public API
     # ------------------------------------------------------------------
 
+    async def generate_by_incident(
+        self,
+        incident_id: UUID,
+        created_by: UUID,
+        app_id: Optional[UUID] = None,
+    ) -> PostmortemReport:
+        """
+        Generate a draft postmortem from the full incident evidence bundle.
+
+        This is the primary (incident-first) generation path.  It gathers
+        all available evidence — alerts, runbook executions, agent sessions,
+        change events, ITSM data — and produces a structured postmortem.
+
+        Args:
+            incident_id: UUID of the resolved Incident to generate from.
+            created_by: UUID of the requesting user.
+            app_id: Optional UUID of the related application.
+
+        Returns:
+            The newly created PostmortemReport (status="draft").
+
+        Raises:
+            HTTPException 404 if the incident is not found.
+            HTTPException 502 if the LLM call fails.
+        """
+        from app.services.incident_service import IncidentService  # noqa: PLC0415
+
+        inc_svc = IncidentService(self.db)
+        evidence = await inc_svc.get_evidence(incident_id)
+        incident = evidence["incident"]
+
+        # Build the evidence snapshot for the LLM (also builds remediation_actions)
+        gathered = self._build_gathered_from_evidence(evidence)
+
+        llm_output = await self._call_llm(gathered)
+
+        report = PostmortemReport(
+            title=f"Post-Incident Review: {incident.title}",
+            incident_id=incident_id,
+            app_id=app_id,
+            status="draft",
+            generated_by="ai",
+            severity=incident.severity,
+            incident_start=incident.started_at,
+            incident_end=incident.resolved_at,
+            timeline=gathered.get("timeline", []),
+            metrics=gathered.get("metrics", {}),
+            impact_summary=llm_output.get("impact_summary", ""),
+            root_cause=llm_output.get("root_cause", ""),
+            contributing_factors=llm_output.get("contributing_factors", []),
+            remediation_actions=gathered.get("remediation_actions", []),
+            action_items=llm_output.get("action_items", []),
+            lessons_learned=llm_output.get("lessons_learned", ""),
+            out_of_band_context=[],
+            created_by=created_by,
+        )
+        self.db.add(report)
+        await self.db.commit()
+        await self.db.refresh(report)
+        logger.info("Generated postmortem %s for incident %s", report.id, incident_id)
+        return report
+
     async def generate(
         self,
         alert_id: UUID,
@@ -82,6 +157,9 @@ class PostmortemService:
     ) -> PostmortemReport:
         """
         Generate a draft postmortem from incident data for *alert_id*.
+
+        Alert compatibility path: resolves or creates an Incident for the
+        alert, then delegates to ``generate_by_incident()``.
 
         Args:
             alert_id: UUID of the triggering alert.
@@ -95,6 +173,8 @@ class PostmortemService:
             HTTPException 404 if the alert is not found.
             HTTPException 502 if the LLM call fails.
         """
+        from app.services.incident_service import IncidentService  # noqa: PLC0415
+
         # 1. Load alert
         alert_result = await self.db.execute(
             select(Alert).where(Alert.id == alert_id)
@@ -106,34 +186,20 @@ class PostmortemService:
                 detail=f"Alert {alert_id} not found",
             )
 
-        # 2. Gather incident data
-        gathered = await self._gather_incident_data(alert)
+        # 2. Find or create an Incident for this alert
+        inc_svc = IncidentService(self.db)
+        incident = await inc_svc.find_or_create_incident_for_alert(alert)
 
-        # 3. Call LLM
-        llm_output = await self._call_llm(gathered)
-
-        # 4. Build and persist the report
-        report = PostmortemReport(
-            title=f"Post-Incident Review: {alert.alert_name}",
-            alert_id=alert_id,
-            app_id=app_id,
-            status="draft",
-            generated_by="ai",
-            severity=getattr(alert, "severity", None),
-            incident_start=gathered.get("incident_start"),
-            incident_end=gathered.get("incident_end"),
-            timeline=gathered.get("timeline", []),
-            metrics=gathered.get("metrics", {}),
-            impact_summary=llm_output.get("impact_summary", ""),
-            root_cause=llm_output.get("root_cause", ""),
-            contributing_factors=llm_output.get("contributing_factors", []),
-            remediation_actions=gathered.get("remediation_actions", []),
-            action_items=llm_output.get("action_items", []),
-            lessons_learned=llm_output.get("lessons_learned", ""),
-            out_of_band_context=[],
+        # 3. Delegate to incident-first generation path, but also carry the
+        #    alert_id for backward compatibility / lineage.
+        report = await self.generate_by_incident(
+            incident_id=incident.id,
             created_by=created_by,
+            app_id=app_id,
         )
-        self.db.add(report)
+
+        # Preserve alert_id for lineage / backward compatibility
+        report.alert_id = alert_id
         await self.db.commit()
         await self.db.refresh(report)
         return report
@@ -221,10 +287,14 @@ class PostmortemService:
         report = await self.get(postmortem_id)
 
         # Load the alert
+        # Prefer incident-first regeneration when incident_id is present
+        if report.incident_id is not None:
+            return await self._regenerate_by_incident(report)
+
         if report.alert_id is None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Cannot regenerate postmortem without a linked alert",
+                detail="Cannot regenerate postmortem without a linked alert or incident",
             )
 
         alert_result = await self.db.execute(
@@ -250,6 +320,41 @@ class PostmortemService:
         llm_output = await self._call_llm(gathered)
 
         # Merge manual timeline events back in
+        merged_timeline = gathered.get("timeline", []) + manual_timeline
+        merged_timeline.sort(key=lambda e: e.get("timestamp", ""))
+
+        report.impact_summary = llm_output.get("impact_summary", "")
+        report.root_cause = llm_output.get("root_cause", "")
+        report.contributing_factors = llm_output.get("contributing_factors", [])
+        report.action_items = llm_output.get("action_items", [])
+        report.lessons_learned = llm_output.get("lessons_learned", "")
+        report.timeline = merged_timeline
+        report.out_of_band_context = preserved_oob
+        report.updated_at = _utc_now()
+
+        await self.db.commit()
+        await self.db.refresh(report)
+        return report
+
+    async def _regenerate_by_incident(self, report: PostmortemReport) -> PostmortemReport:
+        """
+        Re-generate AI sections using the incident evidence bundle.
+
+        Preserves manual out-of-band context and manually-added timeline events.
+        """
+        from app.services.incident_service import IncidentService  # noqa: PLC0415
+
+        preserved_oob = list(report.out_of_band_context or [])
+        manual_timeline = [
+            entry for entry in (report.timeline or [])
+            if entry.get("manual", False)
+        ]
+
+        inc_svc = IncidentService(self.db)
+        evidence = await inc_svc.get_evidence(report.incident_id)
+        gathered = self._build_gathered_from_evidence(evidence)
+        llm_output = await self._call_llm(gathered)
+
         merged_timeline = gathered.get("timeline", []) + manual_timeline
         merged_timeline.sort(key=lambda e: e.get("timestamp", ""))
 
@@ -323,6 +428,118 @@ class PostmortemService:
     # ------------------------------------------------------------------
     # Private helpers
     # ------------------------------------------------------------------
+
+    def _build_gathered_from_evidence(self, evidence: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Build the ``gathered`` dict consumed by ``_call_llm`` from an
+        incident evidence bundle returned by ``IncidentService.get_evidence()``.
+        """
+        incident = evidence["incident"]
+        alerts = evidence.get("alerts", [])
+        timeline = evidence.get("timeline", [])
+        executions = evidence.get("runbook_executions", [])
+        change_events = evidence.get("change_events", [])
+        agent_sessions = evidence.get("agent_sessions", [])
+        itsm_event = evidence.get("itsm_event")
+
+        # Add step execution events to the timeline
+        for ex in executions:
+            for step in getattr(ex, "step_executions", []) or []:
+                if step.started_at:
+                    summary = (step.stdout or "")[:200] if step.stdout else ""
+                    timeline.append(
+                        {
+                            "timestamp": step.started_at.isoformat(),
+                            "event": f"Step '{step.step_name}': {step.status}. {summary}",
+                            "source": "step_execution",
+                            "manual": False,
+                        }
+                    )
+
+        # Add agent session summaries
+        for session in agent_sessions:
+            if session.started_at:
+                steps_summary = []
+                for step in getattr(session, "steps", []) or []:
+                    if step.tool_name:
+                        steps_summary.append(step.tool_name)
+                tool_str = ", ".join(steps_summary[:5])
+                timeline.append(
+                    {
+                        "timestamp": session.started_at.isoformat(),
+                        "event": f"AI troubleshooting session (tools: {tool_str or 'none'})",
+                        "source": "agent_session",
+                        "manual": False,
+                    }
+                )
+
+        timeline.sort(key=lambda e: e.get("timestamp", ""))
+
+        remediation_actions = _build_remediation_actions(executions)
+
+        # Build LLM snapshot
+        change_summaries = [
+            {
+                "change_id": ce.change_id,
+                "type": ce.change_type,
+                "service": ce.service_name,
+                "description": (ce.description or "")[:200],
+                "timestamp": ce.timestamp.isoformat() if ce.timestamp else None,
+                "impact_level": ce.impact_level,
+            }
+            for ce in change_events
+        ]
+
+        alert_snapshots = [
+            {
+                "alert_name": a.alert_name,
+                "severity": a.severity,
+                "instance": a.instance,
+                "fired_at": a.timestamp.isoformat() if a.timestamp else None,
+                "annotations": getattr(a, "annotations_json", {}) or {},
+                "labels": getattr(a, "labels_json", {}) or {},
+            }
+            for a in alerts
+        ]
+
+        itsm_summary = None
+        if itsm_event:
+            itsm_summary = {
+                "title": itsm_event.title,
+                "status": itsm_event.status,
+                "severity": itsm_event.severity,
+                "service": itsm_event.service_name,
+            }
+
+        snapshot: Dict[str, Any] = {
+            "incident_title": incident.title,
+            "incident_status": incident.status,
+            "severity": incident.severity,
+            "started_at": incident.started_at.isoformat() if incident.started_at else None,
+            "resolved_at": incident.resolved_at.isoformat() if incident.resolved_at else None,
+            "affected_services": incident.affected_services or [],
+            "alert_count": len(alerts),
+            "alerts": alert_snapshots,
+            "timeline": timeline,
+            "remediation_actions": remediation_actions,
+            "change_events": change_summaries,
+            "itsm_event": itsm_summary,
+            "mttr_minutes": evidence.get("mttr_minutes"),
+        }
+
+        return {
+            "snapshot": snapshot,
+            "timeline": timeline,
+            "remediation_actions": remediation_actions,
+            "metrics": {
+                "mttd_minutes": None,
+                "mtta_minutes": None,
+                "mtte_minutes": None,
+                "mttr_minutes": evidence.get("mttr_minutes"),
+            },
+            "incident_start": incident.started_at,
+            "incident_end": incident.resolved_at,
+        }
 
     async def _gather_incident_data(self, alert: Alert) -> Dict[str, Any]:
         """
@@ -523,3 +740,24 @@ class PostmortemService:
             parsed["action_items"] = []
 
         return parsed
+
+
+# ------------------------------------------------------------------
+# Module-level helpers (pure functions — no DB access)
+# ------------------------------------------------------------------
+
+def _build_remediation_actions(executions: list) -> List[Dict[str, Any]]:
+    """Build remediation_actions list from RunbookExecution records."""
+    actions: List[Dict[str, Any]] = []
+    for ex in executions:
+        entry: Dict[str, Any] = {
+            "action": f"Executed runbook (id={ex.runbook_id})",
+            "runbook_id": str(ex.runbook_id) if ex.runbook_id else None,
+            "outcome": ex.status,
+            "duration_minutes": None,
+        }
+        if ex.started_at and ex.completed_at:
+            delta = ex.completed_at - ex.started_at
+            entry["duration_minutes"] = round(delta.total_seconds() / 60, 2)
+        actions.append(entry)
+    return actions
