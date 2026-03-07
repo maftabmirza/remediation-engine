@@ -352,3 +352,154 @@ async def test_timeline_sorted_chronologically():
 
     timestamps = [e["timestamp"] for e in timeline]
     assert timestamps == sorted(timestamps), "Timeline must be sorted chronologically"
+
+
+# ---------------------------------------------------------------------------
+# Test: generate_by_incident — happy path
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_generate_by_incident_happy_path():
+    """generate_by_incident() creates a postmortem anchored to an incident."""
+    svc = _make_service()
+    incident_id = uuid4()
+
+    incident = MagicMock()
+    incident.id = incident_id
+    incident.title = "High CPU on server-01"
+    incident.status = "resolved"
+    incident.severity = "critical"
+    incident.started_at = _utc(-90)
+    incident.resolved_at = _utc(-30)
+    incident.affected_services = ["node_exporter"]
+
+    evidence = {
+        "incident": incident,
+        "alerts": [_make_alert()],
+        "timeline": [
+            {"timestamp": _utc(-90).isoformat(), "event": "Alert fired", "source": "alert", "manual": False}
+        ],
+        "runbook_executions": [],
+        "incident_metrics": [],
+        "analysis_feedback": [],
+        "execution_outcomes": [],
+        "agent_sessions": [],
+        "change_events": [],
+        "itsm_event": None,
+        "affected_services": ["node_exporter"],
+        "mttr_minutes": 60.0,
+    }
+
+    llm_output = {
+        "impact_summary": "Incident impacted server-01 for 60 minutes.",
+        "root_cause": "High CPU due to runaway process.",
+        "contributing_factors": ["Missing resource limits", "Lack of autoscaling"],
+        "lessons_learned": "Add CPU limits and autoscaling policies.",
+        "action_items": [
+            {"description": "Add CPU limits", "owner": "infra", "due_date": None, "status": "open"}
+        ],
+    }
+
+    svc.db.add = MagicMock()
+    svc.db.commit = AsyncMock()
+    svc.db.refresh = AsyncMock()
+
+    with patch(
+        "app.services.postmortem_service.IncidentService",
+        autospec=True,
+    ) as MockIncSvc:
+        mock_inc_svc_instance = AsyncMock()
+        mock_inc_svc_instance.get_evidence = AsyncMock(return_value=evidence)
+        MockIncSvc.return_value = mock_inc_svc_instance
+
+        with patch.object(svc, "_call_llm", new=AsyncMock(return_value=llm_output)):
+            report = await svc.generate_by_incident(
+                incident_id=incident_id, created_by=uuid4()
+            )
+
+    assert report.incident_id == incident_id
+    assert report.impact_summary == "Incident impacted server-01 for 60 minutes."
+    assert report.status == "draft"
+    assert report.generated_by == "ai"
+    assert report.severity == "critical"
+
+
+# ---------------------------------------------------------------------------
+# Test: generate (alert compat path) delegates to generate_by_incident
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_generate_alert_compat_delegates_to_incident():
+    """generate(alert_id) resolves an incident and calls generate_by_incident."""
+    svc = _make_service()
+    alert = _make_alert()
+    incident_id = uuid4()
+
+    alert_result = MagicMock()
+    alert_result.scalar_one_or_none.return_value = alert
+    svc.db.execute = AsyncMock(return_value=alert_result)
+    svc.db.commit = AsyncMock()
+    svc.db.refresh = AsyncMock()
+
+    mock_incident = MagicMock()
+    mock_incident.id = incident_id
+
+    mock_report = MagicMock()
+    mock_report.incident_id = incident_id
+    mock_report.alert_id = None
+
+    with patch(
+        "app.services.postmortem_service.IncidentService",
+        autospec=True,
+    ) as MockIncSvc:
+        mock_inc_svc_instance = AsyncMock()
+        mock_inc_svc_instance.find_or_create_incident_for_alert = AsyncMock(
+            return_value=mock_incident
+        )
+        MockIncSvc.return_value = mock_inc_svc_instance
+
+        with patch.object(
+            svc,
+            "generate_by_incident",
+            new=AsyncMock(return_value=mock_report),
+        ) as mock_gen:
+            await svc.generate(alert_id=alert.id, created_by=uuid4())
+
+        mock_gen.assert_called_once_with(
+            incident_id=incident_id,
+            created_by=mock_gen.call_args.kwargs["created_by"],
+            app_id=None,
+        )
+
+
+# ---------------------------------------------------------------------------
+# Test: regenerate — incident-first path when incident_id set
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_regenerate_uses_incident_path_when_incident_id_set():
+    """regenerate() delegates to _regenerate_by_incident when incident_id is set."""
+    svc = _make_service()
+    incident_id = uuid4()
+
+    report = MagicMock()
+    report.id = uuid4()
+    report.incident_id = incident_id
+    report.alert_id = None
+
+    result = MagicMock()
+    result.scalar_one_or_none.return_value = report
+    svc.db.execute = AsyncMock(return_value=result)
+
+    with patch.object(
+        svc,
+        "_regenerate_by_incident",
+        new=AsyncMock(return_value=report),
+    ) as mock_regen:
+        updated = await svc.regenerate(report.id)
+
+    mock_regen.assert_called_once_with(report)
+    assert updated is report

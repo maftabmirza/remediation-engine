@@ -20,6 +20,7 @@
 .page-subtitle { font-size: 0.875rem; color: var(--text-secondary); margin: 4px 0 0; }
 
 .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+.toolbar-actions { display: flex; gap: 8px; align-items: center; }
 
 .btn-primary { display:inline-flex;align-items:center;gap:6px;padding:8px 16px;font-size:13px;font-weight:600;border-radius:6px;cursor:pointer;border:none;background:linear-gradient(135deg,#3b82f6,#2563eb);color:#fff;box-shadow:0 2px 6px rgba(59,130,246,.25);transition:all .15s; }
 .btn-primary:hover { background:linear-gradient(135deg,#2563eb,#1d4ed8);transform:translateY(-1px); }
@@ -31,10 +32,12 @@
 .btn-green:hover { background:#bbf7d0; }
 .btn-danger { display:inline-flex;align-items:center;gap:5px;padding:5px 10px;font-size:12px;font-weight:500;border-radius:5px;cursor:pointer;border:none;background:#fee2e2;color:#dc2626;transition:all .15s; }
 .btn-danger:hover { background:#fecaca; }
+.btn-disabled { opacity:.5; cursor:not-allowed; }
 
 .search-box { padding:7px 12px;font-size:13px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-input);color:var(--text-primary);width:260px; }
 .search-box:focus { outline:none;border-color:#3b82f6; }
 
+/* PM cards */
 .pm-grid { display:grid;gap:16px; }
 .pm-card { background:var(--bg-surface);border:1px solid var(--border-color);border-radius:10px;padding:20px;transition:box-shadow .15s; }
 .pm-card:hover { box-shadow:0 4px 20px rgba(0,0,0,.1); }
@@ -42,11 +45,16 @@
 .pm-card-title { font-size:1rem;font-weight:700;color:var(--text-primary);margin:0 0 4px; }
 .pm-card-meta { font-size:12px;color:var(--text-secondary); }
 .pm-card-actions { display:flex;gap:6px;flex-shrink:0; }
-.pm-card-excerpt { font-size:13px;color:var(--text-secondary);line-height:1.6;margin:12px 0 0; border-top:1px solid var(--border-color);padding-top:12px; overflow:hidden;max-height:80px; }
+.pm-card-excerpt { font-size:13px;color:var(--text-secondary);line-height:1.6;margin:12px 0 0;border-top:1px solid var(--border-color);padding-top:12px;overflow:hidden;max-height:80px; }
 
+/* Badges */
 .badge { display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:999px;font-size:11px;font-weight:600; }
 .badge-draft { background:#fff7ed;color:#c2410c; }
+.badge-in-review { background:#eff6ff;color:#1d4ed8; }
 .badge-published { background:#dcfce7;color:#15803d; }
+.badge-sev-critical { background:#fee2e2;color:#dc2626; }
+.badge-sev-warning { background:#fef9c3;color:#b45309; }
+.badge-sev-info { background:#e0f2fe;color:#0369a1; }
 
 .empty-state { text-align:center;padding:60px 20px;color:var(--text-secondary); }
 .empty-state i { margin-bottom:12px;opacity:.4; }
@@ -56,7 +64,7 @@
 .modal-overlay { display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1000;align-items:center;justify-content:center; }
 .modal-overlay.active { display:flex; }
 .modal-container { background:var(--bg-surface);border:1px solid var(--border-color);border-radius:12px;width:560px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);scrollbar-width:thin;scrollbar-color:rgba(148,163,184,.35) transparent; }
-.modal-lg { width:860px; }
+.modal-lg { width:900px; }
 .modal-header { padding:20px 24px 16px;border-bottom:1px solid var(--border-color);display:flex;align-items:center;justify-content:space-between; }
 .modal-title { font-size:1rem;font-weight:700;color:var(--text-primary); }
 .modal-close { background:none;border:none;cursor:pointer;color:var(--text-secondary);padding:4px;border-radius:4px; }
@@ -70,35 +78,102 @@
 .form-select:focus { outline:none;border-color:#3b82f6; }
 .form-hint { font-size:11px;color:var(--text-secondary);margin-top:4px; }
 
+/* Incident picker */
+.incident-list { max-height:320px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(148,163,184,.35) transparent; }
+.incident-item { padding:12px 14px;border:1px solid var(--border-color);border-radius:8px;margin-bottom:8px;cursor:pointer;transition:border-color .15s,background .15s; }
+.incident-item:hover { border-color:#3b82f6;background:var(--bg-hover); }
+.incident-item.selected { border-color:#3b82f6;background:rgba(59,130,246,.07); }
+.incident-item-title { font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:4px; }
+.incident-item-meta { font-size:11px;color:var(--text-secondary); }
+
+/* Evidence preview */
+.evidence-section { margin-bottom:16px; }
+.evidence-section h5 { font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-secondary);margin:0 0 8px; }
+.evidence-stat { display:inline-flex;align-items:center;gap:6px;padding:4px 10px;background:var(--bg-card);border:1px solid var(--border-color);border-radius:6px;font-size:12px;color:var(--text-primary);margin:3px; }
+.timeline-mini { max-height:180px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(148,163,184,.35) transparent; }
+.timeline-row { display:flex;gap:10px;align-items:flex-start;padding:5px 0;border-bottom:1px solid var(--border-color); }
+.timeline-row:last-child { border-bottom:none; }
+.timeline-ts { font-size:11px;color:var(--text-secondary);white-space:nowrap;min-width:140px; }
+.timeline-ev { font-size:12px;color:var(--text-primary); }
+
+/* View modal */
 .pm-content { font-size:13px;color:var(--text-primary);line-height:1.7;white-space:pre-wrap;font-family:inherit; }
 .section-block { background:var(--bg-card);border:1px solid var(--border-color);border-radius:8px;padding:16px;margin-bottom:16px; }
 .section-block h4 { font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-secondary);margin:0 0 10px; }
+.action-item-row { display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid var(--border-color);font-size:13px; }
+.action-item-row:last-child { border-bottom:none; }
+
+/* Tabs */
+.tab-bar { display:flex;gap:2px;border-bottom:1px solid var(--border-color);margin-bottom:16px; }
+.tab-btn { padding:8px 14px;font-size:12px;font-weight:600;border:none;background:none;cursor:pointer;color:var(--text-secondary);border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .15s,border-color .15s; }
+.tab-btn.active { color:#3b82f6;border-bottom-color:#3b82f6; }
+.tab-panel { display:none; }
+.tab-panel.active { display:block; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="page-header">
     <h1 class="page-title"><i data-feather="file-text" style="width:20px;height:20px;"></i> Post-Incident Post-Mortems</h1>
-    <p class="page-subtitle">AI-generated incident analysis and post-mortem reports.</p>
+    <p class="page-subtitle">AI-generated post-incident reviews anchored to resolved incidents.</p>
 </div>
 
 <div class="toolbar">
     <input type="text" class="search-box" id="searchInput" placeholder="Search post-mortems…" oninput="filterPostmortems()">
-    <button class="btn-primary" onclick="openGenerateModal()">
-        <i data-feather="zap" style="width:14px;height:14px;"></i> Generate Post-Mortem
-    </button>
+    <div class="toolbar-actions">
+        <button class="btn-secondary" onclick="openAlertGenerateModal()" title="Legacy: generate from a single alert">
+            <i data-feather="alert-circle" style="width:14px;height:14px;"></i> From Alert
+        </button>
+        <button class="btn-primary" onclick="openIncidentPickerModal()">
+            <i data-feather="zap" style="width:14px;height:14px;"></i> Generate from Incident
+        </button>
+    </div>
 </div>
 
 <div id="pmGrid" class="pm-grid">
     <div style="text-align:center;padding:40px;color:var(--text-secondary);">Loading…</div>
 </div>
 
-<!-- Generate Modal -->
-<div class="modal-overlay" id="generateModal" onclick="handleOverlayClick(event,'generateModal')">
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<!-- Incident Picker Modal (Step 1 of incident-first flow)                  -->
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="incidentPickerModal" onclick="handleOverlayClick(event,'incidentPickerModal')">
+    <div class="modal-container modal-lg">
+        <div class="modal-header">
+            <span class="modal-title">Select a Resolved Incident</span>
+            <button class="modal-close" onclick="closeModal('incidentPickerModal')"><i data-feather="x" style="width:16px;height:16px;"></i></button>
+        </div>
+        <div class="modal-body">
+            <p style="font-size:13px;color:var(--text-secondary);margin-bottom:14px;">
+                Pick a resolved incident. Only incidents whose grace period has elapsed are shown.
+                Click an incident to preview its evidence, then click <strong>Generate</strong>.
+            </p>
+            <div class="incident-list" id="incidentList">
+                <div style="text-align:center;padding:30px;color:var(--text-secondary);">Loading eligible incidents…</div>
+            </div>
+            <!-- Evidence preview (shown after selecting an incident) -->
+            <div id="evidencePreview" style="display:none;margin-top:18px;border-top:1px solid var(--border-color);padding-top:18px;">
+                <p style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-secondary);margin-bottom:12px;">Evidence Preview</p>
+                <div id="evidenceContent"></div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="closeModal('incidentPickerModal')">Cancel</button>
+            <button class="btn-primary btn-disabled" id="generateIncidentBtn" onclick="generateFromIncident()" disabled>
+                <i data-feather="zap" style="width:14px;height:14px;"></i> Generate Post-Mortem
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<!-- Alert Generate Modal (compatibility / legacy path)                     -->
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="alertGenerateModal" onclick="handleOverlayClick(event,'alertGenerateModal')">
     <div class="modal-container">
         <div class="modal-header">
-            <span class="modal-title">Generate Post-Mortem</span>
-            <button class="modal-close" onclick="closeModal('generateModal')"><i data-feather="x" style="width:16px;height:16px;"></i></button>
+            <span class="modal-title">Generate Post-Mortem from Alert</span>
+            <button class="modal-close" onclick="closeModal('alertGenerateModal')"><i data-feather="x" style="width:16px;height:16px;"></i></button>
         </div>
         <div class="modal-body">
             <div class="form-group">
@@ -106,19 +181,21 @@
                 <select class="form-select" id="genAlertId">
                     <option value="">Loading alerts…</option>
                 </select>
-                <p class="form-hint">The post-mortem will be generated using AI based on this alert and its execution history.</p>
+                <p class="form-hint">An incident will be resolved or created for this alert, then a post-mortem will be generated from the full incident evidence.</p>
             </div>
         </div>
         <div class="modal-footer">
-            <button class="btn-secondary" onclick="closeModal('generateModal')">Cancel</button>
-            <button class="btn-primary" id="generateBtn" onclick="generatePostmortem()">
+            <button class="btn-secondary" onclick="closeModal('alertGenerateModal')">Cancel</button>
+            <button class="btn-primary" id="alertGenerateBtn" onclick="generateFromAlert()">
                 <i data-feather="zap" style="width:14px;height:14px;"></i> Generate
             </button>
         </div>
     </div>
 </div>
 
-<!-- View Modal -->
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<!-- View Modal                                                              -->
+<!-- ─────────────────────────────────────────────────────────────────────── -->
 <div class="modal-overlay" id="viewModal" onclick="handleOverlayClick(event,'viewModal')">
     <div class="modal-container modal-lg">
         <div class="modal-header">
@@ -128,16 +205,21 @@
                 <button class="btn-green btn-sm" id="publishBtn" onclick="publishPostmortem()" style="display:none;">
                     <i data-feather="check-circle" style="width:12px;height:12px;"></i> Publish
                 </button>
+                <button class="btn-sm" id="regenBtn" onclick="regenerateCurrent()">
+                    <i data-feather="refresh-cw" style="width:12px;height:12px;"></i> Regenerate
+                </button>
                 <button class="modal-close" onclick="closeModal('viewModal')"><i data-feather="x" style="width:16px;height:16px;"></i></button>
             </div>
         </div>
-        <div class="modal-body" id="viewModalBody" style="max-height:70vh;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(148,163,184,.35) transparent;">
+        <div class="modal-body" id="viewModalBody" style="max-height:72vh;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(148,163,184,.35) transparent;">
             Loading…
         </div>
     </div>
 </div>
 
-<!-- Confirm Delete Modal -->
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<!-- Confirm Delete Modal                                                    -->
+<!-- ─────────────────────────────────────────────────────────────────────── -->
 <div class="modal-overlay" id="deleteModal" onclick="handleOverlayClick(event,'deleteModal')">
     <div class="modal-container" style="width:400px;">
         <div class="modal-header">
@@ -145,7 +227,7 @@
             <button class="modal-close" onclick="closeModal('deleteModal')"><i data-feather="x" style="width:16px;height:16px;"></i></button>
         </div>
         <div class="modal-body">
-            <p style="color:var(--text-primary);font-size:14px;">This post-mortem report will be permanently deleted.</p>
+            <p style="color:var(--text-primary);font-size:14px;">This post-mortem report will be permanently deleted. This action cannot be undone.</p>
         </div>
         <div class="modal-footer">
             <button class="btn-secondary" onclick="closeModal('deleteModal')">Cancel</button>
@@ -157,156 +239,503 @@
 
 {% block scripts %}
 <script>
+'use strict';
+
 let postmortems = [];
 let viewingId = null;
 let deletingId = null;
+let selectedIncidentId = null;
 
-async function loadPostmortems() {
-    try {
-        const res = await fetch('/api/postmortems/?page_size=50', { headers: { Authorization: 'Bearer ' + getToken() } });
-        if (!res.ok) throw new Error(await res.text());
-        const data = await res.json();
-        postmortems = data.items || [];
-        renderGrid(postmortems);
-    } catch(e) {
-        document.getElementById('pmGrid').innerHTML = `<div style="text-align:center;padding:40px;color:#ef4444;">${e.message}</div>`;
-    }
+// ── Utilities ──────────────────────────────────────────────────────────────
+
+function getToken() { return localStorage.getItem('access_token') || ''; }
+
+function escHtml(s) {
+    const d = document.createElement('div');
+    d.appendChild(document.createTextNode(s == null ? '' : String(s)));
+    return d.innerHTML;
 }
 
-async function loadAlerts() {
-    try {
-        const res = await fetch('/api/alerts?page_size=100', { headers: { Authorization: 'Bearer ' + getToken() } });
-        if (!res.ok) return;
-        const data = await res.json();
-        const sel = document.getElementById('genAlertId');
-        const alerts = data.items || data || [];
-        sel.innerHTML = '<option value="">— Select an alert —</option>' + alerts.map(a =>
-            `<option value="${a.id}">[${a.status||'active'}] ${escHtml(a.alert_name||a.name||a.id)}</option>`
-        ).join('');
-    } catch(e) { console.error(e); }
+function fmtDate(iso) {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleString();
 }
 
-function renderGrid(list) {
-    const grid = document.getElementById('pmGrid');
-    if (!list.length) {
-        grid.innerHTML = `<div class="empty-state"><i data-feather="file-text" style="width:40px;height:40px;"></i><p>No post-mortems yet. Generate one from an alert.</p></div>`;
-        feather.replace(); return;
-    }
-    grid.innerHTML = list.map(pm => `
-        <div class="pm-card">
-            <div class="pm-card-header">
-                <div>
-                    <p class="pm-card-title">${escHtml(pm.title || 'Post-Mortem')}</p>
-                    <p class="pm-card-meta">
-                        Alert: ${escHtml(pm.alert_name || pm.alert_id || '—')} &nbsp;·&nbsp;
-                        ${pm.status === 'published' ? `<span class="badge badge-published">Published</span>` : `<span class="badge badge-draft">Draft</span>`}
-                        &nbsp;·&nbsp; ${new Date(pm.created_at).toLocaleDateString()}
-                    </p>
-                </div>
-                <div class="pm-card-actions">
-                    <button class="btn-sm" onclick="viewPostmortem('${pm.id}')"><i data-feather="eye" style="width:12px;height:12px;"></i> View</button>
-                    <button class="btn-sm" onclick="regenerate('${pm.id}')"><i data-feather="refresh-cw" style="width:12px;height:12px;"></i> Regenerate</button>
-                    <button class="btn-danger" onclick="openDeleteModal('${pm.id}')"><i data-feather="trash-2" style="width:12px;height:12px;"></i></button>
-                </div>
-            </div>
-            ${pm.summary ? `<div class="pm-card-excerpt">${escHtml(pm.summary)}</div>` : ''}
-        </div>
-    `).join('');
-    feather.replace();
+function fmtDuration(minutes) {
+    if (minutes == null) return '—';
+    const m = Math.round(minutes);
+    if (m < 60) return `${m}m`;
+    return `${Math.floor(m/60)}h ${m%60}m`;
 }
 
-function filterPostmortems() {
-    const q = document.getElementById('searchInput').value.toLowerCase();
-    renderGrid(q ? postmortems.filter(p => (p.title||'').toLowerCase().includes(q) || (p.alert_name||'').toLowerCase().includes(q)) : postmortems);
+function calcMttr(startedAt, resolvedAt) {
+    if (!startedAt || !resolvedAt) return null;
+    return (new Date(resolvedAt) - new Date(startedAt)) / 60000;
 }
 
-function openGenerateModal() {
-    loadAlerts();
-    openModal('generateModal');
+function severityBadge(sev) {
+    const severityClasses = { critical: 'badge-sev-critical', high: 'badge-sev-critical', warning: 'badge-sev-warning', medium: 'badge-sev-warning', info: 'badge-sev-info', low: 'badge-sev-info' };
+    const cls = severityClasses[(sev || '').toLowerCase()] || 'badge-sev-info';
+    return sev ? `<span class="badge ${cls}">${escHtml(sev)}</span>` : '';
 }
 
-async function generatePostmortem() {
-    const alertId = document.getElementById('genAlertId').value;
-    if (!alertId) { window.showToast('Please select an alert','error'); return; }
-    const btn = document.getElementById('generateBtn');
-    btn.disabled = true; btn.innerHTML = '<i data-feather="loader" style="width:14px;height:14px;"></i> Generating…';
-    feather.replace();
-    try {
-        const res = await fetch('/api/postmortems/generate', { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+getToken()}, body: JSON.stringify({ alert_id: alertId }) });
-        if (!res.ok) { const e = await res.json(); throw new Error(e.detail || JSON.stringify(e)); }
-        window.showToast('Post-mortem generated!','success');
-        closeModal('generateModal');
-        loadPostmortems();
-    } catch(e) { window.showToast('Error: ' + e.message,'error'); }
-    finally { btn.disabled=false; btn.innerHTML='<i data-feather="zap" style="width:14px;height:14px;"></i> Generate'; feather.replace(); }
-}
-
-async function viewPostmortem(id) {
-    viewingId = id;
-    openModal('viewModal');
-    document.getElementById('viewModalBody').innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-secondary);">Loading…</div>';
-    try {
-        const res = await fetch(`/api/postmortems/${id}`, { headers:{ Authorization:'Bearer '+getToken() } });
-        if (!res.ok) throw new Error(await res.text());
-        const pm = await res.json();
-        document.getElementById('viewModalTitle').textContent = pm.title || 'Post-Mortem';
-        document.getElementById('viewModalBadge').innerHTML = pm.status === 'published' ? '<span class="badge badge-published">Published</span>' : '<span class="badge badge-draft">Draft</span>';
-        const publishBtn = document.getElementById('publishBtn');
-        publishBtn.style.display = pm.status === 'published' ? 'none' : 'flex';
-
-        document.getElementById('viewModalBody').innerHTML = `
-            ${pm.summary ? `<div class="section-block"><h4>Summary</h4><p class="pm-content">${escHtml(pm.summary)}</p></div>` : ''}
-            ${pm.timeline ? `<div class="section-block"><h4>Timeline</h4><p class="pm-content">${escHtml(pm.timeline)}</p></div>` : ''}
-            ${pm.root_cause ? `<div class="section-block"><h4>Root Cause</h4><p class="pm-content">${escHtml(pm.root_cause)}</p></div>` : ''}
-            ${pm.impact ? `<div class="section-block"><h4>Impact</h4><p class="pm-content">${escHtml(pm.impact)}</p></div>` : ''}
-            ${pm.resolution ? `<div class="section-block"><h4>Resolution</h4><p class="pm-content">${escHtml(pm.resolution)}</p></div>` : ''}
-            ${pm.action_items ? `<div class="section-block"><h4>Action Items</h4><p class="pm-content">${escHtml(pm.action_items)}</p></div>` : ''}
-            ${pm.lessons_learned ? `<div class="section-block"><h4>Lessons Learned</h4><p class="pm-content">${escHtml(pm.lessons_learned)}</p></div>` : ''}
-        `;
-        feather.replace();
-    } catch(e) { document.getElementById('viewModalBody').innerHTML = `<p style="color:#ef4444;">${e.message}</p>`; }
-}
-
-async function regenerate(id) {
-    if (!confirm) return; // use API
-    try {
-        const res = await fetch(`/api/postmortems/${id}/regenerate`, { method:'POST', headers:{ Authorization:'Bearer '+getToken() } });
-        if (!res.ok) { const e = await res.json(); throw new Error(e.detail||'Error'); }
-        window.showToast('Regenerated!','success');
-        loadPostmortems();
-        if (viewingId === id) viewPostmortem(id);
-    } catch(e) { window.showToast('Error: '+e.message,'error'); }
-}
-
-async function publishPostmortem() {
-    if (!viewingId) return;
-    try {
-        const res = await fetch(`/api/postmortems/${viewingId}/publish`, { method:'POST', headers:{ Authorization:'Bearer '+getToken() } });
-        if (!res.ok) { const e = await res.json(); throw new Error(e.detail||'Error'); }
-        window.showToast('Post-mortem published!','success');
-        document.getElementById('publishBtn').style.display = 'none';
-        document.getElementById('viewModalBadge').innerHTML = '<span class="badge badge-published">Published</span>';
-        loadPostmortems();
-    } catch(e) { window.showToast('Error: '+e.message,'error'); }
-}
-
-function openDeleteModal(id) { deletingId = id; openModal('deleteModal'); }
-async function confirmDelete() {
-    try {
-        const res = await fetch(`/api/postmortems/${deletingId}`, { method:'DELETE', headers:{ Authorization:'Bearer '+getToken() } });
-        if (!res.ok) throw new Error(await res.text());
-        window.showToast('Deleted','success');
-        closeModal('deleteModal'); closeModal('viewModal'); loadPostmortems();
-    } catch(e) { window.showToast('Error: '+e.message,'error'); }
+function statusBadge(st) {
+    const statusClasses = { published: 'badge-published', in_review: 'badge-in-review', draft: 'badge-draft' };
+    const cls = statusClasses[st] || 'badge-draft';
+    return `<span class="badge ${cls}">${escHtml(st)}</span>`;
 }
 
 function openModal(id) { document.getElementById(id).classList.add('active'); }
 function closeModal(id) { document.getElementById(id).classList.remove('active'); }
 function handleOverlayClick(e, id) { if (e.target.id === id) closeModal(id); }
-function escHtml(s) { const d=document.createElement('div');d.appendChild(document.createTextNode(s||''));return d.innerHTML; }
-function getToken() { return localStorage.getItem('access_token') || ''; }
 
-document.addEventListener('keydown', e => { if (e.key==='Escape') { closeModal('generateModal');closeModal('viewModal');closeModal('deleteModal'); } });
-document.addEventListener('DOMContentLoaded', () => { loadPostmortems(); feather.replace(); });
+// ── Load postmortems list ──────────────────────────────────────────────────
+
+async function loadPostmortems() {
+    try {
+        const res = await fetch('/api/postmortems/?page_size=50', {
+            headers: { Authorization: 'Bearer ' + getToken() }
+        });
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+        postmortems = data.items || [];
+        renderGrid(postmortems);
+    } catch(e) {
+        document.getElementById('pmGrid').innerHTML =
+            `<div style="text-align:center;padding:40px;color:#ef4444;">${escHtml(e.message)}</div>`;
+    }
+}
+
+function renderGrid(list) {
+    const grid = document.getElementById('pmGrid');
+    if (!list.length) {
+        grid.innerHTML = `<div class="empty-state">
+            <i data-feather="file-text" style="width:40px;height:40px;"></i>
+            <p>No post-mortems yet. Generate one from a resolved incident.</p>
+        </div>`;
+        feather.replace();
+        return;
+    }
+    grid.innerHTML = list.map(pm => {
+        const anchor = pm.incident_id
+            ? `Incident: ${pm.incident_id.slice(0,8)}…`
+            : pm.alert_id ? `Alert: ${pm.alert_id.slice(0,8)}…` : '—';
+        return `<div class="pm-card">
+            <div class="pm-card-header">
+                <div>
+                    <p class="pm-card-title">${escHtml(pm.title || 'Post-Mortem')}</p>
+                    <p class="pm-card-meta">
+                        ${escHtml(anchor)} &nbsp;·&nbsp;
+                        ${statusBadge(pm.status)}
+                        ${pm.severity ? ' &nbsp;·&nbsp; ' + severityBadge(pm.severity) : ''}
+                        &nbsp;·&nbsp; ${fmtDate(pm.created_at)}
+                    </p>
+                </div>
+                <div class="pm-card-actions">
+                    <button class="btn-sm" onclick="viewPostmortem('${pm.id}')">
+                        <i data-feather="eye" style="width:12px;height:12px;"></i> View
+                    </button>
+                    <button class="btn-sm" onclick="regenerate('${pm.id}')">
+                        <i data-feather="refresh-cw" style="width:12px;height:12px;"></i> Regenerate
+                    </button>
+                    <button class="btn-danger" onclick="openDeleteModal('${pm.id}')">
+                        <i data-feather="trash-2" style="width:12px;height:12px;"></i>
+                    </button>
+                </div>
+            </div>
+            ${pm.impact_summary ? `<div class="pm-card-excerpt">${escHtml(pm.impact_summary)}</div>` : ''}
+        </div>`;
+    }).join('');
+    feather.replace();
+}
+
+function filterPostmortems() {
+    const q = document.getElementById('searchInput').value.toLowerCase();
+    renderGrid(q
+        ? postmortems.filter(p => (p.title||'').toLowerCase().includes(q) || (p.impact_summary||'').toLowerCase().includes(q))
+        : postmortems
+    );
+}
+
+// ── Incident-first flow ────────────────────────────────────────────────────
+
+async function openIncidentPickerModal() {
+    selectedIncidentId = null;
+    document.getElementById('generateIncidentBtn').disabled = true;
+    document.getElementById('generateIncidentBtn').classList.add('btn-disabled');
+    document.getElementById('evidencePreview').style.display = 'none';
+    openModal('incidentPickerModal');
+    await loadEligibleIncidents();
+}
+
+async function loadEligibleIncidents() {
+    const listEl = document.getElementById('incidentList');
+    listEl.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-secondary);">Loading…</div>';
+    try {
+        const res = await fetch('/api/postmortems/incidents?page_size=50', {
+            headers: { Authorization: 'Bearer ' + getToken() }
+        });
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+        const items = data.items || [];
+        if (!items.length) {
+            listEl.innerHTML = `<div style="text-align:center;padding:30px;color:var(--text-secondary);">
+                <i data-feather="check-circle" style="width:28px;height:28px;opacity:.4;"></i>
+                <p style="margin-top:8px;font-size:13px;">No eligible resolved incidents found.<br>Incidents become eligible after resolution grace period (30 min).</p>
+            </div>`;
+            feather.replace();
+            return;
+        }
+        listEl.innerHTML = items.map(inc => `
+            <div class="incident-item" id="inc-${inc.id}" onclick="selectIncident('${inc.id}', this)">
+                <div class="incident-item-title">${escHtml(inc.title)}</div>
+                <div class="incident-item-meta">
+                    ${severityBadge(inc.severity)}
+                    &nbsp; Started: ${fmtDate(inc.started_at)}
+                    &nbsp;·&nbsp; Resolved: ${fmtDate(inc.resolved_at)}
+                    &nbsp;·&nbsp; MTTR: ${fmtDuration(calcMttr(inc.started_at, inc.resolved_at))}
+                    ${inc.affected_services && inc.affected_services.length ? '&nbsp;·&nbsp; Services: ' + escHtml(inc.affected_services.slice(0,3).join(', ')) : ''}
+                </div>
+            </div>
+        `).join('');
+        feather.replace();
+    } catch(e) {
+        listEl.innerHTML = `<div style="text-align:center;padding:30px;color:#ef4444;">${escHtml(e.message)}</div>`;
+    }
+}
+
+async function selectIncident(incidentId, el) {
+    // Deselect previous
+    document.querySelectorAll('.incident-item.selected').forEach(e => e.classList.remove('selected'));
+    el.classList.add('selected');
+    selectedIncidentId = incidentId;
+
+    // Enable generate button
+    document.getElementById('generateIncidentBtn').disabled = false;
+    document.getElementById('generateIncidentBtn').classList.remove('btn-disabled');
+
+    // Load evidence preview
+    const previewEl = document.getElementById('evidencePreview');
+    const contentEl = document.getElementById('evidenceContent');
+    previewEl.style.display = 'block';
+    contentEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-secondary);">Loading evidence…</div>';
+
+    try {
+        const res = await fetch(`/api/postmortems/incidents/${incidentId}/evidence`, {
+            headers: { Authorization: 'Bearer ' + getToken() }
+        });
+        if (!res.ok) throw new Error(await res.text());
+        const ev = await res.json();
+        renderEvidencePreview(contentEl, ev);
+    } catch(e) {
+        contentEl.innerHTML = `<p style="color:#ef4444;font-size:13px;">${escHtml(e.message)}</p>`;
+    }
+}
+
+function renderEvidencePreview(el, ev) {
+    const stats = [
+        ['Alerts', ev.alert_count],
+        ['Runbook Executions', ev.runbook_executions ? ev.runbook_executions.length : 0],
+        ['Change Events', ev.change_events ? ev.change_events.length : 0],
+        ['MTTR', fmtDuration(ev.mttr_minutes)],
+        ['Affected Services', ev.affected_services ? ev.affected_services.length : 0],
+    ];
+
+    const statsHtml = stats.map(([label, val]) =>
+        `<span class="evidence-stat"><b>${escHtml(String(val))}</b>&nbsp;${escHtml(label)}</span>`
+    ).join('');
+
+    const timelineRows = (ev.timeline || []).slice(0, 10).map(e =>
+        `<div class="timeline-row">
+            <span class="timeline-ts">${fmtDate(e.timestamp)}</span>
+            <span class="timeline-ev">${escHtml(e.event || '')}</span>
+        </div>`
+    ).join('');
+
+    const changeRows = (ev.change_events || []).slice(0, 5).map(ce =>
+        `<div class="timeline-row">
+            <span class="timeline-ts">${fmtDate(ce.timestamp)}</span>
+            <span class="timeline-ev">${escHtml(ce.change_type)} — ${escHtml(ce.service_name || '')} — ${escHtml(ce.description || '')}</span>
+        </div>`
+    ).join('');
+
+    el.innerHTML = `
+        <div class="evidence-section">
+            <h5>Evidence Summary</h5>
+            <div>${statsHtml}</div>
+        </div>
+        ${timelineRows ? `<div class="evidence-section">
+            <h5>Timeline (first 10 events)</h5>
+            <div class="timeline-mini">${timelineRows}</div>
+        </div>` : ''}
+        ${changeRows ? `<div class="evidence-section">
+            <h5>Change Events</h5>
+            <div class="timeline-mini">${changeRows}</div>
+        </div>` : ''}
+    `;
+}
+
+async function generateFromIncident() {
+    if (!selectedIncidentId) return;
+    const btn = document.getElementById('generateIncidentBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i data-feather="loader" style="width:14px;height:14px;"></i> Generating…';
+    feather.replace();
+    try {
+        const res = await fetch('/api/postmortems/generate-by-incident', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + getToken() },
+            body: JSON.stringify({ incident_id: selectedIncidentId })
+        });
+        if (!res.ok) { const e = await res.json(); throw new Error(e.detail || JSON.stringify(e)); }
+        window.showToast('Post-mortem generated!', 'success');
+        closeModal('incidentPickerModal');
+        loadPostmortems();
+    } catch(e) {
+        window.showToast('Error: ' + e.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i data-feather="zap" style="width:14px;height:14px;"></i> Generate Post-Mortem';
+        feather.replace();
+    }
+}
+
+// ── Alert compatibility flow ───────────────────────────────────────────────
+
+async function openAlertGenerateModal() {
+    await loadAlerts();
+    openModal('alertGenerateModal');
+}
+
+async function loadAlerts() {
+    try {
+        const res = await fetch('/api/alerts?page_size=100', {
+            headers: { Authorization: 'Bearer ' + getToken() }
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const sel = document.getElementById('genAlertId');
+        const alerts = data.items || data || [];
+        sel.innerHTML = '<option value="">— Select an alert —</option>' +
+            alerts.map(a => `<option value="${a.id}">[${a.status||'active'}] ${escHtml(a.alert_name||a.name||a.id)}</option>`).join('');
+    } catch(e) { console.error(e); }
+}
+
+async function generateFromAlert() {
+    const alertId = document.getElementById('genAlertId').value;
+    if (!alertId) { window.showToast('Please select an alert', 'error'); return; }
+    const btn = document.getElementById('alertGenerateBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i data-feather="loader" style="width:14px;height:14px;"></i> Generating…';
+    feather.replace();
+    try {
+        const res = await fetch('/api/postmortems/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + getToken() },
+            body: JSON.stringify({ alert_id: alertId })
+        });
+        if (!res.ok) { const e = await res.json(); throw new Error(e.detail || JSON.stringify(e)); }
+        window.showToast('Post-mortem generated!', 'success');
+        closeModal('alertGenerateModal');
+        loadPostmortems();
+    } catch(e) {
+        window.showToast('Error: ' + e.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i data-feather="zap" style="width:14px;height:14px;"></i> Generate';
+        feather.replace();
+    }
+}
+
+// ── View modal ─────────────────────────────────────────────────────────────
+
+async function viewPostmortem(id) {
+    viewingId = id;
+    openModal('viewModal');
+    document.getElementById('viewModalBody').innerHTML =
+        '<div style="text-align:center;padding:40px;color:var(--text-secondary);">Loading…</div>';
+    try {
+        const res = await fetch(`/api/postmortems/${id}`, {
+            headers: { Authorization: 'Bearer ' + getToken() }
+        });
+        if (!res.ok) throw new Error(await res.text());
+        const pm = await res.json();
+        renderViewModal(pm);
+    } catch(e) {
+        document.getElementById('viewModalBody').innerHTML =
+            `<p style="color:#ef4444;">${escHtml(e.message)}</p>`;
+    }
+}
+
+function renderViewModal(pm) {
+    document.getElementById('viewModalTitle').textContent = pm.title || 'Post-Mortem';
+    document.getElementById('viewModalBadge').innerHTML = statusBadge(pm.status);
+    document.getElementById('publishBtn').style.display = pm.status === 'published' ? 'none' : 'flex';
+
+    // Incident / alert anchor
+    const anchor = pm.incident_id
+        ? `Incident: <code style="font-size:11px;">${pm.incident_id}</code>`
+        : pm.alert_id ? `Alert: <code style="font-size:11px;">${pm.alert_id}</code>` : '—';
+
+    // Metrics
+    const m = pm.metrics || {};
+    const metricsHtml = `
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
+            ${m.mttd_minutes != null ? `<span class="evidence-stat"><b>${fmtDuration(m.mttd_minutes)}</b> MTTD</span>` : ''}
+            ${m.mtta_minutes != null ? `<span class="evidence-stat"><b>${fmtDuration(m.mtta_minutes)}</b> MTTA</span>` : ''}
+            ${m.mtte_minutes != null ? `<span class="evidence-stat"><b>${fmtDuration(m.mtte_minutes)}</b> MTTE</span>` : ''}
+            ${m.mttr_minutes != null ? `<span class="evidence-stat"><b>${fmtDuration(m.mttr_minutes)}</b> MTTR</span>` : ''}
+        </div>`;
+
+    // Timeline
+    const timelineHtml = (pm.timeline || []).length > 0
+        ? `<div class="timeline-mini">${(pm.timeline||[]).map(e =>
+            `<div class="timeline-row">
+                <span class="timeline-ts">${fmtDate(e.timestamp)}</span>
+                <span class="timeline-ev">${escHtml(e.event||'')} <em style="font-size:11px;color:var(--text-secondary);">[${escHtml(e.source||'')}]</em></span>
+            </div>`).join('')}</div>`
+        : '<p style="font-size:13px;color:var(--text-secondary);">No timeline events.</p>';
+
+    // Action items
+    const actionItemsHtml = (pm.action_items || []).length > 0
+        ? (pm.action_items||[]).map(ai => `
+            <div class="action-item-row">
+                <span style="flex:1;">${escHtml(ai.description||'')}</span>
+                <span style="min-width:80px;color:var(--text-secondary);">${escHtml(ai.owner||'')}</span>
+                <span style="min-width:80px;color:var(--text-secondary);">${escHtml(ai.due_date||'')}</span>
+                <span class="badge ${ai.status==='done'?'badge-published':ai.status==='in_progress'?'badge-in-review':'badge-draft'}">${escHtml(ai.status||'open')}</span>
+            </div>`).join('')
+        : '<p style="font-size:13px;color:var(--text-secondary);">No action items.</p>';
+
+    // Remediation actions
+    const remHtml = (pm.remediation_actions || []).length > 0
+        ? (pm.remediation_actions||[]).map(ra => `
+            <div class="action-item-row">
+                <span style="flex:1;">${escHtml(ra.action||'')}</span>
+                <span style="color:var(--text-secondary);">${escHtml(ra.outcome||'')}</span>
+                <span style="color:var(--text-secondary);">${ra.duration_minutes != null ? fmtDuration(ra.duration_minutes) : ''}</span>
+            </div>`).join('')
+        : '<p style="font-size:13px;color:var(--text-secondary);">No remediation actions recorded.</p>';
+
+    document.getElementById('viewModalBody').innerHTML = `
+        <!-- Meta bar -->
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">
+            ${pm.severity ? severityBadge(pm.severity) : ''}
+            <span style="font-size:12px;color:var(--text-secondary);">${anchor}</span>
+            <span style="font-size:12px;color:var(--text-secondary);">
+                ${pm.incident_start ? fmtDate(pm.incident_start) : ''} ${pm.incident_end ? '→ ' + fmtDate(pm.incident_end) : ''}
+            </span>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tab-bar">
+            <button class="tab-btn active" onclick="switchTab('summary',this)">Summary</button>
+            <button class="tab-btn" onclick="switchTab('timeline',this)">Timeline</button>
+            <button class="tab-btn" onclick="switchTab('remediation',this)">Remediation</button>
+            <button class="tab-btn" onclick="switchTab('actions',this)">Action Items</button>
+        </div>
+
+        <!-- Summary tab -->
+        <div class="tab-panel active" id="tab-summary">
+            ${metricsHtml}
+            ${pm.impact_summary ? `<div class="section-block"><h4>Impact Summary</h4><p class="pm-content">${escHtml(pm.impact_summary)}</p></div>` : ''}
+            ${pm.root_cause ? `<div class="section-block"><h4>Root Cause</h4><p class="pm-content">${escHtml(pm.root_cause)}</p></div>` : ''}
+            ${(pm.contributing_factors||[]).length ? `<div class="section-block"><h4>Contributing Factors</h4><ul style="margin:0;padding-left:18px;">${(pm.contributing_factors||[]).map(f=>`<li style="font-size:13px;margin-bottom:4px;">${escHtml(f)}</li>`).join('')}</ul></div>` : ''}
+            ${pm.lessons_learned ? `<div class="section-block"><h4>Lessons Learned</h4><p class="pm-content">${escHtml(pm.lessons_learned)}</p></div>` : ''}
+        </div>
+
+        <!-- Timeline tab -->
+        <div class="tab-panel" id="tab-timeline">
+            <div class="section-block" style="padding:12px;">${timelineHtml}</div>
+        </div>
+
+        <!-- Remediation tab -->
+        <div class="tab-panel" id="tab-remediation">
+            <div class="section-block"><h4>Remediation Actions</h4>${remHtml}</div>
+        </div>
+
+        <!-- Action Items tab -->
+        <div class="tab-panel" id="tab-actions">
+            <div class="section-block"><h4>Action Items</h4>${actionItemsHtml}</div>
+        </div>
+    `;
+    feather.replace();
+}
+
+function switchTab(name, btn) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    const panel = document.getElementById('tab-' + name);
+    if (panel) panel.classList.add('active');
+}
+
+// ── Regenerate ─────────────────────────────────────────────────────────────
+
+async function regenerate(id) {
+    try {
+        const res = await fetch(`/api/postmortems/${id}/regenerate`, {
+            method: 'POST',
+            headers: { Authorization: 'Bearer ' + getToken() }
+        });
+        if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'Error'); }
+        window.showToast('Regenerated!', 'success');
+        loadPostmortems();
+        if (viewingId === id) viewPostmortem(id);
+    } catch(e) { window.showToast('Error: ' + e.message, 'error'); }
+}
+
+function regenerateCurrent() { if (viewingId) regenerate(viewingId); }
+
+// ── Publish ────────────────────────────────────────────────────────────────
+
+async function publishPostmortem() {
+    if (!viewingId) return;
+    try {
+        const res = await fetch(`/api/postmortems/${viewingId}/publish`, {
+            method: 'POST',
+            headers: { Authorization: 'Bearer ' + getToken() }
+        });
+        if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'Error'); }
+        window.showToast('Post-mortem published!', 'success');
+        document.getElementById('publishBtn').style.display = 'none';
+        document.getElementById('viewModalBadge').innerHTML = statusBadge('published');
+        loadPostmortems();
+    } catch(e) { window.showToast('Error: ' + e.message, 'error'); }
+}
+
+// ── Delete ─────────────────────────────────────────────────────────────────
+
+function openDeleteModal(id) { deletingId = id; openModal('deleteModal'); }
+
+async function confirmDelete() {
+    try {
+        const res = await fetch(`/api/postmortems/${deletingId}`, {
+            method: 'DELETE',
+            headers: { Authorization: 'Bearer ' + getToken() }
+        });
+        if (!res.ok) throw new Error(await res.text());
+        window.showToast('Deleted', 'success');
+        closeModal('deleteModal');
+        closeModal('viewModal');
+        loadPostmortems();
+    } catch(e) { window.showToast('Error: ' + e.message, 'error'); }
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+        closeModal('incidentPickerModal');
+        closeModal('alertGenerateModal');
+        closeModal('viewModal');
+        closeModal('deleteModal');
+    }
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadPostmortems();
+    feather.replace();
+});
 </script>
 {% endblock %}

@@ -2,6 +2,14 @@
 Post-Incident Postmortem API Router
 
 Endpoints for generating, editing, and publishing AI-powered postmortem reports.
+
+Incident-first endpoints:
+  GET  /api/postmortems/incidents              — list eligible resolved incidents
+  GET  /api/postmortems/incidents/{id}/evidence — preview evidence for an incident
+  POST /api/postmortems/generate-by-incident   — generate from a resolved incident
+
+Alert-compatibility endpoints (retained for backward compatibility):
+  POST /api/postmortems/generate               — generate from an alert
 """
 import logging
 from typing import List, Optional
@@ -14,13 +22,20 @@ from app.database import get_async_db
 from app.models import User
 from app.models_postmortem import PostmortemReport
 from app.schemas_postmortem import (
+    ChangeEventSummary,
+    IncidentEvidenceResponse,
+    IncidentListResponse,
+    IncidentResponse,
     OutOfBandContextAdd,
+    PostmortemGenerateByIncident,
     PostmortemListResponse,
     PostmortemReportCreate,
     PostmortemReportResponse,
     PostmortemReportUpdate,
+    RunbookExecutionSummary,
 )
 from app.services.auth_service import get_current_user, require_role
+from app.services.incident_service import IncidentService
 from app.services.postmortem_service import PostmortemService
 
 logger = logging.getLogger(__name__)
@@ -29,7 +44,133 @@ router = APIRouter(prefix="/api/postmortems", tags=["Postmortems"])
 
 
 # ---------------------------------------------------------------------------
-# Generate
+# Incident-first: list eligible resolved incidents
+# ---------------------------------------------------------------------------
+
+@router.get(
+    "/incidents",
+    response_model=IncidentListResponse,
+    summary="List resolved incidents eligible for postmortem generation",
+)
+async def list_eligible_incidents(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    include_with_postmortem: bool = Query(
+        False,
+        description="Include incidents that already have a postmortem",
+    ),
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_user),
+) -> IncidentListResponse:
+    """
+    Return a paginated list of resolved incidents that are eligible for
+    postmortem generation (grace period elapsed, not yet cancelled/closed).
+
+    By default incidents that already have a postmortem are excluded.
+    Pass ``include_with_postmortem=true`` to include them.
+    """
+    svc = IncidentService(db)
+    items, total = await svc.list_eligible_for_postmortem(
+        page=page,
+        page_size=page_size,
+        include_with_postmortem=include_with_postmortem,
+    )
+    return IncidentListResponse(
+        items=[IncidentResponse.model_validate(i) for i in items],
+        total=total,
+        page=page,
+        page_size=page_size,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Incident-first: evidence preview
+# ---------------------------------------------------------------------------
+
+@router.get(
+    "/incidents/{incident_id}/evidence",
+    response_model=IncidentEvidenceResponse,
+    summary="Preview the evidence that will be used to generate a postmortem",
+)
+async def get_incident_evidence(
+    incident_id: UUID,
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_user),
+) -> IncidentEvidenceResponse:
+    """
+    Gather and return the complete evidence bundle for the given incident
+    so that users can review it before triggering postmortem generation.
+    """
+    svc = IncidentService(db)
+    evidence = await svc.get_evidence(incident_id)
+    incident = evidence["incident"]
+
+    runbook_summaries = []
+    for ex in evidence.get("runbook_executions", []):
+        duration = None
+        if ex.started_at and ex.completed_at:
+            delta = ex.completed_at - ex.started_at
+            duration = round(delta.total_seconds() / 60, 2)
+        runbook_summaries.append(
+            RunbookExecutionSummary(
+                id=ex.id,
+                runbook_id=ex.runbook_id,
+                status=ex.status,
+                started_at=ex.started_at,
+                completed_at=ex.completed_at,
+                duration_minutes=duration,
+            )
+        )
+
+    change_summaries = [
+        ChangeEventSummary.model_validate(ce)
+        for ce in evidence.get("change_events", [])
+    ]
+
+    return IncidentEvidenceResponse(
+        incident=IncidentResponse.model_validate(incident),
+        alert_count=len(evidence.get("alerts", [])),
+        timeline=evidence.get("timeline", []),
+        runbook_executions=runbook_summaries,
+        change_events=change_summaries,
+        affected_services=evidence.get("affected_services", []),
+        mttr_minutes=evidence.get("mttr_minutes"),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Incident-first: generate postmortem from a resolved incident
+# ---------------------------------------------------------------------------
+
+@router.post(
+    "/generate-by-incident",
+    response_model=PostmortemReportResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Generate a postmortem from a resolved incident (incident-first path)",
+)
+async def generate_postmortem_by_incident(
+    data: PostmortemGenerateByIncident,
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_user),
+) -> PostmortemReportResponse:
+    """
+    AI-generate a draft postmortem report anchored to the given incident.
+
+    Gathers the full evidence bundle for the incident (all correlated alerts,
+    runbook executions, agent troubleshooting sessions, change events, and
+    ITSM data) then calls the LLM to produce a structured postmortem.
+    """
+    svc = PostmortemService(db)
+    report = await svc.generate_by_incident(
+        incident_id=data.incident_id,
+        created_by=current_user.id,
+        app_id=data.app_id,
+    )
+    return PostmortemReportResponse.model_validate(report)
+
+
+# ---------------------------------------------------------------------------
+# Generate (alert compatibility path)
 # ---------------------------------------------------------------------------
 
 @router.post(

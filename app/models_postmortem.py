@@ -11,6 +11,10 @@ from sqlalchemy.orm import relationship
 
 from app.database import Base
 
+# Ensure the Incident mapper is registered before PostmortemReport so that the
+# back-reference relationship can be resolved at mapper configuration time.
+import app.models_incident  # noqa: F401
+
 
 def utc_now() -> datetime:
     """Return current UTC time as timezone-aware datetime."""
@@ -40,6 +44,14 @@ class PostmortemReport(Base):
     incident_end = Column(DateTime(timezone=True), nullable=True)
 
     # Links to source data
+    # Primary anchor: incident_id (new incident-first model)
+    incident_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("incidents.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    # Legacy anchor: alert_id kept for backward compatibility and lineage
     alert_id = Column(
         UUID(as_uuid=True),
         ForeignKey("alerts.id", ondelete="SET NULL"),
@@ -93,12 +105,14 @@ class PostmortemReport(Base):
     )
 
     # Relationships
+    incident = relationship("Incident", back_populates="postmortems", foreign_keys=[incident_id])
     alert = relationship("Alert", foreign_keys=[alert_id])
     application = relationship("Application", foreign_keys=[app_id])
     reviewer = relationship("User", foreign_keys=[reviewed_by])
     creator = relationship("User", foreign_keys=[created_by])
 
     __table_args__ = (
+        Index("ix_postmortem_reports_incident_id", "incident_id"),
         Index("ix_postmortem_reports_alert_id", "alert_id"),
         Index("ix_postmortem_reports_app_id", "app_id"),
         Index("ix_postmortem_reports_status", "status"),

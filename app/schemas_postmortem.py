@@ -85,6 +85,19 @@ class PostmortemReportCreate(BaseModel):
     )
 
 
+class PostmortemGenerateByIncident(BaseModel):
+    """Request body to trigger AI postmortem generation for an incident."""
+
+    incident_id: UUID = Field(..., description="UUID of the resolved incident")
+    app_id: Optional[UUID] = Field(None, description="Optional related application")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {"incident_id": "123e4567-e89b-12d3-a456-426614174000"}
+        }
+    )
+
+
 class PostmortemReportUpdate(BaseModel):
     """
     Request body for editing an existing postmortem.
@@ -142,6 +155,7 @@ class PostmortemReportResponse(BaseModel):
     generated_by: str
     incident_start: Optional[datetime] = None
     incident_end: Optional[datetime] = None
+    incident_id: Optional[UUID] = None
     alert_id: Optional[UUID] = None
     app_id: Optional[UUID] = None
     impact_summary: Optional[str] = None
@@ -168,5 +182,88 @@ class PostmortemListResponse(BaseModel):
     total: int
     page: int
     page_size: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ---------------------------------------------------------------------------
+# Incident schemas
+# ---------------------------------------------------------------------------
+
+class IncidentResponse(BaseModel):
+    """Summary representation of a native incident aggregate."""
+
+    id: UUID
+    title: str
+    status: str
+    severity: Optional[str] = None
+    correlation_id: Optional[UUID] = None
+    cluster_id: Optional[UUID] = None
+    itsm_event_id: Optional[UUID] = None
+    started_at: datetime
+    resolved_at: Optional[datetime] = None
+    grace_period_ends_at: Optional[datetime] = None
+    is_eligible_for_postmortem: bool
+    affected_services: List[str] = Field(default_factory=list)
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class IncidentListResponse(BaseModel):
+    """Paginated list of incidents."""
+
+    items: List[IncidentResponse]
+    total: int
+    page: int
+    page_size: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ChangeEventSummary(BaseModel):
+    """Brief summary of a change event for evidence preview."""
+
+    id: UUID
+    change_id: str
+    change_type: str
+    service_name: Optional[str] = None
+    description: Optional[str] = None
+    timestamp: datetime
+    impact_level: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class RunbookExecutionSummary(BaseModel):
+    """Brief summary of a runbook execution for evidence preview."""
+
+    id: UUID
+    runbook_id: Optional[UUID] = None
+    status: Optional[str] = None
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    duration_minutes: Optional[float] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class IncidentEvidenceResponse(BaseModel):
+    """
+    Evidence bundle preview for an incident.
+
+    Returned by the GET /api/postmortems/incidents/{incident_id}/evidence
+    endpoint so that users can review what data will drive postmortem
+    generation before committing.
+    """
+
+    incident: IncidentResponse
+    alert_count: int
+    timeline: List[Dict[str, Any]] = Field(default_factory=list)
+    runbook_executions: List[RunbookExecutionSummary] = Field(default_factory=list)
+    change_events: List[ChangeEventSummary] = Field(default_factory=list)
+    affected_services: List[str] = Field(default_factory=list)
+    mttr_minutes: Optional[float] = None
 
     model_config = ConfigDict(from_attributes=True)
