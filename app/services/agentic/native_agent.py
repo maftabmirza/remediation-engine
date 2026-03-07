@@ -65,7 +65,7 @@ class NativeToolAgent:
         max_tokens: Optional[int] = None,
         initial_messages: Optional[List[Dict[str, Any]]] = None,
         on_tool_call_complete: Optional[Callable[[str, Dict[str, Any], str], None]] = None,
-        registry_factory: Optional[Callable] = None
+        registry_factory: Optional[Callable] = None,
     ):
         """
         Initialize the native tool agent.

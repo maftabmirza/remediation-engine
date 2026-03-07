@@ -5,8 +5,6 @@ CRUD endpoints for schedules, escalation policies, escalation levels,
 overrides, and "who is on-call?" queries.
 """
 
-from __future__ import annotations
-
 import logging
 from typing import List, Optional
 from uuid import UUID

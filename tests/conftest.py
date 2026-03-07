@@ -130,6 +130,28 @@ def test_db_engine():
         Base.metadata.create_all(bind=engine)
     except Exception as e:
         pytest.skip(f"Database unreachable, skipping DB-dependent tests: {e}")
+
+    # Seed built-in roles — mirrors init_db() so integration tests see populated
+    # roles table. Without this, GET /api/roles returns [] in tests, masking the
+    # same empty-dropdown bug that was seen in production.
+    try:
+        from app.models import Role
+        from app.services.auth_service import ROLE_PERMISSIONS
+        from sqlalchemy.orm import sessionmaker as _sm
+        _Seed = _sm(autocommit=False, autoflush=False, bind=engine)
+        _seed_db = _Seed()
+        for role_name, perms in ROLE_PERMISSIONS.items():
+            if not _seed_db.query(Role).filter(Role.name == role_name).first():
+                _seed_db.add(Role(
+                    name=role_name,
+                    description=f"Built-in {role_name} role",
+                    permissions=sorted(perms),
+                    is_custom=False,
+                ))
+        _seed_db.commit()
+        _seed_db.close()
+    except Exception as e:
+        logger.warning(f"Could not seed built-in roles in test DB: {e}")
     
     # TEST ENVIRONMENT ONLY: Drop unique constraints to allow test data flexibility
     # Production code maintains full security with unique=True constraints

@@ -147,6 +147,43 @@
             </ul>
         </li>
 
+        <!-- Operations Group -->
+        <li class="nav-group {{ 'open' if (current_path or '').startswith('/oncall') or (current_path or '').startswith('/postmortems') or (current_path or '').startswith('/service-health') or (current_path or '').startswith('/suppression-rules') or (current_path or '').startswith('/runbook-generation') else '' }}"
+             data-nav-group="operations">
+            <div class="nav-item has-submenu">
+                <i data-feather="shield"></i>
+                <span class="nav-text">Operations</span>
+                <i data-feather="chevron-right" class="submenu-toggle-icon" style="width: 14px; margin-left: auto;"></i>
+            </div>
+            <ul class="submenu">
+                <li class="nav-item submenu-item {{ 'active' if (current_path or '').startswith('/oncall') else '' }}"
+                    onclick="window.location.href='/oncall'">
+                    <i data-feather="phone"></i>
+                    <span class="nav-text">On-Call</span>
+                </li>
+                <li class="nav-item submenu-item {{ 'active' if (current_path or '').startswith('/postmortems') else '' }}"
+                    onclick="window.location.href='/postmortems'">
+                    <i data-feather="file-text"></i>
+                    <span class="nav-text">Post-Mortems</span>
+                </li>
+                <li class="nav-item submenu-item {{ 'active' if (current_path or '').startswith('/service-health') else '' }}"
+                    onclick="window.location.href='/service-health'">
+                    <i data-feather="heart"></i>
+                    <span class="nav-text">Service Health</span>
+                </li>
+                <li class="nav-item submenu-item {{ 'active' if (current_path or '').startswith('/suppression-rules') else '' }}"
+                    onclick="window.location.href='/rules?tab=suppression'">
+                    <i data-feather="volume-x"></i>
+                    <span class="nav-text">Suppression Rules</span>
+                </li>
+                <li class="nav-item submenu-item {{ 'active' if (current_path or '').startswith('/runbook-generation') else '' }}"
+                    onclick="window.location.href='/runbook-generation'">
+                    <i data-feather="cpu"></i>
+                    <span class="nav-text">Runbook Generation</span>
+                </li>
+            </ul>
+        </li>
+
         <!-- Knowledge Group -->
         <li class="nav-group {{ 'open' if (current_path or '').startswith('/knowledge') or (current_path or '').startswith('/applications') else '' }}"
             data-nav-group="knowledge">

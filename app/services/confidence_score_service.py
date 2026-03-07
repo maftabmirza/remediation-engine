@@ -76,18 +76,24 @@ class ConfidenceScoreService:
         alert_result = await self.db.execute(
             select(Alert).where(Alert.id == alert_id)
         )
-        alert = alert_result.scalar_one_or_none()
+        alert = alert_result.scalars().first()
 
-        if alert is None or not getattr(alert, "embedding", None):
-            return ConfidenceScore(
-                score=50.0,
-                explanation="No historical data available for this runbook. Score based on runbook configuration only.",
-                similar_count=0,
-                success_rate=0.0,
-                avg_resolution_minutes=None,
-                sample_outcomes=[],
-                confidence_level="insufficient_data",
-            )
+        _no_data = ConfidenceScore(
+            score=50.0,
+            explanation="No historical data available for this runbook. Score based on runbook configuration only.",
+            similar_count=0,
+            success_rate=0.0,
+            avg_resolution_minutes=None,
+            sample_outcomes=[],
+            confidence_level="insufficient_data",
+        )
+
+        if alert is None:
+            return _no_data
+
+        _embedding = getattr(alert, "embedding", None)
+        if _embedding is None:
+            return _no_data
 
         # 2. Find similar historical alerts via pgvector cosine distance.
         similar_incidents = await self._find_similar_alerts(alert, limit=20, min_similarity=0.7)

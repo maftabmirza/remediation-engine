@@ -88,7 +88,7 @@ class AgenticOrchestrator:
                 alert=self.alert,
                 max_iterations=self.config.max_iterations,
                 temperature=self.config.temperature,
-                max_tokens=self.config.max_tokens
+                max_tokens=self.config.max_tokens,
             )
         else:
             return ReActAgent(
@@ -97,7 +97,7 @@ class AgenticOrchestrator:
                 alert=self.alert,
                 max_iterations=self.config.max_iterations,
                 temperature=self.config.temperature,
-                max_tokens=self.config.max_tokens
+                max_tokens=self.config.max_tokens,
             )
 
     @property

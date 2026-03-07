@@ -18,8 +18,10 @@ rule_files:
 
 # Scrape configurations
 scrape_configs:
-  # Prometheus itself
+  # Prometheus itself — metrics_path uses /prometheus/ prefix because
+  # Prometheus runs with --web.route-prefix=/prometheus
   - job_name: 'prometheus'
+    metrics_path: '/prometheus/metrics'
     static_configs:
       - targets: ['localhost:9090']
 

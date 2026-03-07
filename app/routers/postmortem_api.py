@@ -76,9 +76,15 @@ async def generate_postmortem(
 # ---------------------------------------------------------------------------
 
 @router.get(
+    "",
+    response_model=PostmortemListResponse,
+    summary="List postmortem reports (paginated)",
+)
+@router.get(
     "/",
     response_model=PostmortemListResponse,
     summary="List postmortem reports (paginated)",
+    include_in_schema=False,
 )
 async def list_postmortems(
     app_id: Optional[UUID] = Query(None),

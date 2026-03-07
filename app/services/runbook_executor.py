@@ -1140,7 +1140,7 @@ class RunbookExecutor:
             # Generate embedding for the problem (synchronous call in async context)
             problem_embedding = None
             try:
-                embedding_service = EmbeddingService()
+                embedding_service = EmbeddingService(db=self.db)
                 if embedding_service.is_configured():
                     # Use the alert embedding generation method
                     problem_embedding = embedding_service.generate_for_alert(alert)

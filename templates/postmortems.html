@@ -1,0 +1,312 @@
+{% extends "base.html" %}
+{% set active_page = 'postmortems' %}
+
+{% block title %}Post-Mortems - AIOps Platform{% endblock %}
+
+{% block breadcrumbs %}
+<span class="mx-2">/</span>
+<span class="text-gray-200">Post-Mortems</span>
+{% endblock %}
+
+{% block header_title %}
+<i data-feather="file-text" class="text-blue-400" style="width:16px;height:16px;"></i>
+<span class="text-sm font-semibold text-white tracking-tight">Post-Incident Post-Mortems</span>
+{% endblock %}
+
+{% block head %}
+<style>
+.page-header { margin-bottom: 20px; }
+.page-title { font-size: 1.4rem; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 10px; }
+.page-subtitle { font-size: 0.875rem; color: var(--text-secondary); margin: 4px 0 0; }
+
+.toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+
+.btn-primary { display:inline-flex;align-items:center;gap:6px;padding:8px 16px;font-size:13px;font-weight:600;border-radius:6px;cursor:pointer;border:none;background:linear-gradient(135deg,#3b82f6,#2563eb);color:#fff;box-shadow:0 2px 6px rgba(59,130,246,.25);transition:all .15s; }
+.btn-primary:hover { background:linear-gradient(135deg,#2563eb,#1d4ed8);transform:translateY(-1px); }
+.btn-secondary { display:inline-flex;align-items:center;gap:6px;padding:7px 14px;font-size:13px;font-weight:500;border-radius:6px;cursor:pointer;border:1px solid var(--border-color);background:var(--bg-surface);color:var(--text-primary);transition:all .15s; }
+.btn-secondary:hover { background:var(--bg-hover); }
+.btn-sm { display:inline-flex;align-items:center;gap:5px;padding:5px 10px;font-size:12px;font-weight:500;border-radius:5px;cursor:pointer;border:1px solid var(--border-color);background:var(--bg-surface);color:var(--text-secondary);transition:all .15s; }
+.btn-sm:hover { background:var(--bg-hover);color:var(--text-primary); }
+.btn-green { background:#dcfce7;color:#16a34a;border-color:#bbf7d0; }
+.btn-green:hover { background:#bbf7d0; }
+.btn-danger { display:inline-flex;align-items:center;gap:5px;padding:5px 10px;font-size:12px;font-weight:500;border-radius:5px;cursor:pointer;border:none;background:#fee2e2;color:#dc2626;transition:all .15s; }
+.btn-danger:hover { background:#fecaca; }
+
+.search-box { padding:7px 12px;font-size:13px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-input);color:var(--text-primary);width:260px; }
+.search-box:focus { outline:none;border-color:#3b82f6; }
+
+.pm-grid { display:grid;gap:16px; }
+.pm-card { background:var(--bg-surface);border:1px solid var(--border-color);border-radius:10px;padding:20px;transition:box-shadow .15s; }
+.pm-card:hover { box-shadow:0 4px 20px rgba(0,0,0,.1); }
+.pm-card-header { display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px; }
+.pm-card-title { font-size:1rem;font-weight:700;color:var(--text-primary);margin:0 0 4px; }
+.pm-card-meta { font-size:12px;color:var(--text-secondary); }
+.pm-card-actions { display:flex;gap:6px;flex-shrink:0; }
+.pm-card-excerpt { font-size:13px;color:var(--text-secondary);line-height:1.6;margin:12px 0 0; border-top:1px solid var(--border-color);padding-top:12px; overflow:hidden;max-height:80px; }
+
+.badge { display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:999px;font-size:11px;font-weight:600; }
+.badge-draft { background:#fff7ed;color:#c2410c; }
+.badge-published { background:#dcfce7;color:#15803d; }
+
+.empty-state { text-align:center;padding:60px 20px;color:var(--text-secondary); }
+.empty-state i { margin-bottom:12px;opacity:.4; }
+.empty-state p { font-size:14px; }
+
+/* Modal */
+.modal-overlay { display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1000;align-items:center;justify-content:center; }
+.modal-overlay.active { display:flex; }
+.modal-container { background:var(--bg-surface);border:1px solid var(--border-color);border-radius:12px;width:560px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);scrollbar-width:thin;scrollbar-color:rgba(148,163,184,.35) transparent; }
+.modal-lg { width:860px; }
+.modal-header { padding:20px 24px 16px;border-bottom:1px solid var(--border-color);display:flex;align-items:center;justify-content:space-between; }
+.modal-title { font-size:1rem;font-weight:700;color:var(--text-primary); }
+.modal-close { background:none;border:none;cursor:pointer;color:var(--text-secondary);padding:4px;border-radius:4px; }
+.modal-close:hover { color:var(--text-primary); }
+.modal-body { padding:20px 24px; }
+.modal-footer { padding:16px 24px;border-top:1px solid var(--border-color);display:flex;justify-content:flex-end;gap:8px; }
+
+.form-group { margin-bottom:16px; }
+.form-label { display:block;font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em; }
+.form-select { width:100%;padding:8px 12px;font-size:13px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-input);color:var(--text-primary);box-sizing:border-box; }
+.form-select:focus { outline:none;border-color:#3b82f6; }
+.form-hint { font-size:11px;color:var(--text-secondary);margin-top:4px; }
+
+.pm-content { font-size:13px;color:var(--text-primary);line-height:1.7;white-space:pre-wrap;font-family:inherit; }
+.section-block { background:var(--bg-card);border:1px solid var(--border-color);border-radius:8px;padding:16px;margin-bottom:16px; }
+.section-block h4 { font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-secondary);margin:0 0 10px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title"><i data-feather="file-text" style="width:20px;height:20px;"></i> Post-Incident Post-Mortems</h1>
+    <p class="page-subtitle">AI-generated incident analysis and post-mortem reports.</p>
+</div>
+
+<div class="toolbar">
+    <input type="text" class="search-box" id="searchInput" placeholder="Search post-mortems…" oninput="filterPostmortems()">
+    <button class="btn-primary" onclick="openGenerateModal()">
+        <i data-feather="zap" style="width:14px;height:14px;"></i> Generate Post-Mortem
+    </button>
+</div>
+
+<div id="pmGrid" class="pm-grid">
+    <div style="text-align:center;padding:40px;color:var(--text-secondary);">Loading…</div>
+</div>
+
+<!-- Generate Modal -->
+<div class="modal-overlay" id="generateModal" onclick="handleOverlayClick(event,'generateModal')">
+    <div class="modal-container">
+        <div class="modal-header">
+            <span class="modal-title">Generate Post-Mortem</span>
+            <button class="modal-close" onclick="closeModal('generateModal')"><i data-feather="x" style="width:16px;height:16px;"></i></button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">Select Alert *</label>
+                <select class="form-select" id="genAlertId">
+                    <option value="">Loading alerts…</option>
+                </select>
+                <p class="form-hint">The post-mortem will be generated using AI based on this alert and its execution history.</p>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="closeModal('generateModal')">Cancel</button>
+            <button class="btn-primary" id="generateBtn" onclick="generatePostmortem()">
+                <i data-feather="zap" style="width:14px;height:14px;"></i> Generate
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- View Modal -->
+<div class="modal-overlay" id="viewModal" onclick="handleOverlayClick(event,'viewModal')">
+    <div class="modal-container modal-lg">
+        <div class="modal-header">
+            <span class="modal-title" id="viewModalTitle">Post-Mortem</span>
+            <div style="display:flex;gap:8px;align-items:center;">
+                <span id="viewModalBadge"></span>
+                <button class="btn-green btn-sm" id="publishBtn" onclick="publishPostmortem()" style="display:none;">
+                    <i data-feather="check-circle" style="width:12px;height:12px;"></i> Publish
+                </button>
+                <button class="modal-close" onclick="closeModal('viewModal')"><i data-feather="x" style="width:16px;height:16px;"></i></button>
+            </div>
+        </div>
+        <div class="modal-body" id="viewModalBody" style="max-height:70vh;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(148,163,184,.35) transparent;">
+            Loading…
+        </div>
+    </div>
+</div>
+
+<!-- Confirm Delete Modal -->
+<div class="modal-overlay" id="deleteModal" onclick="handleOverlayClick(event,'deleteModal')">
+    <div class="modal-container" style="width:400px;">
+        <div class="modal-header">
+            <span class="modal-title">Delete Post-Mortem?</span>
+            <button class="modal-close" onclick="closeModal('deleteModal')"><i data-feather="x" style="width:16px;height:16px;"></i></button>
+        </div>
+        <div class="modal-body">
+            <p style="color:var(--text-primary);font-size:14px;">This post-mortem report will be permanently deleted.</p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="closeModal('deleteModal')">Cancel</button>
+            <button class="btn-danger" style="padding:8px 16px;font-size:13px;" onclick="confirmDelete()">Delete</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let postmortems = [];
+let viewingId = null;
+let deletingId = null;
+
+async function loadPostmortems() {
+    try {
+        const res = await fetch('/api/postmortems/?page_size=50', { headers: { Authorization: 'Bearer ' + getToken() } });
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+        postmortems = data.items || [];
+        renderGrid(postmortems);
+    } catch(e) {
+        document.getElementById('pmGrid').innerHTML = `<div style="text-align:center;padding:40px;color:#ef4444;">${e.message}</div>`;
+    }
+}
+
+async function loadAlerts() {
+    try {
+        const res = await fetch('/api/alerts?page_size=100', { headers: { Authorization: 'Bearer ' + getToken() } });
+        if (!res.ok) return;
+        const data = await res.json();
+        const sel = document.getElementById('genAlertId');
+        const alerts = data.items || data || [];
+        sel.innerHTML = '<option value="">— Select an alert —</option>' + alerts.map(a =>
+            `<option value="${a.id}">[${a.status||'active'}] ${escHtml(a.alert_name||a.name||a.id)}</option>`
+        ).join('');
+    } catch(e) { console.error(e); }
+}
+
+function renderGrid(list) {
+    const grid = document.getElementById('pmGrid');
+    if (!list.length) {
+        grid.innerHTML = `<div class="empty-state"><i data-feather="file-text" style="width:40px;height:40px;"></i><p>No post-mortems yet. Generate one from an alert.</p></div>`;
+        feather.replace(); return;
+    }
+    grid.innerHTML = list.map(pm => `
+        <div class="pm-card">
+            <div class="pm-card-header">
+                <div>
+                    <p class="pm-card-title">${escHtml(pm.title || 'Post-Mortem')}</p>
+                    <p class="pm-card-meta">
+                        Alert: ${escHtml(pm.alert_name || pm.alert_id || '—')} &nbsp;·&nbsp;
+                        ${pm.status === 'published' ? `<span class="badge badge-published">Published</span>` : `<span class="badge badge-draft">Draft</span>`}
+                        &nbsp;·&nbsp; ${new Date(pm.created_at).toLocaleDateString()}
+                    </p>
+                </div>
+                <div class="pm-card-actions">
+                    <button class="btn-sm" onclick="viewPostmortem('${pm.id}')"><i data-feather="eye" style="width:12px;height:12px;"></i> View</button>
+                    <button class="btn-sm" onclick="regenerate('${pm.id}')"><i data-feather="refresh-cw" style="width:12px;height:12px;"></i> Regenerate</button>
+                    <button class="btn-danger" onclick="openDeleteModal('${pm.id}')"><i data-feather="trash-2" style="width:12px;height:12px;"></i></button>
+                </div>
+            </div>
+            ${pm.summary ? `<div class="pm-card-excerpt">${escHtml(pm.summary)}</div>` : ''}
+        </div>
+    `).join('');
+    feather.replace();
+}
+
+function filterPostmortems() {
+    const q = document.getElementById('searchInput').value.toLowerCase();
+    renderGrid(q ? postmortems.filter(p => (p.title||'').toLowerCase().includes(q) || (p.alert_name||'').toLowerCase().includes(q)) : postmortems);
+}
+
+function openGenerateModal() {
+    loadAlerts();
+    openModal('generateModal');
+}
+
+async function generatePostmortem() {
+    const alertId = document.getElementById('genAlertId').value;
+    if (!alertId) { window.showToast('Please select an alert','error'); return; }
+    const btn = document.getElementById('generateBtn');
+    btn.disabled = true; btn.innerHTML = '<i data-feather="loader" style="width:14px;height:14px;"></i> Generating…';
+    feather.replace();
+    try {
+        const res = await fetch('/api/postmortems/generate', { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+getToken()}, body: JSON.stringify({ alert_id: alertId }) });
+        if (!res.ok) { const e = await res.json(); throw new Error(e.detail || JSON.stringify(e)); }
+        window.showToast('Post-mortem generated!','success');
+        closeModal('generateModal');
+        loadPostmortems();
+    } catch(e) { window.showToast('Error: ' + e.message,'error'); }
+    finally { btn.disabled=false; btn.innerHTML='<i data-feather="zap" style="width:14px;height:14px;"></i> Generate'; feather.replace(); }
+}
+
+async function viewPostmortem(id) {
+    viewingId = id;
+    openModal('viewModal');
+    document.getElementById('viewModalBody').innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-secondary);">Loading…</div>';
+    try {
+        const res = await fetch(`/api/postmortems/${id}`, { headers:{ Authorization:'Bearer '+getToken() } });
+        if (!res.ok) throw new Error(await res.text());
+        const pm = await res.json();
+        document.getElementById('viewModalTitle').textContent = pm.title || 'Post-Mortem';
+        document.getElementById('viewModalBadge').innerHTML = pm.status === 'published' ? '<span class="badge badge-published">Published</span>' : '<span class="badge badge-draft">Draft</span>';
+        const publishBtn = document.getElementById('publishBtn');
+        publishBtn.style.display = pm.status === 'published' ? 'none' : 'flex';
+
+        document.getElementById('viewModalBody').innerHTML = `
+            ${pm.summary ? `<div class="section-block"><h4>Summary</h4><p class="pm-content">${escHtml(pm.summary)}</p></div>` : ''}
+            ${pm.timeline ? `<div class="section-block"><h4>Timeline</h4><p class="pm-content">${escHtml(pm.timeline)}</p></div>` : ''}
+            ${pm.root_cause ? `<div class="section-block"><h4>Root Cause</h4><p class="pm-content">${escHtml(pm.root_cause)}</p></div>` : ''}
+            ${pm.impact ? `<div class="section-block"><h4>Impact</h4><p class="pm-content">${escHtml(pm.impact)}</p></div>` : ''}
+            ${pm.resolution ? `<div class="section-block"><h4>Resolution</h4><p class="pm-content">${escHtml(pm.resolution)}</p></div>` : ''}
+            ${pm.action_items ? `<div class="section-block"><h4>Action Items</h4><p class="pm-content">${escHtml(pm.action_items)}</p></div>` : ''}
+            ${pm.lessons_learned ? `<div class="section-block"><h4>Lessons Learned</h4><p class="pm-content">${escHtml(pm.lessons_learned)}</p></div>` : ''}
+        `;
+        feather.replace();
+    } catch(e) { document.getElementById('viewModalBody').innerHTML = `<p style="color:#ef4444;">${e.message}</p>`; }
+}
+
+async function regenerate(id) {
+    if (!confirm) return; // use API
+    try {
+        const res = await fetch(`/api/postmortems/${id}/regenerate`, { method:'POST', headers:{ Authorization:'Bearer '+getToken() } });
+        if (!res.ok) { const e = await res.json(); throw new Error(e.detail||'Error'); }
+        window.showToast('Regenerated!','success');
+        loadPostmortems();
+        if (viewingId === id) viewPostmortem(id);
+    } catch(e) { window.showToast('Error: '+e.message,'error'); }
+}
+
+async function publishPostmortem() {
+    if (!viewingId) return;
+    try {
+        const res = await fetch(`/api/postmortems/${viewingId}/publish`, { method:'POST', headers:{ Authorization:'Bearer '+getToken() } });
+        if (!res.ok) { const e = await res.json(); throw new Error(e.detail||'Error'); }
+        window.showToast('Post-mortem published!','success');
+        document.getElementById('publishBtn').style.display = 'none';
+        document.getElementById('viewModalBadge').innerHTML = '<span class="badge badge-published">Published</span>';
+        loadPostmortems();
+    } catch(e) { window.showToast('Error: '+e.message,'error'); }
+}
+
+function openDeleteModal(id) { deletingId = id; openModal('deleteModal'); }
+async function confirmDelete() {
+    try {
+        const res = await fetch(`/api/postmortems/${deletingId}`, { method:'DELETE', headers:{ Authorization:'Bearer '+getToken() } });
+        if (!res.ok) throw new Error(await res.text());
+        window.showToast('Deleted','success');
+        closeModal('deleteModal'); closeModal('viewModal'); loadPostmortems();
+    } catch(e) { window.showToast('Error: '+e.message,'error'); }
+}
+
+function openModal(id) { document.getElementById(id).classList.add('active'); }
+function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+function handleOverlayClick(e, id) { if (e.target.id === id) closeModal(id); }
+function escHtml(s) { const d=document.createElement('div');d.appendChild(document.createTextNode(s||''));return d.innerHTML; }
+function getToken() { return localStorage.getItem('access_token') || ''; }
+
+document.addEventListener('keydown', e => { if (e.key==='Escape') { closeModal('generateModal');closeModal('viewModal');closeModal('deleteModal'); } });
+document.addEventListener('DOMContentLoaded', () => { loadPostmortems(); feather.replace(); });
+</script>
+{% endblock %}

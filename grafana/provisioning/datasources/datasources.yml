@@ -2,10 +2,11 @@ apiVersion: 1
 
 datasources:
   # Prometheus (default) - Local instance
+  # URL includes /prometheus because Prometheus runs with --web.route-prefix=/prometheus
   - name: Prometheus
     type: prometheus
     access: proxy
-    url: http://prometheus:9090
+    url: http://prometheus:9090/prometheus
     isDefault: true
     editable: false
     jsonData:

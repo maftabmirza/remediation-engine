@@ -133,6 +133,7 @@ class EscalationPolicy(Base):
         back_populates="policy",
         cascade="all, delete-orphan",
         order_by="EscalationLevel.level_number",
+        lazy="selectin",
     )
     created_by_user = relationship("User", foreign_keys=[created_by], lazy="noload")
 

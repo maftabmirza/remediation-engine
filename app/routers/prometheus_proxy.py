@@ -34,9 +34,12 @@ from starlette.background import BackgroundTask
 @router.post("/{path:path}")
 async def proxy_prometheus(path: str, request: Request, current_user: User = Depends(get_current_user)):
     """
-    Proxy all requests to Prometheus with support for Streaming and HTML Injection
+    Proxy all requests to Prometheus with support for Streaming and HTML Injection.
+    Prometheus runs with --web.route-prefix=/prometheus so we must include that prefix.
     """
-    target_path = f"/{path}" if path else "/"
+    # Prometheus is configured with --web.route-prefix=/prometheus, so all its
+    # routes are at /prometheus/*. We forward requests including the prefix.
+    target_path = f"/prometheus/{path}" if path else "/prometheus/"
     url = f"{PROMETHEUS_URL}{target_path}"
     
     # Filter headers
@@ -70,10 +73,18 @@ async def proxy_prometheus(path: str, request: Request, current_user: User = Dep
         await client.aclose()
         location = response.headers['location']
         if location.startswith(PROMETHEUS_URL):
-            location = location.replace(PROMETHEUS_URL, "/prometheus")
+            # Strip internal docker URL, keep path as-is (already has /prometheus prefix)
+            location = location.replace(PROMETHEUS_URL, "")
+            if not location.startswith("/"):
+                location = f"/{location}"
+        elif location.startswith("/prometheus"):
+            pass  # Already has proxy prefix (from route-prefix config), keep as-is
         elif location.startswith("/"):
             location = f"/prometheus{location}"
-        return Response(status_code=response.status_code, headers={"Location": location})
+        return Response(
+            status_code=response.status_code,
+            headers={"Location": location, "X-Frame-Options": "SAMEORIGIN"},
+        )
 
     content_type = response.headers.get('content-type', '')
 
@@ -98,7 +109,11 @@ async def proxy_prometheus(path: str, request: Request, current_user: User = Dep
             else:
                 html_content += ai_agent_injection
 
-            return HTMLResponse(content=html_content, status_code=response.status_code)
+            return HTMLResponse(
+                content=html_content,
+                status_code=response.status_code,
+                headers={"X-Frame-Options": "SAMEORIGIN"},
+            )
             
         except Exception as e:
             await client.aclose()
@@ -106,9 +121,11 @@ async def proxy_prometheus(path: str, request: Request, current_user: User = Dep
             return Response(content="Error processing response", status_code=500)
 
     # CASE 2: Streaming (SSE or otherwise)
+    proxy_headers = dict(response.headers)
+    proxy_headers["X-Frame-Options"] = "SAMEORIGIN"
     return StreamingResponse(
         response.aiter_raw(),
         status_code=response.status_code,
-        headers=dict(response.headers),
+        headers=proxy_headers,
         background=BackgroundTask(client.aclose)
     )

@@ -296,7 +296,7 @@ class KnowledgeTools(ToolModule):
             from app.services.embedding_service import EmbeddingService
             
             # Generate embedding for the current problem
-            embedding_service = EmbeddingService()
+            embedding_service = EmbeddingService(db=self.db)
             
             if not embedding_service.is_configured():
                 logger.warning("Embedding service not configured - falling back to text-based search")

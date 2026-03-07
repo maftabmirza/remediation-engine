@@ -5,12 +5,12 @@
 
 {% block breadcrumbs %}
 <span class="mx-2">/</span>
-<span class="text-gray-200">Rules</span>
+<span class="text-gray-200" id="breadcrumbLabel">Rules</span>
 {% endblock %}
 
 {% block header_title %}
 <i data-feather="shield" class="text-purple-400" style="width:16px;height:16px;"></i>
-<span class="text-sm font-semibold text-white tracking-tight">Auto-Analyze Rules</span>
+<span class="text-sm font-semibold text-white tracking-tight" id="headerTitle">Rules</span>
 {% endblock %}
 
 {% block header_actions %}
@@ -19,29 +19,145 @@
 
 {% block head %}
 <style>
-    .rule-action-auto { background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; }
-    .rule-action-ignore { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
-    .rule-action-manual { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
-    .rules-new-btn:hover { background: linear-gradient(135deg, #2563eb, #1d4ed8) !important; box-shadow: 0 4px 14px rgba(59, 130, 246, 0.35); transform: translateY(-1px); }
+    /* ── Auto-analyze rule badges ── */
+    .rule-action-auto   { background:#ecfdf5; color:#059669; border:1px solid #a7f3d0; }
+    .rule-action-ignore { background:#fef2f2; color:#dc2626; border:1px solid #fecaca; }
+    .rule-action-manual { background:#f1f5f9; color:#475569; border:1px solid #e2e8f0; }
+
+    /* ── Tab switcher ── */
+    .rules-tab-bar { display:flex; gap:2px; background:var(--bg-card,#f1f5f9); border-radius:10px; padding:4px; }
+    .rules-tab { display:inline-flex; align-items:center; gap:7px; padding:8px 18px; font-size:13px; font-weight:500;
+                 border-radius:7px; cursor:pointer; border:none; color:var(--text-secondary,#64748b);
+                 background:transparent; transition:all .15s; white-space:nowrap; }
+    .rules-tab.active { background:var(--bg-surface,#fff); color:var(--text-primary,#1e293b);
+                        font-weight:600; box-shadow:0 1px 4px rgba(0,0,0,.1); }
+    .rules-tab:hover:not(.active) { background:var(--bg-hover,#e2e8f0); color:var(--text-primary,#1e293b); }
+    .tab-badge { display:inline-flex; align-items:center; justify-content:center; min-width:18px; height:18px;
+                 padding:0 5px; border-radius:999px; font-size:10px; font-weight:700; }
+    .tab-badge-purple { background:#ede9fe; color:#7c3aed; }
+    .tab-badge-blue   { background:#dbeafe; color:#2563eb; }
+
+    /* ── Suppression table ── */
+    .sr-table-wrap { background:var(--bg-surface,#fff); border:1px solid var(--border-color,#e2e8f0); border-radius:8px; overflow:hidden; }
+    .sr-table { width:100%; border-collapse:collapse; }
+    .sr-table th { padding:10px 16px; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.05em;
+                   color:var(--text-secondary,#64748b); background:var(--bg-card,#f8fafc);
+                   border-bottom:1px solid var(--border-color,#e2e8f0); text-align:left; }
+    .sr-table td { padding:12px 16px; font-size:13px; color:var(--text-primary,#334155);
+                   border-bottom:1px solid var(--border-color,#e2e8f0); vertical-align:middle; }
+    .sr-table tr:last-child td { border-bottom:none; }
+    .sr-table tr:hover td { background:var(--bg-hover,#f8fafc); }
+
+    .sr-badge { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:600; }
+    .sr-badge-active    { background:#dcfce7; color:#16a34a; }
+    .sr-badge-inactive  { background:var(--bg-card,#f1f5f9); color:var(--text-secondary,#64748b); }
+    .sr-badge-scheduled { background:#fff7ed; color:#c2410c; }
+    .sr-badge-expired   { background:#fef2f2; color:#dc2626; }
+
+    .pattern-pill { display:inline-block; padding:2px 8px; border-radius:4px; font-size:11px; font-family:monospace;
+                    background:var(--bg-card,#f1f5f9); color:var(--text-secondary,#64748b);
+                    border:1px solid var(--border-color,#e2e8f0); }
+
+    /* ── Shared modal override ── */
+    .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:1000;
+                     align-items:center; justify-content:center; }
+    .modal-overlay.active { display:flex; }
+    .modal-container { background:var(--bg-surface,#fff); border:1px solid var(--border-color,#e2e8f0);
+                       border-radius:12px; width:540px; max-width:95vw; max-height:90vh; overflow-y:auto;
+                       box-shadow:0 20px 60px rgba(0,0,0,.3);
+                       scrollbar-width:thin; scrollbar-color:rgba(148,163,184,.35) transparent; }
+    .modal-container-wide { width:680px; }
+    .modal-header { padding:20px 24px 16px; border-bottom:1px solid var(--border-color,#e2e8f0);
+                    display:flex; align-items:center; justify-content:space-between; }
+    .modal-title  { font-size:1rem; font-weight:700; color:var(--text-primary,#1e293b); }
+    .modal-close  { background:none; border:none; cursor:pointer; color:var(--text-secondary,#64748b);
+                    padding:4px; border-radius:4px; transition:color .15s; }
+    .modal-close:hover { color:var(--text-primary,#1e293b); }
+    .modal-body   { padding:20px 24px; }
+    .modal-footer { padding:16px 24px; border-top:1px solid var(--border-color,#e2e8f0);
+                    display:flex; justify-content:flex-end; gap:8px; }
+
+    .form-group   { margin-bottom:16px; }
+    .form-label   { display:block; font-size:12px; font-weight:600; color:var(--text-secondary,#64748b);
+                    margin-bottom:6px; text-transform:uppercase; letter-spacing:.04em; }
+    .form-input, .form-select, .form-textarea {
+        width:100%; padding:8px 12px; font-size:13px;
+        border:1px solid var(--border-color,#e2e8f0); border-radius:6px;
+        background:var(--bg-input,#fff); color:var(--text-primary,#1e293b);
+        transition:border-color .15s; box-sizing:border-box; }
+    .form-input:focus, .form-select:focus, .form-textarea:focus
+        { outline:none; border-color:#3b82f6; }
+    .form-hint  { font-size:11px; color:var(--text-secondary,#64748b); margin-top:4px; }
+    .form-row   { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+
+    .sr-btn-toggle { display:inline-flex; align-items:center; gap:5px; padding:5px 10px; font-size:12px;
+                     font-weight:500; border-radius:5px; cursor:pointer;
+                     border:1px solid var(--border-color,#e2e8f0); background:var(--bg-surface,#fff);
+                     color:var(--text-secondary,#64748b); transition:all .15s; }
+    .sr-btn-toggle:hover { background:var(--bg-hover,#f1f5f9); }
+    .sr-btn-danger { display:inline-flex; align-items:center; gap:4px; padding:5px 10px; font-size:12px;
+                     font-weight:500; border-radius:5px; cursor:pointer; border:none;
+                     background:#fee2e2; color:#dc2626; transition:all .15s; }
+    .sr-btn-danger:hover { background:#fecaca; }
+    .sr-search { padding:7px 12px; font-size:13px; border:1px solid var(--border-color,#e2e8f0);
+                 border-radius:6px; background:var(--bg-input,#fff); color:var(--text-primary,#1e293b);
+                 width:240px; }
+    .sr-search:focus { outline:none; border-color:#3b82f6; }
+
+    /* ── RBAC visibility helpers ── */
+    .admin-only { display:none; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="space-y-4">
-    <!-- Toolbar -->
-    <div class="card p-4" style="overflow: visible;">
-        <div class="flex flex-wrap gap-4 items-center justify-between">
-            <p class="text-sm text-[#64748b]">Configure automated analysis policies based on alert patterns.</p>
-            {% if user.role == 'admin' %}
-            <button onclick="openModal()"
-                class="rules-new-btn inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all border-none cursor-pointer"
-                style="background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; box-shadow: 0 2px 6px rgba(59, 130, 246, 0.25);">
-                <i class="fas fa-plus"></i>
-                <span>New Rule</span>
-            </button>
-            {% endif %}
+
+    <!-- ═══════════════════════ TAB SWITCHER ═══════════════════════ -->
+    <div class="card p-2" style="overflow:visible;">
+        <div class="flex items-center justify-between gap-4 flex-wrap">
+            <div class="rules-tab-bar" role="tablist">
+                <button id="tab-analyze" class="rules-tab active" role="tab"
+                        aria-selected="true" onclick="switchTab('analyze')">
+                    <i class="fas fa-shield-alt" style="font-size:12px;"></i>
+                    Auto-Analyze Rules
+                    <span class="tab-badge tab-badge-purple" id="badge-analyze">…</span>
+                </button>
+                <button id="tab-suppression" class="rules-tab" role="tab"
+                        aria-selected="false" onclick="switchTab('suppression')">
+                    <i class="fas fa-volume-mute" style="font-size:12px;"></i>
+                    Suppression Rules
+                    <span class="tab-badge tab-badge-blue" id="badge-suppression">…</span>
+                </button>
+            </div>
+            <!-- Per-tab action buttons -->
+            <div id="btn-area-analyze" class="flex gap-2">
+                {% if user.role in ('admin', 'owner') %}
+                <button onclick="arOpenModal()"
+                    class="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all border-none cursor-pointer"
+                    style="background:linear-gradient(135deg,#3b82f6,#2563eb);color:#fff;box-shadow:0 2px 6px rgba(59,130,246,.25);">
+                    <i class="fas fa-plus"></i> New Rule
+                </button>
+                {% endif %}
+            </div>
+            <div id="btn-area-suppression" class="hidden flex gap-2">
+                {% if user.role in ('admin', 'owner', 'operator', 'maintainer') %}
+                <button onclick="srOpenCreateModal()"
+                    class="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all border-none cursor-pointer"
+                    style="background:linear-gradient(135deg,#3b82f6,#2563eb);color:#fff;box-shadow:0 2px 6px rgba(59,130,246,.25);">
+                    <i class="fas fa-plus"></i> New Suppression Rule
+                </button>
+                {% endif %}
+            </div>
         </div>
     </div>
+
+    <!-- ═══════════════════ PANEL 1: AUTO-ANALYZE ═══════════════════ -->
+    <div id="panel-analyze">
+        <div class="card p-4" style="overflow: visible;">
+            <div class="flex flex-wrap gap-4 items-center justify-between">
+                <p class="text-sm text-[#64748b]">Configure automated analysis policies based on alert patterns. Rules are evaluated in <strong>priority order</strong> (lower = first). The first match wins.</p>
+            </div>
+        </div>
 
     <!-- Rules Info -->
     <div class="card p-4 bg-[#eff6ff] border border-[#bfdbfe] rounded-lg">
@@ -115,6 +231,182 @@
         </div>
 
         <div id="testResult" class="hidden mt-4 p-4 rounded-lg border"></div>
+    </div>
+</div>
+
+<!-- ══════════════════ PANEL 2: SUPPRESSION RULES ══════════════════ -->
+<div id="panel-suppression" class="hidden space-y-4">
+
+    <!-- Description + toolbar -->
+    <div class="card p-4" style="overflow:visible;">
+        <div class="flex flex-wrap gap-3 items-center justify-between">
+            <p class="text-sm" style="color:var(--text-secondary);">
+                Silence known or expected alerts for a time window or indefinitely.
+                Suppressed alerts are <strong>still stored</strong> but skip analysis and auto-remediation.
+            </p>
+            <div class="flex gap-2 items-center flex-wrap">
+                <input type="text" id="sr-search" class="sr-search" placeholder="Search by name or reason…"
+                       oninput="srFilter()">
+                <label class="flex items-center gap-2 text-sm cursor-pointer" style="color:var(--text-secondary);">
+                    <input type="checkbox" id="sr-active-only" onchange="srFilter()">
+                    Active only
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <!-- Info banner -->
+    <div class="card p-4" style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;">
+        <div class="flex items-start gap-3">
+            <i class="fas fa-info-circle text-blue-500 mt-0.5"></i>
+            <div class="text-sm">
+                <p class="font-medium" style="color:#1d4ed8;">How Suppression Works</p>
+                <p style="color:#475569;margin-top:4px;">
+                    Evaluated <strong>before</strong> the auto-analyze engine. A matching active rule silences the alert
+                    — no LLM call, no remediation. Use time windows for maintenance periods, or leave them empty for permanent rules.
+                    Patterns support wildcards: <code>*</code> matches everything, <code>?</code> matches one char.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- RBAC note for read-only users -->
+    {% if user.role not in ('admin', 'owner', 'operator', 'maintainer') %}
+    <div class="card p-3" style="background:#fefce8;border:1px solid #fde68a;border-radius:8px;">
+        <p class="text-sm" style="color:#92400e;">
+            <i class="fas fa-lock mr-2"></i>
+            You have read-only access to suppression rules. Contact an admin or operator to make changes.
+        </p>
+    </div>
+    {% endif %}
+
+    <!-- Suppression Rules Table -->
+    <div class="sr-table-wrap">
+        <table class="sr-table">
+            <thead>
+                <tr>
+                    <th>Name / Reason</th>
+                    <th>Alert Pattern</th>
+                    <th>Severity</th>
+                    <th>Instance / Job</th>
+                    <th>Time Window</th>
+                    <th>Status</th>
+                    <th style="text-align:right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="sr-tbody">
+                <tr>
+                    <td colspan="7" style="text-align:center;padding:40px;">
+                        <div class="loading-spinner" style="margin:0 auto 8px;"></div>
+                        <p style="color:var(--text-secondary);">Loading…</p>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Suppression Check Tester -->
+    <div class="card p-6">
+        <h3 class="font-semibold text-lg mb-2" style="color:var(--text-primary);">
+            <i class="fas fa-flask text-blue-500 mr-2"></i>Test Suppression Match
+        </h3>
+        <p class="text-sm mb-4" style="color:var(--text-secondary);">
+            Check whether an incoming alert would be suppressed by current active rules.
+        </p>
+        <div class="flex flex-wrap gap-4 items-end">
+            <div style="flex:1;min-width:130px;">
+                <label class="block text-xs font-medium mb-1" style="color:var(--text-secondary);">Alert Name</label>
+                <input type="text" id="sr-test-name" class="form-input" placeholder="e.g. NodeDown">
+            </div>
+            <div style="flex:1;min-width:100px;">
+                <label class="block text-xs font-medium mb-1" style="color:var(--text-secondary);">Severity</label>
+                <input type="text" id="sr-test-severity" class="form-input" placeholder="warning">
+            </div>
+            <div style="flex:1;min-width:100px;">
+                <label class="block text-xs font-medium mb-1" style="color:var(--text-secondary);">Instance</label>
+                <input type="text" id="sr-test-instance" class="form-input" placeholder="web-01">
+            </div>
+            <div style="flex:1;min-width:100px;">
+                <label class="block text-xs font-medium mb-1" style="color:var(--text-secondary);">Job</label>
+                <input type="text" id="sr-test-job" class="form-input" placeholder="node-exporter">
+            </div>
+            <button onclick="srTestCheck()"
+                class="px-4 py-2 text-sm font-medium rounded-lg border"
+                style="border-color:var(--border-color);background:var(--bg-surface);color:var(--text-secondary);">
+                <i class="fas fa-play mr-2"></i>Test
+            </button>
+        </div>
+        <div id="sr-test-result" class="hidden mt-4 p-4 rounded-lg border"></div>
+    </div>
+
+</div><!-- end panel-suppression -->
+
+<!-- Suppression Create / Edit Modal -->
+<div id="sr-modal" class="modal-overlay" onclick="if(event.target===this) srCloseModal()">
+    <div class="modal-container modal-container-wide">
+        <div class="modal-header">
+            <h3 class="modal-title" id="sr-modal-title">New Suppression Rule</h3>
+            <button class="modal-close" onclick="srCloseModal()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="sr-rule-id">
+            <div class="form-group">
+                <label class="form-label">Rule Name *</label>
+                <input type="text" id="sr-name" class="form-input" placeholder="e.g. Nightly Maintenance Window">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Description</label>
+                <textarea id="sr-description" class="form-input" rows="2" placeholder="Optional description"></textarea>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Alert Name Pattern</label>
+                    <input type="text" id="sr-alert-pattern" class="form-input" value="*" placeholder="* or HighCPU*">
+                    <div class="form-hint">* = anything, ? = one character, exact names also work</div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Severity Pattern</label>
+                    <input type="text" id="sr-severity-pattern" class="form-input" value="*" placeholder="* or warning">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Instance Pattern</label>
+                    <input type="text" id="sr-instance-pattern" class="form-input" value="*" placeholder="* or prod-*">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Job Pattern</label>
+                    <input type="text" id="sr-job-pattern" class="form-input" value="*" placeholder="* or node-exporter">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Starts At (UTC, optional)</label>
+                    <input type="datetime-local" id="sr-starts-at" class="form-input">
+                    <div class="form-hint">Leave empty for no start restriction</div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Ends At (UTC, optional)</label>
+                    <input type="datetime-local" id="sr-ends-at" class="form-input">
+                    <div class="form-hint">Leave empty — rule never expires</div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Reason</label>
+                <input type="text" id="sr-reason" class="form-input"
+                    placeholder="e.g. Planned maintenance — disk expansion">
+            </div>
+            <div class="form-group">
+                <label class="flex items-center gap-2 cursor-pointer" style="font-size:13px;color:var(--text-primary);">
+                    <input type="checkbox" id="sr-is-active" checked>
+                    Active immediately
+                </label>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary px-4 py-2 rounded" onclick="srCloseModal()">Cancel</button>
+            <button class="btn-primary px-4 py-2 rounded" onclick="srSaveRule()">Save Rule</button>
+        </div>
     </div>
 </div>
 
@@ -608,14 +900,268 @@
 
     // Close modal handlers
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') closeModal();
+        if (e.key === 'Escape') { closeModal(); srCloseModal(); }
     });
 
     document.getElementById('ruleModal').addEventListener('click', (e) => {
         if (e.target === e.currentTarget) closeModal();
     });
 
-    // Initial load
-    loadRules();
+    // ── Tab switcher ──────────────────────────────────────────────────────
+    function switchTab(tab) {
+        ['analyze', 'suppression'].forEach(t => {
+            const btn    = document.getElementById(`tab-${t}`);
+            const panel  = document.getElementById(`panel-${t}`);
+            const btnArea = document.getElementById(`btn-area-${t}`);
+            const isActive = (t === tab);
+            btn.classList.toggle('active', isActive);
+            btn.setAttribute('aria-selected', String(isActive));
+            panel.classList.toggle('hidden', !isActive);
+            if (btnArea) btnArea.classList.toggle('hidden', !isActive);
+        });
+        const url = new URL(window.location);
+        url.searchParams.set('tab', tab);
+        history.replaceState(null, '', url);
+        if (tab === 'suppression' && srRules === null) srLoad();
+    }
+
+    // Alias so the "New Rule" button in the tab bar works
+    function arOpenModal() { openModal(); }
+
+    // ── Suppression Rules ─────────────────────────────────────────────────
+    let srRules = null;  // null = not yet loaded
+
+    async function srLoad() {
+        try {
+            const data = await apiCall('/api/suppression-rules?page_size=100');
+            srRules = data.rules || [];
+            srRender();
+            document.getElementById('badge-suppression').textContent = srRules.length;
+        } catch (e) {
+            srRules = [];
+            srRender();
+        }
+    }
+
+    function srFilter() { srRender(); }
+
+    function srRender() {
+        const tbody     = document.getElementById('sr-tbody');
+        const search    = (document.getElementById('sr-search')?.value || '').toLowerCase();
+        const activeOnly = document.getElementById('sr-active-only')?.checked;
+        if (!srRules) return;
+
+        const rows = srRules.filter(r => {
+            if (search && !r.name.toLowerCase().includes(search) &&
+                !(r.reason || '').toLowerCase().includes(search)) return false;
+            if (activeOnly && !r.is_active) return false;
+            return true;
+        });
+
+        if (rows.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:48px 0;">
+                <i class="fas fa-volume-mute" style="font-size:32px;opacity:.3;display:block;margin-bottom:10px;"></i>
+                <p style="color:var(--text-secondary);">${srRules.length === 0 ? 'No suppression rules yet' : 'No rules match filter'}</p>
+            </td></tr>`;
+            return;
+        }
+
+        const canEdit   = ['admin','owner','operator','maintainer'].includes(currentUserRole);
+        const canDelete = ['admin','owner'].includes(currentUserRole);
+
+        tbody.innerHTML = rows.map(r => `<tr>
+            <td>
+                <div style="font-weight:600;color:var(--text-primary);">${srEsc(r.name)}</div>
+                ${r.reason ? `<div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">${srEsc(r.reason)}</div>` : ''}
+            </td>
+            <td><span class="pattern-pill">${srEsc(r.alert_name_pattern)}</span></td>
+            <td><span class="pattern-pill">${srEsc(r.severity_pattern)}</span></td>
+            <td>
+                <span class="pattern-pill">${srEsc(r.instance_pattern)}</span>
+                <span class="pattern-pill" style="margin-left:4px;">${srEsc(r.job_pattern)}</span>
+            </td>
+            <td style="font-size:12px;color:var(--text-secondary);">${srFormatWindow(r)}</td>
+            <td>${srStatusBadge(r)}</td>
+            <td style="text-align:right;white-space:nowrap;">
+                ${canEdit ? `
+                <button onclick="srToggle('${r.id}')" class="sr-btn-toggle" style="margin-right:4px;"
+                    title="${r.is_active ? 'Disable rule' : 'Enable rule'}">
+                    <i class="fas ${r.is_active ? 'fa-toggle-on' : 'fa-toggle-off'}"
+                       style="color:${r.is_active ? '#16a34a' : 'var(--text-secondary)'}"></i>
+                </button>
+                <button onclick="srOpenEditModal('${r.id}')" class="sr-btn-toggle" style="margin-right:4px;" title="Edit">
+                    <i class="fas fa-edit"></i>
+                </button>` : ''}
+                ${canDelete ? `
+                <button onclick="srDelete('${r.id}')" class="sr-btn-danger" title="Delete">
+                    <i class="fas fa-trash"></i>
+                </button>` : ''}
+            </td>
+        </tr>`).join('');
+    }
+
+    function srEsc(s) {
+        return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function srStatusBadge(r) {
+        const now = new Date();
+        if (!r.is_active)
+            return `<span class="sr-badge sr-badge-inactive"><i class="fas fa-pause"></i> Inactive</span>`;
+        if (r.ends_at && new Date(r.ends_at) < now)
+            return `<span class="sr-badge sr-badge-expired"><i class="fas fa-clock"></i> Expired</span>`;
+        if (r.starts_at && new Date(r.starts_at) > now)
+            return `<span class="sr-badge sr-badge-scheduled"><i class="fas fa-calendar-alt"></i> Scheduled</span>`;
+        return `<span class="sr-badge sr-badge-active"><i class="fas fa-check-circle"></i> Active</span>`;
+    }
+
+    function srFormatWindow(r) {
+        if (!r.starts_at && !r.ends_at) return '<span style="opacity:.45;">Always</span>';
+        const fmt = d => new Date(d).toLocaleString('en-GB', {
+            month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+        });
+        if (r.starts_at && r.ends_at) return `${fmt(r.starts_at)} → ${fmt(r.ends_at)}`;
+        if (r.starts_at) return `From ${fmt(r.starts_at)}`;
+        return `Until ${fmt(r.ends_at)}`;
+    }
+
+    function srOpenCreateModal() {
+        document.getElementById('sr-rule-id').value = '';
+        document.getElementById('sr-modal-title').textContent = 'New Suppression Rule';
+        document.getElementById('sr-name').value = '';
+        document.getElementById('sr-description').value = '';
+        document.getElementById('sr-alert-pattern').value = '*';
+        document.getElementById('sr-severity-pattern').value = '*';
+        document.getElementById('sr-instance-pattern').value = '*';
+        document.getElementById('sr-job-pattern').value = '*';
+        document.getElementById('sr-starts-at').value = '';
+        document.getElementById('sr-ends-at').value = '';
+        document.getElementById('sr-reason').value = '';
+        document.getElementById('sr-is-active').checked = true;
+        document.getElementById('sr-modal').classList.add('active');
+    }
+
+    function srOpenEditModal(id) {
+        const r = srRules.find(x => x.id === id);
+        if (!r) return;
+        document.getElementById('sr-rule-id').value = r.id;
+        document.getElementById('sr-modal-title').textContent = 'Edit Suppression Rule';
+        document.getElementById('sr-name').value = r.name;
+        document.getElementById('sr-description').value = r.description || '';
+        document.getElementById('sr-alert-pattern').value = r.alert_name_pattern;
+        document.getElementById('sr-severity-pattern').value = r.severity_pattern;
+        document.getElementById('sr-instance-pattern').value = r.instance_pattern;
+        document.getElementById('sr-job-pattern').value = r.job_pattern;
+        document.getElementById('sr-starts-at').value = r.starts_at ? r.starts_at.slice(0, 16) : '';
+        document.getElementById('sr-ends-at').value = r.ends_at ? r.ends_at.slice(0, 16) : '';
+        document.getElementById('sr-reason').value = r.reason || '';
+        document.getElementById('sr-is-active').checked = r.is_active;
+        document.getElementById('sr-modal').classList.add('active');
+    }
+
+    function srCloseModal() {
+        document.getElementById('sr-modal').classList.remove('active');
+    }
+
+    async function srSaveRule() {
+        const id   = document.getElementById('sr-rule-id').value;
+        const name = document.getElementById('sr-name').value.trim();
+        if (!name) { showToast('Rule name is required', 'error'); return; }
+
+        const body = {
+            name,
+            description:          document.getElementById('sr-description').value || null,
+            alert_name_pattern:   document.getElementById('sr-alert-pattern').value || '*',
+            severity_pattern:     document.getElementById('sr-severity-pattern').value || '*',
+            instance_pattern:     document.getElementById('sr-instance-pattern').value || '*',
+            job_pattern:          document.getElementById('sr-job-pattern').value || '*',
+            starts_at:            document.getElementById('sr-starts-at').value || null,
+            ends_at:              document.getElementById('sr-ends-at').value || null,
+            reason:               document.getElementById('sr-reason').value || null,
+            is_active:            document.getElementById('sr-is-active').checked,
+        };
+
+        try {
+            if (id) {
+                await apiCall(`/api/suppression-rules/${id}`, 'PUT', body);
+                showToast('Suppression rule updated', 'success');
+            } else {
+                await apiCall('/api/suppression-rules', 'POST', body);
+                showToast('Suppression rule created', 'success');
+            }
+            srCloseModal();
+            srLoad();
+        } catch (e) {
+            showToast(e.message || 'Save failed', 'error');
+        }
+    }
+
+    async function srToggle(id) {
+        const r = srRules.find(x => x.id === id);
+        if (!r) return;
+        try {
+            await apiCall(`/api/suppression-rules/${id}`, 'PUT', { is_active: !r.is_active });
+            showToast(`Rule ${r.is_active ? 'disabled' : 'enabled'}`, 'success');
+            srLoad();
+        } catch (e) {
+            showToast('Update failed', 'error');
+        }
+    }
+
+    async function srDelete(id) {
+        showConfirmModal(
+            'Delete Suppression Rule',
+            'Are you sure? This cannot be undone.',
+            'Delete',
+            async () => {
+                try {
+                    await apiCall(`/api/suppression-rules/${id}`, 'DELETE');
+                    showToast('Rule deleted', 'success');
+                    srLoad();
+                } catch (e) {
+                    showToast('Delete failed', 'error');
+                }
+            }
+        );
+    }
+
+    async function srTestCheck() {
+        const params = new URLSearchParams({
+            alert_name: document.getElementById('sr-test-name').value,
+            severity:   document.getElementById('sr-test-severity').value,
+            instance:   document.getElementById('sr-test-instance').value,
+            job:        document.getElementById('sr-test-job').value,
+        });
+        try {
+            const r = await apiCall(`/api/suppression-rules/check?${params}`, 'POST', {});
+            const div = document.getElementById('sr-test-result');
+            div.classList.remove('hidden');
+            if (r.suppressed) {
+                div.style.cssText = 'background:#fef2f2;border-color:#fecaca;color:#991b1b;border-radius:8px;padding:16px;';
+                div.innerHTML = `<strong><i class="fas fa-volume-mute mr-2"></i>SUPPRESSED</strong>
+                    <div style="margin-top:6px;font-size:13px;">
+                        Matched rule: <strong>${srEsc(r.rule_name)}</strong>
+                        ${r.reason ? ' — ' + srEsc(r.reason) : ''}
+                    </div>`;
+            } else {
+                div.style.cssText = 'background:#ecfdf5;border-color:#a7f3d0;color:#065f46;border-radius:8px;padding:16px;';
+                div.innerHTML = `<strong><i class="fas fa-check-circle mr-2"></i>NOT suppressed</strong>
+                    <div style="margin-top:6px;font-size:13px;">This alert passes through to the analysis pipeline.</div>`;
+            }
+        } catch (e) {
+            showToast('Test failed', 'error');
+        }
+    }
+
+    // ── Initialisation ───────────────────────────────────────────────────
+    (async function () {
+        const tab = new URL(window.location).searchParams.get('tab');
+        if (tab === 'suppression') {
+            switchTab('suppression');
+        }
+        // Always load auto-analyze rules (for badge + default tab)
+        await loadRules();
+        document.getElementById('badge-analyze').textContent = rules.length;
+    })();
 </script>
 {% endblock %}

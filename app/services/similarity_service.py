@@ -179,7 +179,7 @@ class SimilarityService:
         try:
             from app.services.embedding_service import EmbeddingService
             
-            embedding_service = EmbeddingService()
+            embedding_service = EmbeddingService(db=self.db)
             
             if not embedding_service.is_configured():
                 logger.error("Embedding service not configured - cannot generate embeddings")

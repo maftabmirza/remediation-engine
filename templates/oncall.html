@@ -1,0 +1,487 @@
+{% extends "base.html" %}
+{% set active_page = 'oncall' %}
+
+{% block title %}On-Call Scheduling - AIOps Platform{% endblock %}
+
+{% block breadcrumbs %}
+<span class="mx-2">/</span>
+<span class="text-gray-200">On-Call</span>
+{% endblock %}
+
+{% block header_title %}
+<i data-feather="phone" class="text-blue-400" style="width:16px;height:16px;"></i>
+<span class="text-sm font-semibold text-white tracking-tight">On-Call Scheduling</span>
+{% endblock %}
+
+{% block head %}
+<style>
+.page-header { margin-bottom:20px; }
+.page-title { font-size:1.4rem;font-weight:700;color:var(--text-primary);display:flex;align-items:center;gap:10px; }
+.page-subtitle { font-size:.875rem;color:var(--text-secondary);margin:4px 0 0; }
+
+.tab-nav { display:flex;gap:4px;border-bottom:2px solid var(--border-color);margin-bottom:20px; }
+.tab-btn { padding:8px 18px;font-size:13px;font-weight:500;color:var(--text-secondary);background:transparent;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;cursor:pointer;border-radius:4px 4px 0 0;transition:color .15s,border-color .15s; }
+.tab-btn:hover { color:var(--text-primary); }
+.tab-btn.active { color:#3b82f6;border-bottom-color:#3b82f6;font-weight:600; }
+
+.toolbar { display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px; }
+
+.btn-primary { display:inline-flex;align-items:center;gap:6px;padding:8px 16px;font-size:13px;font-weight:600;border-radius:6px;cursor:pointer;border:none;background:linear-gradient(135deg,#3b82f6,#2563eb);color:#fff;box-shadow:0 2px 6px rgba(59,130,246,.25);transition:all .15s; }
+.btn-primary:hover { background:linear-gradient(135deg,#2563eb,#1d4ed8);transform:translateY(-1px); }
+.btn-secondary { display:inline-flex;align-items:center;gap:6px;padding:7px 14px;font-size:13px;font-weight:500;border-radius:6px;cursor:pointer;border:1px solid var(--border-color);background:var(--bg-surface);color:var(--text-primary);transition:all .15s; }
+.btn-secondary:hover { background:var(--bg-hover); }
+.btn-sm { display:inline-flex;align-items:center;gap:5px;padding:5px 10px;font-size:12px;font-weight:500;border-radius:5px;cursor:pointer;border:1px solid var(--border-color);background:var(--bg-surface);color:var(--text-secondary);transition:all .15s; }
+.btn-sm:hover { background:var(--bg-hover);color:var(--text-primary); }
+.btn-danger { display:inline-flex;align-items:center;gap:5px;padding:5px 10px;font-size:12px;font-weight:500;border-radius:5px;cursor:pointer;border:none;background:#fee2e2;color:#dc2626;transition:all .15s; }
+.btn-danger:hover { background:#fecaca; }
+
+/* Current On-Call Banner */
+.oncall-banner { display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-bottom:20px; }
+.oncall-current-card { background:var(--bg-surface);border:1px solid var(--border-color);border-radius:10px;padding:16px;display:flex;align-items:center;gap:14px; }
+.oncall-avatar { width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#8b5cf6);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#fff;flex-shrink:0; }
+.oncall-name { font-size:.95rem;font-weight:700;color:var(--text-primary); }
+.oncall-role { font-size:12px;color:var(--text-secondary); }
+
+/* Schedules Table */
+.table-wrap { background:var(--bg-surface);border:1px solid var(--border-color);border-radius:8px;overflow:hidden; }
+.data-table { width:100%;border-collapse:collapse; }
+.data-table th { padding:10px 16px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text-secondary);background:var(--bg-card);border-bottom:1px solid var(--border-color);text-align:left; }
+.data-table td { padding:12px 16px;font-size:13px;color:var(--text-primary);border-bottom:1px solid var(--border-color);vertical-align:middle; }
+.data-table tr:last-child td { border-bottom:none; }
+.data-table tr:hover td { background:var(--bg-hover); }
+
+.badge { display:inline-flex;align-items:center;padding:2px 10px;border-radius:999px;font-size:11px;font-weight:600; }
+.badge-active { background:#dcfce7;color:#15803d; }
+.badge-inactive { background:var(--bg-card);color:var(--text-secondary); }
+.badge-default { background:#eff6ff;color:#1d4ed8; }
+
+.participant-chip { display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:4px;font-size:11px;background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border-color);margin:1px; }
+
+.rotation-badge { padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:var(--bg-card);color:var(--text-secondary); }
+
+.empty-state { text-align:center;padding:60px 20px;color:var(--text-secondary); }
+.empty-state i { margin-bottom:12px;opacity:.4; }
+.empty-state p { font-size:14px; }
+
+/* Modal */
+.modal-overlay { display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1000;align-items:center;justify-content:center; }
+.modal-overlay.active { display:flex; }
+.modal-container { background:var(--bg-surface);border:1px solid var(--border-color);border-radius:12px;width:580px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);scrollbar-width:thin;scrollbar-color:rgba(148,163,184,.35) transparent; }
+.modal-header { padding:20px 24px 16px;border-bottom:1px solid var(--border-color);display:flex;align-items:center;justify-content:space-between; }
+.modal-title { font-size:1rem;font-weight:700;color:var(--text-primary); }
+.modal-close { background:none;border:none;cursor:pointer;color:var(--text-secondary);padding:4px; }
+.modal-close:hover { color:var(--text-primary); }
+.modal-body { padding:20px 24px; }
+.modal-footer { padding:16px 24px;border-top:1px solid var(--border-color);display:flex;justify-content:flex-end;gap:8px; }
+.form-group { margin-bottom:16px; }
+.form-label { display:block;font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em; }
+.form-input, .form-select { width:100%;padding:8px 12px;font-size:13px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-input);color:var(--text-primary);box-sizing:border-box; }
+.form-input:focus, .form-select:focus { outline:none;border-color:#3b82f6; }
+.form-row { display:grid;grid-template-columns:1fr 1fr;gap:12px; }
+.form-hint { font-size:11px;color:var(--text-secondary);margin-top:4px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title"><i data-feather="phone" style="width:20px;height:20px;"></i> On-Call Scheduling</h1>
+    <p class="page-subtitle">Manage on-call rotations and escalation policies.</p>
+</div>
+
+<!-- Who's On Call Now -->
+<div id="oncallBanner" class="oncall-banner" style="display:none;"></div>
+
+<div class="tab-nav">
+    <button class="tab-btn active" id="tab-schedules" onclick="switchTab('schedules')">Schedules</button>
+    <button class="tab-btn" id="tab-policies" onclick="switchTab('policies')">Escalation Policies</button>
+    <button class="tab-btn" id="tab-current" onclick="switchTab('current')">Who's On-Call?</button>
+</div>
+
+<!-- Schedules Pane -->
+<div id="pane-schedules">
+    <div class="toolbar">
+        <span style="font-size:13px;color:var(--text-secondary);" id="scheduleCountLabel"></span>
+        <button class="btn-primary" onclick="openScheduleModal()">
+            <i data-feather="plus" style="width:14px;height:14px;"></i> New Schedule
+        </button>
+    </div>
+    <div class="table-wrap">
+        <table class="data-table">
+            <thead><tr>
+                <th>Name</th><th>Rotation</th><th>Handoff</th><th>Participants</th><th>Status</th><th>Actions</th>
+            </tr></thead>
+            <tbody id="schedulesBody">
+                <tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-secondary);">Loading…</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Policies Pane -->
+<div id="pane-policies" style="display:none;">
+    <div class="toolbar">
+        <span style="font-size:13px;color:var(--text-secondary);" id="policyCountLabel"></span>
+        <button class="btn-primary" onclick="openPolicyModal()">
+            <i data-feather="plus" style="width:14px;height:14px;"></i> New Policy
+        </button>
+    </div>
+    <div class="table-wrap">
+        <table class="data-table">
+            <thead><tr>
+                <th>Name</th><th>Application</th><th>Levels</th><th>Repeat</th><th>Default</th><th>Actions</th>
+            </tr></thead>
+            <tbody id="policiesBody">
+                <tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-secondary);">Loading…</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Current On-Call Pane -->
+<div id="pane-current" style="display:none;">
+    <div id="currentOncallContent" style="padding:20px 0;">
+        <div style="text-align:center;padding:40px;color:var(--text-secondary);">Loading…</div>
+    </div>
+</div>
+
+<!-- Schedule Modal -->
+<div class="modal-overlay" id="scheduleModal" onclick="if(event.target.id==='scheduleModal')closeModal('scheduleModal')">
+    <div class="modal-container">
+        <div class="modal-header">
+            <span class="modal-title" id="scheduleModalTitle">New Schedule</span>
+            <button class="modal-close" onclick="closeModal('scheduleModal')"><i data-feather="x" style="width:16px;height:16px;"></i></button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">Schedule Name *</label>
+                <input type="text" class="form-input" id="schedName" placeholder="e.g. Backend On-Call">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Rotation Type</label>
+                    <select class="form-select" id="schedRotation">
+                        <option value="daily">Daily</option>
+                        <option value="weekly" selected>Weekly</option>
+                        <option value="custom">Custom</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Handoff Time</label>
+                    <input type="time" class="form-input" id="schedHandoff" value="09:00">
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Timezone</label>
+                <input type="text" class="form-input" id="schedTimezone" placeholder="UTC" value="UTC">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Rotation Start Date</label>
+                <input type="date" class="form-input" id="schedStartDate">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="closeModal('scheduleModal')">Cancel</button>
+            <button class="btn-primary" onclick="saveSchedule()">Save Schedule</button>
+        </div>
+    </div>
+</div>
+
+<!-- Policy Modal -->
+<div class="modal-overlay" id="policyModal" onclick="if(event.target.id==='policyModal')closeModal('policyModal')">
+    <div class="modal-container">
+        <div class="modal-header">
+            <span class="modal-title" id="policyModalTitle">New Escalation Policy</span>
+            <button class="modal-close" onclick="closeModal('policyModal')"><i data-feather="x" style="width:16px;height:16px;"></i></button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">Policy Name *</label>
+                <input type="text" class="form-input" id="polName" placeholder="e.g. Default Escalation">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Description</label>
+                <input type="text" class="form-input" id="polDesc" placeholder="Optional description">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Repeat Count</label>
+                    <input type="number" class="form-input" id="polRepeat" value="0" min="0" max="10">
+                    <p class="form-hint">0 = no repeat</p>
+                </div>
+                <div class="form-group" style="padding-top:22px;">
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                        <input type="checkbox" id="polDefault"> <span style="font-size:13px;color:var(--text-primary);">Set as default policy</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="closeModal('policyModal')">Cancel</button>
+            <button class="btn-primary" onclick="savePolicy()">Save Policy</button>
+        </div>
+    </div>
+</div>
+
+<!-- Confirm Delete Modal -->
+<div class="modal-overlay" id="deleteModal" onclick="if(event.target.id==='deleteModal')closeModal('deleteModal')">
+    <div class="modal-container" style="width:400px;">
+        <div class="modal-header">
+            <span class="modal-title">Confirm Delete</span>
+            <button class="modal-close" onclick="closeModal('deleteModal')"><i data-feather="x" style="width:16px;height:16px;"></i></button>
+        </div>
+        <div class="modal-body">
+            <p style="color:var(--text-primary);font-size:14px;" id="deleteConfirmMsg">Are you sure?</p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="closeModal('deleteModal')">Cancel</button>
+            <button class="btn-danger" style="padding:8px 16px;font-size:13px;" onclick="confirmDelete()">Delete</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let schedules = [];
+let policies = [];
+let editingScheduleId = null;
+let editingPolicyId = null;
+let deleteCallback = null;
+
+async function loadSchedules() {
+    try {
+        const res = await fetch('/api/oncall/schedules?page_size=100', { headers:{ Authorization:'Bearer '+getToken() } });
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+        schedules = data.items || [];
+        document.getElementById('scheduleCountLabel').textContent = `${schedules.length} schedule${schedules.length!==1?'s':''}`;
+        renderSchedules();
+    } catch(e) {
+        document.getElementById('schedulesBody').innerHTML = `<tr><td colspan="6" style="text-align:center;padding:32px;color:#ef4444;">${e.message}</td></tr>`;
+    }
+}
+
+async function loadPolicies() {
+    try {
+        const res = await fetch('/api/oncall/policies?page_size=100', { headers:{ Authorization:'Bearer '+getToken() } });
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+        policies = data.items || [];
+        document.getElementById('policyCountLabel').textContent = `${policies.length} polic${policies.length!==1?'ies':'y'}`;
+        renderPolicies();
+    } catch(e) {
+        document.getElementById('policiesBody').innerHTML = `<tr><td colspan="6" style="text-align:center;padding:32px;color:#ef4444;">${e.message}</td></tr>`;
+    }
+}
+
+async function loadCurrentOncall() {
+    const cont = document.getElementById('currentOncallContent');
+    const banner = document.getElementById('oncallBanner');
+    try {
+        const res = await fetch('/api/oncall/current', { headers:{ Authorization:'Bearer '+getToken() } });
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+        const contacts = data.contacts || [];
+        if (contacts.length) {
+            banner.style.display = 'grid';
+            banner.innerHTML = contacts.slice(0,4).map(c => `
+                <div class="oncall-current-card">
+                    <div class="oncall-avatar">${(c.name||c.email||'?')[0].toUpperCase()}</div>
+                    <div>
+                        <p class="oncall-name">${escHtml(c.name || c.email || 'Unknown')}</p>
+                        <p class="oncall-role">${escHtml(c.schedule_name||'On-Call')} · Level ${c.level||1}</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+        cont.innerHTML = contacts.length ? `
+            <div class="table-wrap">
+                <table class="data-table">
+                    <thead><tr><th>Name</th><th>Email</th><th>Schedule</th><th>Level</th></tr></thead>
+                    <tbody>${contacts.map(c => `<tr>
+                        <td><strong>${escHtml(c.name||'—')}</strong></td>
+                        <td>${escHtml(c.email||'—')}</td>
+                        <td>${escHtml(c.schedule_name||'—')}</td>
+                        <td><span class="badge badge-active">L${c.level||1}</span></td>
+                    </tr>`).join('')}</tbody>
+                </table>
+            </div>` :
+            `<div class="empty-state"><i data-feather="phone-off" style="width:40px;height:40px;"></i><p>No one is currently on-call. Create a schedule and assign participants.</p></div>`;
+        feather.replace();
+    } catch(e) {
+        cont.innerHTML = `<div style="text-align:center;padding:40px;color:#ef4444;">${e.message}</div>`;
+    }
+}
+
+function renderSchedules() {
+    const tbody = document.getElementById('schedulesBody');
+    if (!schedules.length) {
+        tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><i data-feather="calendar" style="width:40px;height:40px;"></i><p>No schedules yet. Create one to get started.</p></div></td></tr>`;
+        feather.replace(); return;
+    }
+    tbody.innerHTML = schedules.map(s => `
+        <tr>
+            <td><strong>${escHtml(s.name)}</strong></td>
+            <td><span class="rotation-badge">${s.rotation_type||'weekly'}</span></td>
+            <td style="font-size:12px;">${escHtml(s.handoff_time||'09:00')} ${escHtml(s.timezone||'UTC')}</td>
+            <td>${(s.participants||[]).map(p=>`<span class="participant-chip">${escHtml(p.name||p.email||p.user_id||'User')}</span>`).join('')||'<span style="color:var(--text-secondary);font-size:12px;">None</span>'}</td>
+            <td>${s.is_active ? '<span class="badge badge-active">Active</span>' : '<span class="badge badge-inactive">Inactive</span>'}</td>
+            <td>
+                <div style="display:flex;gap:6px;">
+                    <button class="btn-sm" onclick="openEditSchedule('${s.id}')"><i data-feather="edit-2" style="width:12px;height:12px;"></i></button>
+                    <button class="btn-danger" onclick="openDeleteConfirm('Delete schedule \'${escHtml(s.name)}\'?', () => deleteSchedule('${s.id}'))"><i data-feather="trash-2" style="width:12px;height:12px;"></i></button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+    feather.replace();
+}
+
+function renderPolicies() {
+    const tbody = document.getElementById('policiesBody');
+    if (!policies.length) {
+        tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><i data-feather="git-branch" style="width:40px;height:40px;"></i><p>No escalation policies. Create one to manage alert escalation.</p></div></td></tr>`;
+        feather.replace(); return;
+    }
+    tbody.innerHTML = policies.map(p => `
+        <tr>
+            <td><strong>${escHtml(p.name)}</strong>${p.description ? `<br><span style="font-size:11px;color:var(--text-secondary);">${escHtml(p.description)}</span>` : ''}</td>
+            <td style="font-size:12px;color:var(--text-secondary);">${escHtml(p.app_name||'—')}</td>
+            <td><span class="badge badge-active">${p.levels_count||0} levels</span></td>
+            <td style="font-size:12px;">${p.repeat_count||0}x</td>
+            <td>${p.is_default ? '<span class="badge badge-default">Default</span>' : '—'}</td>
+            <td>
+                <div style="display:flex;gap:6px;">
+                    <button class="btn-sm" onclick="openEditPolicy('${p.id}')"><i data-feather="edit-2" style="width:12px;height:12px;"></i></button>
+                    <button class="btn-danger" onclick="openDeleteConfirm('Delete policy \'${escHtml(p.name)}\'?', () => deletePolicy('${p.id}'))"><i data-feather="trash-2" style="width:12px;height:12px;"></i></button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+    feather.replace();
+}
+
+function openScheduleModal(id) {
+    editingScheduleId = id || null;
+    document.getElementById('scheduleModalTitle').textContent = id ? 'Edit Schedule' : 'New Schedule';
+    if (!id) {
+        document.getElementById('schedName').value = '';
+        document.getElementById('schedRotation').value = 'weekly';
+        document.getElementById('schedHandoff').value = '09:00';
+        document.getElementById('schedTimezone').value = 'UTC';
+        document.getElementById('schedStartDate').value = new Date().toISOString().split('T')[0];
+    } else {
+        const s = schedules.find(x=>x.id===id);
+        if (s) {
+            document.getElementById('schedName').value = s.name||'';
+            document.getElementById('schedRotation').value = s.rotation_type||'weekly';
+            document.getElementById('schedHandoff').value = s.handoff_time||'09:00';
+            document.getElementById('schedTimezone').value = s.timezone||'UTC';
+            document.getElementById('schedStartDate').value = s.rotation_start_date||(new Date().toISOString().split('T')[0]);
+        }
+    }
+    openModal('scheduleModal');
+}
+
+function openEditSchedule(id) { openScheduleModal(id); }
+
+async function saveSchedule() {
+    const name = document.getElementById('schedName').value.trim();
+    if (!name) { window.showToast('Name required','error'); return; }
+    const payload = {
+        name, rotation_type: document.getElementById('schedRotation').value,
+        handoff_time: document.getElementById('schedHandoff').value,
+        timezone: document.getElementById('schedTimezone').value||'UTC',
+        rotation_start_date: document.getElementById('schedStartDate').value||null,
+    };
+    try {
+        const url = editingScheduleId ? `/api/oncall/schedules/${editingScheduleId}` : '/api/oncall/schedules';
+        const method = editingScheduleId ? 'PUT' : 'POST';
+        const res = await fetch(url, { method, headers:{'Content-Type':'application/json','Authorization':'Bearer '+getToken()}, body: JSON.stringify(payload) });
+        if (!res.ok) { const e=await res.json(); throw new Error(e.detail||JSON.stringify(e)); }
+        window.showToast(editingScheduleId ? 'Schedule updated' : 'Schedule created','success');
+        closeModal('scheduleModal'); loadSchedules();
+    } catch(e) { window.showToast('Error: '+e.message,'error'); }
+}
+
+function openPolicyModal(id) {
+    editingPolicyId = id || null;
+    document.getElementById('policyModalTitle').textContent = id ? 'Edit Policy' : 'New Escalation Policy';
+    if (!id) {
+        document.getElementById('polName').value = '';
+        document.getElementById('polDesc').value = '';
+        document.getElementById('polRepeat').value = '0';
+        document.getElementById('polDefault').checked = false;
+    } else {
+        const p = policies.find(x=>x.id===id);
+        if (p) {
+            document.getElementById('polName').value = p.name||'';
+            document.getElementById('polDesc').value = p.description||'';
+            document.getElementById('polRepeat').value = p.repeat_count||0;
+            document.getElementById('polDefault').checked = !!p.is_default;
+        }
+    }
+    openModal('policyModal');
+}
+
+function openEditPolicy(id) { openPolicyModal(id); }
+
+async function savePolicy() {
+    const name = document.getElementById('polName').value.trim();
+    if (!name) { window.showToast('Name required','error'); return; }
+    const payload = { name, description: document.getElementById('polDesc').value.trim()||null, repeat_count: parseInt(document.getElementById('polRepeat').value)||0, is_default: document.getElementById('polDefault').checked };
+    try {
+        const url = editingPolicyId ? `/api/oncall/policies/${editingPolicyId}` : '/api/oncall/policies';
+        const method = editingPolicyId ? 'PUT' : 'POST';
+        const res = await fetch(url, { method, headers:{'Content-Type':'application/json','Authorization':'Bearer '+getToken()}, body: JSON.stringify(payload) });
+        if (!res.ok) { const e=await res.json(); throw new Error(e.detail||JSON.stringify(e)); }
+        window.showToast(editingPolicyId ? 'Policy updated' : 'Policy created','success');
+        closeModal('policyModal'); loadPolicies();
+    } catch(e) { window.showToast('Error: '+e.message,'error'); }
+}
+
+async function deleteSchedule(id) {
+    try {
+        const res = await fetch(`/api/oncall/schedules/${id}`, { method:'DELETE', headers:{ Authorization:'Bearer '+getToken() } });
+        if (!res.ok) throw new Error(await res.text());
+        window.showToast('Schedule deleted','success'); closeModal('deleteModal'); loadSchedules();
+    } catch(e) { window.showToast('Error: '+e.message,'error'); }
+}
+
+async function deletePolicy(id) {
+    try {
+        const res = await fetch(`/api/oncall/policies/${id}`, { method:'DELETE', headers:{ Authorization:'Bearer '+getToken() } });
+        if (!res.ok) throw new Error(await res.text());
+        window.showToast('Policy deleted','success'); closeModal('deleteModal'); loadPolicies();
+    } catch(e) { window.showToast('Error: '+e.message,'error'); }
+}
+
+function openDeleteConfirm(msg, cb) {
+    deleteCallback = cb;
+    document.getElementById('deleteConfirmMsg').textContent = msg;
+    openModal('deleteModal');
+}
+
+function confirmDelete() { if (deleteCallback) deleteCallback(); }
+
+function switchTab(tab) {
+    ['schedules','policies','current'].forEach(t => {
+        document.getElementById(`pane-${t}`).style.display = t===tab ? '' : 'none';
+        document.getElementById(`tab-${t}`).classList.toggle('active', t===tab);
+    });
+    if (tab === 'current') loadCurrentOncall();
+}
+
+function openModal(id) { document.getElementById(id).classList.add('active'); }
+function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+function escHtml(s) { const d=document.createElement('div');d.appendChild(document.createTextNode(s||''));return d.innerHTML; }
+function getToken() { return localStorage.getItem('access_token') || ''; }
+
+document.addEventListener('keydown', e => { if (e.key==='Escape') ['scheduleModal','policyModal','deleteModal'].forEach(closeModal); });
+document.addEventListener('DOMContentLoaded', () => {
+    loadSchedules();
+    loadCurrentOncall();
+    feather.replace();
+});
+</script>
+{% endblock %}

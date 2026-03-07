@@ -4,7 +4,7 @@ AIOps Platform - Main Application
 import logging
 from datetime import datetime, timezone
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request, Depends
+from fastapi import FastAPI, Request, Depends, Query
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -32,7 +32,8 @@ from app.services.auth_service import (
     create_user,
     get_user_by_username,
     get_permissions_for_role,
-    get_permissions_for_user
+    get_permissions_for_user,
+    ROLE_PERMISSIONS,
 )
 from app.routers import (
     auth,
@@ -165,9 +166,33 @@ limiter = Limiter(key_func=get_remote_address, enabled=not settings.testing)
 def init_db():
     """Initialize database and create initial data"""
     from app.database import SessionLocal
-    
+    from app.models import Role
+
     db = SessionLocal()
     try:
+        # Seed built-in roles from ROLE_PERMISSIONS if not already present
+        ROLE_DESCRIPTIONS = {
+            "owner": "Full platform ownership with all privileges",
+            "admin": "Full administrative access",
+            "security_admin": "Security configuration and audit access",
+            "security_viewer": "Read-only security and audit access",
+            "maintainer": "Manage servers, providers, runbooks, and knowledge",
+            "operator": "Execute runbooks and view alerts",
+            "viewer": "Read-only access",
+            "auditor": "Read and audit log access",
+        }
+        for role_name, perms in ROLE_PERMISSIONS.items():
+            existing = db.query(Role).filter(Role.name == role_name).first()
+            if not existing:
+                db.add(Role(
+                    name=role_name,
+                    description=ROLE_DESCRIPTIONS.get(role_name, f"Built-in {role_name} role"),
+                    permissions=sorted(perms),
+                    is_custom=False,
+                ))
+                logger.info(f"Seeded built-in role: {role_name}")
+        db.commit()
+
         # Check if admin user exists
         admin = get_user_by_username(db, settings.admin_username)
         if not admin:
@@ -989,17 +1014,23 @@ async def inquiry_page(
 @app.get("/rules", response_class=HTMLResponse)
 async def rules_page(
     request: Request,
+    tab: str = Query(default="analyze"),
     current_user: User = Depends(get_current_user_optional)
 ):
     """
-    Rules management page
+    Rules management page — hosts both Auto-Analyze Rules and Suppression Rules tabs.
     """
     if not current_user:
         return RedirectResponse(url="/login", status_code=302)
-    
+
+    # When on the suppression tab, make the sidebar highlight "Suppression Rules"
+    # (base.html uses current_path to determine sidebar active state)
+    effective_path = "/suppression-rules" if tab == "suppression" else "/rules"
+
     return templates.TemplateResponse("rules.html", {
         "request": request,
-        "user": current_user
+        "user": current_user,
+        "current_path": effective_path,
     })
 
 
@@ -1558,6 +1589,79 @@ async def prometheus_view_page(
         "request": request,
         "user": current_user,
         "active_page": "prometheus-view" 
+    })
+
+
+# ============== Operations Pages ==============
+
+@app.get("/suppression-rules", response_class=HTMLResponse)
+async def suppression_rules_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """Redirect legacy /suppression-rules URL to the unified /rules?tab=suppression page."""
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+    return RedirectResponse(url="/rules?tab=suppression", status_code=302)
+
+
+@app.get("/postmortems", response_class=HTMLResponse)
+async def postmortems_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """Post-Incident Post-Mortems page"""
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+    return templates.TemplateResponse("postmortems.html", {
+        "request": request,
+        "user": current_user,
+        "active_page": "postmortems"
+    })
+
+
+@app.get("/service-health", response_class=HTMLResponse)
+async def service_health_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """Service Health Scores & Topology page"""
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+    return templates.TemplateResponse("service_health.html", {
+        "request": request,
+        "user": current_user,
+        "active_page": "service-health"
+    })
+
+
+@app.get("/runbook-generation", response_class=HTMLResponse)
+async def runbook_generation_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """Runbook Auto-Generation page"""
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+    return templates.TemplateResponse("runbook_generation.html", {
+        "request": request,
+        "user": current_user,
+        "active_page": "runbook-generation"
+    })
+
+
+@app.get("/oncall", response_class=HTMLResponse)
+async def oncall_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """On-Call Scheduling & Escalation page"""
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+    return templates.TemplateResponse("oncall.html", {
+        "request": request,
+        "user": current_user,
+        "active_page": "oncall"
     })
 
 

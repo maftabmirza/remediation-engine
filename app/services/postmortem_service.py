@@ -2,22 +2,35 @@
 Post-Incident Postmortem Service
 
 Generates, edits, and publishes AI-powered post-incident review documents.
+
+Data sources gathered during generation:
+  - Alert (name, severity, labels, annotations, ai_analysis, recommendations)
+  - IncidentMetrics  (MTTD / MTTA / MTTE / MTTR with real timestamps)
+  - AlertCorrelation (correlated sibling alerts in the same incident)
+  - RunbookExecution + StepExecution (every step command + outcome)
+  - ExecutionOutcome (post-execution resolution rating from user feedback)
+  - AnalysisFeedback (helpfulness/accuracy rating + what-actually-worked text)
+  - SolutionOutcome  (knowledge / command solutions that succeeded)
+  - AgentSession + AgentStep (AI troubleshooting commands run during incident)
 """
 import json
 import logging
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from sqlalchemy import select, func
+from sqlalchemy import and_, select, func
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import Session, selectinload
 
-from app.models import Alert
+from app.database import SessionLocal
+from app.models import Alert, IncidentMetrics, SolutionOutcome
+from app.models_agent import AgentSession, AgentStep
 from app.models_learning import AnalysisFeedback, ExecutionOutcome
 from app.models_postmortem import PostmortemReport
 from app.models_remediation import RunbookExecution, StepExecution
+from app.models_troubleshooting import AlertCorrelation
 from app.schemas_postmortem import OutOfBandContextAdd, PostmortemReportUpdate
 
 logger = logging.getLogger(__name__)
@@ -34,6 +47,13 @@ def _serialize(obj: Any) -> Any:
     if isinstance(obj, UUID):
         return str(obj)
     raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
+
+
+def _td_minutes(start: Optional[datetime], end: Optional[datetime]) -> Optional[float]:
+    """Return elapsed minutes between two timestamps, or None if either is missing."""
+    if start is None or end is None:
+        return None
+    return round((end - start).total_seconds() / 60, 2)
 
 
 class PostmortemService:

@@ -1,0 +1,347 @@
+{% extends "base.html" %}
+{% set active_page = 'runbook-generation' %}
+
+{% block title %}Runbook Auto-Generation - AIOps Platform{% endblock %}
+
+{% block breadcrumbs %}
+<span class="mx-2">/</span>
+<span class="text-gray-200">Runbook Generation</span>
+{% endblock %}
+
+{% block header_title %}
+<i data-feather="cpu" class="text-blue-400" style="width:16px;height:16px;"></i>
+<span class="text-sm font-semibold text-white tracking-tight">Runbook Auto-Generation</span>
+{% endblock %}
+
+{% block head %}
+<style>
+.page-header { margin-bottom:20px; }
+.page-title { font-size:1.4rem;font-weight:700;color:var(--text-primary);display:flex;align-items:center;gap:10px; }
+.page-subtitle { font-size:.875rem;color:var(--text-secondary);margin:4px 0 0; }
+
+.tab-nav { display:flex;gap:4px;border-bottom:2px solid var(--border-color);margin-bottom:20px; }
+.tab-btn { padding:8px 18px;font-size:13px;font-weight:500;color:var(--text-secondary);background:transparent;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;cursor:pointer;border-radius:4px 4px 0 0;transition:color .15s,border-color .15s; }
+.tab-btn:hover { color:var(--text-primary); }
+.tab-btn.active { color:#3b82f6;border-bottom-color:#3b82f6;font-weight:600; }
+
+.btn-primary { display:inline-flex;align-items:center;gap:6px;padding:8px 16px;font-size:13px;font-weight:600;border-radius:6px;cursor:pointer;border:none;background:linear-gradient(135deg,#3b82f6,#2563eb);color:#fff;box-shadow:0 2px 6px rgba(59,130,246,.25);transition:all .15s; }
+.btn-primary:hover { background:linear-gradient(135deg,#2563eb,#1d4ed8);transform:translateY(-1px); }
+.btn-primary:disabled { opacity:.5;cursor:not-allowed;transform:none; }
+.btn-secondary { display:inline-flex;align-items:center;gap:6px;padding:7px 14px;font-size:13px;font-weight:500;border-radius:6px;cursor:pointer;border:1px solid var(--border-color);background:var(--bg-surface);color:var(--text-primary);transition:all .15s; }
+.btn-secondary:hover { background:var(--bg-hover); }
+.btn-green { display:inline-flex;align-items:center;gap:5px;padding:6px 14px;font-size:12px;font-weight:600;border-radius:5px;cursor:pointer;border:1px solid #bbf7d0;background:#dcfce7;color:#16a34a;transition:all .15s; }
+.btn-green:hover { background:#bbf7d0; }
+.btn-sm { display:inline-flex;align-items:center;gap:5px;padding:5px 10px;font-size:12px;font-weight:500;border-radius:5px;cursor:pointer;border:1px solid var(--border-color);background:var(--bg-surface);color:var(--text-secondary);transition:all .15s; }
+.btn-sm:hover { background:var(--bg-hover);color:var(--text-primary); }
+
+.candidate-card { background:var(--bg-surface);border:1px solid var(--border-color);border-radius:10px;padding:18px;margin-bottom:12px;transition:box-shadow .15s; }
+.candidate-card:hover { box-shadow:0 4px 16px rgba(0,0,0,.1); }
+.candidate-header { display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px; }
+.candidate-title { font-size:.95rem;font-weight:700;color:var(--text-primary);margin:0 0 4px; }
+.candidate-meta { font-size:12px;color:var(--text-secondary); }
+.candidate-tags { display:flex;flex-wrap:wrap;gap:6px;margin-top:8px; }
+.tag { display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;background:var(--bg-card);color:var(--text-secondary);border:1px solid var(--border-color); }
+.tag-blue { background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe; }
+
+.draft-card { background:var(--bg-surface);border:1px solid var(--border-color);border-radius:10px;padding:18px;margin-bottom:12px; }
+.draft-header { display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px; }
+.draft-title { font-size:.95rem;font-weight:700;color:var(--text-primary); }
+.draft-meta { font-size:12px;color:var(--text-secondary);margin-top:2px; }
+
+.badge { display:inline-flex;align-items:center;padding:2px 10px;border-radius:999px;font-size:11px;font-weight:600; }
+.badge-draft { background:#fff7ed;color:#c2410c; }
+.badge-approved { background:#dcfce7;color:#15803d; }
+.badge-disabled { background:var(--bg-card);color:var(--text-secondary); }
+
+.empty-state { text-align:center;padding:60px 20px;color:var(--text-secondary); }
+.empty-state i { margin-bottom:12px;opacity:.4; }
+.empty-state p { font-size:14px; }
+
+/* Modal */
+.modal-overlay { display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1000;align-items:center;justify-content:center; }
+.modal-overlay.active { display:flex; }
+.modal-container { background:var(--bg-surface);border:1px solid var(--border-color);border-radius:12px;width:560px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);scrollbar-width:thin;scrollbar-color:rgba(148,163,184,.35) transparent; }
+.modal-header { padding:20px 24px 16px;border-bottom:1px solid var(--border-color);display:flex;align-items:center;justify-content:space-between; }
+.modal-title { font-size:1rem;font-weight:700;color:var(--text-primary); }
+.modal-close { background:none;border:none;cursor:pointer;color:var(--text-secondary);padding:4px;border-radius:4px; }
+.modal-close:hover { color:var(--text-primary); }
+.modal-body { padding:20px 24px; }
+.modal-footer { padding:16px 24px;border-top:1px solid var(--border-color);display:flex;justify-content:flex-end;gap:8px; }
+.form-group { margin-bottom:16px; }
+.form-label { display:block;font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em; }
+.form-input, .form-select { width:100%;padding:8px 12px;font-size:13px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-input);color:var(--text-primary);box-sizing:border-box; }
+.form-input:focus, .form-select:focus { outline:none;border-color:#3b82f6; }
+.form-hint { font-size:11px;color:var(--text-secondary);margin-top:4px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title"><i data-feather="cpu" style="width:20px;height:20px;"></i> Runbook Auto-Generation</h1>
+    <p class="page-subtitle">Discover patterns from past successful sessions and auto-generate runbooks using AI.</p>
+</div>
+
+<div class="tab-nav">
+    <button class="tab-btn active" id="tab-candidates" onclick="switchTab('candidates')">
+        Opportunities
+        <span id="candidateCount" style="display:none;margin-left:6px;background:#3b82f6;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;"></span>
+    </button>
+    <button class="tab-btn" id="tab-drafts" onclick="switchTab('drafts')">
+        Generated Runbooks
+        <span id="draftCount" style="display:none;margin-left:6px;background:#f59e0b;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;"></span>
+    </button>
+</div>
+
+<div id="pane-candidates">
+    <div style="margin-bottom:12px;padding:12px 16px;background:var(--bg-card);border:1px solid var(--border-color);border-radius:8px;font-size:13px;color:var(--text-secondary);">
+        <i data-feather="info" style="width:14px;height:14px;display:inline;vertical-align:middle;margin-right:6px;"></i>
+        These are clusters of similar successful remediation sessions. Select one to generate a runbook.
+    </div>
+    <div id="candidateList"></div>
+</div>
+
+<div id="pane-drafts" style="display:none;">
+    <div id="draftList"></div>
+</div>
+
+<!-- Generate Runbook Modal -->
+<div class="modal-overlay" id="generateModal" onclick="if(event.target.id==='generateModal')closeModal('generateModal')">
+    <div class="modal-container">
+        <div class="modal-header">
+            <span class="modal-title">Generate Runbook</span>
+            <button class="modal-close" onclick="closeModal('generateModal')"><i data-feather="x" style="width:16px;height:16px;"></i></button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">Runbook Name *</label>
+                <input type="text" class="form-input" id="genRunbookName" placeholder="e.g. Auto-restart high CPU process">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Application (optional)</label>
+                <select class="form-select" id="genAppId">
+                    <option value="">— None —</option>
+                </select>
+            </div>
+            <div id="genSessionInfo" style="padding:12px;background:var(--bg-card);border-radius:6px;font-size:12px;color:var(--text-secondary);">
+                Sessions selected: <strong id="genSessionCount">0</strong>
+            </div>
+            <p class="form-hint" style="margin-top:8px;">The AI will analyze the selected sessions and generate an automated runbook. The runbook starts as a draft and must be approved before it can be used.</p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="closeModal('generateModal')">Cancel</button>
+            <button class="btn-primary" id="genSubmitBtn" onclick="submitGenerate()">
+                <i data-feather="cpu" style="width:14px;height:14px;"></i> Generate
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- View Draft Modal -->
+<div class="modal-overlay" id="viewDraftModal" onclick="if(event.target.id==='viewDraftModal')closeModal('viewDraftModal')">
+    <div class="modal-container" style="width:760px;">
+        <div class="modal-header">
+            <span class="modal-title" id="viewDraftTitle">Draft Runbook</span>
+            <button class="modal-close" onclick="closeModal('viewDraftModal')"><i data-feather="x" style="width:16px;height:16px;"></i></button>
+        </div>
+        <div class="modal-body" id="viewDraftBody" style="max-height:65vh;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(148,163,184,.35) transparent;">Loading…</div>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="closeModal('viewDraftModal')">Close</button>
+            <button class="btn-green" id="approveBtn" onclick="approveDraft()">
+                <i data-feather="check-circle" style="width:14px;height:14px;"></i> Approve & Enable
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let candidates = [];
+let drafts = [];
+let generatingFromSessions = [];
+let viewingDraftId = null;
+
+async function loadCandidates() {
+    const cont = document.getElementById('candidateList');
+    cont.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-secondary);">Analyzing sessions…</div>';
+    try {
+        const res = await fetch('/api/runbook-generation/candidates?min_success_count=3', { headers:{ Authorization:'Bearer '+getToken() } });
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+        candidates = data.items || [];
+        const cnt = document.getElementById('candidateCount');
+        if (candidates.length) { cnt.textContent = candidates.length; cnt.style.display = 'inline'; }
+        renderCandidates();
+    } catch(e) { cont.innerHTML = `<div style="text-align:center;padding:40px;color:#ef4444;">${e.message}</div>`; }
+}
+
+async function loadDrafts() {
+    const cont = document.getElementById('draftList');
+    cont.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-secondary);">Loading…</div>';
+    try {
+        const res = await fetch('/api/runbook-generation/drafts?page_size=50', { headers:{ Authorization:'Bearer '+getToken() } });
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+        drafts = data.items || [];
+        const cnt = document.getElementById('draftCount');
+        const pendingCount = drafts.filter(d => !d.enabled).length;
+        if (pendingCount) { cnt.textContent = pendingCount; cnt.style.display = 'inline'; }
+        renderDrafts();
+    } catch(e) { cont.innerHTML = `<div style="text-align:center;padding:40px;color:#ef4444;">${e.message}</div>`; }
+}
+
+async function loadApps() {
+    try {
+        const res = await fetch('/api/apps?page_size=100', { headers:{ Authorization:'Bearer '+getToken() } });
+        if (!res.ok) return;
+        const data = await res.json();
+        const sel = document.getElementById('genAppId');
+        const apps = data.items || data || [];
+        sel.innerHTML = '<option value="">— None —</option>' + apps.map(a => `<option value="${a.id}">${escHtml(a.name)}</option>`).join('');
+    } catch(e) { /* ignore */ }
+}
+
+function renderCandidates() {
+    const cont = document.getElementById('candidateList');
+    if (!candidates.length) {
+        cont.innerHTML = `<div class="empty-state"><i data-feather="cpu" style="width:40px;height:40px;"></i><p>No generation opportunities found yet. More successful remediation sessions are needed (min. 3 similar).</p></div>`;
+        feather.replace(); return;
+    }
+    cont.innerHTML = candidates.map((c, idx) => `
+        <div class="candidate-card">
+            <div class="candidate-header">
+                <div>
+                    <p class="candidate-title">${escHtml(c.representative_name || `Cluster ${idx+1}`)}</p>
+                    <p class="candidate-meta">${c.session_count} sessions · avg duration ${c.avg_duration_seconds ? Math.round(c.avg_duration_seconds)+'s' : 'N/A'} · success rate ${c.success_rate ? Math.round(c.success_rate*100)+'%' : 'N/A'}</p>
+                </div>
+                <button class="btn-primary" onclick="openGenerateModal(${JSON.stringify(c.session_ids).replace(/"/g,'&quot;')}, ${JSON.stringify(c.representative_name||'').replace(/"/g,'&quot;')})">
+                    <i data-feather="cpu" style="width:13px;height:13px;"></i> Generate
+                </button>
+            </div>
+            ${c.common_labels && Object.keys(c.common_labels).length ? `
+                <div class="candidate-tags">
+                    ${Object.entries(c.common_labels).map(([k,v]) => `<span class="tag tag-blue">${escHtml(k)}: ${escHtml(v)}</span>`).join('')}
+                </div>` : ''}
+        </div>
+    `).join('');
+    feather.replace();
+}
+
+function renderDrafts() {
+    const cont = document.getElementById('draftList');
+    if (!drafts.length) {
+        cont.innerHTML = `<div class="empty-state"><i data-feather="book" style="width:40px;height:40px;"></i><p>No generated runbooks yet. Go to Opportunities to generate one.</p></div>`;
+        feather.replace(); return;
+    }
+    cont.innerHTML = drafts.map(d => `
+        <div class="draft-card">
+            <div class="draft-header">
+                <div>
+                    <p class="draft-title">${escHtml(d.name)}</p>
+                    <p class="draft-meta">
+                        ${d.enabled ? '<span class="badge badge-approved">Approved</span>' : '<span class="badge badge-draft">Pending Approval</span>'}
+                        &nbsp;·&nbsp; ${d.steps_count||0} steps &nbsp;·&nbsp; Created ${new Date(d.created_at).toLocaleDateString()}
+                    </p>
+                </div>
+                <div style="display:flex;gap:6px;">
+                    <button class="btn-sm" onclick="viewDraft('${d.id}')"><i data-feather="eye" style="width:12px;height:12px;"></i> Review</button>
+                    ${!d.enabled ? `<button class="btn-green" onclick="quickApprove('${d.id}')"><i data-feather="check" style="width:12px;height:12px;"></i> Approve</button>` : `<a href="/runbooks/${d.id}" class="btn-sm"><i data-feather="external-link" style="width:12px;height:12px;"></i> Open</a>`}
+                </div>
+            </div>
+            ${d.description ? `<p style="font-size:12px;color:var(--text-secondary);margin:0;">${escHtml(d.description)}</p>` : ''}
+        </div>
+    `).join('');
+    feather.replace();
+}
+
+function openGenerateModal(sessionIds, name) {
+    generatingFromSessions = sessionIds;
+    document.getElementById('genRunbookName').value = name ? `Auto: ${name}` : '';
+    document.getElementById('genSessionCount').textContent = sessionIds.length;
+    loadApps();
+    openModal('generateModal');
+}
+
+async function submitGenerate() {
+    const name = document.getElementById('genRunbookName').value.trim();
+    if (!name) { window.showToast('Runbook name is required','error'); return; }
+    const btn = document.getElementById('genSubmitBtn');
+    btn.disabled = true; btn.innerHTML = '<i data-feather="loader" style="width:14px;height:14px;"></i> Generating…'; feather.replace();
+    try {
+        const appId = document.getElementById('genAppId').value || null;
+        const res = await fetch('/api/runbook-generation/generate', { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+getToken()}, body: JSON.stringify({ session_ids: generatingFromSessions, runbook_name: name, app_id: appId }) });
+        if (!res.ok) { const e = await res.json(); throw new Error(e.detail || JSON.stringify(e)); }
+        window.showToast('Runbook generated! Review it in Generated Runbooks.','success');
+        closeModal('generateModal');
+        switchTab('drafts');
+        loadDrafts();
+    } catch(e) { window.showToast('Error: '+e.message,'error'); }
+    finally { btn.disabled=false; btn.innerHTML='<i data-feather="cpu" style="width:14px;height:14px;"></i> Generate'; feather.replace(); }
+}
+
+async function viewDraft(id) {
+    viewingDraftId = id;
+    openModal('viewDraftModal');
+    const body = document.getElementById('viewDraftBody');
+    body.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-secondary);">Loading…</div>';
+    try {
+        const res = await fetch(`/api/runbooks/${id}`, { headers:{ Authorization:'Bearer '+getToken() } });
+        if (!res.ok) throw new Error(await res.text());
+        const rb = await res.json();
+        document.getElementById('viewDraftTitle').textContent = rb.name;
+        const approved = rb.enabled;
+        document.getElementById('approveBtn').style.display = approved ? 'none' : 'flex';
+        body.innerHTML = `
+            <div style="padding:12px 16px;background:var(--bg-card);border-radius:8px;margin-bottom:16px;">
+                <p style="font-size:13px;color:var(--text-secondary);margin:0;">${escHtml(rb.description||'No description.')}</p>
+            </div>
+            <h4 style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--text-secondary);margin:0 0 12px;">Steps (${(rb.steps||[]).length})</h4>
+            ${(rb.steps||[]).map((s, i) => `
+                <div style="padding:12px 16px;border:1px solid var(--border-color);border-radius:8px;margin-bottom:8px;">
+                    <p style="font-size:12px;font-weight:700;color:var(--text-secondary);margin:0 0 6px;">Step ${i+1}: ${escHtml(s.name||s.description||'')}</p>
+                    <pre style="font-size:12px;background:var(--bg-card);padding:10px;border-radius:5px;overflow-x:auto;color:var(--text-primary);white-space:pre-wrap;margin:0;">${escHtml(s.command||s.script||'')}</pre>
+                </div>
+            `).join('')}
+        `;
+        feather.replace();
+    } catch(e) { body.innerHTML = `<p style="color:#ef4444;">${e.message}</p>`; }
+}
+
+async function approveDraft() {
+    if (!viewingDraftId) return;
+    await doApprove(viewingDraftId);
+    document.getElementById('approveBtn').style.display = 'none';
+    closeModal('viewDraftModal');
+    loadDrafts();
+}
+
+async function quickApprove(id) {
+    await doApprove(id);
+    loadDrafts();
+}
+
+async function doApprove(id) {
+    try {
+        const res = await fetch(`/api/runbook-generation/generated/${id}/approve`, { method:'POST', headers:{ Authorization:'Bearer '+getToken() } });
+        if (!res.ok) { const e = await res.json(); throw new Error(e.detail||'Error'); }
+        window.showToast('Runbook approved and enabled!','success');
+    } catch(e) { window.showToast('Error: '+e.message,'error'); }
+}
+
+function switchTab(tab) {
+    document.getElementById('pane-candidates').style.display = tab === 'candidates' ? '' : 'none';
+    document.getElementById('pane-drafts').style.display = tab === 'drafts' ? '' : 'none';
+    document.getElementById('tab-candidates').classList.toggle('active', tab === 'candidates');
+    document.getElementById('tab-drafts').classList.toggle('active', tab === 'drafts');
+    if (tab === 'drafts' && !drafts.length) loadDrafts();
+}
+
+function openModal(id) { document.getElementById(id).classList.add('active'); }
+function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+function escHtml(s) { const d=document.createElement('div');d.appendChild(document.createTextNode(s||''));return d.innerHTML; }
+function getToken() { return localStorage.getItem('access_token') || ''; }
+
+document.addEventListener('keydown', e => { if (e.key==='Escape') { closeModal('generateModal');closeModal('viewDraftModal'); } });
+document.addEventListener('DOMContentLoaded', () => { loadCandidates(); feather.replace(); });
+</script>
+{% endblock %}

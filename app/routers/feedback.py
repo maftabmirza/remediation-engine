@@ -78,7 +78,7 @@ async def submit_solution_feedback(
     problem_desc = feedback.problem_description or f"User ran: {feedback.solution_reference}"
     
     try:
-        embedding_service = EmbeddingService()
+        embedding_service = EmbeddingService(db=db)
         if embedding_service.is_configured():
             problem_embedding = embedding_service.generate_embedding(problem_desc)
             if problem_embedding:

@@ -66,7 +66,7 @@ class AiAlertHelpAgent:
         initial_messages: Optional[List[Dict[str, Any]]] = None,
         on_tool_call_complete: Optional[Callable[[str, Dict[str, Any], str], None]] = None,
         registry_factory: Optional[Callable] = None,
-        pii_mapping_manager: Optional[PIIMappingManager] = None
+        pii_mapping_manager: Optional[PIIMappingManager] = None,
     ):
         """
         Initialize the AI Alert Help agent.
