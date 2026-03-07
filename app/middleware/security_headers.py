@@ -20,8 +20,14 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # Prevent MIME-type sniffing
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
 
-        # Deny framing by default (individual routes override where needed)
-        response.headers.setdefault("X-Frame-Options", "DENY")
+        # Deny framing by default; allow same-origin embedding for proxied
+        # observability UIs (/grafana/* and /prometheus/*) so their iframes
+        # render correctly within the app.
+        _proxy_prefixes = ("/grafana/", "/prometheus/")
+        if request.url.path.startswith(_proxy_prefixes):
+            response.headers["X-Frame-Options"] = "SAMEORIGIN"
+        else:
+            response.headers.setdefault("X-Frame-Options", "DENY")
 
         # Disable legacy XSS filter (modern browsers, defence-in-depth)
         response.headers.setdefault("X-XSS-Protection", "0")
