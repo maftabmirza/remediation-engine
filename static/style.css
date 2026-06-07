@@ -798,6 +798,44 @@ button.rounded-full,
 .bg-slate-900 { background-color: #0f172a; }
 .border-slate-100 { border-color: #f1f5f9; }
 .border-slate-200 { border-color: #e2e8f0; }
+
+/* ===== User Message Markdown Overrides ===== */
+.user-message-text.prose {
+    color: #ffffff !important;
+}
+.user-message-text.prose p,
+.user-message-text.prose h1,
+.user-message-text.prose h2,
+.user-message-text.prose h3,
+.user-message-text.prose h4,
+.user-message-text.prose h5,
+.user-message-text.prose h6,
+.user-message-text.prose strong,
+.user-message-text.prose b,
+.user-message-text.prose em,
+.user-message-text.prose i,
+.user-message-text.prose span,
+.user-message-text.prose ul,
+.user-message-text.prose ol,
+.user-message-text.prose li {
+    color: #ffffff !important;
+}
+.user-message-text.prose pre {
+    background-color: rgba(0, 0, 0, 0.4) !important;
+    color: #e2e8f0 !important;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+.user-message-text.prose code {
+    color: #93c5fd !important;
+    background-color: rgba(0, 0, 0, 0.3) !important;
+    padding: 0.125rem 0.25rem;
+    border-radius: 0.25rem;
+}
+.user-message-text.prose pre code {
+    color: inherit !important;
+    background-color: transparent !important;
+    padding: 0;
+}
 .border-slate-300 { border-color: #cbd5e1; }
 
 /* hover: slate utilities used by alert detail */

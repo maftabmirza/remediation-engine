@@ -21,66 +21,266 @@
 {% block head %}
 <style>
     /* Alert-specific badge and status styles (aligned with runbooks/alerts) */
-    .badge-critical { background-color: #ff5286; color: white; padding: 2px 8px; border-radius: 2px; font-size: 0.75rem; font-weight: 500; }
-    .badge-warning { background-color: #eb7b18; color: white; padding: 2px 8px; border-radius: 2px; font-size: 0.75rem; font-weight: 500; }
-    .badge-info { background-color: #3d71d9; color: white; padding: 2px 8px; border-radius: 2px; font-size: 0.75rem; font-weight: 500; }
-    .badge-other { background-color: #6e9fff; color: #111217; padding: 2px 8px; border-radius: 2px; font-size: 0.75rem; font-weight: 500; }
-    .status-firing { color: #ff5286; }
-    .status-resolved { color: #1a7f4b; }
-    .status-acknowledged { color: #6e9fff; }
+    .badge-critical {
+        background-color: #ff5286;
+        color: white;
+        padding: 2px 8px;
+        border-radius: 2px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+
+    .badge-warning {
+        background-color: #eb7b18;
+        color: white;
+        padding: 2px 8px;
+        border-radius: 2px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+
+    .badge-info {
+        background-color: #3d71d9;
+        color: white;
+        padding: 2px 8px;
+        border-radius: 2px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+
+    .badge-other {
+        background-color: #6e9fff;
+        color: #111217;
+        padding: 2px 8px;
+        border-radius: 2px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+
+    .status-firing {
+        color: #ff5286;
+    }
+
+    .status-resolved {
+        color: #1a7f4b;
+    }
+
+    .status-acknowledged {
+        color: #6e9fff;
+    }
+
     /* Alert detail cards — use CSS variables so they adapt to every theme */
-    .alert-detail-card { background: var(--bg-surface-raised, #ffffff); border: var(--border-subtle, 1px solid #e2e8f0); border-radius: 8px; box-shadow: var(--shadow-card, 0 1px 2px rgba(0,0,0,0.04)); }
-    .alert-detail-tabs { display: flex; gap: 16px; border-bottom: var(--border-subtle, 1px solid #e2e8f0); margin-bottom: 0; padding-bottom: 0; }
-    .alert-detail-tab { background: none; border: none; padding: 8px 2px; font-size: 13px; font-weight: 500; color: var(--text-secondary, #64748b); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; }
-    .alert-detail-tab:hover { color: var(--text-primary, #1e293b); }
-    .alert-detail-tab.active { color: var(--accent-blue, #3b82f6); border-bottom-color: var(--accent-blue, #3b82f6); font-weight: 600; }
+    .alert-detail-card {
+        background: var(--bg-surface-raised, #ffffff);
+        border: var(--border-subtle, 1px solid #e2e8f0);
+        border-radius: 8px;
+        box-shadow: var(--shadow-card, 0 1px 2px rgba(0, 0, 0, 0.04));
+    }
+
+    .alert-detail-tabs {
+        display: flex;
+        gap: 16px;
+        border-bottom: var(--border-subtle, 1px solid #e2e8f0);
+        margin-bottom: 0;
+        padding-bottom: 0;
+    }
+
+    .alert-detail-tab {
+        background: none;
+        border: none;
+        padding: 8px 2px;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-secondary, #64748b);
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+        transition: all 0.2s;
+    }
+
+    .alert-detail-tab:hover {
+        color: var(--text-primary, #1e293b);
+    }
+
+    .alert-detail-tab.active {
+        color: var(--accent-blue, #3b82f6);
+        border-bottom-color: var(--accent-blue, #3b82f6);
+        font-weight: 600;
+    }
+
     /* Compact analysis section */
-    .alert-analysis-card { background: var(--bg-surface-raised, #ffffff); border: var(--border-subtle, 1px solid #e2e8f0); border-radius: 8px; box-shadow: var(--shadow-card, 0 1px 2px rgba(0,0,0,0.04)); }
-    .alert-detail-card .ts-chat-messages { padding: 20px 16px; gap: 14px; }
-    .alert-detail-card .ts-chat-input-container { padding: 10px 14px 14px; }
+    .alert-analysis-card {
+        background: var(--bg-surface-raised, #ffffff);
+        border: var(--border-subtle, 1px solid #e2e8f0);
+        border-radius: 8px;
+        box-shadow: var(--shadow-card, 0 1px 2px rgba(0, 0, 0, 0.04));
+    }
+
+    .alert-detail-card .ts-chat-messages {
+        padding: 20px 16px;
+        gap: 14px;
+    }
+
+    .alert-detail-card .ts-chat-input-container {
+        padding: 10px 14px 14px;
+    }
+
     /* ----- Alert detail: theme-adaptive utilities ----- */
-    .ad-text-p  { color: var(--text-primary); }
-    .ad-text-s  { color: var(--text-secondary); }
-    .ad-bg      { background-color: var(--bg-surface); }
-    .ad-bg-r    { background-color: var(--bg-surface-raised); }
-    .ad-divider { border-top: 1px solid rgba(203,213,225,0.5); }
-    [data-theme="light"] .ad-divider { border-top-color: rgba(219,234,254,0.8); }
+    .ad-text-p {
+        color: var(--text-primary);
+    }
+
+    .ad-text-s {
+        color: var(--text-secondary);
+    }
+
+    .ad-bg {
+        background-color: var(--bg-surface);
+    }
+
+    .ad-bg-r {
+        background-color: var(--bg-surface-raised);
+    }
+
+    .ad-divider {
+        border-top: 1px solid rgba(203, 213, 225, 0.5);
+    }
+
+    [data-theme="light"] .ad-divider {
+        border-top-color: rgba(219, 234, 254, 0.8);
+    }
+
     /* Terminal pane header — intentionally dark (terminal context) */
-    .ad-term-hdr { background: #1e293b; border-bottom: 1px solid rgba(255,255,255,0.08); }
-    .ad-term-hdr h2 { color: #e2e8f0; }
-    .ad-term-hdr button { color: #94a3b8; }
-    .ad-term-hdr button:hover { color: #e2e8f0; }
+    .ad-term-hdr {
+        background: #1e293b;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .ad-term-hdr h2 {
+        color: #e2e8f0;
+    }
+
+    .ad-term-hdr button {
+        color: #94a3b8;
+    }
+
+    .ad-term-hdr button:hover {
+        color: #e2e8f0;
+    }
+
     /* Command history panel — intentionally dark */
-    .ad-cmd-hist { background: rgba(15,23,42,0.9); border-bottom: 1px solid rgba(71,85,105,0.4); }
-    .ad-cmd-hist-hdr { border-bottom: 1px solid rgba(71,85,105,0.25); }
+    .ad-cmd-hist {
+        background: rgba(15, 23, 42, 0.9);
+        border-bottom: 1px solid rgba(71, 85, 105, 0.4);
+    }
+
+    .ad-cmd-hist-hdr {
+        border-bottom: 1px solid rgba(71, 85, 105, 0.25);
+    }
+
     /* Context status panel — intentionally dark */
-    .ad-ctx-stat { background: #0f172a; border-bottom: 1px solid rgba(51,65,85,0.8); }
+    .ad-ctx-stat {
+        background: #0f172a;
+        border-bottom: 1px solid rgba(51, 65, 85, 0.8);
+    }
+
     /* Investigation path sections */
-    .ad-inv-hdr { background-color: var(--bg-surface); border-bottom: 1px solid rgba(203,213,225,0.5); }
-    [data-theme="light"] .ad-inv-hdr { border-bottom-color: rgba(219,234,254,0.8); }
-    .ad-inv-body { background-color: var(--bg-surface-raised); }
-    .ad-inv-line { background-color: var(--text-secondary); opacity: 0.15; width: 1px; position: absolute; left: 1rem; top: 1rem; bottom: 1rem; }
+    .ad-inv-hdr {
+        background-color: var(--bg-surface);
+        border-bottom: 1px solid rgba(203, 213, 225, 0.5);
+    }
+
+    [data-theme="light"] .ad-inv-hdr {
+        border-bottom-color: rgba(219, 234, 254, 0.8);
+    }
+
+    .ad-inv-body {
+        background-color: var(--bg-surface-raised);
+    }
+
+    .ad-inv-line {
+        background-color: var(--text-secondary);
+        opacity: 0.15;
+        width: 1px;
+        position: absolute;
+        left: 1rem;
+        top: 1rem;
+        bottom: 1rem;
+    }
+
     /* Inline code block in investigation path */
-    .ad-code-block { background-color: var(--bg-surface); border: 1px solid rgba(203,213,225,0.5); color: var(--text-secondary); font-family: monospace; }
-    [data-theme="light"] .ad-code-block { border-color: rgba(219,234,254,0.8); }
+    .ad-code-block {
+        background-color: var(--bg-surface);
+        border: 1px solid rgba(203, 213, 225, 0.5);
+        color: var(--text-secondary);
+        font-family: monospace;
+    }
+
+    [data-theme="light"] .ad-code-block {
+        border-color: rgba(219, 234, 254, 0.8);
+    }
+
     /* Correlated alert item */
-    .ad-corr-item { background-color: var(--bg-surface); border: 1px solid rgba(203,213,225,0.5); }
-    .ad-corr-item:hover { background-color: var(--bg-surface-raised); }
-    [data-theme="light"] .ad-corr-item { border-color: rgba(219,234,254,0.8); }
+    .ad-corr-item {
+        background-color: var(--bg-surface);
+        border: 1px solid rgba(203, 213, 225, 0.5);
+    }
+
+    .ad-corr-item:hover {
+        background-color: var(--bg-surface-raised);
+    }
+
+    [data-theme="light"] .ad-corr-item {
+        border-color: rgba(219, 234, 254, 0.8);
+    }
+
     /* Label/annotation tag in popover */
-    .ad-label-tag { background-color: var(--bg-surface); border: 1px solid rgba(203,213,225,0.5); color: var(--text-secondary); }
-    [data-theme="light"] .ad-label-tag { border-color: rgba(219,234,254,0.8); }
+    .ad-label-tag {
+        background-color: var(--bg-surface);
+        border: 1px solid rgba(203, 213, 225, 0.5);
+        color: var(--text-secondary);
+    }
+
+    [data-theme="light"] .ad-label-tag {
+        border-color: rgba(219, 234, 254, 0.8);
+    }
+
     /* RCA confidence bar track */
-    .ad-rca-track { background-color: rgba(100,116,139,0.2); }
+    .ad-rca-track {
+        background-color: rgba(100, 116, 139, 0.2);
+    }
+
     /* Severity icon backgrounds */
-    .sev-bg-critical { background-color: rgba(255,82,134,0.12); }
-    .sev-bg-warning  { background-color: rgba(245,158,11,0.12); }
-    .sev-bg-info     { background-color: rgba(59,130,246,0.12); }
+    .sev-bg-critical {
+        background-color: rgba(255, 82, 134, 0.12);
+    }
+
+    .sev-bg-warning {
+        background-color: rgba(245, 158, 11, 0.12);
+    }
+
+    .sev-bg-info {
+        background-color: rgba(59, 130, 246, 0.12);
+    }
+
     /* Equalize chat and terminal header heights */
-    .ts-session-header { padding: 8px 16px; box-sizing: border-box; }
-    .ts-session-header .ts-icon-btn { width: 30px; height: 30px; }
-    .ts-tools-header { box-sizing: border-box; }
-    .ts-tools-header .ts-icon-btn { width: 30px; height: 30px; }
+    .ts-session-header {
+        padding: 8px 16px;
+        box-sizing: border-box;
+    }
+
+    .ts-session-header .ts-icon-btn {
+        width: 30px;
+        height: 30px;
+    }
+
+    .ts-tools-header {
+        box-sizing: border-box;
+    }
+
+    .ts-tools-header .ts-icon-btn {
+        width: 30px;
+        height: 30px;
+    }
 </style>
 {% endblock %}
 
@@ -858,7 +1058,7 @@
         switchModel(providerId);
     }
 
-    document.addEventListener('click', function(e) {
+    document.addEventListener('click', function (e) {
         const llm = document.getElementById('llmSelector');
         const panel = document.getElementById('modelListContainer');
         if (llm && panel && !llm.contains(e.target)) {
@@ -1284,7 +1484,7 @@
                     ${step.command_to_run ? `
                         <div class="ad-code-block rounded px-2 py-1.5 text-[11px] flex justify-between items-center group">
                             <code class="truncate">${escapeHtml(step.command_to_run)}</code>
-                            <button class="flex-shrink-0 ml-2 ad-text-s" onclick="copyToClipboard(this.dataset.cmd)" data-cmd="${String(step.command_to_run).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}">
+                            <button class="flex-shrink-0 ml-2 ad-text-s" onclick="copyToClipboard(this.dataset.cmd)" data-cmd="${String(step.command_to_run).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}">
                                 <i class="fas fa-copy text-[10px]"></i>
                             </button>
                         </div>
@@ -2478,12 +2678,14 @@
         modal.classList.add('flex');
 
         try {
-            const response = await apiCall('/api/servers');
-            if (!response.ok) throw new Error('Failed to load servers');
+            let rawServers = await apiCall('/api/servers');
+            if (rawServers && typeof rawServers.json === 'function') {
+                if (!rawServers.ok) throw new Error(`API error: ${rawServers.status}`);
+                rawServers = await rawServers.json();
+            }
+            const servers = Array.isArray(rawServers) ? rawServers : (rawServers.items || rawServers.data || []);
 
-            const servers = await response.json();
-
-            if (servers.length === 0) {
+            if (!servers || servers.length === 0) {
                 list.innerHTML = '<p class="text-gray-400 text-sm p-2">No servers configured.</p>';
                 return;
             }
@@ -2558,7 +2760,8 @@
 
         if (terminalSocket) terminalSocket.close();
 
-        const wsUrl = `${protocol}//${window.location.host}/ws/terminal/adhoc?token=${encodeURIComponent(token)}&host=${encodeURIComponent(host)}&port=${port}&username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&cols=${term.cols}&rows=${term.rows}`;
+        const alertParam = alertId ? `&alert_id=${encodeURIComponent(alertId)}` : '';
+        const wsUrl = `${protocol}//${window.location.host}/ws/terminal/adhoc?token=${encodeURIComponent(token)}&host=${encodeURIComponent(host)}&port=${port}&username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&cols=${term.cols}&rows=${term.rows}${alertParam}`;
 
         terminalSocket = new WebSocket(wsUrl);
 
@@ -2618,7 +2821,8 @@
             terminalSocket.close();
         }
 
-        terminalSocket = new WebSocket(`${protocol}//${window.location.host}/ws/terminal/${serverId}?token=${token}&cols=${term.cols}&rows=${term.rows}`);
+        const alertParam = alertId ? `&alert_id=${encodeURIComponent(alertId)}` : '';
+        terminalSocket = new WebSocket(`${protocol}//${window.location.host}/ws/terminal/${serverId}?token=${token}&cols=${term.cols}&rows=${term.rows}${alertParam}`);
 
         // Loading state
         const termEl2 = document.getElementById('termStatus');
@@ -3637,7 +3841,7 @@
                         ${step.command_to_run ? `
                             <div class="ad-code-block rounded px-2 py-1.5 text-[11px] flex justify-between items-center group">
                                 <code class="truncate">${escapeHtml(step.command_to_run)}</code>
-                                <button class="flex-shrink-0 ml-2 ad-text-s" onclick="copyToClipboard(this.dataset.cmd)" data-cmd="${String(step.command_to_run).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}">
+                                <button class="flex-shrink-0 ml-2 ad-text-s" onclick="copyToClipboard(this.dataset.cmd)" data-cmd="${String(step.command_to_run).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}">
                                     <i class="fas fa-copy text-[10px]"></i>
                                 </button>
                             </div>

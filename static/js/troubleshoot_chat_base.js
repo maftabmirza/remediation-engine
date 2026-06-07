@@ -155,11 +155,37 @@ const AIChatBase = {
 
         const msgDiv = document.createElement('div');
         msgDiv.className = 'flex justify-end mb-3';
-        msgDiv.innerHTML = `
-            <div class="user-message-text ${this.config.userGradientClass} border border-blue-800 rounded-lg p-3 max-w-xs lg:max-w-md text-sm text-gray-900 shadow-md" style="word-break: break-word;">
-                ${this.escapeHtml(text)}
-            </div>
-        `;
+
+        // Detect if the message contains markdown formatting
+        const hasMarkdown = text && (text.includes('```') || text.includes('**') || text.includes('###') || text.includes('\n'));
+        let parsedContent = text;
+        let usePreWrap = true;
+        let widthClasses = 'max-w-xs lg:max-w-md'; // Narrow for plain text
+
+        if (hasMarkdown && typeof marked !== 'undefined') {
+            try {
+                parsedContent = marked.parse(text, { breaks: true });
+                usePreWrap = false; // Markdown handles its own whitespace
+                widthClasses = 'w-full'; // Full width for markdown content
+            } catch (err) {
+                console.error('Markdown parse error on user message', err);
+                parsedContent = this.escapeHtml(text);
+            }
+        } else {
+            parsedContent = this.escapeHtml(text);
+        }
+
+        const whiteSpaceStyle = usePreWrap ? 'white-space: pre-wrap;' : '';
+
+        msgDiv.innerHTML = `<div class="user-message-text ${this.config.userGradientClass} border border-blue-800 rounded-lg p-3 ${widthClasses} text-sm shadow-md prose prose-sm max-w-none text-white overflow-x-auto" style="word-break: break-word; ${whiteSpaceStyle}">${parsedContent}</div>`;
+
+        // Apply syntax highlighting to code blocks
+        if (window.hljs) {
+            msgDiv.querySelectorAll('pre code').forEach((block) => {
+                hljs.highlightElement(block);
+            });
+        }
+
         container.appendChild(msgDiv);
         container.scrollTop = container.scrollHeight;
     },

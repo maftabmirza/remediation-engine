@@ -56,6 +56,7 @@
         margin-bottom: 0;
         background: var(--bg-surface);
     }
+
     .notif-tab-btn {
         display: inline-flex;
         align-items: center;
@@ -71,32 +72,159 @@
         border-radius: 4px 4px 0 0;
         transition: color .15s, border-color .15s;
     }
-    .notif-tab-btn:hover { color: var(--text-primary); }
-    .notif-tab-btn.active { color: #3b82f6; border-bottom-color: #3b82f6; font-weight: 600; }
-    [data-theme="jackson"] .notif-tab-btn.active { color: #6366f1; border-bottom-color: #6366f1; }
-    .notif-badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 4px; font-size: 0.72rem; font-weight: 600; line-height: 1.6; white-space: nowrap; }
-    .notif-badge-success  { background: rgba(16,185,129,.15); color: #059669; }
-    .notif-badge-danger   { background: rgba(239,68,68,.15);  color: #dc2626; }
-    .notif-badge-warning  { background: rgba(245,158,11,.15); color: #d97706; }
-    .notif-badge-info     { background: rgba(59,130,246,.15); color: #2563eb; }
-    .notif-badge-secondary{ background: var(--bg-surface-2, #f1f5f9); color: var(--text-secondary); }
-    [data-theme="jackson"] .notif-badge-success  { background: rgba(16,185,129,.2);  color: #34d399; }
-    [data-theme="jackson"] .notif-badge-danger   { background: rgba(239,68,68,.2);   color: #f87171; }
-    [data-theme="jackson"] .notif-badge-warning  { background: rgba(245,158,11,.2);  color: #fbbf24; }
-    [data-theme="jackson"] .notif-badge-info     { background: rgba(99,102,241,.2);  color: #a5b4fc; }
-    [data-theme="jackson"] .notif-badge-secondary{ background: rgba(255,255,255,.06);color: #94a3b8; }
-    .notif-data-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; color: var(--text-primary); }
-    .notif-data-table thead th { padding: 10px 12px; text-align: left; font-weight: 600; font-size: 0.775rem; color: var(--text-secondary); background: var(--bg-surface-2, #f8fafc); border-bottom: 1px solid var(--border-color); white-space: nowrap; }
-    .notif-data-table tbody tr { border-bottom: 1px solid var(--border-color); transition: background .12s; }
-    .notif-data-table tbody tr:hover { background: var(--bg-hover, rgba(0,0,0,.03)); }
-    .notif-data-table tbody td { padding: 10px 12px; vertical-align: middle; }
-    [data-theme="jackson"] .notif-data-table thead th { background: rgba(255,255,255,.04); }
-    [data-theme="jackson"] .notif-data-table tbody tr:hover { background: rgba(255,255,255,.04); }
-    .notif-empty-state { text-align: center; padding: 32px 16px; color: var(--text-secondary); font-size: 0.875rem; }
-    .notif-error-text { color: #ef4444 !important; }
-    .btn-danger-notif { display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 7px 14px; font-size: 0.8125rem; font-weight: 500; border-radius: 8px; border: 1px solid transparent; cursor: pointer; transition: background .15s, opacity .15s; background: #ef4444; color: #fff; }
-    .btn-danger-notif:hover { background: #dc2626; }
-    .btn-danger-notif.btn-sm { padding: 4px 10px !important; font-size: 0.75rem !important; border-radius: 6px !important; }
+
+    .notif-tab-btn:hover {
+        color: var(--text-primary);
+    }
+
+    .notif-tab-btn.active {
+        color: #3b82f6;
+        border-bottom-color: #3b82f6;
+        font-weight: 600;
+    }
+
+    [data-theme="jackson"] .notif-tab-btn.active {
+        color: #6366f1;
+        border-bottom-color: #6366f1;
+    }
+
+    .notif-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 0.72rem;
+        font-weight: 600;
+        line-height: 1.6;
+        white-space: nowrap;
+    }
+
+    .notif-badge-success {
+        background: rgba(16, 185, 129, .15);
+        color: #059669;
+    }
+
+    .notif-badge-danger {
+        background: rgba(239, 68, 68, .15);
+        color: #dc2626;
+    }
+
+    .notif-badge-warning {
+        background: rgba(245, 158, 11, .15);
+        color: #d97706;
+    }
+
+    .notif-badge-info {
+        background: rgba(59, 130, 246, .15);
+        color: #2563eb;
+    }
+
+    .notif-badge-secondary {
+        background: var(--bg-surface-2, #f1f5f9);
+        color: var(--text-secondary);
+    }
+
+    [data-theme="jackson"] .notif-badge-success {
+        background: rgba(16, 185, 129, .2);
+        color: #34d399;
+    }
+
+    [data-theme="jackson"] .notif-badge-danger {
+        background: rgba(239, 68, 68, .2);
+        color: #f87171;
+    }
+
+    [data-theme="jackson"] .notif-badge-warning {
+        background: rgba(245, 158, 11, .2);
+        color: #fbbf24;
+    }
+
+    [data-theme="jackson"] .notif-badge-info {
+        background: rgba(99, 102, 241, .2);
+        color: #a5b4fc;
+    }
+
+    [data-theme="jackson"] .notif-badge-secondary {
+        background: rgba(255, 255, 255, .06);
+        color: #94a3b8;
+    }
+
+    .notif-data-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.875rem;
+        color: var(--text-primary);
+    }
+
+    .notif-data-table thead th {
+        padding: 10px 12px;
+        text-align: left;
+        font-weight: 600;
+        font-size: 0.775rem;
+        color: var(--text-secondary);
+        background: var(--bg-surface-2, #f8fafc);
+        border-bottom: 1px solid var(--border-color);
+        white-space: nowrap;
+    }
+
+    .notif-data-table tbody tr {
+        border-bottom: 1px solid var(--border-color);
+        transition: background .12s;
+    }
+
+    .notif-data-table tbody tr:hover {
+        background: var(--bg-hover, rgba(0, 0, 0, .03));
+    }
+
+    .notif-data-table tbody td {
+        padding: 10px 12px;
+        vertical-align: middle;
+    }
+
+    [data-theme="jackson"] .notif-data-table thead th {
+        background: rgba(255, 255, 255, .04);
+    }
+
+    [data-theme="jackson"] .notif-data-table tbody tr:hover {
+        background: rgba(255, 255, 255, .04);
+    }
+
+    .notif-empty-state {
+        text-align: center;
+        padding: 32px 16px;
+        color: var(--text-secondary);
+        font-size: 0.875rem;
+    }
+
+    .notif-error-text {
+        color: #ef4444 !important;
+    }
+
+    .btn-danger-notif {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        padding: 7px 14px;
+        font-size: 0.8125rem;
+        font-weight: 500;
+        border-radius: 8px;
+        border: 1px solid transparent;
+        cursor: pointer;
+        transition: background .15s, opacity .15s;
+        background: #ef4444;
+        color: #fff;
+    }
+
+    .btn-danger-notif:hover {
+        background: #dc2626;
+    }
+
+    .btn-danger-notif.btn-sm {
+        padding: 4px 10px !important;
+        font-size: 0.75rem !important;
+        border-radius: 6px !important;
+    }
 </style>
 
 <div class="settings-full-width">
@@ -192,7 +320,8 @@
                     </div>
                     <div class="access-item">
                         <div class="access-info">
-                            <h3><i data-feather="bell" style="width: 16px; height: 16px; color: #06b6d4;"></i> Notifications</h3>
+                            <h3><i data-feather="bell" style="width: 16px; height: 16px; color: #06b6d4;"></i>
+                                Notifications</h3>
                             <p>Configure Slack, Teams, Email and Webhook alert channels and delivery policies.</p>
                         </div>
                         <button class="manage-btn" onclick="setActiveSection('section-notifications')">Manage</button>
@@ -359,10 +488,12 @@
                 <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div class="flex flex-col min-w-0">
                         <h1 class="toolbar-title">Password Policy</h1>
-                        <p class="toolbar-subtitle">Configure complexity requirements, account lockout and password expiry for all local accounts</p>
+                        <p class="toolbar-subtitle">Configure complexity requirements, account lockout and password
+                            expiry for all local accounts</p>
                     </div>
                     <div class="flex gap-2 flex-wrap">
-                        <button type="button" class="settings-btn-secondary" onclick="applyPasswordPolicyPreset('nist')">
+                        <button type="button" class="settings-btn-secondary"
+                            onclick="applyPasswordPolicyPreset('nist')">
                             <i data-feather="shield"></i> NIST 2024
                         </button>
                         <button type="button" class="settings-btn-secondary" onclick="applyPasswordPolicyPreset('cis')">
@@ -391,20 +522,24 @@
                                 Minimum Length
                                 <span class="info-tooltip info-tooltip-align-left">
                                     <span class="info-tooltip-icon">?</span>
-                                    <span class="info-tooltip-text">Minimum number of characters required. NIST recommends at least 8; PCI DSS requires at least 12.</span>
+                                    <span class="info-tooltip-text">Minimum number of characters required. NIST
+                                        recommends at least 8; PCI DSS requires at least 12.</span>
                                 </span>
                             </label>
-                            <input type="number" id="pp_min_length" class="settings-input w-full" min="1" max="256" value="8">
+                            <input type="number" id="pp_min_length" class="settings-input w-full" min="1" max="256"
+                                value="8">
                         </div>
                         <div>
                             <label class="label-with-tooltip block text-sm font-medium mb-1">
                                 Maximum Length
                                 <span class="info-tooltip info-tooltip-align-left">
                                     <span class="info-tooltip-icon">?</span>
-                                    <span class="info-tooltip-text">Maximum allowed password length. Set to 0 for no upper limit. NIST recommends allowing up to 64+ characters.</span>
+                                    <span class="info-tooltip-text">Maximum allowed password length. Set to 0 for no
+                                        upper limit. NIST recommends allowing up to 64+ characters.</span>
                                 </span>
                             </label>
-                            <input type="number" id="pp_max_length" class="settings-input w-full" min="0" max="1024" value="128">
+                            <input type="number" id="pp_max_length" class="settings-input w-full" min="0" max="1024"
+                                value="128">
                             <p class="text-xs mt-1" style="color:#94a3b8;">0 = no limit</p>
                         </div>
                     </div>
@@ -429,7 +564,8 @@
                     </div>
 
                     <!-- Live preview -->
-                    <div class="mt-4 p-3 rounded-lg" style="background:var(--bg-secondary,#f8fafc);border:1px solid var(--border-color,#e2e8f0)">
+                    <div class="mt-4 p-3 rounded-lg"
+                        style="background:var(--bg-secondary,#f8fafc);border:1px solid var(--border-color,#e2e8f0)">
                         <p class="text-xs font-medium mb-2" style="color:#64748b">Current requirement preview:</p>
                         <p id="pp_preview" class="text-sm font-mono" style="color:var(--text-primary)">—</p>
                     </div>
@@ -438,7 +574,8 @@
                 <!-- Account Lockout Card -->
                 <div class="settings-form-card">
                     <h3 class="text-base font-semibold mb-4" style="color:var(--text-primary)">
-                        <i data-feather="alert-octagon" style="width:16px;height:16px;display:inline;margin-right:6px;"></i>
+                        <i data-feather="alert-octagon"
+                            style="width:16px;height:16px;display:inline;margin-right:6px;"></i>
                         Account Lockout
                     </h3>
                     <div class="grid md:grid-cols-2 gap-6">
@@ -447,10 +584,12 @@
                                 Max Failed Login Attempts
                                 <span class="info-tooltip info-tooltip-align-left">
                                     <span class="info-tooltip-icon">?</span>
-                                    <span class="info-tooltip-text">Number of consecutive failed logins before the account is temporarily locked. Set to 0 to disable lockout.</span>
+                                    <span class="info-tooltip-text">Number of consecutive failed logins before the
+                                        account is temporarily locked. Set to 0 to disable lockout.</span>
                                 </span>
                             </label>
-                            <input type="number" id="pp_max_login_attempts" class="settings-input w-full" min="0" max="100" value="0">
+                            <input type="number" id="pp_max_login_attempts" class="settings-input w-full" min="0"
+                                max="100" value="0">
                             <p class="text-xs mt-1" style="color:#94a3b8;">0 = disabled</p>
                         </div>
                         <div>
@@ -458,10 +597,12 @@
                                 Lockout Duration (minutes)
                                 <span class="info-tooltip info-tooltip-align-left">
                                     <span class="info-tooltip-icon">?</span>
-                                    <span class="info-tooltip-text">How many minutes the account remains locked after too many failed attempts. Minimum 1.</span>
+                                    <span class="info-tooltip-text">How many minutes the account remains locked after
+                                        too many failed attempts. Minimum 1.</span>
                                 </span>
                             </label>
-                            <input type="number" id="pp_lockout_duration_mins" class="settings-input w-full" min="1" max="1440" value="30">
+                            <input type="number" id="pp_lockout_duration_mins" class="settings-input w-full" min="1"
+                                max="1440" value="30">
                         </div>
                     </div>
                 </div>
@@ -477,16 +618,19 @@
                             Expiry Period (days)
                             <span class="info-tooltip info-tooltip-align-left">
                                 <span class="info-tooltip-icon">?</span>
-                                <span class="info-tooltip-text">Days until a password must be changed. Set to 0 to never expire passwords. PCI DSS requires 90 days.</span>
+                                <span class="info-tooltip-text">Days until a password must be changed. Set to 0 to never
+                                    expire passwords. PCI DSS requires 90 days.</span>
                             </span>
                         </label>
-                        <input type="number" id="pp_password_expiry_days" class="settings-input w-full" min="0" max="3650" value="0">
+                        <input type="number" id="pp_password_expiry_days" class="settings-input w-full" min="0"
+                            max="3650" value="0">
                         <p class="text-xs mt-1" style="color:#94a3b8;">0 = never expires</p>
                     </div>
                     <div class="mt-3 p-3 rounded-lg" style="background:#fffbeb;border:1px solid #fde68a;">
                         <p class="text-xs" style="color:#92400e;">
                             <i data-feather="info" style="width:12px;height:12px;display:inline;margin-right:4px;"></i>
-                            Expiry is enforced at login — users will see a warning banner when their password is expired and be prompted to change it.
+                            Expiry is enforced at login — users will see a warning banner when their password is expired
+                            and be prompted to change it.
                         </p>
                     </div>
                 </div>
@@ -797,7 +941,8 @@
                 <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div class="flex flex-col min-w-0">
                         <h1 class="toolbar-title">Auth Settings</h1>
-                        <p class="toolbar-subtitle">Configure LDAP, SAML, CyberArk Identity SSO, and Local authentication</p>
+                        <p class="toolbar-subtitle">Configure LDAP, SAML, CyberArk Identity SSO, and Local
+                            authentication</p>
                     </div>
                 </div>
             </div>
@@ -932,9 +1077,12 @@
                     <div id="cyberarkConfig" class="hidden space-y-4 config-section-green">
                         <div class="flex items-center gap-3 mb-2">
                             <h3 style="margin:0">CyberArk Identity Configuration</h3>
-                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium" style="background:#dcfce7;color:#166534;border:1px solid #86efac">Security Compliance</span>
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
+                                style="background:#dcfce7;color:#166534;border:1px solid #86efac">Security
+                                Compliance</span>
                         </div>
-                        <p class="text-xs" style="color:#64748b">Users log in via the CyberArk Identity portal and are mapped to app roles by group. Local login remains available for service accounts.</p>
+                        <p class="text-xs" style="color:#64748b">Users log in via the CyberArk Identity portal and are
+                            mapped to app roles by group. Local login remains available for service accounts.</p>
 
                         <div class="grid md:grid-cols-2 gap-4">
                             <div>
@@ -942,7 +1090,9 @@
                                     SP Entity ID
                                     <span class="info-tooltip info-tooltip-align-left">
                                         <span class="info-tooltip-icon">?</span>
-                                        <span class="info-tooltip-text">Your app's unique identifier. Provide this to the CyberArk admin when registering the Service Provider. Typically: https://your-domain/api/auth/saml/metadata</span>
+                                        <span class="info-tooltip-text">Your app's unique identifier. Provide this to
+                                            the CyberArk admin when registering the Service Provider. Typically:
+                                            https://your-domain/api/auth/saml/metadata</span>
                                     </span>
                                 </label>
                                 <input type="text" id="cyberarkSpEntityId" class="settings-input w-full"
@@ -953,7 +1103,9 @@
                                     ACS URL
                                     <span class="info-tooltip info-tooltip-align-left">
                                         <span class="info-tooltip-icon">?</span>
-                                        <span class="info-tooltip-text">Assertion Consumer Service URL — where CyberArk POSTs the SAML response. Typically: https://your-domain/api/auth/saml/acs</span>
+                                        <span class="info-tooltip-text">Assertion Consumer Service URL — where CyberArk
+                                            POSTs the SAML response. Typically:
+                                            https://your-domain/api/auth/saml/acs</span>
                                     </span>
                                 </label>
                                 <input type="text" id="cyberarkAcsUrl" class="settings-input w-full"
@@ -967,14 +1119,17 @@
                                     IdP Metadata URL
                                     <span class="info-tooltip info-tooltip-align-left">
                                         <span class="info-tooltip-icon">?</span>
-                                        <span class="info-tooltip-text">CyberArk Identity tenant metadata URL. Get this from your CyberArk admin: Identity Admin &gt; Apps &gt; your app &gt; SAML Metadata.</span>
+                                        <span class="info-tooltip-text">CyberArk Identity tenant metadata URL. Get this
+                                            from your CyberArk admin: Identity Admin &gt; Apps &gt; your app &gt; SAML
+                                            Metadata.</span>
                                     </span>
                                 </label>
                                 <input type="text" id="cyberarkIdpMetadataUrl" class="settings-input w-full"
                                     placeholder="https://your-tenant.cyberark.cloud/saml/metadata/...">
                             </div>
                             <div>
-                                <label class="block text-sm font-medium mb-1">IdP Metadata XML <span class="text-xs" style="color:#94a3b8">(paste if URL unavailable)</span></label>
+                                <label class="block text-sm font-medium mb-1">IdP Metadata XML <span class="text-xs"
+                                        style="color:#94a3b8">(paste if URL unavailable)</span></label>
                                 <textarea id="cyberarkIdpMetadataXml" class="settings-input w-full h-16"
                                     placeholder="Paste raw XML from CyberArk admin if no metadata URL yet"></textarea>
                             </div>
@@ -985,25 +1140,31 @@
                                 <label class="label-with-tooltip block text-sm font-medium mb-1">
                                     Email Attribute
                                     <span class="info-tooltip"><span class="info-tooltip-icon">?</span>
-                                        <span class="info-tooltip-text">SAML attribute name that carries the user email. Default: email</span></span>
+                                        <span class="info-tooltip-text">SAML attribute name that carries the user email.
+                                            Default: email</span></span>
                                 </label>
-                                <input type="text" id="cyberarkAttrEmail" class="settings-input w-full" placeholder="email" value="email">
+                                <input type="text" id="cyberarkAttrEmail" class="settings-input w-full"
+                                    placeholder="email" value="email">
                             </div>
                             <div>
                                 <label class="label-with-tooltip block text-sm font-medium mb-1">
                                     Username Attribute
                                     <span class="info-tooltip"><span class="info-tooltip-icon">?</span>
-                                        <span class="info-tooltip-text">SAML attribute name for username. Default: username</span></span>
+                                        <span class="info-tooltip-text">SAML attribute name for username. Default:
+                                            username</span></span>
                                 </label>
-                                <input type="text" id="cyberarkAttrUsername" class="settings-input w-full" placeholder="username" value="username">
+                                <input type="text" id="cyberarkAttrUsername" class="settings-input w-full"
+                                    placeholder="username" value="username">
                             </div>
                             <div>
                                 <label class="label-with-tooltip block text-sm font-medium mb-1">
                                     Role/Group Attribute
                                     <span class="info-tooltip"><span class="info-tooltip-icon">?</span>
-                                        <span class="info-tooltip-text">SAML attribute name carrying the user's CyberArk group(s). Default: role</span></span>
+                                        <span class="info-tooltip-text">SAML attribute name carrying the user's CyberArk
+                                            group(s). Default: role</span></span>
                                 </label>
-                                <input type="text" id="cyberarkAttrRole" class="settings-input w-full" placeholder="role" value="role">
+                                <input type="text" id="cyberarkAttrRole" class="settings-input w-full"
+                                    placeholder="role" value="role">
                             </div>
                         </div>
 
@@ -1011,8 +1172,11 @@
                             <div>
                                 <label class="label-with-tooltip block text-sm font-medium mb-1">
                                     Role Mapping
-                                    <span class="info-tooltip info-tooltip-align-left"><span class="info-tooltip-icon">?</span>
-                                        <span class="info-tooltip-text">JSON map from CyberArk group names to app roles. Roles: owner, admin, maintainer, operator, viewer, auditor, security_admin, security_viewer</span></span>
+                                    <span class="info-tooltip info-tooltip-align-left"><span
+                                            class="info-tooltip-icon">?</span>
+                                        <span class="info-tooltip-text">JSON map from CyberArk group names to app roles.
+                                            Roles: owner, admin, maintainer, operator, viewer, auditor, security_admin,
+                                            security_viewer</span></span>
                                 </label>
                                 <textarea id="cyberarkRoleMapping" class="settings-input w-full h-24"
                                     placeholder='{&#10;  "CyberArk_Admins": "admin",&#10;  "CyberArk_Ops": "operator",&#10;  "CyberArk_Viewers": "viewer"&#10;}'></textarea>
@@ -1022,7 +1186,8 @@
                                     <label class="label-with-tooltip block text-sm font-medium mb-1">
                                         Default Role
                                         <span class="info-tooltip"><span class="info-tooltip-icon">?</span>
-                                            <span class="info-tooltip-text">Role assigned to SSO users when no role_mapping matches. Default: viewer</span></span>
+                                            <span class="info-tooltip-text">Role assigned to SSO users when no
+                                                role_mapping matches. Default: viewer</span></span>
                                     </label>
                                     <select id="cyberarkDefaultRole" class="settings-input w-full">
                                         <option value="viewer">viewer</option>
@@ -1032,8 +1197,10 @@
                                     </select>
                                 </div>
                                 <div class="flex items-center gap-2">
-                                    <input type="checkbox" id="cyberarkAutoProvision" checked class="form-checkbox rounded">
-                                    <label for="cyberarkAutoProvision" class="text-sm">Auto-provision new users on first SSO login</label>
+                                    <input type="checkbox" id="cyberarkAutoProvision" checked
+                                        class="form-checkbox rounded">
+                                    <label for="cyberarkAutoProvision" class="text-sm">Auto-provision new users on first
+                                        SSO login</label>
                                 </div>
                             </div>
                         </div>
@@ -1054,7 +1221,8 @@
                         <ol class="list-decimal list-inside space-y-1">
                             <li>Choose auth method and fill required endpoints.</li>
                             <li>Upload certificates/metadata and map user attributes.</li>
-                            <li>For CyberArk: get SP Metadata XML (→ Download button) and send to your CyberArk admin to register the app as a Service Provider.</li>
+                            <li>For CyberArk: get SP Metadata XML (→ Download button) and send to your CyberArk admin to
+                                register the app as a Service Provider.</li>
                             <li>Run “Test / Check Status” to validate connectivity.</li>
                             <li>Save — local login remains available alongside SSO.</li>
                         </ol>
@@ -1074,7 +1242,8 @@
                 <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div class="flex flex-col min-w-0">
                         <h1 class="toolbar-title">Notifications</h1>
-                        <p class="toolbar-subtitle">Manage delivery channels, routing policies, and view the audit log.</p>
+                        <p class="toolbar-subtitle">Manage delivery channels, routing policies, and view the audit log.
+                        </p>
                     </div>
                 </div>
             </div>
@@ -1100,10 +1269,23 @@
                             <i data-feather="plus" style="width:14px;height:14px;margin-right:6px;"></i>Add Channel
                         </button>
                     </div>
-                    <div style="overflow-x:auto;overflow-y:auto;max-height:60vh;scrollbar-width:thin;scrollbar-color:rgba(148,163,184,.35) transparent;border:1px solid var(--border-color);border-radius:8px;">
+                    <div
+                        style="overflow-x:auto;overflow-y:auto;max-height:60vh;scrollbar-width:thin;scrollbar-color:rgba(148,163,184,.35) transparent;border:1px solid var(--border-color);border-radius:8px;">
                         <table class="notif-data-table" id="channels-table">
-                            <thead><tr><th>Name</th><th>Type</th><th>Status</th><th>Created</th><th style="text-align:right;">Actions</th></tr></thead>
-                            <tbody id="channels-tbody"><tr><td colspan="5" class="notif-empty-state">Loading channels…</td></tr></tbody>
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Type</th>
+                                    <th>Status</th>
+                                    <th>Created</th>
+                                    <th style="text-align:right;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="channels-tbody">
+                                <tr>
+                                    <td colspan="5" class="notif-empty-state">Loading channels…</td>
+                                </tr>
+                            </tbody>
                         </table>
                     </div>
                 </div>
@@ -1116,10 +1298,24 @@
                             <i data-feather="plus" style="width:14px;height:14px;margin-right:6px;"></i>Add Policy
                         </button>
                     </div>
-                    <div style="overflow-x:auto;overflow-y:auto;max-height:60vh;scrollbar-width:thin;scrollbar-color:rgba(148,163,184,.35) transparent;border:1px solid var(--border-color);border-radius:8px;">
+                    <div
+                        style="overflow-x:auto;overflow-y:auto;max-height:60vh;scrollbar-width:thin;scrollbar-color:rgba(148,163,184,.35) transparent;border:1px solid var(--border-color);border-radius:8px;">
                         <table class="notif-data-table" id="policies-table">
-                            <thead><tr><th>Name</th><th>Event Type</th><th>Severity Filter</th><th>Channels</th><th>Status</th><th style="text-align:right;">Actions</th></tr></thead>
-                            <tbody id="policies-tbody"><tr><td colspan="6" class="notif-empty-state">Loading policies…</td></tr></tbody>
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Event Type</th>
+                                    <th>Severity Filter</th>
+                                    <th>Channels</th>
+                                    <th>Status</th>
+                                    <th style="text-align:right;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="policies-tbody">
+                                <tr>
+                                    <td colspan="6" class="notif-empty-state">Loading policies…</td>
+                                </tr>
+                            </tbody>
                         </table>
                     </div>
                 </div>
@@ -1140,7 +1336,8 @@
                             <option value="circuit.opened">circuit.opened</option>
                             <option value="schedule.failed">schedule.failed</option>
                         </select>
-                        <select class="form-input" id="log-filter-status" style="width:160px;" onchange="notifLoadLog()">
+                        <select class="form-input" id="log-filter-status" style="width:160px;"
+                            onchange="notifLoadLog()">
                             <option value="">All statuses</option>
                             <option value="pending">Pending</option>
                             <option value="sent">Sent</option>
@@ -1152,17 +1349,34 @@
                         </button>
                         <div id="log-stats" style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;"></div>
                     </div>
-                    <div style="overflow-x:auto;overflow-y:auto;max-height:58vh;scrollbar-width:thin;scrollbar-color:rgba(148,163,184,.35) transparent;border:1px solid var(--border-color);border-radius:8px;">
+                    <div
+                        style="overflow-x:auto;overflow-y:auto;max-height:58vh;scrollbar-width:thin;scrollbar-color:rgba(148,163,184,.35) transparent;border:1px solid var(--border-color);border-radius:8px;">
                         <table class="notif-data-table" id="log-table">
-                            <thead><tr><th>Time</th><th>Event</th><th>Channel</th><th>Recipient</th><th>Status</th><th>Attempts</th><th>Error</th></tr></thead>
-                            <tbody id="log-tbody"><tr><td colspan="7" class="notif-empty-state">Loading log…</td></tr></tbody>
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Event</th>
+                                    <th>Channel</th>
+                                    <th>Recipient</th>
+                                    <th>Status</th>
+                                    <th>Attempts</th>
+                                    <th>Error</th>
+                                </tr>
+                            </thead>
+                            <tbody id="log-tbody">
+                                <tr>
+                                    <td colspan="7" class="notif-empty-state">Loading log…</td>
+                                </tr>
+                            </tbody>
                         </table>
                     </div>
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;">
                         <span id="log-pagination-info" style="font-size:13px;color:var(--text-secondary);"></span>
                         <div style="display:flex;gap:6px;">
-                            <button class="btn btn-secondary btn-sm" id="log-prev" onclick="notifLogPrev()" disabled>‹ Prev</button>
-                            <button class="btn btn-secondary btn-sm" id="log-next" onclick="notifLogNext()">Next ›</button>
+                            <button class="btn btn-secondary btn-sm" id="log-prev" onclick="notifLogPrev()" disabled>‹
+                                Prev</button>
+                            <button class="btn btn-secondary btn-sm" id="log-next" onclick="notifLogNext()">Next
+                                ›</button>
                         </div>
                     </div>
                 </div>
@@ -1170,21 +1384,26 @@
 
             <!-- MODAL: Create / Edit Channel -->
             <div class="modal-overlay" id="channel-modal" onclick="if(event.target===this)closeChannelModal()">
-                <div class="modal-container" style="max-width:560px;max-height:90vh;display:flex;flex-direction:column;">
+                <div class="modal-container"
+                    style="max-width:560px;max-height:90vh;display:flex;flex-direction:column;">
                     <div class="modal-header">
                         <h3 class="modal-title" id="channel-modal-title">Add Notification Channel</h3>
-                        <button class="modal-close-btn" onclick="closeChannelModal()" aria-label="Close"><i data-feather="x"></i></button>
+                        <button class="modal-close-btn" onclick="closeChannelModal()" aria-label="Close"><i
+                                data-feather="x"></i></button>
                     </div>
-                    <div class="modal-body" style="overflow-y:auto;flex:1 1 auto;scrollbar-width:thin;scrollbar-color:rgba(148,163,184,.35) transparent;">
+                    <div class="modal-body"
+                        style="overflow-y:auto;flex:1 1 auto;scrollbar-width:thin;scrollbar-color:rgba(148,163,184,.35) transparent;">
                         <form id="channel-form" onsubmit="submitChannelForm(event)">
                             <input type="hidden" id="channel-id" value="">
                             <div class="form-group">
                                 <label class="form-label">Name *</label>
-                                <input type="text" id="channel-name" class="form-input" placeholder="e.g. Engineering Slack" required>
+                                <input type="text" id="channel-name" class="form-input"
+                                    placeholder="e.g. Engineering Slack" required>
                             </div>
                             <div class="form-group">
                                 <label class="form-label">Type *</label>
-                                <select id="channel-type-select" class="form-input" onchange="renderConfigFields()" required>
+                                <select id="channel-type-select" class="form-input" onchange="renderConfigFields()"
+                                    required>
                                     <option value="">Select type…</option>
                                     <option value="slack">Slack</option>
                                     <option value="msteams">MS Teams</option>
@@ -1203,24 +1422,29 @@
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" onclick="closeChannelModal()">Cancel</button>
-                        <button type="submit" form="channel-form" class="btn btn-primary" id="channel-submit-btn">Save Channel</button>
+                        <button type="submit" form="channel-form" class="btn btn-primary" id="channel-submit-btn">Save
+                            Channel</button>
                     </div>
                 </div>
             </div>
 
             <!-- MODAL: Create / Edit Policy -->
             <div class="modal-overlay" id="policy-modal" onclick="if(event.target===this)closePolicyModal()">
-                <div class="modal-container" style="max-width:560px;max-height:90vh;display:flex;flex-direction:column;">
+                <div class="modal-container"
+                    style="max-width:560px;max-height:90vh;display:flex;flex-direction:column;">
                     <div class="modal-header">
                         <h3 class="modal-title" id="policy-modal-title">Add Notification Policy</h3>
-                        <button class="modal-close-btn" onclick="closePolicyModal()" aria-label="Close"><i data-feather="x"></i></button>
+                        <button class="modal-close-btn" onclick="closePolicyModal()" aria-label="Close"><i
+                                data-feather="x"></i></button>
                     </div>
-                    <div class="modal-body" style="overflow-y:auto;flex:1 1 auto;scrollbar-width:thin;scrollbar-color:rgba(148,163,184,.35) transparent;">
+                    <div class="modal-body"
+                        style="overflow-y:auto;flex:1 1 auto;scrollbar-width:thin;scrollbar-color:rgba(148,163,184,.35) transparent;">
                         <form id="policy-form" onsubmit="submitPolicyForm(event)">
                             <input type="hidden" id="policy-id" value="">
                             <div class="form-group">
                                 <label class="form-label">Name *</label>
-                                <input type="text" id="policy-name" class="form-input" placeholder="e.g. Critical Alerts → Slack + Email" required>
+                                <input type="text" id="policy-name" class="form-input"
+                                    placeholder="e.g. Critical Alerts → Slack + Email" required>
                             </div>
                             <div class="form-group">
                                 <label class="form-label">Event Type *</label>
@@ -1241,16 +1465,25 @@
                                 </select>
                             </div>
                             <div class="form-group">
-                                <label class="form-label">Severity Filter <span style="color:var(--text-secondary);font-size:12px;">(leave empty = all)</span></label>
+                                <label class="form-label">Severity Filter <span
+                                        style="color:var(--text-secondary);font-size:12px;">(leave empty =
+                                        all)</span></label>
                                 <div style="display:flex;gap:8px;flex-wrap:wrap;" id="severity-checkboxes">
-                                    <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:13px;"><input type="checkbox" name="severity" value="critical"> Critical</label>
-                                    <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:13px;"><input type="checkbox" name="severity" value="warning"> Warning</label>
-                                    <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:13px;"><input type="checkbox" name="severity" value="info"> Info</label>
+                                    <label
+                                        style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:13px;"><input
+                                            type="checkbox" name="severity" value="critical"> Critical</label>
+                                    <label
+                                        style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:13px;"><input
+                                            type="checkbox" name="severity" value="warning"> Warning</label>
+                                    <label
+                                        style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:13px;"><input
+                                            type="checkbox" name="severity" value="info"> Info</label>
                                 </div>
                             </div>
                             <div class="form-group">
                                 <label class="form-label">Channels *</label>
-                                <div id="policy-channel-checkboxes" style="display:flex;flex-direction:column;gap:6px;max-height:160px;overflow-y:auto;padding:4px 0;scrollbar-width:thin;scrollbar-color:rgba(148,163,184,.35) transparent;">
+                                <div id="policy-channel-checkboxes"
+                                    style="display:flex;flex-direction:column;gap:6px;max-height:160px;overflow-y:auto;padding:4px 0;scrollbar-width:thin;scrollbar-color:rgba(148,163,184,.35) transparent;">
                                     <span style="color:var(--text-secondary);font-size:13px;">Loading channels…</span>
                                 </div>
                             </div>
@@ -1264,7 +1497,8 @@
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" onclick="closePolicyModal()">Cancel</button>
-                        <button type="submit" form="policy-form" class="btn btn-primary" id="policy-submit-btn">Save Policy</button>
+                        <button type="submit" form="policy-form" class="btn btn-primary" id="policy-submit-btn">Save
+                            Policy</button>
                     </div>
                 </div>
             </div>
@@ -1274,14 +1508,18 @@
                 <div class="modal-container" style="max-width:420px;">
                     <div class="modal-header">
                         <h3 class="modal-title">Confirm Delete</h3>
-                        <button class="modal-close-btn" onclick="closeNotifDeleteModal()" aria-label="Close"><i data-feather="x"></i></button>
+                        <button class="modal-close-btn" onclick="closeNotifDeleteModal()" aria-label="Close"><i
+                                data-feather="x"></i></button>
                     </div>
                     <div class="modal-body">
-                        <p id="notif-delete-modal-msg" style="margin:0;color:var(--text-primary);">Are you sure you want to delete this item?</p>
+                        <p id="notif-delete-modal-msg" style="margin:0;color:var(--text-primary);">Are you sure you want
+                            to delete this item?</p>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" onclick="closeNotifDeleteModal()">Cancel</button>
-                        <button type="button" class="btn-danger-notif" id="notif-delete-confirm-btn" onclick="confirmNotifDelete()">Delete</button>
+                        <button type="button" class="btn btn-secondary"
+                            onclick="closeNotifDeleteModal()">Cancel</button>
+                        <button type="button" class="btn-danger-notif" id="notif-delete-confirm-btn"
+                            onclick="confirmNotifDelete()">Delete</button>
                     </div>
                 </div>
             </div>
@@ -1411,12 +1649,14 @@
     <div class="modal-container" style="max-width: 460px; width: 92%;">
         <div class="modal-header">
             <div class="flex items-center space-x-3">
-                <div id="confirmIcon" class="w-10 h-10 rounded-full flex items-center justify-center" style="background: rgba(220,38,38,0.12);">
+                <div id="confirmIcon" class="w-10 h-10 rounded-full flex items-center justify-center"
+                    style="background: rgba(220,38,38,0.12);">
                     <i class="fas fa-exclamation-triangle text-red-500"></i>
                 </div>
                 <div>
                     <h3 id="confirmTitle" class="modal-title">Confirm Action</h3>
-                    <p class="text-xs" style="color: var(--text-muted);">Destructive actions require an explicit confirmation phrase.</p>
+                    <p class="text-xs" style="color: var(--text-muted);">Destructive actions require an explicit
+                        confirmation phrase.</p>
                 </div>
             </div>
             <button type="button" onclick="closeConfirmModal()" class="modal-close-btn" aria-label="Close">
@@ -1424,9 +1664,12 @@
             </button>
         </div>
         <div class="modal-body">
-            <p id="confirmMessage" class="mb-4" style="color: var(--text-secondary);">Are you sure you want to proceed?</p>
+            <p id="confirmMessage" class="mb-4" style="color: var(--text-secondary);">Are you sure you want to proceed?
+            </p>
             <div id="confirmInputContainer" class="hidden mb-4">
-                <label for="confirmInput" class="block text-sm font-medium mb-1" style="color: var(--text-secondary);">Type <span id="confirmInputHint" class="font-mono text-red-500"></span> to continue</label>
+                <label for="confirmInput" class="block text-sm font-medium mb-1"
+                    style="color: var(--text-secondary);">Type <span id="confirmInputHint"
+                        class="font-mono text-red-500"></span> to continue</label>
                 <input id="confirmInput" type="text" class="settings-input w-full"
                     placeholder="Type the confirmation text" autocomplete="off">
                 <p id="confirmInputError" class="text-xs text-red-500 mt-1 hidden">Confirmation text does not match.</p>
@@ -1442,7 +1685,8 @@
 
 <!-- Provider Modal -->
 <div id="providerModal" class="modal-overlay">
-    <div class="modal-container" style="max-width: 860px; width: 92%; max-height: 90vh; display: flex; flex-direction: column;">
+    <div class="modal-container"
+        style="max-width: 860px; width: 92%; max-height: 90vh; display: flex; flex-direction: column;">
         <div class="modal-header flex-shrink-0">
             <h3 id="providerModalTitle" class="modal-title">Add LLM Provider</h3>
             <button type="button" onclick="closeProviderModal()" class="modal-close-btn" aria-label="Close">
@@ -1458,16 +1702,26 @@
                 <div>
                     <label class="block text-sm font-medium mb-2">Usage Type *</label>
                     <div class="flex gap-3">
-                        <label class="flex items-center gap-2 cursor-pointer px-4 py-2 rounded has-[:checked]:border-blue-500 has-[:checked]:bg-blue-500/10" style="border: 1px solid var(--border-color);">
-                            <input type="radio" id="usageTypeLlm" name="usageType" value="llm" checked onchange="onUsageTypeChange()">
-                            <span class="text-sm font-medium"><i class="fas fa-robot mr-1 text-blue-400"></i>LLM (Chat / Completion)</span>
+                        <label
+                            class="flex items-center gap-2 cursor-pointer px-4 py-2 rounded has-[:checked]:border-blue-500 has-[:checked]:bg-blue-500/10"
+                            style="border: 1px solid var(--border-color);">
+                            <input type="radio" id="usageTypeLlm" name="usageType" value="llm" checked
+                                onchange="onUsageTypeChange()">
+                            <span class="text-sm font-medium"><i class="fas fa-robot mr-1 text-blue-400"></i>LLM (Chat /
+                                Completion)</span>
                         </label>
-                        <label class="flex items-center gap-2 cursor-pointer px-4 py-2 rounded has-[:checked]:border-purple-500 has-[:checked]:bg-purple-500/10" style="border: 1px solid var(--border-color);">
-                            <input type="radio" id="usageTypeEmbedding" name="usageType" value="embedding" onchange="onUsageTypeChange()">
-                            <span class="text-sm font-medium"><i class="fas fa-vector-square mr-1 text-purple-400"></i>Embedding (Vector Search)</span>
+                        <label
+                            class="flex items-center gap-2 cursor-pointer px-4 py-2 rounded has-[:checked]:border-purple-500 has-[:checked]:bg-purple-500/10"
+                            style="border: 1px solid var(--border-color);">
+                            <input type="radio" id="usageTypeEmbedding" name="usageType" value="embedding"
+                                onchange="onUsageTypeChange()">
+                            <span class="text-sm font-medium"><i
+                                    class="fas fa-vector-square mr-1 text-purple-400"></i>Embedding (Vector
+                                Search)</span>
                         </label>
                     </div>
-                    <p id="usageTypeHint" class="text-xs mt-1" style="color: var(--text-muted);">LLM providers power chat and analysis. Only one embedding provider is needed for semantic search.</p>
+                    <p id="usageTypeHint" class="text-xs mt-1" style="color: var(--text-muted);">LLM providers power
+                        chat and analysis. Only one embedding provider is needed for semantic search.</p>
                 </div>
 
                 <div class="grid md:grid-cols-2 gap-4">
@@ -1479,13 +1733,12 @@
                                 <span class="info-tooltip-text">A friendly name to identify this LLM provider.</span>
                             </span>
                         </label>
-                    <input type="text" id="providerName" class="settings-input w-full" required
+                        <input type="text" id="providerName" class="settings-input w-full" required
                             placeholder="e.g. Primary OpenAI">
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Provider Type</label>
-                        <select id="providerType" class="settings-input w-full"
-                            onchange="updateModelSuggestions()">
+                        <select id="providerType" class="settings-input w-full" onchange="updateModelSuggestions()">
                             <option value="anthropic">Anthropic</option>
                             <option value="openai">OpenAI</option>
                             <option value="google">Google Gemini</option>
@@ -1511,8 +1764,10 @@
                         <select id="providerEmbeddingModel" class="settings-input w-full hidden"
                             onchange="syncEmbeddingModelToInput()">
                             <optgroup label="OpenAI">
-                                <option value="text-embedding-3-small">text-embedding-3-small (1536d, recommended)</option>
-                                <option value="text-embedding-3-large">text-embedding-3-large (3072d, high accuracy)</option>
+                                <option value="text-embedding-3-small">text-embedding-3-small (1536d, recommended)
+                                </option>
+                                <option value="text-embedding-3-large">text-embedding-3-large (3072d, high accuracy)
+                                </option>
                                 <option value="text-embedding-ada-002">text-embedding-ada-002 (1536d, legacy)</option>
                             </optgroup>
                             <optgroup label="Azure OpenAI">
@@ -1528,7 +1783,8 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium mb-1">Base URL <span class="text-xs" style="color: var(--text-muted);">(Optional)</span></label>
+                        <label class="block text-sm font-medium mb-1">Base URL <span class="text-xs"
+                                style="color: var(--text-muted);">(Optional)</span></label>
                         <input type="text" id="providerBaseUrl" class="settings-input w-full"
                             placeholder="https://api.openai.com/v1">
                     </div>
@@ -1539,9 +1795,11 @@
                     <div class="relative">
                         <input type="password" id="providerApiKey" class="settings-input w-full pr-10"
                             placeholder="sk-..." data-has-key="false">
-                        <button type="button" class="absolute right-2 top-2" style="color: var(--text-muted);" onclick="toggleSecretVisibility('providerApiKey', this)">Show</button>
+                        <button type="button" class="absolute right-2 top-2" style="color: var(--text-muted);"
+                            onclick="toggleSecretVisibility('providerApiKey', this)">Show</button>
                     </div>
-                    <p id="providerSecretMeta" class="text-xs mt-1" style="color: var(--text-muted);">Key is stored securely in the vault.</p>
+                    <p id="providerSecretMeta" class="text-xs mt-1" style="color: var(--text-muted);">Key is stored
+                        securely in the vault.</p>
                 </div>
 
                 <div class="grid md:grid-cols-2 gap-4">
@@ -1551,7 +1809,8 @@
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Temperature (0.0 - 1.0)</label>
-                        <input type="number" id="providerTemp" class="settings-input w-full" step="0.1" min="0" max="1" value="0.3">
+                        <input type="number" id="providerTemp" class="settings-input w-full" step="0.1" min="0" max="1"
+                            value="0.3">
                     </div>
                 </div>
 
@@ -1580,7 +1839,8 @@
             </div>
 
             <div class="modal-footer flex-shrink-0">
-                <button type="button" onclick="closeProviderModal()" class="btn-secondary px-4 py-2 rounded">Cancel</button>
+                <button type="button" onclick="closeProviderModal()"
+                    class="btn-secondary px-4 py-2 rounded">Cancel</button>
                 <button type="submit" class="btn-primary px-4 py-2 rounded">Save Provider</button>
             </div>
         </form>
@@ -1588,8 +1848,8 @@
 </div>
 
 <!-- Server Modal -->
-<div id="serverModal"
-    class="modal-overlay" style="align-items: flex-start; padding-top: 80px; padding-bottom: 32px; overflow-y: auto;">
+<div id="serverModal" class="modal-overlay"
+    style="align-items: flex-start; padding-top: 80px; padding-bottom: 32px; overflow-y: auto;">
     <div class="server-modal-dialog card w-full max-w-5xl mx-auto max-h-[90vh] flex flex-col">
         <div class="flex items-center justify-between p-6 pb-0 flex-shrink-0">
             <div>
@@ -1829,7 +2089,8 @@
                     <input type="email" id="userEmail" class="settings-input w-full">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium mb-1" style="color: var(--text-secondary);">Full Name</label>
+                    <label class="block text-sm font-medium mb-1" style="color: var(--text-secondary);">Full
+                        Name</label>
                     <input type="text" id="userFullName" class="settings-input w-full">
                 </div>
                 <div>
@@ -1849,17 +2110,20 @@
                         Groups
                         <span class="info-tooltip info-tooltip-align-left">
                             <span class="info-tooltip-icon">?</span>
-                            <span class="info-tooltip-text">Groups this user belongs to. User inherits permissions from group roles.</span>
+                            <span class="info-tooltip-text">Groups this user belongs to. User inherits permissions from
+                                group roles.</span>
                         </span>
                     </label>
-                    <div id="userGroupsContainer" class="space-y-2 max-h-32 overflow-y-auto p-2 rounded" style="background: var(--bg-elevated); border: 1px solid var(--border-color);">
+                    <div id="userGroupsContainer" class="space-y-2 max-h-32 overflow-y-auto p-2 rounded"
+                        style="background: var(--bg-elevated); border: 1px solid var(--border-color);">
                         <p class="text-sm" style="color: var(--text-muted);">Loading groups...</p>
                     </div>
                 </div>
                 <div>
                     <label class="block text-sm font-medium mb-1" style="color: var(--text-secondary);">Password</label>
                     <input type="password" id="userPassword" class="settings-input w-full">
-                    <p id="userPasswordHelp" class="text-xs mt-1 hidden" style="color: var(--text-muted);">Leave blank to keep current password.</p>
+                    <p id="userPasswordHelp" class="text-xs mt-1 hidden" style="color: var(--text-muted);">Leave blank
+                        to keep current password.</p>
                 </div>
                 <div class="pt-1">
                     <label class="flex items-center space-x-2 cursor-pointer">
@@ -1903,8 +2167,8 @@
                                 <span class="info-tooltip-text">Unique name for this credential set.</span>
                             </span>
                         </label>
-                        <input type="text" id="credentialProfileName" class="settings-input w-full"
-                            required placeholder="e.g. Shared automation key">
+                        <input type="text" id="credentialProfileName" class="settings-input w-full" required
+                            placeholder="e.g. Shared automation key">
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1" style="color: var(--text-secondary);">Scope
@@ -1922,13 +2186,15 @@
                 <!-- Row 2: Credential type + Backend -->
                 <div class="grid md:grid-cols-2 gap-4 mb-4">
                     <div>
-                        <label class="block text-sm font-medium mb-1" style="color: var(--text-secondary);">Credential type
+                        <label class="block text-sm font-medium mb-1" style="color: var(--text-secondary);">Credential
+                            type
                             <span class="info-tooltip info-tooltip-align-left">
                                 <span class="info-tooltip-icon">?</span>
                                 <span class="info-tooltip-text">Format of the stored secret.</span>
                             </span>
                         </label>
-                        <select id="credentialProfileType" class="settings-input w-full" onchange="toggleCredentialBackendFields()">
+                        <select id="credentialProfileType" class="settings-input w-full"
+                            onchange="toggleCredentialBackendFields()">
                             <option value="key">SSH Key</option>
                             <option value="password">Password</option>
                             <option value="vault">Vault</option>
@@ -1936,8 +2202,10 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium mb-1" style="color: var(--text-secondary);">Backend</label>
-                        <select id="credentialProfileBackend" class="settings-input w-full" onchange="toggleCredentialBackendFields()">
+                        <label class="block text-sm font-medium mb-1"
+                            style="color: var(--text-secondary);">Backend</label>
+                        <select id="credentialProfileBackend" class="settings-input w-full"
+                            onchange="toggleCredentialBackendFields()">
                             <option value="inline">Inline (encrypted)</option>
                             <option value="vault">HashiCorp Vault</option>
                             <option value="cyberark">CyberArk</option>
@@ -1948,15 +2216,18 @@
                 <!-- Row 3: Login username + Description -->
                 <div class="grid md:grid-cols-2 gap-4 mb-4">
                     <div>
-                        <label class="block text-sm font-medium mb-1" style="color: var(--text-secondary);">Login username
+                        <label class="block text-sm font-medium mb-1" style="color: var(--text-secondary);">Login
+                            username
                             <span style="color:#94a3b8; font-size:11px;">(required for password)</span>
                         </label>
                         <input type="text" id="credentialProfileUsername" class="settings-input w-full"
                             placeholder="svc_automation">
-                        <p class="text-xs mt-1" style="color:#94a3b8;">Account name reused across servers &amp; groups.</p>
+                        <p class="text-xs mt-1" style="color:#94a3b8;">Account name reused across servers &amp; groups.
+                        </p>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium mb-1" style="color: var(--text-secondary);">Description</label>
+                        <label class="block text-sm font-medium mb-1"
+                            style="color: var(--text-secondary);">Description</label>
                         <textarea id="credentialProfileDescription" class="settings-input w-full font-mono text-xs"
                             rows="3" placeholder="Usage notes, rotation owner, etc."></textarea>
                     </div>
@@ -1965,13 +2236,16 @@
                 <!-- Row 4: Secret + Metadata -->
                 <div class="grid md:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium mb-1" style="color: var(--text-secondary);">Secret / reference</label>
-                        <textarea id="credentialProfileSecret" class="settings-input w-full font-mono text-xs"
-                            rows="4" placeholder="Inline secret or vault path"></textarea>
-                        <p class="text-xs mt-1" style="color:#94a3b8;">Provide vault/CyberArk reference path or inline secret.</p>
+                        <label class="block text-sm font-medium mb-1" style="color: var(--text-secondary);">Secret /
+                            reference</label>
+                        <textarea id="credentialProfileSecret" class="settings-input w-full font-mono text-xs" rows="4"
+                            placeholder="Inline secret or vault path"></textarea>
+                        <p class="text-xs mt-1" style="color:#94a3b8;">Provide vault/CyberArk reference path or inline
+                            secret.</p>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium mb-1" style="color: var(--text-secondary);">Metadata (YAML/JSON)</label>
+                        <label class="block text-sm font-medium mb-1" style="color: var(--text-secondary);">Metadata
+                            (YAML/JSON)</label>
                         <textarea id="credentialProfileMetadata" class="settings-input w-full font-mono text-xs"
                             rows="4" placeholder="vault_path: secret/data/ssh/prod"></textarea>
                     </div>
@@ -1984,7 +2258,8 @@
             <button type="button" onclick="closeCredentialModal()" class="settings-btn-secondary">
                 <i class="fas fa-times"></i> Cancel
             </button>
-            <button type="button" onclick="document.getElementById('credentialForm').requestSubmit()" class="settings-btn-primary">
+            <button type="button" onclick="document.getElementById('credentialForm').requestSubmit()"
+                class="settings-btn-primary">
                 <i class="fas fa-save"></i> Save Credential
             </button>
         </div>
@@ -1993,7 +2268,8 @@
 
 <!-- API Credential Modal (Ported) -->
 <div id="apiCredentialModal" class="modal-overlay">
-    <div class="modal-container" style="max-width: 720px; width: 92%; max-height: 90vh; display: flex; flex-direction: column;">
+    <div class="modal-container"
+        style="max-width: 720px; width: 92%; max-height: 90vh; display: flex; flex-direction: column;">
         <div class="modal-header flex-shrink-0">
             <h2 id="apiCredentialModalTitle" class="modal-title">Create API Credential Profile</h2>
             <button type="button" onclick="closeApiCredentialModal()" class="modal-close-btn" aria-label="Close">
@@ -2031,7 +2307,8 @@
                     </label>
                     <input type="url" id="apiCredentialBaseUrl" class="settings-input w-full"
                         placeholder="https://api.example.com" required>
-                    <p class="text-xs mt-1" style="color: var(--text-muted);">Base URL for the API (e.g., https://awx.example.com/api/v2)</p>
+                    <p class="text-xs mt-1" style="color: var(--text-muted);">Base URL for the API (e.g.,
+                        https://awx.example.com/api/v2)</p>
                 </div>
 
                 <!-- Authentication -->
@@ -2054,7 +2331,8 @@
                     <label class="block text-sm font-medium mb-1">Auth Header Name</label>
                     <input type="text" id="apiCredentialAuthHeader" class="settings-input w-full"
                         placeholder="e.g., X-API-Key">
-                    <p class="text-xs mt-1" style="color: var(--text-muted);">Header name for API key (default: Authorization)</p>
+                    <p class="text-xs mt-1" style="color: var(--text-muted);">Header name for API key (default:
+                        Authorization)</p>
                 </div>
 
                 <!-- Token/API Key (for api_key, bearer types) -->
@@ -2069,11 +2347,13 @@
                 <div id="apiCredentialBasicAuthFields" class="hidden space-y-3">
                     <div>
                         <label class="block text-sm font-medium mb-1">Username</label>
-                        <input type="text" id="apiCredentialUsername" class="settings-input w-full" placeholder="Username">
+                        <input type="text" id="apiCredentialUsername" class="settings-input w-full"
+                            placeholder="Username">
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Password</label>
-                        <input type="password" id="apiCredentialPassword" class="settings-input w-full" placeholder="Password">
+                        <input type="password" id="apiCredentialPassword" class="settings-input w-full"
+                            placeholder="Password">
                     </div>
                 </div>
 
@@ -2086,16 +2366,18 @@
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Client ID</label>
-                        <input type="text" id="apiCredentialOAuthClientId" class="settings-input w-full" placeholder="Client ID">
+                        <input type="text" id="apiCredentialOAuthClientId" class="settings-input w-full"
+                            placeholder="Client ID">
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Client Secret</label>
-                        <input type="password" id="apiCredentialOAuthClientSecret"
-                            class="settings-input w-full" placeholder="Client Secret">
+                        <input type="password" id="apiCredentialOAuthClientSecret" class="settings-input w-full"
+                            placeholder="Client Secret">
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Scope (Optional)</label>
-                        <input type="text" id="apiCredentialOAuthScope" class="settings-input w-full" placeholder="read write">
+                        <input type="text" id="apiCredentialOAuthScope" class="settings-input w-full"
+                            placeholder="read write">
                     </div>
                 </div>
 
@@ -2103,17 +2385,20 @@
                 <div class="pt-4 space-y-3" style="border-top: 1px solid var(--border-color);">
                     <div class="flex items-center gap-3">
                         <input type="checkbox" id="apiCredentialVerifySSL" class="form-checkbox" checked>
-                        <label for="apiCredentialVerifySSL" class="text-sm" style="color: var(--text-secondary);">Verify SSL Certificate</label>
+                        <label for="apiCredentialVerifySSL" class="text-sm" style="color: var(--text-secondary);">Verify
+                            SSL Certificate</label>
                     </div>
 
                     <div>
                         <label class="block text-sm font-medium mb-1">Timeout (seconds)</label>
-                        <input type="number" id="apiCredentialTimeout" class="settings-input w-full" value="30" min="1" max="300">
+                        <input type="number" id="apiCredentialTimeout" class="settings-input w-full" value="30" min="1"
+                            max="300">
                     </div>
 
                     <div class="flex items-center gap-3">
                         <input type="checkbox" id="apiCredentialEnabled" class="form-checkbox" checked>
-                        <label for="apiCredentialEnabled" class="text-sm font-medium" style="color: var(--text-secondary);">Enable this profile</label>
+                        <label for="apiCredentialEnabled" class="text-sm font-medium"
+                            style="color: var(--text-secondary);">Enable this profile</label>
                     </div>
                 </div>
             </div>
@@ -2137,7 +2422,8 @@
 
 <!-- Role Modal -->
 <div id="roleModal" class="modal-overlay">
-    <div class="modal-container" style="max-width: 860px; width: 92%; max-height: 90vh; display: flex; flex-direction: column;">
+    <div class="modal-container"
+        style="max-width: 860px; width: 92%; max-height: 90vh; display: flex; flex-direction: column;">
         <div class="modal-header flex-shrink-0">
             <h3 id="roleModalTitle" class="modal-title">New Role</h3>
             <button type="button" onclick="closeRoleModal()" class="modal-close-btn" aria-label="Close">
@@ -2158,11 +2444,13 @@
                             <span class="info-tooltip-text">Unique identifier for the role.</span>
                         </span>
                     </label>
-                    <input type="text" id="roleName" class="settings-input w-full" required placeholder="e.g. Compliance Officer">
+                    <input type="text" id="roleName" class="settings-input w-full" required
+                        placeholder="e.g. Compliance Officer">
                 </div>
                 <div>
                     <label class="block text-sm font-medium mb-1">Description</label>
-                    <textarea id="roleDescription" class="settings-input w-full h-20" placeholder="Role responsibilities..."></textarea>
+                    <textarea id="roleDescription" class="settings-input w-full h-20"
+                        placeholder="Role responsibilities..."></textarea>
                 </div>
 
                 <div>
@@ -2189,7 +2477,8 @@
 
 <!-- Group Modal -->
 <div id="groupModal" class="modal-overlay">
-    <div class="modal-container" style="max-width: 560px; width: 92%; max-height: 90vh; display: flex; flex-direction: column;">
+    <div class="modal-container"
+        style="max-width: 560px; width: 92%; max-height: 90vh; display: flex; flex-direction: column;">
         <div class="modal-header flex-shrink-0">
             <h3 id="groupModalTitle" class="modal-title">Create Group</h3>
             <button type="button" onclick="closeGroupModal()" class="modal-close-btn" aria-label="Close">
@@ -2202,37 +2491,44 @@
             <div class="flex-1 overflow-y-auto p-6 pt-4 space-y-4 custom-scrollbar">
                 <div>
                     <label class="block text-sm font-medium mb-1">Group Name *</label>
-                    <input type="text" id="groupName" class="settings-input w-full" required placeholder="e.g. SRE-Team">
+                    <input type="text" id="groupName" class="settings-input w-full" required
+                        placeholder="e.g. SRE-Team">
                 </div>
                 <div>
                     <label class="block text-sm font-medium mb-1">Description</label>
-                    <textarea id="groupDescription" class="settings-input w-full h-20" placeholder="Group purpose and responsibilities..."></textarea>
+                    <textarea id="groupDescription" class="settings-input w-full h-20"
+                        placeholder="Group purpose and responsibilities..."></textarea>
                 </div>
                 <div>
                     <label class="block text-sm font-medium mb-1">Role</label>
                     <select id="groupRole" class="settings-input w-full">
                         <option value="">No role assigned</option>
                     </select>
-                    <p class="text-xs mt-1" style="color: var(--text-muted);">All group members will inherit this role's permissions.</p>
+                    <p class="text-xs mt-1" style="color: var(--text-muted);">All group members will inherit this role's
+                        permissions.</p>
                 </div>
 
                 <!-- AD Sync Configuration -->
                 <div class="pt-4 space-y-3" style="border-top: 1px solid var(--border-color);">
                     <div class="flex items-center gap-3">
                         <input type="checkbox" id="groupSyncEnabled" class="form-checkbox">
-                        <label for="groupSyncEnabled" class="text-sm" style="color: var(--text-secondary);">Enable AD Sync</label>
+                        <label for="groupSyncEnabled" class="text-sm" style="color: var(--text-secondary);">Enable AD
+                            Sync</label>
                     </div>
                     <div id="adGroupDnField" class="hidden">
-                        <label class="block text-sm font-medium mb-1" style="color: var(--text-secondary);">AD Group DN</label>
+                        <label class="block text-sm font-medium mb-1" style="color: var(--text-secondary);">AD Group
+                            DN</label>
                         <input type="text" id="groupAdGroupDn" class="settings-input w-full"
                             placeholder="CN=SRE-Team,OU=Groups,DC=corp,DC=com">
-                        <p class="text-xs mt-1" style="color: var(--text-muted);">Distinguished Name of the Active Directory group to sync membership from.</p>
+                        <p class="text-xs mt-1" style="color: var(--text-muted);">Distinguished Name of the Active
+                            Directory group to sync membership from.</p>
                     </div>
                 </div>
             </div>
 
             <div class="modal-footer flex-shrink-0">
-                <button type="button" onclick="closeGroupModal()" class="btn-secondary px-4 py-2 rounded">Cancel</button>
+                <button type="button" onclick="closeGroupModal()"
+                    class="btn-secondary px-4 py-2 rounded">Cancel</button>
                 <button type="submit" class="btn-primary px-4 py-2 rounded">Save Group</button>
             </div>
         </form>
@@ -2241,7 +2537,8 @@
 
 <!-- Group Members Drawer -->
 <div id="groupMembersDrawer" class="modal-overlay">
-    <div class="modal-container" style="max-width: 600px; width: 92%; max-height: 80vh; display: flex; flex-direction: column;">
+    <div class="modal-container"
+        style="max-width: 600px; width: 92%; max-height: 80vh; display: flex; flex-direction: column;">
         <div class="modal-header flex-shrink-0">
             <div>
                 <h3 id="groupMembersTitle" class="modal-title">Group Members</h3>
@@ -2904,7 +3201,8 @@
             // Fetch servers count
             const serversRes = await fetch('/api/servers');
             if (serversRes.ok) {
-                const servers = await serversRes.json();
+                let servers = await serversRes.json();
+                servers = Array.isArray(servers) ? servers : (servers.items || servers.data || []);
                 const serverEl = document.getElementById('statServers');
                 if (serverEl) serverEl.textContent = servers.length || 0;
             }
@@ -3133,9 +3431,9 @@
                         <span class="capitalize" style="color:#334155">${provider.provider_type}</span>
                         <div class="mt-1">
                             ${(provider.usage_type || 'llm') === 'embedding'
-                                ? '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium" style="color:#7c3aed; background:#f5f3ff; border:1px solid #ddd6fe"><i class="fas fa-vector-square mr-1"></i>Embedding</span>'
-                                : '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium" style="color:#1d4ed8; background:#eff6ff; border:1px solid #bfdbfe"><i class="fas fa-robot mr-1"></i>LLM</span>'
-                            }
+                ? '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium" style="color:#7c3aed; background:#f5f3ff; border:1px solid #ddd6fe"><i class="fas fa-vector-square mr-1"></i>Embedding</span>'
+                : '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium" style="color:#1d4ed8; background:#eff6ff; border:1px solid #bfdbfe"><i class="fas fa-robot mr-1"></i>LLM</span>'
+            }
                         </div>
                     </td>
                     <td class="p-4">
@@ -3197,7 +3495,8 @@
             const response = await apiCall('/api/servers');
             if (!response) return;
 
-            const servers = await response.json();
+            let serversJson = await response.json();
+            const servers = Array.isArray(serversJson) ? serversJson : (serversJson.items || serversJson.data || []);
             serverCache = servers;
             servers.forEach(s => {
                 if (s.last_connection_status) {
@@ -4740,15 +5039,15 @@
 
             if (config.cyberark_config) {
                 const cc = config.cyberark_config;
-                document.getElementById('cyberarkSpEntityId').value        = cc.sp_entity_id || '';
-                document.getElementById('cyberarkAcsUrl').value            = cc.sp_acs_url || '';
-                document.getElementById('cyberarkIdpMetadataUrl').value    = cc.idp_metadata_url || '';
-                document.getElementById('cyberarkIdpMetadataXml').value    = cc.idp_metadata_xml || '';
-                document.getElementById('cyberarkAttrEmail').value         = cc.attribute_email || 'email';
-                document.getElementById('cyberarkAttrUsername').value      = cc.attribute_username || 'username';
-                document.getElementById('cyberarkAttrRole').value          = cc.attribute_role || 'role';
-                document.getElementById('cyberarkDefaultRole').value       = cc.default_role || 'viewer';
-                document.getElementById('cyberarkAutoProvision').checked   = cc.auto_provision !== false;
+                document.getElementById('cyberarkSpEntityId').value = cc.sp_entity_id || '';
+                document.getElementById('cyberarkAcsUrl').value = cc.sp_acs_url || '';
+                document.getElementById('cyberarkIdpMetadataUrl').value = cc.idp_metadata_url || '';
+                document.getElementById('cyberarkIdpMetadataXml').value = cc.idp_metadata_xml || '';
+                document.getElementById('cyberarkAttrEmail').value = cc.attribute_email || 'email';
+                document.getElementById('cyberarkAttrUsername').value = cc.attribute_username || 'username';
+                document.getElementById('cyberarkAttrRole').value = cc.attribute_role || 'role';
+                document.getElementById('cyberarkDefaultRole').value = cc.default_role || 'viewer';
+                document.getElementById('cyberarkAutoProvision').checked = cc.auto_provision !== false;
                 if (cc.role_mapping && typeof cc.role_mapping === 'object') {
                     document.getElementById('cyberarkRoleMapping').value = JSON.stringify(cc.role_mapping, null, 2);
                 }
@@ -4776,16 +5075,16 @@
                 return;
             }
             cyberarkConfig = {
-                sp_entity_id:      document.getElementById('cyberarkSpEntityId').value.trim(),
-                sp_acs_url:        document.getElementById('cyberarkAcsUrl').value.trim(),
-                idp_metadata_url:  document.getElementById('cyberarkIdpMetadataUrl').value.trim() || null,
-                idp_metadata_xml:  document.getElementById('cyberarkIdpMetadataXml').value.trim() || null,
-                attribute_email:   document.getElementById('cyberarkAttrEmail').value.trim() || 'email',
-                attribute_username:document.getElementById('cyberarkAttrUsername').value.trim() || 'username',
-                attribute_role:    document.getElementById('cyberarkAttrRole').value.trim() || 'role',
-                default_role:      document.getElementById('cyberarkDefaultRole').value,
-                auto_provision:    document.getElementById('cyberarkAutoProvision').checked,
-                role_mapping:      roleMapping
+                sp_entity_id: document.getElementById('cyberarkSpEntityId').value.trim(),
+                sp_acs_url: document.getElementById('cyberarkAcsUrl').value.trim(),
+                idp_metadata_url: document.getElementById('cyberarkIdpMetadataUrl').value.trim() || null,
+                idp_metadata_xml: document.getElementById('cyberarkIdpMetadataXml').value.trim() || null,
+                attribute_email: document.getElementById('cyberarkAttrEmail').value.trim() || 'email',
+                attribute_username: document.getElementById('cyberarkAttrUsername').value.trim() || 'username',
+                attribute_role: document.getElementById('cyberarkAttrRole').value.trim() || 'role',
+                default_role: document.getElementById('cyberarkDefaultRole').value,
+                auto_provision: document.getElementById('cyberarkAutoProvision').checked,
+                role_mapping: roleMapping
             };
         }
 
@@ -5771,11 +6070,11 @@
     }
 
     // Wire up live preview updates
-    ['pp_min_length','pp_max_length','pp_require_uppercase','pp_require_lowercase',
-     'pp_require_numbers','pp_require_special_chars'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.addEventListener('change', updatePasswordPolicyPreview);
-    });
+    ['pp_min_length', 'pp_max_length', 'pp_require_uppercase', 'pp_require_lowercase',
+        'pp_require_numbers', 'pp_require_special_chars'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('change', updatePasswordPolicyPreview);
+        });
 
     // ============================================================
     // NOTIFICATIONS SECTION
@@ -5836,7 +6135,7 @@
                 </td>
               </tr>`).join('');
             feather.replace();
-        } catch(e) {
+        } catch (e) {
             tbody.innerHTML = `<tr><td colspan="5" class="notif-empty-state notif-error-text">Failed to load channels: ${notifEsc(e.message)}</td></tr>`;
         }
     }
@@ -5860,30 +6159,30 @@
         const type = document.getElementById('channel-type-select').value;
         const container = document.getElementById('channel-config-fields');
         const cfg = existing || {};
-        const field = (id, label, placeholder, value, ftype='text', required=false) =>
+        const field = (id, label, placeholder, value, ftype = 'text', required = false) =>
             `<div class="form-group">
               <label class="form-label">${label}${required ? ' *' : ''}</label>
               <input type="${ftype}" id="cfg-${id}" class="form-input" placeholder="${notifEsc(placeholder)}" value="${notifEsc(String(value ?? ''))}">
             </div>`;
         if (type === 'slack') {
-            container.innerHTML = field('webhook_url','Webhook URL','https://hooks.slack.com/services/…',cfg.webhook_url||'','url',true) +
-                field('channel','Channel (optional)','#ops-alerts',cfg.channel||'');
+            container.innerHTML = field('webhook_url', 'Webhook URL', 'https://hooks.slack.com/services/…', cfg.webhook_url || '', 'url', true) +
+                field('channel', 'Channel (optional)', '#ops-alerts', cfg.channel || '');
         } else if (type === 'msteams') {
-            container.innerHTML = field('webhook_url','Webhook URL','https://outlook.office.com/webhook/…',cfg.webhook_url||'','url',true);
+            container.innerHTML = field('webhook_url', 'Webhook URL', 'https://outlook.office.com/webhook/…', cfg.webhook_url || '', 'url', true);
         } else if (type === 'email') {
-            container.innerHTML = field('smtp_host','SMTP Host','smtp.gmail.com',cfg.smtp_host||'','text',true) +
-                field('smtp_port','SMTP Port','587',cfg.smtp_port||587,'number') +
-                field('smtp_user','SMTP Username','alerts@company.com',cfg.smtp_user||'') +
-                field('smtp_password','SMTP Password','(leave blank to keep existing)','','password') +
-                field('from_address','From Address','alerts@company.com',cfg.from_address||'','text',true) +
+            container.innerHTML = field('smtp_host', 'SMTP Host', 'smtp.gmail.com', cfg.smtp_host || '', 'text', true) +
+                field('smtp_port', 'SMTP Port', '587', cfg.smtp_port || 587, 'number') +
+                field('smtp_user', 'SMTP Username', 'alerts@company.com', cfg.smtp_user || '') +
+                field('smtp_password', 'SMTP Password', '(leave blank to keep existing)', '', 'password') +
+                field('from_address', 'From Address', 'alerts@company.com', cfg.from_address || '', 'text', true) +
                 `<div class="form-group"><label class="form-label">To Addresses * <span style="font-size:12px;color:var(--text-secondary);">(comma-separated)</span></label>
-                 <input type="text" id="cfg-to_addresses" class="form-input" placeholder="oncall@company.com" value="${notifEsc((cfg.to_addresses||[]).join(', '))}"></div>`;
+                 <input type="text" id="cfg-to_addresses" class="form-input" placeholder="oncall@company.com" value="${notifEsc((cfg.to_addresses || []).join(', '))}"></div>`;
         } else if (type === 'webhook') {
-            container.innerHTML = field('url','URL','https://api.example.com/hook',cfg.url||'','url',true) +
+            container.innerHTML = field('url', 'URL', 'https://api.example.com/hook', cfg.url || '', 'url', true) +
                 `<div class="form-group"><label class="form-label">Method</label>
-                 <select id="cfg-method" class="form-input">${['POST','PUT','PATCH','GET'].map(m=>`<option${cfg.method===m?' selected':''}>${m}</option>`).join('')}</select></div>` +
+                 <select id="cfg-method" class="form-input">${['POST', 'PUT', 'PATCH', 'GET'].map(m => `<option${cfg.method === m ? ' selected' : ''}>${m}</option>`).join('')}</select></div>` +
                 `<div class="form-group"><label class="form-label">Headers <span style="font-size:12px;color:var(--text-secondary);">(JSON object)</span></label>
-                 <textarea id="cfg-headers" class="form-input" rows="3" placeholder='{"Authorization":"Token …"}'>${notifEsc(JSON.stringify(cfg.headers||{},null,2))}</textarea></div>`;
+                 <textarea id="cfg-headers" class="form-input" rows="3" placeholder='{"Authorization":"Token …"}'>${notifEsc(JSON.stringify(cfg.headers || {}, null, 2))}</textarea></div>`;
         } else {
             container.innerHTML = '';
         }
@@ -5899,14 +6198,14 @@
         } else if (type === 'msteams') {
             return { webhook_url: g('webhook_url') };
         } else if (type === 'email') {
-            const cfg = { smtp_host: g('smtp_host'), smtp_port: parseInt(g('smtp_port')||'587'), from_address: g('from_address'), to_addresses: (g('to_addresses')||'').split(',').map(s=>s.trim()).filter(Boolean) };
+            const cfg = { smtp_host: g('smtp_host'), smtp_port: parseInt(g('smtp_port') || '587'), from_address: g('from_address'), to_addresses: (g('to_addresses') || '').split(',').map(s => s.trim()).filter(Boolean) };
             if (g('smtp_user')) cfg.smtp_user = g('smtp_user');
             if (g('smtp_password')) cfg.smtp_password = g('smtp_password');
             return cfg;
         } else if (type === 'webhook') {
             let headers = {};
-            try { headers = JSON.parse(document.getElementById('cfg-headers')?.value||'{}'); } catch(e) {}
-            return { url: g('url'), method: g('method')||'POST', headers };
+            try { headers = JSON.parse(document.getElementById('cfg-headers')?.value || '{}'); } catch (e) { }
+            return { url: g('url'), method: g('method') || 'POST', headers };
         }
         return {};
     }
@@ -5923,13 +6222,13 @@
         try {
             const url = id ? `/api/notifications/channels/${id}` : '/api/notifications/channels';
             const method = id ? 'PUT' : 'POST';
-            const resp = await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+            const resp = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
             if (resp.status === 401) { window.location.href = '/login'; return; }
             if (!resp.ok) { const err = await resp.json().catch(() => ({})); throw new Error(err.detail || resp.statusText); }
             closeChannelModal();
             await notifLoadChannels();
             window.showToast(id ? 'Channel updated.' : 'Channel created.', 'success');
-        } catch(err) { window.showToast('Error: ' + err.message, 'error'); }
+        } catch (err) { window.showToast('Error: ' + err.message, 'error'); }
     }
 
     function notifEditChannel(id) {
@@ -5940,12 +6239,12 @@
     async function notifTestChannel(id, name) {
         window.showToast(`Sending test to ${name}…`, 'info');
         try {
-            const resp = await fetch(`/api/notifications/channels/${id}/test`, { method: 'POST', headers: {'Content-Type':'application/json'} });
+            const resp = await fetch(`/api/notifications/channels/${id}/test`, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
             if (resp.status === 401) { window.location.href = '/login'; return; }
             const res = await resp.json();
             if (res.success) { window.showToast(`Test sent to ${name} successfully!`, 'success'); }
             else { window.showToast(`Test failed: ${res.message}`, 'error'); }
-        } catch(err) { window.showToast('Test failed: ' + err.message, 'error'); }
+        } catch (err) { window.showToast('Test failed: ' + err.message, 'error'); }
     }
 
     async function notifLoadPolicies() {
@@ -5961,9 +6260,9 @@
               <tr>
                 <td>${notifEsc(p.name)}</td>
                 <td><code style="font-size:12px;">${notifEsc(p.event_type)}</code></td>
-                <td>${(p.severity_filter||[]).map(s=>`<span class="notif-badge notif-badge-warning">${notifEsc(s)}</span>`).join(' ')||'<span style="color:var(--text-secondary);font-size:12px;">All</span>'}</td>
-                <td style="font-size:12px;">${(p.channel_ids||[]).length} channel(s)</td>
-                <td>${p.is_enabled?'<span class="notif-badge notif-badge-success">Enabled</span>':'<span class="notif-badge notif-badge-secondary">Disabled</span>'}</td>
+                <td>${(p.severity_filter || []).map(s => `<span class="notif-badge notif-badge-warning">${notifEsc(s)}</span>`).join(' ') || '<span style="color:var(--text-secondary);font-size:12px;">All</span>'}</td>
+                <td style="font-size:12px;">${(p.channel_ids || []).length} channel(s)</td>
+                <td>${p.is_enabled ? '<span class="notif-badge notif-badge-success">Enabled</span>' : '<span class="notif-badge notif-badge-secondary">Disabled</span>'}</td>
                 <td style="text-align:right;">
                   <button class="btn btn-secondary btn-sm" onclick='notifEditPolicy(${JSON.stringify(p).split("'").join("&#39;")})'>
                     <i data-feather="edit-2" style="width:13px;height:13px;"></i>
@@ -5974,7 +6273,7 @@
                 </td>
               </tr>`).join('');
             feather.replace();
-        } catch(e) {
+        } catch (e) {
             tbody.innerHTML = `<tr><td colspan="6" class="notif-empty-state notif-error-text">Failed to load policies: ${notifEsc(e.message)}</td></tr>`;
         }
     }
@@ -5990,7 +6289,7 @@
                 <span>${notifEsc(ch.name)}</span>
                 <span class="notif-badge notif-badge-info" style="font-size:11px;">${notifEsc(ch.channel_type)}</span>
               </label>`).join('');
-        } catch(e) { /* silent */ }
+        } catch (e) { /* silent */ }
     }
 
     function openPolicyModal(p = null) {
@@ -6022,13 +6321,13 @@
         try {
             const url = id ? `/api/notifications/policies/${id}` : '/api/notifications/policies';
             const method = id ? 'PUT' : 'POST';
-            const resp = await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+            const resp = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
             if (resp.status === 401) { window.location.href = '/login'; return; }
             if (!resp.ok) { const err = await resp.json().catch(() => ({})); throw new Error(err.detail || resp.statusText); }
             closePolicyModal();
             await notifLoadPolicies();
             window.showToast(id ? 'Policy updated.' : 'Policy created.', 'success');
-        } catch(err) { window.showToast('Error: ' + err.message, 'error'); }
+        } catch (err) { window.showToast('Error: ' + err.message, 'error'); }
     }
 
     async function notifLoadLog() {
@@ -6050,19 +6349,19 @@
             document.getElementById('log-next').disabled = notifLogPage * NOTIF_LOG_PAGE_SIZE >= total;
             if (!entries.length) { tbody.innerHTML = '<tr><td colspan="7" class="notif-empty-state">No log entries found.</td></tr>'; return; }
             tbody.innerHTML = entries.map(e => {
-                const statusClass = {sent:'notif-badge-success',failed:'notif-badge-danger',pending:'notif-badge-secondary',retrying:'notif-badge-warning'}[e.status]||'notif-badge-secondary';
-                const chName = notifLogChannelMap[e.channel_id] || (e.channel_id?.slice(0,8)+'…');
+                const statusClass = { sent: 'notif-badge-success', failed: 'notif-badge-danger', pending: 'notif-badge-secondary', retrying: 'notif-badge-warning' }[e.status] || 'notif-badge-secondary';
+                const chName = notifLogChannelMap[e.channel_id] || (e.channel_id?.slice(0, 8) + '…');
                 return `<tr>
                   <td style="font-size:12px;white-space:nowrap;">${notifFmtDate(e.created_at)}</td>
                   <td><code style="font-size:11px;">${notifEsc(e.event_type)}</code></td>
                   <td style="font-size:12px;">${notifEsc(chName)}</td>
-                  <td style="font-size:12px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${notifEsc(e.recipient||'—')}</td>
+                  <td style="font-size:12px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${notifEsc(e.recipient || '—')}</td>
                   <td><span class="notif-badge ${statusClass}">${notifEsc(e.status)}</span></td>
                   <td style="text-align:center;">${e.attempt_count}</td>
-                  <td style="font-size:11px;color:var(--text-secondary);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${notifEsc(e.error_message||'')}">${notifEsc(e.error_message||'—')}</td>
+                  <td style="font-size:11px;color:var(--text-secondary);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${notifEsc(e.error_message || '')}">${notifEsc(e.error_message || '—')}</td>
                 </tr>`;
             }).join('');
-        } catch(e2) {
+        } catch (e2) {
             tbody.innerHTML = `<tr><td colspan="7" class="notif-empty-state notif-error-text">Failed to load log: ${notifEsc(e2.message)}</td></tr>`;
         }
     }
@@ -6078,7 +6377,7 @@
               <span class="notif-badge notif-badge-danger">Failed: ${s.failed}</span>
               <span class="notif-badge notif-badge-warning">Retrying: ${s.retrying}</span>
               <span class="notif-badge notif-badge-info">Success rate: ${rate}%</span>`;
-        } catch(e) { /* silent */ }
+        } catch (e) { /* silent */ }
     }
 
     function notifLogPrev() { if (notifLogPage > 1) { notifLogPage--; notifLoadLog(); } }
@@ -6103,19 +6402,19 @@
             if (!resp.ok) { const err = await resp.json().catch(() => ({})); throw new Error(err.detail || resp.statusText); }
             closeNotifDeleteModal();
             if (type === 'channel') await notifLoadChannels(); else await notifLoadPolicies();
-            window.showToast(`${type.charAt(0).toUpperCase()+type.slice(1)} deleted.`, 'success');
-        } catch(err) { window.showToast('Delete failed: ' + err.message, 'error'); }
+            window.showToast(`${type.charAt(0).toUpperCase() + type.slice(1)} deleted.`, 'success');
+        } catch (err) { window.showToast('Delete failed: ' + err.message, 'error'); }
     }
 
     async function notifBuildChannelMap() {
         try {
             if (!notifChannels.length) { const resp = await fetch('/api/notifications/channels?page_size=200'); const res = await resp.json(); notifChannels = res.items || []; }
             notifLogChannelMap = Object.fromEntries(notifChannels.map(c => [c.id, c.name]));
-        } catch(e) { /* silent */ }
+        } catch (e) { /* silent */ }
     }
 
-    function notifEsc(str) { return String(str??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-    function notifFmtDate(iso) { if (!iso) return '—'; try { return new Date(iso).toLocaleString(); } catch(e) { return iso; } }
+    function notifEsc(str) { return String(str ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+    function notifFmtDate(iso) { if (!iso) return '—'; try { return new Date(iso).toLocaleString(); } catch (e) { return iso; } }
 
     // Escape key closes notification modals
     document.addEventListener('keydown', e => {

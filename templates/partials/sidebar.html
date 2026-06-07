@@ -2,8 +2,10 @@
     <!-- Sidebar Logo (Top-Left Corner) -->
     {% set design = get_design_settings() %}
     <div class="sidebar-logo">
-        {% if design.logo_url %}<img src="{{ design.logo_url }}" alt="Logo" class="sidebar-logo-img logo-full">{% endif %}
-        {% if design.icon_url %}<img src="{{ design.icon_url }}" alt="Icon" class="sidebar-logo-img logo-icon">{% endif %}
+        {% if design.logo_url %}<img src="{{ design.logo_url }}" alt="Logo" class="sidebar-logo-img logo-full">{% endif
+        %}
+        {% if design.icon_url %}<img src="{{ design.icon_url }}" alt="Icon" class="sidebar-logo-img logo-icon">{% endif
+        %}
     </div>
 
     <ul class="nav-menu">
@@ -98,7 +100,7 @@
         </li>
 
         <!-- AI Analyst Group -->
-        <li class="nav-group {{ 'open' if (current_path or '').startswith('/inquiry') or (current_path or '').startswith('/troubleshoot') else '' }}"
+        <li class="nav-group {{ 'open' if (current_path or '').startswith('/inquiry') or (current_path or '').startswith('/troubleshoot') or (current_path or '').startswith('/postmortems') else '' }}"
             data-nav-group="ai_analyst">
             <div class="nav-item has-submenu">
                 <i data-feather="cpu"></i>
@@ -115,6 +117,11 @@
                     onclick="window.location.href='/troubleshoot'">
                     <i data-feather="zap"></i>
                     <span class="nav-text">Troubleshoot</span>
+                </li>
+                <li class="nav-item submenu-item {{ 'active' if (current_path or '').startswith('/postmortems') else '' }}"
+                    onclick="window.location.href='/postmortems'">
+                    <i data-feather="file-text"></i>
+                    <span class="nav-text">Post-Mortems</span>
                 </li>
             </ul>
         </li>
@@ -148,8 +155,8 @@
         </li>
 
         <!-- Operations Group -->
-        <li class="nav-group {{ 'open' if (current_path or '').startswith('/oncall') or (current_path or '').startswith('/postmortems') or (current_path or '').startswith('/service-health') or (current_path or '').startswith('/suppression-rules') or (current_path or '').startswith('/runbook-generation') else '' }}"
-             data-nav-group="operations">
+        <li class="nav-group {{ 'open' if (current_path or '').startswith('/oncall') or (current_path or '').startswith('/service-health') or (current_path or '').startswith('/suppression-rules') or (current_path or '').startswith('/runbook-generation') else '' }}"
+            data-nav-group="operations">
             <div class="nav-item has-submenu">
                 <i data-feather="shield"></i>
                 <span class="nav-text">Operations</span>
@@ -161,11 +168,7 @@
                     <i data-feather="phone"></i>
                     <span class="nav-text">On-Call</span>
                 </li>
-                <li class="nav-item submenu-item {{ 'active' if (current_path or '').startswith('/postmortems') else '' }}"
-                    onclick="window.location.href='/postmortems'">
-                    <i data-feather="file-text"></i>
-                    <span class="nav-text">Post-Mortems</span>
-                </li>
+
                 <li class="nav-item submenu-item {{ 'active' if (current_path or '').startswith('/service-health') else '' }}"
                     onclick="window.location.href='/service-health'">
                     <i data-feather="heart"></i>

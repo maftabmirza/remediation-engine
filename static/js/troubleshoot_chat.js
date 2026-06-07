@@ -338,10 +338,19 @@ async function initChatSession() {
         if (shouldForceNewSession) {
             // Force a brand-new session when arriving from incident page
             let newSession;
+
+            const reqBody = {
+                title: troubleshootContext.title ? `Troubleshoot: ${troubleshootContext.title}` : undefined
+            };
+            if (troubleshootContext.id) {
+                reqBody.context_type = 'alert';
+                reqBody.context_id = troubleshootContext.id;
+            }
+
             try {
                 const createResponse = await apiCall('/api/troubleshoot/sessions', {
                     method: 'POST',
-                    body: JSON.stringify({})
+                    body: JSON.stringify(reqBody)
                 });
                 // apiCall may return raw Response (troubleshoot template) or parsed JSON (base.html)
                 if (createResponse && typeof createResponse.ok !== 'undefined') {
@@ -357,7 +366,7 @@ async function initChatSession() {
                 const fallback = await fetch('/api/troubleshoot/sessions', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({})
+                    body: JSON.stringify(reqBody)
                 });
                 if (!fallback.ok) throw new Error('Failed to create incident troubleshoot session');
                 newSession = await fallback.json();
@@ -519,17 +528,17 @@ async function loadMessageHistory(sessionId) {
         const response = await apiCall(`/api/troubleshoot/sessions/${sessionId}/messages`);
         if (!response.ok) throw new Error('Failed to load history');
         const data = await response.json();
-        
+
         // Handle both old format (array) and new format (object with messages + pii_mapping)
         const messages = Array.isArray(data) ? data : (data.messages || []);
         const piiMapping = data.pii_mapping || {};
-        
+
         // Store PII mapping for de-anonymization
         if (Object.keys(piiMapping).length > 0) {
             window.currentPiiMapping = piiMapping;
             console.log('🔍 PII: Loaded mapping for de-anonymization:', Object.keys(piiMapping).length, 'entries');
         }
-        
+
         const container = document.getElementById('chatMessages');
         container.innerHTML = '';
         if (messages.length === 0) {
@@ -544,7 +553,7 @@ async function loadMessageHistory(sessionId) {
                     displayContent = displayContent.split(placeholder).join(original);
                 }
             }
-            
+
             if (msg.role === 'user') {
                 AIChatBase.appendUserMessage(displayContent);
             } else if (msg.role === 'assistant') {
@@ -1904,8 +1913,8 @@ async function continueWithAI(queueContainerId) {
 
             if (item.status === 'executed' && item.output) {
                 let output = item.output;
-                if (output.length > 800) {
-                    output = output.substring(0, 400) + '\n...[truncated]...\n' + output.substring(output.length - 400);
+                if (output.length > 4000) {
+                    output = output.substring(0, 1500) + '\n...[truncated]...\n' + output.substring(output.length - 1500);
                 }
                 summaryMsg += `\`\`\`\n${output}\n\`\`\`\n\n`;
             } else if (item.status === 'skipped') {
@@ -1915,8 +1924,8 @@ async function continueWithAI(queueContainerId) {
 
         summaryMsg += '\n**What should I do next?**';
 
-        // Add as user message visually
-        appendUserMessage('[Command Queue Complete - Continuing with AI]');
+        // Add as user message visually (show actual summary so markdown renders)
+        appendUserMessage(summaryMsg);
 
         // Show typing indicator
         showTypingIndicator();
@@ -2035,18 +2044,18 @@ function appendUserMessage(text) {
 function updateLastUserMessageWithRedaction() {
     const container = document.getElementById('chatMessages');
     if (!container) return;
-    
+
     // Find the last user message (has justify-end class)
     const allMessages = container.querySelectorAll('.flex.justify-end');
     const lastUserMsg = allMessages[allMessages.length - 1];
-    
+
     if (lastUserMsg) {
         // Check if notification already exists
-        if (lastUserMsg.nextSibling && lastUserMsg.nextSibling.classList && 
+        if (lastUserMsg.nextSibling && lastUserMsg.nextSibling.classList &&
             lastUserMsg.nextSibling.classList.contains('pii-redaction-notification')) {
             return; // Already added
         }
-        
+
         // Add a small notification below the user message
         const notification = document.createElement('div');
         notification.className = 'flex justify-end mb-3 pii-redaction-notification';
@@ -2071,7 +2080,7 @@ function highlightPIIInLastUserMessage(detections, originalText) {
         console.warn('🔍 PII: Cannot highlight - container or piiFeedbackUI not found');
         return;
     }
-    
+
     // Find the last user message element (has justify-end class, but not pii-redaction-notification)
     const allMessages = container.querySelectorAll('.flex.justify-end');
     let lastUserMsg = null;
@@ -2081,11 +2090,11 @@ function highlightPIIInLastUserMessage(detections, originalText) {
             break;
         }
     }
-    
+
     if (lastUserMsg) {
         // Find the actual text content div
         const messageContent = lastUserMsg.querySelector('.user-message-text');
-        
+
         if (messageContent) {
             console.log('🔍 PII: Highlighting in user message element');
             window.piiFeedbackUI.highlightDetections(messageContent, detections, originalText);
@@ -2166,7 +2175,7 @@ async function sendMessage(e) {
         }, 500);
     }
 
-    appendUserMessage(escapeHtml(text));
+    appendUserMessage(text);
     input.value = '';  // Clear input immediately after sending
     showTypingIndicator();
 
@@ -2177,12 +2186,15 @@ async function sendMessage(e) {
         finalMessage += `\n\n[SYSTEM: The user has the following active terminal output. Use it if relevant to the query.]\n\`\`\`\n${termContent}\n\`\`\``;
     }
 
-    // Use SSE streaming endpoint
-    await sendStreamingMessage(finalMessage);
+    // Use SSE streaming endpoint (pass visible text length so PII is only shown for visible content)
+    await sendStreamingMessage(finalMessage, text.length);
 }
 
 // Send message using SSE streaming for real-time token display
-async function sendStreamingMessage(message) {
+async function sendStreamingMessage(message, visibleTextLength) {
+    // visibleTextLength: length of the user-typed text (excluding hidden terminal context)
+    // If not provided, assume the entire message is visible
+    if (typeof visibleTextLength === 'undefined') visibleTextLength = message.length;
     // Create abort controller for cancel functionality
     currentStreamController = new AbortController();
     isStreaming = true;
@@ -2245,11 +2257,20 @@ async function sendStreamingMessage(message) {
                         } else if (data.type === 'redacted_input') {
                             // PII was detected - store mapping for de-anonymizing AI response
                             piiMapping = data.pii_mapping || {};
-                            // Show notification that PII was redacted
-                            updateLastUserMessageWithRedaction();
-                            // Highlight PII in user message if detections available
-                            if (piiDetections.length > 0 && window.piiFeedbackUI) {
-                                highlightPIIInLastUserMessage(piiDetections, originalUserMessage);
+                            // Filter detections to only those within the visible user text
+                            // (ignore PII found in the hidden terminal context)
+                            const visibleDetections = piiDetections.filter(d => d.start < visibleTextLength);
+                            console.log('🔍 PII DEBUG: visibleTextLength=' + visibleTextLength + ', total=' + piiDetections.length + ', visible=' + visibleDetections.length);
+                            console.log('🔍 PII DEBUG: detections positions:', piiDetections.map(d => d.original_text + ' start=' + d.start + ' end=' + d.end));
+                            if (visibleDetections.length > 0) {
+                                // IMPORTANT: Highlight FIRST, then show badge
+                                // (badge insertion changes DOM sibling order which affects element finding)
+                                if (window.piiFeedbackUI) {
+                                    highlightPIIInLastUserMessage(visibleDetections, originalUserMessage);
+                                }
+                                updateLastUserMessageWithRedaction();
+                            } else {
+                                console.log('🔍 PII: All detections in hidden terminal context, skipping UI notification');
                             }
                         } else if (data.type === 'chunk') {
                             // Remove typing indicator on first content chunk
@@ -2511,11 +2532,15 @@ async function openServerModal() {
     modal.classList.remove('hidden');
     modal.classList.add('flex');
     try {
-        const response = await apiCall('/api/servers');
-        if (!response.ok) throw new Error('Failed to load servers');
-        const servers = await response.json();
+        let rawServers = await apiCall('/api/servers');
+        if (rawServers && typeof rawServers.json === 'function') {
+            if (!rawServers.ok) throw new Error(`API error: ${rawServers.status}`);
+            rawServers = await rawServers.json();
+        }
+        const servers = Array.isArray(rawServers) ? rawServers : (rawServers.items || rawServers.data || []);
+
         storedServers = servers; // Cache for protocol lookup
-        if (servers.length === 0) {
+        if (!servers || servers.length === 0) {
             list.innerHTML = '<p class="text-gray-400 text-sm p-2">No servers configured.</p>';
             return;
         }
@@ -2591,7 +2616,10 @@ function connectAdhoc() {
     if (terminalSocket) terminalSocket.close();
 
     // Build WebSocket URL with query parameters
-    const wsUrl = `${protocol}//${window.location.host}/ws/terminal/adhoc?token=${encodeURIComponent(token)}&host=${encodeURIComponent(host)}&port=${port}&username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&cols=${term.cols}&rows=${term.rows}`;
+    const linkedAlertParam = currentSession && currentSession.alert_id
+        ? `&alert_id=${encodeURIComponent(currentSession.alert_id)}`
+        : '';
+    const wsUrl = `${protocol}//${window.location.host}/ws/terminal/adhoc?token=${encodeURIComponent(token)}&host=${encodeURIComponent(host)}&port=${port}&username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&cols=${term.cols}&rows=${term.rows}${linkedAlertParam}`;
 
     terminalSocket = new WebSocket(wsUrl);
 
@@ -2654,7 +2682,10 @@ function connectTerminal(serverId) {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const token = localStorage.getItem('token');
     if (terminalSocket) terminalSocket.close();
-    terminalSocket = new WebSocket(`${protocol}//${window.location.host}/ws/terminal/${serverId}?token=${token}&cols=${term.cols}&rows=${term.rows}`);
+    const linkedAlertParam = currentSession && currentSession.alert_id
+        ? `&alert_id=${encodeURIComponent(currentSession.alert_id)}`
+        : '';
+    terminalSocket = new WebSocket(`${protocol}//${window.location.host}/ws/terminal/${serverId}?token=${token}&cols=${term.cols}&rows=${term.rows}${linkedAlertParam}`);
     document.getElementById('termStatus').textContent = 'Connecting...';
     document.getElementById('termStatus').className = 'text-xs text-yellow-400';
     terminalSocket.onopen = () => {
@@ -4267,7 +4298,7 @@ function populateSessionDropdown(sessions) {
             const isActive = session.id === currentSessionId;
             const title = AIChatBase.escapeHtml(session.title || 'Untitled Session');
             const date = new Date(session.created_at).toLocaleDateString();
-            const time = new Date(session.created_at).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+            const time = new Date(session.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             return `
             <div class="ts-session-item ${isActive ? 'active' : ''}" onclick="switchSession('${session.id}')">
                 <div class="ts-session-item-title">${title}</div>
@@ -4336,8 +4367,8 @@ function populateModelDropdown(providers) {
     }
 
     // Determine which provider is currently selected
-    const selectedId = (currentSession && currentSession.llm_provider_id) 
-        ? currentSession.llm_provider_id 
+    const selectedId = (currentSession && currentSession.llm_provider_id)
+        ? currentSession.llm_provider_id
         : (providers.find(p => p.is_default)?.id || '');
 
     list.innerHTML = providers.map(p => {
@@ -4366,24 +4397,24 @@ async function selectModel(providerId) {
 
         if (response.ok) {
             const result = await response.json();
-            
+
             // Update session tracking FIRST
             if (currentSession) {
                 currentSession.llm_provider_id = providerId;
             } else {
                 currentSession = { llm_provider_id: providerId };
             }
-            
+
             // Re-render dropdown with new selection
             populateModelDropdown(availableProviders);
-            
+
             // Update the model icon tooltip
             const provider = availableProviders.find(p => p.id === providerId);
             if (provider) {
                 const btn = document.getElementById('llmIconBtn');
                 if (btn) btn.title = `LLM: ${provider.provider_name || provider.name}`;
             }
-            
+
             // Add system message to chat
             const container = document.getElementById('chatMessages');
             const msg = document.createElement('div');
@@ -4391,7 +4422,7 @@ async function selectModel(providerId) {
             msg.innerHTML = `<i class="fas fa-sync-alt mr-1"></i>Now using: ${result.provider_name} - ${result.model_name}`;
             container.appendChild(msg);
             container.scrollTop = container.scrollHeight;
-            
+
             const list = document.getElementById('modelListContainer');
             if (list) list.classList.add('hidden');
             const sel = document.getElementById('llmSelector');
@@ -4411,3 +4442,263 @@ window.toggleModelDropdown = toggleModelDropdown;
 window.createNewSession = createNewSession;
 window.switchSession = switchSession;
 window.selectModel = selectModel;
+
+// ============= Context Selector Logic =============
+let availableContextItems = [];
+
+function getApiPayload(result) {
+    if (!result) {
+        return null;
+    }
+
+    if (typeof result.ok !== 'undefined' && typeof result.json === 'function') {
+        if (!result.ok) {
+            throw new Error(`Request failed with status ${result.status}`);
+        }
+        return result.json();
+    }
+
+    return result;
+}
+
+function buildContextSearchText(item) {
+    return [
+        item.type,
+        item.title,
+        item.display,
+        item.description,
+        item.id,
+        item.shortId,
+        item.reference,
+    ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+}
+
+function normalizeAlertContextItems(payload) {
+    const alerts = Array.isArray(payload?.alerts)
+        ? payload.alerts
+        : Array.isArray(payload?.items)
+            ? payload.items
+            : Array.isArray(payload)
+                ? payload
+                : [];
+
+    return alerts.map(alert => {
+        const id = String(alert.id || '');
+        const title = alert.title || alert.alert_name || alert.name || alert.alertname || alert.rule_name || 'Unnamed Alert';
+        const description = alert.description
+            || alert.summary
+            || alert.message
+            || alert.annotations?.description
+            || alert.annotations?.summary
+            || '';
+        const shortId = id ? id.substring(0, 8) : '';
+        const reference = alert.instance || alert.service || alert.severity || '';
+        const createdAt = alert.created_at || alert.timestamp || alert.startsAt || '';
+        const display = `[Alert] ${title}${description ? ` - ${description}` : ''}${shortId ? ` (${shortId})` : ''}`;
+
+        return {
+            id,
+            type: 'alert',
+            title,
+            description,
+            shortId,
+            reference,
+            createdAt,
+            display,
+        };
+    });
+}
+
+function normalizeIncidentContextItems(payload) {
+    const incidents = Array.isArray(payload?.items)
+        ? payload.items
+        : Array.isArray(payload?.incidents)
+            ? payload.incidents
+            : Array.isArray(payload)
+                ? payload
+                : [];
+
+    return incidents.map(incident => {
+        const id = String(incident.id || '');
+        const title = incident.title || 'Unnamed Incident';
+        const description = incident.description || incident.summary || incident.impact_summary || '';
+        const shortId = id ? id.substring(0, 8) : '';
+        const reference = incident.human_id || incident.severity || '';
+        const createdAt = incident.created_at || '';
+        const display = `[Incident] ${title}${description ? ` - ${description}` : ''}${reference || shortId ? ` (${reference || shortId})` : ''}`;
+
+        return {
+            id,
+            type: 'incident',
+            title,
+            description,
+            shortId,
+            reference,
+            createdAt,
+            display,
+        };
+    });
+}
+
+async function loadContextItems() {
+    try {
+        const list = document.getElementById('contextListContainer');
+        if (list) list.innerHTML = '<div class="ts-session-empty">Loading...</div>';
+
+        const [alertsRes, incidentsRes] = await Promise.allSettled([
+            apiCall('/api/alerts?status=firing&page_size=50'),
+            apiCall('/api/incidents?status=open&page_size=50')
+        ]);
+
+        let items = [];
+        if (alertsRes.status === 'fulfilled' && alertsRes.value) {
+            const alertPayload = await getApiPayload(alertsRes.value);
+            items = items.concat(normalizeAlertContextItems(alertPayload));
+        }
+
+        if (incidentsRes.status === 'fulfilled' && incidentsRes.value) {
+            const incidentPayload = await getApiPayload(incidentsRes.value);
+            items = items.concat(normalizeIncidentContextItems(incidentPayload));
+        }
+
+        availableContextItems = items;
+        renderContextList(items);
+    } catch (error) {
+        console.error("Failed to load context items", error);
+        const list = document.getElementById('contextListContainer');
+        if (list) list.innerHTML = '<div class="ts-session-empty">Error loading items</div>';
+    }
+}
+
+function renderContextList(items) {
+    const list = document.getElementById('contextListContainer');
+    if (!list) return;
+
+    if (items.length === 0) {
+        list.innerHTML = '<div class="ts-session-empty">No open alerts or incidents found</div>';
+        return;
+    }
+
+    list.innerHTML = items.map(item => {
+        let dateStr = '';
+        if (item.createdAt) {
+            try {
+                dateStr = 'Created: ' + new Date(item.createdAt).toLocaleString();
+            } catch (e) {
+                dateStr = 'Created: ' + item.createdAt;
+            }
+        }
+
+        return `
+        <div class="ts-session-item" style="cursor: pointer; padding: 8px 12px; border-bottom: 1px solid #1e293b;"
+             onclick="selectContextItem('${item.id}', '${item.type}', '${AIChatBase.escapeHtml(item.title).replace(/'/g, "\\'")}')">
+            <div style="font-size: 11px; color: ${item.type === 'alert' ? '#f87171' : '#fb923c'}; font-weight: 600; margin-bottom: 2px;">
+                ${item.type.toUpperCase()} ${item.reference ? '- ' + AIChatBase.escapeHtml(item.reference) : ''}
+            </div>
+            <div style="font-size: 13px; color: #e2e8f0; overflow: hidden; text-overflow: ellipsis; padding-right: 8px;" title="${AIChatBase.escapeHtml(item.display).replace(/"/g, '&quot;')}">
+                <span style="color: #94a3b8; font-family: monospace; font-size: 11px; margin-right: 6px;">[${AIChatBase.escapeHtml(item.shortId)}]</span>${AIChatBase.escapeHtml(item.title)}
+            </div>
+            ${item.description ? `
+            <div style="font-size: 11px; color: #94a3b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px;" title="${AIChatBase.escapeHtml(item.description).replace(/"/g, '&quot;')}">
+                ${AIChatBase.escapeHtml(item.description)}
+            </div>` : ''}
+            ${dateStr ? `
+            <div style="font-size: 10px; color: #64748b; margin-top: 4px;">
+                <i data-feather="clock" style="width: 10px; height: 10px; display: inline-block; margin-right: 3px; vertical-align: text-top;"></i>${dateStr}
+            </div>` : ''}
+        </div>
+        `;
+    }).join('');
+
+    // Process new feather icons
+    if (typeof feather !== 'undefined') feather.replace();
+}
+
+function filterContextList(query) {
+    if (!query) {
+        renderContextList(availableContextItems);
+        return;
+    }
+    const lowerQuery = query.toLowerCase();
+    const filtered = availableContextItems.filter(item =>
+        buildContextSearchText(item).includes(lowerQuery)
+    );
+    renderContextList(filtered);
+}
+
+function toggleContextDropdown() {
+    const dropdown = document.getElementById('contextDropdown');
+    const input = document.getElementById('contextSearchInput');
+    if (dropdown) {
+        dropdown.classList.toggle('hidden');
+        if (!dropdown.classList.contains('hidden')) {
+            loadContextItems(); // Load items when dropdown is opened
+            if (input) {
+                input.value = ''; // Reset search field
+                input.focus();
+            }
+        }
+    }
+}
+
+async function selectContextItem(id, type, title) {
+    // Hide dropdown
+    const dropdown = document.getElementById('contextDropdown');
+    if (dropdown) dropdown.classList.add('hidden');
+
+    // Update label
+    const label = document.getElementById('currentContextLabel');
+    if (label) {
+        label.textContent = `${type === 'alert' ? 'Alert' : 'Incident'}: ${title.substring(0, 15)}...`;
+    }
+
+    // Prefill chat input
+    const input = document.getElementById('chatInput');
+    if (input) {
+        input.value = `Troubleshoot this ${type} - ID: ${id}, Title: ${title}. Suggest investigation steps and the first safe command to run.`;
+        input.focus();
+    }
+
+    // Create session with context
+    try {
+        const response = await apiCall('/api/troubleshoot/sessions', {
+            method: 'POST',
+            body: JSON.stringify({
+                context_type: type,
+                context_id: id,
+                title: `[${type.toUpperCase()}] ${title}`
+            })
+        });
+
+        if (response.ok) {
+            const session = await response.json();
+            switchSession(session.id);
+            showToast(`Started new session for ${type}`, 'success');
+        } else {
+            showToast('Failed to create session with context', 'error');
+        }
+    } catch (error) {
+        console.error('Create context session failed:', error);
+        showToast('Error creating session', 'error');
+    }
+}
+
+// Global click event to close dropdown when clicking outside
+document.addEventListener('click', function (e) {
+    const dropdown = document.getElementById('contextDropdown');
+    const btn = document.getElementById('contextDropdownBtn');
+    if (dropdown && !dropdown.classList.contains('hidden')) {
+        const clickedInsideContext = dropdown.contains(e.target) || (btn && btn.contains(e.target));
+        if (!clickedInsideContext) {
+            dropdown.classList.add('hidden');
+        }
+    }
+});
+
+// Expose handlers globally for the inline onclick handlers in the HTML
+window.toggleContextDropdown = toggleContextDropdown;
+window.filterContextList = filterContextList;
+window.selectContextItem = selectContextItem;

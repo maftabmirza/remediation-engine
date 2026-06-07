@@ -4,156 +4,1158 @@
 {% block title %}Post-Mortems - AIOps Platform{% endblock %}
 
 {% block breadcrumbs %}
-<span class="mx-2">/</span>
-<span class="text-gray-200">Post-Mortems</span>
+<span class="header-crumb-separator">/</span>
+<span class="header-crumb-current">Postmortems</span>
 {% endblock %}
 
 {% block header_title %}
-<i data-feather="file-text" class="text-blue-400" style="width:16px;height:16px;"></i>
-<span class="text-sm font-semibold text-white tracking-tight">Post-Incident Post-Mortems</span>
+<div class="header-page-title">
+    <i data-feather="file-text" style="width:16px;height:16px;"></i>
+    <span>Post-Incident Reviews</span>
+</div>
 {% endblock %}
 
 {% block head %}
 <style>
-.page-header { margin-bottom: 20px; }
-.page-title { font-size: 1.4rem; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 10px; }
-.page-subtitle { font-size: 0.875rem; color: var(--text-secondary); margin: 4px 0 0; }
+    .header-page-title {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.875rem;
+        font-weight: 700;
+        color: var(--bg-surface-raised, var(--bg-surface));
+        letter-spacing: 0.01em;
+    }
 
-.toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
-.toolbar-actions { display: flex; gap: 8px; align-items: center; }
+    .header-crumb-separator,
+    .header-crumb-current {
+        color: var(--text-muted-dark, var(--text-secondary));
+    }
 
-.btn-primary { display:inline-flex;align-items:center;gap:6px;padding:8px 16px;font-size:13px;font-weight:600;border-radius:6px;cursor:pointer;border:none;background:linear-gradient(135deg,#3b82f6,#2563eb);color:#fff;box-shadow:0 2px 6px rgba(59,130,246,.25);transition:all .15s; }
-.btn-primary:hover { background:linear-gradient(135deg,#2563eb,#1d4ed8);transform:translateY(-1px); }
-.btn-secondary { display:inline-flex;align-items:center;gap:6px;padding:7px 14px;font-size:13px;font-weight:500;border-radius:6px;cursor:pointer;border:1px solid var(--border-color);background:var(--bg-surface);color:var(--text-primary);transition:all .15s; }
-.btn-secondary:hover { background:var(--bg-hover); }
-.btn-sm { display:inline-flex;align-items:center;gap:5px;padding:5px 10px;font-size:12px;font-weight:500;border-radius:5px;cursor:pointer;border:1px solid var(--border-color);background:var(--bg-surface);color:var(--text-secondary);transition:all .15s; }
-.btn-sm:hover { background:var(--bg-hover);color:var(--text-primary); }
-.btn-green { background:#dcfce7;color:#16a34a;border-color:#bbf7d0; }
-.btn-green:hover { background:#bbf7d0; }
-.btn-danger { display:inline-flex;align-items:center;gap:5px;padding:5px 10px;font-size:12px;font-weight:500;border-radius:5px;cursor:pointer;border:none;background:#fee2e2;color:#dc2626;transition:all .15s; }
-.btn-danger:hover { background:#fecaca; }
-.btn-disabled { opacity:.5; cursor:not-allowed; }
+    /* ── Page shell ─────────────────────────────── */
+    .page-shell {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        padding-bottom: 24px;
+    }
 
-.search-box { padding:7px 12px;font-size:13px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-input);color:var(--text-primary);width:260px; }
-.search-box:focus { outline:none;border-color:#3b82f6; }
+    /* ── Page header bar ────────────────────────── */
+    .page-header-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
 
-/* PM cards */
-.pm-grid { display:grid;gap:16px; }
-.pm-card { background:var(--bg-surface);border:1px solid var(--border-color);border-radius:10px;padding:20px;transition:box-shadow .15s; }
-.pm-card:hover { box-shadow:0 4px 20px rgba(0,0,0,.1); }
-.pm-card-header { display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px; }
-.pm-card-title { font-size:1rem;font-weight:700;color:var(--text-primary);margin:0 0 4px; }
-.pm-card-meta { font-size:12px;color:var(--text-secondary); }
-.pm-card-actions { display:flex;gap:6px;flex-shrink:0; }
-.pm-card-excerpt { font-size:13px;color:var(--text-secondary);line-height:1.6;margin:12px 0 0;border-top:1px solid var(--border-color);padding-top:12px;overflow:hidden;max-height:80px; }
+    .page-heading {
+        margin: 0;
+        font-size: 1.3rem;
+        font-weight: 800;
+        color: var(--text-primary);
+    }
 
-/* Badges */
-.badge { display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:999px;font-size:11px;font-weight:600; }
-.badge-draft { background:#fff7ed;color:#c2410c; }
-.badge-in-review { background:#eff6ff;color:#1d4ed8; }
-.badge-published { background:#dcfce7;color:#15803d; }
-.badge-sev-critical { background:#fee2e2;color:#dc2626; }
-.badge-sev-warning { background:#fef9c3;color:#b45309; }
-.badge-sev-info { background:#e0f2fe;color:#0369a1; }
+    .page-subheading {
+        margin: 2px 0 0;
+        font-size: 0.84rem;
+        color: var(--text-secondary);
+    }
 
-.empty-state { text-align:center;padding:60px 20px;color:var(--text-secondary); }
-.empty-state i { margin-bottom:12px;opacity:.4; }
-.empty-state p { font-size:14px; }
+    .header-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        flex-shrink: 0;
+    }
 
-/* Modal */
-.modal-overlay { display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1000;align-items:center;justify-content:center; }
-.modal-overlay.active { display:flex; }
-.modal-container { background:var(--bg-surface);border:1px solid var(--border-color);border-radius:12px;width:560px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);scrollbar-width:thin;scrollbar-color:rgba(148,163,184,.35) transparent; }
-.modal-lg { width:900px; }
-.modal-header { padding:20px 24px 16px;border-bottom:1px solid var(--border-color);display:flex;align-items:center;justify-content:space-between; }
-.modal-title { font-size:1rem;font-weight:700;color:var(--text-primary); }
-.modal-close { background:none;border:none;cursor:pointer;color:var(--text-secondary);padding:4px;border-radius:4px; }
-.modal-close:hover { color:var(--text-primary); }
-.modal-body { padding:20px 24px; }
-.modal-footer { padding:16px 24px;border-top:1px solid var(--border-color);display:flex;justify-content:flex-end;gap:8px; }
+    /* Action Buttons */
+    .runbook-action-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 16px;
+        font-size: 13px;
+        font-weight: 600;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: none;
+        text-decoration: none;
+        white-space: nowrap;
+    }
 
-.form-group { margin-bottom:16px; }
-.form-label { display:block;font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em; }
-.form-select { width:100%;padding:8px 12px;font-size:13px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-input);color:var(--text-primary);box-sizing:border-box; }
-.form-select:focus { outline:none;border-color:#3b82f6; }
-.form-hint { font-size:11px;color:var(--text-secondary);margin-top:4px; }
+    .runbook-action-primary {
+        background: linear-gradient(135deg, #3b82f6, #2563eb);
+        color: white;
+        box-shadow: 0 2px 6px rgba(59, 130, 246, 0.25);
+    }
 
-/* Incident picker */
-.incident-list { max-height:320px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(148,163,184,.35) transparent; }
-.incident-item { padding:12px 14px;border:1px solid var(--border-color);border-radius:8px;margin-bottom:8px;cursor:pointer;transition:border-color .15s,background .15s; }
-.incident-item:hover { border-color:#3b82f6;background:var(--bg-hover); }
-.incident-item.selected { border-color:#3b82f6;background:rgba(59,130,246,.07); }
-.incident-item-title { font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:4px; }
-.incident-item-meta { font-size:11px;color:var(--text-secondary); }
+    .runbook-action-primary:hover {
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        box-shadow: 0 4px 14px rgba(59, 130, 246, 0.35);
+        transform: translateY(-1px);
+    }
 
-/* Evidence preview */
-.evidence-section { margin-bottom:16px; }
-.evidence-section h5 { font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-secondary);margin:0 0 8px; }
-.evidence-stat { display:inline-flex;align-items:center;gap:6px;padding:4px 10px;background:var(--bg-card);border:1px solid var(--border-color);border-radius:6px;font-size:12px;color:var(--text-primary);margin:3px; }
-.timeline-mini { max-height:180px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(148,163,184,.35) transparent; }
-.timeline-row { display:flex;gap:10px;align-items:flex-start;padding:5px 0;border-bottom:1px solid var(--border-color); }
-.timeline-row:last-child { border-bottom:none; }
-.timeline-ts { font-size:11px;color:var(--text-secondary);white-space:nowrap;min-width:140px; }
-.timeline-ev { font-size:12px;color:var(--text-primary); }
+    .runbook-action-primary:active {
+        transform: translateY(0);
+        box-shadow: 0 1px 3px rgba(59, 130, 246, 0.3);
+    }
 
-/* View modal */
-.pm-content { font-size:13px;color:var(--text-primary);line-height:1.7;white-space:pre-wrap;font-family:inherit; }
-.section-block { background:var(--bg-card);border:1px solid var(--border-color);border-radius:8px;padding:16px;margin-bottom:16px; }
-.section-block h4 { font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-secondary);margin:0 0 10px; }
-.action-item-row { display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid var(--border-color);font-size:13px; }
-.action-item-row:last-child { border-bottom:none; }
+    .runbook-action-secondary {
+        background: #ffffff;
+        color: #475569;
+        border: 1px solid var(--border-color);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    }
 
-/* Tabs */
-.tab-bar { display:flex;gap:2px;border-bottom:1px solid var(--border-color);margin-bottom:16px; }
-.tab-btn { padding:8px 14px;font-size:12px;font-weight:600;border:none;background:none;cursor:pointer;color:var(--text-secondary);border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .15s,border-color .15s; }
-.tab-btn.active { color:#3b82f6;border-bottom-color:#3b82f6; }
-.tab-panel { display:none; }
-.tab-panel.active { display:block; }
+    .runbook-action-secondary:hover {
+        border-color: #cbd5e1;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+        background: #f8fafc;
+        transform: translateY(-1px);
+    }
+
+    .runbook-action-secondary:active {
+        transform: translateY(0);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    }
+
+    /* Search Input */
+    .runbook-search-input {
+        background: #ffffff;
+        border: 1px solid var(--border-color);
+        border-radius: 5px;
+        padding: 8px 14px 8px 36px;
+        font-size: 13px;
+        color: var(--text-primary);
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+        outline: none;
+    }
+
+    .runbook-search-input::placeholder {
+        color: var(--text-secondary);
+    }
+
+    .runbook-search-input:hover {
+        border-color: #cbd5e1;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+    }
+
+    .runbook-search-input:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+    }
+
+    .runbook-search-wrapper {
+        position: relative;
+    }
+
+    .runbook-search-wrapper .search-icon {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--text-secondary);
+        font-size: 13px;
+        pointer-events: none;
+    }
+
+    /* Dropdown */
+    .rb-dropdown {
+        position: relative;
+        min-width: 150px;
+    }
+
+    .rb-dropdown-trigger {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        background: #ffffff;
+        border: 1px solid var(--border-color);
+        border-radius: 5px;
+        padding: 8px 12px 8px 14px;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-primary);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+        user-select: none;
+    }
+
+    .rb-dropdown-trigger:hover {
+        border-color: #cbd5e1;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+    }
+
+    .rb-dropdown.open .rb-dropdown-trigger {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+    }
+
+    .rb-dropdown-trigger .rb-dd-chevron {
+        width: 14px;
+        height: 14px;
+        color: var(--text-secondary);
+        transition: transform 0.2s ease;
+    }
+
+    .rb-dropdown.open .rb-dd-chevron {
+        transform: rotate(180deg);
+    }
+
+    .rb-dropdown-menu {
+        display: none;
+        position: absolute;
+        top: calc(100% + 6px);
+        left: 0;
+        min-width: 100%;
+        background: #ffffff;
+        border: 1px solid var(--border-color);
+        border-radius: 5px;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.06);
+        z-index: 9999;
+        padding: 5px;
+        overflow: hidden;
+    }
+
+    .rb-dropdown.open .rb-dropdown-menu {
+        display: block;
+        animation: rbDropIn 0.15s ease-out;
+    }
+
+    @keyframes rbDropIn {
+        from {
+            opacity: 0;
+            transform: translateY(-6px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .rb-dropdown-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-primary);
+        border-radius: 5px;
+        cursor: pointer;
+        transition: all 0.12s ease;
+        white-space: nowrap;
+    }
+
+    .rb-dropdown-item:hover {
+        background: #f1f5f9;
+        color: #1e293b;
+    }
+
+    .rb-dropdown-item.selected {
+        background: rgba(59, 130, 246, 0.08);
+        color: #2563eb;
+    }
+
+    .rb-dropdown-item .rb-dd-check {
+        width: 14px;
+        font-size: 11px;
+        color: #3b82f6;
+        opacity: 0;
+    }
+
+    .rb-dropdown-item.selected .rb-dd-check {
+        opacity: 1;
+    }
+
+    .rb-dropdown select {
+        display: none;
+    }
+
+    .rb-dd-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        display: inline-block;
+        flex-shrink: 0;
+    }
+
+    .results-meta {
+        margin-left: auto;
+        font-size: 12px;
+        color: var(--text-secondary);
+        white-space: nowrap;
+    }
+
+    /* ── Table wrapper ──────────────────────────── */
+    .table-wrap {
+        border: 1px solid var(--border-color);
+        border-radius: 14px;
+        background: var(--bg-surface);
+        overflow: hidden;
+        box-shadow: var(--shadow-card);
+    }
+
+    .pm-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .pm-table th {
+        padding: 10px 14px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--text-secondary);
+        background: var(--bg-card, var(--bg-surface));
+        border-bottom: 1px solid var(--border-color);
+        text-align: left;
+        white-space: nowrap;
+    }
+
+    .pm-table th.col-title {
+        width: auto;
+        min-width: 220px;
+    }
+
+    .pm-table th.col-status {
+        width: 110px;
+    }
+
+    .pm-table th.col-sev {
+        width: 90px;
+    }
+
+    .pm-table th.col-anchor {
+        width: 150px;
+    }
+
+    .pm-table th.col-date {
+        width: 130px;
+    }
+
+    .pm-table th.col-mttr {
+        width: 80px;
+    }
+
+    .pm-table th.col-gen {
+        width: 55px;
+        text-align: center;
+    }
+
+    .pm-table th.col-acts {
+        width: 150px;
+        text-align: right;
+        padding-right: 16px;
+    }
+
+    .pm-table td {
+        padding: 11px 14px;
+        font-size: 13px;
+        color: var(--text-primary);
+        border-bottom: 1px solid var(--border-color);
+        vertical-align: middle;
+    }
+
+    .pm-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    .pm-table tbody tr:hover td {
+        background: var(--bg-hover);
+    }
+
+    .td-title {
+        font-weight: 700;
+        line-height: 1.35;
+    }
+
+    .td-excerpt {
+        margin-top: 3px;
+        font-size: 12px;
+        color: var(--text-secondary);
+        line-height: 1.45;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .td-actions {
+        text-align: right;
+        white-space: nowrap;
+    }
+
+    /* ── Badges ─────────────────────────────────── */
+    .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 3px 8px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+    }
+
+    .badge-draft {
+        background: color-mix(in srgb, var(--status-warning) 12%, var(--bg-surface));
+        color: var(--status-warning);
+    }
+
+    .badge-in-review {
+        background: color-mix(in srgb, var(--brand-primary, var(--accent-blue)) 12%, var(--bg-surface));
+        color: var(--brand-primary, var(--accent-blue));
+    }
+
+    .badge-published {
+        background: color-mix(in srgb, var(--status-success) 12%, var(--bg-surface));
+        color: var(--status-success);
+    }
+
+    .badge-sev-critical {
+        background: color-mix(in srgb, var(--status-error) 12%, var(--bg-surface));
+        color: var(--status-error);
+    }
+
+    .badge-sev-warning {
+        background: color-mix(in srgb, var(--status-warning) 12%, var(--bg-surface));
+        color: var(--status-warning);
+    }
+
+    .badge-sev-info {
+        background: color-mix(in srgb, var(--accent-cyan, var(--brand-primary, var(--accent-blue))) 12%, var(--bg-surface));
+        color: var(--accent-cyan, var(--brand-primary, var(--accent-blue)));
+    }
+
+    .badge-ai {
+        background: color-mix(in srgb, var(--accent-cyan, var(--brand-primary)) 10%, var(--bg-surface));
+        color: var(--accent-cyan, var(--brand-primary));
+    }
+
+    /* ── Buttons ─────────────────────────────────── */
+    .btn-primary,
+    .btn-secondary,
+    .btn-sm,
+    .btn-danger {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        border-radius: 9px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform .14s, box-shadow .14s, background .14s, color .14s, border-color .14s;
+    }
+
+    .btn-primary {
+        padding: 8px 16px;
+        border: none;
+        background: linear-gradient(135deg, #3b82f6, #2563eb);
+        color: #fff;
+        box-shadow: 0 2px 6px rgba(59, 130, 246, .25);
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, .35);
+    }
+
+    .btn-secondary {
+        padding: 7px 14px;
+        border: 1px solid var(--border-color);
+        background: var(--bg-surface);
+        color: var(--text-primary);
+    }
+
+    .btn-secondary:hover {
+        background: var(--bg-hover);
+    }
+
+    .btn-sm {
+        padding: 6px 10px;
+        font-size: 12px;
+        border: 1px solid var(--border-color);
+        background: var(--bg-surface);
+        color: var(--text-primary);
+    }
+
+    .btn-sm:hover {
+        background: var(--bg-hover);
+    }
+
+    .btn-publish {
+        background: color-mix(in srgb, var(--status-success) 14%, var(--bg-surface));
+        color: var(--status-success);
+        border-color: color-mix(in srgb, var(--status-success) 28%, var(--border-color));
+    }
+
+    .btn-danger {
+        padding: 6px 10px;
+        font-size: 12px;
+        border: 1px solid color-mix(in srgb, var(--status-error) 28%, var(--border-color));
+        background: color-mix(in srgb, var(--status-error) 10%, var(--bg-surface));
+        color: var(--status-error);
+    }
+
+    .btn-danger:hover {
+        background: color-mix(in srgb, var(--status-error) 18%, var(--bg-surface));
+    }
+
+    .btn-disabled {
+        opacity: .5;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+    }
+
+    .btn-icon {
+        border-radius: 8px;
+    }
+
+    /* ── Pagination ──────────────────────────────── */
+    .pagination-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 10px 14px;
+        border-top: 1px solid var(--border-color);
+        background: var(--bg-card, var(--bg-surface));
+        flex-wrap: wrap;
+    }
+
+    .pag-info {
+        font-size: 12px;
+        color: var(--text-secondary);
+    }
+
+    .pag-controls {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .pag-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 30px;
+        height: 30px;
+        border-radius: 7px;
+        border: 1px solid var(--border-color);
+        background: var(--bg-surface);
+        color: var(--text-primary);
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background .14s, border-color .14s;
+    }
+
+    .pag-btn:hover:not(:disabled) {
+        background: var(--bg-hover);
+    }
+
+    .pag-btn:disabled {
+        opacity: .4;
+        cursor: not-allowed;
+    }
+
+    .pag-btn.active {
+        background: var(--brand-primary, var(--accent-blue));
+        border-color: var(--brand-primary, var(--accent-blue));
+        color: var(--bg-surface-raised, var(--bg-surface));
+    }
+
+    /* ── Empty / message states ─────────────────── */
+    .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        padding: 56px 24px;
+        color: var(--text-secondary);
+        text-align: center;
+    }
+
+    .empty-state i {
+        opacity: .45;
+    }
+
+    .empty-state-title {
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--text-primary);
+    }
+
+    .empty-state-copy {
+        max-width: 48ch;
+        font-size: 13px;
+        line-height: 1.65;
+    }
+
+    .message-state {
+        text-align: center;
+        padding: 28px 20px;
+        color: var(--text-secondary);
+        font-size: 13px;
+    }
+
+    .message-error {
+        color: var(--status-error);
+    }
+
+    /* ── Modals ──────────────────────────────────── */
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: color-mix(in srgb, var(--text-primary) 28%, transparent);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+    }
+
+    .modal-overlay.active {
+        display: flex;
+    }
+
+    .modal-container {
+        width: 560px;
+        max-width: 95vw;
+        max-height: 90vh;
+        overflow-y: auto;
+        border: 1px solid var(--border-color);
+        border-radius: 18px;
+        background: var(--bg-surface);
+        box-shadow: var(--shadow-levitate);
+        scrollbar-width: thin;
+        scrollbar-color: rgba(148, 163, 184, .35) transparent;
+    }
+
+    .modal-lg {
+        width: 960px;
+    }
+
+    .modal-header {
+        padding: 20px 22px 16px;
+        border-bottom: 1px solid var(--border-color);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+    }
+
+    .modal-title {
+        font-size: 1rem;
+        font-weight: 800;
+        color: var(--text-primary);
+    }
+
+    .modal-close {
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: var(--text-secondary);
+        padding: 4px;
+        border-radius: 8px;
+    }
+
+    .modal-close:hover {
+        color: var(--text-primary);
+        background: var(--bg-hover);
+    }
+
+    .modal-body {
+        padding: 20px 22px;
+    }
+
+    .modal-footer {
+        padding: 14px 22px 20px;
+        border-top: 1px solid var(--border-color);
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    /* ── Forms ───────────────────────────────────── */
+    .form-group {
+        margin-bottom: 14px;
+    }
+
+    .form-label {
+        display: block;
+        margin-bottom: 5px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .06em;
+        color: var(--text-secondary);
+    }
+
+    .form-select {
+        width: 100%;
+        padding: 9px 11px;
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        background: var(--bg-input, var(--bg-surface));
+        color: var(--text-primary);
+        font-size: 13px;
+        box-sizing: border-box;
+    }
+
+    .form-select:focus {
+        outline: none;
+        border-color: var(--brand-primary, var(--accent-blue));
+    }
+
+    .form-hint {
+        margin-top: 5px;
+        font-size: 11px;
+        line-height: 1.55;
+        color: var(--text-secondary);
+    }
+
+    /* ── Incident picker ─────────────────────────── */
+    .incident-list,
+    .timeline-mini,
+    .view-modal-scroll {
+        overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(148, 163, 184, .35) transparent;
+    }
+
+    .incident-list {
+        max-height: 320px;
+    }
+
+    .incident-item {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: 12px;
+        margin-bottom: 8px;
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        background: var(--bg-surface);
+        cursor: pointer;
+        transition: border-color .14s, background .14s, transform .14s;
+    }
+
+    .incident-item:hover {
+        background: var(--bg-hover);
+        transform: translateY(-1px);
+    }
+
+    .incident-item.selected {
+        border-color: color-mix(in srgb, var(--brand-primary, var(--accent-blue)) 30%, var(--border-color));
+        background: color-mix(in srgb, var(--brand-primary, var(--accent-blue)) 8%, var(--bg-surface));
+    }
+
+    .incident-item-title {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--text-primary);
+    }
+
+    .incident-item-meta {
+        font-size: 12px;
+        line-height: 1.6;
+        color: var(--text-secondary);
+    }
+
+    /* ── Evidence preview ────────────────────────── */
+    .preview-shell {
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid var(--border-color);
+    }
+
+    .preview-title,
+    .section-title {
+        margin: 0 0 10px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        color: var(--text-secondary);
+    }
+
+    .evidence-section {
+        margin-bottom: 16px;
+    }
+
+    .timeline-mini {
+        max-height: 200px;
+    }
+
+    .timeline-row {
+        display: grid;
+        grid-template-columns: 150px 1fr;
+        gap: 10px;
+        align-items: start;
+        padding: 7px 0;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .timeline-row:last-child {
+        border-bottom: none;
+    }
+
+    .timeline-ts {
+        font-size: 11px;
+        color: var(--text-secondary);
+    }
+
+    .timeline-ev {
+        font-size: 13px;
+        color: var(--text-primary);
+        line-height: 1.5;
+    }
+
+    /* ── View modal internals ────────────────────── */
+    .modal-meta-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 14px;
+    }
+
+    .detail-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 9px;
+        border-radius: 999px;
+        border: 1px solid var(--border-color);
+        background: var(--bg-card, var(--bg-surface));
+        color: var(--text-primary);
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .detail-chip-muted {
+        color: var(--text-secondary);
+    }
+
+    .detail-chip-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .evidence-stat {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 9px;
+        border-radius: 999px;
+        border: 1px solid var(--border-color);
+        background: var(--bg-card, var(--bg-surface));
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .pm-content {
+        font-size: 13px;
+        line-height: 1.75;
+        color: var(--text-primary);
+        white-space: pre-wrap;
+    }
+
+    .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 10px;
+    }
+
+    .metric-card {
+        padding: 14px;
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        background: var(--bg-card, var(--bg-surface));
+    }
+
+    .metric-card-label {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        color: var(--text-secondary);
+    }
+
+    .metric-card-value {
+        margin-top: 8px;
+        font-size: 1.25rem;
+        font-weight: 800;
+        color: var(--text-primary);
+    }
+
+    .section-block {
+        padding: 14px;
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        background: var(--bg-card, var(--bg-surface));
+    }
+
+    .section-block h4 {
+        margin: 0 0 10px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        color: var(--text-secondary);
+    }
+
+    .action-item-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 100px 100px auto;
+        gap: 10px;
+        align-items: start;
+        padding: 9px 0;
+        border-bottom: 1px solid var(--border-color);
+        font-size: 13px;
+    }
+
+    .action-item-row:last-child {
+        border-bottom: none;
+    }
+
+    .plain-list {
+        margin: 0;
+        padding-left: 18px;
+        color: var(--text-primary);
+    }
+
+    .plain-list li {
+        margin-bottom: 5px;
+        font-size: 13px;
+    }
+
+    /* ── Tabs ────────────────────────────────────── */
+    .tab-bar {
+        display: flex;
+        gap: 5px;
+        padding-bottom: 4px;
+        border-bottom: 1px solid var(--border-color);
+        margin-bottom: 14px;
+        flex-wrap: wrap;
+    }
+
+    .tab-btn {
+        padding: 7px 13px;
+        font-size: 12px;
+        font-weight: 700;
+        border: 1px solid transparent;
+        border-radius: 999px;
+        background: transparent;
+        color: var(--text-secondary);
+        cursor: pointer;
+        transition: background .14s, color .14s, border-color .14s;
+    }
+
+    .tab-btn.active {
+        color: var(--brand-primary, var(--accent-blue));
+        border-color: color-mix(in srgb, var(--brand-primary, var(--accent-blue)) 20%, var(--border-color));
+        background: color-mix(in srgb, var(--brand-primary, var(--accent-blue)) 10%, var(--bg-surface));
+    }
+
+    .tab-panel {
+        display: none;
+    }
+
+    .tab-panel.active {
+        display: block;
+    }
+
+    .mono-id {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace;
+        font-size: 11px;
+    }
+
+    @media (max-width: 900px) {
+        .page-header-bar {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .control-bar {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .results-meta {
+            margin-left: 0;
+        }
+
+        .pm-table th.col-anchor,
+        .pm-table td.col-anchor {
+            display: none;
+        }
+
+        .action-item-row {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 640px) {
+
+        .pm-table th.col-date,
+        .pm-table td.col-date,
+        .pm-table th.col-mttr,
+        .pm-table td.col-mttr,
+        .pm-table th.col-gen,
+        .pm-table td.col-gen {
+            display: none;
+        }
+
+        .modal-header,
+        .modal-body,
+        .modal-footer {
+            padding-left: 16px;
+            padding-right: 16px;
+        }
+
+        .timeline-row {
+            grid-template-columns: 1fr;
+        }
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="page-header">
-    <h1 class="page-title"><i data-feather="file-text" style="width:20px;height:20px;"></i> Post-Incident Post-Mortems</h1>
-    <p class="page-subtitle">AI-generated post-incident reviews anchored to resolved incidents.</p>
-</div>
+<div class="page-shell">
 
-<div class="toolbar">
-    <input type="text" class="search-box" id="searchInput" placeholder="Search post-mortems…" oninput="filterPostmortems()">
-    <div class="toolbar-actions">
-        <button class="btn-secondary" onclick="openAlertGenerateModal()" title="Legacy: generate from a single alert">
-            <i data-feather="alert-circle" style="width:14px;height:14px;"></i> From Alert
-        </button>
-        <button class="btn-primary" onclick="openIncidentPickerModal()">
-            <i data-feather="zap" style="width:14px;height:14px;"></i> Generate from Incident
-        </button>
+    <!-- ── Page header ───────────────────────────────────────────── -->
+    <div class="page-header-bar" style="margin-bottom: 8px;">
+        <div>
+            <h1 class="page-heading">Post-Incident Postmortems</h1>
+            <p class="page-subheading">Generate structured reviews from resolved incidents &middot; LLM root cause
+                analysis &middot; Action item tracking</p>
+        </div>
     </div>
-</div>
 
-<div id="pmGrid" class="pm-grid">
-    <div style="text-align:center;padding:40px;color:var(--text-secondary);">Loading…</div>
+    <!-- Toolbar with Filters and Actions -->
+    <div class="card p-4" style="overflow: visible; position: relative; z-index: 200; margin-bottom: 12px;">
+        <div class="flex flex-wrap gap-4 items-center justify-between"
+            style="display: flex; gap: 16px; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+            <!-- Left: Filters -->
+            <div class="flex flex-wrap gap-3 items-center flex-1"
+                style="display: flex; gap: 12px; align-items: center; flex: 1; flex-wrap: wrap;">
+                <div class="runbook-search-wrapper" style="flex: 1; min-width: 200px; max-width: 380px;">
+                    <i class="fas fa-search search-icon"></i>
+                    <input type="text" id="searchInput" placeholder="Search title, impact, root cause…"
+                        oninput="applyFilters()" class="runbook-search-input" style="width: 100%;">
+                </div>
+                <!-- Status Dropdown -->
+                <div class="rb-dropdown" id="statusDropdown">
+                    <select id="statusFilter" class="hidden" style="display:none;">
+                        <option value="all">All Status</option>
+                        <option value="draft">Draft</option>
+                        <option value="in_review">In Review</option>
+                        <option value="published">Published</option>
+                    </select>
+                    <div class="rb-dropdown-trigger" onclick="toggleRbDropdown('statusDropdown')">
+                        <div class="flex items-center gap-2" style="display: flex; align-items: center; gap: 8px;">
+                            <i class="fas fa-circle-dot" style="font-size: 11px; color: #94a3b8;"></i>
+                            <span class="rb-dd-label" id="statusDropdownLabel">All Status</span>
+                        </div>
+                        <svg class="rb-dd-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </div>
+                    <div class="rb-dropdown-menu" id="statusDropdownItems">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <span class="results-meta ml-2" id="resultsMeta"></span>
+            </div>
+
+            <!-- Right: Action Buttons -->
+            <div class="flex items-center gap-2 flex-wrap"
+                style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; position: relative; z-index: 210;">
+                <button class="runbook-action-btn runbook-action-secondary" id="btn-generate-alert"
+                    onclick="openAlertGenerateModal()" title="Legacy: generate from a single alert">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <span class="hidden sm:inline">Legacy Alert Flow</span>
+                </button>
+                <button class="runbook-action-btn runbook-action-primary" id="btn-generate-incident"
+                    onclick="openIncidentPickerModal()">
+                    <i class="fas fa-bolt"></i>
+                    <span>Generate From Incident</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Data table ───────────────────────────────────────────── -->
+    <div class="table-wrap">
+        <table class="pm-table" id="pmTable">
+            <thead>
+                <tr>
+                    <th class="col-status">Status</th>
+                    <th class="col-title">Title / Impact</th>
+                    <th class="col-anchor">Anchored To</th>
+                    <th class="col-sev">Severity</th>
+                    <th class="col-date">Created</th>
+                    <th class="col-mttr">MTTR</th>
+                    <th class="col-gen" title="AI-generated">AI</th>
+                    <th class="col-acts">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="pmTableBody">
+                <tr>
+                    <td colspan="8">
+                        <div class="message-state">Loading reports…</div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- Pagination sits inside the table-wrap so it shares the border -->
+        <div class="pagination-bar" id="paginationBar" style="display:none;">
+            <span class="pag-info" id="pagInfo"></span>
+            <div class="pag-controls" id="pagControls"></div>
+        </div>
+    </div>
+
 </div>
 
 <!-- ─────────────────────────────────────────────────────────────────────── -->
-<!-- Incident Picker Modal (Step 1 of incident-first flow)                  -->
+<!-- Incident Picker Modal                                                   -->
 <!-- ─────────────────────────────────────────────────────────────────────── -->
 <div class="modal-overlay" id="incidentPickerModal" onclick="handleOverlayClick(event,'incidentPickerModal')">
     <div class="modal-container modal-lg">
         <div class="modal-header">
             <span class="modal-title">Select a Resolved Incident</span>
-            <button class="modal-close" onclick="closeModal('incidentPickerModal')"><i data-feather="x" style="width:16px;height:16px;"></i></button>
+            <button class="modal-close" onclick="closeModal('incidentPickerModal')">
+                <i data-feather="x" style="width:16px;height:16px;"></i>
+            </button>
         </div>
         <div class="modal-body">
-            <p style="font-size:13px;color:var(--text-secondary);margin-bottom:14px;">
+            <p class="form-hint" style="margin-bottom:12px;">
                 Pick a resolved incident. Only incidents whose grace period has elapsed are shown.
                 Click an incident to preview its evidence, then click <strong>Generate</strong>.
             </p>
             <div class="incident-list" id="incidentList">
-                <div style="text-align:center;padding:30px;color:var(--text-secondary);">Loading eligible incidents…</div>
+                <div class="message-state">Loading eligible incidents…</div>
             </div>
-            <!-- Evidence preview (shown after selecting an incident) -->
-            <div id="evidencePreview" style="display:none;margin-top:18px;border-top:1px solid var(--border-color);padding-top:18px;">
-                <p style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-secondary);margin-bottom:12px;">Evidence Preview</p>
+            <div id="evidencePreview" class="preview-shell" style="display:none;">
+                <p class="preview-title">Evidence Preview</p>
                 <div id="evidenceContent"></div>
             </div>
         </div>
@@ -167,13 +1169,15 @@
 </div>
 
 <!-- ─────────────────────────────────────────────────────────────────────── -->
-<!-- Alert Generate Modal (compatibility / legacy path)                     -->
+<!-- Alert Generate Modal (legacy path)                                      -->
 <!-- ─────────────────────────────────────────────────────────────────────── -->
 <div class="modal-overlay" id="alertGenerateModal" onclick="handleOverlayClick(event,'alertGenerateModal')">
     <div class="modal-container">
         <div class="modal-header">
             <span class="modal-title">Generate Post-Mortem from Alert</span>
-            <button class="modal-close" onclick="closeModal('alertGenerateModal')"><i data-feather="x" style="width:16px;height:16px;"></i></button>
+            <button class="modal-close" onclick="closeModal('alertGenerateModal')">
+                <i data-feather="x" style="width:16px;height:16px;"></i>
+            </button>
         </div>
         <div class="modal-body">
             <div class="form-group">
@@ -181,7 +1185,8 @@
                 <select class="form-select" id="genAlertId">
                     <option value="">Loading alerts…</option>
                 </select>
-                <p class="form-hint">An incident will be resolved or created for this alert, then a post-mortem will be generated from the full incident evidence.</p>
+                <p class="form-hint">An incident will be resolved or created for this alert, then a post-mortem will be
+                    generated from the full incident evidence.</p>
             </div>
         </div>
         <div class="modal-footer">
@@ -202,16 +1207,19 @@
             <span class="modal-title" id="viewModalTitle">Post-Mortem</span>
             <div style="display:flex;gap:8px;align-items:center;">
                 <span id="viewModalBadge"></span>
-                <button class="btn-green btn-sm" id="publishBtn" onclick="publishPostmortem()" style="display:none;">
+                <button class="btn-sm btn-publish" id="publishBtn" onclick="publishPostmortem()" style="display:none;">
                     <i data-feather="check-circle" style="width:12px;height:12px;"></i> Publish
                 </button>
                 <button class="btn-sm" id="regenBtn" onclick="regenerateCurrent()">
                     <i data-feather="refresh-cw" style="width:12px;height:12px;"></i> Regenerate
                 </button>
-                <button class="modal-close" onclick="closeModal('viewModal')"><i data-feather="x" style="width:16px;height:16px;"></i></button>
+                <button class="modal-close" onclick="closeModal('viewModal')">
+                    <i data-feather="x" style="width:16px;height:16px;"></i>
+                </button>
             </div>
         </div>
-        <div class="modal-body" id="viewModalBody" style="max-height:72vh;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(148,163,184,.35) transparent;">
+        <div class="modal-body" id="viewModalBody"
+            style="max-height:72vh;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(148,163,184,.35) transparent;">
             Loading…
         </div>
     </div>
@@ -224,14 +1232,20 @@
     <div class="modal-container" style="width:400px;">
         <div class="modal-header">
             <span class="modal-title">Delete Post-Mortem?</span>
-            <button class="modal-close" onclick="closeModal('deleteModal')"><i data-feather="x" style="width:16px;height:16px;"></i></button>
+            <button class="modal-close" onclick="closeModal('deleteModal')">
+                <i data-feather="x" style="width:16px;height:16px;"></i>
+            </button>
         </div>
         <div class="modal-body">
-            <p style="color:var(--text-primary);font-size:14px;">This post-mortem report will be permanently deleted. This action cannot be undone.</p>
+            <p style="color:var(--text-primary);font-size:14px;line-height:1.65;">
+                This postmortem report will be permanently deleted.
+                <strong id="deleteReportName">This action cannot be undone.</strong>
+            </p>
         </div>
         <div class="modal-footer">
             <button class="btn-secondary" onclick="closeModal('deleteModal')">Cancel</button>
-            <button class="btn-danger" style="padding:8px 16px;font-size:13px;" onclick="confirmDelete()">Delete</button>
+            <button class="btn-danger" style="padding:8px 16px;font-size:13px;"
+                onclick="confirmDelete()">Delete</button>
         </div>
     </div>
 </div>
@@ -239,395 +1253,573 @@
 
 {% block scripts %}
 <script>
-'use strict';
+    'use strict';
 
-let postmortems = [];
-let viewingId = null;
-let deletingId = null;
-let selectedIncidentId = null;
+    const PAGE_SIZE = 20;
 
-// ── Utilities ──────────────────────────────────────────────────────────────
+    let allPostmortems = [];  // full server list, sorted by created_at desc
+    let filteredList = [];  // after search + status filter
+    let currentPage = 1;
+    let activeStatus = 'all';
+    let viewingId = null;
+    let deletingId = null;
+    let selectedIncidentId = null;
 
-function getToken() { return localStorage.getItem('access_token') || ''; }
+    // ── Dropdown Logic ──────────────────────────────────────────────────────────
 
-function escHtml(s) {
-    const d = document.createElement('div');
-    d.appendChild(document.createTextNode(s == null ? '' : String(s)));
-    return d.innerHTML;
-}
+    function toggleRbDropdown(id) {
+        const dd = document.getElementById(id);
+        if (!dd) return;
+        const wasOpen = dd.classList.contains('open');
+        document.querySelectorAll('.rb-dropdown.open').forEach(d => d.classList.remove('open'));
+        if (!wasOpen) dd.classList.add('open');
+    }
 
-function fmtDate(iso) {
-    if (!iso) return '—';
-    return new Date(iso).toLocaleString();
-}
+    document.addEventListener('click', function (e) {
+        if (!e.target.closest('.rb-dropdown')) {
+            document.querySelectorAll('.rb-dropdown.open').forEach(d => d.classList.remove('open'));
+        }
+    });
 
-function fmtDuration(minutes) {
-    if (minutes == null) return '—';
-    const m = Math.round(minutes);
-    if (m < 60) return `${m}m`;
-    return `${Math.floor(m/60)}h ${m%60}m`;
-}
+    // ── Utilities ──────────────────────────────────────────────────────────────
 
-function calcMttr(startedAt, resolvedAt) {
-    if (!startedAt || !resolvedAt) return null;
-    return (new Date(resolvedAt) - new Date(startedAt)) / 60000;
-}
+    function getToken() { return localStorage.getItem('access_token') || ''; }
 
-function severityBadge(sev) {
-    const severityClasses = { critical: 'badge-sev-critical', high: 'badge-sev-critical', warning: 'badge-sev-warning', medium: 'badge-sev-warning', info: 'badge-sev-info', low: 'badge-sev-info' };
-    const cls = severityClasses[(sev || '').toLowerCase()] || 'badge-sev-info';
-    return sev ? `<span class="badge ${cls}">${escHtml(sev)}</span>` : '';
-}
+    function escHtml(s) {
+        const d = document.createElement('div');
+        d.appendChild(document.createTextNode(s == null ? '' : String(s)));
+        return d.innerHTML;
+    }
 
-function statusBadge(st) {
-    const statusClasses = { published: 'badge-published', in_review: 'badge-in-review', draft: 'badge-draft' };
-    const cls = statusClasses[st] || 'badge-draft';
-    return `<span class="badge ${cls}">${escHtml(st)}</span>`;
-}
+    function fmtDate(iso) {
+        if (!iso) return '—';
+        return new Date(iso).toLocaleString();
+    }
 
-function openModal(id) { document.getElementById(id).classList.add('active'); }
-function closeModal(id) { document.getElementById(id).classList.remove('active'); }
-function handleOverlayClick(e, id) { if (e.target.id === id) closeModal(id); }
+    function fmtDateShort(iso) {
+        if (!iso) return '—';
+        return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    }
 
-// ── Load postmortems list ──────────────────────────────────────────────────
+    function fmtDuration(minutes) {
+        if (minutes == null) return '—';
+        const m = Math.round(minutes);
+        if (m < 60) return `${m}m`;
+        return `${Math.floor(m / 60)}h ${m % 60}m`;
+    }
 
-async function loadPostmortems() {
-    try {
-        const res = await fetch('/api/postmortems/?page_size=50', {
-            headers: { Authorization: 'Bearer ' + getToken() }
+    function getPostmortemAnchor(pm) {
+        if (pm.incident_id) return `Incident ${pm.incident_id.slice(0, 8)}…`;
+        if (pm.alert_id) return `Alert ${pm.alert_id.slice(0, 8)}…`;
+        return '—';
+    }
+
+    function getReportMttr(pm) {
+        if (pm.metrics && pm.metrics.mttr_minutes != null) return pm.metrics.mttr_minutes;
+        if (pm.incident_start && pm.incident_end)
+            return (new Date(pm.incident_end) - new Date(pm.incident_start)) / 60000;
+        return null;
+    }
+
+    function severityBadge(sev) {
+        const map = { critical: 'badge-sev-critical', high: 'badge-sev-critical', warning: 'badge-sev-warning', medium: 'badge-sev-warning', info: 'badge-sev-info', low: 'badge-sev-info' };
+        const cls = map[(sev || '').toLowerCase()] || 'badge-sev-info';
+        return sev ? `<span class="badge ${cls}">${escHtml(sev)}</span>` : '';
+    }
+
+    function statusBadge(st) {
+        const map = { published: 'badge-published', in_review: 'badge-in-review', draft: 'badge-draft' };
+        const cls = map[st] || 'badge-draft';
+        const label = st === 'in_review' ? 'In Review' : st ? (st.charAt(0).toUpperCase() + st.slice(1)) : 'Draft';
+        return `<span class="badge ${cls}">${escHtml(label)}</span>`;
+    }
+
+    function openModal(id) { document.getElementById(id).classList.add('active'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+    function handleOverlayClick(e, id) { if (e.target.id === id) closeModal(id); }
+
+    // ── Load & render ──────────────────────────────────────────────────────────
+
+    async function loadPostmortems() {
+        try {
+            const res = await fetch('/api/postmortems/?page_size=100', {
+                headers: { Authorization: 'Bearer ' + getToken() }
+            });
+            if (!res.ok) throw new Error(await res.text());
+            const data = await res.json();
+            allPostmortems = (data.items || []).sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+            renderStatusFilters();
+            applyFilters();
+        } catch (e) {
+            renderStatusFilters();
+            document.getElementById('resultsMeta').textContent = 'Unable to load reports';
+            document.getElementById('pmTableBody').innerHTML =
+                `<tr><td colspan="8"><div class="message-state message-error">${escHtml(e.message)}</div></td></tr>`;
+        }
+    }
+
+    function renderStatusFilters() {
+        const counts = {
+            all: allPostmortems.length,
+            draft: allPostmortems.filter(p => (p.status || 'draft') === 'draft').length,
+            in_review: allPostmortems.filter(p => p.status === 'in_review').length,
+            published: allPostmortems.filter(p => p.status === 'published').length,
+        };
+
+        const labels = {
+            all: 'All Status',
+            draft: 'Draft',
+            in_review: 'In Review',
+            published: 'Published'
+        };
+
+        const colors = {
+            all: 'linear-gradient(135deg, #10b981, #f59e0b, #94a3b8)',
+            draft: '#f59e0b',
+            in_review: '#3b82f6',
+            published: '#10b981'
+        };
+
+        const container = document.getElementById('statusDropdownItems');
+        if (container) {
+            container.innerHTML = ['all', 'draft', 'in_review', 'published'].map(key => {
+                const isSelected = activeStatus === key;
+                const countHtml = counts[key] > 0 ? `<span style="margin-left:auto; font-size:11px; opacity:0.6">${counts[key]}</span>` : '';
+                return `
+                <div class="rb-dropdown-item ${isSelected ? 'selected' : ''}" data-value="${key}" onclick="setStatus('${key}')">
+                    <i class="fas fa-check rb-dd-check"></i>
+                    <span class="rb-dd-dot" style="background: ${colors[key]};"></span>
+                    ${labels[key]} ${countHtml}
+                </div>
+            `;
+            }).join('');
+
+            const labelEl = document.getElementById('statusDropdownLabel');
+            if (labelEl) labelEl.textContent = labels[activeStatus];
+        }
+    }
+
+    function setStatus(status) {
+        const dd = document.getElementById('statusDropdown');
+        if (dd) dd.classList.remove('open');
+        activeStatus = status;
+        currentPage = 1;
+        renderStatusFilters();
+        applyFilters();
+    }
+
+    function applyFilters() {
+        const q = document.getElementById('searchInput').value.toLowerCase().trim();
+
+        filteredList = allPostmortems.filter(pm => {
+            if (activeStatus !== 'all' && (pm.status || 'draft') !== activeStatus) return false;
+            if (!q) return true;
+            const hay = [pm.title, pm.impact_summary, pm.root_cause, getPostmortemAnchor(pm)]
+                .filter(Boolean).join(' ').toLowerCase();
+            return hay.includes(q);
         });
-        if (!res.ok) throw new Error(await res.text());
-        const data = await res.json();
-        postmortems = data.items || [];
-        renderGrid(postmortems);
-    } catch(e) {
-        document.getElementById('pmGrid').innerHTML =
-            `<div style="text-align:center;padding:40px;color:#ef4444;">${escHtml(e.message)}</div>`;
-    }
-}
 
-function renderGrid(list) {
-    const grid = document.getElementById('pmGrid');
-    if (!list.length) {
-        grid.innerHTML = `<div class="empty-state">
-            <i data-feather="file-text" style="width:40px;height:40px;"></i>
-            <p>No post-mortems yet. Generate one from a resolved incident.</p>
-        </div>`;
-        feather.replace();
-        return;
+        const shown = filteredList.length, total = allPostmortems.length;
+        const mttrVals = allPostmortems.map(getReportMttr).filter(v => v != null);
+        const avgMttr = mttrVals.length ? mttrVals.reduce((s, v) => s + v, 0) / mttrVals.length : null;
+        const mttrStr = avgMttr != null ? ` · avg MTTR ${fmtDuration(avgMttr)}` : '';
+        document.getElementById('resultsMeta').textContent =
+            (shown === total ? `${total} report${total === 1 ? '' : 's'}` : `${shown} of ${total}`) + mttrStr;
+
+        currentPage = 1;
+        renderPage();
     }
-    grid.innerHTML = list.map(pm => {
-        const anchor = pm.incident_id
-            ? `Incident: ${pm.incident_id.slice(0,8)}…`
-            : pm.alert_id ? `Alert: ${pm.alert_id.slice(0,8)}…` : '—';
-        return `<div class="pm-card">
-            <div class="pm-card-header">
-                <div>
-                    <p class="pm-card-title">${escHtml(pm.title || 'Post-Mortem')}</p>
-                    <p class="pm-card-meta">
-                        ${escHtml(anchor)} &nbsp;·&nbsp;
-                        ${statusBadge(pm.status)}
-                        ${pm.severity ? ' &nbsp;·&nbsp; ' + severityBadge(pm.severity) : ''}
-                        &nbsp;·&nbsp; ${fmtDate(pm.created_at)}
-                    </p>
-                </div>
-                <div class="pm-card-actions">
-                    <button class="btn-sm" onclick="viewPostmortem('${pm.id}')">
-                        <i data-feather="eye" style="width:12px;height:12px;"></i> View
-                    </button>
-                    <button class="btn-sm" onclick="regenerate('${pm.id}')">
-                        <i data-feather="refresh-cw" style="width:12px;height:12px;"></i> Regenerate
-                    </button>
-                    <button class="btn-danger" onclick="openDeleteModal('${pm.id}')">
-                        <i data-feather="trash-2" style="width:12px;height:12px;"></i>
-                    </button>
-                </div>
+
+    function renderPage() {
+        const tbody = document.getElementById('pmTableBody');
+        const pagBar = document.getElementById('paginationBar');
+
+        if (!filteredList.length) {
+            tbody.innerHTML = `<tr><td colspan="8">
+            <div class="empty-state">
+                <i data-feather="file-text" style="width:36px;height:36px;"></i>
+                <p class="empty-state-title">No postmortems match the current view.</p>
+                <p class="empty-state-copy">Generate one from a resolved incident, or clear filters to see existing reports.</p>
+                <button class="btn-primary" onclick="openIncidentPickerModal()">
+                    <i data-feather="zap" style="width:14px;height:14px;"></i> Generate From Incident
+                </button>
             </div>
-            ${pm.impact_summary ? `<div class="pm-card-excerpt">${escHtml(pm.impact_summary)}</div>` : ''}
-        </div>`;
-    }).join('');
-    feather.replace();
-}
-
-function filterPostmortems() {
-    const q = document.getElementById('searchInput').value.toLowerCase();
-    renderGrid(q
-        ? postmortems.filter(p => (p.title||'').toLowerCase().includes(q) || (p.impact_summary||'').toLowerCase().includes(q))
-        : postmortems
-    );
-}
-
-// ── Incident-first flow ────────────────────────────────────────────────────
-
-async function openIncidentPickerModal() {
-    selectedIncidentId = null;
-    document.getElementById('generateIncidentBtn').disabled = true;
-    document.getElementById('generateIncidentBtn').classList.add('btn-disabled');
-    document.getElementById('evidencePreview').style.display = 'none';
-    openModal('incidentPickerModal');
-    await loadEligibleIncidents();
-}
-
-async function loadEligibleIncidents() {
-    const listEl = document.getElementById('incidentList');
-    listEl.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-secondary);">Loading…</div>';
-    try {
-        const res = await fetch('/api/postmortems/incidents?page_size=50', {
-            headers: { Authorization: 'Bearer ' + getToken() }
-        });
-        if (!res.ok) throw new Error(await res.text());
-        const data = await res.json();
-        const items = data.items || [];
-        if (!items.length) {
-            listEl.innerHTML = `<div style="text-align:center;padding:30px;color:var(--text-secondary);">
-                <i data-feather="check-circle" style="width:28px;height:28px;opacity:.4;"></i>
-                <p style="margin-top:8px;font-size:13px;">No eligible resolved incidents found.<br>Incidents become eligible after resolution grace period (30 min).</p>
-            </div>`;
+        </td></tr>`;
+            pagBar.style.display = 'none';
             feather.replace();
             return;
         }
-        listEl.innerHTML = items.map(inc => `
+
+        const totalPages = Math.max(1, Math.ceil(filteredList.length / PAGE_SIZE));
+        currentPage = Math.min(Math.max(1, currentPage), totalPages);
+
+        const start = (currentPage - 1) * PAGE_SIZE;
+        const page = filteredList.slice(start, start + PAGE_SIZE);
+
+        tbody.innerHTML = page.map(pm => {
+            const mttr = getReportMttr(pm);
+            const anchor = getPostmortemAnchor(pm);
+            const isAI = pm.generated_by && String(pm.generated_by).toLowerCase() === 'ai';
+            return `<tr>
+            <td class="col-status">${statusBadge(pm.status)}</td>
+            <td class="col-title">
+                <div class="td-title">${escHtml(pm.title || 'Untitled Report')}</div>
+                ${pm.impact_summary ? `<div class="td-excerpt">${escHtml(pm.impact_summary)}</div>` : ''}
+            </td>
+            <td class="col-anchor" style="font-size:12px;color:var(--text-secondary);">${escHtml(anchor)}</td>
+            <td class="col-sev">${pm.severity ? severityBadge(pm.severity) : '<span style="color:var(--text-secondary);font-size:12px;">—</span>'}</td>
+            <td class="col-date" style="font-size:12px;color:var(--text-secondary);">${fmtDateShort(pm.created_at)}</td>
+            <td class="col-mttr" style="font-size:12px;">${fmtDuration(mttr)}</td>
+            <td class="col-gen" style="text-align:center;">
+                ${isAI ? `<span class="badge badge-ai" title="AI-generated">AI</span>` : '<span style="color:var(--text-secondary);font-size:11px;">—</span>'}
+            </td>
+            <td class="td-actions col-acts">
+                <button class="btn-sm btn-icon" onclick="viewPostmortem('${pm.id}')" title="View">
+                    <i data-feather="eye" style="width:12px;height:12px;"></i>
+                </button>
+                <button class="btn-sm btn-icon" onclick="regenerate('${pm.id}')" title="Regenerate" style="margin-left:4px;">
+                    <i data-feather="refresh-cw" style="width:12px;height:12px;"></i>
+                </button>
+                <button class="btn-danger btn-icon" onclick="openDeleteModal('${pm.id}')" title="Delete" style="margin-left:4px;">
+                    <i data-feather="trash-2" style="width:12px;height:12px;"></i>
+                </button>
+            </td>
+        </tr>`;
+        }).join('');
+
+        feather.replace();
+
+        // Pagination
+        if (totalPages <= 1) {
+            pagBar.style.display = 'none';
+        } else {
+            pagBar.style.display = 'flex';
+            const s = start + 1, e = Math.min(start + PAGE_SIZE, filteredList.length);
+            document.getElementById('pagInfo').textContent = `Showing ${s}–${e} of ${filteredList.length}`;
+            renderPagControls(totalPages);
+        }
+    }
+
+    function renderPagControls(totalPages) {
+        const ctrl = document.getElementById('pagControls');
+        const parts = [];
+
+        parts.push(`<button class="pag-btn" onclick="goPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''} title="Previous">
+        <i data-feather="chevron-left" style="width:13px;height:13px;"></i>
+    </button>`);
+
+        buildPageRange(currentPage, totalPages).forEach(item => {
+            if (item === '…') {
+                parts.push(`<span style="padding:0 2px;font-size:13px;color:var(--text-secondary);">…</span>`);
+            } else {
+                parts.push(`<button class="pag-btn ${item === currentPage ? 'active' : ''}" onclick="goPage(${item})">${item}</button>`);
+            }
+        });
+
+        parts.push(`<button class="pag-btn" onclick="goPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''} title="Next">
+        <i data-feather="chevron-right" style="width:13px;height:13px;"></i>
+    </button>`);
+
+        ctrl.innerHTML = parts.join('');
+        feather.replace();
+    }
+
+    function buildPageRange(current, total) {
+        if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+        const r = [];
+        if (current <= 4) {
+            for (let i = 1; i <= 5; i++) r.push(i);
+            r.push('…'); r.push(total);
+        } else if (current >= total - 3) {
+            r.push(1); r.push('…');
+            for (let i = total - 4; i <= total; i++) r.push(i);
+        } else {
+            r.push(1); r.push('…');
+            r.push(current - 1); r.push(current); r.push(current + 1);
+            r.push('…'); r.push(total);
+        }
+        return r;
+    }
+
+    function goPage(p) {
+        const totalPages = Math.ceil(filteredList.length / PAGE_SIZE);
+        if (p < 1 || p > totalPages) return;
+        currentPage = p;
+        renderPage();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // ── Incident-first flow ────────────────────────────────────────────────────
+
+    async function openIncidentPickerModal() {
+        selectedIncidentId = null;
+        document.getElementById('generateIncidentBtn').disabled = true;
+        document.getElementById('generateIncidentBtn').classList.add('btn-disabled');
+        document.getElementById('evidencePreview').style.display = 'none';
+        openModal('incidentPickerModal');
+        await loadEligibleIncidents();
+    }
+
+    async function loadEligibleIncidents() {
+        const listEl = document.getElementById('incidentList');
+        listEl.innerHTML = '<div class="message-state">Loading…</div>';
+        try {
+            const res = await fetch('/api/postmortems/incidents?page_size=50', {
+                headers: { Authorization: 'Bearer ' + getToken() }
+            });
+            if (!res.ok) throw new Error(await res.text());
+            const data = await res.json();
+            const items = data.items || [];
+            if (!items.length) {
+                listEl.innerHTML = `<div class="message-state">
+                <i data-feather="check-circle" style="width:28px;height:28px;opacity:.4;"></i>
+                <p style="margin-top:8px;font-size:13px;">No eligible resolved incidents found.<br>Incidents become eligible after the resolution grace period (30 min).</p>
+            </div>`;
+                feather.replace();
+                return;
+            }
+            listEl.innerHTML = items.map(inc => `
             <div class="incident-item" id="inc-${inc.id}" onclick="selectIncident('${inc.id}', this)">
                 <div class="incident-item-title">${escHtml(inc.title)}</div>
                 <div class="incident-item-meta">
                     ${severityBadge(inc.severity)}
                     &nbsp; Started: ${fmtDate(inc.started_at)}
                     &nbsp;·&nbsp; Resolved: ${fmtDate(inc.resolved_at)}
-                    &nbsp;·&nbsp; MTTR: ${fmtDuration(calcMttr(inc.started_at, inc.resolved_at))}
-                    ${inc.affected_services && inc.affected_services.length ? '&nbsp;·&nbsp; Services: ' + escHtml(inc.affected_services.slice(0,3).join(', ')) : ''}
+                    &nbsp;·&nbsp; MTTR: ${fmtDuration((new Date(inc.resolved_at) - new Date(inc.started_at)) / 60000)}
+                    ${inc.affected_services && inc.affected_services.length ? '&nbsp;·&nbsp; Services: ' + escHtml(inc.affected_services.slice(0, 3).join(', ')) : ''}
                 </div>
             </div>
         `).join('');
-        feather.replace();
-    } catch(e) {
-        listEl.innerHTML = `<div style="text-align:center;padding:30px;color:#ef4444;">${escHtml(e.message)}</div>`;
+            feather.replace();
+        } catch (e) {
+            listEl.innerHTML = `<div class="message-state message-error">${escHtml(e.message)}</div>`;
+        }
     }
-}
 
-async function selectIncident(incidentId, el) {
-    // Deselect previous
-    document.querySelectorAll('.incident-item.selected').forEach(e => e.classList.remove('selected'));
-    el.classList.add('selected');
-    selectedIncidentId = incidentId;
+    async function selectIncident(incidentId, el) {
+        document.querySelectorAll('.incident-item.selected').forEach(e => e.classList.remove('selected'));
+        el.classList.add('selected');
+        selectedIncidentId = incidentId;
 
-    // Enable generate button
-    document.getElementById('generateIncidentBtn').disabled = false;
-    document.getElementById('generateIncidentBtn').classList.remove('btn-disabled');
+        document.getElementById('generateIncidentBtn').disabled = false;
+        document.getElementById('generateIncidentBtn').classList.remove('btn-disabled');
 
-    // Load evidence preview
-    const previewEl = document.getElementById('evidencePreview');
-    const contentEl = document.getElementById('evidenceContent');
-    previewEl.style.display = 'block';
-    contentEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-secondary);">Loading evidence…</div>';
+        const previewEl = document.getElementById('evidencePreview');
+        const contentEl = document.getElementById('evidenceContent');
+        previewEl.style.display = 'block';
+        contentEl.innerHTML = '<div class="message-state">Loading evidence…</div>';
 
-    try {
-        const res = await fetch(`/api/postmortems/incidents/${incidentId}/evidence`, {
-            headers: { Authorization: 'Bearer ' + getToken() }
-        });
-        if (!res.ok) throw new Error(await res.text());
-        const ev = await res.json();
-        renderEvidencePreview(contentEl, ev);
-    } catch(e) {
-        contentEl.innerHTML = `<p style="color:#ef4444;font-size:13px;">${escHtml(e.message)}</p>`;
+        try {
+            const res = await fetch(`/api/postmortems/incidents/${incidentId}/evidence`, {
+                headers: { Authorization: 'Bearer ' + getToken() }
+            });
+            if (!res.ok) throw new Error(await res.text());
+            renderEvidencePreview(contentEl, await res.json());
+        } catch (e) {
+            contentEl.innerHTML = `<p class="message-error" style="font-size:13px;">${escHtml(e.message)}</p>`;
+        }
     }
-}
 
-function renderEvidencePreview(el, ev) {
-    const stats = [
-        ['Alerts', ev.alert_count],
-        ['Runbook Executions', ev.runbook_executions ? ev.runbook_executions.length : 0],
-        ['Change Events', ev.change_events ? ev.change_events.length : 0],
-        ['MTTR', fmtDuration(ev.mttr_minutes)],
-        ['Affected Services', ev.affected_services ? ev.affected_services.length : 0],
-    ];
+    function renderEvidencePreview(el, ev) {
+        const stats = [
+            ['Alerts', ev.alert_count],
+            ['Runbook Executions', (ev.runbook_executions || []).length],
+            ['Change Events', (ev.change_events || []).length],
+            ['MTTR', fmtDuration(ev.mttr_minutes)],
+            ['Affected Services', (ev.affected_services || []).length],
+        ];
+        const statsHtml = stats.map(([label, val]) =>
+            `<span class="evidence-stat"><strong>${escHtml(String(val))}</strong>&nbsp;${escHtml(label)}</span>`
+        ).join('');
 
-    const statsHtml = stats.map(([label, val]) =>
-        `<span class="evidence-stat"><b>${escHtml(String(val))}</b>&nbsp;${escHtml(label)}</span>`
-    ).join('');
-
-    const timelineRows = (ev.timeline || []).slice(0, 10).map(e =>
-        `<div class="timeline-row">
+        const timelineRows = (ev.timeline || []).slice(0, 10).map(e =>
+            `<div class="timeline-row">
             <span class="timeline-ts">${fmtDate(e.timestamp)}</span>
             <span class="timeline-ev">${escHtml(e.event || '')}</span>
         </div>`
-    ).join('');
+        ).join('');
 
-    const changeRows = (ev.change_events || []).slice(0, 5).map(ce =>
-        `<div class="timeline-row">
+        const changeRows = (ev.change_events || []).slice(0, 5).map(ce =>
+            `<div class="timeline-row">
             <span class="timeline-ts">${fmtDate(ce.timestamp)}</span>
             <span class="timeline-ev">${escHtml(ce.change_type)} — ${escHtml(ce.service_name || '')} — ${escHtml(ce.description || '')}</span>
         </div>`
-    ).join('');
+        ).join('');
 
-    el.innerHTML = `
+        el.innerHTML = `
         <div class="evidence-section">
-            <h5>Evidence Summary</h5>
-            <div>${statsHtml}</div>
+            <p class="section-title">Evidence Summary</p>
+            <div class="detail-chip-row">${statsHtml}</div>
         </div>
         ${timelineRows ? `<div class="evidence-section">
-            <h5>Timeline (first 10 events)</h5>
+            <p class="section-title">Timeline (First 10 Events)</p>
             <div class="timeline-mini">${timelineRows}</div>
         </div>` : ''}
         ${changeRows ? `<div class="evidence-section">
-            <h5>Change Events</h5>
+            <p class="section-title">Change Events</p>
             <div class="timeline-mini">${changeRows}</div>
         </div>` : ''}
     `;
-}
+    }
 
-async function generateFromIncident() {
-    if (!selectedIncidentId) return;
-    const btn = document.getElementById('generateIncidentBtn');
-    btn.disabled = true;
-    btn.innerHTML = '<i data-feather="loader" style="width:14px;height:14px;"></i> Generating…';
-    feather.replace();
-    try {
-        const res = await fetch('/api/postmortems/generate-by-incident', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + getToken() },
-            body: JSON.stringify({ incident_id: selectedIncidentId })
-        });
-        if (!res.ok) { const e = await res.json(); throw new Error(e.detail || JSON.stringify(e)); }
-        window.showToast('Post-mortem generated!', 'success');
-        closeModal('incidentPickerModal');
-        loadPostmortems();
-    } catch(e) {
-        window.showToast('Error: ' + e.message, 'error');
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = '<i data-feather="zap" style="width:14px;height:14px;"></i> Generate Post-Mortem';
+    async function generateFromIncident() {
+        if (!selectedIncidentId) return;
+        const btn = document.getElementById('generateIncidentBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i data-feather="loader" style="width:14px;height:14px;"></i> Generating…';
         feather.replace();
+        try {
+            const res = await fetch('/api/postmortems/generate-by-incident', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + getToken() },
+                body: JSON.stringify({ incident_id: selectedIncidentId })
+            });
+            if (!res.ok) { const e = await res.json(); throw new Error(e.detail || JSON.stringify(e)); }
+            window.showToast('Post-mortem generated!', 'success');
+            closeModal('incidentPickerModal');
+            loadPostmortems();
+        } catch (e) {
+            window.showToast('Error: ' + e.message, 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i data-feather="zap" style="width:14px;height:14px;"></i> Generate Post-Mortem';
+            feather.replace();
+        }
     }
-}
 
-// ── Alert compatibility flow ───────────────────────────────────────────────
+    // ── Alert compatibility flow ───────────────────────────────────────────────
 
-async function openAlertGenerateModal() {
-    await loadAlerts();
-    openModal('alertGenerateModal');
-}
+    async function openAlertGenerateModal() {
+        await loadAlerts();
+        openModal('alertGenerateModal');
+    }
 
-async function loadAlerts() {
-    try {
-        const res = await fetch('/api/alerts?page_size=100', {
-            headers: { Authorization: 'Bearer ' + getToken() }
-        });
-        if (!res.ok) return;
-        const data = await res.json();
-        const sel = document.getElementById('genAlertId');
-        const alerts = data.items || data || [];
-        sel.innerHTML = '<option value="">— Select an alert —</option>' +
-            alerts.map(a => `<option value="${a.id}">[${a.status||'active'}] ${escHtml(a.alert_name||a.name||a.id)}</option>`).join('');
-    } catch(e) { console.error(e); }
-}
+    async function loadAlerts() {
+        try {
+            const res = await fetch('/api/alerts?page_size=100', {
+                headers: { Authorization: 'Bearer ' + getToken() }
+            });
+            if (!res.ok) return;
+            const data = await res.json();
+            const alerts = Array.isArray(data?.alerts)
+                ? data.alerts
+                : Array.isArray(data?.items)
+                    ? data.items
+                    : Array.isArray(data)
+                        ? data
+                        : [];
+            const sel = document.getElementById('genAlertId');
+            sel.innerHTML = '<option value="">— Select an alert —</option>';
 
-async function generateFromAlert() {
-    const alertId = document.getElementById('genAlertId').value;
-    if (!alertId) { window.showToast('Please select an alert', 'error'); return; }
-    const btn = document.getElementById('alertGenerateBtn');
-    btn.disabled = true;
-    btn.innerHTML = '<i data-feather="loader" style="width:14px;height:14px;"></i> Generating…';
-    feather.replace();
-    try {
-        const res = await fetch('/api/postmortems/generate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + getToken() },
-            body: JSON.stringify({ alert_id: alertId })
-        });
-        if (!res.ok) { const e = await res.json(); throw new Error(e.detail || JSON.stringify(e)); }
-        window.showToast('Post-mortem generated!', 'success');
-        closeModal('alertGenerateModal');
-        loadPostmortems();
-    } catch(e) {
-        window.showToast('Error: ' + e.message, 'error');
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = '<i data-feather="zap" style="width:14px;height:14px;"></i> Generate';
+            if (!alerts.length) {
+                sel.innerHTML += '<option value="" disabled>No alerts available</option>';
+                return;
+            }
+
+            sel.innerHTML += alerts.map(a =>
+                `<option value="${a.id}">[${a.status || 'active'}] ${escHtml(a.alert_name || a.name || a.id)}</option>`
+            ).join('');
+        } catch (e) { console.error(e); }
+    }
+
+    async function generateFromAlert() {
+        const alertId = document.getElementById('genAlertId').value;
+        if (!alertId) { window.showToast('Please select an alert', 'error'); return; }
+        const btn = document.getElementById('alertGenerateBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i data-feather="loader" style="width:14px;height:14px;"></i> Generating…';
         feather.replace();
+        try {
+            const res = await fetch('/api/postmortems/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + getToken() },
+                body: JSON.stringify({ alert_id: alertId })
+            });
+            if (!res.ok) { const e = await res.json(); throw new Error(e.detail || JSON.stringify(e)); }
+            window.showToast('Post-mortem generated!', 'success');
+            closeModal('alertGenerateModal');
+            loadPostmortems();
+        } catch (e) {
+            window.showToast('Error: ' + e.message, 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i data-feather="zap" style="width:14px;height:14px;"></i> Generate';
+            feather.replace();
+        }
     }
-}
 
-// ── View modal ─────────────────────────────────────────────────────────────
+    // ── View modal ─────────────────────────────────────────────────────────────
 
-async function viewPostmortem(id) {
-    viewingId = id;
-    openModal('viewModal');
-    document.getElementById('viewModalBody').innerHTML =
-        '<div style="text-align:center;padding:40px;color:var(--text-secondary);">Loading…</div>';
-    try {
-        const res = await fetch(`/api/postmortems/${id}`, {
-            headers: { Authorization: 'Bearer ' + getToken() }
-        });
-        if (!res.ok) throw new Error(await res.text());
-        const pm = await res.json();
-        renderViewModal(pm);
-    } catch(e) {
-        document.getElementById('viewModalBody').innerHTML =
-            `<p style="color:#ef4444;">${escHtml(e.message)}</p>`;
+    async function viewPostmortem(id) {
+        viewingId = id;
+        openModal('viewModal');
+        document.getElementById('viewModalBody').innerHTML = '<div class="message-state">Loading…</div>';
+        try {
+            const res = await fetch(`/api/postmortems/${id}`, {
+                headers: { Authorization: 'Bearer ' + getToken() }
+            });
+            if (!res.ok) throw new Error(await res.text());
+            renderViewModal(await res.json());
+        } catch (e) {
+            document.getElementById('viewModalBody').innerHTML =
+                `<p class="message-error" style="font-size:13px;">${escHtml(e.message)}</p>`;
+        }
     }
-}
 
-function renderViewModal(pm) {
-    document.getElementById('viewModalTitle').textContent = pm.title || 'Post-Mortem';
-    document.getElementById('viewModalBadge').innerHTML = statusBadge(pm.status);
-    document.getElementById('publishBtn').style.display = pm.status === 'published' ? 'none' : 'flex';
+    function renderViewModal(pm) {
+        document.getElementById('viewModalTitle').textContent = pm.title || 'Post-Mortem';
+        document.getElementById('viewModalBadge').innerHTML = statusBadge(pm.status);
+        document.getElementById('publishBtn').style.display = pm.status === 'published' ? 'none' : 'flex';
 
-    // Incident / alert anchor
-    const anchor = pm.incident_id
-        ? `Incident: <code style="font-size:11px;">${pm.incident_id}</code>`
-        : pm.alert_id ? `Alert: <code style="font-size:11px;">${pm.alert_id}</code>` : '—';
+        const anchor = pm.incident_id
+            ? `Incident <span class="mono-id">${escHtml(pm.incident_id)}</span>`
+            : pm.alert_id ? `Alert <span class="mono-id">${escHtml(pm.alert_id)}</span>` : '—';
 
-    // Metrics
-    const m = pm.metrics || {};
-    const metricsHtml = `
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
-            ${m.mttd_minutes != null ? `<span class="evidence-stat"><b>${fmtDuration(m.mttd_minutes)}</b> MTTD</span>` : ''}
-            ${m.mtta_minutes != null ? `<span class="evidence-stat"><b>${fmtDuration(m.mtta_minutes)}</b> MTTA</span>` : ''}
-            ${m.mtte_minutes != null ? `<span class="evidence-stat"><b>${fmtDuration(m.mtte_minutes)}</b> MTTE</span>` : ''}
-            ${m.mttr_minutes != null ? `<span class="evidence-stat"><b>${fmtDuration(m.mttr_minutes)}</b> MTTR</span>` : ''}
-        </div>`;
+        const m = pm.metrics || {};
+        const metricsHtml = [['MTTD', m.mttd_minutes], ['MTTA', m.mtta_minutes], ['MTTE', m.mtte_minutes], ['MTTR', m.mttr_minutes]]
+            .filter(([, v]) => v != null)
+            .map(([label, v]) => `<div class="metric-card">
+            <div class="metric-card-label">${escHtml(label)}</div>
+            <div class="metric-card-value">${escHtml(fmtDuration(v))}</div>
+        </div>`).join('');
 
-    // Timeline
-    const timelineHtml = (pm.timeline || []).length > 0
-        ? `<div class="timeline-mini">${(pm.timeline||[]).map(e =>
-            `<div class="timeline-row">
+        const timelineHtml = (pm.timeline || []).length
+            ? `<div class="timeline-mini">${(pm.timeline || []).map(e =>
+                `<div class="timeline-row">
                 <span class="timeline-ts">${fmtDate(e.timestamp)}</span>
-                <span class="timeline-ev">${escHtml(e.event||'')} <em style="font-size:11px;color:var(--text-secondary);">[${escHtml(e.source||'')}]</em></span>
+                <span class="timeline-ev">${escHtml(e.event || '')} <em style="font-size:11px;color:var(--text-secondary);">[${escHtml(e.source || '')}]</em></span>
             </div>`).join('')}</div>`
-        : '<p style="font-size:13px;color:var(--text-secondary);">No timeline events.</p>';
+            : '<p style="font-size:13px;color:var(--text-secondary);">No timeline events.</p>';
 
-    // Action items
-    const actionItemsHtml = (pm.action_items || []).length > 0
-        ? (pm.action_items||[]).map(ai => `
+        const actionItemsHtml = (pm.action_items || []).length
+            ? (pm.action_items || []).map(ai => `
             <div class="action-item-row">
-                <span style="flex:1;">${escHtml(ai.description||'')}</span>
-                <span style="min-width:80px;color:var(--text-secondary);">${escHtml(ai.owner||'')}</span>
-                <span style="min-width:80px;color:var(--text-secondary);">${escHtml(ai.due_date||'')}</span>
-                <span class="badge ${ai.status==='done'?'badge-published':ai.status==='in_progress'?'badge-in-review':'badge-draft'}">${escHtml(ai.status||'open')}</span>
+                <span>${escHtml(ai.description || '')}</span>
+                <span style="color:var(--text-secondary);">${escHtml(ai.owner || '')}</span>
+                <span style="color:var(--text-secondary);">${escHtml(ai.due_date || '')}</span>
+                <span class="badge ${ai.status === 'done' ? 'badge-published' : ai.status === 'in_progress' ? 'badge-in-review' : 'badge-draft'}">${escHtml(ai.status || 'open')}</span>
             </div>`).join('')
-        : '<p style="font-size:13px;color:var(--text-secondary);">No action items.</p>';
+            : '<p style="font-size:13px;color:var(--text-secondary);">No action items.</p>';
 
-    // Remediation actions
-    const remHtml = (pm.remediation_actions || []).length > 0
-        ? (pm.remediation_actions||[]).map(ra => `
+        const remHtml = (pm.remediation_actions || []).length
+            ? (pm.remediation_actions || []).map(ra => `
             <div class="action-item-row">
-                <span style="flex:1;">${escHtml(ra.action||'')}</span>
-                <span style="color:var(--text-secondary);">${escHtml(ra.outcome||'')}</span>
+                <span style="flex:1;">${escHtml(ra.action || '')}</span>
+                <span style="color:var(--text-secondary);">${escHtml(ra.outcome || '')}</span>
                 <span style="color:var(--text-secondary);">${ra.duration_minutes != null ? fmtDuration(ra.duration_minutes) : ''}</span>
             </div>`).join('')
-        : '<p style="font-size:13px;color:var(--text-secondary);">No remediation actions recorded.</p>';
+            : '<p style="font-size:13px;color:var(--text-secondary);">No remediation actions recorded.</p>';
 
-    document.getElementById('viewModalBody').innerHTML = `
-        <!-- Meta bar -->
-        <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">
+        document.getElementById('viewModalBody').innerHTML = `
+        <div class="modal-meta-row">
             ${pm.severity ? severityBadge(pm.severity) : ''}
-            <span style="font-size:12px;color:var(--text-secondary);">${anchor}</span>
-            <span style="font-size:12px;color:var(--text-secondary);">
-                ${pm.incident_start ? fmtDate(pm.incident_start) : ''} ${pm.incident_end ? '→ ' + fmtDate(pm.incident_end) : ''}
+            <span class="detail-chip detail-chip-muted">${anchor}</span>
+            <span class="detail-chip detail-chip-muted">
+                ${pm.incident_start ? fmtDate(pm.incident_start) : ''}${pm.incident_end ? ' → ' + fmtDate(pm.incident_end) : ''}
             </span>
+            ${pm.generated_by ? `<span class="detail-chip detail-chip-muted">Generated by ${escHtml(String(pm.generated_by).toUpperCase())}</span>` : ''}
         </div>
 
-        <!-- Tabs -->
         <div class="tab-bar">
             <button class="tab-btn active" onclick="switchTab('summary',this)">Summary</button>
             <button class="tab-btn" onclick="switchTab('timeline',this)">Timeline</button>
@@ -635,107 +1827,121 @@ function renderViewModal(pm) {
             <button class="tab-btn" onclick="switchTab('actions',this)">Action Items</button>
         </div>
 
-        <!-- Summary tab -->
         <div class="tab-panel active" id="tab-summary">
-            ${metricsHtml}
-            ${pm.impact_summary ? `<div class="section-block"><h4>Impact Summary</h4><p class="pm-content">${escHtml(pm.impact_summary)}</p></div>` : ''}
-            ${pm.root_cause ? `<div class="section-block"><h4>Root Cause</h4><p class="pm-content">${escHtml(pm.root_cause)}</p></div>` : ''}
-            ${(pm.contributing_factors||[]).length ? `<div class="section-block"><h4>Contributing Factors</h4><ul style="margin:0;padding-left:18px;">${(pm.contributing_factors||[]).map(f=>`<li style="font-size:13px;margin-bottom:4px;">${escHtml(f)}</li>`).join('')}</ul></div>` : ''}
-            ${pm.lessons_learned ? `<div class="section-block"><h4>Lessons Learned</h4><p class="pm-content">${escHtml(pm.lessons_learned)}</p></div>` : ''}
+            ${metricsHtml ? `<div class="metrics-grid" style="margin-bottom:14px;">${metricsHtml}</div>` : ''}
+            <div class="section-block" style="margin-bottom:12px;">
+                <h4>Impact Summary</h4>
+                <p class="pm-content">${escHtml(pm.impact_summary || 'No impact summary.')}</p>
+            </div>
+            <div class="section-block" style="margin-bottom:12px;">
+                <h4>Root Cause</h4>
+                <p class="pm-content">${escHtml(pm.root_cause || 'No root cause identified.')}</p>
+            </div>
+            ${(pm.contributing_factors || []).length ? `
+            <div class="section-block" style="margin-bottom:12px;">
+                <h4>Contributing Factors</h4>
+                <ul class="plain-list">${(pm.contributing_factors || []).map(f => `<li>${escHtml(f)}</li>`).join('')}</ul>
+            </div>` : ''}
+            ${pm.lessons_learned ? `
+            <div class="section-block">
+                <h4>Lessons Learned</h4>
+                <p class="pm-content">${escHtml(pm.lessons_learned)}</p>
+            </div>` : ''}
         </div>
 
-        <!-- Timeline tab -->
         <div class="tab-panel" id="tab-timeline">
-            <div class="section-block" style="padding:12px;">${timelineHtml}</div>
+            <div class="section-block">${timelineHtml}</div>
         </div>
 
-        <!-- Remediation tab -->
         <div class="tab-panel" id="tab-remediation">
             <div class="section-block"><h4>Remediation Actions</h4>${remHtml}</div>
         </div>
 
-        <!-- Action Items tab -->
         <div class="tab-panel" id="tab-actions">
             <div class="section-block"><h4>Action Items</h4>${actionItemsHtml}</div>
         </div>
     `;
-    feather.replace();
-}
-
-function switchTab(name, btn) {
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-    btn.classList.add('active');
-    const panel = document.getElementById('tab-' + name);
-    if (panel) panel.classList.add('active');
-}
-
-// ── Regenerate ─────────────────────────────────────────────────────────────
-
-async function regenerate(id) {
-    try {
-        const res = await fetch(`/api/postmortems/${id}/regenerate`, {
-            method: 'POST',
-            headers: { Authorization: 'Bearer ' + getToken() }
-        });
-        if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'Error'); }
-        window.showToast('Regenerated!', 'success');
-        loadPostmortems();
-        if (viewingId === id) viewPostmortem(id);
-    } catch(e) { window.showToast('Error: ' + e.message, 'error'); }
-}
-
-function regenerateCurrent() { if (viewingId) regenerate(viewingId); }
-
-// ── Publish ────────────────────────────────────────────────────────────────
-
-async function publishPostmortem() {
-    if (!viewingId) return;
-    try {
-        const res = await fetch(`/api/postmortems/${viewingId}/publish`, {
-            method: 'POST',
-            headers: { Authorization: 'Bearer ' + getToken() }
-        });
-        if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'Error'); }
-        window.showToast('Post-mortem published!', 'success');
-        document.getElementById('publishBtn').style.display = 'none';
-        document.getElementById('viewModalBadge').innerHTML = statusBadge('published');
-        loadPostmortems();
-    } catch(e) { window.showToast('Error: ' + e.message, 'error'); }
-}
-
-// ── Delete ─────────────────────────────────────────────────────────────────
-
-function openDeleteModal(id) { deletingId = id; openModal('deleteModal'); }
-
-async function confirmDelete() {
-    try {
-        const res = await fetch(`/api/postmortems/${deletingId}`, {
-            method: 'DELETE',
-            headers: { Authorization: 'Bearer ' + getToken() }
-        });
-        if (!res.ok) throw new Error(await res.text());
-        window.showToast('Deleted', 'success');
-        closeModal('deleteModal');
-        closeModal('viewModal');
-        loadPostmortems();
-    } catch(e) { window.showToast('Error: ' + e.message, 'error'); }
-}
-
-// ── Init ───────────────────────────────────────────────────────────────────
-
-document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') {
-        closeModal('incidentPickerModal');
-        closeModal('alertGenerateModal');
-        closeModal('viewModal');
-        closeModal('deleteModal');
+        feather.replace();
     }
-});
 
-document.addEventListener('DOMContentLoaded', () => {
-    loadPostmortems();
-    feather.replace();
-});
+    function switchTab(name, btn) {
+        document.querySelectorAll('#viewModalBody .tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('#viewModalBody .tab-panel').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        const panel = document.getElementById('tab-' + name);
+        if (panel) panel.classList.add('active');
+    }
+
+    // ── Regenerate ─────────────────────────────────────────────────────────────
+
+    async function regenerate(id) {
+        try {
+            const res = await fetch(`/api/postmortems/${id}/regenerate`, {
+                method: 'POST',
+                headers: { Authorization: 'Bearer ' + getToken() }
+            });
+            if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'Error'); }
+            window.showToast('Regenerated!', 'success');
+            loadPostmortems();
+            if (viewingId === id) viewPostmortem(id);
+        } catch (e) { window.showToast('Error: ' + e.message, 'error'); }
+    }
+
+    function regenerateCurrent() { if (viewingId) regenerate(viewingId); }
+
+    // ── Publish ────────────────────────────────────────────────────────────────
+
+    async function publishPostmortem() {
+        if (!viewingId) return;
+        try {
+            const res = await fetch(`/api/postmortems/${viewingId}/publish`, {
+                method: 'POST',
+                headers: { Authorization: 'Bearer ' + getToken() }
+            });
+            if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'Error'); }
+            window.showToast('Post-mortem published!', 'success');
+            document.getElementById('publishBtn').style.display = 'none';
+            document.getElementById('viewModalBadge').innerHTML = statusBadge('published');
+            loadPostmortems();
+        } catch (e) { window.showToast('Error: ' + e.message, 'error'); }
+    }
+
+    // ── Delete ─────────────────────────────────────────────────────────────────
+
+    function openDeleteModal(id) {
+        deletingId = id;
+        const pm = allPostmortems.find(p => p.id === id);
+        document.getElementById('deleteReportName').textContent = pm && pm.title
+            ? `"${pm.title}" will be removed permanently.`
+            : 'This action cannot be undone.';
+        openModal('deleteModal');
+    }
+
+    async function confirmDelete() {
+        try {
+            const res = await fetch(`/api/postmortems/${deletingId}`, {
+                method: 'DELETE',
+                headers: { Authorization: 'Bearer ' + getToken() }
+            });
+            if (!res.ok) throw new Error(await res.text());
+            window.showToast('Deleted', 'success');
+            closeModal('deleteModal');
+            closeModal('viewModal');
+            loadPostmortems();
+        } catch (e) { window.showToast('Error: ' + e.message, 'error'); }
+    }
+
+    // ── Init ───────────────────────────────────────────────────────────────────
+
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') {
+            ['incidentPickerModal', 'alertGenerateModal', 'viewModal', 'deleteModal'].forEach(closeModal);
+        }
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+        loadPostmortems();
+        feather.replace();
+    });
 </script>
 {% endblock %}
