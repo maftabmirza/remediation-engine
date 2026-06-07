@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class OrchestratorConfig:
     """Configuration for the orchestrator"""
-    max_iterations: int = 7
+    max_iterations: int = 15
     temperature: float = 0.3
     max_tokens: int = 2000
     enable_streaming: bool = True

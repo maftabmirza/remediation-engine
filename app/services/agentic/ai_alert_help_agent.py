@@ -60,7 +60,7 @@ class AiAlertHelpAgent:
         db: Session,
         provider: LLMProvider,
         alert: Optional[Alert] = None,
-        max_iterations: int = 7,
+        max_iterations: int = 15,
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
         initial_messages: Optional[List[Dict[str, Any]]] = None,

@@ -20,8 +20,16 @@ from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models import Alert, AlertCluster, IncidentMetrics, SolutionOutcome
+from app.models import (
+    Alert,
+    AlertCluster,
+    IncidentMetrics,
+    ServerCredential,
+    SolutionOutcome,
+    TerminalSession,
+)
 from app.models_agent import AgentSession, AgentStep
+from app.models_ai import AISession
 from app.models_incident import Incident, RESOLUTION_GRACE_PERIOD_MINUTES
 from app.models_itsm import ChangeEvent, IncidentEvent
 from app.models_learning import AnalysisFeedback, ExecutionOutcome
@@ -238,6 +246,9 @@ class IncidentService:
         incident.grace_period_ends_at = resolved_at + timedelta(
             minutes=RESOLUTION_GRACE_PERIOD_MINUTES
         )
+        incident.is_eligible_for_postmortem = (
+            incident.grace_period_ends_at <= _utc_now()
+        )
         incident.updated_at = _utc_now()
         await self.db.commit()
         await self.db.refresh(incident)
@@ -375,13 +386,26 @@ class IncidentService:
         # 7. Agent sessions / AI troubleshooting history
         agent_sessions = await self._get_agent_sessions(alerts)
 
-        # 8. Change events near the incident window
+        # 7b. FK-linked agent sessions (direct alert linkage)
+        alert_linked_agent_sessions = await self._get_alert_linked_agent_sessions(alerts)
+        existing_ids = {s.id for s in agent_sessions}
+        for s in alert_linked_agent_sessions:
+            if s.id not in existing_ids:
+                agent_sessions.append(s)
+
+        # 8. Terminal sessions / operator command history
+        terminal_sessions = await self._get_terminal_sessions(alerts)
+
+        # 8b. FK-linked terminal sessions (direct alert_id linkage)
+        alert_linked_terminal_sessions = await self._get_alert_linked_terminal_sessions(alerts)
+
+        # 9. Change events near the incident window
         change_events = await self._get_change_events(
             incident.started_at,
             incident.resolved_at or _utc_now(),
         )
 
-        # 9. ITSM event
+        # 10. ITSM event
         itsm_event: Optional[IncidentEvent] = None
         if incident.itsm_event_id is not None:
             itsm_result = await self.db.execute(
@@ -409,6 +433,9 @@ class IncidentService:
             "analysis_feedback": analysis_feedback,
             "execution_outcomes": execution_outcomes,
             "agent_sessions": agent_sessions,
+            "alert_linked_agent_sessions": alert_linked_agent_sessions,
+            "terminal_sessions": terminal_sessions,
+            "alert_linked_terminal_sessions": alert_linked_terminal_sessions,
             "change_events": change_events,
             "itsm_event": itsm_event,
             "affected_services": incident.affected_services or [],
@@ -435,15 +462,17 @@ class IncidentService:
             Incident for this alert.
         """
         if alert.correlation_id is not None:
-            return await self.assemble_from_correlation(alert.correlation_id)
+            incident = await self.assemble_from_correlation(alert.correlation_id)
+            return await self._reconcile_incident_with_alert(incident, alert)
 
         if alert.cluster_id is not None:
-            return await self.assemble_from_cluster(alert.cluster_id)
+            incident = await self.assemble_from_cluster(alert.cluster_id)
+            return await self._reconcile_incident_with_alert(incident, alert)
 
         # Standalone incident from a single alert
         existing = await self._find_incident_for_alert(alert.id)
         if existing is not None:
-            return existing
+            return await self._reconcile_incident_with_alert(existing, alert)
 
         inc_status = "resolved" if alert.status == "resolved" else "open"
         resolved_at: Optional[datetime] = None
@@ -469,6 +498,19 @@ class IncidentService:
         self.db.add(incident)
         await self.db.commit()
         await self.db.refresh(incident)
+        return incident
+
+    async def _reconcile_incident_with_alert(
+        self, incident: Incident, alert: Alert
+    ) -> Incident:
+        """Update incident resolution state to reflect the current alert state."""
+        if alert.status == "resolved" and incident.status != "resolved":
+            return await self.mark_resolved(
+                incident.id,
+                resolved_at=alert.timestamp or _utc_now(),
+            )
+        if incident.status == "resolved":
+            await self.check_and_mark_eligible(incident.id)
         return incident
 
     # ------------------------------------------------------------------
@@ -504,7 +546,27 @@ class IncidentService:
             return await self._find_incident_for_correlation(alert.correlation_id)
         if alert.cluster_id:
             return await self._find_incident_for_cluster(alert.cluster_id)
-        return None
+        return await self._find_standalone_incident_for_alert(alert)
+
+    async def _find_standalone_incident_for_alert(
+        self, alert: Alert
+    ) -> Optional[Incident]:
+        """Find the latest standalone incident that matches a standalone alert."""
+        affected_services = _extract_affected_services([alert])
+        result = await self.db.execute(
+            select(Incident)
+            .where(
+                and_(
+                    Incident.correlation_id.is_(None),
+                    Incident.cluster_id.is_(None),
+                    Incident.itsm_event_id.is_(None),
+                    Incident.title == f"Incident: {alert.alert_name}",
+                    Incident.affected_services == affected_services,
+                )
+            )
+            .order_by(Incident.created_at.desc())
+        )
+        return result.scalar_one_or_none()
 
     async def _get_incident_alerts(self, incident: Incident) -> List[Alert]:
         """Return all alerts that belong to this incident."""
@@ -520,6 +582,23 @@ class IncidentService:
                 select(Alert).where(Alert.cluster_id == incident.cluster_id)
             )
             alerts = list(result.scalars().all())
+        else:
+            # Standalone incident — find alerts by name + time window
+            prefix = "Incident: "
+            if incident.title and incident.title.startswith(prefix):
+                alert_name = incident.title[len(prefix):]
+                window_start = incident.started_at - timedelta(hours=1)
+                window_end = (incident.resolved_at or _utc_now()) + timedelta(hours=1)
+                result = await self.db.execute(
+                    select(Alert).where(
+                        and_(
+                            Alert.alert_name == alert_name,
+                            Alert.timestamp >= window_start,
+                            Alert.timestamp <= window_end,
+                        )
+                    )
+                )
+                alerts = list(result.scalars().all())
 
         return alerts
 
@@ -575,14 +654,148 @@ class IncidentService:
     ) -> List[AgentSession]:
         if not alerts:
             return []
+
+        hostnames = sorted(
+            {
+                (alert.instance or "").split(":", 1)[0]
+                for alert in alerts
+                if getattr(alert, "instance", None)
+            }
+        )
+        if not hostnames:
+            return []
+
+        earliest = min(
+            (alert.timestamp for alert in alerts if alert.timestamp is not None),
+            default=_utc_now(),
+        ) - timedelta(hours=1)
+        latest = max(
+            (alert.timestamp for alert in alerts if alert.timestamp is not None),
+            default=_utc_now(),
+        ) + timedelta(hours=1)
+
+        server_result = await self.db.execute(
+            select(ServerCredential.id).where(ServerCredential.hostname.in_(hostnames))
+        )
+        server_ids = list(server_result.scalars().all())
+        if not server_ids:
+            return []
+
+        result = await self.db.execute(
+            select(AgentSession)
+            .options(selectinload(AgentSession.steps))
+            .where(
+                and_(
+                    AgentSession.server_id.in_(server_ids),
+                    AgentSession.created_at >= earliest,
+                    AgentSession.created_at <= latest,
+                )
+            )
+            .order_by(AgentSession.created_at)
+        )
+        return list(result.scalars().all())
+
+    async def _get_alert_linked_agent_sessions(
+        self, alerts: List[Alert]
+    ) -> List[AgentSession]:
+        """Find agent sessions directly linked to alerts via AISession context."""
+        if not alerts:
+            return []
         alert_ids = [a.id for a in alerts]
         result = await self.db.execute(
             select(AgentSession)
             .options(selectinload(AgentSession.steps))
-            .where(AgentSession.alert_id.in_(alert_ids))
-            .order_by(AgentSession.started_at)
+            .join(AISession, AgentSession.chat_session_id == AISession.id)
+            .where(
+                and_(
+                    AISession.context_type == "alert",
+                    AISession.context_id.in_(alert_ids),
+                )
+            )
+            .order_by(AgentSession.created_at)
         )
         return list(result.scalars().all())
+
+    async def _get_alert_linked_terminal_sessions(
+        self, alerts: List[Alert]
+    ) -> List[TerminalSession]:
+        """Find terminal sessions directly linked to alerts via alert_id FK."""
+        if not alerts:
+            return []
+        alert_ids = [a.id for a in alerts]
+        result = await self.db.execute(
+            select(TerminalSession)
+            .options(
+                selectinload(TerminalSession.server),
+                selectinload(TerminalSession.user),
+            )
+            .where(TerminalSession.alert_id.in_(alert_ids))
+            .order_by(TerminalSession.started_at)
+        )
+        return list(result.scalars().all())
+
+    async def _get_terminal_sessions(
+        self, alerts: List[Alert]
+    ) -> List[TerminalSession]:
+        if not alerts:
+            return []
+
+        alert_ids = [alert.id for alert in alerts]
+        linked_result = await self.db.execute(
+            select(TerminalSession)
+            .options(selectinload(TerminalSession.server), selectinload(TerminalSession.user))
+            .where(TerminalSession.alert_id.in_(alert_ids))
+            .order_by(TerminalSession.started_at)
+        )
+        linked_sessions = list(linked_result.scalars().all())
+        linked_ids = {
+            session.id for session in linked_sessions if getattr(session, "id", None) is not None
+        }
+
+        hostnames = sorted(
+            {
+                (alert.instance or "").split(":", 1)[0]
+                for alert in alerts
+                if getattr(alert, "instance", None)
+            }
+        )
+        if not hostnames:
+            return linked_sessions
+
+        earliest = min(
+            (alert.timestamp for alert in alerts if alert.timestamp is not None),
+            default=_utc_now(),
+        ) - timedelta(hours=1)
+        latest = max(
+            (alert.timestamp for alert in alerts if alert.timestamp is not None),
+            default=_utc_now(),
+        ) + timedelta(hours=1)
+
+        server_result = await self.db.execute(
+            select(ServerCredential.id).where(ServerCredential.hostname.in_(hostnames))
+        )
+        server_ids = list(server_result.scalars().all())
+        if not server_ids:
+            return linked_sessions
+
+        window_result = await self.db.execute(
+            select(TerminalSession)
+            .options(selectinload(TerminalSession.server), selectinload(TerminalSession.user))
+            .where(
+                and_(
+                    TerminalSession.server_credential_id.in_(server_ids),
+                    TerminalSession.started_at >= earliest,
+                    TerminalSession.started_at <= latest,
+                )
+            )
+            .order_by(TerminalSession.started_at)
+        )
+
+        sessions = list(linked_sessions)
+        for session in window_result.scalars().all():
+            if getattr(session, "id", None) not in linked_ids:
+                sessions.append(session)
+        return sessions
 
     async def _get_change_events(
         self,

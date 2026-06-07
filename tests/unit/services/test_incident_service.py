@@ -253,6 +253,31 @@ async def test_mark_resolved_sets_fields():
     assert updated.status == "resolved"
     assert updated.resolved_at == resolved_at
     assert updated.grace_period_ends_at is not None
+    assert updated.is_eligible_for_postmortem is False
+
+
+# ---------------------------------------------------------------------------
+# mark_resolved — historical resolution timestamps can be immediately eligible
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_mark_resolved_sets_eligibility_when_grace_already_elapsed():
+    svc = _make_service()
+    incident = MagicMock()
+    incident.id = uuid4()
+    incident.status = "open"
+
+    result = MagicMock()
+    result.scalar_one_or_none.return_value = incident
+    svc.db.execute = AsyncMock(return_value=result)
+    svc.db.commit = AsyncMock()
+    svc.db.refresh = AsyncMock()
+
+    updated = await svc.mark_resolved(incident.id, resolved_at=_utc(-45))
+
+    assert updated.status == "resolved"
+    assert updated.is_eligible_for_postmortem is True
 
 
 # ---------------------------------------------------------------------------
@@ -320,15 +345,19 @@ async def test_find_or_create_incident_correlation_path():
     existing_incident.id = uuid4()
     existing_incident.correlation_id = corr_id
 
-    # Mock assemble_from_correlation to return existing_incident
     with patch.object(
         svc,
         "assemble_from_correlation",
         new=AsyncMock(return_value=existing_incident),
-    ):
+    ), patch.object(
+        svc,
+        "_reconcile_incident_with_alert",
+        new=AsyncMock(return_value=existing_incident),
+    ) as mock_reconcile:
         incident = await svc.find_or_create_incident_for_alert(alert)
 
     assert incident is existing_incident
+    mock_reconcile.assert_awaited_once_with(existing_incident, alert)
 
 
 # ---------------------------------------------------------------------------
@@ -349,10 +378,15 @@ async def test_find_or_create_incident_cluster_fallback():
         svc,
         "assemble_from_cluster",
         new=AsyncMock(return_value=existing_incident),
-    ):
+    ), patch.object(
+        svc,
+        "_reconcile_incident_with_alert",
+        new=AsyncMock(return_value=existing_incident),
+    ) as mock_reconcile:
         incident = await svc.find_or_create_incident_for_alert(alert)
 
     assert incident is existing_incident
+    mock_reconcile.assert_awaited_once_with(existing_incident, alert)
 
 
 # ---------------------------------------------------------------------------
@@ -377,6 +411,90 @@ async def test_find_or_create_incident_standalone():
     svc.db.add.assert_called_once()
     assert incident.title == f"Incident: {alert.alert_name}"
     assert incident.status == "resolved"
+
+
+# ---------------------------------------------------------------------------
+# find_or_create_incident_for_alert — resolved standalone alert resolves open incident
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_find_or_create_incident_resolves_matching_standalone_incident():
+    svc = _make_service()
+    alert = _make_alert(correlation_id=None, cluster_id=None, status="resolved")
+    existing_incident = MagicMock()
+    existing_incident.id = uuid4()
+    existing_incident.status = "open"
+
+    with patch.object(
+        svc,
+        "_find_incident_for_alert",
+        new=AsyncMock(return_value=existing_incident),
+    ), patch.object(
+        svc,
+        "mark_resolved",
+        new=AsyncMock(return_value=existing_incident),
+    ) as mock_mark_resolved:
+        incident = await svc.find_or_create_incident_for_alert(alert)
+
+    assert incident is existing_incident
+    mock_mark_resolved.assert_awaited_once_with(
+        existing_incident.id,
+        resolved_at=alert.timestamp,
+    )
+
+
+# ---------------------------------------------------------------------------
+# _reconcile_incident_with_alert — resolved alert resolves open incident
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_reconcile_incident_with_alert_resolves_open_incident():
+    svc = _make_service()
+    alert = _make_alert(status="resolved")
+    incident = MagicMock()
+    incident.id = uuid4()
+    incident.status = "open"
+
+    with patch.object(
+        svc,
+        "mark_resolved",
+        new=AsyncMock(return_value=incident),
+    ) as mock_mark_resolved:
+        result = await svc._reconcile_incident_with_alert(incident, alert)
+
+    assert result is incident
+    mock_mark_resolved.assert_awaited_once_with(
+        incident.id,
+        resolved_at=alert.timestamp,
+    )
+
+
+# ---------------------------------------------------------------------------
+# _find_incident_for_alert — standalone alerts reconcile through standalone query
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_find_incident_for_alert_uses_standalone_lookup_without_grouping():
+    svc = _make_service()
+    alert = _make_alert(correlation_id=None, cluster_id=None)
+    alert_result = MagicMock()
+    alert_result.scalar_one_or_none.return_value = alert
+    standalone_incident = MagicMock()
+
+    svc.db.execute = AsyncMock(return_value=alert_result)
+
+    with patch.object(
+        svc,
+        "_find_standalone_incident_for_alert",
+        new=AsyncMock(return_value=standalone_incident),
+    ) as mock_find_standalone:
+        incident = await svc._find_incident_for_alert(alert.id)
+
+    assert incident is standalone_incident
+    mock_find_standalone.assert_awaited_once_with(alert)
 
 
 # ---------------------------------------------------------------------------
@@ -408,7 +526,9 @@ async def test_get_evidence_returns_bundle_structure():
     # 5. _get_analysis_feedback
     # 6. _get_execution_outcomes
     # 7. _get_agent_sessions
-    # 8. _get_change_events
+    # 8. _get_terminal_sessions linked lookup
+    # 9. _get_terminal_sessions server-id lookup
+    # 10. _get_change_events
     # itsm_event_id is None → no extra query
 
     inc_result = MagicMock()
@@ -429,6 +549,8 @@ async def test_get_evidence_returns_bundle_structure():
             empty_result,     # _get_analysis_feedback
             empty_result,     # _get_execution_outcomes
             empty_result,     # _get_agent_sessions
+            empty_result,     # _get_terminal_sessions linked lookup
+            empty_result,     # _get_terminal_sessions server-id lookup
             empty_result,     # _get_change_events
         ]
     )
@@ -440,7 +562,134 @@ async def test_get_evidence_returns_bundle_structure():
     assert isinstance(evidence["timeline"], list)
     assert isinstance(evidence["runbook_executions"], list)
     assert isinstance(evidence["change_events"], list)
+    assert isinstance(evidence["terminal_sessions"], list)
     assert evidence["affected_services"] == ["node_exporter", "server-01"]
     # MTTR = resolved_at - started_at ≈ 60 minutes
     assert evidence["mttr_minutes"] is not None
     assert evidence["mttr_minutes"] > 0
+
+
+# ---------------------------------------------------------------------------
+# _get_agent_sessions — no hostnames means no query work
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_get_agent_sessions_returns_empty_without_instances():
+    svc = _make_service()
+    alert = _make_alert()
+    alert.instance = None
+
+    sessions = await svc._get_agent_sessions([alert])
+
+    assert sessions == []
+    svc.db.execute.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# _get_agent_sessions — no matching servers returns empty
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_get_agent_sessions_returns_empty_without_matching_servers():
+    svc = _make_service()
+    alert = _make_alert()
+
+    empty_server_result = MagicMock()
+    empty_server_result.scalars.return_value.all.return_value = []
+    svc.db.execute = AsyncMock(return_value=empty_server_result)
+
+    sessions = await svc._get_agent_sessions([alert])
+
+    assert sessions == []
+    svc.db.execute.assert_awaited_once()
+
+
+# ---------------------------------------------------------------------------
+# _get_agent_sessions — looks up sessions by server_id and time window
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_get_agent_sessions_uses_server_mapping_and_created_at_window():
+    svc = _make_service()
+    alert = _make_alert(fired_at=_utc(-45))
+    session = MagicMock()
+    session.id = uuid4()
+
+    server_result = MagicMock()
+    server_result.scalars.return_value.all.return_value = [uuid4()]
+    session_result = MagicMock()
+    session_result.scalars.return_value.all.return_value = [session]
+    svc.db.execute = AsyncMock(side_effect=[server_result, session_result])
+
+    sessions = await svc._get_agent_sessions([alert])
+
+    assert sessions == [session]
+    assert svc.db.execute.await_count == 2
+
+
+# ---------------------------------------------------------------------------
+# _get_terminal_sessions — no alerts means no query work
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_get_terminal_sessions_returns_empty_without_alerts():
+    svc = _make_service()
+
+    sessions = await svc._get_terminal_sessions([])
+
+    assert sessions == []
+    svc.db.execute.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# _get_terminal_sessions — linked alert sessions are returned directly
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_get_terminal_sessions_returns_linked_alert_sessions():
+    svc = _make_service()
+    alert = _make_alert()
+    terminal_session = MagicMock()
+    terminal_session.id = uuid4()
+
+    linked_result = MagicMock()
+    linked_result.scalars.return_value.all.return_value = [terminal_session]
+    server_result = MagicMock()
+    server_result.scalars.return_value.all.return_value = []
+    svc.db.execute = AsyncMock(side_effect=[linked_result, server_result])
+
+    sessions = await svc._get_terminal_sessions([alert])
+
+    assert sessions == [terminal_session]
+    assert svc.db.execute.await_count == 2
+
+
+# ---------------------------------------------------------------------------
+# _get_terminal_sessions — falls back to server/time-window correlation
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_get_terminal_sessions_uses_server_mapping_and_time_window():
+    svc = _make_service()
+    alert = _make_alert(fired_at=_utc(-45))
+    terminal_session = MagicMock()
+    terminal_session.id = uuid4()
+
+    linked_result = MagicMock()
+    linked_result.scalars.return_value.all.return_value = []
+    server_result = MagicMock()
+    server_result.scalars.return_value.all.return_value = [uuid4()]
+    window_result = MagicMock()
+    window_result.scalars.return_value.all.return_value = [terminal_session]
+    svc.db.execute = AsyncMock(side_effect=[linked_result, server_result, window_result])
+
+    sessions = await svc._get_terminal_sessions([alert])
+
+    assert sessions == [terminal_session]
+    assert svc.db.execute.await_count == 3

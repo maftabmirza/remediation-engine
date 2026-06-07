@@ -60,7 +60,7 @@ class NativeToolAgent:
         db: Session,
         provider: LLMProvider,
         alert: Optional[Alert] = None,
-        max_iterations: int = 7,
+        max_iterations: int = 15,
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
         initial_messages: Optional[List[Dict[str, Any]]] = None,
@@ -1340,7 +1340,38 @@ Tools called so far will be tracked. If you try to suggest a command without suf
                     return
 
             # Max iterations
-            yield "\n\n*[Max tool iterations reached]*"
+            logger.warning(f"Agent reached max iterations ({self.max_iterations}) in stream")
+            yield f"\n\n*[Max tool iterations reached ({self.max_iterations}) - Compiling final analysis from available data]*\n\n"
+            
+            # Force a final response without tools
+            self.messages.append({
+                "role": "user",
+                "content": "[SYSTEM CRITICAL]: You have reached the maximum allowed tool iterations. You MUST now provide a final response summarizing your findings and recommending next steps based ONLY on the data you have gathered so far. DO NOT call any more tools. Provide the best possible actionable advice."
+            })
+            
+            # Save original tools
+            original_tools = self.tool_registry.get_openai_tools
+            
+            # Temporarily disable tools for the final call to force a text response
+            self.tool_registry.get_openai_tools = lambda: []
+            self.tool_registry.get_anthropic_tools = lambda: []
+            
+            try:
+                response = await self._call_llm()
+                message = response.choices[0].message
+                content = message.content or "I reached my tool limit but could not generate a final summary."
+                
+                final_content = self._ensure_runbook_links_in_final(content)
+                
+                self.messages.append({
+                    "role": "assistant",
+                    "content": final_content
+                })
+                
+                yield final_content
+            finally:
+                # Restore tools (though this instance is probably done anyway)
+                self.tool_registry.get_openai_tools = original_tools
 
         except Exception as e:
             # Enhanced error logging to debug connection issues

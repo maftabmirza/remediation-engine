@@ -73,7 +73,8 @@ async def get_session_by_alert(
                     "user_id": str(session.user_id),
                     "title": session.title,
                     "created_at": session.created_at.isoformat(),
-                    "llm_provider_id": session.context_context_json.get("llm_provider_id")
+                    "llm_provider_id": session.context_context_json.get("llm_provider_id"),
+                    "alert_id": alert_id
                 }
         
         raise HTTPException(status_code=404, detail="Session not found for this alert")
@@ -153,7 +154,8 @@ async def create_chat_session(
     return {
         "id": str(session_id),
         "user_id": str(current_user.id),
-        "created_at": new_session.created_at.isoformat()
+        "created_at": new_session.created_at.isoformat(),
+        "alert_id": str(context_id) if context_type == 'alert' and context_id else None
     }
 
 

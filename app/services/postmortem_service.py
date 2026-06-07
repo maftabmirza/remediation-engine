@@ -23,6 +23,8 @@ Incident-first generation:
 """
 import json
 import logging
+import os
+import re
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 from uuid import UUID
@@ -32,8 +34,9 @@ from sqlalchemy import and_, select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session, selectinload
 
+from app.config import get_settings
 from app.database import SessionLocal
-from app.models import Alert, IncidentMetrics, SolutionOutcome
+from app.models import Alert, IncidentMetrics, SolutionOutcome, TerminalSession
 from app.models_agent import AgentSession, AgentStep
 from app.models_learning import AnalysisFeedback, ExecutionOutcome
 from app.models_postmortem import PostmortemReport
@@ -92,6 +95,7 @@ class PostmortemService:
         incident_id: UUID,
         created_by: UUID,
         app_id: Optional[UUID] = None,
+        skip_eligibility_check: bool = False,
     ) -> PostmortemReport:
         """
         Generate a draft postmortem from the full incident evidence bundle.
@@ -117,6 +121,10 @@ class PostmortemService:
         inc_svc = IncidentService(self.db)
         evidence = await inc_svc.get_evidence(incident_id)
         incident = evidence["incident"]
+
+        if not skip_eligibility_check:
+            self._ensure_incident_is_generatable(incident)
+        await self._ensure_no_existing_incident_postmortem(incident_id)
 
         # Build the evidence snapshot for the LLM (also builds remediation_actions)
         gathered = self._build_gathered_from_evidence(evidence)
@@ -196,6 +204,7 @@ class PostmortemService:
             incident_id=incident.id,
             created_by=created_by,
             app_id=app_id,
+            skip_eligibility_check=True,
         )
 
         # Preserve alert_id for lineage / backward compatibility
@@ -263,6 +272,12 @@ class PostmortemService:
         report = await self.get(postmortem_id)
 
         update_dict = data.model_dump(exclude_unset=True)
+        if "status" in update_dict:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Use the publish endpoint to change postmortem status",
+            )
+
         for field, value in update_dict.items():
             # Serialise nested Pydantic models to plain dicts/lists for JSONB storage
             if isinstance(value, list):
@@ -329,12 +344,40 @@ class PostmortemService:
         report.action_items = llm_output.get("action_items", [])
         report.lessons_learned = llm_output.get("lessons_learned", "")
         report.timeline = merged_timeline
+        report.metrics = gathered.get("metrics", {})
+        report.remediation_actions = gathered.get("remediation_actions", [])
         report.out_of_band_context = preserved_oob
         report.updated_at = _utc_now()
 
         await self.db.commit()
         await self.db.refresh(report)
         return report
+
+    def _ensure_incident_is_generatable(self, incident: Any) -> None:
+        """Reject postmortem generation for incidents that are not yet eligible."""
+        grace_elapsed = (
+            incident.grace_period_ends_at is not None
+            and incident.grace_period_ends_at <= _utc_now()
+        )
+        is_eligible = bool(incident.is_eligible_for_postmortem or grace_elapsed)
+
+        if incident.status != "resolved" or not is_eligible:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Incident is not yet eligible for postmortem generation",
+            )
+
+    async def _ensure_no_existing_incident_postmortem(self, incident_id: UUID) -> None:
+        """Reject duplicate postmortem generation for the same incident."""
+        result = await self.db.execute(
+            select(PostmortemReport).where(PostmortemReport.incident_id == incident_id)
+        )
+        existing = result.scalar_one_or_none()
+        if existing is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Incident {incident_id} already has a postmortem report",
+            )
 
     async def _regenerate_by_incident(self, report: PostmortemReport) -> PostmortemReport:
         """
@@ -364,6 +407,11 @@ class PostmortemService:
         report.action_items = llm_output.get("action_items", [])
         report.lessons_learned = llm_output.get("lessons_learned", "")
         report.timeline = merged_timeline
+        report.metrics = gathered.get("metrics", {})
+        report.remediation_actions = gathered.get("remediation_actions", [])
+        report.incident_start = evidence["incident"].started_at
+        report.incident_end = evidence["incident"].resolved_at
+        report.severity = evidence["incident"].severity
         report.out_of_band_context = preserved_oob
         report.updated_at = _utc_now()
 
@@ -440,6 +488,10 @@ class PostmortemService:
         executions = evidence.get("runbook_executions", [])
         change_events = evidence.get("change_events", [])
         agent_sessions = evidence.get("agent_sessions", [])
+        terminal_sessions = evidence.get("terminal_sessions", [])
+        # FK-linked sessions (directly associated with the alert)
+        linked_agent_sessions = evidence.get("alert_linked_agent_sessions", agent_sessions)
+        linked_terminal_sessions = evidence.get("alert_linked_terminal_sessions", terminal_sessions)
         itsm_event = evidence.get("itsm_event")
 
         # Add step execution events to the timeline
@@ -458,24 +510,53 @@ class PostmortemService:
 
         # Add agent session summaries
         for session in agent_sessions:
-            if session.started_at:
+            session_started_at = getattr(session, "created_at", None)
+            if session_started_at:
                 steps_summary = []
                 for step in getattr(session, "steps", []) or []:
-                    if step.tool_name:
-                        steps_summary.append(step.tool_name)
+                    step_label = getattr(step, "step_type", None) or "step"
+                    step_content = getattr(step, "content", None) or ""
+                    if step_content:
+                        steps_summary.append(f"{step_label}:{step_content[:40]}")
+                    else:
+                        steps_summary.append(step_label)
                 tool_str = ", ".join(steps_summary[:5])
                 timeline.append(
                     {
-                        "timestamp": session.started_at.isoformat(),
+                        "timestamp": session_started_at.isoformat(),
                         "event": f"AI troubleshooting session (tools: {tool_str or 'none'})",
                         "source": "agent_session",
                         "manual": False,
                     }
                 )
 
+        for terminal_session in terminal_sessions:
+            terminal_started_at = getattr(terminal_session, "started_at", None)
+            if terminal_started_at:
+                commands = _extract_terminal_commands_from_recording(
+                    getattr(terminal_session, "recording_path", None),
+                    limit=3,
+                )
+                server_name = _terminal_session_server_name(terminal_session)
+                command_str = "; ".join(commands) if commands else "interactive terminal activity recorded"
+                timeline.append(
+                    {
+                        "timestamp": terminal_started_at.isoformat(),
+                        "event": f"Terminal session on {server_name}: {command_str}",
+                        "source": "terminal_session",
+                        "manual": False,
+                    }
+                )
+
         timeline.sort(key=lambda e: e.get("timestamp", ""))
 
-        remediation_actions = _build_remediation_actions(executions)
+        remediation_actions = _build_remediation_actions(
+            executions,
+            agent_sessions=linked_agent_sessions,
+            terminal_sessions=linked_terminal_sessions,
+            change_events=change_events,
+            incident=incident,
+        )
 
         # Build LLM snapshot
         change_summaries = [
@@ -511,6 +592,44 @@ class PostmortemService:
                 "service": itsm_event.service_name,
             }
 
+        # Build detailed remediation evidence for the LLM
+        # Use only FK-linked sessions — directly associated with the alert
+        remediation_evidence: List[Dict[str, Any]] = []
+        for session in linked_agent_sessions:
+            steps_detail = []
+            for step in getattr(session, "steps", []) or []:
+                step_entry: Dict[str, Any] = {
+                    "step_type": getattr(step, "step_type", None),
+                    "command": (getattr(step, "content", None) or "")[:300],
+                    "status": getattr(step, "status", None),
+                }
+                output = getattr(step, "output", None)
+                if output:
+                    step_entry["output"] = output[:500]
+                exit_code = getattr(step, "exit_code", None)
+                if exit_code is not None:
+                    step_entry["exit_code"] = exit_code
+                steps_detail.append(step_entry)
+            remediation_evidence.append({
+                "source": "agent_session",
+                "goal": getattr(session, "goal", None),
+                "summary": getattr(session, "summary", None),
+                "status": getattr(session, "status", None),
+                "steps": steps_detail[:20],
+            })
+
+        for ts in linked_terminal_sessions:
+            commands = _extract_terminal_commands_from_recording(
+                getattr(ts, "recording_path", None), limit=10,
+            )
+            server_name = _terminal_session_server_name(ts)
+            if commands:
+                remediation_evidence.append({
+                    "source": "terminal_session",
+                    "server": server_name,
+                    "commands": commands,
+                })
+
         snapshot: Dict[str, Any] = {
             "incident_title": incident.title,
             "incident_status": incident.status,
@@ -522,7 +641,9 @@ class PostmortemService:
             "alerts": alert_snapshots,
             "timeline": timeline,
             "remediation_actions": remediation_actions,
+            "remediation_evidence": remediation_evidence,
             "change_events": change_summaries,
+            "terminal_sessions_count": len(terminal_sessions),
             "itsm_event": itsm_summary,
             "mttr_minutes": evidence.get("mttr_minutes"),
         }
@@ -746,9 +867,16 @@ class PostmortemService:
 # Module-level helpers (pure functions — no DB access)
 # ------------------------------------------------------------------
 
-def _build_remediation_actions(executions: list) -> List[Dict[str, Any]]:
-    """Build remediation_actions list from RunbookExecution records."""
+def _build_remediation_actions(
+    executions: list,
+    agent_sessions: Optional[list] = None,
+    terminal_sessions: Optional[list] = None,
+    change_events: Optional[list] = None,
+    incident: Optional[Any] = None,
+) -> List[Dict[str, Any]]:
+    """Build remediation_actions from runbooks, agent sessions, and fallback incident evidence."""
     actions: List[Dict[str, Any]] = []
+
     for ex in executions:
         entry: Dict[str, Any] = {
             "action": f"Executed runbook (id={ex.runbook_id})",
@@ -760,4 +888,168 @@ def _build_remediation_actions(executions: list) -> List[Dict[str, Any]]:
             delta = ex.completed_at - ex.started_at
             entry["duration_minutes"] = round(delta.total_seconds() / 60, 2)
         actions.append(entry)
+
+    for session in agent_sessions or []:
+        session_summary = getattr(session, "summary", None)
+        if not isinstance(session_summary, str) or not session_summary.strip():
+            session_summary = None
+
+        session_goal = getattr(session, "goal", None)
+        if not isinstance(session_goal, str) or not session_goal.strip():
+            session_goal = None
+
+        command_steps = []
+        for step in getattr(session, "steps", []) or []:
+            step_type = getattr(step, "step_type", None) or "step"
+            step_content = (getattr(step, "content", None) or "").strip()
+            if step_content:
+                command_steps.append(f"{step_type}: {step_content}")
+            else:
+                command_steps.append(step_type)
+
+        action_text = (
+            session_summary
+            or "; ".join(command_steps[:3])
+            or session_goal
+            or "AI troubleshooting session executed"
+        )
+
+        duration_minutes = None
+        created_at = getattr(session, "created_at", None)
+        completed_at = getattr(session, "completed_at", None)
+        if created_at and completed_at:
+            duration_minutes = round((completed_at - created_at).total_seconds() / 60, 2)
+
+        actions.append(
+            {
+                "action": action_text[:240],
+                "runbook_id": None,
+                "outcome": getattr(session, "status", None),
+                "duration_minutes": duration_minutes,
+            }
+        )
+
+    for terminal_session in terminal_sessions or []:
+        commands = _extract_terminal_commands_from_recording(
+            getattr(terminal_session, "recording_path", None),
+            limit=3,
+        )
+        server_name = _terminal_session_server_name(terminal_session)
+        action_text = "; ".join(commands)
+        if not action_text:
+            action_text = f"Interactive terminal session recorded on {server_name}"
+
+        actions.append(
+            {
+                "action": action_text[:240],
+                "runbook_id": None,
+                "outcome": "recorded",
+                "duration_minutes": _td_minutes(
+                    getattr(terminal_session, "started_at", None),
+                    getattr(terminal_session, "ended_at", None),
+                ),
+            }
+        )
+
+    if not actions and change_events:
+        latest_change = max(
+            change_events,
+            key=lambda change: getattr(change, "timestamp", None) or datetime.min.replace(tzinfo=timezone.utc),
+        )
+        duration_minutes = None
+        change_timestamp = getattr(latest_change, "timestamp", None)
+        resolved_at = getattr(incident, "resolved_at", None) if incident is not None else None
+        if change_timestamp and resolved_at:
+            duration_minutes = round((resolved_at - change_timestamp).total_seconds() / 60, 2)
+
+        change_label = getattr(latest_change, "change_id", None) or "recorded change"
+        change_description = (getattr(latest_change, "description", None) or "").strip()
+        action_text = f"Manual recovery following {change_label}"
+        if change_description:
+            action_text = f"{action_text}: {change_description}"
+
+        actions.append(
+            {
+                "action": action_text[:240],
+                "runbook_id": None,
+                "outcome": "resolved" if getattr(incident, "status", None) == "resolved" else "recorded",
+                "duration_minutes": duration_minutes,
+            }
+        )
+
+    if not actions and getattr(incident, "status", None) == "resolved":
+        actions.append(
+            {
+                "action": "Incident resolved through manual operator intervention; no tracked runbook or agent session was recorded.",
+                "runbook_id": None,
+                "outcome": "resolved",
+                "duration_minutes": None,
+            }
+        )
+
     return actions
+
+
+def _terminal_session_server_name(session: Any) -> str:
+    """Return a human-friendly server label for a terminal session."""
+    server = getattr(session, "server", None)
+    if server is None:
+        return str(getattr(session, "server_credential_id", "server"))
+    return (
+        getattr(server, "hostname", None)
+        or getattr(server, "name", None)
+        or str(getattr(session, "server_credential_id", "server"))
+    )
+
+
+def _read_terminal_recording(recording_path: Optional[str], max_bytes: int = 50_000) -> str:
+    """Safely read terminal transcript content from the configured recording directory."""
+    if not recording_path:
+        return ""
+
+    recording_dir = os.path.abspath(get_settings().recording_dir)
+    path = os.path.abspath(recording_path)
+    if not path.startswith(recording_dir + os.sep) and path != recording_dir:
+        return ""
+    if not os.path.exists(path):
+        return ""
+
+    try:
+        with open(path, "rb") as handle:
+            return handle.read(max_bytes).decode("utf-8", errors="replace")
+    except OSError:
+        return ""
+
+
+def _extract_terminal_commands_from_recording(
+    recording_path: Optional[str],
+    limit: int = 5,
+) -> List[str]:
+    """Extract shell command lines from a terminal transcript."""
+    content = _read_terminal_recording(recording_path)
+    if not content:
+        return []
+
+    ansi_re = re.compile(r"\x1B\[[0-?]*[ -/]*[@-~]")
+    commands: List[str] = []
+    seen: set[str] = set()
+
+    for raw_line in content.splitlines():
+        line = ansi_re.sub("", raw_line).strip()
+        command = None
+        if line.startswith("> "):
+            command = line[2:].strip()
+        elif line.startswith("$ "):
+            command = line[2:].strip()
+        elif line.startswith("# "):
+            command = line[2:].strip()
+
+        if not command or command in seen:
+            continue
+
+        seen.add(command)
+        commands.append(command)
+        if len(commands) >= limit:
+            break
+
+    return commands

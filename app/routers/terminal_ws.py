@@ -4,6 +4,7 @@ import asyncio
 import logging
 import os
 from datetime import datetime, timezone
+from typing import Optional
 from uuid import UUID
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Query
 from sqlalchemy.orm import Session
@@ -62,6 +63,7 @@ async def terminal_adhoc_websocket(
     port: int = Query(22),
     username: str = Query(...),
     password: str = Query(None),
+    alert_id: Optional[UUID] = Query(None),
     cols: int = Query(80, ge=10, le=500),
     rows: int = Query(24, ge=5, le=200),
     db: Session = Depends(get_db)
@@ -192,6 +194,7 @@ async def terminal_websocket(
     websocket: WebSocket,
     server_id: UUID,
     token: str = Query(...),
+    alert_id: Optional[UUID] = Query(None),
     cols: int = Query(80, ge=10, le=500),
     rows: int = Query(24, ge=5, le=200),
     db: Session = Depends(get_db)
@@ -230,12 +233,38 @@ async def terminal_websocket(
     protocol = server.protocol or 'ssh'
     
     if protocol == 'winrm':
-        await _handle_winrm_terminal(websocket, server_id, server, user, cols, rows, db)
+        await _handle_winrm_terminal(
+            websocket,
+            server_id,
+            server,
+            user,
+            cols,
+            rows,
+            db,
+            alert_id=alert_id,
+        )
     else:
-        await _handle_ssh_terminal(websocket, server_id, user, cols, rows, db)
+        await _handle_ssh_terminal(
+            websocket,
+            server_id,
+            user,
+            cols,
+            rows,
+            db,
+            alert_id=alert_id,
+        )
 
 
-async def _handle_winrm_terminal(websocket: WebSocket, server_id: UUID, server, user, cols: int, rows: int, db: Session):
+async def _handle_winrm_terminal(
+    websocket: WebSocket,
+    server_id: UUID,
+    server,
+    user,
+    cols: int,
+    rows: int,
+    db: Session,
+    alert_id: Optional[UUID] = None,
+):
     """Handle WinRM terminal session."""
     winrm_client = None
     session_record = None
@@ -275,6 +304,7 @@ async def _handle_winrm_terminal(websocket: WebSocket, server_id: UUID, server, 
         session_record = TerminalSession(
             user_id=user.id,
             server_credential_id=server_id,
+            alert_id=alert_id,
             recording_path=filepath
         )
         db.add(session_record)
@@ -456,7 +486,15 @@ async def _handle_winrm_terminal(websocket: WebSocket, server_id: UUID, server, 
         await safe_close(websocket)
 
 
-async def _handle_ssh_terminal(websocket: WebSocket, server_id: UUID, user, cols: int, rows: int, db: Session):
+async def _handle_ssh_terminal(
+    websocket: WebSocket,
+    server_id: UUID,
+    user,
+    cols: int,
+    rows: int,
+    db: Session,
+    alert_id: Optional[UUID] = None,
+):
     """Handle SSH terminal session."""
     ssh_client = None
     process = None
@@ -507,6 +545,7 @@ async def _handle_ssh_terminal(websocket: WebSocket, server_id: UUID, user, cols
         session_record = TerminalSession(
             user_id=user.id,
             server_credential_id=server_id,
+            alert_id=alert_id,
             recording_path=filepath
         )
         db.add(session_record)
@@ -557,6 +596,7 @@ async def _handle_ssh_terminal(websocket: WebSocket, server_id: UUID, user, cols
 
         async def forward_input():
             """Read from WebSocket and send to SSH stdin."""
+            command_buffer = ""
             try:
                 while True:
                     data = await websocket.receive_text()
@@ -573,6 +613,22 @@ async def _handle_ssh_terminal(websocket: WebSocket, server_id: UUID, user, cols
                                 continue
                         except json.JSONDecodeError:
                             pass  # Not JSON, treat as regular input
+
+                    if recording_enabled:
+                        for char in data:
+                            if char in ('\r', '\n'):
+                                if command_buffer.strip():
+                                    try:
+                                        recording_queue.put_nowait(f"\n$ {command_buffer.strip()}\n")
+                                    except asyncio.QueueFull:
+                                        logger.warning("Recording queue full, dropping command")
+                                command_buffer = ""
+                            elif char in ('\x7f', '\b'):
+                                command_buffer = command_buffer[:-1]
+                            elif char == '\x03':
+                                command_buffer = ""
+                            elif ord(char) >= 32:
+                                command_buffer += char
                     
                     if process and process.stdin:
                         process.stdin.write(data)

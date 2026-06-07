@@ -151,7 +151,7 @@ async def get_incident_evidence(
 async def generate_postmortem_by_incident(
     data: PostmortemGenerateByIncident,
     db: AsyncSession = Depends(get_async_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_role(["admin", "engineer"])),
 ) -> PostmortemReportResponse:
     """
     AI-generate a draft postmortem report anchored to the given incident.
@@ -182,7 +182,7 @@ async def generate_postmortem_by_incident(
 async def generate_postmortem(
     data: PostmortemReportCreate,
     db: AsyncSession = Depends(get_async_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_role(["admin", "engineer"])),
 ) -> PostmortemReportResponse:
     """
     AI-generate a draft postmortem report for the specified alert.
@@ -284,7 +284,7 @@ async def update_postmortem(
     postmortem_id: UUID,
     data: PostmortemReportUpdate,
     db: AsyncSession = Depends(get_async_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_role(["admin", "engineer"])),
 ) -> PostmortemReportResponse:
     """Partially update an existing postmortem report."""
     svc = PostmortemService(db)
@@ -304,7 +304,7 @@ async def update_postmortem(
 async def regenerate_postmortem(
     postmortem_id: UUID,
     db: AsyncSession = Depends(get_async_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_role(["admin", "engineer"])),
 ) -> PostmortemReportResponse:
     """
     Re-run AI generation for all narrative sections.
@@ -330,7 +330,7 @@ async def add_out_of_band_context(
     postmortem_id: UUID,
     entry: OutOfBandContextAdd,
     db: AsyncSession = Depends(get_async_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_role(["admin", "engineer"])),
 ) -> PostmortemReportResponse:
     """Append a manual context entry to the postmortem."""
     svc = PostmortemService(db)

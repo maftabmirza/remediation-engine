@@ -1,7 +1,9 @@
 """
 Unit tests for PostmortemService.
 """
+from importlib import import_module
 import json
+from pathlib import Path
 import pytest
 from datetime import datetime, timezone, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -23,7 +25,24 @@ def _make_alert(name: str = "HighCPU", fired_at=None):
     alert.timestamp = fired_at or _utc(-60)
     alert.annotations_json = {"summary": "CPU over 90%"}
     alert.labels_json = {"env": "production"}
+    alert.status = "resolved"
+    alert.correlation_id = None
+    alert.cluster_id = None
     return alert
+
+
+def _make_incident(status: str = "resolved", eligible: bool = True):
+    incident = MagicMock()
+    incident.id = uuid4()
+    incident.title = "High CPU on server-01"
+    incident.status = status
+    incident.severity = "critical"
+    incident.started_at = _utc(-90)
+    incident.resolved_at = _utc(-30) if status == "resolved" else None
+    incident.grace_period_ends_at = _utc(-1) if eligible else _utc(+30)
+    incident.is_eligible_for_postmortem = eligible
+    incident.affected_services = ["node_exporter"]
+    return incident
 
 
 def _make_execution(alert_id, started_offset=-50, completed_offset=-40):
@@ -44,6 +63,23 @@ def _make_service():
 
     db = AsyncMock()
     return PostmortemService(db)
+
+
+def _make_terminal_session(recording_path: str = "/tmp/terminal.log"):
+    session = MagicMock()
+    session.id = uuid4()
+    session.started_at = _utc(-20)
+    session.ended_at = _utc(-10)
+    session.recording_path = recording_path
+    session.server_credential_id = uuid4()
+    session.server = MagicMock()
+    session.server.hostname = "74.208.225.85"
+    return session
+
+
+def _patch_incident_service():
+    incident_module = import_module("app.services.incident_service")
+    return patch.object(incident_module, "IncidentService")
 
 
 # ---------------------------------------------------------------------------
@@ -78,17 +114,35 @@ async def test_generate_llm_failure_raises_502():
     alert = _make_alert()
     alert_result = MagicMock()
     alert_result.scalar_one_or_none.return_value = alert
+    no_existing_report = MagicMock()
+    no_existing_report.scalar_one_or_none.return_value = None
+    incident = _make_incident()
+    evidence = {
+        "incident": incident,
+        "alerts": [alert],
+        "timeline": [],
+        "runbook_executions": [],
+        "incident_metrics": [],
+        "analysis_feedback": [],
+        "execution_outcomes": [],
+        "agent_sessions": [],
+        "change_events": [],
+        "itsm_event": None,
+        "affected_services": incident.affected_services,
+        "mttr_minutes": 60.0,
+    }
 
-    # Executions call returns empty
-    empty_result = MagicMock()
-    empty_result.scalars.return_value.all.return_value = []
+    svc.db.execute = AsyncMock(side_effect=[alert_result, no_existing_report])
 
-    svc.db.execute = AsyncMock(side_effect=[alert_result, empty_result])
+    with _patch_incident_service() as MockIncSvc:
+        mock_inc_svc = MockIncSvc.return_value
+        mock_inc_svc.find_or_create_incident_for_alert = AsyncMock(return_value=incident)
+        mock_inc_svc.get_evidence = AsyncMock(return_value=evidence)
 
-    with patch.object(svc, "_call_llm", new=AsyncMock(side_effect=HTTPException(status_code=502, detail="LLM error"))):
-        with pytest.raises(HTTPException) as exc_info:
-            await svc.generate(alert_id=alert.id, created_by=uuid4())
-        assert exc_info.value.status_code == 502
+        with patch.object(svc, "_call_llm", new=AsyncMock(side_effect=HTTPException(status_code=502, detail="LLM error"))):
+            with pytest.raises(HTTPException) as exc_info:
+                await svc.generate(alert_id=alert.id, created_by=uuid4())
+            assert exc_info.value.status_code == 502
 
 
 # ---------------------------------------------------------------------------
@@ -106,11 +160,25 @@ async def test_generate_with_full_data_populates_all_sections():
 
     alert_result = MagicMock()
     alert_result.scalar_one_or_none.return_value = alert
+    no_existing_report = MagicMock()
+    no_existing_report.scalar_one_or_none.return_value = None
+    incident = _make_incident()
+    evidence = {
+        "incident": incident,
+        "alerts": [alert],
+        "timeline": [],
+        "runbook_executions": [ex],
+        "incident_metrics": [],
+        "analysis_feedback": [],
+        "execution_outcomes": [],
+        "agent_sessions": [],
+        "change_events": [],
+        "itsm_event": None,
+        "affected_services": incident.affected_services,
+        "mttr_minutes": 60.0,
+    }
 
-    exec_result = MagicMock()
-    exec_result.scalars.return_value.all.return_value = [ex]
-
-    svc.db.execute = AsyncMock(side_effect=[alert_result, exec_result])
+    svc.db.execute = AsyncMock(side_effect=[alert_result, no_existing_report])
 
     llm_output = {
         "impact_summary": "Service degraded for 10 minutes.",
@@ -126,8 +194,13 @@ async def test_generate_with_full_data_populates_all_sections():
     svc.db.commit = AsyncMock()
     svc.db.refresh = AsyncMock()
 
-    with patch.object(svc, "_call_llm", new=AsyncMock(return_value=llm_output)):
-        report = await svc.generate(alert_id=alert.id, created_by=uuid4())
+    with _patch_incident_service() as MockIncSvc:
+        mock_inc_svc = MockIncSvc.return_value
+        mock_inc_svc.find_or_create_incident_for_alert = AsyncMock(return_value=incident)
+        mock_inc_svc.get_evidence = AsyncMock(return_value=evidence)
+
+        with patch.object(svc, "_call_llm", new=AsyncMock(return_value=llm_output)):
+            report = await svc.generate(alert_id=alert.id, created_by=uuid4())
 
     assert report.impact_summary == "Service degraded for 10 minutes."
     assert report.root_cause == "Memory leak in the application pod."
@@ -144,17 +217,31 @@ async def test_generate_with_full_data_populates_all_sections():
 @pytest.mark.unit
 @pytest.mark.asyncio
 async def test_generate_with_partial_data_no_executions():
-    """generate() with only alert data produces a valid draft with empty executions."""
+    """generate() with only alert data produces a valid draft with manual remediation fallback."""
     svc = _make_service()
     alert = _make_alert()
 
     alert_result = MagicMock()
     alert_result.scalar_one_or_none.return_value = alert
+    no_existing_report = MagicMock()
+    no_existing_report.scalar_one_or_none.return_value = None
+    incident = _make_incident()
+    evidence = {
+        "incident": incident,
+        "alerts": [alert],
+        "timeline": [],
+        "runbook_executions": [],
+        "incident_metrics": [],
+        "analysis_feedback": [],
+        "execution_outcomes": [],
+        "agent_sessions": [],
+        "change_events": [],
+        "itsm_event": None,
+        "affected_services": incident.affected_services,
+        "mttr_minutes": 60.0,
+    }
 
-    empty_exec = MagicMock()
-    empty_exec.scalars.return_value.all.return_value = []
-
-    svc.db.execute = AsyncMock(side_effect=[alert_result, empty_exec])
+    svc.db.execute = AsyncMock(side_effect=[alert_result, no_existing_report])
     svc.db.add = MagicMock()
     svc.db.commit = AsyncMock()
     svc.db.refresh = AsyncMock()
@@ -167,10 +254,16 @@ async def test_generate_with_partial_data_no_executions():
         "action_items": [],
     }
 
-    with patch.object(svc, "_call_llm", new=AsyncMock(return_value=llm_output)):
-        report = await svc.generate(alert_id=alert.id, created_by=uuid4())
+    with _patch_incident_service() as MockIncSvc:
+        mock_inc_svc = MockIncSvc.return_value
+        mock_inc_svc.find_or_create_incident_for_alert = AsyncMock(return_value=incident)
+        mock_inc_svc.get_evidence = AsyncMock(return_value=evidence)
 
-    assert report.remediation_actions == []
+        with patch.object(svc, "_call_llm", new=AsyncMock(return_value=llm_output)):
+            report = await svc.generate(alert_id=alert.id, created_by=uuid4())
+
+    assert len(report.remediation_actions) == 1
+    assert "manual operator intervention" in report.remediation_actions[0]["action"]
     assert report.status == "draft"
 
 
@@ -228,6 +321,7 @@ async def test_regenerate_preserves_manual_oob_context():
     # Existing report with manual oob context
     report = MagicMock()
     report.id = postmortem_id
+    report.incident_id = None
     report.alert_id = alert.id
     report.status = "draft"
     report.out_of_band_context = [
@@ -372,6 +466,8 @@ async def test_generate_by_incident_happy_path():
     incident.severity = "critical"
     incident.started_at = _utc(-90)
     incident.resolved_at = _utc(-30)
+    incident.grace_period_ends_at = _utc(-1)
+    incident.is_eligible_for_postmortem = True
     incident.affected_services = ["node_exporter"]
 
     evidence = {
@@ -404,14 +500,13 @@ async def test_generate_by_incident_happy_path():
     svc.db.add = MagicMock()
     svc.db.commit = AsyncMock()
     svc.db.refresh = AsyncMock()
+    no_existing_report = MagicMock()
+    no_existing_report.scalar_one_or_none.return_value = None
+    svc.db.execute = AsyncMock(return_value=no_existing_report)
 
-    with patch(
-        "app.services.postmortem_service.IncidentService",
-        autospec=True,
-    ) as MockIncSvc:
-        mock_inc_svc_instance = AsyncMock()
+    with _patch_incident_service() as MockIncSvc:
+        mock_inc_svc_instance = MockIncSvc.return_value
         mock_inc_svc_instance.get_evidence = AsyncMock(return_value=evidence)
-        MockIncSvc.return_value = mock_inc_svc_instance
 
         with patch.object(svc, "_call_llm", new=AsyncMock(return_value=llm_output)):
             report = await svc.generate_by_incident(
@@ -450,15 +545,11 @@ async def test_generate_alert_compat_delegates_to_incident():
     mock_report.incident_id = incident_id
     mock_report.alert_id = None
 
-    with patch(
-        "app.services.postmortem_service.IncidentService",
-        autospec=True,
-    ) as MockIncSvc:
-        mock_inc_svc_instance = AsyncMock()
+    with _patch_incident_service() as MockIncSvc:
+        mock_inc_svc_instance = MockIncSvc.return_value
         mock_inc_svc_instance.find_or_create_incident_for_alert = AsyncMock(
             return_value=mock_incident
         )
-        MockIncSvc.return_value = mock_inc_svc_instance
 
         with patch.object(
             svc,
@@ -503,3 +594,259 @@ async def test_regenerate_uses_incident_path_when_incident_id_set():
 
     mock_regen.assert_called_once_with(report)
     assert updated is report
+
+
+# ---------------------------------------------------------------------------
+# Test: generate_by_incident rejects incidents that are not yet eligible
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_generate_by_incident_rejects_ineligible_incident():
+    """generate_by_incident() rejects incidents that are not yet eligible."""
+    svc = _make_service()
+    incident = _make_incident(status="open", eligible=False)
+    evidence = {
+        "incident": incident,
+        "alerts": [],
+        "timeline": [],
+        "runbook_executions": [],
+        "incident_metrics": [],
+        "analysis_feedback": [],
+        "execution_outcomes": [],
+        "agent_sessions": [],
+        "change_events": [],
+        "itsm_event": None,
+        "affected_services": [],
+        "mttr_minutes": None,
+    }
+
+    with _patch_incident_service() as MockIncSvc:
+        mock_inc_svc = MockIncSvc.return_value
+        mock_inc_svc.get_evidence = AsyncMock(return_value=evidence)
+
+        with pytest.raises(HTTPException) as exc_info:
+            await svc.generate_by_incident(incident.id, created_by=uuid4())
+
+    assert exc_info.value.status_code == 409
+
+
+# ---------------------------------------------------------------------------
+# Test: generate_by_incident rejects duplicates for the same incident
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_generate_by_incident_rejects_duplicate_report():
+    """generate_by_incident() rejects duplicate postmortems for the same incident."""
+    svc = _make_service()
+    incident = _make_incident()
+    evidence = {
+        "incident": incident,
+        "alerts": [],
+        "timeline": [],
+        "runbook_executions": [],
+        "incident_metrics": [],
+        "analysis_feedback": [],
+        "execution_outcomes": [],
+        "agent_sessions": [],
+        "change_events": [],
+        "itsm_event": None,
+        "affected_services": [],
+        "mttr_minutes": 60.0,
+    }
+    existing_report = MagicMock()
+    existing_result = MagicMock()
+    existing_result.scalar_one_or_none.return_value = existing_report
+    svc.db.execute = AsyncMock(return_value=existing_result)
+
+    with _patch_incident_service() as MockIncSvc:
+        mock_inc_svc = MockIncSvc.return_value
+        mock_inc_svc.get_evidence = AsyncMock(return_value=evidence)
+
+        with pytest.raises(HTTPException) as exc_info:
+            await svc.generate_by_incident(incident.id, created_by=uuid4())
+
+    assert exc_info.value.status_code == 409
+
+
+# ---------------------------------------------------------------------------
+# Test: incident regeneration refreshes incident-derived fields
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_regenerate_by_incident_refreshes_metrics_and_window():
+    """Incident regeneration refreshes metrics and incident window from fresh evidence."""
+    svc = _make_service()
+    report = MagicMock()
+    report.id = uuid4()
+    report.incident_id = uuid4()
+    report.out_of_band_context = [
+        {"source": "manual", "content": "keep", "timestamp": _utc(-10).isoformat()}
+    ]
+    report.timeline = [
+        {"timestamp": _utc(-50).isoformat(), "event": "User note", "source": "manual", "manual": True}
+    ]
+
+    report_result = MagicMock()
+    report_result.scalar_one_or_none.return_value = report
+    svc.db.execute = AsyncMock(return_value=report_result)
+    svc.db.commit = AsyncMock()
+    svc.db.refresh = AsyncMock()
+
+    incident = _make_incident()
+    incident.started_at = _utc(-120)
+    incident.resolved_at = _utc(-15)
+    incident.severity = "warning"
+    evidence = {
+        "incident": incident,
+        "alerts": [],
+        "timeline": [
+            {"timestamp": _utc(-120).isoformat(), "event": "Alert fired", "source": "alert", "manual": False}
+        ],
+        "runbook_executions": [],
+        "incident_metrics": [],
+        "analysis_feedback": [],
+        "execution_outcomes": [],
+        "agent_sessions": [],
+        "change_events": [],
+        "itsm_event": None,
+        "affected_services": ["node_exporter"],
+        "mttr_minutes": 105.0,
+    }
+    llm_output = {
+        "impact_summary": "Updated summary.",
+        "root_cause": "Updated root cause.",
+        "contributing_factors": ["Factor A"],
+        "lessons_learned": "Updated lessons.",
+        "action_items": [],
+    }
+
+    with _patch_incident_service() as MockIncSvc:
+        mock_inc_svc = MockIncSvc.return_value
+        mock_inc_svc.get_evidence = AsyncMock(return_value=evidence)
+
+        with patch.object(svc, "_call_llm", new=AsyncMock(return_value=llm_output)):
+            updated = await svc.regenerate(report.id)
+
+    assert updated.metrics["mttr_minutes"] == 105.0
+    assert updated.incident_start == incident.started_at
+    assert updated.incident_end == incident.resolved_at
+    assert updated.severity == "warning"
+
+
+# ---------------------------------------------------------------------------
+# Test: gathered evidence uses current agent session fields in timeline
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+def test_build_gathered_from_evidence_summarizes_agent_sessions_from_created_at():
+    """Agent session timeline entries use created_at and current AgentStep fields."""
+    svc = _make_service()
+    incident = _make_incident()
+    session = MagicMock()
+    session.created_at = _utc(-20)
+
+    step = MagicMock()
+    step.step_type = "command"
+    step.content = "apache2ctl configtest"
+    session.steps = [step]
+
+    evidence = {
+        "incident": incident,
+        "alerts": [],
+        "timeline": [],
+        "runbook_executions": [],
+        "change_events": [],
+        "agent_sessions": [session],
+        "terminal_sessions": [],
+        "itsm_event": None,
+        "mttr_minutes": 60.0,
+    }
+
+    gathered = svc._build_gathered_from_evidence(evidence)
+
+    assert gathered["timeline"]
+    assert gathered["timeline"][0]["source"] == "agent_session"
+    assert "apache2ctl configtest" in gathered["timeline"][0]["event"]
+    assert gathered["remediation_actions"]
+    assert "apache2ctl configtest" in gathered["remediation_actions"][0]["action"]
+
+
+# ---------------------------------------------------------------------------
+# Test: gathered evidence falls back to manual recovery action from change events
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+def test_build_gathered_from_evidence_uses_change_event_for_manual_remediation():
+    """Resolved incidents with no runbooks or agent sessions still expose a manual recovery action."""
+    svc = _make_service()
+    incident = _make_incident()
+
+    change_event = MagicMock()
+    change_event.change_id = "CHG-APACHE-123"
+    change_event.description = "Rollback Apache virtual host change"
+    change_event.timestamp = _utc(-40)
+
+    evidence = {
+        "incident": incident,
+        "alerts": [],
+        "timeline": [],
+        "runbook_executions": [],
+        "change_events": [change_event],
+        "agent_sessions": [],
+        "terminal_sessions": [],
+        "itsm_event": None,
+        "mttr_minutes": 60.0,
+    }
+
+    gathered = svc._build_gathered_from_evidence(evidence)
+
+    assert gathered["remediation_actions"]
+    assert gathered["remediation_actions"][0]["outcome"] == "resolved"
+    assert "CHG-APACHE-123" in gathered["remediation_actions"][0]["action"]
+
+
+# ---------------------------------------------------------------------------
+# Test: gathered evidence uses terminal recording commands as real remediation data
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+def test_build_gathered_from_evidence_uses_terminal_recording_commands(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Terminal session recordings are parsed into real remediation actions."""
+    svc = _make_service()
+    incident = _make_incident()
+    recording_path = tmp_path / "terminal.log"
+    recording_path.write_text("$ apache2ctl configtest\nSyntax OK\n$ systemctl restart apache2\n", encoding="utf-8")
+
+    terminal_session = _make_terminal_session(str(recording_path))
+
+    class _Settings:
+        recording_dir = str(tmp_path)
+
+    monkeypatch.setattr("app.services.postmortem_service.get_settings", lambda: _Settings())
+
+    evidence = {
+        "incident": incident,
+        "alerts": [],
+        "timeline": [],
+        "runbook_executions": [],
+        "change_events": [],
+        "agent_sessions": [],
+        "terminal_sessions": [terminal_session],
+        "itsm_event": None,
+        "mttr_minutes": 60.0,
+    }
+
+    gathered = svc._build_gathered_from_evidence(evidence)
+
+    assert gathered["timeline"]
+    assert gathered["timeline"][0]["source"] == "terminal_session"
+    assert "apache2ctl configtest" in gathered["timeline"][0]["event"]
+    assert gathered["remediation_actions"]
+    assert "apache2ctl configtest" in gathered["remediation_actions"][0]["action"]
+    assert "systemctl restart apache2" in gathered["remediation_actions"][0]["action"]

@@ -6,7 +6,7 @@ Uses NativeToolAgent for interactive terminal + AI conversations
 with tool-calling capabilities.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Body
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import Optional, List, Dict, Any, AsyncGenerator
@@ -225,13 +225,25 @@ async def troubleshoot_chat(
         db.commit()
         
         from app.services.agentic.tools.registry import create_troubleshooting_registry
+        from app.models import Alert
+        
+        # Load alert context if present
+        context_alert = None
+        if ai_session.context_type == "alert" and ai_session.context_id:
+            try:
+                alert_uuid = uuid.UUID(str(ai_session.context_id))
+                context_alert = db.query(Alert).filter(Alert.id == alert_uuid).first()
+                if context_alert:
+                    logger.info(f"Loaded alert context {context_alert.id} for session")
+            except Exception as e:
+                logger.error(f"Error fetching alert context: {e}")
         
         # Create the Troubleshoot Agent with conversation history
         # Pass PIIMappingManager for consistent PII redaction in tool outputs
         agent = TroubleshootNativeAgent(
             db=db,
             provider=provider,
-            alert=None,  # No specific alert context
+            alert=context_alert,
             initial_messages=initial_messages,
             registry_factory=create_troubleshooting_registry,
             pii_mapping_manager=pii_manager
@@ -288,7 +300,7 @@ async def troubleshoot_chat(
 
 @router.post("/chat/stream")
 async def troubleshoot_chat_stream(
-    request: dict,
+    request: dict = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -485,12 +497,25 @@ async def troubleshoot_chat_stream(
             db.add(user_msg)
             db.commit()
             
+            from app.models import Alert
+            
+            # Load alert context if present
+            context_alert = None
+            if ai_session.context_type == "alert" and ai_session.context_id:
+                try:
+                    alert_uuid = uuid.UUID(str(ai_session.context_id))
+                    context_alert = db.query(Alert).filter(Alert.id == alert_uuid).first()
+                    if context_alert:
+                        logger.info(f"Loaded alert context {context_alert.id} for session")
+                except Exception as e:
+                    logger.error(f"Error fetching alert context: {e}")
+            
             # Create agent with history and troubleshooting-specific tools
             # Pass PIIMappingManager for consistent PII redaction in tool outputs
             agent = TroubleshootNativeAgent(
                 db=db,
                 provider=provider,
-                alert=None,
+                alert=context_alert,
                 initial_messages=initial_messages,
                 registry_factory=create_troubleshooting_registry,
                 pii_mapping_manager=pii_manager
@@ -594,26 +619,41 @@ async def list_troubleshoot_providers(
 
 @router.post("/sessions")
 async def create_troubleshoot_session(
-    request: dict = None,
+    request: dict = Body(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Create a new troubleshooting session."""
+    logger.info(f"CREATE SESSION HIT. Incoming request dict: {request}")
+    context_type = "standalone"
+    context_id = None
+    title = "Troubleshooting Session"
+
+    if request:
+        context_type = request.get("context_type", "standalone")
+        if request.get("context_id"):
+            try:
+                context_id = uuid.UUID(request.get("context_id"))
+            except ValueError:
+                pass
+        title = request.get("title", title)
+
     session = AISession(
         user_id=current_user.id,
         pillar="troubleshooting",
-        context_type="standalone",
-        title="Troubleshooting Session"
+        context_type=context_type,
+        context_id=context_id,
+        title=title
     )
     db.add(session)
     db.commit()
     db.refresh(session)
     logger.info(f"Created new session {session.id} for user {current_user.username}")
-    
     return {
         "id": str(session.id),
         "title": session.title,
-        "llm_provider_id": None
+        "llm_provider_id": None,
+        "alert_id": str(session.context_id) if session.context_type == "alert" and session.context_id else None
     }
 
 
@@ -648,7 +688,8 @@ async def get_standalone_session(
     return {
         "id": str(session.id),
         "title": session.title,
-        "llm_provider_id": llm_provider_id
+        "llm_provider_id": llm_provider_id,
+        "alert_id": str(session.context_id) if session.context_type == "alert" and session.context_id else None
     }
 
 @router.get("/sessions/{session_id}/messages")

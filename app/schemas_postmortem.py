@@ -106,9 +106,6 @@ class PostmortemReportUpdate(BaseModel):
     """
 
     title: Optional[str] = Field(None, max_length=500)
-    status: Optional[str] = Field(
-        None, description="draft | in_review | published"
-    )
     severity: Optional[str] = None
     incident_start: Optional[datetime] = None
     incident_end: Optional[datetime] = None
@@ -121,6 +118,8 @@ class PostmortemReportUpdate(BaseModel):
     lessons_learned: Optional[str] = None
     out_of_band_context: Optional[List[OutOfBandContextEntry]] = None
     metrics: Optional[IncidentMetricsSummary] = None
+
+    model_config = ConfigDict(extra="forbid")
 
 
 class OutOfBandContextAdd(BaseModel):
