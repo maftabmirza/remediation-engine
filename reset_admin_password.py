@@ -10,7 +10,8 @@ from sqlalchemy import create_engine, text
 
 # Hash the password
 pwd_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
-password_hash = pwd_context.hash('Passw0rd')
+password_to_set = 'PassZini@2025'
+password_hash = pwd_context.hash(password_to_set)
 
 # Connect to database
 db_url = os.environ.get('DATABASE_URL', 'postgresql://aiops:aiops_secure_password@postgres:5432/aiops')
@@ -26,7 +27,7 @@ with engine.connect() as conn:
     print(f'✅ Admin password reset successfully!')
     print(f'   Rows updated: {result.rowcount}')
     print(f'   Username: admin')
-    print(f'   Password: Passw0rd')
+    print(f'   Password: {password_to_set}')
     print()
 
 # Test login
@@ -34,7 +35,7 @@ print('Testing login...')
 try:
     response = requests.post(
         'http://localhost:8080/api/auth/login',
-        json={'username': 'admin', 'password': 'Passw0rd'},
+        json={'username': 'admin', 'password': password_to_set},
         timeout=5
     )
     if response.status_code == 200:

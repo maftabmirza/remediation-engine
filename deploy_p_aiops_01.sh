@@ -237,6 +237,17 @@ echo "========================================="
 echo "Checking if migrations were applied..."
 docker-compose logs remediation-engine | grep -i "atlas\|migration" || echo "No Atlas migration logs found"
 
+echo ""
+echo "========================================="
+echo "Step 9: Deploy Verification"
+echo "========================================="
+
+if command -v python3 &> /dev/null; then
+    python3 scripts/verify_deploy.py --mode "${AIOPS_DEPLOY_VERIFY_MODE:-warn}" --base-url "http://localhost:8080"
+else
+    echo "⚠️  WARNING: python3 not available; skipping deploy verification"
+fi
+
 ENDSSH
 
 echo ""

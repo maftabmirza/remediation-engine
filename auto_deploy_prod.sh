@@ -43,4 +43,11 @@ ssh -o StrictHostKeyChecking=no $SERVER "
   
   echo \"📜 Step 5: Recent Logs\"
   docker logs remediation-engine --tail 50
+
+  echo "🧪 Step 6: Deploy Verification"
+  if command -v python3 >/dev/null 2>&1; then
+    python3 scripts/verify_deploy.py --mode "\${AIOPS_DEPLOY_VERIFY_MODE:-warn}" --base-url "http://localhost:8080"
+  else
+    echo "⚠️ Warning: python3 not available; skipping deploy verification"
+  fi
 "

@@ -58,12 +58,12 @@ scrape_configs:
   # Apache Exporter
   - job_name: 'apache-exporter'
     static_configs:
-      - targets: ['15.204.233.209:9117']
+      - targets: ['15.204.233.209:9117', '74.208.225.85:9117']
 
   # Node Exporter metrics (Host stats)
   - job_name: 'node-exporter'
     static_configs:
-      - targets: ['aiops-node-exporter:9100', '15.204.233.209:9100']
+      - targets: ['aiops-node-exporter:9100', '15.204.233.209:9100', '74.208.225.85:9100']
 
   # AIOps application metrics (if you add a /metrics endpoint)
   - job_name: 'aiops'

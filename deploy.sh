@@ -105,6 +105,15 @@ for i in {1..30}; do
     sleep 2
 done
 
+echo ""
+echo "Step 8: Running deploy verification..."
+VERIFY_MODE="${AIOPS_DEPLOY_VERIFY_MODE:-warn}"
+if command -v python3 >/dev/null 2>&1; then
+    python3 scripts/verify_deploy.py --mode "$VERIFY_MODE" --base-url "http://localhost:8080"
+else
+    echo -e "${YELLOW}Warning: python3 not available; skipping deploy verification.${NC}"
+fi
+
 # Get server IP
 SERVER_IP=$(hostname -I | awk '{print $1}')
 

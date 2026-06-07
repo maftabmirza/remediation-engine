@@ -60,3 +60,33 @@ groups:
       annotations:
         summary: "Apache Service Down"
         description: "Apache web server is down on {{ $labels.instance }}."
+
+    - alert: ApacheExporterDown74_208_225_85
+      expr: up{job="apache-exporter", instance="74.208.225.85:9117"} == 0
+      for: 1m
+      labels:
+        severity: critical
+        service: apache
+      annotations:
+        summary: "Apache exporter unreachable on 74.208.225.85"
+        description: "Prometheus cannot scrape apache_exporter on 74.208.225.85:9117."
+
+    - alert: NodeExporterDown74_208_225_85
+      expr: up{job="node-exporter", instance="74.208.225.85:9100"} == 0
+      for: 1m
+      labels:
+        severity: warning
+        service: host
+      annotations:
+        summary: "Node exporter unreachable on 74.208.225.85"
+        description: "Prometheus cannot scrape node_exporter on 74.208.225.85:9100."
+
+    - alert: HighCpu74_208_225_85
+      expr: 100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle", instance="74.208.225.85:9100"}[5m])) * 100) > 85
+      for: 10m
+      labels:
+        severity: warning
+        service: host
+      annotations:
+        summary: "High CPU on 74.208.225.85"
+        description: "CPU utilization on 74.208.225.85 has been above 85% for 10 minutes."
